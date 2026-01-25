@@ -1,0 +1,69 @@
+<%- include('partials/header') %>
+
+<div class="max-w-screen-xl mx-auto px-4 md:px-0 pb-12">
+    
+    <div class="flex items-center justify-between mb-8 pt-6">
+        <h1 class="text-3xl font-bold text-neutral-900 dark:text-white transition-colors">
+            <%= t('collection.title') %> 
+            <span class="text-neutral-500 dark:text-neutral-400 text-lg font-normal transition-colors">
+                (<%= albums.length %>)
+            </span>
+        </h1>
+        
+        <div class="relative hidden md:block w-64">
+            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                <i class="fa-solid fa-search text-neutral-400 dark:text-neutral-500 transition-colors"></i>
+            </div>
+            <input type="text" id="filterInput" class="block w-full p-2.5 pl-10 text-sm text-neutral-900 dark:text-white border border-neutral-300 dark:border-neutral-700 rounded-lg bg-gray-50 dark:bg-neutral-800 focus:ring-green-500 focus:border-green-500 placeholder-neutral-500 transition-colors" placeholder="<%= t('collection.filter_placeholder') %>">
+        </div>
+    </div>
+
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6" id="albumGrid">
+        <% albums.forEach(album => { %>
+            <div class="album-card group relative bg-white dark:bg-neutral-900 rounded-lg border border-neutral-200 dark:border-neutral-800 hover:border-green-500/50 transition-all duration-300 hover:shadow-lg dark:hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)]">
+                <a href="/album/<%= album._id %>" class="block">
+                    <div class="aspect-square w-full overflow-hidden rounded-t-lg relative">
+                        <img src="<%= album.cover_image %>" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy">
+                        
+                        <span class="absolute bottom-2 left-2 bg-black/70 backdrop-blur-sm text-white text-[10px] px-2 py-1 rounded border border-white/10">
+                            <% 
+                                let mediatype = t('media.vinyl'); 
+                                if (album.media_type === 'cd') {
+                                    mediatype = t('media.cd');
+                                } else if (album.media_type === 'cassette') {
+                                    mediatype = t('media.cassette');
+                                }
+                            %>
+                            <%= mediatype %>
+                        </span>
+                    </div>
+
+                    <div class="p-3">
+                        <h3 class="text-neutral-900 dark:text-white font-bold text-sm truncate transition-colors" title="<%= album.title %>"><%= album.title %></h3>
+                        <p class="text-neutral-500 dark:text-neutral-400 text-xs truncate mb-2 transition-colors"><%= album.artist %></p>
+                        
+                        <% if(album.variant_color) { %>
+                            <div class="flex items-center gap-1">
+                                <span class="w-2 h-2 rounded-full bg-green-500 inline-block flex-shrink-0"></span>
+                                <span class="text-[10px] text-neutral-500 dark:text-neutral-500 truncate max-w-full"><%= album.variant_color %></span>
+                            </div>
+                        <% } %>
+                    </div>
+                </a>
+            </div>
+        <% }) %>
+    </div>
+</div>
+
+<script>
+    document.getElementById('filterInput').addEventListener('keyup', function(e) {
+        const term = e.target.value.toLowerCase();
+        const cards = document.querySelectorAll('.album-card');
+        cards.forEach(card => {
+            const text = card.innerText.toLowerCase();
+            card.style.display = text.includes(term) ? 'block' : 'none';
+        });
+    });
+</script>
+
+<%- include('partials/footer') %>

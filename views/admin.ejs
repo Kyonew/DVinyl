@@ -1,0 +1,268 @@
+<%- include('partials/header') %>
+
+<div class="max-w-screen-xl mx-auto px-4 pb-20 space-y-10">
+
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between py-6 gap-4">
+        <h1 class="text-2xl md:text-3xl font-bold text-neutral-900 dark:text-white flex items-center gap-3 transition-colors">
+            <i class="fa-solid fa-shield-halved text-green-600 dark:text-green-500"></i> <%= t('admin.title') %>
+        </h1>
+        <button onclick="toggleModal('addUserModal')" class="w-full sm:w-auto bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-6 rounded-xl transition-colors flex items-center justify-center gap-2 shadow-lg shadow-green-500/20 active:scale-95">
+            <i class="fa-solid fa-user-plus"></i> <%= t('admin.add_user_btn') %>
+        </button>
+    </div>
+
+    <% if (locals.newPassword) { %>
+        <div class="bg-green-100 dark:bg-green-900/30 border border-green-200 dark:border-green-500/50 p-6 rounded-2xl text-center animate-pulse transition-colors">
+            <h2 class="text-lg font-bold text-green-700 dark:text-green-400 mb-2">
+                <i class="fa-solid fa-check-circle"></i> <%= successMessage %>
+            </h2>
+            <p class="text-sm text-neutral-600 dark:text-neutral-300 mb-4"><%= t('admin.temp_password_hint') %></p>
+            <div class="bg-white dark:bg-black/50 p-4 rounded-xl inline-flex items-center gap-3 border border-green-200 dark:border-green-500/30 shadow-sm overflow-hidden max-w-full">
+                <code class="text-xl md:text-2xl font-mono text-neutral-900 dark:text-white select-all break-all"><%= newPassword %></code>
+            </div>
+        </div>
+    <% } %>
+
+    <section>
+        <h2 class="text-xl font-bold text-neutral-900 dark:text-white mb-6 flex items-center gap-2 transition-colors">
+            <i class="fa-solid fa-users text-neutral-400 dark:text-neutral-500"></i> <%= t('admin.users_count', { count: users.length }) %>
+        </h2>
+        
+        <div class="hidden md:block bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl overflow-hidden shadow-lg transition-colors">
+            <table class="w-full text-left text-sm text-neutral-500 dark:text-neutral-400">
+                <thead class="bg-gray-100 dark:bg-neutral-950 text-xs uppercase text-neutral-600 dark:text-neutral-500 transition-colors">
+                    <tr>
+                        <th class="px-6 py-4"><%= t('admin.table.user') %></th>
+                        <th class="px-6 py-4"><%= t('admin.table.email') %></th>
+                        <th class="px-6 py-4"><%= t('admin.table.last_change') %></th>
+                        <th class="px-6 py-4 text-right"><%= t('admin.table.actions') %></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-neutral-200 dark:divide-neutral-800 transition-colors">
+                    <% users.forEach(u => { %>
+                        <tr class="hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors">
+                            <td class="px-6 py-4 font-medium text-neutral-900 dark:text-white flex items-center gap-3">
+                                <img src="<%= u.img %>" class="w-8 h-8 rounded-full border border-neutral-200 dark:border-neutral-700 object-cover">
+                                <%= u.username %>
+                            </td>
+                            <td class="px-6 py-4"><%= u.email %></td>
+                            <td class="px-6 py-4 text-xs">
+                                <%= new Date(u.lastChange).toLocaleDateString(currentLng === 'fr' ? 'fr-FR' : 'en-US') %>
+                            </td>
+                            <td class="px-6 py-4 text-right flex justify-end gap-2">
+                                <form action="/admin/reset-password" method="POST" onsubmit="return confirm('<%= t('admin.confirm_reset', { name: u.username }) %>')">
+                                    <input type="hidden" name="userId" value="<%= u._id %>">
+                                    <button type="submit" class="text-yellow-600 dark:text-yellow-500 bg-yellow-100 dark:bg-yellow-500/10 p-2 rounded-lg transition-colors" title="<%= t('admin.tooltips.reset_password') %>">
+                                        <i class="fa-solid fa-key"></i>
+                                    </button>
+                                </form>
+                                <% if (u._id.toString() !== user._id.toString()) { %>
+                                    <form action="/admin/delete-user" method="POST" onsubmit="return confirm('<%= t('admin.confirm_delete_user', { name: u.username }) %>')">
+                                        <input type="hidden" name="userId" value="<%= u._id %>">
+                                        <button type="submit" class="text-red-600 dark:text-red-500 bg-red-100 dark:bg-red-500/10 p-2 rounded-lg transition-colors" title="<%= t('admin.tooltips.delete') %>">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    </form>
+                                <% } %>
+                            </td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="md:hidden space-y-4">
+            <% users.forEach(u => { %>
+                <div class="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-5 rounded-2xl shadow-sm space-y-4 transition-colors">
+                    
+                    <div class="flex items-center gap-4">
+                        <img src="<%= u.img %>" class="w-12 h-12 rounded-full border border-neutral-200 dark:border-neutral-700 object-cover">
+                        <div class="overflow-hidden">
+                            <p class="font-bold text-neutral-900 dark:text-white truncate"><%= u.username %></p>
+                            <p class="text-xs text-neutral-500 truncate"><%= u.email %></p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-4 border-t border-neutral-100 dark:border-neutral-800">
+                        
+                        <div class="flex flex-col">
+                            <span class="text-[9px] text-neutral-500 dark:text-neutral-500 uppercase font-bold tracking-wider">
+                                <%= t('admin.table.last_change') %>
+                            </span>
+                            <span class="text-xs text-neutral-400">
+                                <%= new Date(u.lastChange).toLocaleDateString(currentLng === 'fr' ? 'fr-FR' : 'en-US') %>
+                            </span>
+                        </div>
+
+                        <div class="flex gap-2">
+                            <form action="/admin/reset-password" method="POST" onsubmit="return confirm('<%= t('admin.confirm_reset', { name: u.username }) %>')">
+                                <input type="hidden" name="userId" value="<%= u._id %>">
+                                <button type="submit" class="text-yellow-600 bg-yellow-50 dark:bg-yellow-500/10 px-4 py-2 rounded-xl border border-yellow-200 dark:border-yellow-500/20 text-sm font-bold">
+                                    <i class="fa-solid fa-key"></i>
+                                </button>
+                            </form>
+                            <% if (u._id.toString() !== user._id.toString()) { %>
+                                <form action="/admin/delete-user" method="POST" onsubmit="return confirm('<%= t('admin.confirm_delete_user', { name: u.username }) %>')">
+                                    <input type="hidden" name="userId" value="<%= u._id %>">
+                                    <button type="submit" class="text-red-600 bg-red-50 dark:bg-red-500/10 px-4 py-2 rounded-xl border border-red-200 dark:border-red-500/20 text-sm font-bold">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </form>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+            <% }) %>
+        </div>
+    </section>
+
+    <section>
+        <h2 class="text-xl font-bold text-neutral-900 dark:text-white mb-6 flex items-center gap-2 transition-colors">
+            <i class="fa-solid fa-ban text-red-500"></i> <%= t('admin.blocked_ips_title', { count: blockedIps.length }) %>
+        </h2>
+
+        <% if(blockedIps.length > 0) { %>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <% blockedIps.forEach(ip => { %>
+                    <div class="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-5 rounded-2xl flex justify-between items-center group hover:border-red-500/50 transition-colors shadow-sm dark:shadow-none">
+                        <div class="overflow-hidden">
+                            <span class="block text-neutral-900 dark:text-white font-mono font-bold truncate"><%= ip.ip %></span>
+                            <span class="text-[10px] text-neutral-400 uppercase tracking-tighter"><%= new Date(ip.createdAt).toLocaleDateString(currentLng === 'fr' ? 'fr-FR' : 'en-US') %></span>
+                        </div>
+                        <form action="/admin/unblock-ip" method="POST">
+                            <input type="hidden" name="ipId" value="<%= ip._id %>">
+                            <button type="submit" class="h-10 w-10 flex items-center justify-center bg-gray-50 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 hover:text-green-500 rounded-xl transition-colors border border-neutral-100 dark:border-neutral-700" title="<%= t('admin.tooltips.unblock') %>">
+                                <i class="fa-solid fa-lock-open"></i>
+                            </button>
+                        </form>
+                    </div>
+                <% }) %>
+            </div>
+        <% } else { %>
+            <div class="p-12 border-2 border-dashed border-neutral-200 dark:border-neutral-800 rounded-3xl text-center text-neutral-400 transition-colors">
+                <i class="fa-solid fa-shield-check text-4xl mb-3 opacity-20 block"></i>
+                <%= t('admin.no_blocked_ips') %>
+            </div>
+        <% } %>
+    </section>
+
+    <section>
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-bold text-neutral-900 dark:text-white flex items-center gap-2 transition-colors">
+                <i class="fa-solid fa-satellite-dish text-blue-500"></i> <%= t('admin.logs_title') %>
+            </h2>
+            <div class="md:hidden text-[10px] uppercase font-bold text-neutral-400 flex items-center gap-1">
+                <i class="fa-solid fa-left-right animate-pulse"></i> Scroll
+            </div>
+        </div>
+
+        <div class="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl overflow-hidden shadow-lg transition-colors">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm text-neutral-500 dark:text-neutral-400 min-w-[700px]">
+                    <thead class="bg-gray-100 dark:bg-neutral-950 text-xs uppercase text-neutral-600 dark:text-neutral-500 transition-colors">
+                        <tr>
+                            <th class="px-6 py-4"><%= t('admin.table.user') %></th>
+                            <th class="px-6 py-4"><%= t('admin.table.loc') %></th>
+                            <th class="px-6 py-4"><%= t('admin.table.ip_device') %></th>
+                            <th class="px-6 py-4"><%= t('admin.table.date') %></th>
+                            <th class="px-6 py-4 text-right"><%= t('admin.table.security') %></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-neutral-200 dark:divide-neutral-800 transition-colors">
+                        <% logs.forEach(log => { %>
+                            <tr class="hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors group">
+                                <td class="px-6 py-4">
+                                    <div class="font-bold text-neutral-900 dark:text-white"><%= log.username %></div>
+                                    <div class="text-[10px] text-neutral-400 truncate"><%= log.email %></div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <% if(log.country && log.country !== 'XX') { %>
+                                        <div class="flex items-center gap-2">
+                                            <img src="https://flagcdn.com/24x18/<%= log.country.toLowerCase() %>.png" class="rounded-sm shadow-sm" alt="Flag">
+                                            <span class="text-neutral-900 dark:text-white font-mono text-xs"><%= log.country %></span>
+                                        </div>
+                                        <div class="text-[10px] text-neutral-500 uppercase"><%= log.city %></div>
+                                    <% } else { %>
+                                        <span class="text-neutral-400 dark:text-neutral-600 text-xs"><i class="fa-solid fa-globe"></i> <%= t('admin.local_connection') %></span>
+                                    <% } %>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="text-blue-600 dark:text-blue-400 font-mono text-xs mb-1"><%= log.ip %></div>
+                                    <div class="text-[10px] text-neutral-400 max-w-[120px] truncate" title="<%= log.userAgent %>">
+                                        <%= log.userAgent.includes('Windows') ? 'Windows' : (log.userAgent.includes('Mac') ? 'Mac' : 'Mobile/Linux') %>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 text-[10px] whitespace-nowrap">
+                                    <% 
+                                      const diff = Math.floor((new Date() - new Date(log.timestamp)) / 60000);
+                                      let timeText = diff < 60 ? t('admin.time_ago_min', { count: diff }) : new Date(log.timestamp).toLocaleDateString(currentLng === 'fr' ? 'fr-FR' : 'en-US');
+                                    %>
+                                    <%= timeText %>
+                                </td>
+                                <td class="px-6 py-4 text-right">
+                                    <div class="flex justify-end gap-2 opacity-100 transition-opacity">
+                                        <% if (log.user) { %>
+                                            <form action="/admin/reset-password" method="POST" onsubmit="return confirm('<%= t('admin.confirm_reset', { name: log.username }) %>')">
+                                                <input type="hidden" name="userId" value="<%= log.user %>">
+                                                <button type="submit" class="bg-gray-100 dark:bg-neutral-800 hover:bg-yellow-500 hover:text-white text-neutral-600 dark:text-white p-2 rounded-xl border border-neutral-200 dark:border-neutral-700 transition-colors" title="<%= t('admin.tooltips.reset_password') %>">
+                                                    <i class="fa-solid fa-key"></i>
+                                                </button>
+                                            </form>
+                                        <% } %>
+                                        <form action="/admin/block-ip" method="POST" onsubmit="return confirm('<%= t('admin.confirm_block_ip', { ip: log.ip }) %>')">
+                                            <input type="hidden" name="ipAddress" value="<%= log.ip %>">
+                                            <button type="submit" class="bg-gray-100 dark:bg-neutral-800 hover:bg-red-600 hover:text-white text-neutral-600 dark:text-white p-2 rounded-xl border border-neutral-200 dark:border-neutral-700 transition-colors" title="<%= t('admin.tooltips.block') %>">
+                                                <i class="fa-solid fa-ban"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+</div>
+
+<div id="addUserModal" class="fixed inset-0 z-50 hidden bg-black/90 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-8 shadow-2xl relative transition-all animate-slide-up sm:animate-none">
+        <button onclick="toggleModal('addUserModal')" class="absolute top-6 right-6 text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors">
+            <i class="fa-solid fa-circle-xmark text-2xl"></i>
+        </button>
+
+        <h3 class="text-2xl font-bold text-neutral-900 dark:text-white mb-2"><%= t('admin.modal.title') %></h3>
+        <p class="text-sm text-neutral-500 mb-8"><%= t('admin.modal.subtitle', { defaultValue: 'Ajouter un nouveau membre à la gestion.' }) %></p>
+
+        <form action="/admin/add-user" method="POST" class="space-y-6">
+            <div>
+                <label class="block mb-2 text-xs font-bold uppercase tracking-widest text-neutral-500"><%= t('admin.modal.username') %></label>
+                <input type="text" name="username" required placeholder="ex: VinylCollector" class="bg-gray-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-white rounded-xl focus:ring-green-500 focus:border-green-500 block w-full p-4 transition-colors outline-none">
+            </div>
+            <div>
+                <label class="block mb-2 text-xs font-bold uppercase tracking-widest text-neutral-500"><%= t('admin.modal.email') %></label>
+                <input type="email" name="email" required placeholder="user@domain.com" class="bg-gray-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-white rounded-xl focus:ring-green-500 focus:border-green-500 block w-full p-4 transition-colors outline-none">
+            </div>
+            
+            <button type="submit" class="w-full bg-green-600 hover:bg-green-500 text-white font-black py-4 rounded-2xl transition-all mt-4 shadow-xl shadow-green-600/30 active:scale-95">
+                <%= t('admin.modal.submit') %>
+            </button>
+        </form>
+    </div>
+</div>
+
+<%- include('partials/footer') %>
+
+<script>
+    function toggleModal(id) {
+        const modal = document.getElementById(id);
+        modal.classList.toggle('hidden');
+        if (!modal.classList.contains('hidden')) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'auto';
+        }
+    }
+</script>

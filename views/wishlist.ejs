@@ -1,0 +1,92 @@
+<%- include('partials/header') %>
+
+<div class="max-w-screen-xl mx-auto px-4 md:px-0 pb-12">
+    
+    <div class="flex items-center justify-between mb-8 pt-6">
+        <h1 class="text-3xl font-bold text-neutral-900 dark:text-white flex items-center gap-3 transition-colors">
+            <i class="fa-solid fa-gift text-pink-500"></i> <%= t('wishlist.title') %>
+            <span class="text-neutral-500 dark:text-neutral-400 text-lg font-normal transition-colors">(<%= albums.length %>)</span>
+        </h1>
+    </div>
+
+    <% if (albums.length === 0) { %>
+        <div class="text-center py-20 bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 transition-colors shadow-sm dark:shadow-none">
+            <i class="fa-regular fa-heart text-6xl text-neutral-300 dark:text-neutral-700 mb-4 transition-colors"></i>
+            <p class="text-neutral-500 dark:text-neutral-400 transition-colors"><%= t('wishlist.empty_msg') %></p>
+            <a href="/add-vinyl" class="text-green-600 dark:text-green-400 hover:underline mt-2 inline-block font-medium transition-colors">
+                <%= t('wishlist.search_link') %>
+            </a>
+        </div>
+    <% } else { %>
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+            <% albums.forEach(album => { %>
+                <div class="group relative bg-white dark:bg-neutral-900 rounded-lg border border-neutral-200 dark:border-neutral-800 hover:border-pink-500/50 transition-all duration-300 hover:shadow-lg dark:hover:shadow-[0_10px_30px_-10px_rgba(236,72,153,0.3)]">
+                    
+                    <a href="/album/<%= album._id %>" class="block">
+                        <div class="aspect-square w-full overflow-hidden rounded-t-lg relative transition-all duration-500">
+                            <img src="<%= album.cover_image %>" class="w-full h-full object-cover">
+                            
+                            <% 
+                                let badgeColor = 'bg-green-600/90 text-white';
+                                let badgeText = t('media.vinyl');
+                                
+                                if (album.media_type === 'cd') {
+                                    badgeColor = 'bg-blue-600/90 text-white';
+                                    badgeText = t('media.cd');
+                                } else if (album.media_type === 'cassette') {
+                                    badgeColor = 'bg-orange-600/90 text-white';
+                                    badgeText = t('media.cassette');
+                                }
+                            %>
+                            <span class="absolute top-2 right-2 text-[10px] font-bold px-2 py-1 rounded backdrop-blur-md border border-white/10 shadow-sm <%= badgeColor %>">
+                                <%= badgeText %>
+                            </span>
+                        </div>
+
+                        <div class="p-3">
+                            <h3 class="text-neutral-900 dark:text-white font-bold text-sm truncate transition-colors"><%= album.title %></h3>
+                            <p class="text-neutral-500 dark:text-neutral-400 text-xs truncate mb-2 transition-colors"><%= album.artist %></p>
+
+                            <% if(album.variant_color) { %>
+                                <div class="flex items-center gap-1 mb-1">
+                                    <span class="w-2 h-2 rounded-full bg-pink-500 inline-block flex-shrink-0"></span>
+                                    <span class="text-[10px] text-neutral-500 dark:text-neutral-400 truncate max-w-full transition-colors"><%= album.variant_color %></span>
+                                </div>
+                            <% } %>
+                        </div>
+                    </a>
+
+                    <% if (user.isAdmin) { %>
+                        <button onclick="moveToCollection('<%= album._id %>')" class="w-full py-2 bg-gray-100 dark:bg-neutral-800 hover:bg-green-600 hover:text-white text-green-600 dark:text-green-400 text-xs font-bold uppercase transition-colors rounded-b-lg flex items-center justify-center gap-2 border-t border-neutral-200 dark:border-neutral-800">
+                            <i class="fa-solid fa-check"></i> <%= t('wishlist.btn_received') %>
+                        </button>
+                    <% } %>
+
+                </div>
+            <% }) %>
+        </div>
+    <% } %>
+</div>
+
+<script>
+    const wishlistTranslations = {
+        confirmMove: "<%= t('wishlist.confirm_move') %>",
+        serverError: "<%= t('messages.generic_error') %>"
+    };
+
+    async function moveToCollection(id) {
+        if(confirm(wishlistTranslations.confirmMove)) {
+            try {
+                const res = await fetch(`/api/album/${id}/move-to-collection`, { method: 'POST' });
+                const data = await res.json();
+                if(data.success) {
+                    window.location.reload();
+                }
+            } catch(e) { 
+                alert(wishlistTranslations.serverError); 
+            }
+        }
+    }
+</script>
+
+<%- include('partials/footer') %>

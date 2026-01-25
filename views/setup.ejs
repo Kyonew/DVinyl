@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="<%= currentLng %>">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= t('setup.title') %></title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        body { 
+            background-color: #050505; 
+            background-image: radial-gradient(circle at center, #111 0%, #050505 100%);
+            color: #fff; 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+        }
+        @keyframes float {
+            0% { transform: translate(0px, 0px) scale(1); }
+            33% { transform: translate(30px, -50px) scale(1.1); }
+            66% { transform: translate(-20px, 20px) scale(0.9); }
+            100% { transform: translate(0px, 0px) scale(1); }
+        }
+        .animate-blob { animation: float 10s infinite ease-in-out; }
+        .delay-2000 { animation-delay: 2s; }
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover, 
+        input:-webkit-autofill:focus, 
+        input:-webkit-autofill:active{
+            -webkit-box-shadow: 0 0 0 30px #171717 inset !important;
+            -webkit-text-fill-color: white !important;
+            caret-color: white;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4 overflow-y-auto relative text-white">
+
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-green-500/10 rounded-full blur-[100px] animate-blob"></div>
+        <div class="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-purple-600/10 rounded-full blur-[100px] animate-blob delay-2000"></div>
+    </div>
+
+    <div class="w-full max-w-lg relative z-10 py-10">
+        
+        <div class="text-center mb-8 relative">
+            <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-green-500/20 rounded-full blur-2xl -z-10"></div>
+            <img src="/ressources/logo.png" alt="Logo" class="mx-auto h-24 w-24 drop-shadow-2xl hover:scale-105 transition-transform duration-500">
+            <h2 class="text-4xl font-black text-white mt-6 tracking-tight">
+                <%= t('setup.welcome_to') %> <span class="text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-600">DVinyl</span>
+            </h2>
+            <p class="text-neutral-400 mt-2 text-lg"><%= t('setup.subtitle') %></p>
+        </div>
+        
+        <div class="bg-neutral-900/60 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl p-8 relative overflow-hidden group">
+            
+            <div class="absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-green-500/10 rounded-full blur-3xl group-hover:bg-green-500/20 transition-colors duration-700"></div>
+            <div class="absolute bottom-0 left-0 -mb-10 -ml-10 w-40 h-40 bg-purple-500/10 rounded-full blur-3xl group-hover:bg-purple-500/20 transition-colors duration-700"></div>
+
+            <h1 class="text-xl font-bold text-white mb-6 flex items-center gap-3 relative z-10">
+                <span class="w-10 h-10 rounded-xl bg-neutral-800 flex items-center justify-center border border-white/5 text-yellow-500 shadow-inner">
+                    <i class="fa-solid fa-crown"></i>
+                </span>
+                <%= t('setup.admin_config') %>
+            </h1>
+            
+            <% if (locals.error) { %>
+                <div class="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl mb-6 text-sm flex items-start gap-3 relative z-10 animate-pulse">
+                    <i class="fa-solid fa-circle-exclamation mt-0.5"></i>
+                    <span><%= error %></span>
+                </div>
+            <% } %>
+
+            <div id="js-error" class="hidden bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl mb-6 text-sm flex items-start gap-3 relative z-10">
+                <i class="fa-solid fa-circle-exclamation mt-0.5"></i>
+                <span id="js-error-text"></span>
+            </div>
+
+            <form action="/setup" method="POST" class="space-y-5 relative z-10" id="setupForm">
+                
+                <div class="group/field">
+                    <label class="block text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2 ml-1"><%= t('setup.username_label') %></label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-neutral-500 group-focus-within/field:text-green-500 transition-colors">
+                            <i class="fa-solid fa-user"></i>
+                        </div>
+                        <input type="text" name="username" required 
+                            class="w-full pl-11 pr-4 py-3.5 bg-neutral-950/50 border border-neutral-700 rounded-xl focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none text-white placeholder-neutral-600 transition-all hover:bg-neutral-950/80" 
+                            placeholder="<%= t('setup.username_placeholder') %>">
+                    </div>
+                </div>
+
+                <div class="group/field">
+                    <label class="block text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2 ml-1"><%= t('setup.email_label') %></label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-neutral-500 group-focus-within/field:text-green-500 transition-colors">
+                            <i class="fa-solid fa-envelope"></i>
+                        </div>
+                        <input type="email" name="email" required 
+                            class="w-full pl-11 pr-4 py-3.5 bg-neutral-950/50 border border-neutral-700 rounded-xl focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none text-white placeholder-neutral-600 transition-all hover:bg-neutral-950/80" 
+                            placeholder="<%= t('setup.email_placeholder') %>">
+                    </div>
+                </div>
+
+                <div class="group/field">
+                    <label class="block text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2 ml-1"><%= t('setup.password_label') %></label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-neutral-500 group-focus-within/field:text-green-500 transition-colors">
+                            <i class="fa-solid fa-lock"></i>
+                        </div>
+                        <input type="password" name="password" id="password" required minlength="6" 
+                            class="w-full pl-11 pr-12 py-3.5 bg-neutral-950/50 border border-neutral-700 rounded-xl focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none text-white placeholder-neutral-600 transition-all hover:bg-neutral-950/80" 
+                            placeholder="<%= t('setup.password_placeholder') %>">
+                        
+                        <button type="button" onclick="togglePassword('password', 'eye-1')" class="absolute inset-y-0 right-0 pr-4 flex items-center text-neutral-500 hover:text-white transition-colors cursor-pointer focus:outline-none">
+                            <i class="fa-solid fa-eye" id="eye-1"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="group/field">
+                    <label class="block text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2 ml-1"><%= t('setup.confirm_label') %></label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-neutral-500 group-focus-within/field:text-green-500 transition-colors">
+                            <i class="fa-solid fa-shield-halved"></i>
+                        </div>
+                        <input type="password" id="confirmPassword" required 
+                            class="w-full pl-11 pr-12 py-3.5 bg-neutral-950/50 border border-neutral-700 rounded-xl focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none text-white placeholder-neutral-600 transition-all hover:bg-neutral-950/80" 
+                            placeholder="<%= t('setup.confirm_placeholder') %>">
+                        
+                        <button type="button" onclick="togglePassword('confirmPassword', 'eye-2')" class="absolute inset-y-0 right-0 pr-4 flex items-center text-neutral-500 hover:text-white transition-colors cursor-pointer focus:outline-none">
+                            <i class="fa-solid fa-eye" id="eye-2"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="pt-4">
+                    <button type="submit" class="group w-full relative overflow-hidden bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-green-900/20 active:scale-[0.98]">
+                        <span class="relative z-10 flex items-center justify-center gap-2">
+                            <%= t('setup.submit_btn') %>
+                            <i class="fa-solid fa-rocket group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform"></i>
+                        </span>
+                        <div class="absolute inset-0 -translate-x-full group-hover:translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-1000"></div>
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <footer class="mt-12 bg-transparent border-t border-white/10 pt-8 transition-colors duration-300">
+            <div class="max-w-screen-xl mx-auto px-4">
+                <div class="flex flex-col items-center justify-center space-y-4">
+                    <div class="flex items-center gap-2 text-white font-bold text-lg tracking-tight">
+                        <img src="/ressources/logo.png" alt="vinyl" class="w-4 h-4 brightness-90">
+                        <span>Vinyl</span>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-xs text-neutral-500">
+                            <%= t('footer.made_with') %> <i class="fa-solid fa-heart text-red-500 animate-pulse mx-1"></i> <%= t('footer.for_music') %>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </footer>
+
+    </div>
+
+    <script>
+        const setupTranslations = {
+            passwordMismatch: "<%= t('messages.password_mismatch') %>"
+        };
+
+        function togglePassword(inputId, iconId) {
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(iconId);
+            if (input.type === "password") {
+                input.type = "text";
+                icon.classList.remove("fa-eye");
+                icon.classList.add("fa-eye-slash");
+                icon.parentElement.classList.add("text-green-400");
+            } else {
+                input.type = "password";
+                icon.classList.remove("fa-eye-slash");
+                icon.classList.add("fa-eye");
+                icon.parentElement.classList.remove("text-green-400");
+            }
+        }
+
+        const form = document.getElementById('setupForm');
+        const pass = document.getElementById('password');
+        const confirm = document.getElementById('confirmPassword');
+        const errorBox = document.getElementById('js-error');
+        const errorText = document.getElementById('js-error-text');
+
+        form.addEventListener('submit', (e) => {
+            errorBox.classList.add('hidden');
+            pass.classList.remove('border-red-500');
+            confirm.classList.remove('border-red-500');
+
+            if (pass.value !== confirm.value) {
+                e.preventDefault();
+                errorText.innerText = setupTranslations.passwordMismatch;
+                errorBox.classList.remove('hidden');
+                pass.classList.add('border-red-500');
+                confirm.classList.add('border-red-500');
+                form.classList.add('animate-[shake_0.5s_ease-in-out]');
+                setTimeout(() => form.classList.remove('animate-[shake_0.5s_ease-in-out]'), 500);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,59 @@
+</main>
+
+<footer class="mt-auto bg-white dark:bg-neutral-950 border-t border-neutral-200 dark:border-neutral-800 transition-colors duration-300">
+    <div class="max-w-screen-xl mx-auto py-8 px-4">
+        <div class="flex flex-col items-center justify-center space-y-4">
+            
+            <div class="flex items-center gap-2 text-neutral-900 dark:text-white font-bold text-lg tracking-tight transition-colors">
+                <img src="/ressources/logo.png" alt="vinyl" class="text-green-600 dark:text-green-500 align-middle" style="width: 1em; height: 1em;">
+                <span>Vinyl</span>
+            </div>
+
+            <div class="text-center">
+                <p class="text-xs text-neutral-400 dark:text-neutral-600 mt-1 transition-colors">
+                    <%= t('footer.made_with') %> 
+                    <i class="fa-solid fa-heart text-red-500 animate-pulse mx-1"></i> 
+                    <%= t('footer.for_music') %>
+                </p>
+            </div>
+
+        </div>
+    </div>
+</footer>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        colors: {
+          spotify: '#1DB954',
+        }
+      }
+    }
+  };
+</script>
+
+<script>
+    window.addEventListener('load', function() {
+        const loader = document.getElementById('page-loader');
+        if (loader) {
+            loader.classList.add('opacity-0');
+            setTimeout(() => {
+                loader.style.display = 'none';
+            }, 500);
+        }
+    });
+
+    setTimeout(() => {
+        const loader = document.getElementById('page-loader');
+        if (loader && loader.style.display !== 'none') {
+            loader.classList.add('opacity-0');
+            setTimeout(() => { loader.style.display = 'none'; }, 500);
+        }
+    }, 3000);
+</script>
+
+</body>
+</html>

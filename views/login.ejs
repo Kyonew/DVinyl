@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="<%= currentLng %>">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title><%= t('login.title') %></title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900&family=Varela+Round&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/png" href="/ressources/logo.png">
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.16/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/1.6.5/flowbite.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="stylesheet" href="/styles/styles.css">
+
+  <style>
+    body { background: #0f0f0f; color: #fff; font-family: 'Poppins', sans-serif; overflow-x: hidden; }
+    .form-bg { background: #18181b; border: 1px solid #23232b; }
+    input, input::placeholder { background: #23232b !important; color: #fff !important; }
+    input:focus { outline: none; box-shadow: 0 0 0 2px #2563eb; border-color: #2563eb; }
+    .password-toggle { color: #aaa; }
+    .password-toggle:hover { color: #fff; }
+    .error { color: #f87171; }
+  </style>
+</head>
+<body class="flex flex-col min-h-screen">
+  <div class="flex-grow flex items-center justify-center p-4 bg-[#0f0f0f]">
+    <section class="w-full max-w-md">
+      <div class="text-center mb-8">
+        <img src="/ressources/logo.png" alt="Logo" class="mx-auto h-24 w-24">
+        <h2 class="text-3xl font-bold text-white mt-4">DarkiDL</h2>
+      </div>
+      
+      <div class="form-bg rounded-2xl shadow-xl p-8 transition-all">
+        <h1 class="text-3xl font-bold text-white mb-8 text-center">
+          👋 <%= t('login.welcome') %>
+        </h1>
+        
+        <form action="/login" class="space-y-6">
+          <div class="grid gap-4">
+            <div>
+              <label for="email" class="block text-sm font-medium text-gray-300 mb-2">
+                <%= t('login.email_label') %>
+              </label>
+              <input 
+                type="text" 
+                name="email" 
+                required
+                class="w-full px-4 py-3 rounded-lg border border-gray-700 transition-all"
+                placeholder="<%= t('login.email_placeholder') %>">
+              <div class="email error mt-2 text-sm"></div>
+            </div>
+    
+            <div class="relative">
+              <label for="password" class="block text-sm font-medium text-gray-300 mb-2">
+                <%= t('login.password_label') %>
+              </label>
+              <div class="relative">
+                <input 
+                  type="password" 
+                  name="password" 
+                  id="password"
+                  required
+                  class="w-full px-4 py-3 rounded-lg border border-gray-700 transition-all pr-12" 
+                  placeholder="<%= t('login.password_placeholder') %>">
+                <button 
+                  type="button" 
+                  id="togglePassword" 
+                  class="absolute right-3 top-1/2 -translate-y-1/2 transform flex items-center justify-center h-8 w-8 password-toggle">
+                  <i class="fas fa-eye"></i>
+                </button>
+              </div>
+              <div class="password error mt-2 text-sm"></div>
+            </div>
+          </div>
+    
+          <button 
+            type="submit" 
+            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-all transform hover:scale-[1.02]">
+            <%= t('login.submit_btn') %>
+          </button>
+        </form>
+      </div>
+    </section>
+  </div>
+
+  <footer class="mt-auto bg-neutral-900 border-t border-neutral-800 transition-colors duration-300">
+      <div class="max-w-screen-xl mx-auto py-8 px-4">
+          <div class="flex flex-col items-center justify-center space-y-4">
+              <div class="flex items-center gap-2 text-neutral-100 font-bold text-lg tracking-tight">
+                  <img src="/ressources/logo.png" alt="vinyl" class="w-4 h-4 brightness-90">
+                  <span>Vinyl</span>
+              </div>
+              <div class="text-center">
+                  <p class="text-xs text-neutral-400 mt-1">
+                    <%= t('footer.made_with') %> <i class="fa-solid fa-heart text-red-500 animate-pulse mx-1"></i> <%= t('footer.for_music') %>
+                  </p>
+              </div>
+          </div>
+      </div>
+  </footer>
+
+  <script>
+
+    const form = document.querySelector('form');
+    const emailInput = form.email;
+    const passwordInput = form.password;
+    const emailError = document.querySelector('.email.error');
+
+    const togglePassword = document.querySelector('#togglePassword');
+    const eyeIcon = togglePassword.querySelector('i');
+
+    togglePassword.addEventListener('click', function () {
+      const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+      passwordInput.setAttribute('type', type);
+      eyeIcon.classList.toggle('fa-eye');
+      eyeIcon.classList.toggle('fa-eye-slash');
+    });
+
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+    
+      emailError.textContent = '';
+      [emailInput, passwordInput].forEach(input => {
+        input.classList.remove('border-red-500', 'focus:ring-red-500');
+        input.classList.add('border-gray-200', 'dark:border-gray-600');
+      });
+
+      const email = emailInput.value;
+      const password = passwordInput.value;
+
+      try {
+        const res = await fetch('/login', { 
+          method: 'POST', 
+          body: JSON.stringify({ email, password }),
+          headers: {'Content-Type': 'application/json'}
+        });
+        const data = await res.json();
+        
+        if (data.errors) {
+          emailError.textContent = data.errors.login;
+          
+          [emailInput, passwordInput].forEach(input => {
+            input.classList.remove('border-gray-200', 'dark:border-gray-600');
+            input.classList.add('border-red-500', 'focus:ring-red-500');
+          });
+        }
+        
+        if (data.user) {
+          location.assign('/');
+        }
+      }
+      catch (err) {
+        console.log(err);
+      }
+    });
+
+  </script>
+</body>
+</html>

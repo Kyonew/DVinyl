@@ -1,0 +1,4 @@
+.env
+/node_modules
+/public/uploads/avatars/*
+/mongo_data

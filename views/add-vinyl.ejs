@@ -1,0 +1,185 @@
+<%- include('partials/header') %>
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
+<div class="max-w-screen-lg mx-auto pb-20 px-4">
+    
+    <div class="text-center mb-8 md:mb-10">
+        <h1 class="text-2xl md:text-3xl font-bold text-neutral-900 dark:text-white mb-2 transition-colors">
+            <%= t('add_vinyl.title') %>
+        </h1>
+        <p class="text-sm md:text-base text-neutral-500 dark:text-neutral-400 transition-colors">
+            <%= t('add_vinyl.desc') %>
+        </p>
+    </div>
+
+    <div class="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-4 md:p-8 rounded-2xl shadow-xl dark:shadow-lg mb-10 transition-colors">
+        
+        <form action="/search-discogs" method="POST" class="mb-6">
+            
+            <div class="grid grid-cols-3 gap-3 mb-6">
+                <label class="cursor-pointer relative">
+                    <input type="radio" name="type" value="vinyl" class="peer sr-only" <%= (locals.searchType === 'vinyl' || !locals.searchType) ? 'checked' : '' %>>
+                    <div class="h-full flex flex-col items-center justify-center p-3 md:p-4 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 text-center transition-all peer-checked:bg-green-600 peer-checked:border-green-500 peer-checked:text-white hover:bg-gray-100 dark:hover:bg-neutral-700">
+                        <i class="fa-solid fa-record-vinyl text-xl md:text-2xl mb-1 block"></i>
+                        <span class="text-sm font-bold"><%= t('media.vinyl') %></span>
+                    </div>
+                </label>
+                
+                <label class="cursor-pointer relative">
+                    <input type="radio" name="type" value="cd" class="peer sr-only" <%= (locals.searchType === 'cd') ? 'checked' : '' %>>
+                    <div class="h-full flex flex-col items-center justify-center p-3 md:p-4 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 text-center transition-all peer-checked:bg-blue-600 peer-checked:border-blue-500 peer-checked:text-white hover:bg-gray-100 dark:hover:bg-neutral-700">
+                        <i class="fa-solid fa-compact-disc text-xl md:text-2xl mb-1 block"></i>
+                        <span class="text-sm font-bold"><%= t('media.cd') %></span>
+                    </div>
+                </label>
+
+                <label class="cursor-pointer relative">
+                    <input type="radio" name="type" value="cassette" class="peer sr-only" <%= (typeof searchType !== 'undefined' && searchType === 'cassette') ? 'checked' : '' %>>
+                    <div class="h-full flex flex-col items-center justify-center p-3 md:p-4 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 text-center transition-all peer-checked:bg-orange-600 peer-checked:border-orange-500 peer-checked:text-white hover:bg-gray-100 dark:hover:bg-neutral-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-cassette-tape-icon lucide-cassette-tape"><rect width="20" height="16" x="2" y="4" rx="2"/><circle cx="8" cy="10" r="2"/><path d="M8 12h8"/><circle cx="16" cy="10" r="2"/><path d="m6 20 .7-2.9A1.4 1.4 0 0 1 8.1 16h7.8a1.4 1.4 0 0 1 1.4 1l.7 3"/></svg>
+                        <span class="text-sm font-bold"><%= t('media.cassette') %></span>
+                    </div>
+                </label>
+            </div>
+
+            <div class="flex flex-col md:flex-row gap-3">
+                <div class="relative flex-grow">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
+                        <i class="fa-solid fa-search text-neutral-400 dark:text-neutral-500"></i>
+                    </div>
+                    <input type="text" name="query" class="block w-full p-4 pl-12 text-neutral-900 dark:text-white border border-neutral-300 dark:border-neutral-700 rounded-xl bg-gray-50 dark:bg-neutral-950/50 focus:ring-green-500 focus:border-green-500 placeholder-neutral-500 text-base transition-colors" placeholder="<%= t('add_vinyl.search_placeholder') %>" required>
+                </div>
+                
+                <button type="submit" class="w-full md:w-auto px-8 py-4 bg-neutral-900 dark:bg-white text-white dark:text-black font-bold rounded-xl hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-colors shadow-lg active:scale-95 duration-100">
+                    <%= t('common.search') %>
+                </button>
+            </div>
+        </form>
+
+        <div class="relative flex py-4 items-center">
+            <div class="flex-grow border-t border-neutral-200 dark:border-neutral-800 transition-colors"></div>
+            <span class="flex-shrink-0 mx-4 text-neutral-400 dark:text-neutral-600 text-xs font-bold uppercase tracking-widest transition-colors">
+                <%= t('add_vinyl.separator_or') %>
+            </span>
+            <div class="flex-grow border-t border-neutral-200 dark:border-neutral-800 transition-colors"></div>
+        </div>
+
+        <div class="mt-2">
+            <button id="start-scan" type="button" class="w-full py-4 text-base font-bold text-neutral-700 dark:text-white bg-gray-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl hover:bg-gray-200 dark:hover:bg-neutral-700 focus:ring-4 focus:ring-neutral-200 dark:focus:ring-neutral-700 transition-all flex items-center justify-center gap-3 active:scale-[0.98]">
+                <i class="fa-solid fa-barcode text-green-600 dark:text-green-400 text-xl"></i> 
+                <span><%= t('add_vinyl.btn_scan') %></span>
+            </button>
+        </div>
+
+        <div id="reader" class="hidden mt-6 w-full rounded-xl overflow-hidden border-2 border-green-500 shadow-[0_0_20px_rgba(34,197,94,0.3)] bg-black"></div>
+    </div>
+
+    <% if (locals.results) { %>
+        <div class="mb-4 flex items-center justify-between">
+            <h2 class="text-xl font-bold text-neutral-900 dark:text-white transition-colors"><%= t('add_vinyl.results_title') %></h2>
+            <span class="bg-gray-200 dark:bg-neutral-800 text-xs font-mono px-2 py-1 rounded text-neutral-600 dark:text-neutral-400 transition-colors"><%= results.length %></span>
+        </div>
+
+        <% if (results.length === 0) { %>
+            <div class="text-center py-12 bg-white dark:bg-neutral-900/50 rounded-xl border border-dashed border-neutral-300 dark:border-neutral-800 transition-colors">
+                <i class="fa-solid fa-ghost text-4xl text-neutral-400 dark:text-neutral-600 mb-3"></i>
+                <p class="text-neutral-500"><%= t('add_vinyl.no_results') %></p>
+            </div>
+        <% } else { %>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <% results.forEach(item => { %>
+                    <a href="/confirm-vinyl/<%= item.id %>" class="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden hover:border-green-500 transition-all group flex flex-col hover:shadow-lg hover:-translate-y-1">
+                        <div class="relative aspect-square bg-gray-100 dark:bg-neutral-800">
+                            <% if(item.cover_image && !item.cover_image.includes('spacer.gif')) { %>
+                                <img src="<%= item.cover_image %>" class="w-full h-full object-cover">
+                            <% } else { %>
+                                <div class="w-full h-full flex items-center justify-center text-neutral-300 dark:text-neutral-700">
+                                    <i class="fa-solid fa-compact-disc text-3xl"></i>
+                                </div>
+                            <% } %>
+                        </div>
+            
+                        <div class="p-3 flex flex-col flex-grow">
+                            <h3 class="font-bold text-neutral-900 dark:text-white text-sm leading-tight mb-1 line-clamp-2 transition-colors"><%= item.title %></h3>
+                            <p class="text-neutral-500 dark:text-neutral-500 text-xs mb-2 transition-colors"><%= item.year %></p>
+                            
+                            <div class="flex flex-wrap gap-1 mt-auto">
+                                <% if(item.format) { %>
+                                    <% item.format.slice(0, 2).forEach(fmt => { %>
+                                        <span class="text-[9px] bg-gray-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 px-1.5 py-0.5 rounded border border-neutral-200 dark:border-neutral-700 truncate max-w-full transition-colors"><%= fmt %></span>
+                                    <% }) %>
+                                <% } %>
+                            </div>
+                        </div>
+                    </a>
+                <% }) %>
+            </div>
+        <% } %>
+    <% } %>
+</div>
+
+<script>
+    const scanTranslations = {
+        btnDefault: '<i class="fa-solid fa-barcode text-green-600 dark:text-green-400 text-xl"></i> <span><%= t("add_vinyl.btn_scan") %></span>',
+        init: '<i class="fa-solid fa-spinner fa-spin text-xl"></i> <span><%= t("add_vinyl.scan_init") %></span>',
+        stop: '<i class="fa-solid fa-xmark text-xl"></i> <span><%= t("add_vinyl.scan_stop") %></span>',
+        found: '<i class="fa-solid fa-check text-xl"></i> <span><%= t("add_vinyl.scan_found") %></span>',
+        error: '<%= t("add_vinyl.scan_error") %>'
+    };
+
+    const html5QrCode = new Html5Qrcode("reader");
+    const scanButton = document.getElementById('start-scan');
+    const readerDiv = document.getElementById('reader');
+    const searchInput = document.querySelector('input[name="query"]');
+    const form = document.querySelector('form[action="/search-discogs"]');
+    let isScanning = false;
+
+    scanButton.addEventListener('click', () => {
+        if (isScanning) {
+            html5QrCode.stop().then(() => {
+                readerDiv.classList.add('hidden');
+                scanButton.innerHTML = scanTranslations.btnDefault;
+                scanButton.classList.remove('bg-red-600', 'hover:bg-red-500', 'text-white');
+                scanButton.classList.add('bg-gray-100', 'dark:bg-neutral-800', 'text-neutral-700', 'dark:text-white', 'hover:bg-gray-200', 'dark:hover:bg-neutral-700');
+                isScanning = false;
+            }).catch(err => console.error("Erreur stop scan", err));
+        } else {
+            readerDiv.classList.remove('hidden');
+            scanButton.innerHTML = scanTranslations.init;
+            
+            const config = { 
+                fps: 10, 
+                qrbox: { width: 250, height: 150 }, 
+                aspectRatio: 1.0,
+                formatsToSupport: [ 
+                    Html5QrcodeSupportedFormats.EAN_13,
+                    Html5QrcodeSupportedFormats.UPC_A,
+                    Html5QrcodeSupportedFormats.UPC_E
+                ]
+            };
+            html5QrCode.start(
+                { facingMode: "environment" },
+                config,
+                (decodedText) => {
+                    html5QrCode.stop().then(() => {
+                        readerDiv.classList.add('hidden');
+                        scanButton.innerHTML = scanTranslations.found;
+                        searchInput.value = decodedText;
+                        form.submit();
+                    });
+                },
+                (errorMessage) => {}
+            ).then(() => {
+                isScanning = true;
+                scanButton.innerHTML = scanTranslations.stop;
+                scanButton.classList.remove('bg-gray-100', 'dark:bg-neutral-800', 'text-neutral-700', 'dark:text-white', 'hover:bg-gray-200', 'dark:hover:bg-neutral-700');
+                scanButton.classList.add('bg-red-600', 'hover:bg-red-500', 'text-white');
+            }).catch(err => {
+                console.error("Erreur start scan", err);
+                scanButton.innerHTML = scanTranslations.error;
+            });
+        }
+    });
+</script>
+
+<%- include('partials/footer') %>

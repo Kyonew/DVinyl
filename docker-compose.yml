@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  dvinyl-app:
+    build: .
+    container_name: dvinyl_app
+    restart: unless-stopped
+    ports:
+      - "3099:3099" # External port : Internal port
+    volumes:
+      - ./public/uploads:/app/public/uploads
+    env_file:
+        - .env
+    depends_on:
+      - mongodb
+
+  # Database service
+  mongodb:
+    image: mongo:latest
+    container_name: dvinyl_db
+    restart: unless-stopped
+    volumes:
+      - ./mongo_data:/data/db 
+
+volumes:
+  mongo_data:

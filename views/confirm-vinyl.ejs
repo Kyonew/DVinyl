@@ -1,0 +1,257 @@
+<%- include('partials/header') %>
+
+<div class="max-w-screen-xl mx-auto pb-20 px-4 md:px-0">
+    
+    <nav class="flex mb-6 text-sm text-neutral-500 dark:text-neutral-400 transition-colors">
+        <a href="/add-vinyl" class="hover:text-neutral-900 dark:hover:text-white transition-colors flex items-center py-2">
+            <i class="fa-solid fa-arrow-left mr-2"></i> <%= t('common.back_to_search') %>
+        </a>
+    </nav>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        <div class="lg:col-span-4 space-y-6">
+            <div class="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 sticky top-24 transition-colors shadow-sm dark:shadow-none">
+                
+                <div class="aspect-square rounded-lg overflow-hidden mb-4 shadow-lg relative group bg-gray-100 dark:bg-neutral-950">
+                    <img id="livePreview" src="<%= vinyl.cover_image %>" class="w-full h-full object-cover transition-all duration-500">
+                    <div class="absolute inset-0 bg-black/20 hidden group-hover:flex items-center justify-center text-white text-xs font-bold">
+                        <%= t('confirm_vinyl.cover_preview') %>
+                    </div>
+                </div>
+                
+                <h2 class="text-xl font-bold text-neutral-900 dark:text-white mb-1 leading-tight transition-colors"><%= vinyl.title %></h2>
+                <p class="text-neutral-500 dark:text-neutral-400 mb-4 transition-colors"><%= vinyl.artist %></p>
+
+                <div class="space-y-3 text-sm border-t border-neutral-200 dark:border-neutral-800 pt-4 transition-colors">
+                    <div class="flex justify-between">
+                        <span class="text-neutral-500"><%= t('confirm_vinyl.label_label') %></span>
+                        <span class="text-neutral-900 dark:text-white text-right font-medium"><%= vinyl.label %></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-neutral-500"><%= t('confirm_vinyl.catalog_label') %></span>
+                        <span class="text-neutral-900 dark:text-white font-mono"><%= vinyl.catalog_number %></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-neutral-500"><%= t('confirm_vinyl.year_label') %></span>
+                        <span class="text-neutral-900 dark:text-white"><%= vinyl.year %></span>
+                    </div>
+                </div>
+
+                <% if(vinyl.tracklist && vinyl.tracklist.length > 0) { %>
+                    <div class="mt-6 border-t border-neutral-200 dark:border-neutral-800 pt-4 transition-colors">
+                        <h3 class="text-xs uppercase font-bold text-neutral-500 mb-3"><%= t('confirm_vinyl.tracks_title') %></h3>
+                        <ul class="text-sm space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                            <% vinyl.tracklist.forEach(track => { %>
+                                <li class="flex gap-3 text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors">
+                                    <span class="font-mono text-neutral-400 dark:text-neutral-600 w-6 text-right flex-shrink-0"><%= track.position %></span>
+                                    <span class="truncate"><%= track.title %></span>
+                                    <% if(track.duration) { %>
+                                        <span class="ml-auto text-xs text-neutral-400 dark:text-neutral-600"><%= track.duration %></span>
+                                    <% } %>
+                                </li>
+                            <% }) %>
+                        </ul>
+                    </div>
+                <% } %>
+            </div>
+        </div>
+
+        <div class="lg:col-span-8">
+            <div class="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 md:p-8 transition-colors shadow-sm dark:shadow-none">
+                <h1 class="text-2xl font-bold text-neutral-900 dark:text-white mb-6 flex items-center gap-2 transition-colors">
+                    <i class="fa-solid fa-pen-to-square text-green-600 dark:text-green-400"></i> <%= t('confirm_vinyl.config_title') %>
+                </h1>
+
+                <form action="/save-vinyl" method="POST" class="space-y-6">
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block mb-2 text-sm font-medium text-neutral-600 dark:text-neutral-400 transition-colors"><%= t('confirm_vinyl.field_title') %></label>
+                            <input type="text" name="title" value="<%= vinyl.title %>" class="bg-gray-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-neutral-900 dark:text-white text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5 transition-colors">
+                        </div>
+                        <div>
+                            <label class="block mb-2 text-sm font-medium text-neutral-600 dark:text-neutral-400 transition-colors"><%= t('confirm_vinyl.field_artist') %></label>
+                            <input type="text" name="artist" value="<%= vinyl.artist %>" class="bg-gray-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-neutral-900 dark:text-white text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5 transition-colors">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block mb-2 text-sm font-medium text-neutral-600 dark:text-neutral-400 transition-colors"><%= t('confirm_vinyl.field_format') %></label>
+                            <input type="text" name="format_type" value="<%= vinyl.format_type %>" class="bg-gray-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-neutral-900 dark:text-white text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5 transition-colors">
+                        </div>
+                        <div>
+                            <label class="block mb-2 text-sm font-medium text-green-600 dark:text-green-400 transition-colors"><%= t('confirm_vinyl.field_edition') %></label>
+                            <input type="text" name="variant_color" value="<%= vinyl.variant_color %>" class="bg-gray-50 dark:bg-neutral-800 border border-green-500/50 text-neutral-900 dark:text-white text-sm rounded-lg focus:ring-green-500 block w-full p-2.5 placeholder-neutral-400 dark:placeholder-neutral-600 transition-colors" placeholder="<%= t('confirm_vinyl.edition_placeholder') %>">
+                        </div>
+                    </div>
+
+                    <hr class="border-neutral-200 dark:border-neutral-800 my-6 transition-colors">
+
+                    <div>
+                        <div class="flex items-center mb-4">
+                            <input id="checkEditCover" type="checkbox" class="w-4 h-4 text-green-600 bg-gray-100 dark:bg-neutral-700 border-neutral-300 dark:border-neutral-600 rounded focus:ring-green-600 focus:ring-2 cursor-pointer transition-colors">
+                            <label for="checkEditCover" class="ml-2 text-sm font-medium text-neutral-900 dark:text-white cursor-pointer select-none transition-colors">
+                                <%= t('confirm_vinyl.replace_cover') %>
+                            </label>
+                        </div>
+                        <input type="hidden" name="cover_image" id="inputCoverImage" value="<%= vinyl.cover_image %>">
+                        <div id="boxEditCover" class="hidden p-4 bg-gray-50 dark:bg-neutral-800/50 rounded-lg border border-neutral-200 dark:border-neutral-700 mb-6 transition-colors">
+                            <div class="flex flex-col md:flex-row gap-2 mb-4">
+                                <input type="text" id="queryCover" value="<%= vinyl.artist %> <%= vinyl.title %> album cover" class="flex-grow bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 text-neutral-900 dark:text-white text-base md:text-sm rounded-lg p-3 md:p-2.5 transition-colors">
+                                <button type="button" onclick="searchGoogle('cover')" class="bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-white hover:text-black text-neutral-700 dark:text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors">
+                                    <i class="fa-solid fa-search"></i>
+                                </button>
+                            </div>
+                            <div id="resultsCover" class="grid grid-cols-2 md:grid-cols-5 gap-3 max-h-96 md:max-h-60 overflow-y-auto custom-scrollbar">
+                                <p class="col-span-full text-center text-xs text-neutral-500 py-2"><%= t('confirm_vinyl.search_hint') %></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center mb-4">
+                            <input id="checkEditDisc" type="checkbox" <%= vinyl.user_image ? 'checked' : '' %> class="w-4 h-4 text-blue-600 bg-gray-100 dark:bg-neutral-700 border-neutral-300 dark:border-neutral-600 rounded focus:ring-blue-600 focus:ring-2 cursor-pointer transition-colors">
+                            <label for="checkEditDisc" class="ml-2 text-sm font-medium text-neutral-900 dark:text-white cursor-pointer select-none transition-colors">
+                                <%= t('confirm_vinyl.add_secondary_visual') %>
+                            </label>
+                        </div>
+                        <input type="hidden" name="user_image" id="inputUserImage" value="<%= vinyl.user_image %>">
+                        <div id="boxEditDisc" class="hidden p-4 bg-gray-50 dark:bg-neutral-800/50 rounded-lg border border-blue-500/30 transition-colors">
+                            <div class="flex flex-col md:flex-row gap-2 mb-4">
+                                <input type="text" id="queryDisc" value="<%= vinyl.artist %> <%= vinyl.title %> <%= vinyl.media_type %> <%= vinyl.variant_color %>" class="flex-grow bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 text-neutral-900 dark:text-white text-base md:text-sm rounded-lg p-3 md:p-2.5 transition-colors">
+                                <button type="button" onclick="searchGoogle('disc')" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors">
+                                    <i class="fa-solid fa-search"></i>
+                                </button>
+                            </div>
+                            <div id="resultsDisc" class="grid grid-cols-2 md:grid-cols-5 gap-3 max-h-96 md:max-h-60 overflow-y-auto custom-scrollbar">
+                                <p class="col-span-full text-center text-xs text-neutral-500 py-2"><%= t('confirm_vinyl.search_hint') %></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block mb-2 text-sm font-medium text-neutral-600 dark:text-neutral-400 transition-colors">
+                            <%= t('confirm_vinyl.field_comments') %>
+                            <span class="text-xs text-neutral-500 ml-2 font-normal"><%= t('confirm_vinyl.comments_hint') %></span>
+                        </label>
+                        <textarea name="comments" rows="3" class="bg-gray-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-neutral-900 dark:text-white text-base md:text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-3 md:p-2.5 placeholder-neutral-400 dark:placeholder-neutral-600 transition-colors" placeholder="<%= t('confirm_vinyl.comments_placeholder') %>"></textarea>
+                    </div>
+
+                    <input type="hidden" name="discogs_id" value="<%= vinyl.discogs_id %>">
+                    <input type="hidden" name="year" value="<%= vinyl.year %>">
+                    <input type="hidden" name="label" value="<%= vinyl.label %>">
+                    <input type="hidden" name="catalog_number" value="<%= vinyl.catalog_number %>">
+                    <input type="hidden" name="tracklist_json" value="<%= JSON.stringify(vinyl.tracklist) %>">
+                    
+                    <% 
+                        let finalMediaType = 'vinyl';
+                        if (vinyl.format_type) {
+                            if (vinyl.format_type.includes('Cassette')) { finalMediaType = 'cassette'; }
+                            else if (vinyl.format_type.includes('CD')) { finalMediaType = 'cd'; }
+                        }
+                    %>
+                    <input type="hidden" name="media_type" value="<%= finalMediaType %>">
+
+                    <div class="pt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <button type="submit" name="in_wishlist" value="true" class="text-neutral-900 dark:text-white bg-gray-200 dark:bg-neutral-700 hover:bg-pink-500 hover:text-white dark:hover:bg-pink-600 font-bold rounded-lg text-sm px-5 py-4 transition-colors flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-gift"></i> <%= t('confirm_vinyl.btn_wishlist') %>
+                        </button>
+                        <button type="submit" name="in_wishlist" value="false" class="text-white bg-green-600 hover:bg-green-500 font-bold rounded-lg text-lg px-5 py-4 transition-transform hover:scale-[1.01] flex items-center justify-center gap-2 shadow-lg shadow-green-500/20">
+                            <i class="fa-solid fa-check"></i> <%= t('confirm_vinyl.btn_collection') %>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const jsTranslations = {
+        api_error: "<%= t('confirm_vinyl.api_error') %>",
+        no_images: "<%= t('confirm_vinyl.no_images') %>"
+    };
+
+    const checkCover = document.getElementById('checkEditCover');
+    const boxCover = document.getElementById('boxEditCover');
+    const checkDisc = document.getElementById('checkEditDisc');
+    const boxDisc = document.getElementById('boxEditDisc');
+
+    function toggleBox(checkbox, box) {
+        if(checkbox.checked) {
+            box.classList.remove('hidden');
+        } else {
+            box.classList.add('hidden');
+        }
+    }
+
+    toggleBox(checkCover, boxCover);
+    toggleBox(checkDisc, boxDisc);
+    checkCover.addEventListener('change', () => toggleBox(checkCover, boxCover));
+    checkDisc.addEventListener('change', () => toggleBox(checkDisc, boxDisc));
+
+    async function searchGoogle(type) {
+        const queryInput = document.getElementById(type === 'cover' ? 'queryCover' : 'queryDisc');
+        const resultsDiv = document.getElementById(type === 'cover' ? 'resultsCover' : 'resultsDisc');
+        const hiddenInput = document.getElementById(type === 'cover' ? 'inputCoverImage' : 'inputUserImage');
+        const livePreview = document.getElementById('livePreview');
+
+        const query = queryInput.value;
+        resultsDiv.innerHTML = '<div class="col-span-full text-center py-4"><i class="fa-solid fa-circle-notch fa-spin text-green-500 text-2xl"></i></div>';
+        
+        try {
+            const res = await fetch(`/api/google-images?q=${encodeURIComponent(query)}`);
+            const images = await res.json();
+            
+            resultsDiv.innerHTML = '';
+            
+            if (images.length === 0) {
+                resultsDiv.innerHTML = '<div class="col-span-full text-center text-xs text-neutral-500">Aucune image trouvée.</div>';
+                return;
+            }
+
+            images.forEach(url => {
+                const div = document.createElement('div');
+                div.className = 'relative aspect-square cursor-pointer group rounded-lg overflow-hidden border-2 border-transparent hover:border-green-500 transition-all bg-gray-100 dark:bg-black';
+                
+                div.innerHTML = `
+                    <img src="${url}" class="w-full h-full object-contain p-1">
+                    <div class="absolute inset-0 bg-black/40 hidden group-hover:flex items-center justify-center">
+                        <i class="fa-solid fa-check text-white text-xl"></i>
+                    </div>
+                `;
+
+                div.onclick = () => {
+                    Array.from(resultsDiv.children).forEach(c => c.classList.remove('border-green-500', 'ring-2', 'ring-green-500'));
+                    div.classList.add('border-green-500', 'ring-2', 'ring-green-500');
+
+                    hiddenInput.value = url;
+
+                    if (type === 'cover') {
+                        livePreview.src = url;
+                        if(window.innerWidth < 1024) {
+                            livePreview.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                    }
+                };
+
+                resultsDiv.appendChild(div);
+            });
+        } catch (err) {
+            resultsDiv.innerHTML = '<div class="col-span-full text-red-500 text-xs">Erreur API.</div>';
+        }
+    }
+</script>
+
+<style>
+    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #f5f5f5; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #d4d4d4; border-radius: 2px; }
+
+    .dark .custom-scrollbar::-webkit-scrollbar-track { background: #171717; }
+    .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #404040; }
+</style>
+
+<%- include('partials/footer') %>
