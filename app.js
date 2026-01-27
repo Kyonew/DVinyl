@@ -1,3 +1,5 @@
+// Licensed under MIT
+
 /**
  * app.js
  *
