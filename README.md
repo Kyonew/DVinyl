@@ -22,8 +22,10 @@ DVinyl allows you to keep track of your physical music collection. It uses the D
 * Instant import using Discogs Release IDs.
 * Scan your physical media to easily add it to your digital collection*
 * Get market estimates (Low/Median/High) for your entire collection.
+* Whishlist system.
 * Fully localized in English 🇬🇧 and French 🇫🇷.
 * Optimized for mobile management with native Dark & Light modes.
+* Authentication system for people who want to see your collection.
 
 *<small>(may only work in France)</small>
 
@@ -68,48 +70,12 @@ Access the application at `http://localhost:3099`.
 
 # Screenshots
 
-<table width="100%">
-  <tr>
-    <th width="65%">🖥️ Desktop View</th>
-    <th width="35%">📱 Mobile View</th>
-  </tr>
-  <tr>
-    <td align="left" valign="top">
-      <a href="./docs/img/desktop-dashboard.jpg">
-        <img src="./docs/img/desktop-dashboard.jpg" style="max-height: 320px; width: auto;" alt="Dashboard Desktop">
-      </a>
-    </td>
-    <td align="left" valign="top">
-      <a href="./docs/img/mobile-dashboard.png">
-        <img src="./docs/img/mobile-dashboard.png" style="max-height: 320px; width: auto;" alt="Dashboard Mobile">
-      </a>
-    </td>
-  </tr>
-    <tr>
-    <td align="left" valign="top">
-      <a href="./docs/img/desktop-collection.jpg">
-        <img src="./docs/img/desktop-collection.jpg" style="max-height: 320px; width: auto;" alt="collection Desktop">
-      </a>
-    </td>
-    <td align="left" valign="top">
-      <a href="./docs/img/mobile-collection.png">
-        <img src="./docs/img/mobile-collection.png" style="max-height: 320px; width: auto;" alt="collection Mobile">
-      </a>
-    </td>
-  </tr>
-    <tr>
-    <td align="left" valign="top">
-      <a href="./docs/img/desktop-detail.jpg">
-        <img src="./docs/img/desktop-detail.jpg" style="max-height: 320px; width: auto;" alt="detail Desktop">
-      </a>
-    </td>
-    <td align="left" valign="top">
-      <a href="./docs/img/mobile-detail.png">
-        <img src="./docs/img/mobile-detail.png" style="max-height: 320px; width: auto;" alt="detail Mobile">
-      </a>
-    </td>
-  </tr>
-</table>
+| 🖥️ Desktop View | 📱 Mobile View |
+|-----------------|----------------|
+| ![Dashboard Desktop](./docs/img/desktop-dashboard.jpg) | ![Dashboard Mobile](./docs/img/mobile-dashboard.png) |
+| [![Collection Desktop](./docs/img/desktop-collection.jpg)](./docs/img/desktop-collection.jpg) | [![Collection Mobile](./docs/img/mobile-collection.png)](./docs/img/mobile-collection.png) |
+| [![Detail Desktop](./docs/img/desktop-detail.jpg)](./docs/img/desktop-detail.jpg) | [![Detail Mobile](./docs/img/mobile-detail.png)](./docs/img/mobile-detail.png) |
+
 
 # 🤝 Contributing
 
