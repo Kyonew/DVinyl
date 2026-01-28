@@ -33,7 +33,7 @@ DVinyl allows you to keep track of your physical music collection. It uses the D
 
 To keep things organized, I have split the documentation into specialized guides:
 
-* 🏁 [**Getting Started**](./docs/setup.md) - Manual installation and requirements.
+* 🏁 [**Getting Started**](./docs/getting-started.md) - Manual installation and requirements.
 * 🐳 [**Docker Deployment**](./docs/docker.md) - Deploying via Docker Compose *(Recommended)*.
 * 🔑 [**API Configuration**](./docs/api-keys.md) - How to obtain your Discogs and Google API keys.
 
