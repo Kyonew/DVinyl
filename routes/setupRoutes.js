@@ -50,7 +50,7 @@ router.post('/', async (req, res) => {
         res.cookie('jwt', token, { 
             httpOnly: true, 
             maxAge: 3 * 24 * 60 * 60 * 1000,
-            secure: process.env.NODE_ENV === 'production', // Only send cookie over HTTPS in production
+            secure: process.env.PROD, // Only send cookie over HTTPS in production
             sameSite: 'lax' // Mitigate CSRF
         });        
         res.redirect('/'); 
