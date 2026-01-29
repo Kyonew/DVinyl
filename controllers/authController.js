@@ -15,7 +15,7 @@ const requestIp = require('request-ip');
 // In-memory login attempt tracking to throttle brute-force attempts.
 const loginAttempts = {};
 const MAX_ATTEMPTS = 4;
-const BLOCK_TIME = 5 * 60 * 1000; // 5 minutes
+const BLOCK_TIME = 5 * 60 * 1000; // 5 minutes (can be adjusted as needed)
 
 /**
  * Translate known errors into i18n keys returned to the client.
@@ -26,12 +26,11 @@ const BLOCK_TIME = 5 * 60 * 1000; // 5 minutes
 const handleErrors = (err) => {
   let errors = { login: '' };
 
-  // 1. Manual check for login logic (custom errors thrown by User.login static method)
+  // Manual check for login logic (custom errors thrown by User.login static method)
   if (err.message === 'incorrect email' || err.message === 'incorrect password') {
     errors.login = 'errors.invalid_credentials';
   }
 
-  // 2. Handle Mongoose validation errors
   // If the error is a validation error, we extract the key defined in the User Schema.
   if (err.message.includes('user validation failed')) {
     Object.values(err.errors).forEach(({ properties }) => {
