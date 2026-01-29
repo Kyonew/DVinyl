@@ -89,7 +89,12 @@ module.exports.login_post = async (req, res) => {
 
     const token = jwt.sign({ id: user._id }, process.env.PASSJWT, { expiresIn: '3d' });
 
-    res.cookie('jwt', token, { httpOnly: true, maxAge: 3 * 24 * 60 * 60 * 1000 });
+    res.cookie('jwt', token, { 
+        httpOnly: true, 
+        maxAge: 3 * 24 * 60 * 60 * 1000,
+        secure: process.env.NODE_ENV === 'production', // Only send cookie over HTTPS in production
+        sameSite: 'lax' // Mitigate CSRF
+    });
     res.status(200).json({ user: user._id });
 
   } catch (err) {

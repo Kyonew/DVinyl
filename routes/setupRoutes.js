@@ -47,8 +47,12 @@ router.post('/', async (req, res) => {
 
         // Issue JWT and set cookie
         const token = createToken(newAdmin._id);
-        res.cookie('jwt', token, { httpOnly: true, maxAge: maxAge * 1000 });
-        
+        res.cookie('jwt', token, { 
+            httpOnly: true, 
+            maxAge: 3 * 24 * 60 * 60 * 1000,
+            secure: process.env.NODE_ENV === 'production', // Only send cookie over HTTPS in production
+            sameSite: 'lax' // Mitigate CSRF
+        });        
         res.redirect('/'); 
     } catch (err) {
         console.error(err);
