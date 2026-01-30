@@ -95,10 +95,10 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 <br>
 
-# Important Clarification
-
-Please note that parts of the frontend and docstrings were generated with the assistance of AI tools. While I reviewed and corrected the output where necessary, this project is not 100% human-made.
-
-Your feedback is highly appreciated, even for the backend, where I may have made significant errors. I would be grateful for any suggestions or comments to improve the project.
-
-Thank you for your understanding <3
+> [!IMPORTANT]
+>
+> Please note that parts of the frontend and docstrings were generated with the assistance of AI tools. While I reviewed and corrected the output where necessary, this project is not 100% human-made.
+>
+> Your feedback is highly appreciated, even for the backend, where I may have made significant errors. I would be grateful for any suggestions or comments to improve the project.
+>
+> Thank you for your understanding <3
