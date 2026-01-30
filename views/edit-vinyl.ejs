@@ -67,6 +67,23 @@
                         <textarea name="comments" rows="3" class="bg-gray-50 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-neutral-900 dark:text-white text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5 transition-colors"><%= vinyl.comments %></textarea>
                     </div>
 
+                    <div class="mb-6">
+                        <label class="block text-xs font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 mb-2">
+                            <i class="fa-solid fa-box-archive mr-1"></i> <%= t('common.location') %>
+                        </label>
+                        <input type="text" name="location" list="locationList" 
+                            value="<%= typeof vinyl !== 'undefined' ? (vinyl.location || '') : '' %>"
+                            placeholder="<%= t('placeholders.location') %>"
+                            class="w-full bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-green-500 outline-none transition-all text-neutral-900 dark:text-white">
+                        
+                        <datalist id="locationList">
+                            <% locations.forEach(loc => { %>
+                                <option value="<%= loc %>">
+                            <% }) %>
+                        </datalist>
+                    </div>
+                    </div>
+
                     <hr class="border-neutral-200 dark:border-neutral-800 my-6 transition-colors">
 
                     <div>

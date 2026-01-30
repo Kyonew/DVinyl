@@ -13,7 +13,10 @@
     "no_results": "No images found.",
     "not_available": "N/A",
     "unknown": "Unknown",
-    "go": "Go"
+    "go": "Go",
+    "location": "Location",
+    "not_specified": "Not specified",
+    "or": "OR"
   },
   "settings": {
     "page_title": "Account Settings",
@@ -156,6 +159,16 @@
       "username": "Username",
       "email": "Email address",
       "submit": "Create and generate password"
+    },
+    "backup": {
+      "export_btn": "Export Database",
+      "import_btn": "Import Database",
+      "import_success": "Database imported successfully.",
+      "import_error": "Error during import.",
+      "json_error": "Invalid JSON file.",
+      "confirm_import": "WARNING: This will delete all your current data (albums, users, logs) and replace it with the content of the file. You will be logged out. Continue?",
+      "subtitle": "Backup your collection or restore an existing database.",
+      "title": "System Maintenance"
     }
   },
   "collection": {
@@ -255,7 +268,9 @@
     "password_placeholder": "Min. 6 characters",
     "confirm_label": "Confirm password",
     "confirm_placeholder": "Repeat password",
-    "submit_btn": "Complete Installation"
+    "submit_btn": "Complete Installation",
+    "restore_backup": "Restore from backup",
+    "error_save_file": "Error: Backup file corrupted or invalid."
   },
   "auth": {
     "username_required": "Please enter a username",
@@ -263,5 +278,8 @@
     "email_invalid": "Please enter a valid email",
     "password_required": "Please enter a password",
     "password_too_short": "Password must be at least 6 characters long"
+  },
+  "placeholders": {
+    "location": "e.g. Shelf A - Box 3"
   }
 }

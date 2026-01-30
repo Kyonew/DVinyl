@@ -154,6 +154,25 @@
                     %>
                     <input type="hidden" name="media_type" value="<%= finalMediaType %>">
 
+
+                    <div class="mb-6">
+                        <label class="block text-xs font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 mb-2">
+                            <i class="fa-solid fa-box-archive mr-1"></i> <%= t('common.location') %>
+                        </label>
+                        <input type="text" name="location" list="locationList" 
+                            value="<%= typeof vinyl !== 'undefined' ? (vinyl.location || '') : '' %>"
+                            placeholder="<%= t('placeholders.location') %>"
+                            class="w-full bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-green-500 outline-none transition-all text-neutral-900 dark:text-white">
+                        
+                        <datalist id="locationList">
+                            <% locations.forEach(loc => { %>
+                                <option value="<%= loc %>">
+                            <% }) %>
+                        </datalist>
+                    </div>
+
+
+
                     <div class="pt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
                         <button type="submit" name="in_wishlist" value="true" class="text-neutral-900 dark:text-white bg-gray-200 dark:bg-neutral-700 hover:bg-pink-500 hover:text-white dark:hover:bg-pink-600 font-bold rounded-lg text-sm px-5 py-4 transition-colors flex items-center justify-center gap-2">
                             <i class="fa-solid fa-gift"></i> <%= t('confirm_vinyl.btn_wishlist') %>

@@ -143,6 +143,27 @@
                         <div class="absolute inset-0 -translate-x-full group-hover:translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-1000"></div>
                     </button>
                 </div>
+
+                <div class="relative py-4">
+                    <div class="absolute inset-0 flex items-center">
+                        <span class="w-full border-t border-white/10"></span>
+                    </div>
+                    <div class="relative flex justify-center text-xs uppercase tracking-widest">
+                        <span class="bg-neutral-900 px-3 text-neutral-500 font-bold"><%= t('common.or') %></span>
+                    </div>
+                </div>
+
+                <div class="group/restore relative">
+                    <label for="setupBackupInput" class="w-full flex flex-col items-center justify-center gap-2 py-6 border-2 border-dashed border-neutral-700 rounded-2xl text-neutral-400 hover:border-blue-500 hover:text-blue-400 hover:bg-blue-500/5 transition-all cursor-pointer group-hover/restore:scale-[1.01]">
+                        <div class="w-10 h-10 rounded-full bg-neutral-800 flex items-center justify-center border border-white/5 text-blue-500 mb-1">
+                            <i class="fa-solid fa-file-import"></i>
+                        </div>
+                        <span class="text-xs font-bold uppercase tracking-wider"><%= t('setup.restore_backup') %></span>
+                        <input type="file" id="setupBackupInput" class="hidden" accept=".json">
+                    </label>
+                </div>
+
+
             </form>
         </div>
         
@@ -206,6 +227,46 @@
                 setTimeout(() => form.classList.remove('animate-[shake_0.5s_ease-in-out]'), 500);
             }
         });
+
+        const backupInput = document.getElementById('setupBackupInput');
+        
+        backupInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                try {
+                    const backupData = JSON.parse(event.target.result);
+                    
+                    errorBox.classList.add('hidden');
+                    const btn = document.querySelector('button[type="submit"]');
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> Restauration...';
+
+                    const response = await fetch('/backup/import', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(backupData)
+                    });
+
+                    if (response.ok) {
+                        window.location.href = '/login';
+                    } else {
+                        throw new Error('Import failed');
+                    }
+                } catch (err) {
+                    errorText.innerText = "<%= t('setup.error_save_file') %>";
+                    errorBox.classList.remove('hidden');
+                    const btn = document.querySelector('button[type="submit"]');
+                    btn.disabled = false;
+                    btn.innerHTML = '<span class="relative z-10 flex items-center justify-center gap-2"><%= t("setup.submit_btn") %><i class="fa-solid fa-rocket"></i></span>';
+                }
+            };
+            reader.readAsText(file);
+        });
+
+
     </script>
 </body>
 </html>

@@ -85,14 +85,17 @@ router.get('/collection', requireAuth, async (req, res) => {
             // Use $regex to perform a case-insensitive contains search
             query.$or = [
                 { title: { $regex: searchQuery, $options: 'i' } },
-                { artist: { $regex: searchQuery, $options: 'i' } }
+                { artist: { $regex: searchQuery, $options: 'i' } },
+                { location: { $regex: searchQuery, $options: 'i' } }
             ];
         }
 
         const albums = await Album.find(query).sort({ added_at: -1 });
-
+        const locations = await Album.distinct('location', { owner: adminId, in_wishlist: false, location: { $ne: "" } });
+        
         res.render('collection', { 
-            albums, 
+            albums,
+            locations,
             currentType: typeFilter || 'all',
             searchQuery: searchQuery || '', // Preserve search text for input
             user: res.locals.user 
@@ -119,8 +122,11 @@ router.get('/edit/:id', requireAuth, async (req, res) => {
             return res.redirect('/collection');
         }
 
+        const adminId = await User.findOne({ isAdmin: true }).select('_id').lean();
+        const locations = await Album.distinct('location', { owner: adminId, location: { $ne: "" } });
+        
         // Render the edit view with the album
-        res.render('edit-vinyl', { vinyl: album, user: res.locals.user });
+        res.render('edit-vinyl', { vinyl: album, user: res.locals.user, locations });
     } catch (err) {
         console.error(err);
         res.redirect('/collection');
@@ -181,6 +187,8 @@ router.get('/confirm-vinyl/:id', requireAuth, async (req, res) => {
                 });
             }
         }
+        const adminId = await User.findOne({ isAdmin: true }).select('_id').lean();
+        const locations = await Album.distinct('location', { owner: adminId, location: { $ne: "" } });
 
         const vinyl = {
             title: data.title,
@@ -195,10 +203,11 @@ router.get('/confirm-vinyl/:id', requireAuth, async (req, res) => {
 
             tracklist: data.tracklist || [], // Discogs returns a proper array
             cover_image: data.images && data.images.length > 0 ? data.images[0].resource_url : '',
-            discogs_id: data.id
+            discogs_id: data.id,
+            // location: locations.length > 0 ? locations[0] : '',
         };
 
-        res.render('confirm-vinyl', { vinyl, user: res.locals.user });
+        res.render('confirm-vinyl', { vinyl, user: res.locals.user, locations });
     } catch (err) {
         console.log(err);
         res.status(500).send(req.t('errors.generic_server_error'));
@@ -214,7 +223,7 @@ router.post('/save-vinyl', requireAuth, requireAdmin, async (req, res) => {
             title, artist, year, label, catalog_number, 
             format_type, variant_color, 
             cover_image, user_image, discogs_id, tracklist_json,
-            media_type, in_wishlist, comments
+            media_type, in_wishlist, comments, location
         } = req.body;
         
         const tracklist = tracklist_json ? JSON.parse(tracklist_json) : [];
@@ -251,6 +260,7 @@ router.post('/save-vinyl', requireAuth, requireAdmin, async (req, res) => {
             album.in_wishlist = isWishlist;
             album.media_type = media_type || 'vinyl';
             album.comments = comments || '';
+            album.location = location || '';
             
             if (user_image && user_image.length > 0) {
                 album.user_image = user_image;
@@ -270,7 +280,8 @@ router.post('/save-vinyl', requireAuth, requireAdmin, async (req, res) => {
                 media_type: media_type || 'vinyl',
                 in_wishlist: isWishlist,
                 owner: userId,
-                comments: comments || ''
+                comments: comments || '',
+                location: location || ''
             });
             console.log(`Album créé : ${title}`);
         }
