@@ -15,7 +15,8 @@
     "unknown": "Inconnu",
     "go": "Go",
     "location": "Emplacement",
-    "not_specified": "Non renseigné"
+    "not_specified": "Non renseigné",
+    "or": "OU"
   },
   "settings": {
     "page_title": "Paramètres du compte",
@@ -158,6 +159,16 @@
       "username": "Nom d'utilisateur",
       "email": "Email",
       "submit": "Créer et générer mot de passe"
+    },
+    "backup": {
+      "export_btn": "Exporter la base de données",
+      "import_btn": "Importer la base de données",
+      "import_success": "Base de données importée avec succès.",
+      "import_error": "Erreur lors de l'importation.",
+      "json_error": "Fichier JSON invalide.",
+      "confirm_import": "ATTENTION : Cela va supprimer toutes vos données actuelles (albums, utilisateurs, logs) pour les remplacer par le contenu du fichier. Vous serez déconnecté. Continuer ?",
+      "subtitle": "Sauvegardez votre collection ou restaurez une base de données existante.",
+      "title": "Maintenance du système"
     }
   },
   "collection": {
@@ -257,7 +268,9 @@
     "password_placeholder": "Min. 6 caractères",
     "confirm_label": "Confirmer",
     "confirm_placeholder": "Répétez le mot de passe",
-    "submit_btn": "Terminer l'installation"
+    "submit_btn": "Terminer l'installation",
+    "restore_backup": "Restaurer depuis une sauvegarde",
+    "error_save_file": "Erreur : Fichier de sauvegarde corrompu ou invalide."
   },
   "auth": {
     "username_required": "Veuillez entrer un nom d'utilisateur",
@@ -268,5 +281,5 @@
   },
   "placeholders": {
     "location": "ex: Étagère A - Carton 3"
-}
+  }
 }

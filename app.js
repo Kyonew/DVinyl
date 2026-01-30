@@ -32,6 +32,7 @@ const authRoutes = require('./routes/authRoutes.js');
 const albumRoutes = require('./routes/albumRoutes.js');
 const adminRoutes = require('./routes/adminRoutes.js');
 const settingsRoutes = require('./routes/settingsRoutes.js');
+const backupRoutes = require('./routes/backupRoutes.js');
 
 const app = express();
 const server = http.createServer(app);
@@ -62,8 +63,8 @@ app.set('io', io); // Expose io to routes
 // Global middlewares
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, '../website/public')));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cookieParser());
 
 
@@ -121,9 +122,10 @@ app.use(checkUser);
 app.use(async (req, res, next) => {
     // Ignore paths that should not be redirected during setup
     if (req.path.startsWith('/setup') || 
-        req.path.startsWith('/ressources') || 
-        req.path.startsWith('/styles') ||
-        req.path.startsWith('/login') ) { // allow login while setting up
+      req.path.startsWith('/ressources') || 
+      req.path.startsWith('/styles') ||
+      req.path.startsWith('/login') ||
+      req.path.startsWith('/backup') ) { // allow login and backup import while setting up
         return next();
     }
 
@@ -150,7 +152,7 @@ app.use(authRoutes);
 app.use(albumRoutes);
 app.use('/admin', adminRoutes);
 app.use('/settings', settingsRoutes);
-
+app.use('/backup', backupRoutes);
 
 
 // Database connection and server start

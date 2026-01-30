@@ -146,6 +146,30 @@
         <% } %>
     </section>
 
+    <section class="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-3xl p-6 md:p-8 shadow-sm transition-colors">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div>
+                <h2 class="text-xl font-bold text-neutral-900 dark:text-white flex items-center gap-2 mb-2">
+                    <i class="fa-solid fa-database text-blue-500"></i> <%= t('admin.backup.title') %>
+                </h2>
+                <p class="text-sm text-neutral-500 dark:text-neutral-400">
+                    <%= t('admin.backup.subtitle') %>
+                </p>
+            </div>
+            
+            <div class="flex flex-wrap gap-3">
+                <a href="/backup/export" class="flex-1 sm:flex-none bg-neutral-100 dark:bg-neutral-800 hover:bg-blue-500 hover:text-white text-neutral-700 dark:text-neutral-300 px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-file-export"></i> <%= t('admin.backup.export_btn') %>
+                </a>
+
+                <label class="flex-1 sm:flex-none bg-neutral-100 dark:bg-neutral-800 hover:bg-yellow-500 hover:text-white text-neutral-700 dark:text-neutral-300 px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-file-import"></i> <%= t('admin.backup.import_btn') %>
+                    <input type="file" id="backupInput" class="hidden" accept=".json">
+                </label>
+            </div>
+        </div>
+    </section>
+
     <section>
         <div class="flex items-center justify-between mb-6">
             <h2 class="text-xl font-bold text-neutral-900 dark:text-white flex items-center gap-2 transition-colors">
@@ -265,4 +289,37 @@
             document.body.style.overflow = 'auto';
         }
     }
+
+    document.getElementById('backupInput').onchange = function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const confirmMsg = "<%= t('admin.backup.confirm_import') %>";
+        
+        if (confirm(confirmMsg)) {
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                try {
+                    const backupData = JSON.parse(event.target.result);
+                    const response = await fetch('/backup/import', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(backupData)
+                    });
+
+                    if (response.ok) {
+                        alert("<%= t('admin.backup.import_success') %>");
+                        window.location.href = '/login';
+                    } else {
+                        alert("<%= t('admin.backup.import_error') %>");
+                    }
+                } catch (err) {
+                    alert("<%= t('admin.backup.json_error') %>");
+                }
+            };
+            reader.readAsText(file);
+        }
+        this.value = ''; // Reset input
+    };
+
 </script>
