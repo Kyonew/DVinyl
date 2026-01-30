@@ -156,7 +156,7 @@ app.use('/backup', backupRoutes);
 
 
 // Database connection and server start
-const dbURI = process.env.MONGDODB_URL;
+const dbURI = process.env.MONGODB_URL; ;
 mongoose.connect(dbURI)
   .then(() => {
     console.log('✅ MongoDB connected');
