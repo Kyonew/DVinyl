@@ -13,7 +13,9 @@
     "no_results": "Aucune image trouvée.",
     "not_available": "N/A",
     "unknown": "Inconnu",
-    "go": "Go"
+    "go": "Go",
+    "location": "Emplacement",
+    "not_specified": "Non renseigné"
   },
   "settings": {
     "page_title": "Paramètres du compte",
@@ -263,5 +265,8 @@
     "email_invalid": "Veuillez entrer un email valide",
     "password_required": "Veuillez entrer un mot de passe",
     "password_too_short": "Le mot de passe doit faire 6 caractères minimum"
-  }
+  },
+  "placeholders": {
+    "location": "ex: Étagère A - Carton 3"
+}
 }

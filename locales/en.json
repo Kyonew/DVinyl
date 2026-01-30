@@ -13,7 +13,9 @@
     "no_results": "No images found.",
     "not_available": "N/A",
     "unknown": "Unknown",
-    "go": "Go"
+    "go": "Go",
+    "location": "Location",
+    "not_specified": "Not specified"
   },
   "settings": {
     "page_title": "Account Settings",
@@ -263,5 +265,8 @@
     "email_invalid": "Please enter a valid email",
     "password_required": "Please enter a password",
     "password_too_short": "Password must be at least 6 characters long"
-  }
+  },
+  "placeholders": {
+    "location": "e.g. Shelf A - Box 3"
+}
 }

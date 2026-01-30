@@ -76,6 +76,18 @@
                 </div>
             </div>
 
+            
+            <div class="flex flex-col ml-2">
+                <span class="text-[10px] uppercase tracking-widest text-neutral-500 dark:text-neutral-400 font-bold mb-1">
+                    <%= t('common.location') %>
+                </span>
+                <span class="text-sm text-neutral-900 dark:text-white font-medium">
+                    <i class="fa-solid fa-box-archive mr-2 text-neutral-400"></i>
+                    <%= album.location || t('common.not_specified') %>
+                </span>
+            </div>
+
+
             <div class="bg-white dark:bg-neutral-900/50 rounded-xl p-6 border border-neutral-200 dark:border-neutral-800 grid grid-cols-2 gap-y-6 gap-x-4 transition-colors shadow-sm dark:shadow-none">
                 <div>
                     <span class="block text-xs text-neutral-500 uppercase font-bold mb-1"><%= t('confirm_vinyl.label_label') %></span>

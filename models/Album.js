@@ -35,7 +35,10 @@ const albumSchema = new mongoose.Schema({
     title: String,
     duration: String
   }],
-
+  location: {
+    type: String,
+    default: '' // e.g. "Living Room Shelf"
+  },
   cover_image: String, // Cover image URL (e.g. from Discogs)
   user_image: String, // URL
   in_wishlist: { type: Boolean, default: false },
