@@ -45,7 +45,7 @@ If you have Docker and Docker Compose installed, run the following:
 
 ```bash
 # Clone the repository
-git clone [https://github.com/Kyonew/DVinyl.git](https://github.com/Kyonew/DVinyl.git)
+git clone https://github.com/Kyonew/DVinyl.git
 cd dvinyl
 
 # Setup environment variables
