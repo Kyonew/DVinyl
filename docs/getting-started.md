@@ -31,7 +31,9 @@ Copy the template and fill in your details (see [API Configuration](./api-keys.m
 cp .env.example .env
 ```
 
-> ⚠️ **Important:** For the environment variables `PASSJWT` and `SESSION_SECRET`, make sure to use different complex passwords. They are essential for properly **encrypting** sessions.
+>![IMPORTANT]
+> Make sure to use `PROD=true` **ONLY WITH HTTP<u>S</u>**. For localhost or local IP access, leave `PROD` to `false`.
+> For the environment variables `PASSJWT` and `SESSION_SECRET`, make sure to use different complex passwords. They are essential for properly **encrypting** sessions.
 
 ### 4. Launch the Application
 
