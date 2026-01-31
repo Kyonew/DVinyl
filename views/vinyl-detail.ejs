@@ -164,7 +164,22 @@
                             </table>
                         </div>
                     <% } else { %>
-                        <p class="p-6 text-center text-neutral-500 italic"><%= t('detail.no_tracks') %></p>
+                        <div class="flex flex-col items-center justify-center py-12 text-neutral-400">
+                            <i class="fa-solid fa-music text-4xl mb-4 opacity-20"></i>
+                            <p class="text-sm italic mb-4"><%= t('detail.no_tracklist') %></p>
+                            
+                            <% if (user && user.isAdmin) { %>
+                                <button id="importTracklistBtn" 
+                                        onclick="importTracklist('<%= album._id %>', '<%= album.discogs_id %>')"
+                                        class="bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-900 dark:text-white px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 active:scale-95 shadow-sm">
+                                    <i class="fa-solid fa-file-import"></i>
+                                    <span id="importBtnText"><%= t('detail.import_tracklist_btn') %></span>
+                                </button>
+                                <p id="importError" class="hidden text-red-500 text-[10px] mt-2 font-bold uppercase tracking-tighter">
+                                    <i class="fa-solid fa-circle-exclamation mr-1"></i> <%= t('detail.tracklist_not_found') %>
+                                </p>
+                            <% } %>
+                        </div>
                     <% } %>
                 </div>
             </div>
@@ -295,6 +310,42 @@
             }, 3000);
         }
     }
+
+    async function importTracklist(albumId, discogsId) {
+        const btn = document.getElementById('importTracklistBtn');
+        const btnText = document.getElementById('importBtnText');
+        const errorMsg = document.getElementById('importError');
+
+        if (!discogsId || discogsId === "null") {
+            errorMsg.classList.remove('hidden');
+            return;
+        }
+
+        btn.disabled = true;
+        errorMsg.classList.add('hidden');
+        btnText.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> <%= t('detail.importing') %>`;
+
+        try {
+            const response = await fetch(`/api/album/${albumId}/import-tracklist`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ discogsId })
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                window.location.reload();
+            } else {
+                throw new Error("Not found");
+            }
+        } catch (err) {
+            btn.disabled = false;
+            btnText.innerText = "<%= t('detail.import_tracklist_btn') %>";
+            errorMsg.classList.remove('hidden');
+        }
+    }
+
 </script>
 
 <style>

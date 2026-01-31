@@ -235,7 +235,11 @@
     "market_analysis": "Analyse du marché...",
     "unavailable_data": "Données indisponibles",
     "confirm_delete": "Es-tu sûr de vouloir supprimer cet album de ta collection ? Cette action est irréversible.",
-    "duration_label": "Durée"
+    "duration_label": "Durée",
+    "import_tracklist_btn": "Importer Tracklist",
+    "tracklist_not_found": "Tracklist non trouvée sur Discogs",
+    "importing": "Importation...",
+    "no_tracklist": "Aucune tracklist enregistrée."
   },
   "wishlist": {
     "title": "Ma Liste de Souhaits",
