@@ -92,7 +92,7 @@ module.exports.login_post = async (req, res) => {
     res.cookie('jwt', token, { 
         httpOnly: true, 
         maxAge: 3 * 24 * 60 * 60 * 1000,
-        secure: process.env.PROD, // Only send cookie over HTTPS in production
+        secure: process.env.PROD === 'true', // Only send cookie over HTTPS in production
         sameSite: 'lax' // Mitigate CSRF
     });
     res.status(200).json({ user: user._id });
