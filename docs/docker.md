@@ -37,5 +37,23 @@ git pull
 docker compose up --build -d
 ```
 
+## 🗑️ Full reset & Data loss
+
+If you have made significant changes and need to rebuild the application from a clean slate, follow the steps below.
+
+> [!IMPORTANT]
+> This procedure will permanently delete all local data. If you have data you wish to keep, export your database before proceeding.
+
+```bash
+# Stop containers and remove volumes (-v)
+sudo docker compose down -v
+
+# Delete local database files
+sudo rm -rf ./mongo_data
+
+# Rebuild and restart the services
+sudo docker compose up --build -d
+```
+
 [← Back to README](../README.md)  
 [Get your API keys →](./api-keys.md)
