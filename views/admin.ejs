@@ -6,10 +6,16 @@
         <h1 class="text-2xl md:text-3xl font-bold text-neutral-900 dark:text-white flex items-center gap-3 transition-colors">
             <i class="fa-solid fa-shield-halved text-green-600 dark:text-green-500"></i> <%= t('admin.title') %>
         </h1>
-        <button onclick="toggleModal('addUserModal')" class="w-full sm:w-auto bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-6 rounded-xl transition-colors flex items-center justify-center gap-2 shadow-lg shadow-green-500/20 active:scale-95">
-            <i class="fa-solid fa-user-plus"></i> <%= t('admin.add_user_btn') %>
-        </button>
+        <div class="flex flex-wrap gap-3">
+            <button onclick="toggleModal('importDiscogsModal')" class="w-full sm:w-auto bg-neutral-900 dark:bg-white text-white dark:text-black font-bold py-3 px-6 rounded-xl transition-colors flex items-center justify-center gap-2 shadow-lg active:scale-95">
+                <i class="fa-brands fa-discogs"></i> <%= t('admin.import_discogs_btn') %>
+            </button>
+            <button onclick="toggleModal('addUserModal')" class="w-full sm:w-auto bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-6 rounded-xl transition-colors flex items-center justify-center gap-2 shadow-lg shadow-green-500/20 active:scale-95">
+                <i class="fa-solid fa-user-plus"></i> <%= t('admin.add_user_btn') %>
+            </button>
+        </div>
     </div>
+
 
     <% if (locals.newPassword) { %>
         <div class="bg-green-100 dark:bg-green-900/30 border border-green-200 dark:border-green-500/50 p-6 rounded-2xl text-center animate-pulse transition-colors">
@@ -258,8 +264,7 @@
         </button>
 
         <h3 class="text-2xl font-bold text-neutral-900 dark:text-white mb-2"><%= t('admin.modal.title') %></h3>
-        <p class="text-sm text-neutral-500 mb-8"><%= t('admin.modal.subtitle', { defaultValue: 'Ajouter un nouveau membre à la gestion.' }) %></p>
-
+        
         <form action="/admin/add-user" method="POST" class="space-y-6">
             <div>
                 <label class="block mb-2 text-xs font-bold uppercase tracking-widest text-neutral-500"><%= t('admin.modal.username') %></label>
@@ -277,8 +282,49 @@
     </div>
 </div>
 
+<div id="importDiscogsModal" class="fixed inset-0 z-50 hidden bg-black/90 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-8 shadow-2xl relative transition-all animate-slide-up sm:animate-none">
+        <button onclick="toggleModal('importDiscogsModal')" class="absolute top-6 right-6 text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors">
+            <i class="fa-solid fa-circle-xmark text-2xl"></i>
+        </button>
+
+        <h3 class="text-2xl font-bold text-neutral-900 dark:text-white mb-2"><%= t('admin.modal.import_title') %></h3>
+        <p class="text-sm text-neutral-500 mb-8"><%= t('admin.modal.import_subtitle') %></p>
+
+        <div id="importError" class="hidden bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl mb-6 text-sm flex items-start gap-3 relative z-10">
+            <i class="fa-solid fa-circle-exclamation mt-0.5"></i>
+            <span id="importErrorText"></span>
+        </div>
+
+        <div class="space-y-6">
+            <div>
+                <label class="block mb-2 text-xs font-bold uppercase tracking-widest text-neutral-500"><%= t('admin.modal.discogs_url') %></label>
+                <input type="text" id="discogsUrl" placeholder="https://www.discogs.com/user/..." class="bg-gray-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-white rounded-xl focus:ring-blue-500 focus:border-blue-500 block w-full p-4 transition-colors outline-none">
+            </div>
+            
+            <div class="flex flex-col gap-3 mt-6">
+                <button id="btnFastImport" onclick="startDiscogsImport(false)" class="w-full bg-neutral-900 dark:bg-white text-white dark:text-black font-bold py-4 rounded-2xl transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-bolt"></i>
+                    <span><%= t('admin.modal.import_fast') %></span>
+                </button>
+
+                <button id="btnFullImport" onclick="startDiscogsImport(true)" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-2xl transition-all shadow-xl shadow-blue-600/30 active:scale-95 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-list-ul"></i>
+                    <span><%= t('admin.modal.import_full') %></span>
+                </button>
+                
+                <p class="text-[10px] text-neutral-500 text-center uppercase tracking-widest mt-2">
+                    <%= t('admin.modal.import_warning') %>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+
 <%- include('partials/footer') %>
 
+<script src="/socket.io/socket.io.js"></script>
 <script>
     function toggleModal(id) {
         const modal = document.getElementById(id);
@@ -321,5 +367,70 @@
         }
         this.value = ''; // Reset input
     };
+
+    const socket = io();
+
+    socket.on('import_progress', (data) => {
+        const btnFast = document.getElementById('btnFastImport');
+        const btnFull = document.getElementById('btnFullImport');
+        const activeBtn = btnFull.disabled ? btnFull : btnFast;
+        
+        activeBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> Importation : ${data.current}...`;
+    });
+
+    socket.on('import_finished', (data) => {
+        alert(`${data.count} <%= t('admin.modal.import_done') %>`);
+        window.location.reload();
+    });
+
+    socket.on('import_error', (data) => {
+        const errorBox = document.getElementById('importError');
+        const errorText = document.getElementById('importErrorText');
+        errorText.innerText = data.message;
+        errorBox.classList.remove('hidden');
+    });
+
+
+    async function startDiscogsImport(isFull) {
+        const urlInput = document.getElementById('discogsUrl');
+        const btnFast = document.getElementById('btnFastImport');
+        const btnFull = document.getElementById('btnFullImport');
+        const errorBox = document.getElementById('importError');
+
+        if (!urlInput.value) return;
+
+        errorBox.classList.add('hidden');
+        
+        [btnFast, btnFull].forEach(b => {
+            b.disabled = true;
+            b.classList.add('opacity-50');
+        });
+
+        const activeBtn = isFull ? btnFull : btnFast;
+        activeBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> <%= t('admin.modal.import_loading') %>`;
+
+        try {
+            const response = await fetch('/import/discogs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ discogsUrl: urlInput.value, full: isFull })
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || "Error");
+            }
+
+            activeBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> <%= t('admin.modal.import_started') %>`;
+
+        } catch (err) {
+            document.getElementById('importErrorText').innerText = err.message;
+            errorBox.classList.remove('hidden');
+            [btnFast, btnFull].forEach(b => {
+                b.disabled = false;
+                b.classList.remove('opacity-50');
+            });
+        }
+    }
 
 </script>

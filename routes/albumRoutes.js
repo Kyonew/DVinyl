@@ -481,4 +481,126 @@ router.get('/api/estimate/:discogsId', requireAuth, async (req, res) => {
     }
 });
 
+// Discogs import route (starts the import process)
+router.post('/import/discogs', requireAuth, async (req, res) => {
+    const { discogsUrl, full } = req.body;
+    const userId = req.user._id;
+    const token = process.env.DISCOGS_TOKEN;
+
+    const usernameMatch = discogsUrl.match(/user\/([^/]+)/);
+    if (!usernameMatch) return res.status(400).json({ error: "Invalid Discogs URL" });
+    const username = usernameMatch[1];
+
+    res.status(202).json({ success: true, message: "Import started" });
+
+    try {
+        let page = 1;
+        let totalImported = 0;
+        let hasMore = true;
+        const standardTerms = ['Vinyl', 'LP', 'Album', 'Reissue', 'Repress', 'Stereo', 'Gatefold', '12"', '7"'];
+
+        while (hasMore) {
+            const response = await axios.get(`https://api.discogs.com/users/${username}/collection/folders/0/releases`, {
+                params: { page, per_page: 50 },
+                headers: { 'Authorization': `Discogs token=${token}`, 'User-Agent': 'DVinylApp/1.0' }
+            });
+
+            const { releases, pagination } = response.data;
+            if (!releases || releases.length === 0) break;
+
+            const albumsToInsert = [];
+            for (const item of releases) {
+                const info = item.basic_information;
+                const existing = await Album.findOne({ discogs_id: info.id, owner: userId });
+                if (existing) continue;
+
+                let tracklist = [];
+                if (full === true) {
+                    try {
+                        const detailRes = await axios.get(`https://api.discogs.com/releases/${info.id}`, {
+                            headers: { 'Authorization': `Discogs token=${token}`, 'User-Agent': 'DVinylApp/1.0' }
+                        });
+                        tracklist = detailRes.data.tracklist || [];
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    } catch (e) { console.error(`Tracklist error ID ${info.id}`); }
+                }
+
+                let formatType = [info.formats?.[0]?.name].filter(Boolean);
+                let variantColor = [];
+                if (info.formats?.[0]?.descriptions) {
+                    info.formats[0].descriptions.forEach(d => standardTerms.includes(d) ? formatType.push(d) : variantColor.push(d));
+                }
+                const rawFormat = info.formats?.[0]?.name.toLowerCase() || 'vinyl';
+                let mediaType = rawFormat.includes('cd') ? 'cd' : (rawFormat.includes('cassette') ? 'cassette' : 'vinyl');
+
+                albumsToInsert.push({
+                    title: info.title,
+                    artist: info.artists.map(a => a.name).join(', '),
+                    year: info.year || 0, 
+                    genre: info.genres?.join(', ') || '',
+                    styles: info.styles || [], 
+                    label: info.labels?.[0]?.name || 'Unknown',
+                    catalog_number: info.labels?.[0]?.catno || '',
+                    format_type: formatType.join(', '), 
+                    variant_color: variantColor.join(', '),
+                    media_type: mediaType, 
+                    cover_image: info.cover_image || info.thumb || '',
+                    tracklist, 
+                    discogs_id: info.id, 
+                    owner: userId, 
+                    added_at: new Date(),
+                    location: ''
+                });
+                
+                req.io.emit('import_progress', { current: totalImported + albumsToInsert.length });
+            }
+
+            if (albumsToInsert.length > 0) {
+                await Album.insertMany(albumsToInsert);
+                totalImported += albumsToInsert.length;
+
+                req.io.emit('import_progress', { current: totalImported });
+            }
+
+            if (page >= pagination.pages) hasMore = false;
+            else page++;
+        }
+
+        req.io.emit('import_finished', { count: totalImported });
+
+    } catch (err) {
+        req.io.emit('import_error', { message: err.message });
+    }
+});
+
+// API route to import tracklist from Discogs
+router.post('/api/album/:id/import-tracklist', requireAuth, requireAdmin, async (req, res) => {
+    const { discogsId } = req.body;
+    const albumId = req.params.id;
+    const token = process.env.DISCOGS_TOKEN;
+
+    if (!discogsId) {
+        return res.status(400).json({ success: false, error: "ID Discogs missing" });
+    }
+
+    try {
+        const response = await axios.get(`https://api.discogs.com/releases/${discogsId}`, {
+            headers: { 'User-Agent': 'DVinylApp/1.0', 'Authorization': `Discogs token=${token}` }
+        });
+
+        const tracklist = response.data.tracklist;
+
+        if (!tracklist || tracklist.length === 0) {
+            return res.status(404).json({ success: false, error: "No tracklist found on Discogs" });
+        }
+
+        await Album.findByIdAndUpdate(albumId, { tracklist: tracklist });
+        res.status(200).json({ success: true });
+
+    } catch (err) {
+        console.error("Erreur API Discogs:", err.message);
+        res.status(500).json({ success: false, error: "Error during Discogs API call" });
+    }
+});
+
 module.exports = router;

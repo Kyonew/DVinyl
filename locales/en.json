@@ -138,6 +138,7 @@
     "confirm_reset": "Reset password for {{name}}?",
     "confirm_delete_user": "PERMANENTLY DELETE {{name}}?",
     "confirm_block_ip": "BLOCK IP {{ip}}?\nThey will no longer be able to access the site.",
+    "import_discogs_btn": "Discogs Import",
     "table": {
       "user": "User",
       "email": "Email",
@@ -158,7 +159,18 @@
       "title": "New User",
       "username": "Username",
       "email": "Email address",
-      "submit": "Create and generate password"
+      "submit": "Create and generate password",
+      "import_title": "Import Collection",
+      "import_subtitle": "Enter the URL of the public Discogs collection (e.g., https://www.discogs.com/user/username/collection).",
+      "discogs_url": "Collection URL",
+      "import_submit": "Start Import",
+      "import_loading": "Importing...",
+      "import_done": "albums added!",
+      "import_error_msg": "An error occurred during import. Check the URL or your API token.",
+      "import_fast": "Fast Import",
+      "import_full": "Complete Import",
+      "import_warning": "The complete import retrieves tracks but takes longer (API limits).",
+      "import_started": "Import started..."
     },
     "backup": {
       "export_btn": "Export Database",
@@ -223,7 +235,11 @@
     "market_analysis": "Analyzing market...",
     "unavailable_data": "Data unavailable",
     "confirm_delete": "Are you sure you want to delete this album from your collection? This action is irreversible.",
-    "duration_label": "Duration"
+    "duration_label": "Duration",
+    "import_tracklist_btn": "Import Tracklist",
+    "tracklist_not_found": "Tracklist not found on Discogs",
+    "importing": "Importing...",
+    "no_tracklist": "No tracklist available."
   },
   "wishlist": {
     "title": "My Wishlist",
