@@ -23,7 +23,7 @@ DVinyl relies on external APIs to fetch album data and visuals. Follow these ste
 ### 2. Get a Search Engine ID (CX)
 1.  Go to the [Programmable Search Engine](https://programmablesearchengine.google.com/).
 2.  Create a new search engine.
-3.  Under "What to search", select **Image search** & **Search the entire web**.
+3.  Under "What to search", select **Image search**.
 4.  Go to the search engine settings and copy the **Search Engine ID**.
 5.  Paste it into `.env` as `GOOGLE_CSE_ID`.
 
