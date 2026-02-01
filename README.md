@@ -26,6 +26,8 @@ DVinyl allows you to keep track of your physical music collection. It uses the D
 * Fully localized in English 🇬🇧 and French 🇫🇷.
 * Optimized for mobile management with native Dark & Light modes.
 * Authentication system for people who want to see your collection.
+* Import your Discogs collection if needed.
+* Easily locate your records in their physical location.
 
 *<small>(may only work in France)</small>
 
