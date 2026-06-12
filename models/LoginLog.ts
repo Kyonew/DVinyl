@@ -1,13 +1,5 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
-/**
- * models/LoginLog.js
- *
- * Schema for recording login attempts. Stores a reference to the user
- * (if available) plus snapshot fields (username, email) so logs remain
- * meaningful after user deletion. Includes geolocation, user-agent and
- * a status flag for success/failed attempts.
- */
 const loginLogSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'user' },
   // Keep username/email snapshot in case the user account is removed later.
@@ -21,4 +13,4 @@ const loginLogSchema = new mongoose.Schema({
   timestamp: { type: Date, default: Date.now }
 });
 
-module.exports = mongoose.model('LoginLog', loginLogSchema);
+export = mongoose.model('LoginLog', loginLogSchema);

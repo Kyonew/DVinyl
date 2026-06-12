@@ -280,7 +280,8 @@
     "filters": "Filtri",
     "already_in_collection_title": "Questo articolo sembra essere già nella tua collezione",
     "already_in_collection_desc": "Questo articolo è già presente nella tua collezione (Quantità attuale: {{qty}}). Se confermi, la quantità verrà aumentata.",
-    "btn_add_anyway": "Aggiungi comunque"
+    "btn_add_anyway": "Aggiungi comunque",
+    "forbidden": "Accesso vietato"
   },
   "confirm_book": {
     "btn_collection": "Aggiungi alla libreria",

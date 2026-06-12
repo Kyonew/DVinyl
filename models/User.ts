@@ -1,12 +1,10 @@
-const mongoose = require('mongoose');
-const { isEmail } = require('validator');
-const bcrypt = require('bcrypt');
+import mongoose from 'mongoose';
+import bcrypt from 'bcrypt';
 
-/**
- * models/User.js
- *
- * Mongoose schema for application users and authentication helpers.
- */
+const isEmail = (val: string): boolean => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+};
+
 const userSchema = new mongoose.Schema({
     username: {
         type: String,
@@ -80,4 +78,4 @@ userSchema.statics.login = async function (email, password) {
 
 const User = mongoose.model('user', userSchema);
 
-module.exports = User;
+export = User;

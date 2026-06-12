@@ -29,7 +29,8 @@
     "filters": "Filters",
     "already_in_collection_title": "This item seems to already be in your collection",
     "already_in_collection_desc": "This item is already in your collection (Current quantity: {{qty}}). If you confirm, its quantity will be increased.",
-    "btn_add_anyway": "Add anyway"
+    "btn_add_anyway": "Add anyway",
+    "forbidden": "Access Forbidden"
   },
   "settings": {
     "page_title": "Account Settings",

@@ -1,18 +1,62 @@
+import User from '../models/User';
+import jwt from 'jsonwebtoken';
+import LoginLog from '../models/LoginLog';
+
 /**
- * controllers/authController.js
- *
- * Authentication controller: handles rendering the login page, processing
- * login submissions, creating a JWT cookie on success, logging login
- * attempts, rate-limiting repeated failures and logging out users.
+ * Retrieve the client IP address from request headers or socket details.
  */
-const User = require("../models/User");
-const jwt = require('jsonwebtoken');
-const LoginLog = require("../models/LoginLog");
-const geoip = require('geoip-lite');
-const requestIp = require('request-ip');
+const getClientIp = (req: any): string => {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (forwarded) {
+    return forwarded.split(',')[0].trim();
+  }
+  return req.headers['x-real-ip'] || req.socket?.remoteAddress || '127.0.0.1';
+};
+
+/**
+ * Retrieve geolocation information (country and city) for a given IP.
+ * Uses freeipapi.com with a short timeout and checks for private/local IPs.
+ */
+const getGeoLocation = async (ip: string) => {
+  const isPrivate = 
+    ip === '127.0.0.1' || 
+    ip === '::1' || 
+    ip === '::ffff:127.0.0.1' ||
+    /^10\./.test(ip) || 
+    /^192\.168\./.test(ip) || 
+    /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(ip) ||
+    /^fe80:/i.test(ip);
+
+  if (isPrivate) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(`https://freeipapi.com/api/json/${ip}`, {
+      signal: AbortSignal.timeout(1500)
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    return {
+      country: data.countryCode || 'XX',
+      city: data.cityName || null
+    };
+  } catch (err) {
+    console.error('[GeoIP] Error fetching location:', err);
+    return null;
+  }
+};
+
+
 
 // In-memory login attempt tracking to throttle brute-force attempts.
-const loginAttempts = {};
+interface LoginAttempt {
+  count: number;
+  lastTry: number;
+  blockedUntil?: number;
+}
+
+const loginAttempts: Record<string, LoginAttempt> = {};
 const MAX_ATTEMPTS = 4;
 const BLOCK_TIME = 5 * 60 * 1000; // 5 minutes (can be adjusted as needed)
 
@@ -22,7 +66,7 @@ const BLOCK_TIME = 5 * 60 * 1000; // 5 minutes (can be adjusted as needed)
  * @param {Error} err - Error thrown by model operations
  * @returns {{login: string}} Object containing the i18n key for the error
  */
-const handleErrors = (err) => {
+export const handleErrors = (err: any) => {
   let errors = { login: '' };
 
   // Manual check for login logic (custom errors thrown by User.login static method)
@@ -32,7 +76,7 @@ const handleErrors = (err) => {
 
   // If the error is a validation error, we extract the key defined in the User Schema.
   if (err.message.includes('user validation failed')) {
-    Object.values(err.errors).forEach(({ properties }) => {
+    Object.values(err.errors).forEach(({ properties }: any) => {
       // The properties.message contains the i18n key (e.g., "auth.email_required")
       errors.login = properties.message;
     });
@@ -45,7 +89,7 @@ const handleErrors = (err) => {
  * GET /login
  * Render the login page.
  */
-module.exports.login_get = (req, res) => {
+export const login_get = (req: any, res: any) => {
   res.render('login');
 };
 
@@ -54,7 +98,7 @@ module.exports.login_get = (req, res) => {
  * Process login form submissions. Implements simple in-memory rate limiting
  * and logs each attempt (success or failure) with geolocation information.
  */
-module.exports.login_post = async (req, res) => {
+export const login_post = async (req: any, res: any) => {
   const { email, password } = req.body;
   const now = Date.now();
 
@@ -67,18 +111,18 @@ module.exports.login_post = async (req, res) => {
   }
 
   try {
-    const user = await User.login(email, password);
+    const user = await (User as any).login(email, password);
 
-    const clientIp = requestIp.getClientIp(req);
-    const geo = geoip.lookup(clientIp) || {};
+    const clientIp = getClientIp(req);
+    const geo = await getGeoLocation(clientIp);
 
     await LoginLog.create({
       user: user._id,
       username: user.username,
       email: user.email,
       ip: clientIp,
-      country: geo.country || 'XX',
-      city: geo.city || req.t('common.unknown'),
+      country: geo?.country || 'XX',
+      city: geo?.city || req.t('common.unknown'),
       userAgent: req.headers['user-agent'],
       status: 'success'
     });
@@ -86,13 +130,18 @@ module.exports.login_post = async (req, res) => {
     // Clear failed attempts on successful login.
     if (loginAttempts[email]) delete loginAttempts[email];
 
-    const token = jwt.sign({ id: user._id }, process.env.PASSJWT, { expiresIn: '3d' });
+    const passjwt = process.env.PASSJWT;
+    if (!passjwt) {
+      throw new Error("PASSJWT environment variable is missing");
+    }
 
-    res.cookie('jwt', token, { 
-        httpOnly: true, 
-        maxAge: 3 * 24 * 60 * 60 * 1000,
-        secure: process.env.PROD === 'true', // Only send cookie over HTTPS in production
-        sameSite: 'lax' // Mitigate CSRF
+    const token = jwt.sign({ id: user._id }, passjwt, { expiresIn: '3d' });
+
+    res.cookie('jwt', token, {
+      httpOnly: true,
+      maxAge: 3 * 24 * 60 * 60 * 1000,
+      secure: process.env.PROD === 'true', // Only send cookie over HTTPS in production
+      sameSite: 'lax' // Mitigate CSRF
     });
     res.status(200).json({ user: user._id });
 
@@ -112,7 +161,7 @@ module.exports.login_post = async (req, res) => {
 
     // Retrieve the error key from handleErrors.
     const errorKeys = handleErrors(err);
-    
+
     // Translate the key returned by the model using the current request language.
     res.status(400).json({
       errors: { login: req.t(errorKeys.login) }
@@ -123,7 +172,7 @@ module.exports.login_post = async (req, res) => {
 /**
  * GET /logout
  */
-module.exports.logout_get = (req, res) => {
+export const logout_get = (req: any, res: any) => {
   res.cookie('jwt', '', { maxAge: 1 });
   res.redirect('/');
 };

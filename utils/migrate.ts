@@ -1,6 +1,6 @@
-const Item = require('../models/Item');
+import Item from '../models/Item';
 
-const migrateDatabase = async () => {
+export const migrateDatabase = async () => {
     try {
         const oldItemsCount = await Item.countDocuments({ kind: { $exists: false } });
 
@@ -8,16 +8,14 @@ const migrateDatabase = async () => {
             console.log(`[MIGRATION] : Found ${oldItemsCount} old items...`);
             console.log('[MIGRATION] Updating...');
             const result = await Item.updateMany(
-                { kind: { $exists: false } }, 
-                { $set: { kind: 'Music' } } 
+                { kind: { $exists: false } },
+                { $set: { kind: 'Music' } }
             );
 
             console.log(`[MIGRATION] ${result.modifiedCount} old items updated.`);
-        } 
+        }
 
     } catch (error) {
         console.error('[MIGRATION] ERROR :', error);
     }
 };
-
-module.exports = migrateDatabase;

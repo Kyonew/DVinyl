@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const options = {
   discriminatorKey: 'kind',
@@ -26,4 +26,5 @@ const itemSchema = new mongoose.Schema({
 }, options);
 
 const Item = mongoose.model('Item', itemSchema);
-module.exports = Item;
+
+export = Item;

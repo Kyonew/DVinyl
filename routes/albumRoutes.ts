@@ -1,23 +1,29 @@
-const express = require('express');
+import express from 'express';
+import mongoose from 'mongoose';
+import Vinyl from '../models/Vinyl';
+import Item from '../models/Item';
+import { requireAuth, requireAdmin } from '../middleware/authMiddleware';
+import User from '../models/User';
+import { STANDARD_FORMAT_TERMS } from '../config/constants';
+import { applyVisibilityFilter } from '../utils/visibilityHelper';
+import Settings from '../models/Settings';
+
+const fetchJson = async (url: string, options?: RequestInit): Promise<any> => {
+    const response = await fetch(url, options);
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return response.json();
+};
+
 const router = express.Router();
-const axios = require('axios');
-const mongoose = require('mongoose');
-const Album = require('../models/Vinyl');
 
-const Item = require('../models/Item');
-const Vinyl = require('../models/Vinyl');
-
-const { requireAuth, requireAdmin } = require('../middleware/authMiddleware'); // Protect routes
-const User = require('../models/User');
-const { STANDARD_FORMAT_TERMS } = require('../config/constants');
-const { applyVisibilityFilter } = require('../utils/visibilityHelper');
-
-async function getAdminId() {
+async function getAdminId(): Promise<any> {
     const admin = await User.findOne({ isAdmin: true }).select('_id');
     return admin ? admin._id : null;
 }
 
-const formatForView = (item) => {
+const formatForView = (item: any): any => {
     if (!item) return null;
     const obj = item.toObject ? item.toObject() : item;
 
@@ -89,15 +95,15 @@ async function findDuplicateVinyl(ownerId, discogsId, title, artist, mediaType, 
 
 // routes/albumRoutes.js
 // Dashboard: view collection summary
-router.get('/', requireAuth, async (req, res) => {
+router.get('/', requireAuth, async (req: any, res: any) => {
     try {
         const adminId = await getAdminId();
         const settings = res.locals.settings;
-        let queryAll = { owner: adminId, in_wishlist: false };
+        let queryAll: any = { owner: adminId, in_wishlist: false };
         applyVisibilityFilter(queryAll, res.locals.isAdmin, settings);
-        const allItems = await Item.find(queryAll).lean();
+        const allItems = await Item.find(queryAll).lean() as any[];
 
-        const countByFormat = (items, format) => {
+        const countByFormat = (items: any[], format: string) => {
             return items
                 .filter(i => {
                     const f = (i.media_type || i.format || '').toLowerCase();
@@ -106,7 +112,7 @@ router.get('/', requireAuth, async (req, res) => {
                 .reduce((acc, i) => acc + Number(i.quantity || 1), 0);
         };
 
-        const stats = {
+        const stats: any = {
             total: allItems.reduce((acc, i) => acc + (i.quantity || 1), 0),
 
             vinyl: countByFormat(allItems, 'vinyl'),
@@ -133,8 +139,8 @@ router.get('/', requireAuth, async (req, res) => {
             game_steelbook: allItems.filter(i => i.kind === 'Game' && i.format === 'steelbook').reduce((acc, i) => acc + (i.quantity || 1), 0)
         };
 
-        const getTop = (items, field) => {
-            const map = {};
+        const getTop = (items: any[], field: string) => {
+            const map: Record<string, number> = {};
             let topName = req.t('common.not_available');
             let topCount = 0;
             items.forEach(item => {
@@ -163,10 +169,10 @@ router.get('/', requireAuth, async (req, res) => {
         stats.game_developer = getTop(allItems.filter(i => i.kind === 'Game'), 'developer');
         stats.game_publisher = getTop(allItems.filter(i => i.kind === 'Game'), 'publisher');
 
-        let latestQuery = { owner: adminId, in_wishlist: false };
+        let latestQuery: any = { owner: adminId, in_wishlist: false };
         applyVisibilityFilter(latestQuery, res.locals.isAdmin, settings);
 
-        let wishlistQuery = { owner: adminId, in_wishlist: true };
+        let wishlistQuery: any = { owner: adminId, in_wishlist: true };
         applyVisibilityFilter(wishlistQuery, res.locals.isAdmin, settings);
 
         res.render('index', {
@@ -181,7 +187,7 @@ router.get('/', requireAuth, async (req, res) => {
     }
 });
 
-router.get('/collection', requireAuth, async (req, res) => {
+router.get('/collection', requireAuth, async (req: any, res: any) => {
     try {
         const adminId = await getAdminId();
         const { search, type, format, location, genre, style, artist, decade } = req.query;
@@ -191,13 +197,13 @@ router.get('/collection', requireAuth, async (req, res) => {
         if (sort) {
             res.cookie('sortPref', sort, { maxAge: 365 * 24 * 60 * 60 * 1000 });
         } else {
-            sort = req.cookies.sortPref || 'added_desc';
+            sort = (req.cookies.sortPref as string) || 'added_desc';
         }
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 25;
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 25;
 
-        let query = { owner: adminId, in_wishlist: false };
-        let conditions = [];
+        let query: any = { owner: adminId, in_wishlist: false };
+        let conditions: any[] = [];
 
         if (trimmedSearch) {
             const regex = new RegExp(escapeRegExp(trimmedSearch), 'i');
@@ -215,11 +221,9 @@ router.get('/collection', requireAuth, async (req, res) => {
             conditions.push({ $or: searchOr });
         }
 
-
         if (type && type !== 'all') {
-            const typeMap = { music: 'Music', books: 'Book', dvd: 'Dvd', games: 'Game' };
+            const typeMap: Record<string, string> = { music: 'Music', books: 'Book', dvd: 'Dvd', games: 'Game' };
             if (type === 'music') {
-
                 conditions.push({
                     $or: [{ kind: 'Music' }, { kind: { $exists: false } }]
                 });
@@ -228,15 +232,12 @@ router.get('/collection', requireAuth, async (req, res) => {
             }
         }
 
-
         if (format && format !== 'all') {
-
             const formatRegex = new RegExp(`^${escapeRegExp(format)}$`, 'i');
             conditions.push({
                 $or: [{ media_type: formatRegex }, { format: formatRegex }]
             });
         }
-
 
         if (location) {
             conditions.push({ location: new RegExp(escapeRegExp(location), 'i') });
@@ -255,7 +256,6 @@ router.get('/collection', requireAuth, async (req, res) => {
                 ]
             });
         }
-
 
         if (genre) {
             const genreArr = genre.split(',').map(g => g.trim()).filter(Boolean);
@@ -278,12 +278,10 @@ router.get('/collection', requireAuth, async (req, res) => {
             }
         }
 
-
         if (decade) {
-            // decade is expected as a comma-separated string like "1980,1990"
             const decadeArr = decade.split(',').map(d => parseInt(d)).filter(d => !isNaN(d));
             if (decadeArr.length > 0) {
-                const years = [];
+                const years: RegExp[] = [];
                 decadeArr.forEach(startYear => {
                     for (let y = startYear; y < startYear + 10; y++) {
                         years.push(new RegExp(`^${y}$`));
@@ -293,9 +291,7 @@ router.get('/collection', requireAuth, async (req, res) => {
             }
         }
 
-
-        // Wrap conditions if filterMode is 'hide'
-        const filterMode = req.query.filterMode || 'show';
+        const filterMode = (req.query.filterMode as string) || 'show';
         if (filterMode === 'hide' && conditions.length > 0) {
             query.$and = [{ $nor: [{ $and: conditions }] }];
         } else if (conditions.length > 0) {
@@ -306,9 +302,8 @@ router.get('/collection', requireAuth, async (req, res) => {
 
         const totalItems = await Item.countDocuments(query);
 
-        // Build dynamic sort object
         const buildSortObj = () => {
-            const sortMap = {
+            const sortMap: Record<string, any> = {
                 'added_desc': { added_at: -1 },
                 'added_asc': { added_at: 1 },
                 'title_asc': { title: 1 },
@@ -319,14 +314,13 @@ router.get('/collection', requireAuth, async (req, res) => {
 
             if (sort && sort.startsWith('artist')) {
                 const dir = sort === 'artist_asc' ? 1 : -1;
-                // In 'all' mode, fall back to title sort
                 if (!type || type === 'all') return { title: dir };
-                const artistFieldMap = { music: 'artist', books: 'author', dvd: 'director', games: 'developer' };
+                const artistFieldMap: Record<string, string> = { music: 'artist', books: 'author', dvd: 'director', games: 'developer' };
                 const field = artistFieldMap[type] || 'title';
                 return { [field]: dir };
             }
 
-            return sortMap[sort] || { added_at: -1 };
+            return sortMap[sort || ''] || { added_at: -1 };
         };
 
         const albums = await Item.find(query)
@@ -335,7 +329,7 @@ router.get('/collection', requireAuth, async (req, res) => {
             .limit(limit)
             .lean();
 
-        const filterMap = {
+        const filterMap: Record<string, { id: string; label: string }[]> = {
             music: [
                 { id: 'vinyl', label: req.t('media.vinyl') },
                 { id: 'cd', label: req.t('media.cd') },
@@ -360,9 +354,8 @@ router.get('/collection', requireAuth, async (req, res) => {
             ]
         };
 
-        // Build artist list for autocomplete
         const artistList = await (async () => {
-            const baseQuery = { owner: adminId, in_wishlist: false };
+            const baseQuery: any = { owner: adminId, in_wishlist: false };
             if (!type || type === 'all') {
                 const [artists, authors, directors, developers] = await Promise.all([
                     Item.distinct('artist', { ...baseQuery, artist: { $nin: ['', null] } }),
@@ -372,12 +365,13 @@ router.get('/collection', requireAuth, async (req, res) => {
                 ]);
                 return [...new Set([...artists, ...authors, ...directors, ...developers])].filter(Boolean).sort();
             }
-            const fieldMap = { music: 'artist', books: 'author', dvd: 'director', games: 'developer' };
+            const fieldMap: Record<string, string> = { music: 'artist', books: 'author', dvd: 'director', games: 'developer' };
             const field = fieldMap[type];
             if (!field) return [];
+            const typeMap: Record<string, string> = { music: 'Music', books: 'Book', dvd: 'Dvd', games: 'Game' };
             const typeQuery = type === 'music'
                 ? { ...baseQuery, $or: [{ kind: 'Music' }, { kind: { $exists: false } }] }
-                : { ...baseQuery, kind: { music: 'Music', books: 'Book', dvd: 'Dvd', games: 'Game' }[type] };
+                : { ...baseQuery, kind: typeMap[type] };
             return (await Item.distinct(field, { ...typeQuery, [field]: { $nin: ['', null] } })).sort();
         })();
 
@@ -398,12 +392,13 @@ router.get('/collection', requireAuth, async (req, res) => {
             queryFilterMode: filterMode,
             currentSort: sort,
 
-            activeFilters: filterMap[type] || [],
+            activeFilters: filterMap[type || ''] || [],
             artistList,
             locations: await Item.distinct('location', { owner: adminId }),
             genres: await (async () => {
                 if (!type || type === 'all') return [];
-                const kind = { music: 'Music', books: 'Book', dvd: 'Dvd', games: 'Game' }[type];
+                const typeMap: Record<string, string> = { music: 'Music', books: 'Book', dvd: 'Dvd', games: 'Game' };
+                const kind = typeMap[type];
                 const typeQuery = type === 'music' ? { $or: [{ kind: 'Music' }, { kind: { $exists: false } }] } : { kind };
 
                 const [gBase, gArray] = await Promise.all([
@@ -430,10 +425,10 @@ router.get('/collection', requireAuth, async (req, res) => {
 });
 
 // Add-vinyl search page (view)
-router.get('/add-vinyl', requireAuth, requireAdmin, (req, res) => {
+router.get('/add-vinyl', requireAuth, requireAdmin, (req: any, res: any) => {
     const validTypes = ['vinyl', 'cd', 'cassette'];
-    const searchType = validTypes.includes(req.query.type) ? req.query.type : 'vinyl';
-    const searchQuery = req.query.search || '';
+    const searchType = validTypes.includes(req.query.type as string) ? (req.query.type as string) : 'vinyl';
+    const searchQuery = (req.query.search as string) || '';
     res.render('add-vinyl', { searchType, searchQuery, currentType: 'add-vinyl' });
 });
 
@@ -463,7 +458,7 @@ router.get('/add-vinyl/manual', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // route for editing an existing album
-router.get('/album/edit/:id', requireAuth, async (req, res) => {
+router.get('/album/edit/:id', requireAuth, async (req: any, res: any) => {
     try {
         const album = await Item.findById(req.params.id);
         if (!album) {
@@ -486,7 +481,7 @@ router.get('/album/edit/:id', requireAuth, async (req, res) => {
 });
 
 router.post('/search-discogs', requireAuth, requireAdmin, async (req, res) => {
-    
+
     const query = typeof req.body.query === 'string' ? req.body.query.trim() : '';
     const type = req.body.type || 'vinyl';
 
@@ -499,11 +494,10 @@ router.post('/search-discogs', requireAuth, requireAdmin, async (req, res) => {
     const token = process.env.DISCOGS_TOKEN;
 
     try {
-        const Settings = require('../models/Settings');
         const settings = await Settings.findOne({});
         const enableAdvancedCD = settings && settings.modules && settings.modules.advancedCD;
 
-        let searchUrls = [];
+        let searchUrls: string[] = [];
         let isDirectRelease = false;
 
         const urlMatch = query.match(/discogs\.com\/(?:[a-zA-Z]{2}\/)?(release|master)\/(\d+)/);
@@ -534,14 +528,14 @@ router.post('/search-discogs', requireAuth, requireAdmin, async (req, res) => {
             }
         }
 
-        const responses = await Promise.all(searchUrls.map(url => axios.get(url, { headers: { 'User-Agent': 'DVinylApp/1.0' } })));
+        const responses = await Promise.all(searchUrls.map(url => fetchJson(url, { headers: { 'User-Agent': 'DVinylApp/1.0' } })));
 
-        let allResults = [];
+        let allResults: any[] = [];
         if (isDirectRelease) {
-            const r = responses[0].data;
+            const r = responses[0]!;
             const mappedResult = {
                 id: r.id,
-                title: r.artists ? r.artists.map(a => a.name).join(', ') + ' - ' + r.title : r.title,
+                title: r.artists ? r.artists.map((a: any) => a.name).join(', ') + ' - ' + r.title : r.title,
                 year: r.year,
                 country: r.country,
                 cover_image: (r.images && r.images.length > 0) ? r.images[0].resource_url : r.thumb,
@@ -551,10 +545,10 @@ router.post('/search-discogs', requireAuth, requireAdmin, async (req, res) => {
             allResults.push(mappedResult);
         } else {
             responses.forEach((response, index) => {
-                let results = response.data.results || [];
+                let results = response.results || [];
                 if (!urlMatch && type === 'cd' && enableAdvancedCD) {
-                    if (index === 1) results = results.map(item => ({ ...item, is_advanced_cd: 'sacd' }));
-                    else if (index === 2) results = results.map(item => ({ ...item, is_advanced_cd: 'cdr' }));
+                    if (index === 1) results = results.map((item: any) => ({ ...item, is_advanced_cd: 'sacd' }));
+                    else if (index === 2) results = results.map((item: any) => ({ ...item, is_advanced_cd: 'cdr' }));
                 }
                 allResults = allResults.concat(results);
             });
@@ -566,7 +560,7 @@ router.post('/search-discogs', requireAuth, requireAdmin, async (req, res) => {
         ];
 
         const uniqueIds = new Set();
-        const deduplicatedResults = [];
+        const deduplicatedResults: any[] = [];
         for (const item of allResults) {
             if (!uniqueIds.has(item.id)) {
                 uniqueIds.add(item.id);
@@ -579,8 +573,8 @@ router.post('/search-discogs', requireAuth, requireAdmin, async (req, res) => {
 
             if (item.formats && item.formats[0] && item.formats[0].text) {
                 variant_info = item.formats[0].text.split(',')
-                    .map(p => p.trim())
-                    .filter(part => !technicalBlacklist.some(term => part.toLowerCase().includes(term.toLowerCase())))
+                    .map((p: string) => p.trim())
+                    .filter((part: string) => !technicalBlacklist.some(term => part.toLowerCase().includes(term.toLowerCase())))
                     .join(', ');
             }
 
@@ -597,25 +591,24 @@ router.post('/search-discogs', requireAuth, requireAdmin, async (req, res) => {
             user: res.locals.user,
             currentType: 'add-vinyl'
         });
-    } catch (err) {
+    } catch (err: any) {
         console.error(`❌ Discogs Search error:`, err.message);
         res.render('add-vinyl', { results: [], error: req.t('errors.api_error'), searchType: type, user: res.locals.user, currentType: 'add-vinyl' });
     }
 });
 
 // Confirmation with extended info
-router.get('/confirm-vinyl/:id', requireAuth, async (req, res) => {
+router.get('/confirm-vinyl/:id', requireAuth, async (req: any, res: any) => {
     const discogsId = req.params.id;
-    const searchTypeHint = req.query.type; // 'vinyl', 'cd', or 'cassette'
+    const searchTypeHint = req.query.type as string | undefined; // 'vinyl', 'cd', or 'cassette'
     const token = process.env.DISCOGS_TOKEN;
 
     try {
         const url = `https://api.discogs.com/releases/${discogsId}?token=${token}`;
-        const response = await axios.get(url, { headers: { 'User-Agent': 'DVinylApp/1.0' } });
-        const data = response.data;
+        const data = await fetchJson(url, { headers: { 'User-Agent': 'DVinylApp/1.0' } });
 
-        let formatType = [];
-        let variantColor = [];
+        let formatType: string[] = [];
+        let variantColor: string[] = [];
         let finalMediaType = 'vinyl';
 
         if (data.formats && data.formats.length > 0) {
@@ -623,15 +616,15 @@ router.get('/confirm-vinyl/:id', requireAuth, async (req, res) => {
             let bestFormat = data.formats[0];
             if (searchTypeHint) {
                 const hint = searchTypeHint.toLowerCase();
-                const matched = data.formats.find(f => f.name.toLowerCase().includes(hint));
+                const matched = data.formats.find((f: any) => f.name.toLowerCase().includes(hint));
                 if (matched) bestFormat = matched;
             }
 
             formatType.push(bestFormat.name);
 
             if (bestFormat.text) {
-                const parts = bestFormat.text.split(',').map(p => p.trim());
-                parts.forEach(part => {
+                const parts = bestFormat.text.split(',').map((p: string) => p.trim());
+                parts.forEach((part: string) => {
                     if (STANDARD_FORMAT_TERMS.includes(part)) {
                         if (!formatType.includes(part)) formatType.push(part);
                     } else {
@@ -641,7 +634,7 @@ router.get('/confirm-vinyl/:id', requireAuth, async (req, res) => {
             }
 
             if (bestFormat.descriptions) {
-                bestFormat.descriptions.forEach(desc => {
+                bestFormat.descriptions.forEach((desc: string) => {
                     if (STANDARD_FORMAT_TERMS.includes(desc)) {
                         if (!formatType.includes(desc)) formatType.push(desc);
                     } else {
@@ -660,7 +653,6 @@ router.get('/confirm-vinyl/:id', requireAuth, async (req, res) => {
         }
 
         // Overwrite finalMediaType with searchTypeHint if it exists and logic above didn't catch it
-        // (Ensures consistency with what the user selected in search)
         if (searchTypeHint) finalMediaType = searchTypeHint;
 
         const adminId = await User.findOne({ isAdmin: true }).select('_id').lean();
@@ -673,7 +665,7 @@ router.get('/confirm-vinyl/:id', requireAuth, async (req, res) => {
 
         let barcode = '';
         if (data.identifiers && data.identifiers.length > 0) {
-            const barcodeObj = data.identifiers.find(id => id.type === 'Barcode');
+            const barcodeObj = data.identifiers.find((id: any) => id.type === 'Barcode');
             if (barcodeObj) {
                 barcode = barcodeObj.value.replace(/\s/g, '');
             }
@@ -681,7 +673,7 @@ router.get('/confirm-vinyl/:id', requireAuth, async (req, res) => {
 
         const vinyl = {
             title: data.title,
-            artist: data.artists ? data.artists.map(a => a.name).join(', ') : 'Unknown',
+            artist: data.artists ? data.artists.map((a: any) => a.name).join(', ') : 'Unknown',
             year: data.year || '',
             label: data.labels && data.labels.length > 0 ? data.labels[0].name : '',
             catalog_number: data.labels && data.labels.length > 0 ? data.labels[0].catno : '',
@@ -713,19 +705,18 @@ router.get('/confirm-vinyl/:id', requireAuth, async (req, res) => {
         res.render('confirm-vinyl', { vinyl, user: res.locals.user, locations, genres, currentType: 'music', existingItems });
     } catch (err) {
         console.error(`❌ Discogs Release details error for ID ${discogsId}:`, err.message);
-        res.render('add-vinyl', { 
-            results: [], 
-            error: `${req.t('errors.api_error')} (Discogs HTTP ${err.response ? err.response.status : '500'})`, 
-            searchType: searchTypeHint || 'vinyl', 
-            user: res.locals.user, 
-            currentType: 'add-vinyl' 
+        res.render('add-vinyl', {
+            results: [],
+            error: `${req.t('errors.api_error')} (Discogs HTTP ${err.response ? err.response.status : '500'})`,
+            searchType: searchTypeHint || 'vinyl',
+            user: res.locals.user,
+            currentType: 'add-vinyl'
         });
     }
 });
 
 // Save handler: smart create or update logic
-// Performs creation or update depending on provided IDs
-router.post('/save-vinyl', requireAuth, requireAdmin, async (req, res) => {
+router.post('/save-vinyl', requireAuth, requireAdmin, async (req: any, res: any) => {
     try {
         const {
             mongo_id, title, artist, year, label, catalog_number, country,
@@ -734,8 +725,8 @@ router.post('/save-vinyl', requireAuth, requireAdmin, async (req, res) => {
             genres, styles, barcode, barcode_locked, added_at, sleeve_condition
         } = req.body;
 
-        const parsedGenres = Array.isArray(genres) ? genres : (genres ? genres.split(',').map(g => g.trim()).filter(Boolean) : []);
-        const parsedStyles = Array.isArray(styles) ? styles : (styles ? styles.split(',').map(s => s.trim()).filter(Boolean) : []);
+        const parsedGenres = Array.isArray(genres) ? genres : (genres ? genres.split(',').map((g: string) => g.trim()).filter(Boolean) : []);
+        const parsedStyles = Array.isArray(styles) ? styles : (styles ? styles.split(',').map((s: string) => s.trim()).filter(Boolean) : []);
 
         const adminId = req.user._id;
         const isWishlist = in_wishlist === 'true';
@@ -760,7 +751,7 @@ router.post('/save-vinyl', requireAuth, requireAdmin, async (req, res) => {
             );
         }
 
-        let tracklist = [];
+        let tracklist: any[] = [];
         if (tracklist_json) {
             tracklist = JSON.parse(tracklist_json);
         } else if (album && album.tracklist) {
@@ -856,7 +847,7 @@ router.post('/save-vinyl', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // API route to move an album from wishlist to collection
-router.post('/api/album/:id/move-to-collection', requireAuth, requireAdmin, async (req, res) => {
+router.post('/api/album/:id/move-to-collection', requireAuth, requireAdmin, async (req: any, res: any) => {
     try {
         await Item.findByIdAndUpdate(req.params.id, { in_wishlist: false, added_at: new Date() });
         res.json({ success: true });
@@ -866,7 +857,7 @@ router.post('/api/album/:id/move-to-collection', requireAuth, requireAdmin, asyn
 });
 
 // API route to fetch all collection discogs IDs (used for global estimates)
-router.get('/api/collection/ids', requireAuth, async (req, res) => {
+router.get('/api/collection/ids', requireAuth, async (req: any, res: any) => {
     try {
         const adminId = await getAdminId();
         const albums = await Item.find({
@@ -884,10 +875,10 @@ router.get('/api/collection/ids', requireAuth, async (req, res) => {
     }
 });
 
-router.get('/wishlist', requireAuth, async (req, res) => {
+router.get('/wishlist', requireAuth, async (req: any, res: any) => {
     try {
         const adminId = await getAdminId();
-        let query = {
+        let query: any = {
             owner: adminId,
             in_wishlist: true
         };
@@ -906,7 +897,7 @@ router.get('/wishlist', requireAuth, async (req, res) => {
 });
 
 // collection item detail
-router.get('/album/:id', requireAuth, async (req, res) => {
+router.get('/album/:id', requireAuth, async (req: any, res: any) => {
     try {
         const album = await Item.findById(req.params.id);
         if (!album) return res.redirect('/collection?type=music');
@@ -923,12 +914,12 @@ router.get('/album/:id', requireAuth, async (req, res) => {
 
         const formattedVariants = variants.map(formatForView);
 
-        res.render('vinyl-detail', { 
-            album: albumFormatted, 
-            vinyl: albumFormatted, 
+        res.render('vinyl-detail', {
+            album: albumFormatted,
+            vinyl: albumFormatted,
             variants: formattedVariants,
-            user: res.locals.user, 
-            currentType: 'album' 
+            user: res.locals.user,
+            currentType: 'album'
         });
     } catch (err) {
         res.redirect('/collection?type=music');
@@ -936,17 +927,14 @@ router.get('/album/:id', requireAuth, async (req, res) => {
 });
 
 // Delete route (API)
-router.delete('/api/album/:id', requireAuth, requireAdmin, async (req, res) => {
+router.delete('/api/album/:id', requireAuth, requireAdmin, async (req: any, res: any) => {
     try {
-        // Look up the album to determine its media type (CD or vinyl)
+        // Look up the album to determine its owner
         const album = await Item.findOne({ _id: req.params.id, owner: res.locals.user._id });
 
         if (!album) {
             return res.status(404).json({ error: "Album not found or you are not the owner." });
         }
-
-        // Save the type for redirect
-        const typeRedirect = album.media_type || 'vinyl';
 
         // Delete
         await Item.deleteOne({ _id: req.params.id });
@@ -961,7 +949,7 @@ router.delete('/api/album/:id', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // Estimate route (Discogs API)
-router.get('/api/estimate/:discogsId', requireAuth, async (req, res) => {
+router.get('/api/estimate/:discogsId', requireAuth, async (req: any, res: any) => {
     try {
         const discogsId = req.params.discogsId;
         const token = process.env.DISCOGS_TOKEN;
@@ -975,11 +963,10 @@ router.get('/api/estimate/:discogsId', requireAuth, async (req, res) => {
             });
 
             if (statsRes.ok) {
-                const statsData = await statsRes.json();
+                const statsData = await statsRes.json() as any;
 
                 // Verify there's a non-zero lowest price
                 if (statsData.lowest_price && statsData.lowest_price.value > 0) {
-                    // console.log(`💰 Plan A (market) for ID ${discogsId}: ${statsData.lowest_price.value}€`);
                     return res.json({
                         success: true,
                         source: 'market', // concrete market data
@@ -989,54 +976,51 @@ router.get('/api/estimate/:discogsId', requireAuth, async (req, res) => {
                 }
             }
         } catch (e) {
-            // console.log(`⚠️ Plan A failed for ${discogsId} (not for sale or error)`);
+            // ignore
         }
 
         // PLAN B: Price suggestions / historical fallback
-        // If we reach here, Plan A failed (no active sellers or error)
         try {
             const suggRes = await fetch(`https://api.discogs.com/marketplace/price_suggestions/${discogsId}?token=${token}`, {
                 headers: { 'User-Agent': 'DVinylApp/1.0' }
             });
 
             if (suggRes.ok) {
-                const suggData = await suggRes.json();
+                const suggData = await suggRes.json() as any;
                 const keys = Object.keys(suggData);
 
-                const condition = (req.query.condition || '').toUpperCase();
-                let targetKey;
+                const condition = ((req.query.condition as string) || '').toUpperCase();
+                let targetKey = '';
 
                 if (condition && condition !== 'GENERIC') {
                     if (condition === 'M') {
-                        targetKey = keys.find(k => k.toLowerCase().includes('mint (m)'));
+                        targetKey = keys.find(k => k.toLowerCase().includes('mint (m)')) || '';
                     } else if (condition === 'NM') {
-                        targetKey = keys.find(k => k.toLowerCase().includes('near mint'));
+                        targetKey = keys.find(k => k.toLowerCase().includes('near mint')) || '';
                     } else if (condition === 'VG+') {
-                        targetKey = keys.find(k => k.toLowerCase().includes('very good plus'));
+                        targetKey = keys.find(k => k.toLowerCase().includes('very good plus')) || '';
                     } else if (condition === 'VG') {
-                        targetKey = keys.find(k => k.toLowerCase().includes('very good (vg)'));
+                        targetKey = keys.find(k => k.toLowerCase().includes('very good (vg)')) || '';
                     } else if (condition === 'G+') {
-                        targetKey = keys.find(k => k.toLowerCase().includes('good plus'));
+                        targetKey = keys.find(k => k.toLowerCase().includes('good plus')) || '';
                     } else if (condition === 'G') {
-                        targetKey = keys.find(k => k.toLowerCase().includes('good (g)'));
+                        targetKey = keys.find(k => k.toLowerCase().includes('good (g)')) || '';
                     } else if (condition === 'F') {
-                        targetKey = keys.find(k => k.toLowerCase().includes('fair (f)'));
+                        targetKey = keys.find(k => k.toLowerCase().includes('fair (f)')) || '';
                     } else if (condition === 'P') {
-                        targetKey = keys.find(k => k.toLowerCase().includes('poor (p)'));
+                        targetKey = keys.find(k => k.toLowerCase().includes('poor (p)')) || '';
                     }
                 }
 
                 if (!targetKey) {
                     const vgKey = keys.find(k => k.toLowerCase().includes('very good plus'));
                     const mintKey = keys.find(k => k.toLowerCase().includes('mint (m)'));
-                    targetKey = vgKey || mintKey || keys[0];
+                    targetKey = vgKey || mintKey || keys[0] || '';
                 }
 
-                const bestPrice = suggData[targetKey];
+                const bestPrice = targetKey ? suggData[targetKey] : null;
 
                 if (bestPrice && bestPrice.value > 0) {
-                    // console.log(`📉 Plan B (history) for ID ${discogsId}: ${bestPrice.value}€`);
-
                     let gradeLabel = 'VG+';
                     if (targetKey.toLowerCase().includes('near mint')) gradeLabel = 'NM';
                     else if (targetKey.toLowerCase().includes('mint (m)')) gradeLabel = 'M';
@@ -1055,11 +1039,10 @@ router.get('/api/estimate/:discogsId', requireAuth, async (req, res) => {
                 }
             }
         } catch (e) {
-            // console.log(`⚠️ Plan B failed for ${discogsId}`);
+            // ignore
         }
 
         // TOTAL FAILURE
-        // console.log(`❌ No price found for ${discogsId}`);
         res.json({ success: false, error: "Unavailable" });
 
     } catch (err) {
@@ -1069,12 +1052,12 @@ router.get('/api/estimate/:discogsId', requireAuth, async (req, res) => {
 });
 
 // Discogs import route (starts the import process)
-router.post('/import/discogs', requireAuth, async (req, res) => {
+router.post('/import/discogs', requireAuth, async (req: any, res: any) => {
     const { discogsUrl, full, type } = req.body;
     const userId = req.user._id;
     const token = process.env.DISCOGS_TOKEN;
 
-    const usernameMatch = discogsUrl.match(/(?:user\/|user=)([^/?&]+)/);
+    const usernameMatch = (discogsUrl as string).match(/(?:user\/|user=)([^/?&]+)/);
     if (!usernameMatch) return res.status(400).json({ error: "Invalid Discogs URL" });
     const username = usernameMatch[1];
 
@@ -1093,30 +1076,30 @@ router.post('/import/discogs', requireAuth, async (req, res) => {
         const listKey = isWishlist ? 'wants' : 'releases';
 
         while (hasMore) {
-            const response = await axios.get(apiUrl, {
-                params: { page, per_page: 50 },
+            const params = new URLSearchParams({ page: page.toString(), per_page: '50' });
+            const data = await fetchJson(`${apiUrl}?${params}`, {
                 headers: { 'Authorization': `Discogs token=${token}`, 'User-Agent': 'DVinylApp/1.0' }
             });
 
-            const listItems = response.data[listKey];
-            const pagination = response.data.pagination;
+            const listItems = data[listKey];
+            const pagination = data.pagination;
 
             if (!listItems || listItems.length === 0) break;
 
-            const albumsToInsert = [];
+            const albumsToInsert: any[] = [];
 
             for (const item of listItems) {
                 const info = item.basic_information;
-                const existing = await Item.findOne({ discogs_id: info.id, owner: userId });
+                const existing = await Item.findOne({ discogs_id: info.id, owner: userId }) as any;
 
                 if (existing) {
                     if (full === true && (!existing.tracklist || existing.tracklist.length === 0)) {
                         try {
                             console.log(`🔄 Updating tracklist for existing album ID ${info.id}`);
-                            const detailRes = await axios.get(`https://api.discogs.com/releases/${info.id}`, {
+                            const detailData = await fetchJson(`https://api.discogs.com/releases/${info.id}`, {
                                 headers: { 'Authorization': `Discogs token=${token}`, 'User-Agent': 'DVinylApp/2.0' }
                             });
-                            const fetchedTracklist = detailRes.data.tracklist || [];
+                            const fetchedTracklist = detailData.tracklist || [];
 
                             if (fetchedTracklist.length > 0) {
                                 await Item.updateOne(
@@ -1136,24 +1119,24 @@ router.post('/import/discogs', requireAuth, async (req, res) => {
                     continue;
                 }
 
-                let tracklist = [];
+                let tracklist: any[] = [];
                 if (full === true) {
                     try {
-                        const detailRes = await axios.get(`https://api.discogs.com/releases/${info.id}`, {
+                        const detailData = await fetchJson(`https://api.discogs.com/releases/${info.id}`, {
                             headers: { 'Authorization': `Discogs token=${token}`, 'User-Agent': 'DVinylApp/1.0' }
                         });
-                        tracklist = detailRes.data.tracklist || [];
+                        tracklist = detailData.tracklist || [];
                         await new Promise(resolve => setTimeout(resolve, 1000));
                     } catch (e) { console.error(`Tracklist error ID ${info.id}`); }
                 }
 
                 let formatType = [info.formats?.[0]?.name].filter(Boolean);
-                let variantColor = [];
+                let variantColor: string[] = [];
                 const firstFormat = info.formats?.[0];
                 if (firstFormat) {
                     if (firstFormat.text) {
-                        const parts = firstFormat.text.split(',').map(p => p.trim());
-                        parts.forEach(part => {
+                        const parts = firstFormat.text.split(',').map((p: string) => p.trim());
+                        parts.forEach((part: string) => {
                             if (STANDARD_FORMAT_TERMS.includes(part)) {
                                 if (!formatType.includes(part)) formatType.push(part);
                             } else {
@@ -1162,7 +1145,7 @@ router.post('/import/discogs', requireAuth, async (req, res) => {
                         });
                     }
                     if (firstFormat.descriptions) {
-                        firstFormat.descriptions.forEach(d => {
+                        firstFormat.descriptions.forEach((d: string) => {
                             if (STANDARD_FORMAT_TERMS.includes(d)) {
                                 if (!formatType.includes(d)) formatType.push(d);
                             } else {
@@ -1176,7 +1159,7 @@ router.post('/import/discogs', requireAuth, async (req, res) => {
 
                 albumsToInsert.push({
                     title: info.title,
-                    artist: info.artists.map(a => a.name).join(', '),
+                    artist: info.artists.map((a: any) => a.name).join(', '),
                     year: info.year || 0,
                     label: info.labels?.[0]?.name || 'Unknown',
                     catalog_number: info.labels?.[0]?.catno || '',
@@ -1211,13 +1194,13 @@ router.post('/import/discogs', requireAuth, async (req, res) => {
 
         req.io.emit('import_finished', { count: totalImported });
 
-    } catch (err) {
+    } catch (err: any) {
         req.io.emit('import_error', { message: err.message });
     }
 });
 
 // Musik-Sammler CSV import route
-router.post('/import/musik-sammler', requireAuth, requireAdmin, async (req, res) => {
+router.post('/import/musik-sammler', requireAuth, requireAdmin, async (req: any, res: any) => {
     const { csv, type } = req.body;
     const userId = req.user._id;
 
@@ -1234,8 +1217,13 @@ router.post('/import/musik-sammler', requireAuth, requireAdmin, async (req, res)
             return;
         }
 
-        const cleanHeader = (h) => h.replace(/^\uFEFF/, '').trim();
-        const headers = rows[0].map(cleanHeader);
+        const cleanHeader = (h: string) => h.replace(/^\uFEFF/, '').trim();
+        const headerRow = rows[0];
+        if (!headerRow) {
+            req.io.emit('import_error', { message: "CSV file is empty or invalid" });
+            return;
+        }
+        const headers = headerRow.map(cleanHeader);
 
         const artistIndex = headers.indexOf('Künstler/Band');
         const countryIndex = headers.indexOf('Land');
@@ -1271,6 +1259,7 @@ router.post('/import/musik-sammler', requireAuth, requireAdmin, async (req, res)
 
         for (let i = 1; i < rows.length; i++) {
             const row = rows[i];
+            if (!row) continue;
             if (row.length < 2 || (row.length === 1 && row[0] === '')) continue; // Skip empty rows
 
             const title = row[titleIndex]?.trim() || '';
@@ -1347,7 +1336,7 @@ router.post('/import/musik-sammler', requireAuth, requireAdmin, async (req, res)
 
             const mainGenre = genreIndex > -1 ? row[genreIndex]?.trim() : '';
             const subGenresRaw = subgenresIndex > -1 ? row[subgenresIndex]?.trim() : '';
-            const parsedSubgenres = subGenresRaw ? subGenresRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+            const parsedSubgenres = subGenresRaw ? subGenresRaw.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
 
             const genres = [mainGenre].filter(Boolean);
             const styles = parsedSubgenres;
@@ -1370,8 +1359,8 @@ router.post('/import/musik-sammler', requireAuth, requireAdmin, async (req, res)
                     let sTitle = rawSong;
                     let sDuration = '';
                     if (match) {
-                        sTitle = match[1].trim();
-                        sDuration = match[2].trim();
+                        sTitle = match[1]!.trim();
+                        sDuration = match[2]!.trim();
                     }
 
                     tracklist.push({
@@ -1412,27 +1401,27 @@ router.post('/import/musik-sammler', requireAuth, requireAdmin, async (req, res)
 
         req.io.emit('import_finished', { count: totalImported });
 
-    } catch (err) {
+    } catch (err: any) {
         console.error("Musik-Sammler import error:", err);
         req.io.emit('import_error', { message: err.message });
     }
 });
 
-function escapeRegExp(string) {
+function escapeRegExp(string: string): string {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function parseCSV(text) {
-    const lines = [];
+function parseCSV(text: string): string[][] {
+    const lines: string[][] = [];
     let row = [""];
     let inQuotes = false;
 
     for (let i = 0; i < text.length; i++) {
-        const c = text[i];
-        const next = text[i+1];
+        const c = text[i]!;
+        const next = text[i + 1];
         if (c === '"') {
             if (inQuotes && next === '"') {
-                row[row.length - 1] += '"';
+                row[row.length - 1] = (row[row.length - 1] ?? '') + '"';
                 i++;
             } else {
                 inQuotes = !inQuotes;
@@ -1446,7 +1435,7 @@ function parseCSV(text) {
             lines.push(row);
             row = [''];
         } else {
-            row[row.length - 1] += c;
+            row[row.length - 1] = (row[row.length - 1] ?? '') + c;
         }
     }
     if (row.length > 1 || row[0] !== '') {
@@ -1456,7 +1445,7 @@ function parseCSV(text) {
 }
 
 // API route to import tracklist from Discogs
-router.post('/api/album/:id/import-tracklist', requireAuth, requireAdmin, async (req, res) => {
+router.post('/api/album/:id/import-tracklist', requireAuth, requireAdmin, async (req: any, res: any) => {
     const { discogsId } = req.body;
     const albumId = req.params.id;
     const token = process.env.DISCOGS_TOKEN;
@@ -1466,11 +1455,11 @@ router.post('/api/album/:id/import-tracklist', requireAuth, requireAdmin, async 
     }
 
     try {
-        const response = await axios.get(`https://api.discogs.com/releases/${discogsId}`, {
+        const data = await fetchJson(`https://api.discogs.com/releases/${discogsId}`, {
             headers: { 'User-Agent': 'DVinylApp/1.0', 'Authorization': `Discogs token=${token}` }
         });
 
-        const tracklist = response.data.tracklist;
+        const tracklist = data.tracklist;
 
         if (!tracklist || tracklist.length === 0) {
             return res.status(404).json({ success: false, error: "No tracklist found on Discogs" });
@@ -1479,14 +1468,14 @@ router.post('/api/album/:id/import-tracklist', requireAuth, requireAdmin, async 
         await Item.findByIdAndUpdate(albumId, { tracklist: tracklist }, { strict: false });
         res.status(200).json({ success: true });
 
-    } catch (err) {
+    } catch (err: any) {
         console.error("Erreur API Discogs:", err.message);
         res.status(500).json({ success: false, error: "Error during Discogs API call" });
     }
 });
 
 // API route to refresh all album metadata from Discogs
-router.post('/api/album/:id/refresh-info', requireAuth, requireAdmin, async (req, res) => {
+router.post('/api/album/:id/refresh-info', requireAuth, requireAdmin, async (req: any, res: any) => {
     const albumId = req.params.id;
     const { discogsId } = req.body;
     const token = process.env.DISCOGS_TOKEN;
@@ -1496,12 +1485,11 @@ router.post('/api/album/:id/refresh-info', requireAuth, requireAdmin, async (req
     }
 
     try {
-        const response = await axios.get(`https://api.discogs.com/releases/${discogsId}`, {
+        const data = await fetchJson(`https://api.discogs.com/releases/${discogsId}`, {
             headers: { 'Authorization': `Discogs token=${token}`, 'User-Agent': 'DVinylApp/2.0' }
         });
-        const data = response.data;
 
-        const updateData = {
+        const updateData: any = {
             genres: data.genres || [],
             styles: data.styles || [],
             tracklist: data.tracklist || []
@@ -1513,7 +1501,7 @@ router.post('/api/album/:id/refresh-info', requireAuth, requireAdmin, async (req
         if (currentAlbum && !currentAlbum.barcode_locked) {
             let barcode = '';
             if (data.identifiers && data.identifiers.length > 0) {
-                const barcodeObj = data.identifiers.find(id => id.type === 'Barcode');
+                const barcodeObj = data.identifiers.find((id: any) => id.type === 'Barcode');
                 if (barcodeObj) {
                     barcode = barcodeObj.value.replace(/\s/g, '');
                 }
@@ -1535,4 +1523,4 @@ router.post('/api/album/:id/refresh-info', requireAuth, requireAdmin, async (req
     }
 });
 
-module.exports = router;
+export = router;

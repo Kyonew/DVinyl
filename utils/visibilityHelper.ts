@@ -1,16 +1,15 @@
-/**
- * visibilityHelper.js
- * 
- * Modifies queries to exclude items, genres, and types hidden in the admin settings.
- */
+interface VisibilitySettings {
+    applyToAdmin: boolean;
+    hiddenItems?: string[];
+    hiddenGenres?: string[];
+    hiddenTypes?: string[];
+}
 
-/**
- * Applies visibility filters to a Mongoose query object.
- * @param {Object} query - The Mongoose query object.
- * @param {Boolean} isAdmin - Whether the current user is an admin.
- * @param {Object} settings - The application settings.
- */
-function applyVisibilityFilter(query, isAdmin, settings) {
+interface AppSettings {
+    visibility?: VisibilitySettings
+}
+
+export function applyVisibilityFilter(query: any, isAdmin: boolean, settings: AppSettings): void {
     if (!settings || !settings.visibility) {
         return;
     }
@@ -47,4 +46,3 @@ function applyVisibilityFilter(query, isAdmin, settings) {
     }
 }
 
-module.exports = { applyVisibilityFilter };

@@ -1,33 +1,36 @@
-const Settings = require('../models/Settings');
-const themesConfig = require('../config/themes');
-const { BASE_URL } = require('../config/constants');
+import Settings from '../models/Settings';
+import themesConfig from '../config/themes';
+import { BASE_URL } from '../config/constants';
 
-module.exports = async (req, res, next) => {
+async function settingsMiddleware(req: any, res: any, next: any) {
     try {
         res.locals.allThemes = themesConfig;
 
-        let settings = await Settings.findOne().lean();
-        if (!settings) {
-            settings = {
-                siteName: 'DVinyl',
-                modules: { music: true, books: false, dvd: false },
-                navbarShortcuts: ['global_home', 'music_vinyl', 'music_cd', 'music_cassette', 'global_wishlist'],
-                statsWidgets: ['total', 'vinyl', 'cd', 'cassette', 'artist'],
-                theme: {
-                    home: { preset: 'default' },
-                    music: { preset: 'default' },
-                    books: { preset: 'default' },
-                    dvd: { preset: 'default' }
-                }
-            };
-        } else {
-            if (!settings.navbarShortcuts) {
-                settings.navbarShortcuts = ['global_home', 'music_vinyl', 'music_cd', 'music_cassette', 'global_wishlist'];
+        const dbSettings = await Settings.findOne().lean();
+
+        const defaultSettings = {
+            siteName: 'DVinyl',
+            modules: { music: true, books: false, dvd: false, games: false, advancedCD: false },
+            navbarShortcuts: ['global_home', 'music_vinyl', 'music_cd', 'music_cassette', 'global_wishlist'],
+            statsWidgets: ['total', 'vinyl', 'cd', 'cassette', 'artist'],
+            theme: {
+                home: { preset: 'default' },
+                music: { preset: 'default' },
+                books: { preset: 'default' },
+                dvd: { preset: 'default' },
+                games: { preset: 'default' }
             }
-            if (!settings.statsWidgets) {
-                settings.statsWidgets = ['total', 'vinyl', 'cd', 'cassette', 'artist'];
-            }
+        };
+
+        const settings = dbSettings || defaultSettings;
+
+        if (!settings.navbarShortcuts) {
+            settings.navbarShortcuts = ['global_home', 'music_vinyl', 'music_cd', 'music_cassette', 'global_wishlist'];
         }
+        if (!settings.statsWidgets) {
+            settings.statsWidgets = ['total', 'vinyl', 'cd', 'cassette', 'artist'];
+        }
+
 
         settings.navbarShortcuts = settings.navbarShortcuts || ['global_home', 'music_vinyl', 'music_cd', 'music_cassette', 'global_wishlist'];
         settings.statsWidgets = settings.statsWidgets || ['total', 'vinyl', 'cd', 'cassette', 'artist'];
@@ -39,8 +42,8 @@ module.exports = async (req, res, next) => {
 
         const fullPath = req.path.toLowerCase();
         // Strip BASE_URL from path to avoid false positives if BASE_URL contains keywords like "vinyl"
-        const path = fullPath.startsWith(BASE_URL.toLowerCase()) 
-            ? fullPath.slice(BASE_URL.length) 
+        const path = fullPath.startsWith(BASE_URL.toLowerCase())
+            ? fullPath.slice(BASE_URL.length)
             : fullPath;
 
         const queryType = req.query.type; // ex: ?type=books
@@ -66,13 +69,13 @@ module.exports = async (req, res, next) => {
             path.includes('/book/') || path.includes('/dvd/') || path.includes('/game/') || path.includes('/album/') ||
             path.includes('/save-');
 
-        if (activeType === 'books' && !settings.modules.books && path !== '/' && !isAllowedAction) {
+        if (activeType === 'books' && !settings.modules?.books && path !== '/' && !isAllowedAction) {
             return res.status(404).render('404');
         }
-        if (activeType === 'dvd' && !settings.modules.dvd && path !== '/' && !isAllowedAction) {
+        if (activeType === 'dvd' && !settings.modules?.dvd && path !== '/' && !isAllowedAction) {
             return res.status(404).render('404');
         }
-        if (activeType === 'games' && !settings.modules.games && path !== '/' && !isAllowedAction) {
+        if (activeType === 'games' && !settings.modules?.games && path !== '/' && !isAllowedAction) {
             return res.status(404).render('404');
         }
 
@@ -84,4 +87,6 @@ module.exports = async (req, res, next) => {
         res.locals.settings = { theme: { home: { preset: 'default' } } };
         next();
     }
-};
+}
+
+export = settingsMiddleware;

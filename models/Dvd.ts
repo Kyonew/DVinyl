@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const Item = require('./Item');
+import mongoose from 'mongoose';
+import Item from './Item';
 
 const dvdSchema = new mongoose.Schema({
     director: { type: String, required: true },
@@ -40,4 +40,4 @@ const dvdSchema = new mongoose.Schema({
 
 const Dvd = Item.discriminator('Dvd', dvdSchema);
 
-module.exports = Dvd;
+export = Dvd;

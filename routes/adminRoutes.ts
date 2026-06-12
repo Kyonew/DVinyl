@@ -1,35 +1,30 @@
-const express = require("express");
+import express from "express";
+import mongoose from "mongoose";
+import bcrypt from "bcrypt";
+import User from "../models/User";
+import BlockedIP from "../models/blockedIP";
+import LoginLog from "../models/LoginLog";
+import Settings from "../models/Settings";
+import { requireAuth, requireAdmin } from "../middleware/authMiddleware";
+import PRESETS from "../config/themes";
+import Item from "../models/Item";
+import Book from "../models/Book";
+import Dvd from "../models/Dvd";
+import Game from "../models/Game";
+import { BOOK_GENRES_WHITELIST, TMDB_LANG_MAP } from "../config/constants";
+import { igdbRequest } from "../utils/igdbHelper";
+
+const fetchJson = async (url: string, options?: RequestInit): Promise<any> => {
+  const response = await fetch(url, options);
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  return response.json();
+};
+
 const router = express.Router();
-const bcrypt = require("bcrypt");
-const mongoose = require("mongoose");
-const User = require("../models/User");
-const BlockedIP = require("../models/blockedIP");
-const LoginLog = require("../models/LoginLog");
-const Settings = require("../models/Settings");
-const { requireAuth, requireAdmin } = require("../middleware/authMiddleware");
-const PRESETS = require("../config/themes");
-const axios = require("axios");
-const https = require("https");
-const Item = require("../models/Item");
-const Vinyl = require("../models/Vinyl");
-const Book = require("../models/Book");
-const Dvd = require("../models/Dvd");
-const Game = require("../models/Game");
-const { BOOK_GENRES_WHITELIST, TMDB_LANG_MAP } = require("../config/constants");
-const { igdbRequest } = require("../utils/igdbHelper");
 
-/**
- * routes/adminRoutes.js
- *
- * Administration routes: user management, IP blocking and login logs.
- */
-
-/**
- * Generate a random password.
- * @param {number} [length=12]
- * @returns {string}
- */
-const createPassword = (length = 12) => {
+const createPassword = (length = 12): string => {
   const chars =
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+";
   let password = "";
@@ -39,18 +34,22 @@ const createPassword = (length = 12) => {
   return password;
 };
 
-/**
- * Helper to escape regular expression special characters.
- * @param {string} string
- * @returns {string}
- */
-const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const escapeRegExp = (str: string): string => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+interface AdminData {
+  users: any[];
+  blockedIps: any[];
+  logs: any[];
+  allGenres: Record<string, string[]>;
+  visibilitySettings: any;
+}
 
 /**
  * Helper to load the common admin data used by the dashboard view.
  * Centralizing this avoids duplicating queries across handlers.
  */
-async function loadAdminData() {
+async function loadAdminData(): Promise<AdminData> {
   const users = await User.find().sort({ lastChange: -1 });
   const blockedIps = await BlockedIP.find().sort({ createdAt: -1 });
   const logs = await LoginLog.find().sort({ timestamp: -1 }).limit(20);
@@ -84,8 +83,8 @@ async function loadAdminData() {
 
   const genreGroupsRaw = await Item.aggregate(pipeline);
 
-  const allGenres = {};
-  genreGroupsRaw.forEach((group) => {
+  const allGenres: Record<string, string[]> = {};
+  genreGroupsRaw.forEach((group: any) => {
     if (group._id && group.genres && group.genres.length > 0) {
       allGenres[group._id] = group.genres.filter(Boolean).sort();
     }
@@ -98,12 +97,12 @@ async function loadAdminData() {
 }
 
 // DASHBOARD (GET)
-router.get("/", requireAuth, requireAdmin, async (req, res) => {
+router.get("/", requireAuth, requireAdmin, async (req: any, res: any) => {
   try {
     const data = await loadAdminData();
 
     // Read optional message key from query and translate in the view.
-    const msgKey = req.query.msg;
+    const msgKey = req.query.msg as string | undefined;
 
     res.render("admin", {
       ...data,
@@ -123,7 +122,7 @@ router.get("/", requireAuth, requireAdmin, async (req, res) => {
 });
 
 // Add user (POST)
-router.post("/add-user", requireAuth, requireAdmin, async (req, res) => {
+router.post("/add-user", requireAuth, requireAdmin, async (req: any, res: any) => {
   try {
     const { username, email } = req.body;
     const password = createPassword();
@@ -148,7 +147,7 @@ router.post("/add-user", requireAuth, requireAdmin, async (req, res) => {
     res.render("admin", {
       ...data,
       user: res.locals.user,
-      successMessage: `Utilisateur ${username} créé !`,
+      successMessage: req.t("messages.user_created_success", { name: username }),
       newPassword: password,
     });
   } catch (err) {
@@ -158,7 +157,7 @@ router.post("/add-user", requireAuth, requireAdmin, async (req, res) => {
 });
 
 // Reset password (POST)
-router.post("/reset-password", requireAuth, requireAdmin, async (req, res) => {
+router.post("/reset-password", requireAuth, requireAdmin, async (req: any, res: any) => {
   try {
     const { userId } = req.body;
     const userToUpdate = await User.findById(userId);
@@ -192,10 +191,8 @@ router.post("/reset-password", requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-// 4. Simple actions (redirects)
-// These handlers redirect back to the admin root and therefore do not
-// need to reload the logs.
-router.post("/delete-user", requireAuth, requireAdmin, async (req, res) => {
+// Delete user (POST)
+router.post("/delete-user", requireAuth, requireAdmin, async (req: any, res: any) => {
   try {
     if (req.body.userId === res.locals.user._id.toString())
       return res.redirect("/admin?msg=delete_self_error");
@@ -206,7 +203,7 @@ router.post("/delete-user", requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-router.post("/block-ip", requireAuth, requireAdmin, async (req, res) => {
+router.post("/block-ip", requireAuth, requireAdmin, async (req: any, res: any) => {
   try {
     const { ipAddress } = req.body;
     const exists = await BlockedIP.findOne({ ip: ipAddress });
@@ -217,7 +214,7 @@ router.post("/block-ip", requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-router.post("/unblock-ip", requireAuth, requireAdmin, async (req, res) => {
+router.post("/unblock-ip", requireAuth, requireAdmin, async (req: any, res: any) => {
   try {
     await BlockedIP.findByIdAndDelete(req.body.ipId);
     res.redirect("/admin?msg=ip_unblocked");
@@ -226,7 +223,7 @@ router.post("/unblock-ip", requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-router.get("/personnalisation", requireAuth, requireAdmin, async (req, res) => {
+router.get("/personnalisation", requireAuth, requireAdmin, async (req: any, res: any) => {
   try {
     res.render("personnalisation", {
       presets: PRESETS,
@@ -241,7 +238,7 @@ router.post(
   "/personnalisation/save",
   requireAuth,
   requireAdmin,
-  async (req, res) => {
+  async (req: any, res: any) => {
     try {
       const {
         homePreset,
@@ -298,7 +295,7 @@ router.post(
   },
 );
 
-router.post("/modules/save", requireAuth, requireAdmin, async (req, res) => {
+router.post("/modules/save", requireAuth, requireAdmin, async (req: any, res: any) => {
   try {
     const {
       musicActive,
@@ -329,7 +326,7 @@ router.post("/modules/save", requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-router.post("/visibility/save", requireAuth, requireAdmin, async (req, res) => {
+router.post("/visibility/save", requireAuth, requireAdmin, async (req: any, res: any) => {
   try {
     const { applyToAdmin, hiddenItems, hiddenGenres, hiddenTypes } = req.body;
 
@@ -372,19 +369,19 @@ router.post(
   "/batch-update-barcodes",
   requireAuth,
   requireAdmin,
-  async (req, res) => {
+  async (req: any, res: any) => {
     try {
       const { barcodeList } = req.body;
       if (!barcodeList) return res.redirect("/admin?msg=error");
 
       const lines = barcodeList
         .split("\n")
-        .map((l) => l.trim())
-        .filter((l) => l.includes(":"));
+        .map((l: string) => l.trim())
+        .filter((l: string) => l.includes(":"));
       let count = 0;
 
       for (const line of lines) {
-        const [discogsId, barcode] = line.split(":").map((s) => s.trim());
+        const [discogsId, barcode] = line.split(":").map((s: string) => s.trim());
         if (discogsId && barcode) {
           const result = await Item.updateMany(
             { discogs_id: parseInt(discogsId), kind: "Music" },
@@ -406,34 +403,34 @@ router.get(
   "/api/search-collection",
   requireAuth,
   requireAdmin,
-  async (req, res) => {
+  async (req: any, res: any) => {
     try {
-        const { q } = req.query;
-        const trimmedQ = typeof q === 'string' ? q.trim() : '';
-        if (!trimmedQ) return res.json([]);
+      const { q } = req.query;
+      const trimmedQ = typeof q === 'string' ? q.trim() : '';
+      if (!trimmedQ) return res.json([]);
 
-        const admin = await User.findOne({ isAdmin: true }).select('_id');
-        const adminId = admin ? admin._id : null;
+      const admin = await User.findOne({ isAdmin: true }).select('_id');
+      const adminId = admin ? admin._id : null;
 
-        const regex = new RegExp(escapeRegExp(trimmedQ), 'i');
-        const searchOr = [
-            { title: regex },
-            { artist: regex },
-            { author: regex },
-            { director: regex },
-            { barcode: regex },
-            { 'tracklist.title': regex }
-        ];
-        if (mongoose.Types.ObjectId.isValid(trimmedQ)) {
-            searchOr.push({ _id: trimmedQ });
-        }
+      const regex = new RegExp(escapeRegExp(trimmedQ), 'i');
+      const searchOr = [
+        { title: regex },
+        { artist: regex },
+        { author: regex },
+        { director: regex },
+        { barcode: regex },
+        { 'tracklist.title': regex }
+      ];
+      if (mongoose.Types.ObjectId.isValid(trimmedQ)) {
+        searchOr.push({ _id: trimmedQ });
+      }
 
-        const items = await Item.find({
-            owner: adminId,
-            $or: searchOr
-        }).limit(10).select('_id title artist author director kind cover_image format format_type platform media_type').lean();
+      const items = await Item.find({
+        owner: adminId,
+        $or: searchOr
+      }).limit(10).select('_id title artist author director kind cover_image format format_type platform media_type').lean();
 
-        res.json(items);
+      res.json(items);
     } catch (err) {
       console.error("[ERR] search collection", err);
       res.status(500).json({ error: "Search failed" });
@@ -450,22 +447,21 @@ router.get(
     q = typeof q === 'string' ? q.trim() : '';
     console.log(`[SEARCH] Query: "${q}" | Type: ${type}`);
 
-    const axiosConfig = {
+    const fetchOptions = {
       headers: { "User-Agent": "DVinylApp/2.0" },
-      timeout: 10000,
-      httpsAgent: new https.Agent({ family: 4, keepAlive: true }),
+      signal: AbortSignal.timeout(10000),
     };
 
     try {
       if (type === "book") {
-        const response = await axios.get(
+        const data = await fetchJson(
           `https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&limit=10`,
-          axiosConfig,
+          fetchOptions,
         );
-        const results = (response.data.docs || [])
-          .filter((doc) => doc.cover_i)
+        const results = (data.docs || [])
+          .filter((doc: any) => doc.cover_i)
           .map(
-            (doc) => `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg`,
+            (doc: any) => `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg`,
           );
 
         return res.json(results);
@@ -481,11 +477,11 @@ router.get(
                     limit 5;`,
           );
 
-          let urls = [];
-          igdbResults.forEach((g) => {
+          let urls: string[] = [];
+          igdbResults.forEach((g: any) => {
             if (g.cover && g.cover.url) urls.push(g.cover.url);
-            if (g.artworks) g.artworks.forEach((a) => urls.push(a.url));
-            if (g.screenshots) g.screenshots.forEach((s) => urls.push(s.url));
+            if (g.artworks) g.artworks.forEach((a: any) => urls.push(a.url));
+            if (g.screenshots) g.screenshots.forEach((s: any) => urls.push(s.url));
           });
 
           urls = urls.map((u) => {
@@ -499,27 +495,27 @@ router.get(
           if (tmdbApiKey) {
             const tmdbLang = TMDB_LANG_MAP[req.language] || "en-US";
             const tmdbUrl = `https://api.themoviedb.org/3/search/multi?api_key=${tmdbApiKey}&query=${encodeURIComponent(q)}&language=${tmdbLang}`;
-            const tmdbRes = await axios.get(tmdbUrl, axiosConfig);
-            const tmdbUrls = (tmdbRes.data.results || [])
-              .filter((item) => item.poster_path)
+            const tmdbData = await fetchJson(tmdbUrl, fetchOptions);
+            const tmdbUrls = (tmdbData.results || [])
+              .filter((item: any) => item.poster_path)
               .map(
-                (item) => `https://image.tmdb.org/t/p/w500${item.poster_path}`,
+                (item: any) => `https://image.tmdb.org/t/p/w500${item.poster_path}`,
               );
             urls = [...urls, ...tmdbUrls];
           }
 
           // iTunes software fallback
           const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(q)}&entity=software&limit=5`;
-          const itunesRes = await axios.get(itunesUrl, axiosConfig);
-          const itunesUrls = (itunesRes.data.results || [])
-            .filter((item) => item.artworkUrl100)
-            .map((item) =>
+          const itunesData = await fetchJson(itunesUrl, fetchOptions);
+          const itunesUrls = (itunesData.results || [])
+            .filter((item: any) => item.artworkUrl100)
+            .map((item: any) =>
               item.artworkUrl100.replace("100x100bb", "512x512bb"),
             );
           urls = [...urls, ...itunesUrls];
 
           return res.json([...new Set(urls)]);
-        } catch (err) {
+        } catch (err: any) {
           console.error("[ERR] Game image search failed:", err.message);
           return res.json([]);
         }
@@ -534,26 +530,26 @@ router.get(
 
         const tmdbLang = TMDB_LANG_MAP[req.language] || "en-US";
         const tmdbUrl = `https://api.themoviedb.org/3/search/multi?api_key=${tmdbApiKey}&query=${encodeURIComponent(q)}&language=${tmdbLang}`;
-        const response = await axios.get(tmdbUrl, axiosConfig);
+        const data = await fetchJson(tmdbUrl, fetchOptions);
 
-        const results = (response.data.results || [])
-          .filter((item) => item.poster_path)
-          .map((item) => `https://image.tmdb.org/t/p/w500${item.poster_path}`);
+        const results = (data.results || [])
+          .filter((item: any) => item.poster_path)
+          .map((item: any) => `https://image.tmdb.org/t/p/w500${item.poster_path}`);
 
         console.log(`[SEARCH] TMDB found: ${results.length} posters`);
         return res.json(results);
       }
 
       const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(q)}&entity=album&limit=12`;
-      const response = await axios.get(itunesUrl, axiosConfig);
+      const data = await fetchJson(itunesUrl, fetchOptions);
 
-      const results = (response.data.results || []).map((item) => {
+      const results = (data.results || []).map((item: any) => {
         return item.artworkUrl100.replace("100x100bb.jpg", "600x600bb.jpg");
       });
 
       console.log(`[SEARCH] iTunes found: ${results.length}`);
       res.json(results);
-    } catch (err) {
+    } catch (err: any) {
       console.error("[ERR] search image universal:", err.message);
       res.status(500).json({ error: "[ERR] connexion error" });
     }
@@ -564,7 +560,7 @@ router.get(
   "/api/search-discogs-gallery",
   requireAuth,
   requireAdmin,
-  async (req, res) => {
+  async (req: any, res: any) => {
     try {
       let { q } = req.query;
       q = typeof q === 'string' ? q.trim() : '';
@@ -575,18 +571,18 @@ router.get(
         },
       };
 
-      const searchRes = await axios.get(
-        `https://api.discogs.com/database/search?q=${encodeURIComponent(q)}&type=release&per_page=3`,
-        axiosConfig,
+      const searchRes = await fetchJson(
+        `https://api.discogs.com/database/search?q=${encodeURIComponent(q as string)}&type=release&per_page=3`,
+        { headers: fetchHeaders }
       );
-      const results = searchRes.data.results || [];
-      const galleryPromises = results.map(async (item) => {
+      const results = searchRes.results || [];
+      const galleryPromises = results.map(async (item: any) => {
         try {
-          const detail = await axios.get(
+          const detail = await fetchJson(
             `https://api.discogs.com/releases/${item.id}`,
-            axiosConfig,
+            { headers: fetchHeaders }
           );
-          return (detail.data.images || []).map((img) => img.resource_url);
+          return (detail.images || []).map((img: any) => img.resource_url);
         } catch (e) {
           return [];
         }
@@ -597,7 +593,7 @@ router.get(
       const finalImages = [...new Set(allGalleries.flat())];
 
       res.json(finalImages);
-    } catch (err) {
+    } catch (err: any) {
       console.error("[ERR] Discogs Global Gallery:", err.message);
       res.status(500).json({ error: "ERROR Discogs search" });
     }
@@ -608,7 +604,7 @@ router.post(
   "/delete-last-items",
   requireAuth,
   requireAdmin,
-  async (req, res) => {
+  async (req: any, res: any) => {
     const { count, kind } = req.body;
     const n = parseInt(count);
 
@@ -626,7 +622,7 @@ router.post(
       const result = await Item.deleteMany({ _id: { $in: ids } });
 
       res.json({ deleted: result.deletedCount });
-    } catch (err) {
+    } catch (err: any) {
       console.error("[ERR] delete-last-items:", err.message);
       res.status(500).json({ error: err.message });
     }
@@ -637,18 +633,18 @@ router.post(
   "/refresh-all-music-metadata",
   requireAuth,
   requireAdmin,
-  async (req, res) => {
+  async (req: any, res: any) => {
     const { mode = "all" } = req.body;
     const token = process.env.DISCOGS_TOKEN;
     if (!token)
       return res.status(500).json({ error: "Discogs token not configured" });
 
     try {
-      let query = {
+      let query: any = {
         discogs_id: { $exists: true, $ne: null },
       };
 
-      let conditions = [
+      let conditions: any[] = [
         { $or: [{ kind: "Music" }, { kind: { $exists: false } }] },
       ];
 
@@ -680,7 +676,7 @@ router.post(
       (async () => {
         const io = req.app.get("io");
         let current = 0;
-        for (const album of albums) {
+        for (const album of albums as any[]) {
           current++;
           let success = false;
           let retries = 0;
@@ -694,14 +690,14 @@ router.post(
                 });
               }
 
-              const response = await axios.get(
+              const data = await fetchJson(
                 `https://api.discogs.com/releases/${album.discogs_id}`,
                 {
                   headers: {
                     "User-Agent": "DVinylApp/2.0",
                     Authorization: `Discogs token=${token}`,
                   },
-                },
+                }
               );
 
               const {
@@ -709,9 +705,9 @@ router.post(
                 styles = [],
                 tracklist = [],
                 identifiers = [],
-              } = response.data;
+              } = data;
 
-              const updateObj = {};
+              const updateObj: any = {};
               if (mode === "all" || !album.genres || album.genres.length === 0)
                 updateObj.genres = genres;
               if (mode === "all" || !album.styles || album.styles.length === 0)
@@ -725,7 +721,7 @@ router.post(
 
               if (!album.barcode_locked) {
                 const barcodeObj = identifiers.find(
-                  (id) => id.type === "Barcode",
+                  (id: any) => id.type === "Barcode",
                 );
                 if (barcodeObj) {
                   updateObj.barcode = barcodeObj.value.replace(/\s/g, "");
@@ -741,7 +737,7 @@ router.post(
               success = true;
               // Respect Discogs API limit (60 req/min)
               await new Promise((r) => setTimeout(r, 1500));
-            } catch (err) {
+            } catch (err: any) {
               retries++;
               console.error(
                 `[ERR] Refresh bulk ID ${album.discogs_id} (Attempt ${retries}):`,
@@ -765,7 +761,7 @@ router.post(
         }
         if (io) io.emit("refresh_all_finished", { count: current });
       })();
-    } catch (err) {
+    } catch (err: any) {
       console.error("[ERR] Bulk refresh route:", err.message);
       if (!res.headersSent) res.status(500).json({ error: err.message });
     }
@@ -776,7 +772,7 @@ router.post(
   "/refresh-all-books-metadata",
   requireAuth,
   requireAdmin,
-  async (req, res) => {
+  async (req: any, res: any) => {
     const { mode = "all" } = req.body;
     const hardcoverKey = process.env.HARDCOVER_API_KEY;
     if (!hardcoverKey)
@@ -785,7 +781,7 @@ router.post(
         .json({ error: "Hardcover API key not configured" });
 
     try {
-      let query = { hardcover_slug: { $exists: true, $ne: null } };
+      let query: any = { hardcover_slug: { $exists: true, $ne: null } };
       if (mode === "missing") {
         query.$or = [
           { genre: { $exists: false } },
@@ -808,7 +804,7 @@ router.post(
       (async () => {
         const io = req.app.get("io");
         let current = 0;
-        for (const book of books) {
+        for (const book of books as any[]) {
           current++;
           try {
             if (io) {
@@ -833,32 +829,33 @@ router.post(
             const authHeader = hardcoverKey.startsWith("Bearer ")
               ? hardcoverKey
               : `Bearer ${hardcoverKey}`;
-            const response = await axios.post(
+            const dataRes = await fetchJson(
               "https://api.hardcover.app/v1/graphql",
-              graphqlQuery,
               {
+                method: "POST",
                 headers: {
                   "Content-Type": "application/json",
                   Authorization: authHeader,
                 },
-              },
+                body: JSON.stringify(graphqlQuery)
+              }
             );
 
-            if (response.data.errors) {
+            if (dataRes.errors) {
               console.error(
                 `[ERR] Bulk Refresh Book GraphQL Errors (${book.hardcover_slug}):`,
-                response.data.errors,
+                dataRes.errors,
               );
               throw new Error(
-                response.data.errors[0]?.message || "GraphQL Error",
+                dataRes.errors[0]?.message || "GraphQL Error",
               );
             }
 
-            const bookData = response.data?.data?.books?.[0];
+            const bookData = dataRes?.data?.books?.[0];
             if (bookData) {
-              let parsedTags = [];
+              let parsedTags: string[] = [];
               if (Array.isArray(bookData.taggings)) {
-                parsedTags = bookData.taggings.map((bt) => bt.tag?.tag);
+                parsedTags = bookData.taggings.map((bt: any) => bt.tag?.tag);
               } else if (Array.isArray(bookData.cached_tags)) {
                 parsedTags = bookData.cached_tags;
               } else if (typeof bookData.cached_tags === "string") {
@@ -867,7 +864,7 @@ router.post(
                 } catch (e) {
                   parsedTags = bookData.cached_tags
                     .split(",")
-                    .map((s) => s.trim());
+                    .map((s: string) => s.trim());
                 }
               }
 
@@ -884,7 +881,7 @@ router.post(
 
               const genres = [...new Set(filteredGenres)];
 
-              const updateObj = {};
+              const updateObj: any = {};
               if (mode === "all" || !book.genres || book.genres.length === 0)
                 updateObj.genres = genres;
               if (!book.genre || book.genre.trim() === "") {
@@ -895,7 +892,7 @@ router.post(
             }
 
             await new Promise((r) => setTimeout(r, 1000));
-          } catch (err) {
+          } catch (err: any) {
             console.error(
               `[ERR] Refresh bulk book ${book.hardcover_slug}:`,
               err.message,
@@ -905,7 +902,7 @@ router.post(
         }
         if (io) io.emit("refresh_all_finished", { count: current });
       })();
-    } catch (err) {
+    } catch (err: any) {
       console.error("[ERR] Bulk refresh books:", err.message);
       if (!res.headersSent) res.status(500).json({ error: err.message });
     }
@@ -916,14 +913,14 @@ router.post(
   "/refresh-all-dvds-metadata",
   requireAuth,
   requireAdmin,
-  async (req, res) => {
+  async (req: any, res: any) => {
     const { mode = "all" } = req.body;
     const tmdbKey = process.env.TMDB_API_KEY;
     if (!tmdbKey)
       return res.status(500).json({ error: "TMDB API key not configured" });
 
     try {
-      let query = { tmdb_id: { $exists: true, $ne: null } };
+      let query: any = { tmdb_id: { $exists: true, $ne: null } };
       if (mode === "missing") {
         query.$or = [
           { genre: { $exists: false } },
@@ -946,7 +943,7 @@ router.post(
       (async () => {
         const io = req.app.get("io");
         let current = 0;
-        for (const dvd of dvds) {
+        for (const dvd of dvds as any[]) {
           current++;
           try {
             if (io) {
@@ -959,14 +956,14 @@ router.post(
 
             const type = dvd.media_type === "tv" ? "tv" : "movie";
             const tmdbLang = TMDB_LANG_MAP[req.language] || "en-US";
-            const response = await axios.get(
+            const data = await fetchJson(
               `https://api.themoviedb.org/3/${type}/${dvd.tmdb_id}?api_key=${tmdbKey}&language=${tmdbLang}`,
             );
 
-            if (response.data) {
-              const genres = (response.data.genres || []).map((g) => g.name);
+            if (data) {
+              const genres = (data.genres || []).map((g: any) => g.name);
 
-              const updateObj = {};
+              const updateObj: any = {};
               if (mode === "all" || !dvd.genres || dvd.genres.length === 0)
                 updateObj.genres = genres;
               if (!dvd.genre || dvd.genre.trim() === "") {
@@ -977,7 +974,7 @@ router.post(
             }
 
             await new Promise((r) => setTimeout(r, 500));
-          } catch (err) {
+          } catch (err: any) {
             console.error(
               `[ERR] Refresh bulk dvd ${dvd.tmdb_id}:`,
               err.message,
@@ -987,7 +984,7 @@ router.post(
         }
         if (io) io.emit("refresh_all_finished", { count: current });
       })();
-    } catch (err) {
+    } catch (err: any) {
       console.error("[ERR] Bulk refresh dvds:", err.message);
       if (!res.headersSent) res.status(500).json({ error: err.message });
     }
@@ -998,7 +995,7 @@ router.post(
   "/refresh-all-games-metadata",
   requireAuth,
   requireAdmin,
-  async (req, res) => {
+  async (req: any, res: any) => {
     const { mode = "all" } = req.body;
     const clientId = process.env.TWITCH_CLIENT_ID;
     const clientSecret = process.env.TWITCH_CLIENT_SECRET;
@@ -1008,7 +1005,7 @@ router.post(
         .json({ error: "IGDB/Twitch credentials not configured" });
 
     try {
-      let query = { igdb_id: { $exists: true, $ne: null } };
+      let query: any = { igdb_id: { $exists: true, $ne: null } };
       if (mode === "missing") {
         query.$or = [
           { genre: { $exists: false } },
@@ -1029,7 +1026,7 @@ router.post(
       (async () => {
         const io = req.app.get("io");
         let current = 0;
-        for (const game of games) {
+        for (const game of games as any[]) {
           current++;
           try {
             if (io) {
@@ -1049,9 +1046,9 @@ router.post(
 
             if (results && results.length > 0) {
               const data = results[0];
-              const genres = (data.genres || []).map((g) => g.name);
+              const genres = (data.genres || []).map((g: any) => g.name);
 
-              const updateObj = {};
+              const updateObj: any = {};
               if (mode === "all" || !game.genres || game.genres.length === 0)
                 updateObj.genres = genres;
               if (!game.genre || game.genre.trim() === "") {
@@ -1070,7 +1067,7 @@ router.post(
 
             // IGDB rate limit: 4 requests/second
             await new Promise((r) => setTimeout(r, 300));
-          } catch (err) {
+          } catch (err: any) {
             console.error(
               `[ERR] Refresh bulk game ${game.igdb_id}:`,
               err.message,
@@ -1080,11 +1077,11 @@ router.post(
         }
         if (io) io.emit("refresh_all_finished", { count: current });
       })();
-    } catch (err) {
+    } catch (err: any) {
       console.error("[ERR] Bulk refresh games:", err.message);
       if (!res.headersSent) res.status(500).json({ error: err.message });
     }
   },
 );
 
-module.exports = router;
+export = router;

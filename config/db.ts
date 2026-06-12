@@ -6,11 +6,16 @@
  * environment variable. This keeps connection logic separated from the
  * application entrypoint and makes testing easier.
  */
-const mongoose = require('mongoose');
-require('dotenv').config();
+
+import mongoose from 'mongoose';
+
 const MONGODB_URL = process.env.MONGODB_URL;
 
-module.exports = async () => {
+if (!MONGODB_URL) {
+  throw new Error("The environement variable MONDODB_URL is missing.");
+}
+
+export const connectDB = async () => {
   await mongoose.connect(MONGODB_URL);
   console.log('✅ MongoDB connected');
 };
