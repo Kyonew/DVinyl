@@ -1,20 +1,19 @@
-/**
- * routes/setupRoutes.js
- *
- * Initial setup routes used to create the first admin user. This module
- * exposes GET/POST handlers for `/setup`. In normal operation this route
- * should be disabled or removed after the initial admin account is created.
- */
-const express = require('express');
-const router = express.Router();
-const User = require('../models/User');
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
+import express from 'express';
+import User from '../models/User';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 
+const router = express.Router();
 
 const maxAge = 3 * 24 * 60 * 60;
-const createToken = (id) => {
-    return jwt.sign({ id }, process.env.PASSJWT, {
+const createToken = (id: any) => {
+    const passjwt = process.env.PASSJWT;
+
+    if (!passjwt) {
+        throw new Error('Missing PASSJWT environment variable');
+    }
+
+    return jwt.sign({ id }, passjwt, {
         expiresIn: maxAge
     });
 }
@@ -30,14 +29,14 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
     try {
         const { username, email, password, language } = req.body;
-        
+
         // Create the initial admin user (isAdmin: true)
         const hashedPassword = await bcrypt.hash(password, 10);
-        
+
         const newAdmin = await User.create({
             username,
             email,
-            password: password, 
+            password: password,
             isAdmin: true,
             language: language || req.language || 'fr',
             lastChange: new Date()
@@ -48,17 +47,17 @@ router.post('/', async (req, res) => {
 
         // Issue JWT and set cookie
         const token = createToken(newAdmin._id);
-        res.cookie('jwt', token, { 
-            httpOnly: true, 
+        res.cookie('jwt', token, {
+            httpOnly: true,
             maxAge: 3 * 24 * 60 * 60 * 1000,
             secure: process.env.PROD === 'true', // Only send cookie over HTTPS in production
             sameSite: 'lax' // Mitigate CSRF
-        });        
-        res.redirect('/'); 
+        });
+        res.redirect('/');
     } catch (err) {
         console.error(err);
-        res.render('setup', { error: req.t('errors.setup_error') });    
+        res.render('setup', { error: req.t('errors.setup_error') });
     }
 });
 
-module.exports = router;
+export = router;

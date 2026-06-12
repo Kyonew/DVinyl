@@ -26,7 +26,8 @@
     "confirm_delete": "Are you sure?",
     "show": "Show",
     "apply": "Apply",
-    "filters": "Filters"
+    "filters": "Filters",
+    "forbidden": "Access Forbidden"
   },
   "settings": {
     "page_title": "Account Settings",

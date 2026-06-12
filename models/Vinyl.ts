@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const Item = require('./Item');
+import mongoose from 'mongoose';
+import Item from './Item';
 
 const vinylSchema = new mongoose.Schema({
   artist: { type: String, required: true },
@@ -8,7 +8,7 @@ const vinylSchema = new mongoose.Schema({
   genre: { type: String, default: '' },
   genres: { type: [String], default: [] },
   styles: { type: [String], default: [] },
-  
+
   media_type: {
     type: String,
     enum: ['vinyl', 'cd', 'cassette'],
@@ -24,4 +24,4 @@ const vinylSchema = new mongoose.Schema({
 
 const Vinyl = Item.discriminator('Music', vinylSchema);
 
-module.exports = Vinyl;
+export = Vinyl;

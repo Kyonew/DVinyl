@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const Item = require('./Item');
+import mongoose from 'mongoose';
+import Item from './Item';
 
 const bookSchema = new mongoose.Schema({
   author: { type: String, required: true },
@@ -34,4 +34,5 @@ const bookSchema = new mongoose.Schema({
 });
 
 const Book = Item.discriminator('Book', bookSchema);
-module.exports = Book;
+
+export = Book;

@@ -276,7 +276,8 @@
     "unknown": "Unbekannt",
     "update": "Aktualisieren",
     "validate": "Bestätigen",
-    "filters": "Filter"
+    "filters": "Filter",
+    "forbidden": "Zugriff verboten"
   },
   "confirm_book": {
     "btn_collection": "Zur Bibliothek hinzufügen",

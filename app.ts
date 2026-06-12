@@ -1,44 +1,35 @@
-// Licensed under MIT
+import express from 'express';
+import session from 'express-session';
+import path from 'path';
+import { checkUser } from './middleware/authMiddleware.js';
+import cookieParser from 'cookie-parser';
+import mongoose from 'mongoose';
+import http from 'http';
+import { Server } from "socket.io";
 
-/**
- * app.js
- *
- * Express application entrypoint. Sets up i18n, global middleware,
- * route mounting, database connection and sockets. Intended for local
- * development and small deployments; review security settings for
- * production use.
- */
-require('dotenv').config();
-const express = require('express');
-const session = require('express-session');
-const path = require('path');
-const { checkUser } = require('./middleware/authMiddleware.js');
-const cookieParser = require('cookie-parser');
-const mongoose = require('mongoose');
-const http = require('http');
-const { Server } = require("socket.io");
+import i18next from 'i18next';
+import i18nMiddleware from 'i18next-http-middleware';
 
-const i18next = require('i18next');
-const i18nMiddleware = require('i18next-http-middleware');
-
-const settingsMiddleware = require('./middleware/settingsMiddleware');
-const themesConfig = require('./config/themes');
-const { BASE_URL } = require('./config/constants');
+import settingsMiddleware from './middleware/settingsMiddleware.js';
+import themesConfig from './config/themes.js';
+import { BASE_URL } from './config/constants.js';
+import { connectDB } from './config/db.js';
+import { migrateDatabase } from './utils/migrate.js';
 
 // Models
-const User = require('./models/User.js');
-const BlockedIP = require('./models/blockedIP.js');
+import User from './models/User.js';
+import BlockedIP from './models/blockedIP.js';
 
 // Routes imports
-const setupRoutes = require('./routes/setupRoutes');
-const authRoutes = require('./routes/authRoutes.js');
-const albumRoutes = require('./routes/albumRoutes.js');
-const adminRoutes = require('./routes/adminRoutes.js');
-const settingsRoutes = require('./routes/settingsRoutes.js');
-const backupRoutes = require('./routes/backupRoutes.js');
-const bookRoutes = require('./routes/bookRoutes');
-const dvdRoutes = require('./routes/dvdRoutes.js');
-const gameRoutes = require('./routes/gameRoutes.js');
+import setupRoutes from './routes/setupRoutes.js';
+import authRoutes from './routes/authRoutes.js';
+import albumRoutes from './routes/albumRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
+import settingsRoutes from './routes/settingsRoutes.js';
+import backupRoutes from './routes/backupRoutes.js';
+import bookRoutes from './routes/bookRoutes.js';
+import dvdRoutes from './routes/dvdRoutes.js';
+import gameRoutes from './routes/gameRoutes.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -80,9 +71,12 @@ app.use(cookieParser());
 
 app.use(i18nMiddleware.handle(i18next));
 
-
+const session_secret = process.env.SESSION_SECRET;
+if (!session_secret) {
+  throw new Error('SESSION_SECRET is not defined');
+}
 app.use(session({
-  secret: process.env.SESSION_SECRET,
+  secret: session_secret,
   resave: false,
   saveUninitialized: true,
   cookie: { secure: process.env.PROD === 'true', httpOnly: true },
@@ -96,22 +90,22 @@ const pkg = require('./package.json');
 
 // Incext BASE_URL in each res.redirect call
 app.use((req, res, next) => {
-  const redirect = res.redirect;
+  const redirect = res.redirect as any;
 
-  res.redirect = function (url) {
+  res.redirect = function (url: any) {
     if (url.startsWith('/') && !url.startsWith(BASE_URL)) {
-      return redirect.call(this, `${BASE_URL}${url}`);
+      return redirect.call(res, `${BASE_URL}${url}`);
     } else {
-      return redirect.call(this, url);
+      return redirect.call(res, url);
     }
-  };
+  } as any;
 
   next();
 });
 
 app.use(checkUser);
 
-app.use(async (req, res, next) => {
+app.use(async (req: any, res, next) => {
   // If the user is authenticated and has a language preference, enforce it
   if (req.user && req.user.language) {
     await req.i18n.changeLanguage(req.user.language);
@@ -128,13 +122,13 @@ app.use(async (req, res, next) => {
 
 
 // Inject IO object into requests
-app.use((req, res, next) => {
+app.use((req: any, res, next) => {
   req.io = io;
   next();
 });
 
 // Security: IP blocking middleware
-app.use(async (req, res, next) => {
+app.use(async (req: any, res, next) => {
   const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress;
   try {
     const blocked = await BlockedIP.findOne({ ip: clientIP });
@@ -151,44 +145,44 @@ app.use(settingsMiddleware);
 
 // Installation gatekeeper middleware
 app.use(async (req, res, next) => {
-    // Ignore paths that should not be redirected during setup
-    if (req.path.startsWith(BASE_URL + '/setup') || 
-      req.path.startsWith(BASE_URL + '/ressources') || 
-      req.path.startsWith(BASE_URL + '/styles') ||
-      req.path.startsWith(BASE_URL + '/login') ||
-      req.path.startsWith(BASE_URL + '/backup') ) { // allow login and backup import while setting up
-        return next();
-    }
+  // Ignore paths that should not be redirected during setup
+  if (req.path.startsWith(BASE_URL + '/setup') ||
+    req.path.startsWith(BASE_URL + '/ressources') ||
+    req.path.startsWith(BASE_URL + '/styles') ||
+    req.path.startsWith(BASE_URL + '/login') ||
+    req.path.startsWith(BASE_URL + '/backup')) { // allow login and backup import while setting up
+    return next();
+  }
 
-    try {
-        const count = await User.countDocuments();
-        if (count === 0) {
-            return res.redirect(BASE_URL + '/setup');
-        }
-    } catch (e) {
-        console.error("Check setup error:", e);
+  try {
+    const count = await User.countDocuments();
+    if (count === 0) {
+      return res.redirect(BASE_URL + '/setup');
     }
-    
-    next();
+  } catch (e) {
+    console.error("Check setup error:", e);
+  }
+
+  next();
 });
 
 app.use((req, res, next) => {
-    res.locals.allThemes = themesConfig; 
-    next();
+  res.locals.allThemes = themesConfig;
+  next();
 });
 
 
 // Dynamic manifest.json endpoint - injects BASE_URL
 app.get(BASE_URL + '/manifest.json', (req, res) => {
-    res.set('Content-Type', 'application/json');
-    res.render(path.join(__dirname, 'public-tpl', 'manifest.json.ejs'));
+  res.set('Content-Type', 'application/json');
+  res.render(path.join(__dirname, 'public-tpl', 'manifest.json.ejs'));
 });
 
 // Dynamic service worker endpoint - injects BASE_URL
 app.get(BASE_URL + '/sw.js', (req, res) => {
-    res.set('Content-Type', 'application/javascript');
-    res.set('Service-Worker-Allowed', BASE_URL || '/');
-    res.render(path.join(__dirname, 'public-tpl', 'sw.js.ejs'));
+  res.set('Content-Type', 'application/javascript');
+  res.set('Service-Worker-Allowed', BASE_URL || '/');
+  res.render(path.join(__dirname, 'public-tpl', 'sw.js.ejs'));
 });
 
 
@@ -204,21 +198,19 @@ app.use(BASE_URL, dvdRoutes);
 app.use(BASE_URL, gameRoutes);
 
 app.use((req, res) => {
-    res.status(404).render('404');
+  res.status(404).render('404');
 });
 
-const connectDB = require('./config/db.js');
-const migrateDatabase = require('./utils/migrate.js');
 // Database connection and server start
 connectDB()
   .then(async () => {
     await migrateDatabase();
     const port = process.env.VINYL_PORT || 3099;
     server.listen(port, () => {
-        console.log(`🚀 Server started on port ${port}`);
+      console.log(`🚀 Server started on port ${port}`);
     });
   })
-  .catch((err) => console.log('❌DB Error:', err));
+  .catch((err: any) => console.log('❌DB Error:', err));
 
 
 // Socket event

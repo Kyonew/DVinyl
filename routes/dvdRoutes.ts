@@ -1,18 +1,28 @@
-const express = require("express");
+
+import express from "express";
+import Dvd from "../models/Dvd";
+import Item from "../models/Item";
+import User from "../models/User";
+
+const fetchJson = async (url: string, options?: RequestInit): Promise<any> => {
+  const response = await fetch(url, options);
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  return response.json();
+};
+import { requireAuth, requireAdmin } from "../middleware/authMiddleware";
+import { TMDB_LANG_MAP } from "../config/constants";
+
 const router = express.Router();
-const axios = require("axios");
-const Dvd = require("../models/Dvd");
-const Item = require("../models/Item");
-const User = require("../models/User");
-const { requireAuth, requireAdmin } = require("../middleware/authMiddleware");
-const { TMDB_LANG_MAP } = require("../config/constants");
+
 
 async function getAdminId() {
   const admin = await User.findOne({ isAdmin: true }).select("_id");
   return admin ? admin._id : null;
 }
 
-const formatTMDBItem = (item) => {
+const formatTMDBItem = (item: any) => {
   const isTv = item.media_type === "tv";
 
   return {
@@ -56,32 +66,32 @@ router.post("/search-dvds", requireAuth, requireAdmin, async (req, res) => {
     if (isBarcode) {
       barcodeScanned = query.replace(/[- ]/g, "");
       try {
-        const upcResponse = await axios.get(
+        const upcData = await fetchJson(
           `https://api.upcitemdb.com/prod/trial/lookup?upc=${barcodeScanned}`,
         );
-        if (upcResponse.data.items && upcResponse.data.items.length > 0) {
-          searchQuery = upcResponse.data.items[0].title;
+        if (upcData.items && upcData.items.length > 0) {
+          searchQuery = upcData.items[0].title;
           searchQuery = searchQuery
             .replace(/DVD|Blu-ray|Blu Ray|Coffret|Edition/gi, "")
             .trim();
         }
-      } catch (upcErr) {
+      } catch (upcErr: any) {
         console.error("[ERR] UPC Lookup:", upcErr.message);
       }
     }
 
     const [page1, page2] = await Promise.all([
-      axios.get(
+      fetchJson(
         `https://api.themoviedb.org/3/search/multi?api_key=${tmdbApiKey}&query=${encodeURIComponent(searchQuery)}&language=${tmdbLang}&page=1`,
       ),
-      axios.get(
+      fetchJson(
         `https://api.themoviedb.org/3/search/multi?api_key=${tmdbApiKey}&query=${encodeURIComponent(searchQuery)}&language=${tmdbLang}&page=2`,
       ),
     ]);
 
     const allResults = [
-      ...(page1.data.results || []),
-      ...(page2.data.results || []),
+      ...(page1.results || []),
+      ...(page2.results || []),
     ];
 
     const filteredResults = allResults.filter(
@@ -120,13 +130,12 @@ router.get(
       const tmdbLang = TMDB_LANG_MAP[req.language] || "en-US";
       const url = `https://api.themoviedb.org/3/${mediaType}/${tmdbId}?api_key=${tmdbApiKey}&language=${tmdbLang}&append_to_response=credits`;
 
-      const response = await axios.get(url);
-      const data = response.data;
+      const data = await fetchJson(url);
 
       let director = "Inconnu";
       if (mediaType === "movie" && data.credits && data.credits.crew) {
         const dirObj = data.credits.crew.find(
-          (member) => member.job === "Director",
+          (member: any) => member.job === "Director",
         );
         if (dirObj) director = dirObj.name;
       } else if (
@@ -134,7 +143,7 @@ router.get(
         data.created_by &&
         data.created_by.length > 0
       ) {
-        director = data.created_by.map((c) => c.name).join(", ");
+        director = data.created_by.map((c: any) => c.name).join(", ");
       }
 
       const studio =
@@ -160,7 +169,7 @@ router.get(
           ? `https://image.tmdb.org/t/p/w500${data.poster_path}`
           : "",
         description: data.overview || "",
-        genres: data.genres ? data.genres.map((g) => g.name) : [],
+        genres: data.genres ? data.genres.map((g: any) => g.name) : [],
       };
 
       const adminId = await User.findOne({ isAdmin: true })
@@ -223,20 +232,20 @@ router.post("/save-dvd", requireAuth, requireAdmin, async (req, res) => {
       ? genres
       : genres
         ? genres
-            .split(",")
-            .map((g) => g.trim())
-            .filter(Boolean)
+          .split(",")
+          .map((g: any) => g.trim())
+          .filter(Boolean)
         : [];
     const parsedStyles = Array.isArray(styles)
       ? styles
       : styles
         ? styles
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean)
+          .split(",")
+          .map((s: any) => s.trim())
+          .filter(Boolean)
         : [];
 
-    const adminId = req.user._id;
+    const adminId = (req as any).user._id;
     const isWishlist = in_wishlist === "true";
     let dvd;
 
@@ -254,7 +263,7 @@ router.post("/save-dvd", requireAuth, requireAdmin, async (req, res) => {
       dvd.zone = zone;
       dvd.barcode = barcode;
       dvd.barcode_locked = barcode_locked === "on";
-      dvd.is_boxset = is_boxset === "true";
+      (dvd as any).is_boxset = is_boxset === "true";
       dvd.cover_image = cover_image;
       dvd.in_wishlist = isWishlist;
       dvd.comments = comments || "";
@@ -310,7 +319,7 @@ router.post("/save-dvd", requireAuth, requireAdmin, async (req, res) => {
 router.get("/dvd/edit/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
     const dvd = await Item.findById(req.params.id);
-    if (!dvd || dvd.kind !== "Dvd") {
+    if (!dvd || (dvd as any).kind !== "Dvd") {
       return res.redirect("/collection?type=dvd");
     }
 
@@ -341,7 +350,7 @@ router.get("/dvd/edit/:id", requireAuth, requireAdmin, async (req, res) => {
 router.get("/dvd/:id", requireAuth, async (req, res) => {
   try {
     const dvd = await Item.findById(req.params.id);
-    if (!dvd || dvd.kind !== "Dvd") return res.redirect("/collection?type=dvd");
+    if (!dvd || (dvd as any).kind !== "Dvd") return res.redirect("/collection?type=dvd");
 
     res.render("dvd-detail", {
       dvd: dvd.toObject(),
@@ -393,18 +402,18 @@ router.post(
       const tmdbApiKey = process.env.TMDB_API_KEY;
       const type = dvd.media_type === "tv" ? "tv" : "movie";
       const tmdbLang = TMDB_LANG_MAP[req.language] || "en-US";
-      const response = await axios.get(
+      const data = await fetchJson(
         `https://api.themoviedb.org/3/${type}/${dvd.tmdb_id}?api_key=${tmdbApiKey}&language=${tmdbLang}`,
       );
 
-      if (!response.data) {
+      if (!data) {
         return res
           .status(404)
           .json({ success: false, error: "Not found on TMDB API" });
       }
 
-      const formatted = formatTMDBItem(response.data);
-      const genres = (response.data.genres || []).map((g) => g.name);
+      const formatted = formatTMDBItem(data);
+      const genres = (data.genres || []).map((g: any) => g.name);
 
       await Dvd.updateOne(
         { _id: dvd._id },
@@ -427,4 +436,4 @@ router.post(
   },
 );
 
-module.exports = router;
+export = router;

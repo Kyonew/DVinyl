@@ -1,11 +1,10 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const axios = require('axios');
-const Game = require('../models/Game');
-const Item = require('../models/Item');
-const User = require('../models/User');
-const { requireAuth, requireAdmin } = require('../middleware/authMiddleware');
-const { igdbRequest } = require('../utils/igdbHelper');
+import Game from '../models/Game';
+import Item from '../models/Item';
+import User from '../models/User';
+import { requireAuth, requireAdmin } from '../middleware/authMiddleware';
+import { igdbRequest } from '../utils/igdbHelper';
 
 async function getAdminId() {
     const admin = await User.findOne({ isAdmin: true }).select('_id');
@@ -15,14 +14,14 @@ async function getAdminId() {
 /**
  * Format an IGDB game result for display in search results.
  */
-const formatIGDBResult = (game) => {
+const formatIGDBResult = (game: any) => {
     let cover = '/ressources/no_file.png';
     if (game.cover && game.cover.url) {
         cover = game.cover.url.replace('t_thumb', 't_cover_big');
         if (cover.startsWith('//')) cover = 'https:' + cover;
     }
 
-    const platforms = (game.platforms || []).map(p => p.name).join(', ');
+    const platforms = (game.platforms || []).map((p: any) => p.name).join(', ');
 
     let year = '';
     if (game.first_release_date) {
@@ -32,8 +31,8 @@ const formatIGDBResult = (game) => {
     let developer = '';
     let publisher = '';
     if (game.involved_companies) {
-        const devCompany = game.involved_companies.find(ic => ic.developer);
-        const pubCompany = game.involved_companies.find(ic => ic.publisher);
+        const devCompany = game.involved_companies.find((ic: any) => ic.developer);
+        const pubCompany = game.involved_companies.find((ic: any) => ic.publisher);
         if (devCompany && devCompany.company) developer = devCompany.company.name;
         if (pubCompany && pubCompany.company) publisher = pubCompany.company.name;
     }
@@ -44,10 +43,10 @@ const formatIGDBResult = (game) => {
         year,
         cover_image: cover,
         platforms_text: platforms,
-        platforms: (game.platforms || []).map(p => ({ id: p.id, name: p.name })),
+        platforms: (game.platforms || []).map((p: any) => ({ id: p.id, name: p.name })),
         developer,
         publisher,
-        genres: (game.genres || []).map(g => g.name),
+        genres: (game.genres || []).map((g: any) => g.name),
         summary: game.summary || ''
     };
 };
@@ -69,17 +68,20 @@ router.post('/search-games', requireAuth, requireAdmin, async (req, res) => {
         if (isBarcode) {
             barcodeScanned = query.replace(/[- ]/g, '');
             try {
-                const upcResponse = await axios.get(`https://api.upcitemdb.com/prod/trial/lookup?upc=${barcodeScanned}`);
-                if (upcResponse.data.items && upcResponse.data.items.length > 0) {
-                    searchQuery = upcResponse.data.items[0].title;
-                    searchQuery = searchQuery.replace(/Nintendo|PlayStation|Xbox|PS[2-5]|Switch|Wii U?/gi, '').trim();
+                const upcResponse = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${barcodeScanned}`);
+                if (upcResponse.ok) {
+                    const upcData = await upcResponse.json() as any;
+                    if (upcData.items && upcData.items.length > 0) {
+                        searchQuery = upcData.items[0].title;
+                        searchQuery = searchQuery.replace(/Nintendo|PlayStation|Xbox|PS[2-5]|Switch|Wii U?/gi, '').trim();
+                    }
                 }
-            } catch (upcErr) {
+            } catch (upcErr: any) {
                 console.error("[ERR] UPC Lookup:", upcErr.message);
             }
         }
 
-        const results = await igdbRequest('games', 
+        const results = await igdbRequest('games',
             `search "${searchQuery.replace(/"/g, '\\"')}";
             fields name, cover.url, platforms.name, first_release_date, 
                    involved_companies.company.name, involved_companies.developer, involved_companies.publisher,
@@ -96,7 +98,7 @@ router.post('/search-games', requireAuth, requireAdmin, async (req, res) => {
             currentType: 'add-game'
         });
 
-    } catch (err) {
+    } catch (err: any) {
         console.error("[ERR] Game search:", err.message);
         res.render('add-game', { results: [], scanned_barcode: '', error: req.t('errors.api_error'), user: res.locals.user, currentType: 'add-game' });
     }
@@ -145,14 +147,14 @@ router.post('/save-game', requireAuth, requireAdmin, async (req, res) => {
         const {
             mongo_id, title, developer, publisher, platform, year,
             igdb_id, format, region, barcode, barcode_locked,
-            cover_image, in_wishlist, comments, location, genre, genres, styles, 
+            cover_image, in_wishlist, comments, location, genre, genres, styles,
             playStatus, user_rating, quantity
         } = req.body;
 
-        const parsedGenres = Array.isArray(genres) ? genres : (genres ? genres.split(',').map(g => g.trim()).filter(Boolean) : []);
-        const parsedStyles = Array.isArray(styles) ? styles : (styles ? styles.split(',').map(s => s.trim()).filter(Boolean) : []);
+        const parsedGenres = Array.isArray(genres) ? genres : (genres ? genres.split(',').map((g: string) => g.trim()).filter(Boolean) : []);
+        const parsedStyles = Array.isArray(styles) ? styles : (styles ? styles.split(',').map((s: string) => s.trim()).filter(Boolean) : []);
 
-        const adminId = req.user._id;
+        const adminId = (req as any).user._id;
         const isWishlist = in_wishlist === 'true';
         let game;
 
@@ -208,8 +210,8 @@ router.post('/save-game', requireAuth, requireAdmin, async (req, res) => {
             res.redirect(`/collection?type=games`);
         }
 
-    } catch (err) {
-        console.error("[ERR] Game save:", err);
+    } catch (err: any) {
+        console.error("[ERR] Game save:", err.message);
         res.status(500).send(req.t('errors.generic_server_error'));
     }
 });
@@ -217,8 +219,8 @@ router.post('/save-game', requireAuth, requireAdmin, async (req, res) => {
 // ─── EDIT GAME ───────────────────────────────────────────────
 router.get('/game/edit/:id', requireAuth, requireAdmin, async (req, res) => {
     try {
-        const game = await Item.findOne({ _id: req.params.id, owner: req.user._id });
-        if (!game || game.kind !== 'Game') {
+        const game = await Item.findOne({ _id: req.params.id, owner: (req as any).user._id });
+        if (!game || (game as any).kind !== 'Game') {
             return res.redirect('/collection?type=games');
         }
 
@@ -227,7 +229,7 @@ router.get('/game/edit/:id', requireAuth, requireAdmin, async (req, res) => {
         const genres = await Item.distinct('genre', { owner: adminId, genre: { $ne: "" }, kind: 'Game' });
 
         res.render('edit-game', { game: game.toObject(), user: res.locals.user, locations, genres, currentType: 'games' });
-    } catch (err) {
+    } catch (err: any) {
         console.error(err);
         res.redirect('/collection?type=games');
     }
@@ -237,10 +239,11 @@ router.get('/game/edit/:id', requireAuth, requireAdmin, async (req, res) => {
 router.get('/game/:id', requireAuth, async (req, res) => {
     try {
         const game = await Item.findById(req.params.id);
-        if (!game || game.kind !== 'Game') return res.redirect('/collection?type=games');
+        if (!game || (game as any).kind !== 'Game') return res.redirect('/collection?type=games');
 
         res.render('game-detail', { game: game.toObject(), user: res.locals.user, currentType: 'game' });
-    } catch (err) {
+    } catch (err: any) {
+        console.error(err.message);
         res.redirect('/collection?type=games');
     }
 });
@@ -308,4 +311,4 @@ router.post('/api/game/:id/refresh-info', requireAuth, requireAdmin, async (req,
     }
 });
 
-module.exports = router;
+export = router;

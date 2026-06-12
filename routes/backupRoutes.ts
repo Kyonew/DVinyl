@@ -1,41 +1,17 @@
-const express = require('express');
+import express from 'express';
+import Item from '../models/Item';
+import User from '../models/User';
+import LoginLog from '../models/LoginLog';
+import Settings from '../models/Settings';
+import { requireAuth, requireAdmin } from '../middleware/authMiddleware';
+
 const router = express.Router();
-const Item = require('../models/Item');
-const User = require('../models/User');
-const LoginLog = require('../models/LoginLog');
-const Settings = require('../models/Settings');
-const { requireAuth, requireAdmin } = require('../middleware/authMiddleware');
 
-/**
- * routes/backupRoutes.js
- *
- * Backup and restore endpoints for the application data.
- *
- * - GET /export:    Authenticated admin-only endpoint that streams a JSON
- *                   backup containing users, albums and login logs.
- * - POST /import:   Endpoint that accepts a JSON backup payload and restores
- *                   the database collections. Intended for admin use.
- *
- * These routes use the standard `requireAuth` and `requireAdmin` middleware
- * where appropriate. Responses are JSON for the import endpoint and a file
- * attachment for the export endpoint.
- */
-
-/**
- * GET /export
- *
- * Export the current database state as a JSON file. This endpoint is
- * protected: only authenticated administrators may request a backup.
- *
- * Response:
- * - Attachment: JSON file containing `users`, `albums`, `logs` and `metadata`.
- * - 500 on server error.
- */
 router.get('/export', requireAuth, requireAdmin, async (req, res) => {
     try {
         const data = {
             users: await User.find({}).lean(),
-            albums: await Item.find({}).lean(), 
+            albums: await Item.find({}).lean(),
             logs: await LoginLog.find({}).lean(),
             settings: await Settings.findOne().lean(),
             metadata: {
@@ -58,20 +34,20 @@ router.get('/export', requireAuth, requireAdmin, async (req, res) => {
  * POST /import
  */
 router.post('/import', async (req, res) => {
-    try {        
+    try {
         const userCount = await User.countDocuments();
-        
+
         if (userCount > 0) {
             const currentUser = res.locals.user;
 
             if (!currentUser || !currentUser.isAdmin) {
                 console.warn(`[SECURITY] import unauthorized : ${req.ip}`);
-                return res.status(403).json({ 
-                    error: "Import unauthorized." 
+                return res.status(403).json({
+                    error: "Import unauthorized."
                 });
             }
         }
-        
+
         // Setup
         let data = req.body;
 
@@ -99,7 +75,7 @@ router.post('/import', async (req, res) => {
         }
 
         if (data.albums && data.albums.length > 0) {
-            const cleanAlbums = data.albums.map(album => {
+            const cleanAlbums = data.albums.map((album: any) => {
                 if (!album.kind) return { ...album, kind: 'Music' };
                 return album;
             });
@@ -109,7 +85,7 @@ router.post('/import', async (req, res) => {
         if (data.logs && data.logs.length > 0) {
             await LoginLog.insertMany(data.logs);
         }
-        
+
         if (data.settings) {
             await Settings.create(data.settings);
         } else {
@@ -118,10 +94,10 @@ router.post('/import', async (req, res) => {
         res.cookie('jwt', '', { maxAge: 1 });
         res.status(200).json({ success: true, message: "Import successful" });
 
-    } catch (err) {
+    } catch (err: any) {
         console.error("[ERR] Import :", err);
         res.status(500).json({ error: err.message });
     }
 });
 
-module.exports = router;
+export = router;
