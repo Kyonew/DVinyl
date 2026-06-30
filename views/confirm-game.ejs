@@ -69,6 +69,16 @@
                     <i class="fa-solid fa-pen-to-square text-primary-theme"></i> <%= t('confirm_game.config_title') %>
                 </h1>
 
+                <div id="duplicate-warning-banner" class="mb-6 flex flex-col md:flex-row items-center justify-between gap-4 px-5 py-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-sm transition-all shadow-sm" style="display: none;">
+                    <div class="flex items-center gap-3">
+                        <i class="fa-solid fa-circle-exclamation text-lg"></i>
+                        <div>
+                            <span class="font-bold"><%= t('common.already_in_collection_title') %></span>
+                            <p id="duplicate-warning-desc" class="opacity-80 text-xs mt-0.5"></p>
+                        </div>
+                    </div>
+                </div>
+
                 <form action="<%= baseUrl %>/save-game" method="POST" class="space-y-6">
                     <input type="hidden" name="igdb_id" value="<%= game.igdb_id %>">
                     
@@ -344,6 +354,44 @@
             reader.readAsDataURL(file);
         }
     });
+
+    // Dynamic Duplicate Checking
+    const existingItems = <%- JSON.stringify(locals.existingItems ? existingItems.map(item => ({ platform: item.platform, format: item.format, quantity: item.quantity })) : []) %>;
+    const platformSelect = document.querySelector('select[name="platform"]');
+    const formatSelect = document.querySelector('select[name="format"]');
+    const banner = document.getElementById('duplicate-warning-banner');
+    const desc = document.getElementById('duplicate-warning-desc');
+    const submitBtn = document.querySelector('button[name="in_wishlist"][value="false"]');
+    
+    const defaultBtnHTML = `<i class="fa-solid fa-check"></i> <%= t('confirm_game.btn_collection') %>`;
+    const addAnywayBtnHTML = `<i class="fa-solid fa-plus"></i> <%= t('common.btn_add_anyway') %>`;
+
+    function checkDuplicate() {
+        const selectedPlatform = platformSelect ? platformSelect.value : '';
+        const selectedFormat = formatSelect ? formatSelect.value : 'physical';
+
+        const match = existingItems.find(item => {
+            const itemPlatform = item.platform || 'other';
+            const itemFormat = item.format || 'physical';
+            return itemPlatform.toLowerCase() === selectedPlatform.toLowerCase() &&
+                   itemFormat.toLowerCase() === selectedFormat.toLowerCase();
+        });
+
+        if (match) {
+            banner.style.display = 'flex';
+            const descTemplate = `<%= t('common.already_in_collection_desc', { qty: '__QTY__' }) %>`;
+            desc.innerHTML = descTemplate.replace('__QTY__', match.quantity || 1);
+            submitBtn.innerHTML = addAnywayBtnHTML;
+        } else {
+            banner.style.display = 'none';
+            submitBtn.innerHTML = defaultBtnHTML;
+        }
+    }
+
+    if (platformSelect) platformSelect.addEventListener('change', checkDuplicate);
+    if (formatSelect) formatSelect.addEventListener('change', checkDuplicate);
+
+    checkDuplicate();
 </script>
 
 <style>

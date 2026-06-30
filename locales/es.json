@@ -277,7 +277,10 @@
     "unknown": "Desconocido",
     "update": "Actualizar",
     "validate": "Validar",
-    "filters": "Filtros"
+    "filters": "Filtros",
+    "already_in_collection_title": "Este artículo ya parece estar en tu colección",
+    "already_in_collection_desc": "Este artículo ya está en tu colección (Cantidad actual: {{qty}}). Si confirmas, su cantidad se incrementará.",
+    "btn_add_anyway": "Añadir de todos modos"
   },
   "confirm_book": {
     "btn_collection": "Agregar a la biblioteca",

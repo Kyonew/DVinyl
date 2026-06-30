@@ -38,6 +38,54 @@ const formatForView = (item) => {
     };
 };
 
+async function findDuplicateVinyl(ownerId, discogsId, title, artist, mediaType, variantColor) {
+    const matchMediaType = mediaType || 'vinyl';
+    const matchVariant = (variantColor || '').trim();
+
+    if (discogsId) {
+        const query = {
+            owner: ownerId,
+            in_wishlist: false,
+            kind: 'Music',
+            discogs_id: parseInt(discogsId),
+            media_type: matchMediaType
+        };
+        if (matchVariant) {
+            query.variant_color = { $regex: new RegExp(`^${escapeRegExp(matchVariant)}$`, 'i') };
+        } else {
+            query.$or = [
+                { variant_color: { $exists: false } },
+                { variant_color: "" }
+            ];
+        }
+        const item = await Item.findOne(query);
+        if (item) return item;
+    }
+
+    const matchTitle = (title || '').trim();
+    const matchArtist = (artist || '').trim();
+
+    const query = {
+        owner: ownerId,
+        in_wishlist: false,
+        kind: 'Music',
+        title: { $regex: new RegExp(`^${escapeRegExp(matchTitle)}$`, 'i') },
+        artist: { $regex: new RegExp(`^${escapeRegExp(matchArtist)}$`, 'i') },
+        media_type: matchMediaType
+    };
+
+    if (matchVariant) {
+        query.variant_color = { $regex: new RegExp(`^${escapeRegExp(matchVariant)}$`, 'i') };
+    } else {
+        query.$or = [
+            { variant_color: { $exists: false } },
+            { variant_color: "" }
+        ];
+    }
+
+    return await Item.findOne(query);
+}
+
 // routes/albumRoutes.js
 // Dashboard: view collection summary
 router.get('/', requireAuth, async (req, res) => {
@@ -395,7 +443,7 @@ router.get('/add-vinyl/manual', requireAuth, requireAdmin, async (req, res) => {
             is_bootleg: false
         };
 
-        res.render('confirm-vinyl', { vinyl, user: res.locals.user, locations, genres, currentType: 'music', isManual: true });
+        res.render('confirm-vinyl', { vinyl, user: res.locals.user, locations, genres, currentType: 'music', isManual: true, existingItems: [] });
     } catch (err) {
         console.error(err);
         res.redirect('/add-vinyl');
@@ -636,7 +684,20 @@ router.get('/confirm-vinyl/:id', requireAuth, async (req, res) => {
             media_type: finalMediaType // Pass it to the view
         };
 
-        res.render('confirm-vinyl', { vinyl, user: res.locals.user, locations, genres, currentType: 'music' });
+        const existingItems = await Item.find({
+            owner: adminId ? adminId._id : null,
+            in_wishlist: false,
+            kind: 'Music',
+            $or: [
+                { discogs_id: data.id },
+                {
+                    title: { $regex: new RegExp(`^${escapeRegExp(vinyl.title)}$`, 'i') },
+                    artist: { $regex: new RegExp(`^${escapeRegExp(vinyl.artist)}$`, 'i') }
+                }
+            ]
+        }).lean();
+
+        res.render('confirm-vinyl', { vinyl, user: res.locals.user, locations, genres, currentType: 'music', existingItems });
     } catch (err) {
         console.error(`❌ Discogs Release details error for ID ${discogsId}:`, err.message);
         res.render('add-vinyl', { 
@@ -668,13 +729,22 @@ router.post('/save-vinyl', requireAuth, requireAdmin, async (req, res) => {
         const isBarcodeLocked = barcode_locked === 'on' || barcode_locked === 'true' || barcode_locked === true;
 
         let album;
+        let isEdit = false;
 
         if (mongo_id) {
             album = await Item.findById(mongo_id);
+            isEdit = true;
         }
 
-        if (!album && discogs_id) {
-            album = await Item.findOne({ discogs_id: discogs_id, owner: adminId });
+        if (!album) {
+            album = await findDuplicateVinyl(
+                adminId,
+                discogs_id,
+                title,
+                artist,
+                media_type,
+                variant_color
+            );
         }
 
         let tracklist = [];
@@ -685,35 +755,49 @@ router.post('/save-vinyl', requireAuth, requireAdmin, async (req, res) => {
         }
 
         if (album) {
-            const updateData = {
-                title: title,
-                artist: artist || album.artist,
-                discogs_id: discogs_id,
-                year: year,
-                label: label,
-                catalog_number: catalog_number,
-                format_type: format_type,
-                variant_color: variant_color,
-                sleeve_condition: sleeve_condition || '',
-                tracklist: tracklist,
-                cover_image: cover_image,
-                user_image: user_image,
-                in_wishlist: isWishlist,
-                media_type: media_type || 'vinyl',
-                comments: comments || '',
-                location: location || '',
-                genre: genre || (parsedGenres.length > 0 ? parsedGenres[0] : ''),
-                genres: parsedGenres,
-                styles: parsedStyles,
-                quantity: parseInt(quantity) || 1,
-                country: country || '',
-                barcode: barcode || '',
-                barcode_locked: isBarcodeLocked,
-                added_at: added_at ? new Date(added_at) : (album.added_at || new Date()),
-                kind: 'Music'
-            };
+            const qtyToAdd = parseInt(quantity) || 1;
+            const finalQty = isEdit ? qtyToAdd : (album.quantity || 1) + qtyToAdd;
 
-            if (user_image && user_image.length > 0) {
+            let updateData;
+            if (isEdit) {
+                updateData = {
+                    title: title,
+                    artist: artist || album.artist,
+                    discogs_id: discogs_id || album.discogs_id,
+                    year: year,
+                    label: label,
+                    catalog_number: catalog_number,
+                    format_type: format_type,
+                    variant_color: variant_color,
+                    sleeve_condition: sleeve_condition || '',
+                    tracklist: tracklist,
+                    cover_image: cover_image,
+                    user_image: user_image,
+                    in_wishlist: isWishlist,
+                    media_type: media_type || 'vinyl',
+                    comments: comments || '',
+                    location: location || '',
+                    genre: genre || (parsedGenres.length > 0 ? parsedGenres[0] : ''),
+                    genres: parsedGenres,
+                    styles: parsedStyles,
+                    quantity: finalQty,
+                    country: country || '',
+                    barcode: barcode || '',
+                    barcode_locked: isBarcodeLocked,
+                    added_at: added_at ? new Date(added_at) : (album.added_at || new Date()),
+                    kind: 'Music'
+                };
+            } else {
+                // Duplicate addition: just increment quantity and preserve existing fields.
+                updateData = {
+                    quantity: finalQty
+                };
+                if (discogs_id && !album.discogs_id) {
+                    updateData.discogs_id = parseInt(discogs_id);
+                }
+            }
+
+            if (isEdit && user_image && user_image.length > 0) {
                 album.user_image = user_image;
             }
 

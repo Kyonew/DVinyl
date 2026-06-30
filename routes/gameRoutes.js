@@ -7,9 +7,72 @@ const User = require('../models/User');
 const { requireAuth, requireAdmin } = require('../middleware/authMiddleware');
 const { igdbRequest } = require('../utils/igdbHelper');
 
+const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 async function getAdminId() {
     const admin = await User.findOne({ isAdmin: true }).select('_id');
     return admin ? admin._id : null;
+}
+
+async function findDuplicateGame(ownerId, igdbId, title, platform, format) {
+    const matchPlatform = platform || 'other';
+    const matchFormat = format || 'physical';
+
+    if (igdbId) {
+        const query = {
+            owner: ownerId,
+            in_wishlist: false,
+            kind: 'Game',
+            igdb_id: parseInt(igdbId)
+        };
+        if (matchPlatform) {
+            query.platform = matchPlatform;
+        } else {
+            query.$or = [
+                { platform: { $exists: false } },
+                { platform: "" }
+            ];
+        }
+        const item = await Item.findOne(query);
+        if (item) return item;
+    }
+
+    const matchTitle = (title || '').trim();
+
+    const query = {
+        owner: ownerId,
+        in_wishlist: false,
+        kind: 'Game',
+        title: { $regex: new RegExp(`^${escapeRegExp(matchTitle)}$`, 'i') }
+    };
+
+    if (matchPlatform) {
+        query.platform = matchPlatform;
+    } else {
+        query.$or = [
+            { platform: { $exists: false } },
+            { platform: "" }
+        ];
+    }
+
+    if (matchFormat) {
+        query.format = matchFormat;
+    } else {
+        if (!query.$or) {
+            query.$or = [
+                { format: { $exists: false } },
+                { format: "" }
+            ];
+        } else {
+            query.$and = [
+                { $or: [{ platform: { $exists: false } }, { platform: "" }] },
+                { $or: [{ format: { $exists: false } }, { format: "" }] }
+            ];
+            delete query.$or;
+        }
+    }
+
+    return await Item.findOne(query);
 }
 
 /**
@@ -125,13 +188,24 @@ router.get('/confirm-game/:igdb_id', requireAuth, requireAdmin, async (req, res)
         const locations = await Item.distinct('location', { owner: adminId ? adminId._id : null, location: { $ne: "" } });
         const genres = await Item.distinct('genre', { owner: adminId ? adminId._id : null, genre: { $ne: "" }, kind: 'Game' });
 
+        const existingItems = await Item.find({
+            owner: adminId ? adminId._id : null,
+            in_wishlist: false,
+            kind: 'Game',
+            $or: [
+                { igdb_id: parseInt(gameData.igdb_id) },
+                { title: { $regex: new RegExp(`^${escapeRegExp(gameData.title)}$`, 'i') } }
+            ]
+        }).lean();
+
         res.render('confirm-game', {
             game: gameData,
             scanned_barcode: req.query.barcode || '',
             user: res.locals.user,
             locations,
             genres,
-            currentType: 'games'
+            currentType: 'games',
+            existingItems
         });
     } catch (err) {
         console.error("[ERR] Game detail:", err);
@@ -155,31 +229,54 @@ router.post('/save-game', requireAuth, requireAdmin, async (req, res) => {
         const adminId = req.user._id;
         const isWishlist = in_wishlist === 'true';
         let game;
+        let isEdit = false;
 
         if (mongo_id) {
             game = await Item.findOne({ _id: mongo_id, owner: adminId });
+            isEdit = true;
+        }
+
+        if (!game) {
+            game = await findDuplicateGame(
+                adminId,
+                igdb_id,
+                title,
+                platform,
+                format
+            );
         }
 
         if (game) {
-            game.title = title;
-            game.developer = developer;
-            game.publisher = publisher;
-            game.platform = platform;
-            game.year = year;
-            game.format = format;
-            game.region = region || '';
-            game.barcode = barcode;
-            game.barcode_locked = barcode_locked === 'on';
-            game.cover_image = cover_image;
-            game.in_wishlist = isWishlist;
-            game.comments = comments || '';
-            game.location = location || '';
-            game.genre = genre || (parsedGenres.length > 0 ? parsedGenres[0] : '');
-            game.genres = parsedGenres;
-            game.styles = parsedStyles;
-            game.playStatus = playStatus || 'to_play';
-            game.user_rating = user_rating || 0;
-            game.quantity = quantity || 1;
+            const qtyToAdd = parseInt(quantity) || 1;
+            const finalQty = isEdit ? qtyToAdd : (game.quantity || 1) + qtyToAdd;
+
+            if (isEdit) {
+                game.title = title;
+                game.developer = developer;
+                game.publisher = publisher;
+                game.platform = platform;
+                game.year = year;
+                game.format = format;
+                game.region = region || '';
+                game.barcode = barcode;
+                game.barcode_locked = barcode_locked === 'on';
+                game.cover_image = cover_image;
+                game.in_wishlist = isWishlist;
+                game.comments = comments || '';
+                game.location = location || '';
+                game.genre = genre || (parsedGenres.length > 0 ? parsedGenres[0] : '');
+                game.genres = parsedGenres;
+                game.styles = parsedStyles;
+                game.playStatus = playStatus || 'to_play';
+                game.user_rating = user_rating || 0;
+                game.quantity = finalQty;
+            } else {
+                // Duplicate addition: just increment quantity and preserve existing fields.
+                game.quantity = finalQty;
+                if (igdb_id && !game.igdb_id) {
+                    game.igdb_id = parseInt(igdb_id);
+                }
+            }
 
             await game.save();
         } else {

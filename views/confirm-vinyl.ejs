@@ -74,6 +74,16 @@
                     <% } %>
                 </h1>
 
+                <div id="duplicate-warning-banner" class="mb-6 flex flex-col md:flex-row items-center justify-between gap-4 px-5 py-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-sm transition-all shadow-sm" style="display: none;">
+                    <div class="flex items-center gap-3">
+                        <i class="fa-solid fa-circle-exclamation text-lg"></i>
+                        <div>
+                            <span class="font-bold"><%= t('common.already_in_collection_title') %></span>
+                            <p id="duplicate-warning-desc" class="opacity-80 text-xs mt-0.5"></p>
+                        </div>
+                    </div>
+                </div>
+
                 <form action="<%= baseUrl %>/save-vinyl" method="POST" class="space-y-6">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
@@ -499,6 +509,50 @@
                 }
             });
         }
+
+        // Dynamic Duplicate Checking
+        const existingItems = <%- JSON.stringify(locals.existingItems ? existingItems.map(item => ({ media_type: item.media_type, variant_color: item.variant_color, quantity: item.quantity })) : []) %>;
+        const mediaTypeRadios = document.querySelectorAll('input[name="media_type"]');
+        const variantInput = document.querySelector('input[name="variant_color"]');
+        const banner = document.getElementById('duplicate-warning-banner');
+        const desc = document.getElementById('duplicate-warning-desc');
+        const submitBtn = document.querySelector('button[name="in_wishlist"][value="false"]');
+        
+        const defaultBtnHTML = `<i class="fa-solid fa-check"></i> <%= t('confirm_vinyl.btn_collection') %>`;
+        const addAnywayBtnHTML = `<i class="fa-solid fa-plus"></i> <%= t('common.btn_add_anyway') %>`;
+
+        function checkDuplicate() {
+            let selectedMediaType = 'vinyl';
+            mediaTypeRadios.forEach(radio => {
+                if (radio.checked) selectedMediaType = radio.value;
+            });
+            const selectedVariant = variantInput ? variantInput.value.trim().toLowerCase() : '';
+
+            const match = existingItems.find(item => {
+                const itemMediaType = item.media_type || 'vinyl';
+                const itemVariant = (item.variant_color || '').trim().toLowerCase();
+                return itemMediaType.toLowerCase() === selectedMediaType.toLowerCase() &&
+                       itemVariant === selectedVariant;
+            });
+
+            if (match) {
+                banner.style.display = 'flex';
+                const descTemplate = `<%= t('common.already_in_collection_desc', { qty: '__QTY__' }) %>`;
+                desc.innerHTML = descTemplate.replace('__QTY__', match.quantity || 1);
+                submitBtn.innerHTML = addAnywayBtnHTML;
+            } else {
+                banner.style.display = 'none';
+                submitBtn.innerHTML = defaultBtnHTML;
+            }
+        }
+
+        mediaTypeRadios.forEach(radio => radio.addEventListener('change', checkDuplicate));
+        if (variantInput) {
+            variantInput.addEventListener('input', checkDuplicate);
+            variantInput.addEventListener('change', checkDuplicate);
+        }
+
+        checkDuplicate();
     });
 </script>
 

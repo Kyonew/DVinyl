@@ -7,9 +7,56 @@ const User = require("../models/User");
 const { requireAuth, requireAdmin } = require("../middleware/authMiddleware");
 const { TMDB_LANG_MAP } = require("../config/constants");
 
+const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 async function getAdminId() {
   const admin = await User.findOne({ isAdmin: true }).select("_id");
   return admin ? admin._id : null;
+}
+
+async function findDuplicateDvd(ownerId, tmdbId, title, director, format) {
+  const matchFormat = format || 'dvd';
+
+  if (tmdbId) {
+    const query = {
+      owner: ownerId,
+      in_wishlist: false,
+      kind: 'Dvd',
+      tmdb_id: parseInt(tmdbId)
+    };
+    if (matchFormat) {
+      query.format = matchFormat;
+    } else {
+      query.$or = [
+        { format: { $exists: false } },
+        { format: "" }
+      ];
+    }
+    const item = await Item.findOne(query);
+    if (item) return item;
+  }
+
+  const matchTitle = (title || '').trim();
+  const matchDirector = (director || '').trim();
+
+  const query = {
+    owner: ownerId,
+    in_wishlist: false,
+    kind: 'Dvd',
+    title: { $regex: new RegExp(`^${escapeRegExp(matchTitle)}$`, 'i') },
+    director: { $regex: new RegExp(`^${escapeRegExp(matchDirector)}$`, 'i') }
+  };
+
+  if (matchFormat) {
+    query.format = matchFormat;
+  } else {
+    query.$or = [
+      { format: { $exists: false } },
+      { format: "" }
+    ];
+  }
+
+  return await Item.findOne(query);
 }
 
 const formatTMDBItem = (item) => {
@@ -176,6 +223,19 @@ router.get(
         kind: "Dvd",
       });
 
+      const existingItems = await Item.find({
+        owner: adminId ? adminId._id : null,
+        in_wishlist: false,
+        kind: 'Dvd',
+        $or: [
+          { tmdb_id: parseInt(dvdData.tmdb_id) },
+          {
+            title: { $regex: new RegExp(`^${escapeRegExp(dvdData.title)}$`, 'i') },
+            director: { $regex: new RegExp(`^${escapeRegExp(dvdData.director)}$`, 'i') }
+          }
+        ]
+      }).lean();
+
       res.render("confirm-dvd", {
         dvd: dvdData,
         scanned_barcode: req.query.barcode || "",
@@ -183,6 +243,7 @@ router.get(
         locations,
         genres,
         currentType: "dvd",
+        existingItems,
       });
     } catch (err) {
       console.error("[ERR] DVD retrieval:", err);
@@ -239,32 +300,55 @@ router.post("/save-dvd", requireAuth, requireAdmin, async (req, res) => {
     const adminId = req.user._id;
     const isWishlist = in_wishlist === "true";
     let dvd;
+    let isEdit = false;
 
     if (mongo_id) {
       dvd = await Item.findById(mongo_id);
+      isEdit = true;
+    }
+
+    if (!dvd) {
+      dvd = await findDuplicateDvd(
+        adminId,
+        tmdb_id,
+        title,
+        director,
+        format
+      );
     }
 
     if (dvd) {
-      dvd.title = title;
-      dvd.director = director;
-      dvd.studio = studio;
-      dvd.year = year;
-      dvd.duration = duration;
-      dvd.format = format;
-      dvd.zone = zone;
-      dvd.barcode = barcode;
-      dvd.barcode_locked = barcode_locked === "on";
-      dvd.is_boxset = is_boxset === "true";
-      dvd.cover_image = cover_image;
-      dvd.in_wishlist = isWishlist;
-      dvd.comments = comments || "";
-      dvd.location = location || "";
-      dvd.genre = genre || (parsedGenres.length > 0 ? parsedGenres[0] : "");
-      dvd.genres = parsedGenres;
-      dvd.styles = parsedStyles;
-      dvd.watchStatus = watchStatus || "to_watch";
-      dvd.user_rating = user_rating || 0;
-      dvd.quantity = quantity || 1;
+      const qtyToAdd = parseInt(quantity) || 1;
+      const finalQty = isEdit ? qtyToAdd : (dvd.quantity || 1) + qtyToAdd;
+
+      if (isEdit) {
+        dvd.title = title;
+        dvd.director = director;
+        dvd.studio = studio;
+        dvd.year = year;
+        dvd.duration = duration;
+        dvd.format = format;
+        dvd.zone = zone;
+        dvd.barcode = barcode;
+        dvd.barcode_locked = barcode_locked === "on";
+        dvd.is_boxset = is_boxset === "true";
+        dvd.cover_image = cover_image;
+        dvd.in_wishlist = isWishlist;
+        dvd.comments = comments || "";
+        dvd.location = location || "";
+        dvd.genre = genre || (parsedGenres.length > 0 ? parsedGenres[0] : "");
+        dvd.genres = parsedGenres;
+        dvd.styles = parsedStyles;
+        dvd.watchStatus = watchStatus || "to_watch";
+        dvd.user_rating = user_rating || 0;
+        dvd.quantity = finalQty;
+      } else {
+        // Duplicate addition: just increment quantity and preserve existing fields.
+        dvd.quantity = finalQty;
+        if (tmdb_id && !dvd.tmdb_id) {
+          dvd.tmdb_id = parseInt(tmdb_id);
+        }
+      }
 
       await dvd.save();
     } else {

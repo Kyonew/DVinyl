@@ -26,7 +26,10 @@
     "confirm_delete": "Êtes-vous sûr ?",
     "show": "Afficher",
     "apply": "Appliquer",
-    "filters": "Filtres"
+    "filters": "Filtres",
+    "already_in_collection_title": "Cet élément semble déjà présent dans votre collection",
+    "already_in_collection_desc": "Cet élément figure déjà dans votre collection (Quantité actuelle : {{qty}}). Si vous le confirmez, sa quantité sera augmentée.",
+    "btn_add_anyway": "Ajouter quand même"
   },
   "settings": {
     "page_title": "Paramètres du compte",
