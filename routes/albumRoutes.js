@@ -486,7 +486,8 @@ router.get('/album/edit/:id', requireAuth, async (req, res) => {
 });
 
 router.post('/search-discogs', requireAuth, requireAdmin, async (req, res) => {
-    const query = (req.body.query || '').trim();
+    
+    const query = typeof req.body.query === 'string' ? req.body.query.trim() : '';
     const type = req.body.type || 'vinyl';
 
     // Advanced filters
