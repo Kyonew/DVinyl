@@ -281,13 +281,13 @@
     </div>
 
     <script>
-        const translations = {
-            official_cover: "<%= t('detail.official_cover') %>",
-            additional_image: "<%= t('detail.additional_image') %>",
-            confirm_delete: "<%= t('detail.confirm_delete') %>",
-            unavailable_data: "<%= t('detail.unavailable_data') %>",
-            error_server: "<%= t('messages.generic_error') %>"
-        };
+        const translations = <%- JSON.stringify({
+            official_cover: t('detail.official_cover'),
+            additional_image: t('detail.additional_image'),
+            confirm_delete: t('detail.confirm_delete'),
+            unavailable_data: t('detail.unavailable_data'),
+            error_server: t('messages.generic_error')
+        }) %>;
 
         async function confirmDelete(id) {
             if (confirm(translations.confirm_delete)) {

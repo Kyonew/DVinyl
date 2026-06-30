@@ -845,7 +845,7 @@ router.get('/api/estimate/:discogsId', requireAuth, async (req, res) => {
                         success: true,
                         source: 'market', // concrete market data
                         price: statsData.lowest_price,
-                        details: `${statsData.num_for_sale} for sale`
+                        details: `${statsData.num_for_sale} ${req.t('detail.for_sale')}`
                     });
                 }
             }

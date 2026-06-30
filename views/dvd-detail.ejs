@@ -284,10 +284,10 @@
     </div>
 
     <script>
-        const translations = {
-            confirm_delete: "<%= t('detail.confirm_delete') %>",
-            error_server: "<%= t('messages.generic_error') %>"
-        };
+        const translations = <%- JSON.stringify({
+            confirm_delete: t('detail.confirm_delete'),
+            error_server: t('messages.generic_error')
+        }) %>;
 
         async function confirmDelete(id) {
             if (confirm(translations.confirm_delete)) {

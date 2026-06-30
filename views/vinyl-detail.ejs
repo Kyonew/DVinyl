@@ -368,18 +368,18 @@
     </div>
 
     <script>
-        const translations = {
-            official_cover: "<%= t('detail.official_cover') %>",
-            additional_image: "<%= t('detail.additional_image') %>",
-            confirm_delete: "<%= t('detail.confirm_delete') %>",
-            market_price: "<%= t('detail.market_price') %>",
-            historical_estimate: "<%= t('detail.historical_estimate') %>",
-            shipping_hint: "<%= t('detail.shipping_hint') %>",
-            view_discogs: "<%= t('detail.view_discogs') %>",
-            unavailable_data: "<%= t('detail.unavailable_data') %>",
-            analyzing: "<%= t('detail.market_analysis') %>",
-            error_server: "<%= t('messages.generic_error') %>"
-        };
+        const translations = <%- JSON.stringify({
+            official_cover: t('detail.official_cover'),
+            additional_image: t('detail.additional_image'),
+            confirm_delete: t('detail.confirm_delete'),
+            market_price: t('detail.market_price'),
+            historical_estimate: t('detail.historical_estimate'),
+            shipping_hint: t('detail.shipping_hint'),
+            view_discogs: t('detail.view_discogs'),
+            unavailable_data: t('detail.unavailable_data'),
+            analyzing: t('detail.market_analysis'),
+            error_server: t('messages.generic_error')
+        }) %>;
 
         const currentLocale = '<%= currentLng === "fr" ? "fr-FR" : "en-US" %>';
 
