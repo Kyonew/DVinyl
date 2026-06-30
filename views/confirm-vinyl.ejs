@@ -78,11 +78,11 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label class="block mb-2 text-sm font-bold uppercase tracking-widest opacity-60"><%= t('confirm_vinyl.field_title') %></label>
-                            <input type="text" name="title" value="<%= vinyl.title %>" class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme focus:border-primary-theme block w-full p-3 transition-colors outline-none">
+                            <input type="text" name="title" value="<%= vinyl.title %>" required class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme focus:border-primary-theme block w-full p-3 transition-colors outline-none">
                         </div>
                         <div>
                             <label class="block mb-2 text-sm font-bold uppercase tracking-widest opacity-60"><%= t('confirm_vinyl.field_artist') %></label>
-                            <input type="text" name="artist" value="<%= vinyl.artist %>" class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme focus:border-primary-theme block w-full p-3 transition-colors outline-none">
+                            <input type="text" name="artist" value="<%= vinyl.artist %>" required class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme focus:border-primary-theme block w-full p-3 transition-colors outline-none">
                         </div>
                     </div>
 
@@ -91,7 +91,26 @@
                             <label class="block mb-2 text-sm font-bold uppercase tracking-widest opacity-60"><%= t('confirm_vinyl.year_label') %></label>
                             <input type="text" name="year" value="<%= vinyl.year %>" class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme focus:border-primary-theme block w-full p-3 transition-colors outline-none" placeholder="Ex: 1994">
                         </div>
+                        <% if (locals.isManual) { %>
+                        <div>
+                            <label class="block mb-2 text-sm font-bold uppercase tracking-widest opacity-60"><%= t('confirm_vinyl.country') %></label>
+                            <input type="text" name="country" value="<%= vinyl.country %>" class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme focus:border-primary-theme block w-full p-3 transition-colors outline-none" placeholder="US, Europe...">
+                        </div>
+                        <% } %>
                     </div>
+
+                    <% if (locals.isManual) { %>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block mb-2 text-sm font-bold uppercase tracking-widest opacity-60"><%= t('confirm_vinyl.label_label') %></label>
+                            <input type="text" name="label" value="<%= vinyl.label %>" class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme focus:border-primary-theme block w-full p-3 transition-colors outline-none" placeholder="Ex: Columbia...">
+                        </div>
+                        <div>
+                            <label class="block mb-2 text-sm font-bold uppercase tracking-widest opacity-60"><%= t('confirm_vinyl.catalog_label') %></label>
+                            <input type="text" name="catalog_number" value="<%= vinyl.catalog_number %>" class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme focus:border-primary-theme block w-full p-3 transition-colors outline-none" placeholder="Ex: COL 12345...">
+                        </div>
+                    </div>
+                    <% } %>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
@@ -216,9 +235,11 @@
 
                    
                     <input type="hidden" name="discogs_id" value="<%= vinyl.discogs_id %>">
+                    <% if (!locals.isManual) { %>
                     <input type="hidden" name="label" value="<%= vinyl.label %>">
                     <input type="hidden" name="catalog_number" value="<%= vinyl.catalog_number %>">
                     <input type="hidden" name="country" value="<%= vinyl.country %>">
+                    <% } %>
 
                     <%- include('partials/tracklist-editor') %>
 
@@ -294,7 +315,14 @@
                             <input type="text" name="genres" 
                                 value="<%= typeof vinyl !== 'undefined' ? (vinyl.genres ? vinyl.genres.join(', ') : '') : '' %>"
                                 placeholder="Rock, Pop..."
+                                list="genreList"
                                 class="w-full bg-black/5 dark:bg-white/5 border border-transparent rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-primary-theme outline-none transition-all">
+                            
+                            <datalist id="genreList">
+                                <% genres.forEach(g => { %>
+                                    <option value="<%= g %>">
+                                <% }) %>
+                            </datalist>
                         </div>
                         <div>
                             <label class="block text-xs font-bold uppercase tracking-wider opacity-60 mb-2">
