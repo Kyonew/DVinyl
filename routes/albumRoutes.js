@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
+const mongoose = require('mongoose');
 const Album = require('../models/Vinyl');
 
 const Item = require('../models/Item');
@@ -184,6 +185,8 @@ router.get('/collection', requireAuth, async (req, res) => {
     try {
         const adminId = await getAdminId();
         const { search, type, format, location, genre, style, artist, decade } = req.query;
+        const trimmedSearch = typeof search === 'string' ? search.trim() : '';
+        const trimmedArtist = typeof artist === 'string' ? artist.trim() : '';
         let sort = req.query.sort;
         if (sort) {
             res.cookie('sortPref', sort, { maxAge: 365 * 24 * 60 * 60 * 1000 });
@@ -196,11 +199,20 @@ router.get('/collection', requireAuth, async (req, res) => {
         let query = { owner: adminId, in_wishlist: false };
         let conditions = [];
 
-        if (search) {
-            const regex = new RegExp(escapeRegExp(search), 'i');
-            conditions.push({
-                $or: [{ title: regex }, { artist: regex }, { author: regex }, { director: regex }, { barcode: regex }]
-            });
+        if (trimmedSearch) {
+            const regex = new RegExp(escapeRegExp(trimmedSearch), 'i');
+            const searchOr = [
+                { title: regex },
+                { artist: regex },
+                { author: regex },
+                { director: regex },
+                { barcode: regex },
+                { 'tracklist.title': regex }
+            ];
+            if (mongoose.Types.ObjectId.isValid(trimmedSearch)) {
+                searchOr.push({ _id: trimmedSearch });
+            }
+            conditions.push({ $or: searchOr });
         }
 
 
@@ -230,8 +242,8 @@ router.get('/collection', requireAuth, async (req, res) => {
             conditions.push({ location: new RegExp(escapeRegExp(location), 'i') });
         }
 
-        if (artist) {
-            const artistRegex = new RegExp(escapeRegExp(artist), 'i');
+        if (trimmedArtist) {
+            const artistRegex = new RegExp(escapeRegExp(trimmedArtist), 'i');
             conditions.push({
                 $or: [
                     { artist: artistRegex },
@@ -377,11 +389,11 @@ router.get('/collection', requireAuth, async (req, res) => {
             queryLimit: limit,
             currentType: type || 'all',
             currentFormat: format || 'all',
-            querySearch: search || '',
+            querySearch: trimmedSearch,
             queryLocation: location || '',
             queryGenre: genre || '',
             queryStyle: style || '',
-            queryArtist: artist || '',
+            queryArtist: trimmedArtist,
             queryDecade: decade || '',
             queryFilterMode: filterMode,
             currentSort: sort,
@@ -474,7 +486,7 @@ router.get('/album/edit/:id', requireAuth, async (req, res) => {
 });
 
 router.post('/search-discogs', requireAuth, requireAdmin, async (req, res) => {
-    const query = req.body.query || '';
+    const query = (req.body.query || '').trim();
     const type = req.body.type || 'vinyl';
 
     // Advanced filters

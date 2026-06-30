@@ -138,7 +138,7 @@ router.get('/add-book', requireAuth, requireAdmin, (req, res) => {
 
 
 router.post('/search-books', requireAuth, requireAdmin, async (req, res) => {
-    let query = req.body.query;
+    let query = (req.body.query || '').trim();
     const cleanQuery = query.replace(/[- ]/g, '');
     const isIsbn = /^\d{10,13}$/.test(cleanQuery);
 
