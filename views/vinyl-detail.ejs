@@ -76,12 +76,36 @@
                                 <%= badgeText %>
                             </span>
 
+                            <%
+                                let _totalSecs = 0;
+                                (album.tracklist || []).forEach(function(tr) {
+                                    if (tr.duration && /^\d+:\d{2}$/.test(tr.duration)) {
+                                        const p = tr.duration.split(':');
+                                        _totalSecs += parseInt(p[0]) * 60 + parseInt(p[1]);
+                                    }
+                                });
+                                let _durationLabel = '';
+                                if (_totalSecs > 0) {
+                                    const _h = Math.floor(_totalSecs / 3600);
+                                    const _m = Math.floor((_totalSecs % 3600) / 60);
+                                    const _s = _totalSecs % 60;
+                                    _durationLabel = _h > 0
+                                        ? `${_h}:${String(_m).padStart(2,'0')}:${String(_s).padStart(2,'0')}`
+                                        : `${_m}:${String(_s).padStart(2,'0')}`;
+                                }
+                            %>
                             <% if (album.year) { %>
                                 <span
                                     class="px-3 py-1 bg-black/5 dark:bg-white/10 border border-transparent rounded-full text-xs opacity-80 transition-colors">
                                     <%= album.year %>
                                 </span>
-                                <% } %>
+                            <% } %>
+                            <% if (_durationLabel) { %>
+                                <span class="px-3 py-1 bg-black/5 dark:bg-white/10 border border-transparent rounded-full text-xs opacity-80 transition-colors flex items-center gap-1.5">
+                                    <i class="fa-regular fa-clock opacity-60"></i>
+                                    <%= _durationLabel %>
+                                </span>
+                            <% } %>
                                     <span
                                         class="px-3 py-1 bg-black/5 dark:bg-white/10 border border-transparent rounded-full text-xs opacity-80 transition-colors">
                                         <%= album.format_type %>
@@ -365,21 +389,63 @@
                             <% } %>
             </div>
         </div>
+
+        <!-- Variants section -->
+        <% if (typeof variants !== 'undefined' && variants.length > 0) { %>
+            <div class="mt-16 pt-8 border-t border-black/10 dark:border-white/10 transition-colors">
+                <h3 class="text-xl font-bold mb-6 flex items-center gap-2">
+                    <i class="fa-solid fa-copy text-primary-theme"></i>
+                    <%= t('detail.variants_title') %>
+                </h3>
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
+                    <% variants.forEach(variant => { %>
+                        <a href="<%= baseUrl %>/album/<%= variant._id %>" class="group block">
+                            <div class="aspect-square rounded-xl overflow-hidden card-theme border border-black/5 dark:border-white/10 shadow-sm hover:shadow-md transition-all duration-300 relative flex items-center justify-center">
+                                <% 
+                                    // Use user_image (physical/second photo) if it exists, fallback to cover_image (main cover)
+                                    const varImg = variant.user_image || variant.cover_image || '/ressources/logo.png';
+                                %>
+                                <img src="<%= varImg %>" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" alt="<%= variant.title %>">
+                                
+                                <% 
+                                    let label = '';
+                                    if (variant.variant_color) {
+                                        label = variant.variant_color;
+                                    } else if (variant.format_type) {
+                                        label = variant.format_type;
+                                    } else if (variant.media_type) {
+                                        label = t(variant.media_type) || variant.media_type;
+                                    }
+                                %>
+                                <% if (label) { %>
+                                    <div class="absolute bottom-2 left-2 right-2 bg-black/75 backdrop-blur-sm text-white text-[10px] px-2 py-1 rounded truncate text-center font-semibold">
+                                        <%= label %>
+                                    </div>
+                                <% } %>
+                            </div>
+                            <div class="mt-2 text-xs font-semibold truncate group-hover:text-primary-theme transition-colors text-center">
+                                <%= variant.variant_color || variant.format_type || t(variant.media_type) || variant.media_type %>
+                            </div>
+                        </a>
+                    <% }) %>
+                </div>
+            </div>
+        <% } %>
     </div>
 
     <script>
-        const translations = {
-            official_cover: "<%= t('detail.official_cover') %>",
-            additional_image: "<%= t('detail.additional_image') %>",
-            confirm_delete: "<%= t('detail.confirm_delete') %>",
-            market_price: "<%= t('detail.market_price') %>",
-            historical_estimate: "<%= t('detail.historical_estimate') %>",
-            shipping_hint: "<%= t('detail.shipping_hint') %>",
-            view_discogs: "<%= t('detail.view_discogs') %>",
-            unavailable_data: "<%= t('detail.unavailable_data') %>",
-            analyzing: "<%= t('detail.market_analysis') %>",
-            error_server: "<%= t('messages.generic_error') %>"
-        };
+        const translations = <%- JSON.stringify({
+            official_cover: t('detail.official_cover'),
+            additional_image: t('detail.additional_image'),
+            confirm_delete: t('detail.confirm_delete'),
+            market_price: t('detail.market_price'),
+            historical_estimate: t('detail.historical_estimate'),
+            shipping_hint: t('detail.shipping_hint'),
+            view_discogs: t('detail.view_discogs'),
+            unavailable_data: t('detail.unavailable_data'),
+            analyzing: t('detail.market_analysis'),
+            error_server: t('messages.generic_error')
+        }) %>;
 
         const currentLocale = '<%= currentLng === "fr" ? "fr-FR" : "en-US" %>';
 

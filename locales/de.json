@@ -42,7 +42,8 @@
     "scan_stop": "Stoppen Sie den Scanvorgang",
     "search_placeholder": "Künstler, Album...",
     "separator_or": "ODER",
-    "title": "Fügen Sie einen Datensatz hinzu"
+    "title": "Fügen Sie einen Datensatz hinzu",
+    "manual_entry": "Nicht auf Discogs? Manuell hinzufügen"
   },
   "admin": {
     "add_user_btn": "Benutzer hinzufügen",
@@ -276,7 +277,10 @@
     "unknown": "Unbekannt",
     "update": "Aktualisieren",
     "validate": "Bestätigen",
-    "filters": "Filter"
+    "filters": "Filter",
+    "already_in_collection_title": "Dieser Artikel befindet sich bereits in Ihrer Sammlung",
+    "already_in_collection_desc": "Dieser Artikel befindet sich bereits in Ihrer Sammlung (Aktuelle Menge: {{qty}}). Wenn Sie bestätigen, wird die Menge erhöht.",
+    "btn_add_anyway": "Trotzdem hinzufügen"
   },
   "confirm_book": {
     "btn_collection": "Zur Bibliothek hinzufügen",
@@ -365,7 +369,10 @@
     "barcode_locked": "Barcode sperren",
     "sleeve_condition_label": "Zustand der Hülle",
     "sleeve_condition_placeholder": "Zustand auswählen...",
-    "sleeve_condition_generic": "Generische Hülle"
+    "sleeve_condition_generic": "Generische Hülle",
+    "add_cover": "Titelbild hinzufügen",
+    "manual_title": "Album manuell hinzufügen",
+    "manual_mode_hint": "Manuelle Eingabe — keine Discogs-Daten. Marktschätzung nicht verfügbar."
   },
   "detail": {
     "added_at": "Hinzugefügt bei",
@@ -376,6 +383,7 @@
     "confirm_delete": "Möchten Sie dieses Album wirklich aus Ihrer Sammlung löschen? \nDiese Aktion ist irreversibel.",
     "duration_label": "Dauer",
     "estimation_title": "Schätzung (Discogs)",
+    "for_sale": "zum Verkauf",
     "historical_estimate": "Historische Schätzung (VG)",
     "import_tracklist_btn": "Trackliste importieren",
     "importing": "Importieren...",
@@ -393,7 +401,8 @@
     "tracklist_not_found": "Tracklist nicht auf Discogs gefunden",
     "tracklist_title": "Trackliste",
     "unavailable_data": "Daten nicht verfügbar",
-    "view_discogs": "Discogs-Seite ansehen"
+    "view_discogs": "Discogs-Seite ansehen",
+    "variants_title": "Sie besitzen diesen Artikel auch in anderen Versionen:"
   },
   "dvd_detail": {
     "barcode_label": "Barcode",
@@ -720,5 +729,11 @@
     "view_igdb": "Auf IGDB ansehen",
     "refresh_info_success": "Metadaten erfolgreich aktualisiert!",
     "refresh_info_error": "Fehler beim Aktualisieren der Metadaten."
+  },
+  "tracklist": {
+    "col_position": "Pos.",
+    "col_title": "Titel",
+    "col_duration": "Dauer",
+    "add_track": "Titel hinzufügen"
   }
 }

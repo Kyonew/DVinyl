@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcrypt");
+const mongoose = require("mongoose");
 const User = require("../models/User");
 const BlockedIP = require("../models/blockedIP");
 const LoginLog = require("../models/LoginLog");
@@ -408,15 +409,28 @@ router.get(
   async (req, res) => {
     try {
         const { q } = req.query;
-        if (!q) return res.json([]);
+        const trimmedQ = typeof q === 'string' ? q.trim() : '';
+        if (!trimmedQ) return res.json([]);
 
         const admin = await User.findOne({ isAdmin: true }).select('_id');
         const adminId = admin ? admin._id : null;
 
-        const regex = new RegExp(escapeRegExp(q), 'i');
+        const regex = new RegExp(escapeRegExp(trimmedQ), 'i');
+        const searchOr = [
+            { title: regex },
+            { artist: regex },
+            { author: regex },
+            { director: regex },
+            { barcode: regex },
+            { 'tracklist.title': regex }
+        ];
+        if (mongoose.Types.ObjectId.isValid(trimmedQ)) {
+            searchOr.push({ _id: trimmedQ });
+        }
+
         const items = await Item.find({
             owner: adminId,
-            $or: [{ title: regex }, { artist: regex }, { author: regex }, { director: regex }, { barcode: regex }]
+            $or: searchOr
         }).limit(10).select('_id title artist author director kind cover_image format format_type platform media_type').lean();
 
         res.json(items);
@@ -432,7 +446,8 @@ router.get(
   requireAuth,
   requireAdmin,
   async (req, res) => {
-    const { q, type } = req.query;
+    let { q, type } = req.query;
+    q = typeof q === 'string' ? q.trim() : '';
     console.log(`[SEARCH] Query: "${q}" | Type: ${type}`);
 
     const axiosConfig = {
@@ -551,7 +566,8 @@ router.get(
   requireAdmin,
   async (req, res) => {
     try {
-      const { q } = req.query;
+      let { q } = req.query;
+      q = typeof q === 'string' ? q.trim() : '';
       const axiosConfig = {
         headers: {
           "User-Agent": "DVinylApp/2.0",

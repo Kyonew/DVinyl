@@ -6,6 +6,12 @@
             <i class="fa-solid fa-arrow-left mr-2"></i> <%= t('common.back_to_search') %>
         </a>
     </nav>
+    <% if (locals.isManual) { %>
+    <div class="mb-6 flex items-center gap-3 px-4 py-3 rounded-xl bg-black/5 dark:bg-white/5 text-sm">
+        <i class="fa-solid fa-pencil opacity-50"></i>
+        <span class="opacity-60"><%= t('confirm_vinyl.manual_mode_hint') %></span>
+    </div>
+    <% } %>
 
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div class="lg:col-span-4 space-y-6">
@@ -61,18 +67,32 @@
         <div class="lg:col-span-8">
             <div class="card-theme rounded-xl p-6 md:p-8 transition-colors shadow-sm">
                 <h1 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                    <% if (locals.isManual) { %>
+                    <i class="fa-solid fa-pencil text-primary-theme"></i> <%= t('confirm_vinyl.manual_title') %>
+                    <% } else { %>
                     <i class="fa-solid fa-pen-to-square text-primary-theme"></i> <%= t('confirm_vinyl.config_title') %>
+                    <% } %>
                 </h1>
+
+                <div id="duplicate-warning-banner" class="mb-6 flex flex-col md:flex-row items-center justify-between gap-4 px-5 py-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-sm transition-all shadow-sm" style="display: none;">
+                    <div class="flex items-center gap-3">
+                        <i class="fa-solid fa-circle-exclamation text-lg"></i>
+                        <div>
+                            <span class="font-bold"><%= t('common.already_in_collection_title') %></span>
+                            <p id="duplicate-warning-desc" class="opacity-80 text-xs mt-0.5"></p>
+                        </div>
+                    </div>
+                </div>
 
                 <form action="<%= baseUrl %>/save-vinyl" method="POST" class="space-y-6">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label class="block mb-2 text-sm font-bold uppercase tracking-widest opacity-60"><%= t('confirm_vinyl.field_title') %></label>
-                            <input type="text" name="title" value="<%= vinyl.title %>" class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme focus:border-primary-theme block w-full p-3 transition-colors outline-none">
+                            <input type="text" name="title" value="<%= vinyl.title %>" required class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme focus:border-primary-theme block w-full p-3 transition-colors outline-none">
                         </div>
                         <div>
                             <label class="block mb-2 text-sm font-bold uppercase tracking-widest opacity-60"><%= t('confirm_vinyl.field_artist') %></label>
-                            <input type="text" name="artist" value="<%= vinyl.artist %>" class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme focus:border-primary-theme block w-full p-3 transition-colors outline-none">
+                            <input type="text" name="artist" value="<%= vinyl.artist %>" required class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme focus:border-primary-theme block w-full p-3 transition-colors outline-none">
                         </div>
                     </div>
 
@@ -81,7 +101,26 @@
                             <label class="block mb-2 text-sm font-bold uppercase tracking-widest opacity-60"><%= t('confirm_vinyl.year_label') %></label>
                             <input type="text" name="year" value="<%= vinyl.year %>" class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme focus:border-primary-theme block w-full p-3 transition-colors outline-none" placeholder="Ex: 1994">
                         </div>
+                        <% if (locals.isManual) { %>
+                        <div>
+                            <label class="block mb-2 text-sm font-bold uppercase tracking-widest opacity-60"><%= t('confirm_vinyl.country') %></label>
+                            <input type="text" name="country" value="<%= vinyl.country %>" class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme focus:border-primary-theme block w-full p-3 transition-colors outline-none" placeholder="US, Europe...">
+                        </div>
+                        <% } %>
                     </div>
+
+                    <% if (locals.isManual) { %>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block mb-2 text-sm font-bold uppercase tracking-widest opacity-60"><%= t('confirm_vinyl.label_label') %></label>
+                            <input type="text" name="label" value="<%= vinyl.label %>" class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme focus:border-primary-theme block w-full p-3 transition-colors outline-none" placeholder="Ex: Columbia...">
+                        </div>
+                        <div>
+                            <label class="block mb-2 text-sm font-bold uppercase tracking-widest opacity-60"><%= t('confirm_vinyl.catalog_label') %></label>
+                            <input type="text" name="catalog_number" value="<%= vinyl.catalog_number %>" class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme focus:border-primary-theme block w-full p-3 transition-colors outline-none" placeholder="Ex: COL 12345...">
+                        </div>
+                    </div>
+                    <% } %>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
@@ -109,15 +148,15 @@
 
                     <div class="space-y-4">
                         <div class="flex items-center">
-                            <input id="checkEditCover" type="checkbox" class="w-4 h-4 text-primary-theme bg-black/5 dark:bg-white/10 border-transparent rounded focus:ring-primary-theme focus:ring-2 cursor-pointer transition-colors">
+                            <input id="checkEditCover" type="checkbox" <%= locals.isManual ? 'checked' : '' %> class="w-4 h-4 text-primary-theme bg-black/5 dark:bg-white/10 border-transparent rounded focus:ring-primary-theme focus:ring-2 cursor-pointer transition-colors">
                             <label for="checkEditCover" class="ml-2 text-sm font-bold cursor-pointer opacity-80 hover:opacity-100 transition-opacity">
-                                <%= t('confirm_vinyl.replace_cover') %>
+                                <%= locals.isManual ? t('confirm_vinyl.add_cover') : t('confirm_vinyl.replace_cover') %>
                             </label>
                         </div>
 
                         <input type="hidden" name="cover_image" id="inputCoverImage" value="<%= vinyl.cover_image %>">
 
-                        <div id="boxEditCover" class="hidden p-4 card-theme rounded-2xl border border-black/10 dark:border-white/10 shadow-inner transition-all">
+                        <div id="boxEditCover" class="<%= locals.isManual ? '' : 'hidden' %> p-4 card-theme rounded-2xl border border-black/10 dark:border-white/10 shadow-inner transition-all">
                             <div class="flex gap-1 mb-6 p-1 bg-black/5 dark:bg-white/5 rounded-xl">
                                 <button type="button" onclick="setImgTab('cover', 'local')" id="tab-cover-local" class="flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all bg-primary-theme text-white">
                                     <i class="fa-solid fa-upload mr-1"></i> <%= t('confirm_vinyl.source_local') %>
@@ -206,10 +245,13 @@
 
                    
                     <input type="hidden" name="discogs_id" value="<%= vinyl.discogs_id %>">
+                    <% if (!locals.isManual) { %>
                     <input type="hidden" name="label" value="<%= vinyl.label %>">
                     <input type="hidden" name="catalog_number" value="<%= vinyl.catalog_number %>">
-                    <input type="hidden" name="tracklist_json" value="<%= JSON.stringify(vinyl.tracklist) %>">
                     <input type="hidden" name="country" value="<%= vinyl.country %>">
+                    <% } %>
+
+                    <%- include('partials/tracklist-editor') %>
 
                     <div class="mb-6">
                         <label class="block mb-3 text-sm font-bold uppercase tracking-widest opacity-60"><%= t('confirm_vinyl.field_media_type') %></label>
@@ -283,7 +325,14 @@
                             <input type="text" name="genres" 
                                 value="<%= typeof vinyl !== 'undefined' ? (vinyl.genres ? vinyl.genres.join(', ') : '') : '' %>"
                                 placeholder="Rock, Pop..."
+                                list="genreList"
                                 class="w-full bg-black/5 dark:bg-white/5 border border-transparent rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-primary-theme outline-none transition-all">
+                            
+                            <datalist id="genreList">
+                                <% genres.forEach(g => { %>
+                                    <option value="<%= g %>">
+                                <% }) %>
+                            </datalist>
                         </div>
                         <div>
                             <label class="block text-xs font-bold uppercase tracking-wider opacity-60 mb-2">
@@ -460,6 +509,50 @@
                 }
             });
         }
+
+        // Dynamic Duplicate Checking
+        const existingItems = <%- JSON.stringify(locals.existingItems ? existingItems.map(item => ({ media_type: item.media_type, variant_color: item.variant_color, quantity: item.quantity })) : []) %>;
+        const mediaTypeRadios = document.querySelectorAll('input[name="media_type"]');
+        const variantInput = document.querySelector('input[name="variant_color"]');
+        const banner = document.getElementById('duplicate-warning-banner');
+        const desc = document.getElementById('duplicate-warning-desc');
+        const submitBtn = document.querySelector('button[name="in_wishlist"][value="false"]');
+        
+        const defaultBtnHTML = `<i class="fa-solid fa-check"></i> <%= t('confirm_vinyl.btn_collection') %>`;
+        const addAnywayBtnHTML = `<i class="fa-solid fa-plus"></i> <%= t('common.btn_add_anyway') %>`;
+
+        function checkDuplicate() {
+            let selectedMediaType = 'vinyl';
+            mediaTypeRadios.forEach(radio => {
+                if (radio.checked) selectedMediaType = radio.value;
+            });
+            const selectedVariant = variantInput ? variantInput.value.trim().toLowerCase() : '';
+
+            const match = existingItems.find(item => {
+                const itemMediaType = item.media_type || 'vinyl';
+                const itemVariant = (item.variant_color || '').trim().toLowerCase();
+                return itemMediaType.toLowerCase() === selectedMediaType.toLowerCase() &&
+                       itemVariant === selectedVariant;
+            });
+
+            if (match) {
+                banner.style.display = 'flex';
+                const descTemplate = `<%= t('common.already_in_collection_desc', { qty: '__QTY__' }) %>`;
+                desc.innerHTML = descTemplate.replace('__QTY__', match.quantity || 1);
+                submitBtn.innerHTML = addAnywayBtnHTML;
+            } else {
+                banner.style.display = 'none';
+                submitBtn.innerHTML = defaultBtnHTML;
+            }
+        }
+
+        mediaTypeRadios.forEach(radio => radio.addEventListener('change', checkDuplicate));
+        if (variantInput) {
+            variantInput.addEventListener('input', checkDuplicate);
+            variantInput.addEventListener('change', checkDuplicate);
+        }
+
+        checkDuplicate();
     });
 </script>
 

@@ -42,7 +42,8 @@
     "scan_stop": "Dejar de escanear",
     "search_placeholder": "Artista, Álbum...",
     "separator_or": "O",
-    "title": "Agregar un registro"
+    "title": "Agregar un registro",
+    "manual_entry": "No aparece en Discogs? Agregar manualmente"
   },
   "admin": {
     "add_user_btn": "Agregar usuario",
@@ -276,7 +277,10 @@
     "unknown": "Desconocido",
     "update": "Actualizar",
     "validate": "Validar",
-    "filters": "Filtros"
+    "filters": "Filtros",
+    "already_in_collection_title": "Este artículo ya parece estar en tu colección",
+    "already_in_collection_desc": "Este artículo ya está en tu colección (Cantidad actual: {{qty}}). Si confirmas, su cantidad se incrementará.",
+    "btn_add_anyway": "Añadir de todos modos"
   },
   "confirm_book": {
     "btn_collection": "Agregar a la biblioteca",
@@ -355,6 +359,9 @@
     "no_images": "No se encontraron imágenes.",
     "no_results": "No se encontraron imágenes.",
     "replace_cover": "Reemplace la cubierta principal",
+    "add_cover": "Agregar portada",
+    "manual_title": "Agregar álbum manualmente",
+    "manual_mode_hint": "Entrada manual — sin datos de Discogs. La estimación de mercado no estará disponible.",
     "search_hint": "Haga clic en la lupa para buscar.",
     "source_local": "Local",
     "source_search": "Buscar",
@@ -376,6 +383,7 @@
     "confirm_delete": "¿Estás seguro de que quieres eliminar este álbum de tu colección? \nEsta acción es irreversible.",
     "duration_label": "Duración",
     "estimation_title": "Estimación (Discogs)",
+    "for_sale": "a la venta",
     "historical_estimate": "Estimación histórica (VG)",
     "import_tracklist_btn": "Importar lista de canciones",
     "importing": "Importador...",
@@ -393,7 +401,8 @@
     "tracklist_not_found": "Lista de canciones no encontrada en Discogs",
     "tracklist_title": "Lista de canciones",
     "unavailable_data": "Datos no disponibles",
-    "view_discogs": "Ver página de Discogs"
+    "view_discogs": "Ver página de Discogs",
+    "variants_title": "También posees este artículo en otras versiones:"
   },
   "dvd_detail": {
     "barcode_label": "Código de barras",
@@ -720,5 +729,11 @@
     "view_igdb": "Ver en IGDB",
     "refresh_info_success": "¡Metadatos actualizados con éxito!",
     "refresh_info_error": "Error al actualizar los metadatos."
+  },
+  "tracklist": {
+    "col_position": "Pos.",
+    "col_title": "Título",
+    "col_duration": "Dur.",
+    "add_track": "Añadir pista"
   }
 }

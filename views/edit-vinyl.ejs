@@ -34,13 +34,25 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label class="block mb-2 text-sm font-bold uppercase tracking-widest opacity-60"><%= t('confirm_vinyl.field_title') %></label>
-                            <input type="text" name="title" value="<%= vinyl.title %>" class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme block w-full p-3 outline-none">
+                            <input type="text" name="title" value="<%= vinyl.title %>" required class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme block w-full p-3 outline-none">
                         </div>
                         <div>
                             <label class="block mb-2 text-sm font-bold uppercase tracking-widest opacity-60"><%= t('confirm_vinyl.field_artist') %></label>
-                            <input type="text" name="artist" value="<%= vinyl.artist %>" class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme block w-full p-3 outline-none">
+                            <input type="text" name="artist" value="<%= vinyl.artist %>" required class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme block w-full p-3 outline-none">
                         </div>
                     </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block mb-2 text-sm font-bold uppercase tracking-widest opacity-60"><%= t('confirm_vinyl.label_label') %></label>
+                            <input type="text" name="label" value="<%= vinyl.label %>" class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme block w-full p-3 outline-none" placeholder="Ex: Columbia...">
+                        </div>
+                        <div>
+                            <label class="block mb-2 text-sm font-bold uppercase tracking-widest opacity-60"><%= t('confirm_vinyl.catalog_label') %></label>
+                            <input type="text" name="catalog_number" value="<%= vinyl.catalog_number %>" class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme block w-full p-3 outline-none" placeholder="Ex: COL 12345...">
+                        </div>
+                    </div>
+
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
@@ -203,7 +215,12 @@
                             <label class="block text-xs font-bold uppercase tracking-wider opacity-60 mb-2">
                                 <i class="fa-solid fa-compact-disc mr-1"></i> <%= t('confirm_vinyl.field_genres') %>
                             </label>
-                            <input type="text" name="genres" value="<%= vinyl.genres ? vinyl.genres.join(', ') : '' %>" placeholder="Rock, Pop..." class="w-full bg-black/5 dark:bg-white/5 border border-transparent rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-primary-theme outline-none">
+                            <input type="text" name="genres" value="<%= vinyl.genres ? vinyl.genres.join(', ') : '' %>" placeholder="Rock, Pop..." list="genreList" class="w-full bg-black/5 dark:bg-white/5 border border-transparent rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-primary-theme outline-none">
+                            <datalist id="genreList">
+                                <% genres.forEach(g => { %>
+                                    <option value="<%= g %>">
+                                <% }) %>
+                            </datalist>
                         </div>
                         <div>
                             <label class="block text-xs font-bold uppercase tracking-wider opacity-60 mb-2">
@@ -245,9 +262,10 @@
                             </label>
                         </div>
                     </div>
+                    <%- include('partials/tracklist-editor') %>
                     <input type="hidden" name="in_wishlist" value="<%= vinyl.in_wishlist %>">
                     <input type="hidden" name="mongo_id" value="<%= vinyl._id %>">
-                    
+
                     <button type="submit" class="w-full text-white bg-primary-theme hover:brightness-110 font-bold rounded-xl text-lg px-5 py-4 transition-transform hover:scale-[1.01] flex items-center justify-center gap-2 shadow-lg shadow-primary-theme/20">
                         <i class="fa-solid fa-save"></i> <%= t('common.save_changes') %>
                     </button>

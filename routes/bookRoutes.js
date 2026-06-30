@@ -8,9 +8,60 @@ const { requireAuth, requireAdmin } = require('../middleware/authMiddleware');
 const xml2js = require('xml2js');
 const { BOOK_GENRES_WHITELIST } = require('../config/constants');
 
+const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 async function getAdminId() {
     const admin = await User.findOne({ isAdmin: true }).select('_id');
     return admin ? admin._id : null;
+}
+
+async function findDuplicateBook(ownerId, isbnVal, barcodeVal, title, author, format) {
+    const cleanIsbn = (barcodeVal || isbnVal || '').replace(/[- ]/g, '');
+    const matchFormat = format || 'paperback';
+
+    if (cleanIsbn) {
+        const query = {
+            owner: ownerId,
+            in_wishlist: false,
+            kind: 'Book',
+            $or: [
+                { isbn: cleanIsbn },
+                { barcode: cleanIsbn }
+            ]
+        };
+        if (matchFormat) {
+            query.format = matchFormat;
+        } else {
+            query.$or = [
+                { format: { $exists: false } },
+                { format: "" }
+            ];
+        }
+        const item = await Item.findOne(query);
+        if (item) return item;
+    }
+
+    const matchTitle = (title || '').trim();
+    const matchAuthor = (author || '').trim();
+
+    const query = {
+        owner: ownerId,
+        in_wishlist: false,
+        kind: 'Book',
+        title: { $regex: new RegExp(`^${escapeRegExp(matchTitle)}$`, 'i') },
+        author: { $regex: new RegExp(`^${escapeRegExp(matchAuthor)}$`, 'i') }
+    };
+
+    if (matchFormat) {
+        query.format = matchFormat;
+    } else {
+        query.$or = [
+            { format: { $exists: false } },
+            { format: "" }
+        ];
+    }
+
+    return await Item.findOne(query);
 }
 
 
@@ -87,7 +138,7 @@ router.get('/add-book', requireAuth, requireAdmin, (req, res) => {
 
 
 router.post('/search-books', requireAuth, requireAdmin, async (req, res) => {
-    let query = req.body.query;
+    let query = typeof req.body.query === 'string' ? req.body.query.trim() : '';
     const cleanQuery = query.replace(/[- ]/g, '');
     const isIsbn = /^\d{10,13}$/.test(cleanQuery);
 
@@ -217,7 +268,23 @@ router.get('/confirm-book/:id', requireAuth, async (req, res) => {
         const locations = await Item.distinct('location', { owner: adminId, location: { $ne: "" } });
         const genres = await Item.distinct('genre', { owner: adminId, genre: { $ne: "" }, kind: 'Book' });
 
-        res.render('confirm-book', { book: bookData, user: res.locals.user, locations, genres, currentType: 'books' });
+        const existingItems = await Item.find({
+            owner: adminId ? adminId._id : null,
+            in_wishlist: false,
+            kind: 'Book',
+            $or: [
+                ...(bookData.isbn ? [
+                    { isbn: bookData.isbn.replace(/[- ]/g, '') },
+                    { barcode: bookData.isbn.replace(/[- ]/g, '') }
+                ] : []),
+                {
+                    title: { $regex: new RegExp(`^${escapeRegExp(bookData.title)}$`, 'i') },
+                    author: { $regex: new RegExp(`^${escapeRegExp(bookData.author)}$`, 'i') }
+                }
+            ]
+        }).lean();
+
+        res.render('confirm-book', { book: bookData, user: res.locals.user, locations, genres, currentType: 'books', existingItems });
     } catch (err) {
         console.error("[ERR] Hardcover API Error:", err?.response?.data || err.message);
         res.status(500).send(req.t('errors.generic_server_error'));
@@ -239,34 +306,60 @@ router.post('/save-book', requireAuth, requireAdmin, async (req, res) => {
         const adminId = req.user._id;
         const isWishlist = in_wishlist === 'true';
         let book;
+        let isEdit = false;
 
         if (mongo_id) {
             book = await Item.findById(mongo_id);
+            isEdit = true;
+        }
+
+        if (!book) {
+            book = await findDuplicateBook(
+                adminId,
+                isbn,
+                barcode,
+                title,
+                author,
+                format
+            );
         }
         
         if (book) {
-            book.title = title;
-            book.author = author;
-            book.publisher = publisher;
-            book.year = year;
-            book.isbn = barcode || isbn;
-            book.barcode = barcode || isbn;
-            book.barcode_locked = barcode_locked === 'on';
-            book.pages = pages;
-            book.language = language;
-            book.format = format;
-            book.series = series;
-            book.volume = volume;
-            book.cover_image = cover_image;
-            book.in_wishlist = isWishlist;
-            book.comments = comments || '';
-            book.location = location || '';
-            book.genre = genre || (parsedGenres.length > 0 ? parsedGenres[0] : '');
-            book.genres = parsedGenres;
-            book.styles = parsedStyles;
-            book.readingStatus = readingStatus || 'to_read';
-            book.rating = rating || 0;
-            book.quantity = quantity || 1;
+            const qtyToAdd = parseInt(quantity) || 1;
+            const finalQty = isEdit ? qtyToAdd : (book.quantity || 1) + qtyToAdd;
+
+            if (isEdit) {
+                book.title = title;
+                book.author = author;
+                book.publisher = publisher;
+                book.year = year;
+                book.isbn = barcode || isbn;
+                book.barcode = barcode || isbn;
+                book.barcode_locked = barcode_locked === 'on';
+                book.pages = pages;
+                book.language = language;
+                book.format = format;
+                book.series = series;
+                book.volume = volume;
+                book.cover_image = cover_image;
+                book.in_wishlist = isWishlist;
+                book.comments = comments || '';
+                book.location = location || '';
+                book.genre = genre || (parsedGenres.length > 0 ? parsedGenres[0] : '');
+                book.genres = parsedGenres;
+                book.styles = parsedStyles;
+                book.readingStatus = readingStatus || 'to_read';
+                book.rating = rating || 0;
+                book.quantity = finalQty;
+            } else {
+                // Duplicate addition: just increment quantity and preserve existing fields.
+                book.quantity = finalQty;
+                const cleanIsbn = (barcode || isbn || '').replace(/[- ]/g, '');
+                if (cleanIsbn && !book.isbn) {
+                    book.isbn = cleanIsbn;
+                    book.barcode = cleanIsbn;
+                }
+            }
             
             await book.save();
         } else {
@@ -327,7 +420,21 @@ router.get('/book/:id', requireAuth, async (req, res) => {
         const book = await Item.findById(req.params.id);
         if (!book || book.kind !== 'Book') return res.redirect('/collection?type=books');
 
-        res.render('book-detail', { book: book.toObject(), user: res.locals.user, currentType: 'book' });
+        const variants = await Item.find({
+            owner: book.owner,
+            kind: 'Book',
+            _id: { $ne: book._id },
+            in_wishlist: false,
+            title: { $regex: new RegExp(`^${escapeRegExp(book.title)}$`, 'i') },
+            author: { $regex: new RegExp(`^${escapeRegExp(book.author)}$`, 'i') }
+        }).lean();
+
+        res.render('book-detail', { 
+            book: book.toObject(), 
+            variants,
+            user: res.locals.user, 
+            currentType: 'book' 
+        });
     } catch (err) {
         res.redirect('/collection?type=books');
     }
