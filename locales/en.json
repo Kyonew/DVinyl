@@ -194,7 +194,8 @@
     "filter_ex_year": "Ex: 1994",
     "filter_ex_country": "Ex: France",
     "filter_ex_genre": "Ex: Electronic",
-    "filter_ex_label": "Ex: EMI"
+    "filter_ex_label": "Ex: EMI",
+    "manual_entry": "Not on Discogs? Add manually"
   },
   "admin": {
     "title": "Administration",
@@ -422,7 +423,10 @@
     "barcode_locked": "Lock barcode",
     "sleeve_condition_label": "Sleeve Condition",
     "sleeve_condition_placeholder": "Select sleeve condition...",
-    "sleeve_condition_generic": "Generic Sleeve"
+    "sleeve_condition_generic": "Generic Sleeve",
+    "add_cover": "Add cover",
+    "manual_title": "Add album manually",
+    "manual_mode_hint": "Manual entry — no Discogs data. Market estimation will not be available."
   },
   "edit_vinyl": {
     "title": "Edit Album",
@@ -721,5 +725,11 @@
     "view_igdb": "View on IGDB",
     "refresh_info_success": "Metadata refreshed successfully!",
     "refresh_info_error": "Error refreshing metadata."
+  },
+  "tracklist": {
+    "col_position": "Pos.",
+    "col_title": "Title",
+    "col_duration": "Dur.",
+    "add_track": "Add track"
   }
 }

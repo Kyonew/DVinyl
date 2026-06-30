@@ -42,7 +42,8 @@
     "scan_stop": "Dejar de escanear",
     "search_placeholder": "Artista, Álbum...",
     "separator_or": "O",
-    "title": "Agregar un registro"
+    "title": "Agregar un registro",
+    "manual_entry": "No aparece en Discogs? Agregar manualmente"
   },
   "admin": {
     "add_user_btn": "Agregar usuario",
@@ -355,6 +356,9 @@
     "no_images": "No se encontraron imágenes.",
     "no_results": "No se encontraron imágenes.",
     "replace_cover": "Reemplace la cubierta principal",
+    "add_cover": "Agregar portada",
+    "manual_title": "Agregar álbum manualmente",
+    "manual_mode_hint": "Entrada manual — sin datos de Discogs. La estimación de mercado no estará disponible.",
     "search_hint": "Haga clic en la lupa para buscar.",
     "source_local": "Local",
     "source_search": "Buscar",
@@ -721,5 +725,11 @@
     "view_igdb": "Ver en IGDB",
     "refresh_info_success": "¡Metadatos actualizados con éxito!",
     "refresh_info_error": "Error al actualizar los metadatos."
+  },
+  "tracklist": {
+    "col_position": "Pos.",
+    "col_title": "Título",
+    "col_duration": "Dur.",
+    "add_track": "Añadir pista"
   }
 }

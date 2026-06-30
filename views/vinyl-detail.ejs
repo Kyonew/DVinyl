@@ -76,12 +76,36 @@
                                 <%= badgeText %>
                             </span>
 
+                            <%
+                                let _totalSecs = 0;
+                                (album.tracklist || []).forEach(function(tr) {
+                                    if (tr.duration && /^\d+:\d{2}$/.test(tr.duration)) {
+                                        const p = tr.duration.split(':');
+                                        _totalSecs += parseInt(p[0]) * 60 + parseInt(p[1]);
+                                    }
+                                });
+                                let _durationLabel = '';
+                                if (_totalSecs > 0) {
+                                    const _h = Math.floor(_totalSecs / 3600);
+                                    const _m = Math.floor((_totalSecs % 3600) / 60);
+                                    const _s = _totalSecs % 60;
+                                    _durationLabel = _h > 0
+                                        ? `${_h}:${String(_m).padStart(2,'0')}:${String(_s).padStart(2,'0')}`
+                                        : `${_m}:${String(_s).padStart(2,'0')}`;
+                                }
+                            %>
                             <% if (album.year) { %>
                                 <span
                                     class="px-3 py-1 bg-black/5 dark:bg-white/10 border border-transparent rounded-full text-xs opacity-80 transition-colors">
                                     <%= album.year %>
                                 </span>
-                                <% } %>
+                            <% } %>
+                            <% if (_durationLabel) { %>
+                                <span class="px-3 py-1 bg-black/5 dark:bg-white/10 border border-transparent rounded-full text-xs opacity-80 transition-colors flex items-center gap-1.5">
+                                    <i class="fa-regular fa-clock opacity-60"></i>
+                                    <%= _durationLabel %>
+                                </span>
+                            <% } %>
                                     <span
                                         class="px-3 py-1 bg-black/5 dark:bg-white/10 border border-transparent rounded-full text-xs opacity-80 transition-colors">
                                         <%= album.format_type %>

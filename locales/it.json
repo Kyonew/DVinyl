@@ -42,7 +42,8 @@
     "scan_stop": "Interrompi la scansione",
     "search_placeholder": "Artista, album...",
     "separator_or": "O",
-    "title": "Aggiungi un record"
+    "title": "Aggiungi un record",
+    "manual_entry": "Non su Discogs? Aggiungi manualmente"
   },
   "admin": {
     "add_user_btn": "Aggiungi utente",
@@ -365,7 +366,10 @@
     "barcode_locked": "Blocca il codice a barre",
     "sleeve_condition_label": "Condizione della copertina",
     "sleeve_condition_placeholder": "Seleziona condizione...",
-    "sleeve_condition_generic": "Copertina generica"
+    "sleeve_condition_generic": "Copertina generica",
+    "add_cover": "Aggiungi copertina",
+    "manual_title": "Aggiungi album manualmente",
+    "manual_mode_hint": "Inserimento manuale — nessun dato Discogs. La stima di mercato non sarà disponibile."
   },
   "detail": {
     "added_at": "Aggiunto a",
@@ -721,5 +725,11 @@
     "view_igdb": "Vedi su IGDB",
     "refresh_info_success": "Metadati aggiornati con successo!",
     "refresh_info_error": "Errore durante aggiornamento metadati."
+  },
+  "tracklist": {
+    "col_position": "Pos.",
+    "col_title": "Titolo",
+    "col_duration": "Dur.",
+    "add_track": "Aggiungi traccia"
   }
 }

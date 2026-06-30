@@ -377,6 +377,31 @@ router.get('/add-vinyl', requireAuth, requireAdmin, (req, res) => {
     res.render('add-vinyl', { searchType, searchQuery, currentType: 'add-vinyl' });
 });
 
+router.get('/add-vinyl/manual', requireAuth, requireAdmin, async (req, res) => {
+    try {
+        const adminId = await getAdminId();
+        const locations = await Item.distinct('location', { owner: adminId, location: { $ne: "" } });
+        const genres = await Item.distinct('genre', {
+            owner: adminId,
+            genre: { $ne: "" },
+            $or: [{ kind: 'Music' }, { kind: { $exists: false } }]
+        });
+
+        const vinyl = {
+            title: '', artist: '', year: '', label: '', catalog_number: '',
+            format_type: '', variant_color: '', tracklist: [], cover_image: '',
+            discogs_id: '', country: '', genres: [], styles: [], barcode: '',
+            media_type: 'vinyl', user_image: '', location: '', sleeve_condition: '',
+            is_bootleg: false
+        };
+
+        res.render('confirm-vinyl', { vinyl, user: res.locals.user, locations, genres, currentType: 'music', isManual: true });
+    } catch (err) {
+        console.error(err);
+        res.redirect('/add-vinyl');
+    }
+});
+
 // route for editing an existing album
 router.get('/album/edit/:id', requireAuth, async (req, res) => {
     try {

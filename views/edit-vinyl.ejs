@@ -245,9 +245,10 @@
                             </label>
                         </div>
                     </div>
+                    <%- include('partials/tracklist-editor') %>
                     <input type="hidden" name="in_wishlist" value="<%= vinyl.in_wishlist %>">
                     <input type="hidden" name="mongo_id" value="<%= vinyl._id %>">
-                    
+
                     <button type="submit" class="w-full text-white bg-primary-theme hover:brightness-110 font-bold rounded-xl text-lg px-5 py-4 transition-transform hover:scale-[1.01] flex items-center justify-center gap-2 shadow-lg shadow-primary-theme/20">
                         <i class="fa-solid fa-save"></i> <%= t('common.save_changes') %>
                     </button>

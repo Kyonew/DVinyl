@@ -6,6 +6,12 @@
             <i class="fa-solid fa-arrow-left mr-2"></i> <%= t('common.back_to_search') %>
         </a>
     </nav>
+    <% if (locals.isManual) { %>
+    <div class="mb-6 flex items-center gap-3 px-4 py-3 rounded-xl bg-black/5 dark:bg-white/5 text-sm">
+        <i class="fa-solid fa-pencil opacity-50"></i>
+        <span class="opacity-60"><%= t('confirm_vinyl.manual_mode_hint') %></span>
+    </div>
+    <% } %>
 
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div class="lg:col-span-4 space-y-6">
@@ -61,7 +67,11 @@
         <div class="lg:col-span-8">
             <div class="card-theme rounded-xl p-6 md:p-8 transition-colors shadow-sm">
                 <h1 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                    <% if (locals.isManual) { %>
+                    <i class="fa-solid fa-pencil text-primary-theme"></i> <%= t('confirm_vinyl.manual_title') %>
+                    <% } else { %>
                     <i class="fa-solid fa-pen-to-square text-primary-theme"></i> <%= t('confirm_vinyl.config_title') %>
+                    <% } %>
                 </h1>
 
                 <form action="<%= baseUrl %>/save-vinyl" method="POST" class="space-y-6">
@@ -109,15 +119,15 @@
 
                     <div class="space-y-4">
                         <div class="flex items-center">
-                            <input id="checkEditCover" type="checkbox" class="w-4 h-4 text-primary-theme bg-black/5 dark:bg-white/10 border-transparent rounded focus:ring-primary-theme focus:ring-2 cursor-pointer transition-colors">
+                            <input id="checkEditCover" type="checkbox" <%= locals.isManual ? 'checked' : '' %> class="w-4 h-4 text-primary-theme bg-black/5 dark:bg-white/10 border-transparent rounded focus:ring-primary-theme focus:ring-2 cursor-pointer transition-colors">
                             <label for="checkEditCover" class="ml-2 text-sm font-bold cursor-pointer opacity-80 hover:opacity-100 transition-opacity">
-                                <%= t('confirm_vinyl.replace_cover') %>
+                                <%= locals.isManual ? t('confirm_vinyl.add_cover') : t('confirm_vinyl.replace_cover') %>
                             </label>
                         </div>
 
                         <input type="hidden" name="cover_image" id="inputCoverImage" value="<%= vinyl.cover_image %>">
 
-                        <div id="boxEditCover" class="hidden p-4 card-theme rounded-2xl border border-black/10 dark:border-white/10 shadow-inner transition-all">
+                        <div id="boxEditCover" class="<%= locals.isManual ? '' : 'hidden' %> p-4 card-theme rounded-2xl border border-black/10 dark:border-white/10 shadow-inner transition-all">
                             <div class="flex gap-1 mb-6 p-1 bg-black/5 dark:bg-white/5 rounded-xl">
                                 <button type="button" onclick="setImgTab('cover', 'local')" id="tab-cover-local" class="flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all bg-primary-theme text-white">
                                     <i class="fa-solid fa-upload mr-1"></i> <%= t('confirm_vinyl.source_local') %>
@@ -208,8 +218,9 @@
                     <input type="hidden" name="discogs_id" value="<%= vinyl.discogs_id %>">
                     <input type="hidden" name="label" value="<%= vinyl.label %>">
                     <input type="hidden" name="catalog_number" value="<%= vinyl.catalog_number %>">
-                    <input type="hidden" name="tracklist_json" value="<%= JSON.stringify(vinyl.tracklist) %>">
                     <input type="hidden" name="country" value="<%= vinyl.country %>">
+
+                    <%- include('partials/tracklist-editor') %>
 
                     <div class="mb-6">
                         <label class="block mb-3 text-sm font-bold uppercase tracking-widest opacity-60"><%= t('confirm_vinyl.field_media_type') %></label>

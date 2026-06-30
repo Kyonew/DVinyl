@@ -121,6 +121,12 @@
             </div>
         </form>
 
+        <div class="max-w-2xl mx-auto mb-10 text-center">
+            <a href="<%= baseUrl %>/add-vinyl/manual" class="text-xs opacity-50 hover:opacity-100 transition-opacity inline-flex items-center gap-1.5">
+                <i class="fa-solid fa-pencil"></i> <%= t('add_vinyl.manual_entry') %>
+            </a>
+        </div>
+
         <% if (locals.results) { %>
             <div class="mb-4 flex items-center justify-between">
                 <h2 class="text-xl font-bold transition-colors">

@@ -42,7 +42,8 @@
     "scan_stop": "Stoppen Sie den Scanvorgang",
     "search_placeholder": "Künstler, Album...",
     "separator_or": "ODER",
-    "title": "Fügen Sie einen Datensatz hinzu"
+    "title": "Fügen Sie einen Datensatz hinzu",
+    "manual_entry": "Nicht auf Discogs? Manuell hinzufügen"
   },
   "admin": {
     "add_user_btn": "Benutzer hinzufügen",
@@ -365,7 +366,10 @@
     "barcode_locked": "Barcode sperren",
     "sleeve_condition_label": "Zustand der Hülle",
     "sleeve_condition_placeholder": "Zustand auswählen...",
-    "sleeve_condition_generic": "Generische Hülle"
+    "sleeve_condition_generic": "Generische Hülle",
+    "add_cover": "Titelbild hinzufügen",
+    "manual_title": "Album manuell hinzufügen",
+    "manual_mode_hint": "Manuelle Eingabe — keine Discogs-Daten. Marktschätzung nicht verfügbar."
   },
   "detail": {
     "added_at": "Hinzugefügt bei",
@@ -721,5 +725,11 @@
     "view_igdb": "Auf IGDB ansehen",
     "refresh_info_success": "Metadaten erfolgreich aktualisiert!",
     "refresh_info_error": "Fehler beim Aktualisieren der Metadaten."
+  },
+  "tracklist": {
+    "col_position": "Pos.",
+    "col_title": "Titel",
+    "col_duration": "Dauer",
+    "add_track": "Titel hinzufügen"
   }
 }

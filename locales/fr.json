@@ -194,7 +194,8 @@
     "filter_ex_year": "Ex: 1994",
     "filter_ex_country": "Ex: France",
     "filter_ex_genre": "Ex: Electronic",
-    "filter_ex_label": "Ex: EMI"
+    "filter_ex_label": "Ex: EMI",
+    "manual_entry": "Introuvable sur Discogs ? Ajouter manuellement"
   },
   "admin": {
     "title": "Administration",
@@ -422,7 +423,10 @@
     "barcode_locked": "Verrouiller le code-barres",
     "sleeve_condition_label": "État de la pochette",
     "sleeve_condition_placeholder": "Sélectionner l'état...",
-    "sleeve_condition_generic": "Pochette générique"
+    "sleeve_condition_generic": "Pochette générique",
+    "add_cover": "Ajouter une pochette",
+    "manual_title": "Ajouter un album manuellement",
+    "manual_mode_hint": "Saisie manuelle — pas de données Discogs. L'estimation de marché ne sera pas disponible."
   },
   "edit_vinyl": {
     "title": "Modifier l'album",
@@ -721,5 +725,11 @@
     "view_igdb": "Voir sur IGDB",
     "refresh_info_success": "Métadonnées actualisées avec succès !",
     "refresh_info_error": "Erreur lors de l'actualisation des métadonnées."
+  },
+  "tracklist": {
+    "col_position": "Pos.",
+    "col_title": "Titre",
+    "col_duration": "Durée",
+    "add_track": "Ajouter une piste"
   }
 }
