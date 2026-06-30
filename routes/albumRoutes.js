@@ -899,7 +899,24 @@ router.get('/album/:id', requireAuth, async (req, res) => {
         if (!album) return res.redirect('/collection?type=music');
         const albumFormatted = formatForView(album);
 
-        res.render('vinyl-detail', { album: albumFormatted, vinyl: albumFormatted, user: res.locals.user, currentType: 'album' });
+        const variants = await Item.find({
+            owner: album.owner,
+            kind: 'Music',
+            _id: { $ne: album._id },
+            in_wishlist: false,
+            title: { $regex: new RegExp(`^${escapeRegExp(album.title)}$`, 'i') },
+            artist: { $regex: new RegExp(`^${escapeRegExp(album.artist)}$`, 'i') }
+        }).lean();
+
+        const formattedVariants = variants.map(formatForView);
+
+        res.render('vinyl-detail', { 
+            album: albumFormatted, 
+            vinyl: albumFormatted, 
+            variants: formattedVariants,
+            user: res.locals.user, 
+            currentType: 'album' 
+        });
     } catch (err) {
         res.redirect('/collection?type=music');
     }

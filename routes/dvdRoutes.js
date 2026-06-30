@@ -427,8 +427,18 @@ router.get("/dvd/:id", requireAuth, async (req, res) => {
     const dvd = await Item.findById(req.params.id);
     if (!dvd || dvd.kind !== "Dvd") return res.redirect("/collection?type=dvd");
 
+    const variants = await Item.find({
+      owner: dvd.owner,
+      kind: 'Dvd',
+      _id: { $ne: dvd._id },
+      in_wishlist: false,
+      title: { $regex: new RegExp(`^${escapeRegExp(dvd.title)}$`, 'i') },
+      director: { $regex: new RegExp(`^${escapeRegExp(dvd.director)}$`, 'i') }
+    }).lean();
+
     res.render("dvd-detail", {
       dvd: dvd.toObject(),
+      variants,
       user: res.locals.user,
       currentType: "dvd",
     });

@@ -465,7 +465,8 @@
     "importing": "Importation...",
     "no_tracklist": "Aucune tracklist enregistrée.",
     "refresh_info_success": "Métadonnées actualisées avec succès !",
-    "refresh_info_error": "Erreur lors de l'actualisation des métadonnées."
+    "refresh_info_error": "Erreur lors de l'actualisation des métadonnées.",
+    "variants_title": "Vous possédez également cet item dans d'autres versions :"
   },
   "wishlist": {
     "title": "Liste de Souhaits",

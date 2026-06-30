@@ -465,7 +465,8 @@
     "importing": "Importing...",
     "no_tracklist": "No tracklist available.",
     "refresh_info_success": "Metadata refreshed successfully!",
-    "refresh_info_error": "Error refreshing metadata."
+    "refresh_info_error": "Error refreshing metadata.",
+    "variants_title": "You also own this item in other versions:"
   },
   "wishlist": {
     "title": "My Wishlist",

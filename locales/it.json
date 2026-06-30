@@ -401,7 +401,8 @@
     "tracklist_not_found": "Tracklist non trovata su Discogs",
     "tracklist_title": "Elenco delle tracce",
     "unavailable_data": "Dati non disponibili",
-    "view_discogs": "Visualizza la pagina Discogs"
+    "view_discogs": "Visualizza la pagina Discogs",
+    "variants_title": "Possiedi questo articolo anche in altre versioni:"
   },
   "dvd_detail": {
     "barcode_label": "Codice a barre",

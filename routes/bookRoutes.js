@@ -420,7 +420,21 @@ router.get('/book/:id', requireAuth, async (req, res) => {
         const book = await Item.findById(req.params.id);
         if (!book || book.kind !== 'Book') return res.redirect('/collection?type=books');
 
-        res.render('book-detail', { book: book.toObject(), user: res.locals.user, currentType: 'book' });
+        const variants = await Item.find({
+            owner: book.owner,
+            kind: 'Book',
+            _id: { $ne: book._id },
+            in_wishlist: false,
+            title: { $regex: new RegExp(`^${escapeRegExp(book.title)}$`, 'i') },
+            author: { $regex: new RegExp(`^${escapeRegExp(book.author)}$`, 'i') }
+        }).lean();
+
+        res.render('book-detail', { 
+            book: book.toObject(), 
+            variants,
+            user: res.locals.user, 
+            currentType: 'book' 
+        });
     } catch (err) {
         res.redirect('/collection?type=books');
     }

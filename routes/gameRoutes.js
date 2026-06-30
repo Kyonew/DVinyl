@@ -336,7 +336,20 @@ router.get('/game/:id', requireAuth, async (req, res) => {
         const game = await Item.findById(req.params.id);
         if (!game || game.kind !== 'Game') return res.redirect('/collection?type=games');
 
-        res.render('game-detail', { game: game.toObject(), user: res.locals.user, currentType: 'game' });
+        const variants = await Item.find({
+            owner: game.owner,
+            kind: 'Game',
+            _id: { $ne: game._id },
+            in_wishlist: false,
+            title: { $regex: new RegExp(`^${escapeRegExp(game.title)}$`, 'i') }
+        }).lean();
+
+        res.render('game-detail', { 
+            game: game.toObject(), 
+            variants,
+            user: res.locals.user, 
+            currentType: 'game' 
+        });
     } catch (err) {
         res.redirect('/collection?type=games');
     }
