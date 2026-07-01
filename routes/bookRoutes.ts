@@ -61,19 +61,19 @@ const fetchText = async (url: string, options?: RequestInit): Promise<string> =>
 
 const router = express.Router();
 
-const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const escapeRegExp = (string: string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 async function getAdminId() {
     const admin = await User.findOne({ isAdmin: true }).select('_id');
     return admin ? admin._id : null;
 }
 
-async function findDuplicateBook(ownerId, isbnVal, barcodeVal, title, author, format) {
+async function findDuplicateBook(ownerId: any, isbnVal: any, barcodeVal: any, title: any, author: any, format: any) {
     const cleanIsbn = (barcodeVal || isbnVal || '').replace(/[- ]/g, '');
     const matchFormat = format || 'paperback';
 
     if (cleanIsbn) {
-        const query = {
+        const query: any = {
             owner: ownerId,
             in_wishlist: false,
             kind: 'Book',
@@ -97,7 +97,7 @@ async function findDuplicateBook(ownerId, isbnVal, barcodeVal, title, author, fo
     const matchTitle = (title || '').trim();
     const matchAuthor = (author || '').trim();
 
-    const query = {
+    const query: any = {
         owner: ownerId,
         in_wishlist: false,
         kind: 'Book',
@@ -322,6 +322,9 @@ router.get('/confirm-book/:id', requireAuth, async (req: any, res: any) => {
         }
 
         const bookData = formatHardcoverBook(dataRes.data.books_by_pk);
+        if (!bookData) {
+            return res.status(404).send("Book not found on Hardcover");
+        }
 
         const adminId = await User.findOne({ isAdmin: true }).select('_id').lean();
         const locations = await Item.distinct('location', { owner: adminId, location: { $ne: "" } });
@@ -344,7 +347,7 @@ router.get('/confirm-book/:id', requireAuth, async (req: any, res: any) => {
         }).lean();
 
         res.render('confirm-book', { book: bookData, user: res.locals.user, locations, genres, currentType: 'books', existingItems });
-    } catch (err) {
+    } catch (err: any) {
         console.error("[ERR] Hardcover API Error:", err?.response?.data || err.message);
         res.status(500).send(req.t('errors.generic_server_error'));
     }
@@ -476,7 +479,7 @@ router.get('/book/edit/:id', requireAuth, async (req: any, res: any) => {
 
 router.get('/book/:id', requireAuth, async (req: any, res: any) => {
     try {
-        const book = await Item.findById(req.params.id);
+        const book = await Item.findById(req.params.id) as any;
         if (!book || (book as any).kind !== 'Book') return res.redirect('/collection?type=books');
 
         const variants = await Item.find({

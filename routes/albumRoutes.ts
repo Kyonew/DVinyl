@@ -45,12 +45,12 @@ const formatForView = (item: any): any => {
     };
 };
 
-async function findDuplicateVinyl(ownerId, discogsId, title, artist, mediaType, variantColor) {
+async function findDuplicateVinyl(ownerId: any, discogsId: any, title: any, artist: any, mediaType: any, variantColor: any) {
     const matchMediaType = mediaType || 'vinyl';
     const matchVariant = (variantColor || '').trim();
 
     if (discogsId) {
-        const query = {
+        const query: any = {
             owner: ownerId,
             in_wishlist: false,
             kind: 'Music',
@@ -72,7 +72,7 @@ async function findDuplicateVinyl(ownerId, discogsId, title, artist, mediaType, 
     const matchTitle = (title || '').trim();
     const matchArtist = (artist || '').trim();
 
-    const query = {
+    const query: any = {
         owner: ownerId,
         in_wishlist: false,
         kind: 'Music',
@@ -207,7 +207,7 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
 
         if (trimmedSearch) {
             const regex = new RegExp(escapeRegExp(trimmedSearch), 'i');
-            const searchOr = [
+            const searchOr: any[] = [
                 { title: regex },
                 { artist: regex },
                 { author: regex },
@@ -258,31 +258,31 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
         }
 
         if (genre) {
-            const genreArr = genre.split(',').map(g => g.trim()).filter(Boolean);
+            const genreArr = genre.split(',').map((g: string) => g.trim()).filter(Boolean);
             if (genreArr.length > 0) {
                 conditions.push({
                     $or: [
-                        { genre: { $in: genreArr.map(g => new RegExp(escapeRegExp(g), 'i')) } },
-                        { genres: { $in: genreArr.map(g => new RegExp(escapeRegExp(g), 'i')) } }
+                        { genre: { $in: genreArr.map((g: string) => new RegExp(escapeRegExp(g), 'i')) } },
+                        { genres: { $in: genreArr.map((g: string) => new RegExp(escapeRegExp(g), 'i')) } }
                     ]
                 });
             }
         }
 
         if (style) {
-            const styleArr = style.split(',').map(s => s.trim()).filter(Boolean);
+            const styleArr = style.split(',').map((s: string) => s.trim()).filter(Boolean);
             if (styleArr.length > 0) {
                 conditions.push({
-                    styles: { $in: styleArr.map(s => new RegExp(escapeRegExp(s), 'i')) }
+                    styles: { $in: styleArr.map((s: string) => new RegExp(escapeRegExp(s), 'i')) }
                 });
             }
         }
 
         if (decade) {
-            const decadeArr = decade.split(',').map(d => parseInt(d)).filter(d => !isNaN(d));
+            const decadeArr = decade.split(',').map((d: string) => parseInt(d)).filter((d: number) => !isNaN(d));
             if (decadeArr.length > 0) {
                 const years: RegExp[] = [];
-                decadeArr.forEach(startYear => {
+                decadeArr.forEach((startYear: number) => {
                     for (let y = startYear; y < startYear + 10; y++) {
                         years.push(new RegExp(`^${y}$`));
                     }
@@ -703,7 +703,7 @@ router.get('/confirm-vinyl/:id', requireAuth, async (req: any, res: any) => {
         }).lean();
 
         res.render('confirm-vinyl', { vinyl, user: res.locals.user, locations, genres, currentType: 'music', existingItems });
-    } catch (err) {
+    } catch (err: any) {
         console.error(`❌ Discogs Release details error for ID ${discogsId}:`, err.message);
         res.render('add-vinyl', {
             results: [],
@@ -732,7 +732,7 @@ router.post('/save-vinyl', requireAuth, requireAdmin, async (req: any, res: any)
         const isWishlist = in_wishlist === 'true';
         const isBarcodeLocked = barcode_locked === 'on' || barcode_locked === 'true' || barcode_locked === true;
 
-        let album;
+        let album: any;
         let isEdit = false;
 
         if (mongo_id) {
@@ -762,7 +762,7 @@ router.post('/save-vinyl', requireAuth, requireAdmin, async (req: any, res: any)
             const qtyToAdd = parseInt(quantity) || 1;
             const finalQty = isEdit ? qtyToAdd : (album.quantity || 1) + qtyToAdd;
 
-            let updateData;
+            let updateData: any;
             if (isEdit) {
                 updateData = {
                     title: title,
@@ -899,7 +899,7 @@ router.get('/wishlist', requireAuth, async (req: any, res: any) => {
 // collection item detail
 router.get('/album/:id', requireAuth, async (req: any, res: any) => {
     try {
-        const album = await Item.findById(req.params.id);
+        const album = await Item.findById(req.params.id) as any;
         if (!album) return res.redirect('/collection?type=music');
         const albumFormatted = formatForView(album);
 

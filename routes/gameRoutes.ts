@@ -6,19 +6,19 @@ import User from '../models/User';
 import { requireAuth, requireAdmin } from '../middleware/authMiddleware';
 import { igdbRequest } from '../utils/igdbHelper';
 
-const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const escapeRegExp = (string: string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 async function getAdminId() {
     const admin = await User.findOne({ isAdmin: true }).select('_id');
     return admin ? admin._id : null;
 }
 
-async function findDuplicateGame(ownerId, igdbId, title, platform, format) {
+async function findDuplicateGame(ownerId: any, igdbId: any, title: any, platform: any, format: any) {
     const matchPlatform = platform || 'other';
     const matchFormat = format || 'physical';
 
     if (igdbId) {
-        const query = {
+        const query: any = {
             owner: ownerId,
             in_wishlist: false,
             kind: 'Game',
@@ -38,7 +38,7 @@ async function findDuplicateGame(ownerId, igdbId, title, platform, format) {
 
     const matchTitle = (title || '').trim();
 
-    const query = {
+    const query: any = {
         owner: ownerId,
         in_wishlist: false,
         kind: 'Game',
@@ -230,7 +230,7 @@ router.post('/save-game', requireAuth, requireAdmin, async (req, res) => {
 
         const adminId = (req as any).user._id;
         const isWishlist = in_wishlist === 'true';
-        let game;
+        let game: any;
         let isEdit = false;
 
         if (mongo_id) {

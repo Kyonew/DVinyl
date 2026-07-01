@@ -2,9 +2,9 @@
   "name": "dvinyl",
   "version": "2.6.0",
   "description": "",
-  "main": "app.js",
+  "main": "app.ts",
   "scripts": {
-    "start": "node --env-file=.env app.js",
+    "start": "node --env-file=.env --import tsx app.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "build:css": "npx tailwindcss -i ./website/src/input.css -o ./website/public/styles/tailwind.css --watch"
   },

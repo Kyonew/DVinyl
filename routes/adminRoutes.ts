@@ -413,7 +413,7 @@ router.get(
       const adminId = admin ? admin._id : null;
 
       const regex = new RegExp(escapeRegExp(trimmedQ), 'i');
-      const searchOr = [
+      const searchOr: any[] = [
         { title: regex },
         { artist: regex },
         { author: regex },
@@ -573,14 +573,14 @@ router.get(
 
       const searchRes = await fetchJson(
         `https://api.discogs.com/database/search?q=${encodeURIComponent(q as string)}&type=release&per_page=3`,
-        { headers: fetchHeaders }
+        { headers: axiosConfig.headers }
       );
       const results = searchRes.results || [];
       const galleryPromises = results.map(async (item: any) => {
         try {
           const detail = await fetchJson(
             `https://api.discogs.com/releases/${item.id}`,
-            { headers: fetchHeaders }
+            { headers: axiosConfig.headers }
           );
           return (detail.images || []).map((img: any) => img.resource_url);
         } catch (e) {

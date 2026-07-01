@@ -44,7 +44,7 @@ npm start
 You can also run the app with **pm2**:
 
 ```bash
-pm2 start app.js --name dvinyl
+pm2 start app.ts --interpreter tsx --name dvinyl
 ```
 
 DVinyl should now be running at http://localhost:3099.

@@ -11,4 +11,4 @@ COPY . .
 
 EXPOSE 3099
 
-CMD ["npx", "tsx", "app.js"]
+CMD ["npx", "tsx", "app.ts"]

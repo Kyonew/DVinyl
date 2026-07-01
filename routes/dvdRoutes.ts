@@ -17,18 +17,18 @@ import { TMDB_LANG_MAP } from "../config/constants";
 const router = express.Router();
 
 
-const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const escapeRegExp = (string: string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 async function getAdminId() {
   const admin = await User.findOne({ isAdmin: true }).select("_id");
   return admin ? admin._id : null;
 }
 
-async function findDuplicateDvd(ownerId, tmdbId, title, director, format) {
+async function findDuplicateDvd(ownerId: any, tmdbId: any, title: any, director: any, format: any) {
   const matchFormat = format || 'dvd';
 
   if (tmdbId) {
-    const query = {
+    const query: any = {
       owner: ownerId,
       in_wishlist: false,
       kind: 'Dvd',
@@ -49,7 +49,7 @@ async function findDuplicateDvd(ownerId, tmdbId, title, director, format) {
   const matchTitle = (title || '').trim();
   const matchDirector = (director || '').trim();
 
-  const query = {
+  const query: any = {
     owner: ownerId,
     in_wishlist: false,
     kind: 'Dvd',
@@ -69,7 +69,7 @@ async function findDuplicateDvd(ownerId, tmdbId, title, director, format) {
   return await Item.findOne(query);
 }
 
-const formatTMDBItem = (item) => {
+const formatTMDBItem = (item: any) => {
   const isTv = item.media_type === "tv";
 
   return {
@@ -308,7 +308,7 @@ router.post("/save-dvd", requireAuth, requireAdmin, async (req, res) => {
 
     const adminId = (req as any).user._id;
     const isWishlist = in_wishlist === "true";
-    let dvd;
+    let dvd: any;
     let isEdit = false;
 
     if (mongo_id) {
@@ -433,7 +433,7 @@ router.get("/dvd/edit/:id", requireAuth, requireAdmin, async (req, res) => {
 
 router.get("/dvd/:id", requireAuth, async (req, res) => {
   try {
-    const dvd = await Item.findById(req.params.id);
+    const dvd = await Item.findById(req.params.id) as any;
     if (!dvd || (dvd as any).kind !== "Dvd") return res.redirect("/collection?type=dvd");
 
     const variants = await Item.find({
