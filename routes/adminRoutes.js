@@ -202,6 +202,7 @@ router.post("/delete-user", requireAuth, requireAdmin, async (req, res) => {
     await User.findByIdAndDelete(req.body.userId);
     res.redirect("/admin?msg=user_deleted");
   } catch (err) {
+    console.error(err);
     res.redirect("/admin");
   }
 });
@@ -213,6 +214,7 @@ router.post("/block-ip", requireAuth, requireAdmin, async (req, res) => {
     if (!exists) await BlockedIP.create({ ip: ipAddress });
     res.redirect("/admin?msg=ip_blocked");
   } catch (err) {
+    console.error(err);
     res.redirect("/admin");
   }
 });
@@ -222,6 +224,7 @@ router.post("/unblock-ip", requireAuth, requireAdmin, async (req, res) => {
     await BlockedIP.findByIdAndDelete(req.body.ipId);
     res.redirect("/admin?msg=ip_unblocked");
   } catch (err) {
+    console.error(err);
     res.redirect("/admin");
   }
 });

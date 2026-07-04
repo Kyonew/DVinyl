@@ -861,6 +861,7 @@ router.post('/api/album/:id/move-to-collection', requireAuth, requireAdmin, asyn
         await Item.findByIdAndUpdate(req.params.id, { in_wishlist: false, added_at: new Date() });
         res.json({ success: true });
     } catch (err) {
+        console.error(err);
         res.status(500).send(req.t('errors.generic_server_error'));
     }
 });
@@ -931,6 +932,7 @@ router.get('/album/:id', requireAuth, async (req, res) => {
             currentType: 'album' 
         });
     } catch (err) {
+        console.error(err);
         res.redirect('/collection?type=music');
     }
 });
@@ -1144,7 +1146,9 @@ router.post('/import/discogs', requireAuth, async (req, res) => {
                         });
                         tracklist = detailRes.data.tracklist || [];
                         await new Promise(resolve => setTimeout(resolve, 1000));
-                    } catch (e) { console.error(`Tracklist error ID ${info.id}`); }
+                    } catch (e) {
+                        console.error(`Tracklist error ID ${info.id}`);
+                    }
                 }
 
                 let formatType = [info.formats?.[0]?.name].filter(Boolean);
@@ -1212,6 +1216,7 @@ router.post('/import/discogs', requireAuth, async (req, res) => {
         req.io.emit('import_finished', { count: totalImported });
 
     } catch (err) {
+        console.error(err);
         req.io.emit('import_error', { message: err.message });
     }
 });

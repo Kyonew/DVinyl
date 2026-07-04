@@ -64,6 +64,7 @@ router.post('/check-username', requireAuth, async (req, res) => {
         }
         res.json({ success: true, message: req.t('messages.username_available') });
     } catch (error) {
+        console.error(error);
         res.status(500).json({ success: false, message: req.t('messages.generic_error') });
     }
 });
@@ -79,6 +80,7 @@ router.post('/update-username', requireAuth, async (req, res) => {
         await User.findByIdAndUpdate(res.locals.user._id, { username: username });
         res.redirect('/settings');
     } catch (error) {
+        console.error(error);
         res.status(500).json({ success: false, message: req.t('messages.generic_error') });
     }
 });

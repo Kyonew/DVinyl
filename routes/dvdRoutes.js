@@ -443,6 +443,7 @@ router.get("/dvd/:id", requireAuth, async (req, res) => {
       currentType: "dvd",
     });
   } catch (err) {
+    console.error(err);
     res.redirect("/collection?type=dvd");
   }
 });

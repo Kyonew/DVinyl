@@ -436,6 +436,7 @@ router.get('/book/:id', requireAuth, async (req, res) => {
             currentType: 'book' 
         });
     } catch (err) {
+        console.error(err);
         res.redirect('/collection?type=books');
     }
 });

@@ -351,6 +351,7 @@ router.get('/game/:id', requireAuth, async (req, res) => {
             currentType: 'game' 
         });
     } catch (err) {
+        console.error(err);
         res.redirect('/collection?type=games');
     }
 });
