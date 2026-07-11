@@ -1,0 +1,27 @@
+<% if (item.media_type === 'tv' || item.media_type === 'movie') { %>
+    <span class="px-3 py-1 bg-primary-theme/10 border border-primary-theme/20 text-primary-theme rounded-full text-xs flex items-center gap-1">
+        <i class="fa-solid <%= item.media_type === 'tv' ? 'fa-tv' : 'fa-film' %> text-[10px]"></i>
+        <%= item.media_type === 'tv' ? t('confirm_dvd.media_type_tv') : t('confirm_dvd.media_type_movie') %>
+    </span>
+<% } %>
+
+<% if (item.duration) { %>
+    <span class="px-3 py-1 bg-black/5 dark:bg-white/10 border border-transparent rounded-full text-xs opacity-80 flex items-center gap-1">
+        <i class="fa-solid fa-clock text-[10px] opacity-55"></i>
+        <%= item.duration %>
+    </span>
+<% } %>
+
+<% if (item.zone) { %>
+    <span class="px-3 py-1 bg-black/5 dark:bg-white/10 border border-transparent rounded-full text-xs opacity-80 flex items-center gap-1">
+        <i class="fa-solid fa-globe text-[10px] opacity-55"></i>
+        <%= item.zone %>
+    </span>
+<% } %>
+
+<% if (item.is_boxset) { %>
+    <span class="px-3 py-1 bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400 rounded-full text-xs flex items-center gap-1">
+        <i class="fa-solid fa-box text-[10px]"></i>
+        <%= t('dvd_detail.boxset') %>
+    </span>
+<% } %>

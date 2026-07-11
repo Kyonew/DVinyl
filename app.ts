@@ -20,16 +20,21 @@ import { migrateDatabase } from './utils/migrate.js';
 import User from './models/User.js';
 import BlockedIP from './models/blockedIP.js';
 
+// Core & Registry
+import { registry } from './core/registry.js';
+import { loadPlugins } from './core/loadPlugins.js';
+
 // Routes imports
 import setupRoutes from './routes/setupRoutes.js';
 import authRoutes from './routes/authRoutes.js';
-import albumRoutes from './routes/albumRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
 import backupRoutes from './routes/backupRoutes.js';
-import bookRoutes from './routes/bookRoutes.js';
-import dvdRoutes from './routes/dvdRoutes.js';
-import gameRoutes from './routes/gameRoutes.js';
+
+import dashboardRoute from './core/routes/dashboardRoute.js';
+import collectionRoute from './core/routes/collectionRoute.js';
+import manualAddRoute from './core/routes/manualAddRoute.js';
+import { createItemRoutes } from './core/routes/itemRoutes.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -59,7 +64,7 @@ i18next
 
 // Basic configuration
 app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
+app.set('views', [path.join(__dirname, 'views'), path.join(__dirname, 'core/views')]);
 app.set('io', io); // Expose io to routes
 
 // Global middlewares
@@ -168,6 +173,7 @@ app.use(async (req, res, next) => {
 
 app.use((req, res, next) => {
   res.locals.allThemes = themesConfig;
+  res.locals.registry = registry;
   next();
 });
 
@@ -186,16 +192,23 @@ app.get(BASE_URL + '/sw.js', (req, res) => {
 });
 
 
+// Auto-discover and register every plugin under plugins/
+loadPlugins();
+
 // Route mounting
 app.use(BASE_URL + '/setup', setupRoutes);
 app.use(BASE_URL, authRoutes);
-app.use(BASE_URL, albumRoutes);
 app.use(BASE_URL + '/admin', adminRoutes);
 app.use(BASE_URL + '/settings', settingsRoutes);
 app.use(BASE_URL + '/backup', backupRoutes);
-app.use(BASE_URL, bookRoutes);
-app.use(BASE_URL, dvdRoutes);
-app.use(BASE_URL, gameRoutes);
+
+app.use(BASE_URL, dashboardRoute);
+app.use(BASE_URL, collectionRoute);
+app.use(BASE_URL, manualAddRoute);
+
+for (const plugin of registry.getAll()) {
+  app.use(BASE_URL, createItemRoutes(plugin));
+}
 
 app.use((req, res) => {
   res.status(404).render('404');

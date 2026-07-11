@@ -73,7 +73,8 @@
     "too_many_attempts_timed": "Trop de tentatives. Réessaie dans {{seconds}} secondes.",
     "too_many_attempts_blocked": "Trop de tentatives. Réessaie dans 5 minutes.",
     "404_title": "Oups ! Sillon sans issue.",
-    "404_desc": "La page que vous cherchez semble avoir été rayée de la collection ou le module associé est actuellement désactivé."
+    "404_desc": "La page que vous cherchez semble avoir été rayée de la collection ou le module associé est actuellement désactivé.",
+    "not_found": "Élément introuvable."
   },
   "messages": {
     "username_current": "C'est votre pseudo actuel.",
@@ -283,7 +284,15 @@
       "title": "Importation Discogs",
       "subtitle": "Importez votre collection ou votre wishlist Discogs",
       "collection": "Importer la collection",
-      "wantlist": "Importer la wishlist"
+      "wantlist": "Importer la wishlist",
+      "url_label": "URL du profil Discogs",
+      "url_hint": "Votre page collection ou wantlist publique",
+      "type_label": "Cible",
+      "full_label": "Mode",
+      "full_hint": "Le mode complet importe aussi les tracklists (plus lent)",
+      "mode_fast": "Rapide",
+      "mode_full": "Complet (avec tracklists)",
+      "btn_start": "Démarrer l'import"
     },
     "maintenance": {
       "title": "Maintenance",
@@ -350,7 +359,8 @@
       "step4": "Déposez le fichier ci-dessous et lancez l'importation",
       "drop_hint": "Glissez votre fichier CSV ici ou cliquez pour parcourir",
       "file_ready": "Fichier prêt à être importé",
-      "btn_import": "Lancer l'importation"
+      "btn_import": "Lancer l'importation",
+      "file_label": "Fichier CSV"
     },
     "visibility": {
       "apply_to_admin": "Appliquez également ces règles à l'administrateur",
@@ -366,7 +376,9 @@
       "subtitle": "Cachez des éléments spécifiques de votre collection aux invités (ou à vous-même).",
       "success_msg": "Paramètres de visibilité mis à jour.",
       "title": "Paramètres de visibilité"
-    }
+    },
+    "module_settings": "Réglages du module",
+    "advanced_cd_desc": "Recherche aussi les formats SACD et CDr sur Discogs"
   },
   "collection": {
     "title": "Ma Collection",
@@ -430,7 +442,8 @@
     "sleeve_condition_generic": "Pochette générique",
     "add_cover": "Ajouter une pochette",
     "manual_title": "Ajouter un album manuellement",
-    "manual_mode_hint": "Saisie manuelle — pas de données Discogs. L'estimation de marché ne sera pas disponible."
+    "manual_mode_hint": "Saisie manuelle — pas de données Discogs. L'estimation de marché ne sera pas disponible.",
+    "tracklist_label": "Liste des pistes"
   },
   "edit_vinyl": {
     "title": "Modifier l'album",
@@ -525,7 +538,15 @@
     "password_too_short": "Le mot de passe doit faire 6 caractères minimum"
   },
   "placeholders": {
-    "location": "ex: Étagère A - Carton 3"
+    "location": "ex: Étagère A - Carton 3",
+    "year": "Ex: 1994",
+    "barcode": "Code-barres...",
+    "catalog_number": "Ex: COL 12345...",
+    "label": "Ex: Columbia...",
+    "country": "US, Europe...",
+    "genres": "Rock, Pop...",
+    "styles": "Prog Rock, Synth-pop...",
+    "publisher": "Ex: Gallimard..."
   },
   "perso": {
     "title": "Personnalisation",
@@ -563,7 +584,8 @@
     "search_placeholder": "Titre, Auteur ou ISBN...",
     "btn_scan": "Scanner un ISBN",
     "results_title": "Résultats",
-    "no_results": "Aucun livre trouvé."
+    "no_results": "Aucun livre trouvé.",
+    "manual_entry": "Introuvable ? Ajouter manuellement"
   },
   "confirm_book": {
     "publisher_label": "Éditeur",
@@ -634,7 +656,8 @@
     "scan_found": "Code trouvé !",
     "scan_error": "Erreur de caméra",
     "movie": "Film",
-    "tv_show": "Série"
+    "tv_show": "Série",
+    "manual_entry": "Introuvable ? Ajouter manuellement"
   },
   "confirm_dvd": {
     "title": "Confirmer l'ajout",
@@ -660,7 +683,16 @@
     "status_watched": "Vu",
     "replace_cover": "Remplacer la pochette principale",
     "btn_collection": "Ajouter à la collection",
-    "btn_wishlist": "Ajouter à la Wishlist"
+    "btn_wishlist": "Ajouter à la Wishlist",
+    "studio_label": "Studio",
+    "field_media_type": "Type",
+    "field_zone": "Zone",
+    "barcode_label": "Code-barres",
+    "comments_placeholder": "Ex: Pressage original de 1986, acheté aux Puces...",
+    "media_type_movie": "Film",
+    "media_type_tv": "Série",
+    "field_is_boxset": "C'est un coffret (Boxset)",
+    "field_watch_status": "Statut"
   },
   "edit_dvd": {
     "title": "Modifier l'exemplaire"
@@ -690,7 +722,8 @@
     "scan_stop": "Arrêter le scan",
     "scan_found": "Code trouvé !",
     "scan_error": "Erreur de caméra",
-    "barcode_warning": "Le scan peut ne pas fonctionner correctement pour le moment."
+    "barcode_warning": "Le scan peut ne pas fonctionner correctement pour le moment.",
+    "manual_entry": "Introuvable ? Ajouter manuellement"
   },
   "confirm_game": {
     "config_title": "Vérifier et compléter",
@@ -714,7 +747,8 @@
     "replace_cover": "Remplacer la pochette principale",
     "btn_collection": "Ajouter à la collection",
     "btn_wishlist": "Ajouter à la Wishlist",
-    "cover_preview": "Aperçu de la couverture"
+    "cover_preview": "Aperçu de la couverture",
+    "publisher_label": "Éditeur"
   },
   "edit_game": {
     "title": "Modifier le jeu"
@@ -736,5 +770,8 @@
     "col_title": "Titre",
     "col_duration": "Durée",
     "add_track": "Ajouter une piste"
+  },
+  "add": {
+    "manual_entry": "Ajout manuel"
   }
 }

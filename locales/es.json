@@ -5,7 +5,8 @@
     "no_results": "No se encontraron libros.",
     "results_title": "Resultados",
     "search_placeholder": "Título, Autor o ISBN...",
-    "title": "Agregar un libro"
+    "title": "Agregar un libro",
+    "manual_entry": "¿No encontrado? Añadir manualmente"
   },
   "add_dvd": {
     "btn_scan": "Escanear un código de barras",
@@ -20,7 +21,8 @@
     "search_placeholder": "Título, Director o Código de Barras...",
     "separator_or": "O",
     "title": "Agregar un DVD/programa de televisión",
-    "tv_show": "programa de televisión"
+    "tv_show": "programa de televisión",
+    "manual_entry": "¿No encontrado? Añadir manualmente"
   },
   "add_vinyl": {
     "advanced_filters": "Filtros avanzados",
@@ -115,13 +117,22 @@
       "step4": "Suelte el archivo a continuación e inicie la importación",
       "drop_hint": "Arrastre su archivo CSV aquí o haga clic para buscar",
       "file_ready": "Archivo listo para ser importado",
-      "btn_import": "Iniciar Importación"
+      "btn_import": "Iniciar Importación",
+      "file_label": "Archivo CSV"
     },
     "import": {
       "collection": "Importar colección",
       "subtitle": "Importa tu colección de Discogs o tu lista de deseos de Discogs",
       "title": "Importación de discos",
-      "wantlist": "Importar lista de deseos"
+      "wantlist": "Importar lista de deseos",
+      "url_label": "URL del perfil de Discogs",
+      "url_hint": "Tu página pública de colección o lista de deseos",
+      "type_label": "Destino",
+      "full_label": "Modo",
+      "full_hint": "El modo completo también importa las listas de canciones (más lento)",
+      "mode_fast": "Rápido",
+      "mode_full": "Completo (con listas de canciones)",
+      "btn_start": "Iniciar importación"
     },
     "import_discogs_btn": "Importación de discos",
     "local_connection": "Local",
@@ -210,7 +221,9 @@
       "subtitle": "Oculte elementos específicos de su colección a los invitados (o a usted mismo).",
       "success_msg": "Configuración de visibilidad actualizada.",
       "title": "Configuración de visibilidad"
-    }
+    },
+    "module_settings": "Ajustes del módulo",
+    "advanced_cd_desc": "También busca los formatos SACD y CDr en Discogs"
   },
   "auth": {
     "email_invalid": "Por favor introduce un correo electrónico válido",
@@ -331,7 +344,16 @@
     "status_watching": "Mirando",
     "title": "Confirmar adición",
     "tv_show": "programa de televisión",
-    "watch_tracking": "Seguimiento de relojes"
+    "watch_tracking": "Seguimiento de relojes",
+    "studio_label": "Estudio",
+    "field_media_type": "Tipo",
+    "field_zone": "Zona",
+    "barcode_label": "Código de barras",
+    "comments_placeholder": "Ej: Edición original de 1986, comprada en el mercadillo...",
+    "media_type_movie": "Película",
+    "media_type_tv": "programa de televisión",
+    "field_is_boxset": "es una caja",
+    "field_watch_status": "Estado"
   },
   "confirm_vinyl": {
     "add_secondary_visual": "Agregar imagen secundaria (Disco/Maqueta)",
@@ -373,7 +395,8 @@
     "barcode_locked": "bloquear código de barras",
     "sleeve_condition_label": "Estado de la funda",
     "sleeve_condition_placeholder": "Seleccionar estado...",
-    "sleeve_condition_generic": "Funda genérica"
+    "sleeve_condition_generic": "Funda genérica",
+    "tracklist_label": "Lista de pistas"
   },
   "detail": {
     "added_at": "Agregado en",
@@ -442,7 +465,8 @@
     "setup_error": "Se produjo un error de configuración.",
     "too_many_attempts_blocked": "Demasiados intentos. \nInténtalo de nuevo en 5 minutos.",
     "too_many_attempts_timed": "Demasiados intentos. \nInténtalo de nuevo en {{segundos}} segundos.",
-    "username_taken": "Este nombre de usuario ya está en uso."
+    "username_taken": "Este nombre de usuario ya está en uso.",
+    "not_found": "Elemento no encontrado."
   },
   "footer": {
     "for_music": "para la música.",
@@ -601,7 +625,15 @@
     "widgets_title": "Widgets de estadísticas"
   },
   "placeholders": {
-    "location": "p.ej. \nEstante A - Caja 3"
+    "location": "p.ej. \nEstante A - Caja 3",
+    "year": "Ej: 1994",
+    "barcode": "Código de barras...",
+    "catalog_number": "Ej: COL 12345...",
+    "label": "Ej: Columbia...",
+    "country": "US, Europa...",
+    "genres": "Rock, Pop...",
+    "styles": "Prog Rock, Synth-pop...",
+    "publisher": "Ej: Anagrama..."
   },
   "settings": {
     "avatar_hint": "Máximo 5 MB. \nJPG, PNG, GIF, WEBP.",
@@ -690,7 +722,8 @@
     "scan_stop": "Detener escaneo",
     "scan_found": "¡Código encontrado!",
     "scan_error": "Error de cámara",
-    "barcode_warning": "Es posible que el escaneo no funcione correctamente por el momento."
+    "barcode_warning": "Es posible que el escaneo no funcione correctamente por el momento.",
+    "manual_entry": "¿No encontrado? Añadir manualmente"
   },
   "confirm_game": {
     "config_title": "Verificar y completar",
@@ -714,7 +747,8 @@
     "replace_cover": "Reemplazar portada principal",
     "btn_collection": "Añadir a la colección",
     "btn_wishlist": "Añadir a la Wishlist",
-    "cover_preview": "Vista previa de portada"
+    "cover_preview": "Vista previa de portada",
+    "publisher_label": "Editor"
   },
   "edit_game": {
     "title": "Editar juego"
@@ -736,5 +770,8 @@
     "col_title": "Título",
     "col_duration": "Dur.",
     "add_track": "Añadir pista"
+  },
+  "add": {
+    "manual_entry": "Entrada manual"
   }
 }

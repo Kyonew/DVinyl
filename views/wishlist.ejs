@@ -1,5 +1,16 @@
 <%- include('partials/header') %>
 
+    <%
+        // Importer-sync actions (e.g. Discogs wantlist sync) declared by any plugin, rendered generically.
+        const wishlistActions = user.isAdmin
+            ? registry.getAll().flatMap(p => {
+                const bucket = (user.pluginData && user.pluginData[p.id]) || {};
+                return (p.collectionActions || [])
+                    .filter(a => a.behavior === 'importer-sync' && (!a.requiresUserData || bucket[a.requiresUserData]));
+              })
+            : [];
+    %>
+
     <div class="max-w-screen-xl mx-auto px-1 md:px-0 pb-12">
 
         <div class="flex items-center justify-between mb-6 md:mb-8 pt-6">
@@ -18,13 +29,14 @@
                 </span>
             </h1>
 
-            <% if (user.isAdmin && user.discogsUsername) { %>
-                <button onclick="refreshCollection()" id="refreshBtn"
+            <% wishlistActions.forEach(action => { %>
+                <button type="button" data-action-id="<%= action.id %>"
+                    onclick="runImporterSync('<%= action.importerId %>', '<%= action.id %>')"
                     class="flex-shrink-0 w-10 h-10 md:w-auto md:h-auto md:p-2.5 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center active:scale-95 group"
-                    title="refresh discogs">
-                    <i class="fa-solid fa-sync group-hover:rotate-180 transition-transform duration-500"></i>
+                    title="<%= t(action.tooltip || action.label) %>">
+                    <i class="fa-solid <%= action.icon %> group-hover:rotate-180 transition-transform duration-500"></i>
                 </button>
-                <% } %>
+                <% }) %>
 
         </div>
 
@@ -35,7 +47,7 @@
                 <p class="opacity-60 px-4">
                     <%= t('wishlist.empty_msg') %>
                 </p>
-                <a href="<%= baseUrl %>/add-vinyl"
+                <a href="<%= baseUrl %>/add-music"
                     class="text-primary-theme hover:underline mt-2 inline-block font-medium transition-colors">
                     <%= t('wishlist.search_link') %>
                 </a>
@@ -43,17 +55,15 @@
             <% } else { %>
                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
                     <% albums.forEach(album=> { %>
-                        <% const isBook=album.kind==='Book' ; const isDvd=album.kind==='Dvd' || (album.tmdb_id
-                            !==undefined && album.tmdb_id !==null); const rawFormat=isDvd ? album.format :
-                            (album.media_type || album.format); const formatKey=rawFormat ? rawFormat.toLowerCase() :
-                            (isBook ? 'book' : 'vinyl' ); let detailUrl=`/album/${album._id}`; if (isBook)
-                            detailUrl=`/book/${album._id}`; if (isDvd) detailUrl=`/dvd/${album._id}`; const
-                            badgeMap={ 'vinyl' : 'bg-green-600/90' , 'cd' : 'bg-blue-600/90' , 'cassette'
-                            : 'bg-orange-600/90' , 'manga' : 'bg-pink-600/90' , 'comic' : 'bg-indigo-600/90'
-                            , 'hardcover' : 'bg-purple-600/90' , 'paperback' : 'bg-amber-600/90' , 'book'
-                            : 'bg-amber-700/90' , 'dvd' : 'bg-sky-600/90' , 'bluray' : 'bg-indigo-700/90' , '4k'
-                            : 'bg-red-600/90' , 'vhs' : 'bg-amber-600/90' , 'laserdisc' : 'bg-purple-600/90' }; let
-                            badgeClass=(badgeMap[formatKey] || 'bg-gray-600/90' ) + ' text-white' ; %>
+                        <%
+                            const itemPlugin = registry.getByKind(album.kind);
+                            const routePrefix = itemPlugin ? itemPlugin.routePrefix : '/album';
+                            const detailUrl = routePrefix + '/' + album._id;
+                            const isPoster = itemPlugin ? itemPlugin.aspectRatioClass !== 'aspect-square' : true;
+                            const badge = (itemPlugin && itemPlugin.cardBadge)
+                                ? itemPlugin.cardBadge(album, settings)
+                                : (function(){ var fmt=(album.format||album.media_type||'').toLowerCase(); var opt=itemPlugin?(itemPlugin.formats||[]).find(function(f){return f.value===fmt}):null; return { label: opt?opt.label:fmt, colorClass: (opt&&opt.color)||'bg-gray-600/90' }; })();
+                        %>
 
                             <div
                                 class="group relative card-theme rounded-xl hover:border-primary-theme transition-all duration-300 hover:shadow-lg hover:-translate-y-1 flex flex-col justify-between overflow-hidden">
@@ -61,18 +71,18 @@
                                     <div
                                         class="aspect-square w-full relative overflow-hidden bg-black/5 dark:bg-white/5 flex items-center justify-center">
 
-                                        <% if (isBook || isDvd) { %>
+                                        <% if (isPoster) { %>
                                             <img src="<%= album.cover_image %>"
                                                 class="absolute inset-0 w-full h-full object-cover blur-xl opacity-30 scale-110 pointer-events-none">
                                             <% } %>
 
                                                 <img src="<%= album.cover_image %>"
-                                                    class="relative z-10 w-full h-full <%= (isBook || isDvd) ? 'object-contain p-2 md:p-3' : 'object-cover' %> transition-transform duration-500 group-hover:scale-105"
+                                                    class="relative z-10 w-full h-full <%= isPoster ? 'object-contain p-2 md:p-3' : 'object-cover' %> transition-transform duration-500 group-hover:scale-105"
                                                     loading="lazy">
 
                                                 <span
-                                                    class="absolute top-1.5 right-1.5 md:top-2 md:right-2 z-20 text-[10px] font-bold px-1.5 py-0.5 md:px-2 md:py-1 rounded backdrop-blur-md border border-white/10 shadow-sm <%= badgeClass %>">
-                                                    <%= t('media.' + formatKey) %>
+                                                    class="absolute top-1.5 right-1.5 md:top-2 md:right-2 z-20 text-[10px] font-bold px-1.5 py-0.5 md:px-2 md:py-1 rounded backdrop-blur-md border border-white/10 shadow-sm <%= badge.colorClass %> text-white">
+                                                    <%= t(badge.label, { defaultValue: badge.label }) %>
                                                 </span>
                                     </div>
 
@@ -99,7 +109,7 @@
                                 </a>
 
                                 <% if (user.isAdmin) { %>
-                                    <button onclick="moveToCollection('<%= album._id %>')"
+                                    <button onclick="moveToCollection('<%= album._id %>', '<%= routePrefix %>')"
                                         class="w-full py-2.5 md:py-2 bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white text-primary-theme text-[10px] md:text-xs font-bold uppercase transition-colors flex items-center justify-center gap-1.5 border-t border-black/10 dark:border-white/10 active:brightness-90">
                                         <i class="fa-solid fa-check"></i>
                                         <span>
@@ -120,10 +130,10 @@
             serverError: "<%= t('messages.generic_error') %>"
         };
 
-        async function moveToCollection(id) {
+        async function moveToCollection(id, routePrefix) {
             if (confirm(wishlistTranslations.confirmMove)) {
                 try {
-                    const res = await fetch(`<%= baseUrl %>/api/album/${id}/move-to-collection`, { method: 'POST' });
+                    const res = await fetch(`<%= baseUrl %>/api${routePrefix || '/album'}/${id}/move-to-collection`, { method: 'POST' });
                     const data = await res.json();
                     if (data.success) {
                         window.location.reload();
@@ -135,54 +145,40 @@
         }
 
     <% if (user.isAdmin) { %>
-        const socket = io({
-            path: '<%= baseUrl %>/socket.io',
-        });
+        const jsBaseUrl = '<%= baseUrl %>';
+        const socket = io({ path: jsBaseUrl + '/socket.io' });
 
-        async function refreshCollection() {
-            const btn = document.getElementById('refreshBtn');
-            const icon = btn.querySelector('i');
+        // Behavior 'importer-sync': trigger an importer (e.g. Discogs wantlist sync) via socket.
+        // The importer resolves the stored username server-side; no URL needed from the client.
+        function runImporterSync(importerId, actionId) {
+            const btn = document.querySelector(`[data-action-id="${actionId}"]`);
+            const icon = btn ? btn.querySelector('i') : null;
+            if (icon) icon.classList.add('fa-spin');
+            if (btn) btn.disabled = true;
 
-            icon.classList.add('fa-spin');
-            btn.disabled = true;
-
-            socket.once('import_finished', (data) => {
-                window.location.reload();
-            });
-
+            socket.once('import_finished', () => window.location.reload());
             socket.once('import_error', (data) => {
                 alert("import error: " + data.message);
-                icon.classList.remove('fa-spin');
-                btn.disabled = false;
+                if (icon) icon.classList.remove('fa-spin');
+                if (btn) btn.disabled = false;
             });
-            try {
-                const pseudo = "<%= user.discogsUsername %>";
-                let fakeUrl = `https://www.discogs.com/user/${pseudo}`;
 
-                const isWishlistPage = window.location.pathname.includes('wishlist');
-                const type = isWishlistPage ? 'wishlist' : 'collection';
-
-                const res = await fetch('<%= baseUrl %>/import/discogs', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        discogsUrl: fakeUrl,
-                        full: false,
-                        type: type
-                    })
-                });
-
+            const isWishlist = window.location.pathname.includes('wishlist');
+            fetch(`${jsBaseUrl}/import/${importerId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ full: false, type: isWishlist ? 'wishlist' : 'collection' })
+            }).then(res => {
                 if (!res.ok) {
                     socket.off('import_finished');
                     socket.off('import_error');
-                    icon.classList.remove('fa-spin');
-                    btn.disabled = false;
+                    if (icon) icon.classList.remove('fa-spin');
+                    if (btn) btn.disabled = false;
                 }
-            } catch (e) {
-                console.error(e);
-                icon.classList.remove('fa-spin');
-                btn.disabled = false;
-            }
+            }).catch(() => {
+                if (icon) icon.classList.remove('fa-spin');
+                if (btn) btn.disabled = false;
+            });
         }
     <% } %>
     </script>

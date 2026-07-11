@@ -47,7 +47,9 @@ const userSchema = new mongoose.Schema({
         enum: ['EUR', 'USD', 'GBP'],
         default: 'USD'
     },
-    discogsUsername: { type: String, default: '' },
+    // Plugin-scoped user data: { [pluginId]: { [key]: value } }, e.g. { music: { discogsUsername: 'foo' } }.
+    // Lets a plugin persist per-user state without adding a field to the core User model.
+    pluginData: { type: mongoose.Schema.Types.Mixed, default: {} },
     lastChange: {
         type: Date,
         default: Date.now

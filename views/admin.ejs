@@ -39,11 +39,16 @@
 
                 <form action="<%= baseUrl %>/admin/modules/save" method="POST" class="space-y-6">
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                        <% const mods=[ {key: 'music' , label: t('perso.modules.music'), icon: 'fa-music' , needsKey:
-                            false}, {key: 'books' , label: t('perso.modules.books'), icon: 'fa-book' , needsKey: true},
-                            {key: 'dvd' , label: t('media.dvds'), icon: 'fa-film' , needsKey: true}, {key: 'games'
-                            , label: t('perso.modules.games'), icon: 'fa-gamepad' , needsKey: true}, {key: 'advancedCD'
-                            , label: t('admin.advanced_cd'), icon: 'fa-compact-disc' , needsKey: false} ] %>
+                        <%
+                        const mods = registry.getAll().map(p => ({
+                            key: p.collectionType,
+                            pluginId: p.id,
+                            label: t(p.label),
+                            icon: 'fa-' + p.icon,
+                            needsKey: (p.requiredEnvKeys || []).length > 0,
+                            settings: p.settings || []
+                        }));
+                        %>
                             <% mods.forEach((mod)=> { %>
                                 <div class="flex flex-col gap-2">
                                     <label
@@ -58,14 +63,44 @@
                                                 <%= mod.label %>
                                             </span>
                                         </div>
-                                        <div class="relative inline-flex items-center cursor-pointer">
-                                            <input type="checkbox" name="<%= mod.key %>Active" <%=settings.modules &&
-                                                settings.modules[mod.key] ? 'checked' : '' %> class="sr-only peer">
-                                            <div
-                                                class="w-11 h-6 bg-black/10 dark:bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500">
+                                        <div class="flex items-center gap-2">
+                                            <% if (mod.settings.length > 0) { %>
+                                                <button type="button" onclick="event.preventDefault(); document.getElementById('opts-<%= mod.pluginId %>').classList.toggle('hidden');"
+                                                    class="w-8 h-8 rounded-lg flex items-center justify-center bg-white dark:bg-black/20 shadow-sm opacity-60 hover:opacity-100 hover:text-primary-theme transition-all"
+                                                    title="<%= t('admin.module_settings') %>">
+                                                    <i class="fa-solid fa-gear text-xs"></i>
+                                                </button>
+                                            <% } %>
+                                            <div class="relative inline-flex items-center cursor-pointer">
+                                                <input type="checkbox" name="<%= mod.key %>Active" <%=settings.modules &&
+                                                    settings.modules[mod.key] ? 'checked' : '' %> class="sr-only peer">
+                                                <div
+                                                    class="w-11 h-6 bg-black/10 dark:bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500">
+                                                </div>
                                             </div>
                                         </div>
                                     </label>
+
+                                    <% if (mod.settings.length > 0) { %>
+                                        <div id="opts-<%= mod.pluginId %>" class="hidden p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 space-y-3">
+                                            <% mod.settings.forEach(opt => {
+                                                const current = registry.getPluginSetting(settings, mod.pluginId, opt.key);
+                                            %>
+                                                <label class="flex items-start justify-between gap-3 cursor-pointer">
+                                                    <div>
+                                                        <span class="text-xs font-bold opacity-80"><%= t(opt.label, { defaultValue: opt.label }) %></span>
+                                                        <% if (opt.description) { %>
+                                                            <p class="text-[10px] opacity-50 mt-0.5"><%= t(opt.description, { defaultValue: opt.description }) %></p>
+                                                        <% } %>
+                                                    </div>
+                                                    <div class="relative inline-flex items-center shrink-0 mt-0.5">
+                                                        <input type="checkbox" name="pluginSetting_<%= mod.pluginId %>_<%= opt.key %>" <%= current ? 'checked' : '' %> class="sr-only peer">
+                                                        <div class="w-9 h-5 bg-black/10 dark:bg-white/10 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary-theme"></div>
+                                                    </div>
+                                                </label>
+                                            <% }) %>
+                                        </div>
+                                    <% } %>
                                     <% if (mod.needsKey) { %>
                                         <div id="error-<%= mod.key %>"
                                             class="hidden p-3 bg-red-500/10 border border-red-500/20 rounded-xl animate-in fade-in slide-in-from-top-1 duration-300">
@@ -256,95 +291,7 @@
                         <%= t('admin.external_imports.subtitle') %>
                     </p>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-                        <div class="card-theme rounded-3xl p-6 md:p-8 shadow-sm transition-colors">
-                            <div class="flex flex-col gap-4">
-                                <div class="flex items-center gap-3">
-                                    <div
-                                        class="w-10 h-10 rounded-xl bg-black/5 dark:bg-white/5 flex items-center justify-center shrink-0">
-                                        <i class="fa-solid fa-record-vinyl text-primary-theme"></i>
-                                    </div>
-                                    <div>
-                                        <h3 class="font-bold">
-                                            <%= t('admin.import.title') %>
-                                        </h3>
-                                        <p class="text-xs opacity-50">
-                                            <%= t('admin.import.subtitle') %>
-                                        </p>
-                                    </div>
-                                </div>
-                                <div class="flex flex-wrap gap-3 pt-2 border-t border-black/5 dark:border-white/5">
-                                    <button onclick="openImportModal('collection')"
-                                        class="flex-1 bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-4 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2">
-                                        <i class="fa-solid fa-record-vinyl"></i>
-                                        <%= t('admin.import.collection') %>
-                                    </button>
-                                    <button onclick="openImportModal('wishlist')"
-                                        class="flex-1 bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-4 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2">
-                                        <i class="fa-solid fa-heart"></i>
-                                        <%= t('admin.import.wantlist') %>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <% if (settings.modules.books) { %>
-                            <div class="card-theme rounded-3xl p-6 md:p-8 shadow-sm transition-colors">
-                                <div class="flex flex-col gap-4">
-                                    <div class="flex items-center gap-3">
-                                        <div
-                                            class="w-10 h-10 rounded-xl bg-[#553B08]/10 flex items-center justify-center shrink-0">
-                                            <i class="fa-solid fa-book-open text-[#553B08] dark:text-yellow-600"></i>
-                                        </div>
-                                        <div>
-                                            <h3 class="font-bold">
-                                                <%= t('admin.goodreads.title') %>
-                                            </h3>
-                                            <p class="text-xs opacity-50">
-                                                <%= t('admin.goodreads.subtitle') %>
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div class="pt-2 border-t border-black/5 dark:border-white/5">
-                                        <button onclick="toggleModal('importGoodreadsModal')"
-                                            class="w-full bg-black/5 dark:bg-white/5 hover:bg-[#553B08] dark:hover:bg-yellow-700 hover:text-white px-4 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2">
-                                            <i class="fa-solid fa-rss"></i>
-                                            <%= t('admin.goodreads.btn') %>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                            <% } %>
-
-                        <!-- Musik-Sammler Import -->
-                        <div class="card-theme rounded-3xl p-6 md:p-8 shadow-sm transition-colors">
-                            <div class="flex flex-col gap-4">
-                                <div class="flex items-center gap-3">
-                                    <div
-                                        class="w-10 h-10 rounded-xl bg-[#004A8F]/10 flex items-center justify-center shrink-0">
-                                        <i class="fa-solid fa-music text-[#004A8F] dark:text-blue-500"></i>
-                                    </div>
-                                    <div>
-                                        <h3 class="font-bold">
-                                            <%= t('admin.musiksammler.title') %>
-                                        </h3>
-                                        <p class="text-xs opacity-50">
-                                            <%= t('admin.musiksammler.subtitle') %>
-                                        </p>
-                                    </div>
-                                </div>
-                                <div class="pt-2 border-t border-black/5 dark:border-white/5">
-                                    <button onclick="toggleModal('importMusikSammlerModal')"
-                                        class="w-full bg-black/5 dark:bg-white/5 hover:bg-[#004A8F] dark:hover:bg-blue-700 hover:text-white px-4 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2">
-                                        <i class="fa-solid fa-file-csv"></i>
-                                        <%= t('admin.musiksammler.btn') %>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                    </div>
+                    <%- include('partials/admin-imports') %>
                 </section>
 
                 <section>
@@ -370,24 +317,11 @@
                                 </label>
                                 <select id="deleteKind"
                                     class="bg-black/5 dark:bg-white/5 border border-transparent text-gray-900 dark:text-white text-sm rounded-lg focus:ring-primary-theme focus:border-primary-theme block w-full p-3 transition-colors outline-none cursor-pointer">
-                                    <option class="bg-white dark:bg-[#1a1a1a]" value="Music">
-                                        <%= t('media.music') %>
-                                    </option>
-                                    <% if (settings.modules.books) { %>
-                                        <option class="bg-white dark:bg-[#1a1a1a]" value="Book">
-                                            <%= t('media.books') %>
+                                    <% registry.getEnabled(settings).forEach(p => { %>
+                                        <option class="bg-white dark:bg-[#1a1a1a]" value="<%= p.kind %>">
+                                            <%= t(p.label) %>
                                         </option>
-                                        <% } %>
-                                            <% if (settings.modules.dvd) { %>
-                                                <option class="bg-white dark:bg-[#1a1a1a]" value="Dvd">
-                                                    <%= t('media.dvds') %>
-                                                </option>
-                                                <% } %>
-                                            <% if (settings.modules.games) { %>
-                                                <option class="bg-white dark:bg-[#1a1a1a]" value="Game">
-                                                    <%= t('media.games') %>
-                                                </option>
-                                            <% } %>
+                                    <% }) %>
                                 </select>
                             </div>
 
@@ -477,226 +411,45 @@
                         <%= t('admin.maintenance.subtitle') %>
                     </p>
 
-                    <!-- Music Refresh Block -->
-                    <div class="card-theme rounded-3xl p-6 md:p-8 shadow-sm transition-colors mb-6">
-                        <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                            <div class="max-w-xl">
-                                <h2 class="text-lg font-bold flex items-center gap-2 mb-2">
-                                    <i class="fa-solid fa-arrows-rotate text-primary-theme"></i>
-                                    <%= t('admin.maintenance.refresh_all_title') %>
-                                </h2>
-                                <p class="text-xs opacity-60 leading-relaxed mb-4">
-                                    <%= t('admin.maintenance.refresh_all_subtitle') %>
-                                </p>
-                                <div class="flex flex-col gap-2 max-w-xs">
-                                    <label
-                                        class="block text-[10px] font-black uppercase tracking-widest opacity-50 ml-1">
-                                        <%= t('admin.maintenance.mode_label') || 'Mode' %>
-                                    </label>
-                                    <select id="refreshModeMusic"
-                                        class="bg-black/5 dark:bg-white/5 border border-transparent text-gray-900 dark:text-white text-sm rounded-lg focus:ring-primary-theme focus:border-primary-theme block w-full p-3 transition-colors outline-none cursor-pointer">
-                                        <option class="bg-white dark:bg-[#1a1a1a]" value="all">
-                                            <%= t('admin.maintenance.mode_all') %>
-                                        </option>
-                                        <option class="bg-white dark:bg-[#1a1a1a]" value="missing" selected>
-                                            <%= t('admin.maintenance.mode_missing') %>
-                                        </option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div>
-                                <button id="btnRefreshMusic" onclick="startMetadataRefresh('Music')"
-                                    class="w-full sm:w-auto bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-8 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 border border-black/10 dark:border-white/10 shadow-sm">
-                                    <i class="fa-solid fa-play" id="iconRefreshMusic"></i>
-                                    <span id="textRefreshMusic">
-                                        <%= t('admin.maintenance.refresh_all_btn') %>
-                                    </span>
-                                </button>
-                            </div>
-                        </div>
-                        <div id="progressContainerMusic"
-                            class="hidden mt-6 space-y-3 p-4 bg-black/5 dark:bg-white/5 rounded-2xl animate-in fade-in slide-in-from-top-2 duration-500">
-                            <div
-                                class="flex justify-between items-center text-[10px] uppercase font-bold tracking-widest opacity-60">
-                                <span id="progressTitleMusic">
-                                    <%= t('admin.maintenance.status_init') %>
-                                </span>
-                                <span id="progressPercentMusic">0%</span>
-                            </div>
-                            <div class="w-full bg-black/10 dark:bg-white/10 rounded-full h-2 overflow-hidden">
-                                <div id="progressBarMusic"
-                                    class="bg-primary-theme h-full transition-all duration-300 w-0"></div>
-                            </div>
-                            <p id="progressItemMusic" class="text-[10px] opacity-40 font-mono truncate"></p>
-                        </div>
-                    </div>
-
-                    <% if (settings.modules.books) { %>
-                        <!-- Books Refresh Block -->
+                    <!-- Metadata refresh: one block per enabled plugin that declares refreshItem -->
+                    <% registry.getEnabled(settings).filter(p => typeof p.refreshItem === 'function').forEach(p => { const K = p.kind; %>
                         <div class="card-theme rounded-3xl p-6 md:p-8 shadow-sm transition-colors mb-6">
                             <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
                                 <div class="max-w-xl">
                                     <h2 class="text-lg font-bold flex items-center gap-2 mb-2">
-                                        <i class="fa-solid fa-book text-[#553B08] dark:text-yellow-600"></i>
-                                        <%= t('admin.maintenance.refresh_books_title') %>
+                                        <i class="fa-solid fa-<%= p.icon %> text-primary-theme"></i>
+                                        <%= t(p.label) %>
                                     </h2>
                                     <p class="text-xs opacity-60 leading-relaxed mb-4">
-                                        <%= t('admin.maintenance.refresh_books_subtitle') %>
+                                        <%= t('admin.maintenance.refresh_all_subtitle') %>
                                     </p>
                                     <div class="flex flex-col gap-2 max-w-xs">
-                                        <label
-                                            class="block text-[10px] font-black uppercase tracking-widest opacity-50 ml-1">
-                                            <%= t('admin.maintenance.mode_label') || 'Mode' %>
-                                        </label>
-                                        <select id="refreshModeBook"
-                                            class="bg-black/5 dark:bg-white/5 border border-transparent text-gray-900 dark:text-white text-sm rounded-lg focus:ring-primary-theme focus:border-primary-theme block w-full p-3 transition-colors outline-none cursor-pointer">
-                                            <option class="bg-white dark:bg-[#1a1a1a]" value="all">
-                                                <%= t('admin.maintenance.mode_all') %>
-                                            </option>
-                                            <option class="bg-white dark:bg-[#1a1a1a]" value="missing" selected>
-                                                <%= t('admin.maintenance.mode_missing') %>
-                                            </option>
+                                        <label class="block text-[10px] font-black uppercase tracking-widest opacity-50 ml-1"><%= t('admin.maintenance.mode_label') || 'Mode' %></label>
+                                        <select id="refreshMode<%= K %>" class="bg-black/5 dark:bg-white/5 border border-transparent text-gray-900 dark:text-white text-sm rounded-lg focus:ring-primary-theme focus:border-primary-theme block w-full p-3 transition-colors outline-none cursor-pointer">
+                                            <option class="bg-white dark:bg-[#1a1a1a]" value="all"><%= t('admin.maintenance.mode_all') %></option>
+                                            <option class="bg-white dark:bg-[#1a1a1a]" value="missing" selected><%= t('admin.maintenance.mode_missing') %></option>
                                         </select>
                                     </div>
                                 </div>
                                 <div>
-                                    <button id="btnRefreshBook" onclick="startMetadataRefresh('Book')"
-                                        class="w-full sm:w-auto bg-black/5 dark:bg-white/5 hover:bg-yellow-600 hover:text-white px-8 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 border border-black/10 dark:border-white/10 shadow-sm">
-                                        <i class="fa-solid fa-play" id="iconRefreshBook"></i>
-                                        <span id="textRefreshBook">
-                                            <%= t('admin.maintenance.refresh_all_btn') %>
-                                        </span>
+                                    <button id="btnRefresh<%= K %>" onclick="startMetadataRefresh('<%= K %>', '<%= p.id %>')" class="w-full sm:w-auto bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-8 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 border border-black/10 dark:border-white/10 shadow-sm">
+                                        <i class="fa-solid fa-play" id="iconRefresh<%= K %>"></i>
+                                        <span id="textRefresh<%= K %>"><%= t('admin.maintenance.refresh_all_btn') %></span>
                                     </button>
                                 </div>
                             </div>
-                            <div id="progressContainerBook"
-                                class="hidden mt-6 space-y-3 p-4 bg-black/5 dark:bg-white/5 rounded-2xl animate-in fade-in slide-in-from-top-2 duration-500">
-                                <div
-                                    class="flex justify-between items-center text-[10px] uppercase font-bold tracking-widest opacity-60">
-                                    <span id="progressTitleBook">
-                                        <%= t('admin.maintenance.status_init') %>
-                                    </span>
-                                    <span id="progressPercentBook">0%</span>
+                            <div id="progressContainer<%= K %>" class="hidden mt-6 space-y-3 p-4 bg-black/5 dark:bg-white/5 rounded-2xl animate-in fade-in slide-in-from-top-2 duration-500">
+                                <div class="flex justify-between items-center text-[10px] uppercase font-bold tracking-widest opacity-60">
+                                    <span id="progressTitle<%= K %>"><%= t('admin.maintenance.status_init') %></span>
+                                    <span id="progressPercent<%= K %>">0%</span>
                                 </div>
                                 <div class="w-full bg-black/10 dark:bg-white/10 rounded-full h-2 overflow-hidden">
-                                    <div id="progressBarBook"
-                                        class="bg-yellow-500 h-full transition-all duration-300 w-0"></div>
+                                    <div id="progressBar<%= K %>" class="bg-primary-theme h-full transition-all duration-300 w-0"></div>
                                 </div>
-                                <p id="progressItemBook" class="text-[10px] opacity-40 font-mono truncate"></p>
+                                <p id="progressItem<%= K %>" class="text-[10px] opacity-40 font-mono truncate"></p>
                             </div>
                         </div>
-                        <% } %>
-
-                            <% if (settings.modules.dvd) { %>
-                                <!-- DVDs Refresh Block -->
-                                <div class="card-theme rounded-3xl p-6 md:p-8 shadow-sm transition-colors mb-6">
-                                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                                        <div class="max-w-xl">
-                                            <h2 class="text-lg font-bold flex items-center gap-2 mb-2">
-                                                <i class="fa-solid fa-film text-purple-600"></i>
-                                                <%= t('admin.maintenance.refresh_dvds_title') %>
-                                            </h2>
-                                            <p class="text-xs opacity-60 leading-relaxed mb-4">
-                                                <%= t('admin.maintenance.refresh_dvds_subtitle') %>
-                                            </p>
-                                            <div class="flex flex-col gap-2 max-w-xs">
-                                                <label
-                                                    class="block text-[10px] font-black uppercase tracking-widest opacity-50 ml-1">
-                                                    <%= t('admin.maintenance.mode_label') || 'Mode' %>
-                                                </label>
-                                                <select id="refreshModeDvd"
-                                                    class="bg-black/5 dark:bg-white/5 border border-transparent text-gray-900 dark:text-white text-sm rounded-lg focus:ring-primary-theme focus:border-primary-theme block w-full p-3 transition-colors outline-none cursor-pointer">
-                                                    <option class="bg-white dark:bg-[#1a1a1a]" value="all">
-                                                        <%= t('admin.maintenance.mode_all') %>
-                                                    </option>
-                                                    <option class="bg-white dark:bg-[#1a1a1a]" value="missing" selected>
-                                                        <%= t('admin.maintenance.mode_missing') %>
-                                                    </option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <button id="btnRefreshDvd" onclick="startMetadataRefresh('Dvd')"
-                                                class="w-full sm:w-auto bg-black/5 dark:bg-white/5 hover:bg-purple-600 hover:text-white px-8 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 border border-black/10 dark:border-white/10 shadow-sm">
-                                                <i class="fa-solid fa-play" id="iconRefreshDvd"></i>
-                                                <span id="textRefreshDvd">
-                                                    <%= t('admin.maintenance.refresh_all_btn') %>
-                                                </span>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div id="progressContainerDvd"
-                                        class="hidden mt-6 space-y-3 p-4 bg-black/5 dark:bg-white/5 rounded-2xl animate-in fade-in slide-in-from-top-2 duration-500">
-                                        <div
-                                            class="flex justify-between items-center text-[10px] uppercase font-bold tracking-widest opacity-60">
-                                            <span id="progressTitleDvd">
-                                                <%= t('admin.maintenance.status_init') %>
-                                            </span>
-                                            <span id="progressPercentDvd">0%</span>
-                                        </div>
-                                        <div
-                                            class="w-full bg-black/10 dark:bg-white/10 rounded-full h-2 overflow-hidden">
-                                            <div id="progressBarDvd"
-                                                class="bg-purple-500 h-full transition-all duration-300 w-0"></div>
-                                        </div>
-                                        <p id="progressItemDvd" class="text-[10px] opacity-40 font-mono truncate"></p>
-                                    </div>
-                                </div>
-                                <% } %>
-
-                            <% if (settings.modules.games) { %>
-                                <!-- Games Refresh Block -->
-                                <div class="card-theme rounded-3xl p-6 md:p-8 shadow-sm transition-colors mb-6">
-                                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                                        <div class="max-w-xl">
-                                            <h2 class="text-lg font-bold flex items-center gap-2 mb-2">
-                                                <i class="fa-solid fa-gamepad text-emerald-600"></i>
-                                                <%= t('admin.maintenance.refresh_games_title') %>
-                                            </h2>
-                                            <p class="text-xs opacity-60 leading-relaxed mb-4">
-                                                <%= t('admin.maintenance.refresh_games_subtitle') %>
-                                            </p>
-                                            <div class="flex flex-col gap-2 max-w-xs">
-                                                <label class="block text-[10px] font-black uppercase tracking-widest opacity-50 ml-1">
-                                                    <%= t('admin.maintenance.mode_label') || 'Mode' %>
-                                                </label>
-                                                <select id="refreshModeGame"
-                                                    class="bg-black/5 dark:bg-white/5 border border-transparent text-gray-900 dark:text-white text-sm rounded-lg focus:ring-primary-theme focus:border-primary-theme block w-full p-3 transition-colors outline-none cursor-pointer">
-                                                    <option class="bg-white dark:bg-[#1a1a1a]" value="all">
-                                                        <%= t('admin.maintenance.mode_all') %>
-                                                    </option>
-                                                    <option class="bg-white dark:bg-[#1a1a1a]" value="missing" selected>
-                                                        <%= t('admin.maintenance.mode_missing') %>
-                                                    </option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <button id="btnRefreshGame" onclick="startMetadataRefresh('Game')"
-                                                class="w-full sm:w-auto bg-black/5 dark:bg-white/5 hover:bg-emerald-600 hover:text-white px-8 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 border border-black/10 dark:border-white/10 shadow-sm">
-                                                <i class="fa-solid fa-play" id="iconRefreshGame"></i>
-                                                <span id="textRefreshGame">
-                                                    <%= t('admin.maintenance.refresh_all_btn') %>
-                                                </span>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div id="progressContainerGame"
-                                        class="hidden mt-6 space-y-3 p-4 bg-black/5 dark:bg-white/5 rounded-2xl animate-in fade-in slide-in-from-top-2 duration-500">
-                                        <div class="flex justify-between items-center text-[10px] uppercase font-bold tracking-widest opacity-60">
-                                            <span id="progressTitleGame">
-                                                <%= t('admin.maintenance.status_init') %>
-                                            </span>
-                                            <span id="progressPercentGame">0%</span>
-                                        </div>
-                                        <div class="w-full bg-black/10 dark:bg-white/10 rounded-full h-2 overflow-hidden">
-                                            <div id="progressBarGame"
-                                                class="bg-emerald-500 h-full transition-all duration-300 w-0"></div>
-                                        </div>
-                                        <p id="progressItemGame" class="text-[10px] opacity-40 font-mono truncate"></p>
-                                    </div>
-                                </div>
-                                <% } %>
+                    <% }) %>
                 </section>
 
 
@@ -891,295 +644,6 @@
         </div>
     </div>
 
-    <div id="importDiscogsModal"
-        class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
-        <div class="absolute inset-0" onclick="toggleModal('importDiscogsModal')"></div>
-        <div
-            class="card-theme relative w-full max-w-md rounded-[2.5rem] p-8 md:p-10 shadow-2xl transition-all animate-scale-in overflow-hidden">
-            <button onclick="toggleModal('importDiscogsModal')"
-                class="absolute top-6 right-6 opacity-40 hover:opacity-100 hover:rotate-90 transition-all z-20">
-                <i class="fa-solid fa-xmark text-2xl"></i>
-            </button>
-            <h3 class="text-2xl font-black mb-2 relative z-10">
-                <span id="importModalTitle">Import Discogs</span>
-            </h3>
-            <p class="text-sm opacity-60 mb-8">
-                <%= t('admin.modal.import_subtitle') %>
-            </p>
-            <div id="importError"
-                class="hidden bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-2xl mb-6 text-sm flex items-start gap-3 relative z-10">
-                <i class="fa-solid fa-circle-exclamation mt-0.5"></i>
-                <span id="importErrorText"></span>
-            </div>
-            <div class="space-y-6 relative z-10">
-                <input type="hidden" id="importType" value="collection">
-                <div class="space-y-2">
-                    <label class="block text-[10px] font-black uppercase tracking-widest opacity-50 ml-1">
-                        <%= t('admin.modal.discogs_url') %>
-                    </label>
-                    <% if (user.discogsUsername) { %>
-                        <input type="text" value="https://www.discogs.com/user/<%= user.discogsUsername %>/collection"
-                            id="discogsUrl" placeholder="https://www.discogs.com/user/..."
-                            class="w-full bg-black/5 dark:bg-white/5 border-2 border-transparent focus:border-primary-theme/30 rounded-2xl p-4 outline-none transition-all placeholder:opacity-30">
-                        <% } else { %>
-                            <input type="text" id="discogsUrl" placeholder="https://www.discogs.com/user/..."
-                                class="w-full bg-black/5 dark:bg-white/5 border-2 border-transparent focus:border-primary-theme/30 rounded-2xl p-4 outline-none transition-all placeholder:opacity-30">
-                            <% } %>
-                </div>
-                <div class="flex flex-col gap-3 mt-6">
-                    <button id="btnFastImport" onclick="startDiscogsImport(false)"
-                        class="w-full bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 font-bold py-4 rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-bolt text-yellow-500"></i>
-                        <span>
-                            <%= t('admin.modal.import_fast') %>
-                        </span>
-                    </button>
-                    <button id="btnFullImport" onclick="startDiscogsImport(true)"
-                        class="w-full bg-primary-theme text-white font-black py-4 rounded-2xl shadow-lg shadow-primary-theme/20 hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-list-ul"></i>
-                        <span>
-                            <%= t('admin.modal.import_full') %>
-                        </span>
-                    </button>
-                    <p class="text-[10px] opacity-40 text-center uppercase tracking-widest mt-2 px-4">
-                        <%= t('admin.modal.import_warning') %>
-                    </p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div id="importGoodreadsModal"
-        class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
-        <div class="absolute inset-0" onclick="toggleModal('importGoodreadsModal')"></div>
-        <div
-            class="card-theme relative w-full max-w-md rounded-[2.5rem] p-8 md:p-10 shadow-2xl transition-all animate-scale-in overflow-y-auto max-h-[90vh]">
-            <button onclick="toggleModal('importGoodreadsModal')"
-                class="absolute top-6 right-6 opacity-40 hover:opacity-100 hover:rotate-90 transition-all">
-                <i class="fa-solid fa-xmark text-2xl"></i>
-            </button>
-
-            <h3 class="text-2xl font-black mb-1 flex items-center gap-3">
-                <i class="fa-solid fa-book-open text-[#553B08] dark:text-yellow-600"></i>
-                <%= t('admin.goodreads.title') %>
-            </h3>
-            <p class="text-sm opacity-60 mb-6">
-                <%= t('admin.goodreads.modal_subtitle') %>
-            </p>
-
-            <div class="bg-black/5 dark:bg-white/5 rounded-2xl p-4 mb-6 space-y-3">
-                <p class="text-[10px] font-black uppercase tracking-widest opacity-50">
-                    <%= t('admin.goodreads.how_to') %>
-                </p>
-                <div class="flex items-start gap-3 text-sm opacity-70">
-                    <span
-                        class="bg-primary-theme text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5">1</span>
-                    <span>
-                        <%= t('admin.goodreads.step1') %>
-                    </span>
-                </div>
-                <div class="flex items-start gap-3 text-sm opacity-70">
-                    <span
-                        class="bg-primary-theme text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5">2</span>
-                    <span>
-                        <%= t('admin.goodreads.step2') %>
-                    </span>
-                </div>
-                <div class="flex items-start gap-3 text-sm opacity-70">
-                    <span
-                        class="bg-primary-theme text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5">3</span>
-                    <span>
-                        <%= t('admin.goodreads.step3') %>
-                    </span>
-                    <div class="flex items-start gap-3 text-sm opacity-70">
-                        <span
-                            class="bg-primary-theme text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5">4</span>
-                        <span>
-                            <%= t('admin.goodreads.step4') %>
-                        </span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="mb-6">
-                <label class="block text-[10px] font-black uppercase tracking-widest opacity-50 mb-2">
-                    <%= t('admin.goodreads.default_format') %>
-                </label>
-                <p class="text-xs opacity-40 mb-3">
-                    <%= t('admin.goodreads.default_format_hint') %>
-                </p>
-                <select id="goodreadsDefaultFormat"
-                    class="bg-black/5 dark:bg-white/5 border border-transparent text-gray-900 dark:text-white text-sm rounded-lg focus:ring-primary-theme focus:border-primary-theme block w-full p-3 transition-colors outline-none cursor-pointer">
-                    <option class="bg-white dark:bg-[#1a1a1a]" value="paperback">
-                        <%= t('format.paperback') %>
-                    </option>
-                    <option class="bg-white dark:bg-[#1a1a1a]" value="hardcover">
-                        <%= t('format.hardcover') %>
-                    </option>
-                    <option class="bg-white dark:bg-[#1a1a1a]" value="manga">
-                        <%= t('format.manga') %>
-                    </option>
-                    <option class="bg-white dark:bg-[#1a1a1a]" value="comic">
-                        <%= t('format.comic') %>
-                    </option>
-                    <option class="bg-white dark:bg-[#1a1a1a]" value="graphic_novel">
-                        <%= t('format.graphic_novel') %>
-                    </option>
-                </select>
-            </div>
-
-            <div class="mb-6">
-                <label class="block text-[10px] font-black uppercase tracking-widest opacity-50 mb-2">
-                    <%= t('admin.goodreads.default_language') %>
-                </label>
-                <input type="text" id="goodreadsDefaultLanguage" placeholder="fr, en, ja..." maxlength="5"
-                    class="w-full bg-black/5 dark:bg-white/5 border-2 border-transparent focus:border-primary-theme/30 rounded-2xl p-4 outline-none transition-all text-sm placeholder:opacity-30">
-                <p class="text-[10px] opacity-40 mt-2">
-                    <%= t('admin.goodreads.default_language_hint') %>
-                </p>
-            </div>
-
-            <div class="mb-6">
-                <label class="block text-[10px] font-black uppercase tracking-widest opacity-50 mb-2">
-                    <%= t('admin.goodreads.rss_url_label') %>
-                </label>
-                <input type="url" id="goodreadsRssUrl" placeholder="https://www.goodreads.com/review/list_rss/..."
-                    class="w-full bg-black/5 dark:bg-white/5 border-2 border-transparent focus:border-primary-theme/30 rounded-2xl p-4 outline-none transition-all text-sm placeholder:opacity-30"
-                    oninput="onGoodreadsUrlInput(this.value)">
-                <p class="text-[10px] opacity-40 mt-2">
-                    <%= t('admin.goodreads.rss_url_hint') %>
-                </p>
-            </div>
-
-            <div id="goodreadsError"
-                class="hidden bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-2xl mb-6 text-sm flex items-start gap-3">
-                <i class="fa-solid fa-circle-exclamation mt-0.5"></i>
-                <span id="goodreadsErrorText"></span>
-            </div>
-
-            <div id="goodreadsWarning"
-                class="hidden bg-yellow-500/10 border border-yellow-500/20 rounded-2xl p-4 mb-4 flex items-start gap-3">
-                <i class="fa-solid fa-clock text-yellow-500 mt-0.5 shrink-0"></i>
-                <div>
-                    <p class="text-xs font-bold opacity-80">
-                        <%= t('admin.goodreads.warning_title') %>
-                    </p>
-                    <p class="text-[11px] opacity-60 mt-1">
-                        <%= t('admin.goodreads.warning_body') %>
-                    </p>
-                </div>
-            </div>
-
-            <button id="btnGoodreadsImport" onclick="startGoodreadsImport()" disabled
-                class="w-full bg-primary-theme text-white font-black py-4 rounded-2xl shadow-lg shadow-primary-theme/20 hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100">
-                <i class="fa-solid fa-rss"></i>
-                <span>
-                    <%= t('admin.goodreads.btn_import') %>
-                </span>
-            </button>
-        </div>
-    </div>
-
-    <!-- Musik-Sammler Modal -->
-    <div id="importMusikSammlerModal"
-        class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
-        <div class="absolute inset-0" onclick="toggleModal('importMusikSammlerModal')"></div>
-        <div
-            class="card-theme relative w-full max-w-md rounded-[2.5rem] p-8 md:p-10 shadow-2xl transition-all animate-scale-in overflow-y-auto max-h-[90vh]">
-            <button onclick="toggleModal('importMusikSammlerModal')"
-                class="absolute top-6 right-6 opacity-40 hover:opacity-100 hover:rotate-90 transition-all">
-                <i class="fa-solid fa-xmark text-2xl"></i>
-            </button>
-
-            <h3 class="text-2xl font-black mb-1 flex items-center gap-3">
-                <i class="fa-solid fa-music text-[#004A8F] dark:text-blue-500"></i>
-                <%= t('admin.musiksammler.title') %>
-            </h3>
-            <p class="text-sm opacity-60 mb-6">
-                <%= t('admin.musiksammler.modal_subtitle') %>
-            </p>
-
-            <!-- Mini tutorial -->
-            <div class="bg-black/5 dark:bg-white/5 rounded-2xl p-4 mb-6 space-y-3">
-                <p class="text-[10px] font-black uppercase tracking-widest opacity-50">
-                    <%= t('admin.musiksammler.how_to') %>
-                </p>
-                <div class="flex items-start gap-3 text-sm opacity-70">
-                    <span
-                        class="bg-primary-theme text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5">1</span>
-                    <span>
-                        <%= t('admin.musiksammler.step1') %>
-                    </span>
-                </div>
-                <div class="flex items-start gap-3 text-sm opacity-70">
-                    <span
-                        class="bg-primary-theme text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5">2</span>
-                    <span>
-                        <%= t('admin.musiksammler.step2') %>
-                    </span>
-                </div>
-                <div class="flex items-start gap-3 text-sm opacity-70">
-                    <span
-                        class="bg-primary-theme text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5">3</span>
-                    <span>
-                        <%= t('admin.musiksammler.step3') %>
-                    </span>
-                </div>
-                <div class="flex items-start gap-3 text-sm opacity-70">
-                    <span
-                        class="bg-primary-theme text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5">4</span>
-                    <span>
-                        <%= t('admin.musiksammler.step4') %>
-                    </span>
-                </div>
-            </div>
-
-            <!-- Destination Selection -->
-            <div class="mb-6">
-                <label class="block text-[10px] font-black uppercase tracking-widest opacity-50 mb-2">
-                    Destination
-                </label>
-                <select id="musikSammlerImportType"
-                    class="bg-black/5 dark:bg-white/5 border border-transparent text-gray-900 dark:text-white text-sm rounded-lg focus:ring-primary-theme focus:border-primary-theme block w-full p-3 transition-colors outline-none cursor-pointer">
-                    <option class="bg-white dark:bg-[#1a1a1a]" value="collection" selected>
-                        <%= t('admin.import.collection') %>
-                    </option>
-                    <option class="bg-white dark:bg-[#1a1a1a]" value="wishlist">
-                        <%= t('admin.import.wantlist') %>
-                    </option>
-                </select>
-            </div>
-
-            <!-- File Upload -->
-            <div class="mb-6">
-                <label class="block text-[10px] font-black uppercase tracking-widest opacity-50 mb-2">
-                    <%= t('admin.musiksammler.drop_hint') %>
-                </label>
-                <label class="w-full flex flex-col items-center justify-center gap-2 py-6 border-2 border-dashed border-neutral-300 dark:border-neutral-700 rounded-2xl text-neutral-500 hover:border-primary-theme hover:text-primary-theme hover:bg-primary-theme/5 transition-all cursor-pointer">
-                    <i class="fa-solid fa-file-csv text-2xl"></i>
-                    <span id="musikSammlerFileName" class="text-xs font-bold text-center px-4">
-                        Sélectionner un fichier .csv
-                    </span>
-                    <input type="file" id="musikSammlerInput" class="hidden" accept=".csv">
-                </label>
-            </div>
-
-            <!-- Error message container -->
-            <div id="musikSammlerError"
-                class="hidden bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-2xl mb-6 text-sm flex items-start gap-3">
-                <i class="fa-solid fa-circle-exclamation mt-0.5"></i>
-                <span id="musikSammlerErrorText"></span>
-            </div>
-
-            <button id="btnMusikSammlerImport" onclick="startMusikSammlerImport()" disabled
-                class="w-full bg-primary-theme text-white font-black py-4 rounded-2xl shadow-lg shadow-primary-theme/20 hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100">
-                <i class="fa-solid fa-file-import"></i>
-                <span>
-                    <%= t('admin.musiksammler.btn_import') %>
-                </span>
-            </button>
-        </div>
-    </div>
 
     <%- include('partials/footer') %>
 
@@ -1219,206 +683,21 @@
                 this.value = '';
             };
 
-            const btnGoodreadsImport = document.getElementById('btnGoodreadsImport');
 
-            function onGoodreadsUrlInput(val) {
-                const isValid = val.includes('goodreads.com');
-                if (btnGoodreadsImport) btnGoodreadsImport.disabled = !isValid;
-
-                const warning = document.getElementById('goodreadsWarning');
-                if (warning) warning.classList.toggle('hidden', !isValid);
-            }
-
-            async function startGoodreadsImport() {
-                const rssUrl = document.getElementById('goodreadsRssUrl')?.value?.trim();
-                const defaultFormat = document.getElementById('goodreadsDefaultFormat')?.value || 'paperback';
-                const defaultLanguage = document.getElementById('goodreadsDefaultLanguage')?.value?.trim() || '';
-                if (!rssUrl) return;
-
-                const errorBox = document.getElementById('goodreadsError');
-                const errorText = document.getElementById('goodreadsErrorText');
-                errorBox.classList.add('hidden');
-                btnGoodreadsImport.disabled = true;
-                btnGoodreadsImport.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> <%= t("admin.modal.import_loading") %>';
-
-                try {
-                    const response = await fetch('<%= baseUrl %>/import/goodreads', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ rss_url: rssUrl, default_format: defaultFormat, default_language: defaultLanguage })
-                    });
-                    if (!response.ok) {
-                        const data = await response.json();
-                        throw new Error(data.error || 'Error');
-                    }
-                    btnGoodreadsImport.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> <%= t("admin.modal.import_started") %>';
-                } catch (err) {
-                    errorText.innerText = err.message;
-                    errorBox.classList.remove('hidden');
-                    btnGoodreadsImport.disabled = false;
-                    btnGoodreadsImport.innerHTML = '<i class="fa-solid fa-rss mr-2"></i> <%= t("admin.goodreads.btn_import") %>';
-                }
-            }
-
-            // Musik-Sammler CSV upload listeners
-            const musikSammlerInput = document.getElementById('musikSammlerInput');
-            const musikSammlerFileName = document.getElementById('musikSammlerFileName');
-            const btnMusikSammlerImport = document.getElementById('btnMusikSammlerImport');
-
-            if (musikSammlerInput) {
-                musikSammlerInput.addEventListener('change', function(e) {
-                    const file = e.target.files[0];
-                    if (file) {
-                        musikSammlerFileName.innerText = file.name;
-                        btnMusikSammlerImport.disabled = false;
-                    } else {
-                        musikSammlerFileName.innerText = 'Sélectionner un fichier .csv';
-                        btnMusikSammlerImport.disabled = true;
-                    }
-                });
-            }
-
-            async function startMusikSammlerImport() {
-                const fileInput = document.getElementById('musikSammlerInput');
-                const importType = document.getElementById('musikSammlerImportType')?.value || 'collection';
-                const file = fileInput?.files?.[0];
-                if (!file) return;
-
-                const errorBox = document.getElementById('musikSammlerError');
-                const errorText = document.getElementById('musikSammlerErrorText');
-                errorBox.classList.add('hidden');
-                btnMusikSammlerImport.disabled = true;
-                btnMusikSammlerImport.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> <%= t("admin.modal.import_loading") %>';
-
-                const reader = new FileReader();
-                reader.onload = async (event) => {
-                    try {
-                        const csvContent = event.target.result;
-                        const response = await fetch('<%= baseUrl %>/import/musik-sammler', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ csv: csvContent, type: importType })
-                        });
-                        if (!response.ok) {
-                            const data = await response.json();
-                            throw new Error(data.error || 'Error during import initiation');
-                        }
-                        btnMusikSammlerImport.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> <%= t("admin.modal.import_started") %>';
-                    } catch (err) {
-                        errorText.innerText = err.message;
-                        errorBox.classList.remove('hidden');
-                        btnMusikSammlerImport.disabled = false;
-                        btnMusikSammlerImport.innerHTML = '<i class="fa-solid fa-file-import mr-2"></i> <%= t("admin.musiksammler.btn_import") %>';
-                    }
-                };
-                reader.readAsText(file);
-            }
 
             const socket = io({
                 path: '<%= baseUrl %>/socket.io',
             });
 
-            socket.on('import_progress', (data) => {
 
-                // Discogs
-                const btnFast = document.getElementById('btnFastImport');
-                const btnFull = document.getElementById('btnFullImport');
-                if (btnFast && btnFull) {
-                    const activeBtn = btnFull.disabled ? btnFull : btnFast;
-                    activeBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> Importation : ${data.current}...`;
-                }
-
-                // GoodReads
-                if (btnGoodreadsImport && !btnGoodreadsImport.disabled) return;
-                if (btnGoodreadsImport) {
-                    btnGoodreadsImport.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> ${data.current} / ${data.total}`;
-                }
-
-                // Musik-Sammler
-                if (btnMusikSammlerImport && btnMusikSammlerImport.disabled) {
-                    btnMusikSammlerImport.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> ${data.current} / ${data.total}`;
-                }
-            });
-
-            socket.on('import_finished', (data) => {
-                alert(`${data.count} <%= t('admin.modal.import_done') %>`);
-                window.location.reload();
-            });
-
-            socket.on('import_error', (data) => {
-                const grModal = document.getElementById('importGoodreadsModal');
-                const msModal = document.getElementById('importMusikSammlerModal');
-                const isGrOpen = grModal && !grModal.classList.contains('hidden');
-                const isMsOpen = msModal && !msModal.classList.contains('hidden');
-                
-                let errorBoxId = 'importError';
-                let errorTextId = 'importErrorText';
-                if (isGrOpen) {
-                    errorBoxId = 'goodreadsError';
-                    errorTextId = 'goodreadsErrorText';
-                } else if (isMsOpen) {
-                    errorBoxId = 'musikSammlerError';
-                    errorTextId = 'musikSammlerErrorText';
-                    if (btnMusikSammlerImport) {
-                        btnMusikSammlerImport.disabled = false;
-                        btnMusikSammlerImport.innerHTML = '<i class="fa-solid fa-file-import mr-2"></i> <%= t("admin.musiksammler.btn_import") %>';
-                    }
-                }
-                
-                const errorBox = document.getElementById(errorBoxId);
-                const errorText = document.getElementById(errorTextId);
-                if (errorText) errorText.innerText = data.message;
-                if (errorBox) errorBox.classList.remove('hidden');
-            });
-
-            function openImportModal(type) {
-                const titleEl = document.getElementById('importModalTitle');
-                const inputType = document.getElementById('importType');
-                inputType.value = type;
-                titleEl.innerHTML = type === 'wishlist'
-                    ? '<i class="fa-solid fa-heart text-primary-theme mr-2"></i> <%= t("admin.import.wantlist") %>'
-                    : '<i class="fa-solid fa-record-vinyl text-primary-theme mr-2"></i> <%= t("admin.import.collection") %>';
-                toggleModal('importDiscogsModal');
-            }
-
-            async function startDiscogsImport(isFull) {
-                const urlInput = document.getElementById('discogsUrl');
-                const btnFast = document.getElementById('btnFastImport');
-                const btnFull = document.getElementById('btnFullImport');
-                const errorBox = document.getElementById('importError');
-                const importType = document.getElementById('importType').value;
-                if (!urlInput.value) return;
-                errorBox.classList.add('hidden');
-                [btnFast, btnFull].forEach(b => { b.disabled = true; b.classList.add('opacity-50'); });
-                const activeBtn = isFull ? btnFull : btnFast;
-                activeBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> <%= t('admin.modal.import_loading') %>`;
-                try {
-                    const response = await fetch('<%= baseUrl %>/import/discogs', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ discogsUrl: urlInput.value, full: isFull, type: importType })
-                    });
-                    if (!response.ok) {
-                        const data = await response.json();
-                        throw new Error(data.error || "Error");
-                    }
-                    activeBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> <%= t('admin.modal.import_started') %>`;
-                } catch (err) {
-                    document.getElementById('importErrorText').innerText = err.message;
-                    errorBox.classList.remove('hidden');
-                    [btnFast, btnFull].forEach(b => { b.disabled = false; b.classList.remove('opacity-50'); });
-                }
-            }
 
             document.addEventListener('DOMContentLoaded', () => {
-                const hasHardcoverKey = <%= locals.hasHardcoverKey || false %>;
-                const hasTmdbKey = <%= locals.hasTmdbKey      || false %>;
-                const hasIgdbKey = <%= locals.hasIgdbKey      || false %>;
-                const modulesWithKeys = [
-                    { name: 'booksActive', hasKey: hasHardcoverKey, errorId: 'error-books' },
-                    { name: 'dvdActive', hasKey: hasTmdbKey, errorId: 'error-dvd' },
-                    { name: 'gamesActive', hasKey: hasIgdbKey, errorId: 'error-games' }
-                ];
+                const apiKeyStatus = <%- JSON.stringify(registry.getApiKeyStatus()) %>;
+                const modulesWithKeys = <%- JSON.stringify(
+                    registry.getAll()
+                        .filter(p => (p.requiredEnvKeys || []).length > 0)
+                        .map(p => ({ name: p.collectionType + 'Active', collectionType: p.collectionType, errorId: 'error-' + p.collectionType }))
+                ) %>.map(m => ({ ...m, hasKey: apiKeyStatus[m.collectionType] }));
                 modulesWithKeys.forEach(mod => {
                     const checkbox = document.querySelector(`input[name="${mod.name}"]`);
                     const errorBox = document.getElementById(mod.errorId);
@@ -1456,7 +735,7 @@
 
             let activeRefreshKind = null;
 
-            async function startMetadataRefresh(kind = 'Music') {
+            async function startMetadataRefresh(kind, pluginId) {
                 if (!confirm(window.translations.refreshAllConfirm)) return;
 
                 activeRefreshKind = kind;
@@ -1474,10 +753,7 @@
                 progressContainer.classList.remove('hidden');
 
                 try {
-                    const url = kind === 'Book' ? '<%= baseUrl %>/admin/refresh-all-books-metadata'
-                        : kind === 'Dvd' ? '<%= baseUrl %>/admin/refresh-all-dvds-metadata'
-                            : kind === 'Game' ? '<%= baseUrl %>/admin/refresh-all-games-metadata'
-                                : '<%= baseUrl %>/admin/refresh-all-music-metadata';
+                    const url = `<%= baseUrl %>/admin/refresh-all/${pluginId}`;
 
                     const response = await fetch(url, {
                         method: 'POST',

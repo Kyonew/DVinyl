@@ -1,0 +1,280 @@
+import express from 'express';
+import mongoose from 'mongoose';
+import { registry } from '../registry';
+import Item from '../../models/Item';
+import { requireAuth } from '../../middleware/authMiddleware';
+import { applyVisibilityFilter, applyEnabledModulesFilter } from '../../utils/visibilityHelper';
+import { getAdminId, escapeRegExp } from '../helpers';
+
+const router = express.Router();
+
+router.get('/wishlist', requireAuth, async (req: any, res: any) => {
+  try {
+    const adminId = await getAdminId();
+    let query: any = {
+      owner: adminId,
+      in_wishlist: true
+    };
+    applyVisibilityFilter(query, res.locals.isAdmin, res.locals.settings);
+
+    applyEnabledModulesFilter(query, res.locals.settings);
+
+    const items = await Item.find(query).sort({ added_at: -1 }).lean();
+
+    res.render('wishlist', {
+      albums: items.map(item => {
+        const plugin = registry.getByKind(item.kind as any);
+        return plugin ? plugin.formatForView(item) : item;
+      }),
+      user: res.locals.user
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send(req.t('errors.generic_server_error'));
+  }
+});
+
+router.get('/collection', requireAuth, async (req: any, res: any) => {
+  try {
+    const adminId = await getAdminId();
+    const settings = res.locals.settings;
+    const { search, type, format, location, genre, style, artist, decade } = req.query;
+
+    const trimmedSearch = typeof search === 'string' ? search.trim() : '';
+    const trimmedArtist = typeof artist === 'string' ? artist.trim() : '';
+
+    let sort = req.query.sort;
+    if (sort) {
+      res.cookie('sortPref', sort, { maxAge: 365 * 24 * 60 * 60 * 1000 });
+    } else {
+      sort = (req.cookies.sortPref as string) || 'added_desc';
+    }
+
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string) || 25));
+
+    let query: any = { owner: adminId, in_wishlist: false };
+    let conditions: any[] = [];
+
+    const enabledPlugins = registry.getEnabled(settings);
+
+    // SEARCH QUERY
+    if (trimmedSearch) {
+      const regex = new RegExp(escapeRegExp(trimmedSearch), 'i');
+      const searchOr: any[] = [
+        { title: regex },
+        { barcode: regex }
+      ];
+
+      for (const plugin of enabledPlugins) {
+        searchOr.push({ [plugin.creatorField]: regex });
+        if (plugin.extraSearchFields) {
+          for (const extra of plugin.extraSearchFields) {
+            searchOr.push({ [extra]: regex });
+          }
+        }
+      }
+
+      if (mongoose.Types.ObjectId.isValid(trimmedSearch)) {
+        searchOr.push({ _id: trimmedSearch });
+      }
+      conditions.push({ $or: searchOr });
+    }
+
+    // TYPE / PLUGIN MODULE FILTER
+    if (type && type !== 'all') {
+      const plugin = enabledPlugins.find(p => p.id === type);
+      if (plugin) {
+        if (plugin.matchesLegacyItems) {
+          // Compatibility with older DB where kind was absent (pre-plugins era)
+          conditions.push({
+            $or: [{ kind: plugin.kind }, { kind: { $exists: false } }]
+          });
+        } else {
+          query.kind = plugin.kind;
+        }
+      }
+    }
+
+    // FORMAT FILTER
+    if (format && format !== 'all') {
+      const formatRegex = new RegExp(`^${escapeRegExp(format)}$`, 'i');
+      conditions.push({
+        $or: [{ media_type: formatRegex }, { format: formatRegex }]
+      });
+    }
+
+    // LOCATION FILTER
+    if (location) {
+      conditions.push({ location: new RegExp(escapeRegExp(location), 'i') });
+    }
+
+    // ARTIST / CREATOR FILTER
+    if (trimmedArtist) {
+      const artistRegex = new RegExp(escapeRegExp(trimmedArtist), 'i');
+      const fields = new Set<string>();
+
+      for (const plugin of enabledPlugins) {
+        fields.add(plugin.creatorField);
+        for (const f of plugin.creatorSearchFields || []) fields.add(f);
+      }
+
+      const artistOr = Array.from(fields).map(f => ({ [f]: artistRegex }));
+      conditions.push({ $or: artistOr });
+    }
+
+    // GENRE FILTER
+    if (genre) {
+      const genreArr = genre.split(',').map((g: string) => g.trim()).filter(Boolean);
+      if (genreArr.length > 0) {
+        conditions.push({
+          $or: [
+            { genre: { $in: genreArr.map((g: string) => new RegExp(escapeRegExp(g), 'i')) } },
+            { genres: { $in: genreArr.map((g: string) => new RegExp(escapeRegExp(g), 'i')) } }
+          ]
+        });
+      }
+    }
+
+    // STYLE FILTER
+    if (style) {
+      const styleArr = style.split(',').map((s: string) => s.trim()).filter(Boolean);
+      if (styleArr.length > 0) {
+        conditions.push({
+          styles: { $in: styleArr.map((s: string) => new RegExp(escapeRegExp(s), 'i')) }
+        });
+      }
+    }
+
+    // DECADE FILTER
+    if (decade) {
+      const decadeArr = decade.split(',').map((d: string) => parseInt(d)).filter((d: number) => !isNaN(d));
+      if (decadeArr.length > 0) {
+        const years: RegExp[] = [];
+        decadeArr.forEach((startYear: number) => {
+          for (let y = startYear; y < startYear + 10; y++) {
+            years.push(new RegExp(`^${y}$`));
+          }
+        });
+        conditions.push({ year: { $in: years } });
+      }
+    }
+
+    const filterMode = (req.query.filterMode as string) || 'show';
+    if (filterMode === 'hide' && conditions.length > 0) {
+      query.$and = [{ $nor: [{ $and: conditions }] }];
+    } else if (conditions.length > 0) {
+      query.$and = conditions;
+    }
+
+    applyVisibilityFilter(query, res.locals.isAdmin, settings);
+    applyEnabledModulesFilter(query, settings);
+
+    const totalItems = await Item.countDocuments(query);
+
+    // BUILD SORT OBJECT
+    const buildSortObj = () => {
+      const sortMap: Record<string, any> = {
+        'added_desc': { added_at: -1 },
+        'added_asc': { added_at: 1 },
+        'title_asc': { title: 1 },
+        'title_desc': { title: -1 },
+        'year_desc': { year: -1 },
+        'year_asc': { year: 1 },
+      };
+
+      if (sort && sort.startsWith('artist')) {
+        const dir = sort === 'artist_asc' ? 1 : -1;
+        if (!type || type === 'all') return { title: dir };
+
+        const plugin = enabledPlugins.find(p => p.id === type);
+        const field = plugin ? plugin.creatorField : 'title';
+        return { [field]: dir };
+      }
+
+      return sortMap[sort || ''] || { added_at: -1 };
+    };
+
+    const albums = await Item.find(query)
+      .sort(buildSortObj())
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean();
+
+    // DYNAMIC FILTER MAP FROM REGISTRY
+    const filterMap: Record<string, { id: string; label: string }[]> = {};
+    for (const plugin of enabledPlugins) {
+      filterMap[plugin.id] = plugin.formats.map(f => ({
+        id: f.value,
+        label: req.t(f.label)
+      }));
+    }
+
+    // DYNAMIC ARTIST LIST
+    const artistList = await (async () => {
+      const baseQuery: any = { owner: adminId, in_wishlist: false };
+      if (!type || type === 'all') {
+        const promises = enabledPlugins.map(plugin => 
+          Item.distinct(plugin.creatorField, { ...baseQuery, [plugin.creatorField]: { $nin: ['', null] } })
+        );
+        const results = await Promise.all(promises);
+        const merged = results.flat();
+        return [...new Set(merged)].filter(Boolean).sort();
+      } else {
+        const plugin = enabledPlugins.find(p => p.id === type);
+        if (!plugin) return [];
+        const typeQuery = plugin.matchesLegacyItems
+          ? { ...baseQuery, $or: [{ kind: plugin.kind }, { kind: { $exists: false } }] }
+          : { ...baseQuery, kind: plugin.kind };
+        return (await Item.distinct(plugin.creatorField, { ...typeQuery, [plugin.creatorField]: { $nin: ['', null] } })).sort();
+      }
+    })();
+
+    const albumsFormatted = albums.map(item => {
+      const plugin = registry.getByKind(item.kind as any);
+      return plugin ? plugin.formatForView(item) : item;
+    });
+
+    const locations = await Item.distinct('location', { owner: adminId, location: { $nin: ['', null] } });
+
+    const genresList = await Promise.all([
+      Item.distinct('genres', { owner: adminId, genres: { $nin: ['', null] } }),
+      Item.distinct('genre', { owner: adminId, genre: { $nin: ['', null] } })
+    ]);
+    const genres = [...new Set(genresList.flat())].filter(Boolean).sort();
+
+    const styles = await Item.distinct('styles', { owner: adminId, styles: { $nin: ['', null] } });
+    styles.sort();
+
+    res.render('collection', {
+      albums: albumsFormatted,
+      totalItems,
+      totalPages: Math.ceil(totalItems / limit),
+      currentPage: page,
+      queryLimit: limit,
+      currentType: type || 'all',
+      currentFormat: format || 'all',
+      querySearch: trimmedSearch,
+      queryLocation: location || '',
+      queryGenre: genre || '',
+      queryStyle: style || '',
+      queryArtist: trimmedArtist,
+      queryDecade: decade || '',
+      filterMode,
+      queryFilterMode: filterMode,
+      currentSort: sort,
+      filterMap,
+      artistList,
+      locations,
+      genres,
+      styles,
+      user: res.locals.user,
+      settings
+    });
+  } catch (err: any) {
+    console.error("Collection page loading error:", err.message);
+    res.status(500).send(req.t('errors.generic_server_error'));
+  }
+});
+
+export default router;

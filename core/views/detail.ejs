@@ -1,0 +1,490 @@
+<%- include('../../views/partials/header') %>
+
+<div class="fixed inset-0 -z-10 opacity-10 dark:opacity-20 blur-3xl pointer-events-none transition-opacity duration-1000">
+    <img src="<%= item.cover_image %>" class="w-full h-full object-cover">
+</div>
+
+<div class="max-w-screen-xl mx-auto px-4 pb-20">
+
+    <nav class="flex py-6 text-sm opacity-60 transition-colors">
+        <% if (item.in_wishlist) { %>
+            <a href="<%= baseUrl %>/wishlist" class="hover:opacity-100 hover:text-primary-theme transition-colors flex items-center gap-2">
+                <i class="fa-solid fa-arrow-left"></i>
+                <%= t('detail.back_to_wishlist') %>
+            </a>
+        <% } else { %>
+            <a href="<%= baseUrl %>/collection?type=<%= plugin.id %>" class="hover:opacity-100 hover:text-primary-theme transition-colors flex items-center gap-2">
+                <i class="fa-solid fa-arrow-left"></i>
+                <%= t('detail.back_to_collection') %>
+            </a>
+        <% } %>
+    </nav>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
+
+        <!-- Left Column: Cover and user image -->
+        <div class="lg:col-span-6 flex flex-col items-center">
+            <div class="relative w-full max-w-lg aspect-square card-theme rounded-2xl shadow-xl overflow-hidden flex items-center justify-center group transition-colors">
+                <img id="mainImage" src="<%= item.user_image || item.cover_image %>" class="w-full h-full object-contain transition-transform duration-300 group-hover:scale-[1.02]" alt="Visual">
+                
+                <span id="imageBadge" class="absolute top-4 right-4 bg-white/90 dark:bg-black/60 backdrop-blur-md text-neutral-900 dark:text-white text-xs px-3 py-1 rounded-full border border-black/5 dark:border-white/10 shadow-sm transition-colors">
+                    <%= item.user_image ? t('detail.additional_image') : t('detail.official_cover') %>
+                </span>
+            </div>
+
+            <div class="flex gap-4 mt-6 overflow-x-auto pb-2 w-full max-w-lg justify-center">
+                <% if (item.user_image) { %>
+                    <button onclick="switchImage('<%= item.user_image %>', translations.additional_image)" class="thumb-btn w-20 h-20 rounded-lg border-2 border-primary-theme overflow-hidden relative transition-all hover:opacity-100 focus:outline-none shadow-md">
+                        <img src="<%= item.user_image %>" class="w-full h-full object-cover">
+                        <div class="absolute inset-0 bg-black/10 dark:bg-black/20"></div>
+                    </button>
+                <% } %>
+
+                <button onclick="switchImage('<%= item.cover_image %>', translations.official_cover)" class="thumb-btn w-20 h-20 rounded-lg border-2 border-transparent hover:border-black/20 dark:hover:border-white/20 overflow-hidden relative transition-all opacity-70 hover:opacity-100 focus:outline-none shadow-sm">
+                    <img src="<%= item.cover_image %>" class="w-full h-full object-cover">
+                </button>
+            </div>
+
+            <!-- Sidebar Detail Zones from plugin (status + rating blocks under the cover) -->
+            <% if (plugin.partialsPath && plugin.detailZones) { %>
+                <% const sidebarZones = plugin.detailZones.filter(z => z.id === 'sidebar') %>
+                <% for (const zone of sidebarZones) { %>
+                    <div class="w-full max-w-lg">
+                        <%- include('../../' + plugin.partialsPath + '/' + zone.partial, { item }) %>
+                    </div>
+                <% } %>
+            <% } %>
+        </div>
+
+        <!-- Right Column: Details & Metadata -->
+        <div class="lg:col-span-6 space-y-8">
+            <div>
+                <h1 class="text-3xl md:text-5xl font-black mb-2 leading-tight transition-colors">
+                    <%= item.title %>
+                </h1>
+                <h2 class="text-xl md:text-2xl text-primary-theme font-semibold mb-4 transition-colors">
+                    <%= item[plugin.creatorField] || 'Unknown' %>
+                </h2>
+
+                <div class="flex flex-wrap gap-2">
+                    <!-- Base Format Badge: physical format lives in `format`; music keeps it in media_type -->
+                    <%
+                        const baseFmt = item.format || item.media_type || '';
+                        const baseFmtOpt = (plugin.formats || []).find(f => String(f.value) === String(baseFmt));
+                    %>
+                    <span class="px-3 py-1 rounded-full text-xs font-bold tracking-wider bg-primary-theme text-white shadow-sm">
+                        <%= baseFmtOpt ? t(baseFmtOpt.label, { defaultValue: baseFmtOpt.label }) : t('media.' + baseFmt, { defaultValue: baseFmt || item.format_type }) %>
+                    </span>
+
+                    <% if (item.variant_color) { %>
+                        <span class="px-3 py-1 bg-primary-theme/10 border border-primary-theme/20 text-primary-theme rounded-full text-xs flex items-center gap-2 transition-colors">
+                            <i class="fa-solid fa-palette"></i>
+                            <%= item.variant_color %>
+                        </span>
+                    <% } %>
+
+                    <% if (item.sleeve_condition) { %>
+                        <span class="px-3 py-1 bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-full text-xs flex items-center gap-2 transition-colors" title="<%= t('detail.sleeve_condition') %>">
+                            <i class="fa-solid fa-folder-open"></i>
+                            <%= item.sleeve_condition === 'Generic' ? t('confirm_vinyl.sleeve_condition_generic') : item.sleeve_condition %>
+                        </span>
+                    <% } %>
+
+                    <span class="px-3 py-1 bg-black/5 dark:bg-white/10 border border-transparent rounded-full text-xs opacity-80 transition-colors">
+                        <%= t('confirm_vinyl.field_quantity') %> : <%= item.quantity || 1 %>
+                    </span>
+
+                    <!-- Custom Badges Detail Zones from plugin -->
+                    <% if (plugin.partialsPath && plugin.detailZones) { %>
+                        <% const badgeZones = plugin.detailZones.filter(z => z.id === 'badge') %>
+                        <% for (const zone of badgeZones) { %>
+                            <%- include('../../' + plugin.partialsPath + '/' + zone.partial, { item }) %>
+                        <% } %>
+                    <% } %>
+                </div>
+            </div>
+
+            <!-- Location & Genres/Styles block -->
+            <div class="flex flex-col gap-6 ml-2">
+                <div class="flex flex-col">
+                    <span class="text-[10px] uppercase tracking-widest opacity-50 font-bold mb-2">
+                        <%= t('common.location') %>
+                    </span>
+                    <span class="text-sm font-medium">
+                        <i class="fa-solid fa-box-archive mr-2 opacity-50"></i>
+                        <%= item.location || t('common.not_specified') %>
+                    </span>
+                </div>
+
+                <% if ((item.genres && item.genres.length > 0) || (item.styles && item.styles.length > 0)) { %>
+                    <div class="flex flex-col gap-4">
+                        <% if (item.genres && item.genres.length > 0) { %>
+                            <div class="flex flex-col">
+                                <span class="text-[10px] uppercase tracking-widest opacity-50 font-bold mb-2">
+                                    <%= t('confirm_vinyl.field_genres') %>
+                                </span>
+                                <div class="flex flex-wrap gap-2">
+                                    <% item.genres.forEach(genre => { %>
+                                        <span class="px-2 py-0.5 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-md text-[11px] font-medium transition-colors hover:bg-primary-theme/10 hover:border-primary-theme/30 cursor-default">
+                                            <%= genre %>
+                                        </span>
+                                    <% }) %>
+                                </div>
+                            </div>
+                        <% } %>
+
+                        <% if (item.styles && item.styles.length > 0) { %>
+                            <div class="flex flex-col">
+                                <span class="text-[10px] uppercase tracking-widest opacity-50 font-bold mb-2">
+                                    <%= t('confirm_vinyl.field_styles') %>
+                                </span>
+                                <div class="flex flex-wrap gap-2">
+                                    <% item.styles.forEach(style => { %>
+                                        <span class="px-2 py-0.5 bg-primary-theme/5 border border-primary-theme/10 text-primary-theme/80 rounded-md text-[11px] font-medium transition-colors hover:bg-primary-theme/10 hover:border-primary-theme/30 cursor-default">
+                                            <%= style %>
+                                        </span>
+                                    <% }) %>
+                                </div>
+                            </div>
+                        <% } %>
+                    </div>
+                <% } else { %>
+                    <div class="flex flex-col">
+                        <span class="text-[10px] uppercase tracking-widest opacity-50 font-bold mb-1">
+                            Genre
+                        </span>
+                        <span class="text-sm font-medium">
+                            <i class="fa-solid fa-compact-disc mr-2 opacity-50"></i>
+                            <%= item.genre || t('common.not_specified') %>
+                        </span>
+                    </div>
+                <% } %>
+            </div>
+
+            <!-- Dynamic Metadata Card Grid -->
+            <div class="card-theme rounded-xl p-6 grid grid-cols-2 gap-y-6 gap-x-4 transition-colors shadow-sm">
+                <%
+                const detailFields = plugin.formFields.filter(f => 
+                    f.showIn.includes('detail') && 
+                    !['title', plugin.creatorField].includes(f.name) &&
+                    f.type !== 'custom' && f.type !== 'tags' && f.type !== 'textarea'
+                );
+                detailFields.forEach(field => {
+                    const val = item[field.name];
+                    if (val !== undefined && val !== null && val !== '' && val !== 0) {
+                %>
+                    <div>
+                        <span class="block text-xs opacity-50 uppercase font-bold mb-1">
+                            <%= t(field.label) %>
+                        </span>
+                        <span class="font-medium transition-colors">
+                            <%= val %>
+                            <% if (field.name === 'barcode' && item.barcode_locked) { %>
+                                <i class="fa-solid fa-lock text-[10px] text-primary-theme opacity-50 ml-1"></i>
+                            <% } %>
+                        </span>
+                    </div>
+                <% 
+                    }
+                });
+                %>
+                <div>
+                    <span class="block text-xs opacity-50 uppercase font-bold mb-1">
+                        <%= t('detail.added_at') %>
+                    </span>
+                    <span class="transition-colors">
+                        <%= new Date(item.added_at).toLocaleDateString(currentLng === 'fr' ? 'fr-FR' : 'en-US') %>
+                    </span>
+                </div>
+                <!-- External "source" link, declared by the plugin -->
+                <% const extLink = plugin.externalLink ? plugin.externalLink(item) : null; %>
+                <% if (extLink) { %>
+                    <div>
+                        <span class="block text-xs opacity-50 uppercase font-bold mb-1"><%= t('detail.source') %></span>
+                        <a href="<%= extLink.url %>" target="_blank" class="text-primary-theme hover:underline text-sm inline-flex items-center gap-1 transition-colors">
+                            <%= extLink.label %> <i class="fa-solid fa-external-link-alt text-[10px]"></i>
+                        </a>
+                    </div>
+                <% } %>
+
+                <!-- Price estimation panel (plugins that declare supportsPriceEstimate, e.g. music) -->
+                <% const estimateId = plugin.externalIdField ? item[plugin.externalIdField] : null; %>
+                <% if (plugin.supportsPriceEstimate && estimateId) { %>
+                    <div class="col-span-2 border-t border-black/10 dark:border-white/10 mt-2 pt-4 transition-colors">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-xs opacity-50 uppercase font-bold"><%= t('detail.estimation_title') %></span>
+                            <button id="btnEstimate" onclick="fetchEstimation('<%= estimateId %>', '<%= item.quantity || 1 %>', '<%= item.sleeve_condition || '' %>')" class="text-xs bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-2 py-1 rounded transition-colors flex items-center gap-1 border border-transparent">
+                                <i class="fa-solid fa-calculator"></i> <%= t('detail.calculate_btn') %>
+                            </button>
+                        </div>
+                        <div id="priceResult" class="hidden text-sm"></div>
+                        <div id="priceLoader" class="hidden text-center py-2 opacity-50 text-xs italic">
+                            <i class="fa-solid fa-circle-notch fa-spin"></i> <%= t('detail.market_analysis') %>
+                        </div>
+                    </div>
+                <% } %>
+            </div>
+
+            <!-- Synopsis / description (API-sourced: game summary, book/DVD overview) -->
+            <% if (item.description) { %>
+                <div class="card-theme rounded-xl p-6 border border-black/10 dark:border-white/10 relative overflow-hidden shadow-sm transition-colors">
+                    <h3 class="text-xs uppercase font-bold opacity-50 mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-align-left"></i>
+                        <%= t('confirm_' + plugin.i18nKey + '.description_title', { defaultValue: t('confirm_book.description_title') }) %>
+                    </h3>
+                    <p class="text-sm leading-relaxed whitespace-pre-line transition-colors text-justify">
+                        <%= item.description %>
+                    </p>
+                </div>
+            <% } %>
+
+            <!-- Personal notes -->
+            <% if (item.comments) { %>
+                <div class="card-theme rounded-xl p-6 border border-black/10 dark:border-white/10 relative overflow-hidden shadow-sm transition-colors">
+                    <div class="absolute -right-2 -top-2 text-black/5 dark:text-white/5 text-6xl">
+                        <i class="fa-solid fa-quote-right"></i>
+                    </div>
+                    <h3 class="text-xs uppercase font-bold opacity-50 mb-3 flex items-center gap-2 relative z-10">
+                        <i class="fa-regular fa-comment-dots"></i>
+                        <%= t('detail.personal_notes') %>
+                    </h3>
+                    <p class="text-sm leading-relaxed whitespace-pre-line relative z-10 transition-colors">
+                        <%= item.comments %>
+                    </p>
+                </div>
+            <% } %>
+
+            <!-- Custom Content Detail Zones from plugin (like tracklist) -->
+            <% if (plugin.partialsPath && plugin.detailZones) { %>
+                <% const contentZones = plugin.detailZones.filter(z => z.id === 'content') %>
+                <% for (const zone of contentZones) { %>
+                    <%- include('../../' + plugin.partialsPath + '/' + zone.partial, { item }) %>
+                <% } %>
+            <% } %>
+
+            <!-- Admin Actions Block -->
+            <% if (user && user.isAdmin) { %>
+                <div class="pt-6 border-t border-black/10 dark:border-white/10 flex justify-end gap-4 transition-colors">
+                    <div class="flex-1 flex gap-2">
+                        <% if (plugin.refreshItem) { %>
+                            <button id="refreshInfoBtn" onclick="refreshMetadata('<%= item._id %>')" class="opacity-60 hover:opacity-100 px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 flex items-center gap-2">
+                                <i class="fa-solid fa-arrows-rotate" id="refreshInfoIcon"></i>
+                                <%= t('collection.refresh_metadata_btn') %>
+                            </button>
+                        <% } %>
+                    </div>
+                    <a href="<%= baseUrl %><%= plugin.routePrefix %>/edit/<%= item._id %>" class="opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
+                        <i class="fa-solid fa-pen-to-square mr-2"></i>
+                        <%= t('common.edit') %>
+                    </a>
+                    <button onclick="confirmDelete('<%= item._id %>')" class="text-red-600 dark:text-red-500 hover:text-red-700 dark:hover:text-red-400 bg-red-100 dark:bg-red-500/10 hover:bg-red-200 dark:hover:bg-red-500/20 px-4 py-2 rounded-lg text-sm transition-colors">
+                        <i class="fa-solid fa-trash mr-2"></i>
+                        <%= t('admin.tooltips.delete') %>
+                    </button>
+                </div>
+            <% } %>
+
+        </div>
+    </div>
+
+    <!-- Variants section EJS include -->
+    <%- include('partials/variants', { variants, plugin }) %>
+
+</div>
+
+<script>
+    const translations = <%- JSON.stringify({
+        official_cover: t('detail.official_cover'),
+        additional_image: t('detail.additional_image'),
+        confirm_delete: t('detail.confirm_delete'),
+        market_price: t('detail.market_price'),
+        historical_estimate: t('detail.historical_estimate'),
+        shipping_hint: t('detail.shipping_hint'),
+        view_discogs: t('detail.view_discogs'),
+        unavailable_data: t('detail.unavailable_data'),
+        analyzing: t('detail.market_analysis'),
+        error_server: t('messages.generic_error')
+    }) %>;
+
+    const currentLocale = '<%= currentLng === "fr" ? "fr-FR" : "en-US" %>';
+
+    function switchImage(url, text) {
+        const mainImg = document.getElementById('mainImage');
+        const badge = document.getElementById('imageBadge');
+
+        mainImg.style.opacity = '0.5';
+
+        setTimeout(() => {
+            mainImg.src = url;
+            badge.innerText = text;
+            mainImg.style.opacity = '1';
+        }, 150);
+
+        document.querySelectorAll('.thumb-btn').forEach(btn => {
+            btn.classList.remove('border-primary-theme', 'opacity-100', 'ring-2', 'ring-primary-theme/50');
+            btn.classList.add('border-transparent', 'opacity-70');
+
+            if (btn.querySelector('img').src === url) {
+                btn.classList.remove('border-transparent', 'opacity-70');
+                btn.classList.add('border-primary-theme', 'opacity-100', 'ring-2', 'ring-primary-theme/50');
+            }
+        });
+    }
+
+    async function confirmDelete(id) {
+        if (confirm(translations.confirm_delete)) {
+            try {
+                const response = await fetch(`<%= baseUrl %>/api<%= plugin.routePrefix %>/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    <% if (item.in_wishlist) { %>
+                        window.location.href = '<%= baseUrl %>/wishlist';
+                    <% } else { %>
+                        window.location.href = '<%= baseUrl %>/collection?type=<%= plugin.collectionType %>';
+                    <% } %>
+                } else {
+                    alert(`${translations.error_server}: ${data.error}`);
+                }
+            } catch (err) {
+                console.error(err);
+                alert(translations.error_server);
+            }
+        }
+    }
+
+    async function fetchEstimation(id, quantity, condition) {
+        const btn = document.getElementById('btnEstimate');
+        const resultDiv = document.getElementById('priceResult');
+        const loader = document.getElementById('priceLoader');
+
+        btn.classList.add('hidden');
+        loader.classList.remove('hidden');
+
+        try {
+            const res = await fetch(`<%= baseUrl %>/api/estimate/${id}?condition=${encodeURIComponent(condition || '')}`);
+            const data = await res.json();
+
+            if (data.success && data.price) {
+                const individualPrice = data.price.value;
+                const currency = data.price.currency;
+
+                const fmtIndividual = new Intl.NumberFormat(currentLocale, {
+                    style: 'currency',
+                    currency: currency
+                }).format(individualPrice);
+
+                const isMarket = data.source === 'market';
+                const labelText = isMarket ? translations.market_price : translations.historical_estimate;
+                const colorClass = isMarket ? "text-primary-theme" : "text-blue-500";
+                const icon = isMarket ? '<i class="fa-solid fa-shop mr-1"></i>' : '<i class="fa-solid fa-history mr-1"></i>';
+
+                let quantityMarkup = '';
+                let finalDisplayPrice = fmtIndividual;
+
+                if (quantity > 1) {
+                    const totalValue = individualPrice * quantity;
+                    const fmtTotal = new Intl.NumberFormat(currentLocale, {
+                        style: 'currency',
+                        currency: currency
+                    }).format(totalValue);
+
+                    finalDisplayPrice = fmtTotal;
+                    quantityMarkup = `
+                        <div class="text-[10px] opacity-60 mt-1">
+                            ${fmtIndividual} x ${quantity}
+                        </div>
+                    `;
+                }
+
+                resultDiv.innerHTML = `
+                    <div class="flex flex-col items-center justify-center py-4 bg-black/5 dark:bg-white/5 rounded-lg border border-transparent mt-2 transition-colors">
+                        <span class="text-[10px] opacity-60 uppercase font-bold mb-1 flex items-center">
+                            ${icon} ${labelText}
+                        </span>
+                        <span class="text-3xl font-black ${colorClass} mb-0 transition-colors">${finalDisplayPrice}*</span>
+                        ${quantityMarkup}
+                        <span class="text-xs opacity-60 mb-1 mt-1 transition-colors">${data.details}</span>
+                        <span class="text-[9px] opacity-50 mb-2 transition-colors">
+                            ${translations.shipping_hint}
+                        </span>
+                        <a href="https://www.discogs.com/release/${id}" target="_blank" class="text-xs opacity-60 hover:opacity-100 underline transition-colors">
+                            ${translations.view_discogs}
+                        </a>
+                    </div>
+                `;
+                loader.classList.add('hidden');
+                resultDiv.classList.remove('hidden');
+            }
+        } catch (err) {
+            loader.innerHTML = `<span class="opacity-50 text-xs italic">${translations.unavailable_data}</span>`;
+            setTimeout(() => {
+                loader.classList.add('hidden');
+                loader.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> ${translations.analyzing}`;
+                btn.classList.remove('hidden');
+            }, 3000);
+        }
+    }
+
+    async function refreshMetadata(itemId) {
+        const btn = document.getElementById('refreshInfoBtn');
+        const icon = document.getElementById('refreshInfoIcon');
+
+        if (!btn || btn.disabled) return;
+
+        btn.disabled = true;
+        icon.classList.add('fa-spin');
+
+        try {
+            const response = await fetch(`<%= baseUrl %>/api<%= plugin.routePrefix %>/${itemId}/refresh-info`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                window.location.reload();
+            } else {
+                alert("<%= t('detail.refresh_info_error') %>");
+                btn.disabled = false;
+                icon.classList.remove('fa-spin');
+            }
+        } catch (err) {
+            console.error(err);
+            alert("<%= t('detail.refresh_info_error') %>");
+            btn.disabled = false;
+            icon.classList.remove('fa-spin');
+        }
+    }
+</script>
+
+<style>
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(100, 100, 100, 0.2);
+        border-radius: 3px;
+    }
+
+    .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.2);
+    }
+</style>
+
+<%- include('../../views/partials/footer') %>

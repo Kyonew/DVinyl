@@ -5,7 +5,8 @@
     "no_results": "Nessun libro trovato.",
     "results_title": "Risultati",
     "search_placeholder": "Titolo, Autore o ISBN...",
-    "title": "Aggiungi un libro"
+    "title": "Aggiungi un libro",
+    "manual_entry": "Non trovato? Aggiungi manualmente"
   },
   "add_dvd": {
     "btn_scan": "Scansiona un codice a barre",
@@ -20,7 +21,8 @@
     "search_placeholder": "Titolo, Direttore o Codice a barre...",
     "separator_or": "O",
     "title": "Aggiungi un DVD/programma TV",
-    "tv_show": "Programma televisivo"
+    "tv_show": "Programma televisivo",
+    "manual_entry": "Non trovato? Aggiungi manualmente"
   },
   "add_vinyl": {
     "advanced_filters": "Filtri avanzati",
@@ -115,13 +117,22 @@
       "step4": "Trascina il file qui sotto e avvia l'importazione",
       "drop_hint": "Trascina il file CSV qui o fai clic per sfogliare",
       "file_ready": "File pronto per l'importazione",
-      "btn_import": "Avvia Importazione"
+      "btn_import": "Avvia Importazione",
+      "file_label": "File CSV"
     },
     "import": {
       "collection": "Collezione di importazione",
       "subtitle": "Importa la tua raccolta di Discogs o la lista dei desideri di Discogs",
       "title": "Importazione di Discogs",
-      "wantlist": "Importa la lista dei desideri"
+      "wantlist": "Importa la lista dei desideri",
+      "url_label": "URL del profilo Discogs",
+      "url_hint": "La tua pagina pubblica collezione o wishlist",
+      "type_label": "Destinazione",
+      "full_label": "Modalità",
+      "full_hint": "La modalità completa importa anche le tracklist (più lento)",
+      "mode_fast": "Veloce",
+      "mode_full": "Completa (con tracklist)",
+      "btn_start": "Avvia importazione"
     },
     "import_discogs_btn": "Importazione di Discogs",
     "local_connection": "Locale",
@@ -210,7 +221,9 @@
       "subtitle": "Nascondi elementi specifici della tua collezione agli ospiti (o a te stesso).",
       "success_msg": "Impostazioni di visibilità aggiornate.",
       "title": "Impostazioni di visibilità"
-    }
+    },
+    "module_settings": "Impostazioni del modulo",
+    "advanced_cd_desc": "Cerca anche i formati SACD e CDr su Discogs"
   },
   "auth": {
     "email_invalid": "Inserisci un'e-mail valida",
@@ -331,7 +344,16 @@
     "status_watching": "Guardando",
     "title": "Conferma aggiunta",
     "tv_show": "Programma televisivo",
-    "watch_tracking": "Guarda il monitoraggio"
+    "watch_tracking": "Guarda il monitoraggio",
+    "studio_label": "Studio",
+    "field_media_type": "Tipo",
+    "field_zone": "Zona",
+    "barcode_label": "Codice a barre",
+    "comments_placeholder": "Es: Stampa originale del 1986, acquistata al mercatino delle pulci...",
+    "media_type_movie": "Film",
+    "media_type_tv": "Programma televisivo",
+    "field_is_boxset": "È un cofanetto",
+    "field_watch_status": "Stato"
   },
   "confirm_vinyl": {
     "add_secondary_visual": "Aggiungi elemento visivo secondario (disco/mockup)",
@@ -373,7 +395,8 @@
     "sleeve_condition_generic": "Copertina generica",
     "add_cover": "Aggiungi copertina",
     "manual_title": "Aggiungi album manualmente",
-    "manual_mode_hint": "Inserimento manuale — nessun dato Discogs. La stima di mercato non sarà disponibile."
+    "manual_mode_hint": "Inserimento manuale — nessun dato Discogs. La stima di mercato non sarà disponibile.",
+    "tracklist_label": "Tracce"
   },
   "detail": {
     "added_at": "Aggiunto a",
@@ -442,7 +465,8 @@
     "setup_error": "Si è verificato un errore di installazione.",
     "too_many_attempts_blocked": "Troppi tentativi. \nRiprova tra 5 minuti.",
     "too_many_attempts_timed": "Troppi tentativi. \nRiprova tra {{seconds}} secondi.",
-    "username_taken": "Questo nome utente è già utilizzato."
+    "username_taken": "Questo nome utente è già utilizzato.",
+    "not_found": "Elemento non trovato."
   },
   "footer": {
     "for_music": "per la musica.",
@@ -601,7 +625,15 @@
     "widgets_title": "Widget statistici"
   },
   "placeholders": {
-    "location": "per esempio. \nRipiano A - Riquadro 3"
+    "location": "per esempio. \nRipiano A - Riquadro 3",
+    "year": "Es: 1994",
+    "barcode": "Codice a barre...",
+    "catalog_number": "Es: COL 12345...",
+    "label": "Es: Columbia...",
+    "country": "US, Europa...",
+    "genres": "Rock, Pop...",
+    "styles": "Prog Rock, Synth-pop...",
+    "publisher": "Es: Mondadori..."
   },
   "settings": {
     "avatar_hint": "Massimo 5 MB. \nJPG, PNG, GIF, WEBP.",
@@ -690,7 +722,8 @@
     "scan_stop": "Interrompi scansione",
     "scan_found": "Codice trovato!",
     "scan_error": "Errore fotocamera",
-    "barcode_warning": "La scansione potrebbe non funzionare correttamente al momento."
+    "barcode_warning": "La scansione potrebbe non funzionare correttamente al momento.",
+    "manual_entry": "Non trovato? Aggiungi manualmente"
   },
   "confirm_game": {
     "config_title": "Verifica e completa",
@@ -714,7 +747,8 @@
     "replace_cover": "Sostituisci copertina principale",
     "btn_collection": "Aggiungi alla collezione",
     "btn_wishlist": "Aggiungi alla Wishlist",
-    "cover_preview": "Anteprima copertina"
+    "cover_preview": "Anteprima copertina",
+    "publisher_label": "Editore"
   },
   "edit_game": {
     "title": "Modifica gioco"
@@ -736,5 +770,8 @@
     "col_title": "Titolo",
     "col_duration": "Dur.",
     "add_track": "Aggiungi traccia"
+  },
+  "add": {
+    "manual_entry": "Inserimento manuale"
   }
 }

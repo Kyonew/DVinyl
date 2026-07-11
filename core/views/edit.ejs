@@ -1,0 +1,375 @@
+<%- include('../../views/partials/header') %>
+
+<div class="max-w-screen-xl mx-auto pb-20 px-4 md:px-0">
+    <nav class="flex mb-6 text-sm opacity-60 transition-colors">
+        <a href="<%= baseUrl %><%= plugin.routePrefix %>/<%= item._id %>" class="hover:opacity-100 transition-opacity flex items-center py-2">
+            <i class="fa-solid fa-arrow-left mr-2"></i> <%= t('common.cancel_back') %>
+        </a>
+    </nav>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <!-- Left Side: Cover Image Preview -->
+        <div class="lg:col-span-4 space-y-6">
+            <div class="card-theme rounded-xl p-6 sticky top-24 transition-colors shadow-sm">
+                <div class="<%= plugin.aspectRatioClass || 'aspect-[2/3]' %> rounded-lg overflow-hidden mb-4 shadow-lg relative group bg-black/5 dark:bg-white/5">
+                    <img id="livePreview" src="<%= item.cover_image %>" class="w-full h-full object-cover transition-all duration-500">
+                </div>
+                <h2 class="text-xl font-bold mb-1"><%= item.title %></h2>
+                <p class="opacity-60 mb-4"><%= item[plugin.creatorField] %></p>
+            </div>
+        </div>
+
+        <!-- Right Side: Forms -->
+        <div class="lg:col-span-8">
+            <div class="card-theme rounded-xl p-6 md:p-8 transition-colors shadow-sm">
+                <h1 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                    <i class="fa-solid fa-pen-to-square text-primary-theme"></i> <%= t('edit_' + plugin.i18nKey + '.title', { defaultValue: t('edit_vinyl.title') }) %>
+                </h1>
+
+                <form action="<%= baseUrl %>/save-<%= plugin.id %>" method="POST" class="space-y-6">
+                    <%
+                    // Preserve every schema field not covered by a visible input so an edit-save
+                    // doesn't wipe it: genres/styles and external ids (tmdb_id/igdb_id/hardcover_slug...).
+                    // Mirrors the fallback in confirm.ejs. discogs_id is excluded, it has its own
+                    // editable block below.
+                    const editVisible = new Set(plugin.formFields
+                        .filter(f => f.showIn.includes('edit'))
+                        .map(f => f.name));
+                    editVisible.add('discogs_id');
+
+                    const editHidden = [];
+                    Object.keys(plugin.schemaDefinition).forEach(k => {
+                        if (editVisible.has(k)) return;
+                        const v = item[k];
+                        if (v === undefined || v === null) return;
+                        // Scalars and string arrays (genres, styles...) are submitted; other objects
+                        // (tracklist) already have dedicated custom inputs.
+                        const isStringArray = Array.isArray(v) && v.every(x => typeof x === 'string');
+                        if (typeof v === 'object' && !isStringArray) return;
+                        editHidden.push(k);
+                    });
+                    editHidden.forEach(name => {
+                        const hv = item[name];
+                    %>
+                        <input type="hidden" name="<%= name %>" value="<%= Array.isArray(hv) ? hv.join(', ') : (hv ?? '') %>">
+                    <% }) %>
+
+                    <!-- Discogs ID field for Music / Other search items -->
+                    <% if (item.discogs_id !== undefined) { %>
+                        <div class="bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-700/30 p-4 rounded-lg transition-colors">
+                            <label class="block mb-2 text-sm font-bold text-yellow-700 dark:text-yellow-500"><%= t('edit_vinyl.discogs_id_label') %></label>
+                            <div class="text-xs text-yellow-800/80 dark:text-yellow-200/60 mb-2"><%= t('edit_vinyl.discogs_id_hint') %></div>
+                            <input type="number" name="discogs_id" value="<%= item.discogs_id %>" class="bg-white dark:bg-black/20 border border-yellow-300 dark:border-yellow-600/50 text-sm rounded-lg focus:ring-yellow-500 block w-full p-2.5 font-mono outline-none">
+                        </div>
+                    <% } %>
+
+                    <!-- Main Fields (grouped by pairs) -->
+                    <div class="space-y-6">
+                        <% 
+                        const mainFields = plugin.formFields.filter(f => f.showIn.includes('edit') && f.group === 'main' && f.type !== 'custom');
+                        for (let i = 0; i < mainFields.length; i += 2) { 
+                            const field1 = mainFields[i];
+                            const field2 = mainFields[i+1];
+                        %>
+                            <div class="grid grid-cols-1 <%= field2 ? 'md:grid-cols-2' : '' %> gap-6">
+                                <% if (field1) { %>
+                                    <div>
+                                        <%- include('partials/fields/' + field1.type, { field: field1, value: item[field1.name], item, isEdit: true }) %>
+                                    </div>
+                                <% } %>
+                                <% if (field2) { %>
+                                    <div>
+                                        <%- include('partials/fields/' + field2.type, { field: field2, value: item[field2.name], item, isEdit: true }) %>
+                                    </div>
+                                <% } %>
+                            </div>
+                        <% } %>
+                    </div>
+
+                    <!-- Custom inputs from formFields (like tracklist editor), end of the "album info" section -->
+                    <%
+                    const customFields = plugin.formFields.filter(f => f.showIn.includes('edit') && f.type === 'custom');
+                    customFields.forEach(field => {
+                    %>
+                        <%- include('../../' + plugin.partialsPath + '/' + field.partial, { field, item }) %>
+                    <% }) %>
+
+                    <!-- Custom cover image and user image selection -->
+                    <hr class="border-black/10 dark:border-white/10 my-6">
+                    <div class="space-y-4">
+                        <div class="flex items-center">
+                            <input id="checkEditCover" type="checkbox" class="w-4 h-4 text-primary-theme bg-black/5 dark:bg-white/10 border-transparent rounded focus:ring-primary-theme focus:ring-2 cursor-pointer transition-colors">
+                            <label for="checkEditCover" class="ml-2 text-sm font-bold cursor-pointer opacity-80 hover:opacity-100 transition-opacity">
+                                <%= t('edit_' + plugin.i18nKey + '.change_cover', { defaultValue: t('edit_vinyl.change_cover') }) %>
+                            </label>
+                        </div>
+                        <input type="hidden" name="cover_image" id="inputCoverImage" value="<%= item.cover_image %>">
+                        
+                        <div id="boxEditCover" class="hidden p-4 card-theme rounded-2xl border border-black/10 dark:border-white/10 shadow-inner">
+                            <div class="flex gap-1 mb-6 p-1 bg-black/5 dark:bg-white/5 rounded-xl">
+                                <button type="button" onclick="setImgTab('cover', 'local')" id="tab-cover-local" class="flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all bg-primary-theme text-white">
+                                    <i class="fa-solid fa-upload mr-1"></i> <%= t('confirm_' + plugin.i18nKey + '.source_local', { defaultValue: t('confirm_vinyl.source_local') }) %>
+                                </button>
+                                <button type="button" onclick="setImgTab('cover', 'url')" id="tab-cover-url" class="flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all opacity-50">
+                                    <i class="fa-solid fa-link mr-1"></i> <%= t('confirm_' + plugin.i18nKey + '.source_url', { defaultValue: t('confirm_vinyl.source_url') }) %>
+                                </button>
+                                <button type="button" onclick="setImgTab('cover', 'search')" id="tab-cover-search" class="flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all opacity-50">
+                                    <i class="fa-solid fa-search mr-1"></i> <%= t('confirm_' + plugin.i18nKey + '.source_search', { defaultValue: t('confirm_vinyl.source_search') }) %>
+                                </button>
+                            </div>
+
+                            <div id="pane-cover-local" class="img-pane-cover">
+                                <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-black/10 dark:border-white/10 rounded-2xl cursor-pointer hover:bg-black/5 transition-all">
+                                    <i class="fa-solid fa-cloud-arrow-up text-2xl opacity-20 mb-2"></i>
+                                    <p class="text-xs font-bold opacity-50 italic"><%= t('confirm_' + plugin.i18nKey + '.browse_files', { defaultValue: t('confirm_vinyl.browse_files') }) %></p>
+                                    <input type="file" id="fileInputCover" class="hidden" accept="image/*">
+                                </label>
+                            </div>
+                            <div id="pane-cover-url" class="img-pane-cover hidden">
+                                <input type="url" id="urlInputCover" placeholder="https://site.com/image.jpg" class="w-full bg-white dark:bg-black/20 border-transparent rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-primary-theme">
+                            </div>
+                            <div id="pane-cover-search" class="img-pane-cover hidden">
+                                <div class="flex gap-2 mb-4">
+                                    <input type="text" id="queryCover" value="<%= item[plugin.creatorField] %> <%= item.title %>" class="flex-grow bg-white dark:bg-black/20 border-transparent rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-primary-theme">
+                                    <button type="button" onclick="runUniversalSearch('cover')" class="bg-primary-theme text-white px-4 rounded-lg hover:brightness-110"><i class="fa-solid fa-search"></i></button>
+                                </div>
+                                <div id="resultsCover" class="grid grid-cols-3 gap-3 max-h-60 overflow-y-auto custom-scrollbar p-1"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Secondary Visual (user_image), music only, like the legacy edit-vinyl page -->
+                    <% if (plugin.supportsUserImage) { %>
+                    <div class="mt-8 space-y-4">
+                        <div class="flex items-center">
+                            <input id="checkEditDisc" type="checkbox" <%= item.user_image ? 'checked' : '' %> class="w-4 h-4 text-primary-theme bg-black/5 dark:bg-white/10 border-transparent rounded focus:ring-primary-theme focus:ring-2 cursor-pointer transition-colors">
+                            <label for="checkEditDisc" class="ml-2 text-sm font-bold cursor-pointer opacity-80 hover:opacity-100 transition-opacity">
+                                <%= t('edit_' + plugin.i18nKey + '.edit_secondary_visual', { defaultValue: t('edit_vinyl.edit_secondary_visual') }) %>
+                            </label>
+                        </div>
+                        <input type="hidden" name="user_image" id="inputUserImage" value="<%= item.user_image %>">
+                        
+                        <div id="boxEditDisc" class="hidden p-4 card-theme rounded-2xl border border-primary-theme/30 shadow-inner">
+                            <div class="flex gap-1 mb-6 p-1 bg-black/5 dark:bg-white/5 rounded-xl">
+                                <button type="button" onclick="setImgTab('disc', 'local')" id="tab-disc-local" class="flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all bg-primary-theme text-white">
+                                    <i class="fa-solid fa-upload mr-1"></i> <%= t('confirm_' + plugin.i18nKey + '.source_local', { defaultValue: t('confirm_vinyl.source_local') }) %>
+                                </button>
+                                <button type="button" onclick="setImgTab('disc', 'url')" id="tab-disc-url" class="flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all opacity-50">
+                                    <i class="fa-solid fa-link mr-1"></i> <%= t('confirm_' + plugin.i18nKey + '.source_url', { defaultValue: t('confirm_vinyl.source_url') }) %>
+                                </button>
+                                <button type="button" onclick="setImgTab('disc', 'search')" id="tab-disc-search" class="flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all opacity-50">
+                                    <i class="fa-solid fa-search mr-1"></i> <%= t('confirm_' + plugin.i18nKey + '.source_search', { defaultValue: t('confirm_vinyl.source_search') }) %>
+                                </button>
+                            </div>
+
+                            <div id="pane-disc-local" class="img-pane-disc">
+                                <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-black/10 dark:border-white/10 rounded-2xl cursor-pointer hover:bg-black/5 transition-all">
+                                    <i class="fa-solid fa-compact-disc text-2xl opacity-20 mb-2"></i>
+                                    <p class="text-xs font-bold opacity-50 italic"><%= t('confirm_' + plugin.i18nKey + '.browse_files', { defaultValue: t('confirm_vinyl.browse_files') }) %></p>
+                                    <input type="file" id="fileInputDisc" class="hidden" accept="image/*">
+                                </label>
+                            </div>
+                            <div id="pane-disc-url" class="img-pane-disc hidden">
+                                <input type="url" id="urlInputDisc" placeholder="https://site.com/mockup.jpg" class="w-full bg-white dark:bg-black/20 border-transparent rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-primary-theme">
+                            </div>
+                            <div id="pane-disc-search" class="img-pane-disc hidden">
+                                <div class="flex gap-2 mb-4">
+                                    <input type="text" id="queryDisc" value="<%= item[plugin.creatorField] %> <%= item.title %> <%= item.variant_color %>" class="flex-grow bg-white dark:bg-black/20 border-transparent rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-primary-theme">
+                                    <button type="button" onclick="runUniversalSearch('disc')" class="bg-primary-theme text-white px-4 rounded-lg hover:brightness-110"><i class="fa-solid fa-search"></i></button>
+                                </div>
+                                <div id="resultsDisc" class="grid grid-cols-3 gap-3 max-h-60 overflow-y-auto custom-scrollbar p-1"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <% } %>
+
+                    <hr class="border-black/10 dark:border-white/10 my-6">
+
+                    <!-- Metadata and other form fields -->
+                    <div class="space-y-6">
+                        <% 
+                        const metaFields = plugin.formFields.filter(f => f.showIn.includes('edit') && f.group === 'metadata' && f.type !== 'custom');
+                        for (let i = 0; i < metaFields.length; i += 2) { 
+                            const field1 = metaFields[i];
+                            const field2 = metaFields[i+1];
+                        %>
+                            <div class="grid grid-cols-1 <%= field2 ? 'md:grid-cols-2' : '' %> gap-6">
+                                <% if (field1) { %>
+                                    <div>
+                                        <%- include('partials/fields/' + field1.type, { field: field1, value: item[field1.name], item, isEdit: true }) %>
+                                    </div>
+                                <% } %>
+                                <% if (field2) { %>
+                                    <div>
+                                        <%- include('partials/fields/' + field2.type, { field: field2, value: item[field2.name], item, isEdit: true }) %>
+                                    </div>
+                                <% } %>
+                            </div>
+                        <% } %>
+                    </div>
+
+                    <input type="hidden" name="in_wishlist" value="<%= item.in_wishlist %>">
+                    <input type="hidden" name="mongo_id" value="<%= item._id %>">
+
+                    <button type="submit" class="w-full text-white bg-primary-theme hover:brightness-110 font-bold rounded-xl text-lg px-5 py-4 transition-transform hover:scale-[1.01] flex items-center justify-center gap-2 shadow-lg shadow-primary-theme/20">
+                        <i class="fa-solid fa-save"></i> <%= t('common.save_changes') %>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const translations = {
+        noResults: "<%= t('confirm_' + plugin.i18nKey + '.no_results', { defaultValue: t('confirm_vinyl.no_results') }) %>",
+        networkError: "<%= t('confirm_' + plugin.i18nKey + '.network_error', { defaultValue: t('confirm_vinyl.network_error') }) %>",
+        compressAlert: "<%= t('image_source.compress_alert') %>",
+        loadingHtml: '<div class="col-span-full py-8 text-center opacity-50"><i class="fa-solid fa-spinner fa-spin text-xl"></i></div>'
+    };
+
+    const nodes = {
+        checkCover: document.getElementById('checkEditCover'),
+        boxCover: document.getElementById('boxEditCover'),
+        checkDisc: document.getElementById('checkEditDisc'),
+        boxDisc: document.getElementById('boxEditDisc'),
+        livePreview: document.getElementById('livePreview')
+    };
+
+    const toggleBox = (chk, box) => { if(chk && box) box.classList.toggle('hidden', !chk.checked); };
+    
+    if (nodes.checkCover) {
+        toggleBox(nodes.checkCover, nodes.boxCover);
+        nodes.checkCover.addEventListener('change', (e) => toggleBox(e.target, nodes.boxCover));
+    }
+    if (nodes.checkDisc) {
+        toggleBox(nodes.checkDisc, nodes.boxDisc);
+        nodes.checkDisc.addEventListener('change', (e) => toggleBox(e.target, nodes.boxDisc));
+    }
+
+    function setImgTab(side, type) {
+        const tabs = ['local', 'url', 'search'];
+        tabs.forEach(t => {
+            const btn = document.getElementById(`tab-${side}-${t}`);
+            const pane = document.getElementById(`pane-${side}-${t}`);
+            if (btn) btn.className = `flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${t === type ? 'bg-primary-theme text-white' : 'opacity-50'}`;
+            if (pane) pane.classList.toggle('hidden', t !== type);
+        });
+    }
+
+    async function runUniversalSearch(side) {
+        const query = document.getElementById(`query${side === 'cover' ? 'Cover' : 'Disc'}`).value;
+        const container = document.getElementById(`results${side === 'cover' ? 'Cover' : 'Disc'}`);
+        container.innerHTML = translations.loadingHtml;
+
+        try {
+            const endpoint = (side === 'disc')
+                ? `<%= baseUrl %><%= plugin.secondaryImageSearchPath %>?q=${encodeURIComponent(query)}`
+                : `<%= baseUrl %>/admin/api/search-image-universal?q=${encodeURIComponent(query)}&type=<%= plugin.imageSearchType || 'music' %>`;
+            const response = await fetch(endpoint);
+            const urls = await response.json();
+            container.innerHTML = '';
+            if (Array.isArray(urls) && urls.length > 0) {
+                urls.forEach(url => {
+                    const img = document.createElement('img');
+                    img.src = url;
+                    img.className = 'w-full aspect-square object-cover rounded-lg cursor-pointer border-2 border-transparent hover:border-primary-theme transition-all';
+                    img.onclick = () => selectExternalImage(side, url);
+                    container.appendChild(img);
+                });
+            } else {
+                container.innerHTML = `<div class="col-span-full py-4 text-center text-xs opacity-50">${translations.noResults}</div>`;
+            }
+        } catch (err) {
+            container.innerHTML = `<div class="col-span-full py-4 text-center text-xs text-red-500">${translations.networkError}</div>`;
+        }
+    }
+
+    function selectExternalImage(side, url) {
+        const input = document.getElementById(side === 'cover' ? 'inputCoverImage' : 'inputUserImage');
+        input.value = url;
+        if (side === 'cover') {
+            nodes.livePreview.src = url;
+        }
+        const container = document.getElementById(`results${side === 'cover' ? 'Cover' : 'Disc'}`);
+        if (container) {
+            Array.from(container.children).forEach(img => {
+                const selected = img.src === url;
+                img.classList.toggle('border-primary-theme', selected);
+                img.classList.toggle('border-transparent', !selected);
+                img.classList.toggle('ring-2', selected);
+                img.classList.toggle('ring-primary-theme', selected);
+                img.classList.toggle('ring-offset-1', selected);
+            });
+        }
+    }
+
+    async function compressImage(file) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (event) => {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 800;
+                    const MAX_HEIGHT = 800;
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > MAX_WIDTH) {
+                            height *= MAX_WIDTH / width;
+                            width = MAX_WIDTH;
+                        }
+                    } else {
+                        if (height > MAX_HEIGHT) {
+                            width *= MAX_HEIGHT / height;
+                            height = MAX_HEIGHT;
+                        }
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/jpeg', 0.7));
+                };
+            };
+        });
+    }
+
+    async function handleFileSelect(side, event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        if (side === 'cover') {
+            nodes.livePreview.style.opacity = '0.5';
+        }
+
+        try {
+            const base64 = await compressImage(file);
+            selectExternalImage(side, base64);
+        } catch (err) {
+            alert(translations.compressAlert);
+        } finally {
+            if (side === 'cover') {
+                nodes.livePreview.style.opacity = '1';
+            }
+        }
+    }
+
+    document.getElementById('fileInputCover')?.addEventListener('change', (e) => handleFileSelect('cover', e));
+    document.getElementById('fileInputDisc')?.addEventListener('change', (e) => handleFileSelect('disc', e));
+    
+    document.getElementById('urlInputCover')?.addEventListener('input', (e) => {
+        const val = e.target.value.trim();
+        if (val.startsWith('http')) selectExternalImage('cover', val);
+    });
+    document.getElementById('urlInputDisc')?.addEventListener('input', (e) => {
+        const val = e.target.value.trim();
+        if (val.startsWith('http')) selectExternalImage('disc', val);
+    });
+</script>
+
+<%- include('../../views/partials/footer') %>

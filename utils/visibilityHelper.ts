@@ -1,3 +1,33 @@
+import { registry } from '../core/registry';
+
+/**
+ * Restricts a query to items whose kind belongs to a currently-enabled module.
+ * Disabled-module items stay in the DB but disappear from every collection/dashboard/wishlist view.
+ * Legacy music items (no `kind` field) are included only when the music module is enabled.
+ */
+export function applyEnabledModulesFilter(query: any, settings: any): void {
+    const all = registry.getAll();
+    const enabled = registry.getEnabled(settings);
+
+    // Everything enabled → no restriction (legacy no-kind items remain visible)
+    if (enabled.length === all.length) {
+        return;
+    }
+
+    const ors: any[] = enabled.map(p => ({ kind: p.kind }));
+    if (enabled.some(p => p.matchesLegacyItems)) {
+        ors.push({ kind: { $exists: false } });
+    }
+
+    // Nothing enabled → match no item; otherwise require an enabled kind
+    const condition = ors.length > 0 ? { $or: ors } : { _id: null };
+
+    if (!query.$and) {
+        query.$and = [];
+    }
+    query.$and.push(condition);
+}
+
 interface VisibilitySettings {
     applyToAdmin: boolean;
     hiddenItems?: string[];

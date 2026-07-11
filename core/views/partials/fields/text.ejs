@@ -1,0 +1,20 @@
+<% const isBarcodeField = field.name === 'barcode'; %>
+<% const withLocationList = field.name === 'location' && typeof locations !== 'undefined' && Array.isArray(locations) && locations.length > 0; %>
+<label class="block mb-2 text-sm font-bold uppercase tracking-widest opacity-60 <%= (isBarcodeField && locals.isEdit) ? 'flex items-center gap-2' : '' %>">
+    <%= t(field.label) %>
+    <% if (isBarcodeField && locals.isEdit) { %>
+        <label class="cursor-pointer flex items-center ml-auto" title="<%= t('confirm_vinyl.barcode_locked') %>">
+            <input type="checkbox" name="barcode_locked" class="hidden peer" <%= (item && item.barcode_locked) ? 'checked' : '' %>>
+            <i class="fa-solid fa-unlock opacity-30 peer-checked:hidden"></i>
+            <i class="fa-solid fa-lock text-primary-theme hidden peer-checked:block"></i>
+        </label>
+    <% } %>
+</label>
+<input type="text" name="<%= field.name %>" value="<%= value || '' %>" <%= field.required ? 'required' : '' %> <%- withLocationList ? 'list="locationList"' : '' %> class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme block w-full p-3 outline-none <%= isBarcodeField ? 'font-mono' : '' %>" placeholder="<%= field.placeholder ? t(field.placeholder) : '' %>">
+<% if (withLocationList) { %>
+    <datalist id="locationList">
+        <% locations.forEach(loc => { %>
+            <option value="<%= loc %>">
+        <% }) %>
+    </datalist>
+<% } %>

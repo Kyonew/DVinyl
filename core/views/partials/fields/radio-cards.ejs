@@ -1,0 +1,16 @@
+<div class="mb-2">
+    <label class="block mb-3 text-sm font-bold uppercase tracking-widest opacity-60"><%= t(field.label) %></label>
+    <div class="grid gap-3" style="grid-template-columns: repeat(<%= (field.options || []).length %>, minmax(0, 1fr));">
+        <% (field.options || []).forEach(opt => { %>
+            <label class="cursor-pointer">
+                <input type="radio" name="<%= field.name %>" value="<%= opt.value %>" class="peer sr-only" <%= (String(value || field.default || '') === String(opt.value)) ? 'checked' : '' %>>
+                <div class="p-3 rounded-xl border border-transparent bg-black/5 dark:bg-white/5 text-center transition-all peer-checked:bg-primary-theme peer-checked:text-white hover:bg-black/10 dark:hover:bg-white/10 opacity-70 peer-checked:opacity-100">
+                    <% if (opt.icon) { %>
+                        <i class="fa-solid <%= opt.icon %> block mb-1"></i>
+                    <% } %>
+                    <span class="text-xs font-bold"><%= t(opt.label, { defaultValue: opt.label }) %></span>
+                </div>
+            </label>
+        <% }) %>
+    </div>
+</div>

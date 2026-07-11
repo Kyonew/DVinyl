@@ -1,0 +1,70 @@
+<div id="duplicate-warning-banner" class="mb-6 flex flex-col md:flex-row items-center justify-between gap-4 px-5 py-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-sm transition-all shadow-sm" style="display: none;">
+    <div class="flex items-center gap-3">
+        <i class="fa-solid fa-circle-exclamation text-lg"></i>
+        <div>
+            <span class="font-bold"><%= t('common.already_in_collection_title') %></span>
+            <p id="duplicate-warning-desc" class="opacity-80 text-xs mt-0.5"></p>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Dynamic duplicate checking: the banner reacts to the plugin's distinguishing
+    // fields (media_type + variant_color for music, platform for games, format for dvd/books)
+    (function () {
+        const dupFields = <%- JSON.stringify(plugin.duplicateCheckFields || []) %>;
+        const existingItems = <%- JSON.stringify((locals.existingItems || []).map(item => {
+            const entry = { quantity: item.quantity };
+            (plugin.duplicateCheckFields || []).forEach(f => { entry[f] = item[f]; });
+            return entry;
+        })) %>;
+
+        let banner, desc, submitBtn;
+
+        const defaultBtnHTML = `<i class="fa-solid fa-check"></i> <%= t('confirm_' + plugin.i18nKey + '.btn_collection', { defaultValue: t('confirm_vinyl.btn_collection') }) %>`;
+        const addAnywayBtnHTML = `<i class="fa-solid fa-plus"></i> <%= t('common.btn_add_anyway') %>`;
+
+        const norm = v => String(v === undefined || v === null ? '' : v).trim().toLowerCase();
+
+        function fieldValue(name) {
+            const radio = document.querySelector(`input[type="radio"][name="${name}"]:checked`);
+            if (radio) return radio.value;
+            const el = document.querySelector(`select[name="${name}"], input[name="${name}"]`);
+            return el ? el.value : '';
+        }
+
+        function checkDuplicate() {
+            if (!banner || existingItems.length === 0) return;
+
+            const match = existingItems.find(item =>
+                dupFields.every(f => norm(item[f]) === norm(fieldValue(f)))
+            );
+
+            if (match) {
+                banner.style.display = 'flex';
+                const descTemplate = `<%= t('common.already_in_collection_desc', { qty: '__QTY__' }) %>`;
+                desc.innerHTML = descTemplate.replace('__QTY__', match.quantity || 1);
+                if (submitBtn) submitBtn.innerHTML = addAnywayBtnHTML;
+            } else {
+                banner.style.display = 'none';
+                if (submitBtn) submitBtn.innerHTML = defaultBtnHTML;
+            }
+        }
+
+        // The banner sits above the form: wait for the whole form to be in the DOM
+        document.addEventListener('DOMContentLoaded', () => {
+            banner = document.getElementById('duplicate-warning-banner');
+            desc = document.getElementById('duplicate-warning-desc');
+            submitBtn = document.querySelector('button[name="in_wishlist"][value="false"]');
+
+            dupFields.forEach(name => {
+                document.querySelectorAll(`[name="${name}"]`).forEach(el => {
+                    el.addEventListener('change', checkDuplicate);
+                    el.addEventListener('input', checkDuplicate);
+                });
+            });
+
+            checkDuplicate();
+        });
+    })();
+</script>

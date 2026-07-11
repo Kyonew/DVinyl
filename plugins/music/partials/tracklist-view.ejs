@@ -1,0 +1,100 @@
+<div class="mt-6">
+    <h3 class="text-lg font-bold mb-4 flex items-center gap-2 transition-colors">
+        <i class="fa-solid fa-list-ul opacity-50"></i>
+        <%= t('detail.tracklist_title') %>
+    </h3>
+<div class="card-theme rounded-xl overflow-hidden shadow-sm transition-colors">
+    <% if (item.tracklist && item.tracklist.length > 0) { %>
+        <div class="max-h-[400px] overflow-y-auto custom-scrollbar relative">
+            <table class="w-full text-left text-sm opacity-80">
+                <thead class="bg-[var(--bg-nav)] text-[var(--text-sub)] text-xs uppercase font-bold sticky top-0 z-10 shadow-md transition-colors">
+                    <tr>
+                        <th class="px-4 py-3 w-14 text-center">#</th>
+                        <th class="px-4 py-3">
+                            <%= t('confirm_vinyl.field_title') %>
+                        </th>
+                        <th class="px-4 py-3 text-right">
+                            <%= t('confirm_vinyl.year_label') === 'Année' ? 'Durée' : 'Duration' %>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-black/5 dark:divide-white/5 transition-colors">
+                    <% item.tracklist.forEach(track => { %>
+                        <tr class="hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+                            <td class="px-4 py-3 text-center font-mono text-primary-theme font-bold opacity-80">
+                                <%= track.position %>
+                            </td>
+                            <td class="px-4 py-3 font-medium transition-colors">
+                                <%= track.title %>
+                            </td>
+                            <td class="px-4 py-3 text-right font-mono text-xs opacity-70">
+                                <%= track.duration %>
+                            </td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
+    <% } else { %>
+        <div class="flex flex-col items-center justify-center py-12 opacity-40">
+            <i class="fa-solid fa-music text-4xl mb-4 opacity-50"></i>
+            <p class="text-sm italic mb-4">
+                <%= t('detail.no_tracklist') %>
+            </p>
+
+            <% if (user && user.isAdmin) { %>
+                <button id="importTracklistBtn"
+                    onclick="importTracklist('<%= item._id %>', '<%= item.discogs_id %>')"
+                    class="bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 active:scale-95 shadow-sm">
+                    <i class="fa-solid fa-file-import"></i>
+                    <span id="importBtnText">
+                        <%= t('detail.import_tracklist_btn') %>
+                    </span>
+                </button>
+                <div id="importError" class="text-xs text-red-500 mt-2 hidden">
+                    <%= t('detail.tracklist_not_found') %>
+                </div>
+            <% } %>
+        </div>
+    <% } %>
+</div>
+</div>
+
+<% if (user && user.isAdmin) { %>
+<script>
+async function importTracklist(itemId, discogsId) {
+    const btn = document.getElementById('importTracklistBtn');
+    const btnText = document.getElementById('importBtnText');
+    const errorMsg = document.getElementById('importError');
+
+    if (!discogsId || discogsId === "null" || discogsId === "undefined") {
+        errorMsg.classList.remove('hidden');
+        return;
+    }
+
+    btn.disabled = true;
+    errorMsg.classList.add('hidden');
+    btnText.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> <%= t('detail.importing') %>`;
+
+    try {
+        const response = await fetch(`<%= baseUrl %>/api/album/${itemId}/refresh-info`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ discogsId })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            window.location.reload();
+        } else {
+            throw new Error("Import failed");
+        }
+    } catch (err) {
+        btn.disabled = false;
+        btnText.innerText = "<%= t('detail.import_tracklist_btn') %>";
+        errorMsg.classList.remove('hidden');
+    }
+}
+</script>
+<% } %>

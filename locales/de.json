@@ -5,7 +5,8 @@
     "no_results": "Keine Bücher gefunden.",
     "results_title": "Ergebnisse",
     "search_placeholder": "Titel, Autor oder ISBN...",
-    "title": "Fügen Sie ein Buch hinzu"
+    "title": "Fügen Sie ein Buch hinzu",
+    "manual_entry": "Nicht gefunden? Manuell hinzufügen"
   },
   "add_dvd": {
     "btn_scan": "Scannen Sie einen Barcode",
@@ -20,7 +21,8 @@
     "search_placeholder": "Titel, Regisseur oder Barcode...",
     "separator_or": "ODER",
     "title": "Fügen Sie eine DVD/TV-Show hinzu",
-    "tv_show": "TV-Show"
+    "tv_show": "TV-Show",
+    "manual_entry": "Nicht gefunden? Manuell hinzufügen"
   },
   "add_vinyl": {
     "advanced_filters": "Erweiterte Filter",
@@ -115,13 +117,22 @@
       "step4": "Legen Sie die Datei unten ab und starten Sie den Import",
       "drop_hint": "Ziehen Sie Ihre CSV-Datei hierher oder klicken Sie zum Durchsuchen",
       "file_ready": "Datei bereit für den Import",
-      "btn_import": "Import starten"
+      "btn_import": "Import starten",
+      "file_label": "CSV-Datei"
     },
     "import": {
       "collection": "Sammlung importieren",
       "subtitle": "Importieren Sie Ihre Discogs-Sammlung oder Discogs-Wunschliste",
       "title": "Discogs-Import",
-      "wantlist": "Wunschliste importieren"
+      "wantlist": "Wunschliste importieren",
+      "url_label": "Discogs-Profil-URL",
+      "url_hint": "Deine öffentliche Sammlungs- oder Wunschlisten-Seite",
+      "type_label": "Ziel",
+      "full_label": "Modus",
+      "full_hint": "Der vollständige Modus importiert auch Tracklists (langsamer)",
+      "mode_fast": "Schnell",
+      "mode_full": "Vollständig (mit Tracklists)",
+      "btn_start": "Import starten"
     },
     "import_discogs_btn": "Discogs-Import",
     "local_connection": "Lokal",
@@ -210,7 +221,9 @@
       "subtitle": "Verstecken Sie bestimmte Elemente Ihrer Sammlung vor Gästen (oder sich selbst).",
       "success_msg": "Sichtbarkeitseinstellungen aktualisiert.",
       "title": "Sichtbarkeitseinstellungen"
-    }
+    },
+    "module_settings": "Modul-Einstellungen",
+    "advanced_cd_desc": "Sucht auch nach SACD- und CDr-Formaten auf Discogs"
   },
   "auth": {
     "email_invalid": "Bitte geben Sie eine gültige E-Mail-Adresse ein",
@@ -331,7 +344,16 @@
     "status_watching": "Aufpassen",
     "title": "Hinzufügen bestätigen",
     "tv_show": "TV-Show",
-    "watch_tracking": "Uhrenverfolgung"
+    "watch_tracking": "Uhrenverfolgung",
+    "studio_label": "Studio",
+    "field_media_type": "Typ",
+    "field_zone": "Region",
+    "barcode_label": "Barcode",
+    "comments_placeholder": "Bsp.: Originalpressung von 1986, auf dem Flohmarkt gekauft ...",
+    "media_type_movie": "Film",
+    "media_type_tv": "TV-Show",
+    "field_is_boxset": "Ist ein Boxset",
+    "field_watch_status": "Status"
   },
   "confirm_vinyl": {
     "add_secondary_visual": "Sekundäres Bildmaterial hinzufügen (Disc/Mockup)",
@@ -373,7 +395,8 @@
     "sleeve_condition_generic": "Generische Hülle",
     "add_cover": "Titelbild hinzufügen",
     "manual_title": "Album manuell hinzufügen",
-    "manual_mode_hint": "Manuelle Eingabe — keine Discogs-Daten. Marktschätzung nicht verfügbar."
+    "manual_mode_hint": "Manuelle Eingabe — keine Discogs-Daten. Marktschätzung nicht verfügbar.",
+    "tracklist_label": "Titelliste"
   },
   "detail": {
     "added_at": "Hinzugefügt bei",
@@ -442,7 +465,8 @@
     "setup_error": "Es ist ein Setup-Fehler aufgetreten.",
     "too_many_attempts_blocked": "Zu viele Versuche. \nVersuchen Sie es in 5 Minuten noch einmal.",
     "too_many_attempts_timed": "Zu viele Versuche. \nVersuchen Sie es in {{seconds}} Sekunden erneut.",
-    "username_taken": "Dieser Benutzername ist bereits vergeben."
+    "username_taken": "Dieser Benutzername ist bereits vergeben.",
+    "not_found": "Element nicht gefunden."
   },
   "footer": {
     "for_music": "für Musik.",
@@ -601,7 +625,15 @@
     "widgets_title": "Statistik-Widgets"
   },
   "placeholders": {
-    "location": "z.B. \nRegal A – Box 3"
+    "location": "z.B. \nRegal A – Box 3",
+    "year": "Bsp.: 1994",
+    "barcode": "Barcode...",
+    "catalog_number": "Bsp.: COL 12345...",
+    "label": "Bsp.: Columbia...",
+    "country": "US, Europa...",
+    "genres": "Rock, Pop...",
+    "styles": "Prog Rock, Synth-pop...",
+    "publisher": "Bsp.: Suhrkamp..."
   },
   "settings": {
     "avatar_hint": "Maximal 5 MB. \nJPG, PNG, GIF, WEBP.",
@@ -690,7 +722,8 @@
     "scan_stop": "Scan stoppen",
     "scan_found": "Barcode gefunden!",
     "scan_error": "Kamerafehler",
-    "barcode_warning": "Das Scannen funktioniert derzeit möglicherweise nicht ordnungsgemäß."
+    "barcode_warning": "Das Scannen funktioniert derzeit möglicherweise nicht ordnungsgemäß.",
+    "manual_entry": "Nicht gefunden? Manuell hinzufügen"
   },
   "confirm_game": {
     "config_title": "Überprüfen und vervollständigen",
@@ -714,7 +747,8 @@
     "replace_cover": "Hauptcover ersetzen",
     "btn_collection": "Zur Sammlung hinzufügen",
     "btn_wishlist": "Zur Wishlist hinzufügen",
-    "cover_preview": "Cover-Vorschau"
+    "cover_preview": "Cover-Vorschau",
+    "publisher_label": "Publisher"
   },
   "edit_game": {
     "title": "Spiel bearbeiten"
@@ -736,5 +770,8 @@
     "col_title": "Titel",
     "col_duration": "Dauer",
     "add_track": "Titel hinzufügen"
+  },
+  "add": {
+    "manual_entry": "Manueller Eintrag"
   }
 }

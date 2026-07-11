@@ -1,0 +1,135 @@
+<script>
+    const translations = {
+        compressAlert: "<%= t('image_source.compress_alert') %>",
+        noResults: "<%= t('confirm_' + plugin.i18nKey + '.no_results', { defaultValue: t('confirm_vinyl.no_results') }) %>",
+        networkError: "<%= t('confirm_' + plugin.i18nKey + '.network_error', { defaultValue: t('confirm_vinyl.network_error') }) %>",
+        loadingHtml: '<div class="col-span-full py-4 text-center opacity-50"><i class="fa-solid fa-spinner fa-spin"></i></div>'
+    };
+
+    const nodes = {
+        checkCover: document.getElementById('checkEditCover'),
+        boxCover: document.getElementById('boxEditCover'),
+        checkDisc: document.getElementById('checkEditDisc'),
+        boxDisc: document.getElementById('boxEditDisc'),
+        livePreview: document.getElementById('livePreview')
+    };
+
+    const toggleBox = (chk, box) => { if (chk && box) box.classList.toggle('hidden', !chk.checked); };
+
+    if (nodes.checkCover) {
+        toggleBox(nodes.checkCover, nodes.boxCover);
+        nodes.checkCover.addEventListener('change', (e) => toggleBox(e.target, nodes.boxCover));
+    }
+    if (nodes.checkDisc) {
+        toggleBox(nodes.checkDisc, nodes.boxDisc);
+        nodes.checkDisc.addEventListener('change', (e) => toggleBox(e.target, nodes.boxDisc));
+    }
+
+    function setImgTab(side, type) {
+        const tabs = ['local', 'url', 'search'];
+        tabs.forEach(t => {
+            const btn = document.getElementById(`tab-${side}-${t}`);
+            const pane = document.getElementById(`pane-${side}-${t}`);
+            if (btn) btn.className = `flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${t === type ? 'bg-primary-theme text-white' : 'opacity-50'}`;
+            if (pane) pane.classList.toggle('hidden', t !== type);
+        });
+    }
+
+    function selectExternalImage(side, url) {
+        const input = document.getElementById(side === 'cover' ? 'inputCoverImage' : 'inputUserImage');
+        input.value = url;
+        if (side === 'cover' && nodes.livePreview) {
+            nodes.livePreview.src = url;
+        }
+        const container = document.getElementById(`results${side === 'cover' ? 'Cover' : 'Disc'}`);
+        if (container) {
+            Array.from(container.children).forEach(img => {
+                const selected = img.src === url;
+                img.classList.toggle('border-primary-theme', selected);
+                img.classList.toggle('border-transparent', !selected);
+                img.classList.toggle('ring-2', selected);
+                img.classList.toggle('ring-primary-theme', selected);
+                img.classList.toggle('ring-offset-1', selected);
+            });
+        }
+    }
+
+    async function runUniversalSearch(side) {
+        const q = document.getElementById(`query${side === 'cover' ? 'Cover' : 'Disc'}`).value;
+        const container = document.getElementById(`results${side === 'cover' ? 'Cover' : 'Disc'}`);
+        container.innerHTML = translations.loadingHtml;
+
+        try {
+            const endpoint = (side === 'disc')
+                ? `<%= baseUrl %><%= plugin.secondaryImageSearchPath %>?q=${encodeURIComponent(q)}`
+                : `<%= baseUrl %>/admin/api/search-image-universal?q=${encodeURIComponent(q)}&type=<%= plugin.imageSearchType || 'music' %>`;
+            const res = await fetch(endpoint);
+            const urls = await res.json();
+
+            container.innerHTML = '';
+            if (Array.isArray(urls) && urls.length > 0) {
+                urls.forEach(url => {
+                    const img = document.createElement('img');
+                    img.src = url;
+                    img.className = "aspect-square object-cover rounded-lg cursor-pointer border-2 border-transparent hover:border-primary-theme transition-all shadow-sm";
+                    img.onclick = () => selectExternalImage(side, url);
+                    container.appendChild(img);
+                });
+            } else {
+                container.innerHTML = `<p class="col-span-full text-xs opacity-50 text-center">${translations.noResults}</p>`;
+            }
+        } catch (e) {
+            container.innerHTML = `<p class="col-span-full text-xs text-red-500 text-center">${translations.networkError}</p>`;
+        }
+    }
+
+    async function compressImage(file) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (event) => {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const MAX_SIZE = 800;
+                    let width = img.width;
+                    let height = img.height;
+                    if (width > height) {
+                        if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
+                    } else {
+                        if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
+                    }
+                    canvas.width = width; canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/jpeg', 0.8));
+                };
+            };
+        });
+    }
+
+    async function handleFileSelect(side, event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) alert(translations.compressAlert);
+        try {
+            const base64 = await compressImage(file);
+            selectExternalImage(side, base64);
+        } catch (err) {
+            alert(translations.compressAlert);
+        }
+    }
+
+    document.getElementById('fileInputCover')?.addEventListener('change', (e) => handleFileSelect('cover', e));
+    document.getElementById('fileInputDisc')?.addEventListener('change', (e) => handleFileSelect('disc', e));
+
+    document.getElementById('urlInputCover')?.addEventListener('input', (e) => {
+        const val = e.target.value.trim();
+        if (val.startsWith('http')) selectExternalImage('cover', val);
+    });
+    document.getElementById('urlInputDisc')?.addEventListener('input', (e) => {
+        const val = e.target.value.trim();
+        if (val.startsWith('http')) selectExternalImage('disc', val);
+    });
+</script>

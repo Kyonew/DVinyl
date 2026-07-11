@@ -4,6 +4,7 @@ import User from '../models/User';
 import LoginLog from '../models/LoginLog';
 import Settings from '../models/Settings';
 import { requireAuth, requireAdmin } from '../middleware/authMiddleware';
+import { registry } from '../core/registry';
 
 const router = express.Router();
 
@@ -75,8 +76,10 @@ router.post('/import', async (req, res) => {
         }
 
         if (data.albums && data.albums.length > 0) {
+            // Legacy backups may hold items without a `kind`; assign the plugin that claims legacy items
+            const legacyKind = registry.getAll().find(p => p.matchesLegacyItems)?.kind || 'Music';
             const cleanAlbums = data.albums.map((album: any) => {
-                if (!album.kind) return { ...album, kind: 'Music' };
+                if (!album.kind) return { ...album, kind: legacyKind };
                 return album;
             });
             await Item.insertMany(cleanAlbums);

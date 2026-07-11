@@ -28,14 +28,9 @@
             <div class="flex flex-wrap justify-center gap-4 pt-4 text-sm opacity-80">
                 <% if (user.isAdmin) { %>
                     <%
-                        const fastAddRoutes = {
-                            vinyl: '/add-vinyl?type=vinyl',
-                            cd: '/add-vinyl?type=cd',
-                            cassette: '/add-vinyl?type=cassette',
-                            book: '/add-book',
-                            dvd: '/add-dvd',
-                            game: '/add-game'
-                        };
+                        const fastAddRoutes = {};
+                        registry.getAll().filter(p => settings.modules && settings.modules[p.collectionType])
+                            .forEach(p => (p.fastAddOptions || []).forEach(o => { fastAddRoutes[o.value] = o.url; }));
                         const fastAddUrl = settings.fastAdd ? fastAddRoutes[settings.fastAdd] : null;
                     %>
                     <% if (fastAddUrl) { %>
@@ -72,60 +67,34 @@
         <% if (latestCollection.length > 0) { %>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
                 <% latestCollection.forEach(album => { %>
-                    <% 
-                        const isBook = album.kind === 'Book';
-                        const isDvd = album.kind === 'Dvd' || (album.tmdb_id !== undefined && album.tmdb_id !== null);
-                        const isGame = album.kind === 'Game';
-                        
-                        let detailUrl = `/album/${album._id}`;
-                        if (isBook) detailUrl = `/book/${album._id}`;
-                        if (isDvd) detailUrl = `/dvd/${album._id}`;
-                        if (isGame) detailUrl = `/game/${album._id}`;
-                        
-                        const aspectClass = 'aspect-square';
-                        
-                        const formatKey = isDvd ? album.format : (album.media_type || album.format);
-                        const badgeColors = {
-                            'vinyl': 'bg-green-600/90',
-                            'cd': 'bg-blue-600/90',
-                            'cassette': 'bg-orange-600/90',
-                            'manga': 'bg-pink-600/90',
-                            'comic': 'bg-indigo-600/90',
-                            'hardcover': 'bg-purple-600/90',
-                            'paperback': 'bg-amber-600/90',
-                            'book': 'bg-amber-700/90',
-                            'dvd': 'bg-sky-600/90',
-                            'bluray': 'bg-indigo-700/90',
-                            '4k': 'bg-red-600/90',
-                            'vhs': 'bg-amber-600/90',
-                            'laserdisc': 'bg-purple-600/90',
-                            'physical': 'bg-emerald-600/90',
-                            'collector': 'bg-amber-600/90',
-                            'limited': 'bg-purple-600/90',
-                            'steelbook': 'bg-sky-600/90'
-                        };
-                        let badgeColor = (badgeColors[formatKey] || 'bg-gray-600/90') + ' text-white';
+                    <%
+                        const itemPlugin = registry.getByKind(album.kind);
+                        const detailUrl = (itemPlugin ? itemPlugin.routePrefix : '/album') + '/' + album._id;
+                        const isPoster = itemPlugin ? itemPlugin.aspectRatioClass !== 'aspect-square' : true;
+                        const badge = (itemPlugin && itemPlugin.cardBadge)
+                            ? itemPlugin.cardBadge(album, settings)
+                            : (function(){ var fmt=(album.format||album.media_type||'').toLowerCase(); var opt=itemPlugin?(itemPlugin.formats||[]).find(function(f){return f.value===fmt}):null; return { label: opt?opt.label:fmt, colorClass: (opt&&opt.color)||'bg-gray-600/90' }; })();
                     %>
                     <a href="<%= baseUrl + detailUrl %>" class="group relative card-theme rounded-xl overflow-hidden hover:border-primary-theme transition-all hover:shadow-lg hover:-translate-y-1">
                         
-                        <div class="<%= aspectClass %> relative overflow-hidden bg-black/5 dark:bg-white/5 flex items-center justify-center">
+                        <div class="aspect-square relative overflow-hidden bg-black/5 dark:bg-white/5 flex items-center justify-center">
                             
-                            <% if (isBook || isDvd || isGame) { %>
+                            <% if (isPoster) { %>
                                 <img src="<%= album.cover_image %>" class="absolute inset-0 w-full h-full object-cover blur-xl opacity-30 scale-110 pointer-events-none">
                             <% } %>
 
                             <img src="<%= album.cover_image %>" 
-                                class="relative z-10 w-full h-full <%= (isBook || isDvd || isGame) ? 'object-contain p-3' : 'object-cover' %> transition-transform duration-700 group-hover:scale-105">
+                                class="relative z-10 w-full h-full <%= isPoster ? 'object-contain p-3' : 'object-cover' %> transition-transform duration-700 group-hover:scale-105">
                             
-                            <span class="absolute top-2 right-2 z-20 text-[10px] font-bold px-2 py-1 rounded backdrop-blur-md border border-white/10 shadow-sm <%= badgeColor %>">
-                                <%= isGame ? (album.platform || 'Game') : t('media.' + formatKey) %>
+                            <span class="absolute top-2 right-2 z-20 text-[10px] font-bold px-2 py-1 rounded backdrop-blur-md border border-white/10 shadow-sm <%= badge.colorClass %> text-white">
+                                <%= t(badge.label, { defaultValue: badge.label }) %>
                             </span>                         
                         </div>
 
                         <div class="p-3 md:p-4">
                             <h3 class="font-bold truncate text-sm md:text-base leading-tight"><%= album.title %></h3>
                             <p class="text-xs opacity-60 truncate">
-                                <%= isBook ? album.author : (isDvd ? (album.director) : (isGame ? (album.developer || album.publisher || '') : (album.artist))) %>
+                                <%= (itemPlugin ? album[itemPlugin.creatorField] : album.artist) || album.author || album.director || album.developer || '' %>
                             </p>
                         </div>
                     </a>
@@ -149,48 +118,34 @@
         <% if (latestWishlist.length > 0) { %>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 items-end">
                 <% latestWishlist.forEach(album => { %>
-                    <% 
-                        const isBook = album.kind === 'Book';
-                        const isDvd = album.kind === 'Dvd' || (album.tmdb_id !== undefined && album.tmdb_id !== null);
-                        const isGame = album.kind === 'Game';
-                        
-                        let detailUrl = `/album/${album._id}`;
-                        if (isBook) detailUrl = `/book/${album._id}`;
-                        if (isDvd) detailUrl = `/dvd/${album._id}`;
-                        if (isGame) detailUrl = `/game/${album._id}`;
-
-                        const formatKey = isDvd ? album.format : (album.media_type || album.format);
-                        const badgeColors = {
-                            'vinyl': 'bg-green-600/90', 'cd': 'bg-blue-600/90', 'cassette': 'bg-orange-600/90',
-                            'manga': 'bg-pink-600/90', 'comic': 'bg-indigo-600/90', 'hardcover': 'bg-purple-600/90',
-                            'paperback': 'bg-amber-600/90', 'book': 'bg-amber-700/90',
-                            'dvd': 'bg-sky-600/90', 'bluray': 'bg-indigo-700/90', '4k': 'bg-red-600/90',
-                            'vhs': 'bg-amber-600/90', 'laserdisc': 'bg-purple-600/90',
-                            'physical': 'bg-emerald-600/90', 'collector': 'bg-amber-600/90',
-                            'limited': 'bg-purple-600/90', 'steelbook': 'bg-sky-600/90'
-                        };
-                        let badgeColor = (badgeColors[formatKey] || 'bg-gray-600/90') + ' text-white';
+                    <%
+                        const itemPlugin = registry.getByKind(album.kind);
+                        const detailUrl = (itemPlugin ? itemPlugin.routePrefix : '/album') + '/' + album._id;
+                        const isPoster = itemPlugin ? itemPlugin.aspectRatioClass !== 'aspect-square' : true;
+                        const badge = (itemPlugin && itemPlugin.cardBadge)
+                            ? itemPlugin.cardBadge(album, settings)
+                            : (function(){ var fmt=(album.format||album.media_type||'').toLowerCase(); var opt=itemPlugin?(itemPlugin.formats||[]).find(function(f){return f.value===fmt}):null; return { label: opt?opt.label:fmt, colorClass: (opt&&opt.color)||'bg-gray-600/90' }; })();
                     %>
                     <a href="<%= baseUrl + detailUrl %>" class="group relative card-theme rounded-xl overflow-hidden hover:border-pink-500 transition-all hover:shadow-lg hover:-translate-y-1">
                         
                         <div class="aspect-square relative overflow-hidden bg-black/5 dark:bg-white/5 flex items-center justify-center">
                             
-                            <% if (isBook || isDvd || isGame) { %>
+                            <% if (isPoster) { %>
                                 <img src="<%= album.cover_image %>" class="absolute inset-0 w-full h-full object-cover blur-xl opacity-30 scale-110 pointer-events-none">
                             <% } %>
 
                             <img src="<%= album.cover_image %>" 
-                                class="relative z-10 w-full h-full <%= (isBook || isDvd || isGame) ? 'object-contain p-3' : 'object-cover' %> transition-transform duration-700 group-hover:scale-105">
+                                class="relative z-10 w-full h-full <%= isPoster ? 'object-contain p-3' : 'object-cover' %> transition-transform duration-700 group-hover:scale-105">
                             
-                            <span class="absolute top-2 right-2 z-20 text-[10px] font-bold px-2 py-1 rounded backdrop-blur-md border border-white/10 shadow-sm <%= badgeColor %>">
-                                <%= isGame ? (album.platform || 'Game') : t('media.' + formatKey) %>
+                            <span class="absolute top-2 right-2 z-20 text-[10px] font-bold px-2 py-1 rounded backdrop-blur-md border border-white/10 shadow-sm <%= badge.colorClass %> text-white">
+                                <%= t(badge.label, { defaultValue: badge.label }) %>
                             </span>                         
                         </div>
 
                         <div class="p-3 md:p-4">
                             <h3 class="font-bold truncate text-sm md:text-base leading-tight"><%= album.title %></h3>
                             <p class="text-xs opacity-60 truncate mb-1">
-                                <%= isBook ? album.author : (isDvd ? (album.director || 'Inconnu') : (isGame ? (album.developer || album.publisher || 'Inconnu') : (album.artist || 'Inconnu'))) %>
+                                <%= (itemPlugin ? album[itemPlugin.creatorField] : album.artist) || album.author || album.director || album.developer || 'Inconnu' %>
                             </p>
                             
                             <div class="flex items-center gap-1 h-4"> 
@@ -213,46 +168,24 @@
         
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
             <% 
+            // Global "total" widget plus widgets declared by each plugin (statsWidgets)
             const widgetConfig = {
-                'total': { label: t('stats.total_label'), val: stats.total, unit: t('common.items'), icon: 'fa-database', color: 'bg-primary-theme/20', wide: true },
-                
-                'vinyl': { label: t('media.vinyls'), val: stats.vinyl, icon: 'fa-record-vinyl', color: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-600' },
-                'cd': { label: t('media.cds'), val: stats.cd, icon: 'fa-compact-disc', color: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-600' },
-                'cassette': { label: t('media.cassettes'), val: stats.cassette, icon: 'fa-tape', color: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-600' },
-                
-                'book_total': { label: t('stats.books_total_label'), val: stats.book_total, icon: 'fa-book', color: 'bg-purple-100 dark:bg-purple-900/30', text: 'text-purple-600' },
-                'book_manga': { label: t('media.mangas'), val: stats.book_manga, icon: 'fa-book-open', color: 'bg-pink-100 dark:bg-pink-900/30', text: 'text-pink-600' },
-                'book_comic': { label: t('media.comics'), val: stats.book_comic, icon: 'fa-mask', color: 'bg-indigo-100 dark:bg-indigo-900/30', text: 'text-indigo-600' },
-                'book_hardcover': { label: t('media.hardcover_pl'), val: stats.book_hardcover, icon: 'fa-book-atlas', color: 'bg-violet-100 dark:bg-violet-900/30', text: 'text-violet-600' },
-                'book_paperback': { label: t('media.paperback_pl'), val: stats.book_paperback, icon: 'fa-book-journal-whills', color: 'bg-fuchsia-100 dark:bg-fuchsia-900/30', text: 'text-fuchsia-600' },
-                
-                'dvd_total': { label: t('stats.dvd_total_label'), val: stats.dvd_total, icon: 'fa-film', color: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-600' },
-                'dvd_dvd': { label: t('media.dvds'), val: stats.dvd_dvd, icon: 'fa-compact-disc', color: 'bg-sky-100 dark:bg-sky-900/30', text: 'text-sky-600' },
-                'dvd_bluray': { label: t('media.blurays'), val: stats.dvd_bluray, icon: 'fa-circle-dot', color: 'bg-indigo-100 dark:bg-indigo-900/30', text: 'text-indigo-600' },
-                'dvd_4k': { label: t('media.4k_pl'), val: stats.dvd_4k, icon: 'fa-wand-magic-sparkles', color: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-600' },
-                'dvd_vhs': { label: t('media.vhss'), val: stats.dvd_vhs, icon: 'fa-tape', color: 'bg-stone-100 dark:bg-stone-900/30', text: 'text-stone-600' },
-                'dvd_laserdisc': { label: t('media.laserdiscs'), val: stats.dvd_laserdisc, icon: 'fa-compact-disc', color: 'bg-teal-100 dark:bg-teal-900/30', text: 'text-teal-600' },
-                
-                'game_total': { label: t('stats.games_total_label'), val: stats.game_total, icon: 'fa-gamepad', color: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-600' },
-                'game_physical': { label: t('media.physical'), val: stats.game_physical, icon: 'fa-box', color: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-600' },
-                'game_collector': { label: t('media.collector'), val: stats.game_collector, icon: 'fa-gem', color: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-600' },
-                'game_limited': { label: t('media.limited'), val: stats.game_limited, icon: 'fa-star', color: 'bg-purple-100 dark:bg-purple-900/30', text: 'text-purple-600' },
-                'game_steelbook': { label: t('media.steelbook'), val: stats.game_steelbook, icon: 'fa-shield', color: 'bg-sky-100 dark:bg-sky-900/30', text: 'text-sky-600' }
+                'total': { label: t('stats.total_label'), val: stats.total, unit: t('common.items'), icon: 'fa-database', color: 'bg-primary-theme/20', wide: true }
             };
-
-            const topConfigs = {
-                'artist': { label: t('stats.top_artist_label'), data: stats.artist, icon: 'fa-crown', color: 'bg-purple-100 dark:bg-purple-500/20' },
-                'music_genre': { label: t('stats.top_genre_label'), data: stats.music_genre, icon: 'fa-music', color: 'bg-pink-100 dark:bg-pink-500/20' },
-                'label': { label: t('stats.top_label_label'), data: stats.label, icon: 'fa-building', color: 'bg-emerald-100 dark:bg-emerald-500/20' },
-                'author': { label: t('stats.top_author_label'), data: stats.author, icon: 'fa-pen-nib', color: 'bg-amber-100 dark:bg-amber-500/20' },
-                'publisher': { label: t('stats.top_publisher_label'), data: stats.publisher, icon: 'fa-book-open', color: 'bg-orange-100 dark:bg-orange-500/20' },
-                'director': { label: t('stats.top_director_label'), data: stats.director, icon: 'fa-clapperboard', color: 'bg-red-100 dark:bg-red-500/20' },
-                'studio': { label: t('stats.top_studio_label'), data: stats.studio, icon: 'fa-video', color: 'bg-rose-100 dark:bg-rose-500/20' },
-                'game_developer': { label: t('stats.top_developer_label'), data: stats.game_developer, icon: 'fa-code', color: 'bg-emerald-100 dark:bg-emerald-500/20' },
-                'game_publisher': { label: t('stats.top_game_publisher_label'), data: stats.game_publisher, icon: 'fa-building-columns', color: 'bg-teal-100 dark:bg-teal-500/20' }
-            };
+            const topConfigs = {};
+            if (typeof registry !== 'undefined' && registry) {
+                registry.getAll().filter(p => settings.modules && settings.modules[p.collectionType]).forEach(p => {
+                    (p.statsWidgets || []).forEach(w => {
+                        if (w.kind === 'top') {
+                            topConfigs[w.id] = { label: t(w.label), data: stats[w.id], icon: w.icon, color: w.color };
+                        } else {
+                            widgetConfig[w.id] = { label: t(w.label), val: stats[w.id], icon: w.icon, color: w.color, text: w.text };
+                        }
+                    });
+                });
+            }
             
-            const activeWidgets = (settings && settings.statsWidgets) ? settings.statsWidgets : ['total', 'vinyl', 'cd', 'cassette', 'artist'];
+            const activeWidgets = (settings && settings.statsWidgets) ? settings.statsWidgets : registry.getDefaultStatsWidgets();
 
             activeWidgets.forEach(id => { 
                 const w = widgetConfig[id];
@@ -288,12 +221,9 @@
 </div>
 
 <div id="addHubModal" class="fixed inset-0 z-[100] hidden bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4">
-    <% 
-        let activeCount = 0;
-        if (settings.modules.music) activeCount++;
-        if (settings.modules.books) activeCount++;
-        if (settings.modules.dvd) activeCount++;
-        if (settings.modules.games) activeCount++;
+    <%
+        const addHubPlugins = registry.getEnabled(settings);
+        let activeCount = addHubPlugins.length;
 
         let gridCols = 'grid-cols-2'; // Default to 2 columns on mobile
         if (activeCount === 1) gridCols = 'grid-cols-1';
@@ -319,42 +249,15 @@
 
         <div class="grid <%= gridCols %> <%= desktopGridCols %> gap-3 sm:gap-6">
             
-            <% if (settings.modules.music) { %>
-                <a href="<%= baseUrl %>/add-vinyl" class="group flex flex-col items-center justify-center p-5 sm:p-8 rounded-[1.5rem] sm:rounded-[2rem] bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white transition-all duration-300">
+            <% addHubPlugins.forEach(p => { %>
+                <a href="<%= baseUrl %>/<%= p.searchProvider ? ('add-' + p.id) : ('manual-add?type=' + p.id) %>" class="group flex flex-col items-center justify-center p-5 sm:p-8 rounded-[1.5rem] sm:rounded-[2rem] bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white transition-all duration-300">
                     <div class="w-12 h-12 sm:w-20 sm:h-20 rounded-full bg-primary-theme/10 group-hover:bg-white/20 flex items-center justify-center mb-3 sm:mb-4">
-                        <i class="fa-solid fa-compact-disc text-xl sm:text-4xl"></i>
+                        <i class="fa-solid fa-<%= p.icon %> text-xl sm:text-4xl"></i>
                     </div>
-                    <span class="font-black text-[10px] sm:text-xs uppercase tracking-widest text-center"><%= t('perso.modules.music') %></span>
+                    <span class="font-black text-[10px] sm:text-xs uppercase tracking-widest text-center"><%= t(p.label) %></span>
                 </a>
-            <% } %>
+            <% }) %>
 
-            <% if (settings.modules.books) { %>
-                <a href="<%= baseUrl %>/add-book" class="group flex flex-col items-center justify-center p-5 sm:p-8 rounded-[1.5rem] sm:rounded-[2rem] bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white transition-all duration-300">
-                    <div class="w-12 h-12 sm:w-20 sm:h-20 rounded-full bg-primary-theme/10 group-hover:bg-white/20 flex items-center justify-center mb-3 sm:mb-4">
-                        <i class="fa-solid fa-book text-xl sm:text-4xl"></i>
-                    </div>
-                    <span class="font-black text-[10px] sm:text-xs uppercase tracking-widest text-center"><%= t('perso.modules.books') %></span>
-                </a>
-            <% } %>
-
-            <% if (settings.modules.dvd) { %>
-                <a href="<%= baseUrl %>/add-dvd" class="group flex flex-col items-center justify-center p-5 sm:p-8 rounded-[1.5rem] sm:rounded-[2rem] bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white transition-all duration-300">
-                    <div class="w-12 h-12 sm:w-20 sm:h-20 rounded-full bg-primary-theme/10 group-hover:bg-white/20 flex items-center justify-center mb-3 sm:mb-4">
-                        <i class="fa-solid fa-film text-xl sm:text-4xl"></i>
-                    </div>
-                    <span class="font-black text-[10px] sm:text-xs uppercase tracking-widest text-center"><%= t('perso.modules.dvd') %></span>
-                </a>
-            <% } %>
-
-            <% if (settings.modules.games) { %>
-                <a href="<%= baseUrl %>/add-game" class="group flex flex-col items-center justify-center p-5 sm:p-8 rounded-[1.5rem] sm:rounded-[2rem] bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white transition-all duration-300">
-                    <div class="w-12 h-12 sm:w-20 sm:h-20 rounded-full bg-primary-theme/10 group-hover:bg-white/20 flex items-center justify-center mb-3 sm:mb-4">
-                        <i class="fa-solid fa-gamepad text-xl sm:text-4xl"></i>
-                    </div>
-                    <span class="font-black text-[10px] sm:text-xs uppercase tracking-widest text-center"><%= t('perso.modules.games') %></span>
-                </a>
-            <% } %>
-            
         </div>
 
         <button onclick="toggleAddModal()" class="w-full mt-8 py-4 bg-black/5 dark:bg-white/5 rounded-2xl font-bold text-sm sm:hidden opacity-60">

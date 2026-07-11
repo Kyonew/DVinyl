@@ -1,0 +1,2 @@
+<label class="block mb-2 text-sm font-bold uppercase tracking-widest opacity-60"><%= t(field.label) %></label>
+<input type="number" name="<%= field.name %>" value="<%= value !== undefined ? value : '' %>" <%= field.required ? 'required' : '' %> class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme block w-full p-3 outline-none" placeholder="<%= field.placeholder ? t(field.placeholder) : '' %>">

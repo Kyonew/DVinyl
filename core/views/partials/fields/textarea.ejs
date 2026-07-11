@@ -1,0 +1,7 @@
+<label class="block mb-2 text-sm font-bold uppercase tracking-widest opacity-60">
+    <%= t(field.label) %>
+    <% if (field.hint) { %>
+        <span class="text-xs opacity-50 ml-2 font-normal normal-case"><%= t(field.hint) %></span>
+    <% } %>
+</label>
+<textarea name="<%= field.name %>" rows="3" class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg focus:ring-primary-theme block w-full p-3 outline-none" placeholder="<%= field.placeholder ? t(field.placeholder) : '' %>"><%= value || '' %></textarea>

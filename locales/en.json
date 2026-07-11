@@ -73,7 +73,8 @@
     "too_many_attempts_timed": "Too many attempts. Try again in {{seconds}} seconds.",
     "too_many_attempts_blocked": "Too many attempts. Try again in 5 minutes.",
     "404_title": "Oops! Groove not found.",
-    "404_desc": "The page you are looking for seems to have been scratched from the collection or the associated module is currently disabled."
+    "404_desc": "The page you are looking for seems to have been scratched from the collection or the associated module is currently disabled.",
+    "not_found": "Item not found."
   },
   "messages": {
     "username_current": "This is your current username.",
@@ -298,7 +299,15 @@
       "title": "Discogs import",
       "subtitle": "Import your Discogs collection or Discogs wantlist",
       "collection": "Import collection",
-      "wantlist": "Import wantlist"
+      "wantlist": "Import wantlist",
+      "url_label": "Discogs profile URL",
+      "url_hint": "Your public collection or wantlist page",
+      "type_label": "Target",
+      "full_label": "Mode",
+      "full_hint": "Full mode also imports tracklists (slower)",
+      "mode_fast": "Fast",
+      "mode_full": "Full (with tracklists)",
+      "btn_start": "Start import"
     },
     "maintenance": {
       "title": "Maintenance",
@@ -365,8 +374,11 @@
       "step4": "Drop the file below and start the import",
       "drop_hint": "Drag your CSV file here or click to browse",
       "file_ready": "File ready to be imported",
-      "btn_import": "Start Import"
-    }
+      "btn_import": "Start Import",
+      "file_label": "CSV file"
+    },
+    "module_settings": "Module settings",
+    "advanced_cd_desc": "Also search SACD and CDr formats on Discogs"
   },
   "collection": {
     "title": "My Collection",
@@ -430,7 +442,8 @@
     "sleeve_condition_generic": "Generic Sleeve",
     "add_cover": "Add cover",
     "manual_title": "Add album manually",
-    "manual_mode_hint": "Manual entry — no Discogs data. Market estimation will not be available."
+    "manual_mode_hint": "Manual entry — no Discogs data. Market estimation will not be available.",
+    "tracklist_label": "Tracklist"
   },
   "edit_vinyl": {
     "title": "Edit Album",
@@ -525,7 +538,15 @@
     "password_too_short": "Password must be at least 6 characters long"
   },
   "placeholders": {
-    "location": "e.g. Shelf A - Box 3"
+    "location": "e.g. Shelf A - Box 3",
+    "year": "Ex: 1994",
+    "barcode": "Barcode...",
+    "catalog_number": "Ex: COL 12345...",
+    "label": "Ex: Columbia...",
+    "country": "US, Europe...",
+    "genres": "Rock, Pop...",
+    "styles": "Prog Rock, Synth-pop...",
+    "publisher": "Ex: Penguin..."
   },
   "perso": {
     "title": "Personnalisation",
@@ -563,7 +584,8 @@
     "search_placeholder": "Title, Author or ISBN...",
     "btn_scan": "Scan an ISBN",
     "results_title": "Results",
-    "no_results": "No books found."
+    "no_results": "No books found.",
+    "manual_entry": "Not found? Add manually"
   },
   "confirm_book": {
     "publisher_label": "Publisher",
@@ -634,7 +656,8 @@
     "scan_found": "Barcode found!",
     "scan_error": "Camera error",
     "movie": "Movie",
-    "tv_show": "TV Show"
+    "tv_show": "TV Show",
+    "manual_entry": "Not found? Add manually"
   },
   "confirm_dvd": {
     "title": "Confirm Addition",
@@ -660,7 +683,16 @@
     "status_watched": "Watched",
     "replace_cover": "Replace main cover",
     "btn_collection": "Add to Collection",
-    "btn_wishlist": "Add to Wishlist"
+    "btn_wishlist": "Add to Wishlist",
+    "studio_label": "Studio",
+    "field_media_type": "Type",
+    "field_zone": "Region",
+    "barcode_label": "Barcode",
+    "comments_placeholder": "Ex: Original 1986 pressing, bought at flea market...",
+    "media_type_movie": "Movie",
+    "media_type_tv": "TV Show",
+    "field_is_boxset": "Is a Boxset",
+    "field_watch_status": "Status"
   },
   "edit_dvd": {
     "title": "Edit DVD / TV Show"
@@ -690,7 +722,8 @@
     "scan_stop": "Stop scanning",
     "scan_found": "Barcode found!",
     "scan_error": "Camera error",
-    "barcode_warning": "Scanning may not work correctly at the moment."
+    "barcode_warning": "Scanning may not work correctly at the moment.",
+    "manual_entry": "Not found? Add manually"
   },
   "confirm_game": {
     "config_title": "Verify and complete",
@@ -714,7 +747,8 @@
     "replace_cover": "Replace main cover",
     "btn_collection": "Add to Collection",
     "btn_wishlist": "Add to Wishlist",
-    "cover_preview": "Cover Preview"
+    "cover_preview": "Cover Preview",
+    "publisher_label": "Publisher"
   },
   "edit_game": {
     "title": "Edit game"
@@ -736,5 +770,8 @@
     "col_title": "Title",
     "col_duration": "Dur.",
     "add_track": "Add track"
+  },
+  "add": {
+    "manual_entry": "Manual entry"
   }
 }

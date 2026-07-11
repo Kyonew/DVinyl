@@ -1,6 +1,7 @@
 import Settings from '../models/Settings';
 import themesConfig from '../config/themes';
 import { BASE_URL } from '../config/constants';
+import { registry } from '../core/registry';
 
 async function settingsMiddleware(req: any, res: any, next: any) {
     try {
@@ -8,32 +9,22 @@ async function settingsMiddleware(req: any, res: any, next: any) {
 
         const dbSettings = await Settings.findOne().lean();
 
+        // All defaults derive from the registered plugins (fresh-install / missing fields)
         const defaultSettings = {
             siteName: 'DVinyl',
-            modules: { music: true, books: false, dvd: false, games: false, advancedCD: false },
-            navbarShortcuts: ['global_home', 'music_vinyl', 'music_cd', 'music_cassette', 'global_wishlist'],
-            statsWidgets: ['total', 'vinyl', 'cd', 'cassette', 'artist'],
-            theme: {
-                home: { preset: 'default' },
-                music: { preset: 'default' },
-                books: { preset: 'default' },
-                dvd: { preset: 'default' },
-                games: { preset: 'default' }
-            }
+            modules: registry.getDefaultModules(),
+            navbarShortcuts: registry.getDefaultNavbarShortcuts(),
+            statsWidgets: registry.getDefaultStatsWidgets(),
+            theme: registry.getDefaultThemes(),
+            pluginSettings: registry.getDefaultPluginSettings()
         };
 
         const settings = dbSettings || defaultSettings;
 
-        if (!settings.navbarShortcuts) {
-            settings.navbarShortcuts = ['global_home', 'music_vinyl', 'music_cd', 'music_cassette', 'global_wishlist'];
-        }
-        if (!settings.statsWidgets) {
-            settings.statsWidgets = ['total', 'vinyl', 'cd', 'cassette', 'artist'];
-        }
+        settings.pluginSettings = settings.pluginSettings || registry.getDefaultPluginSettings();
 
-
-        settings.navbarShortcuts = settings.navbarShortcuts || ['global_home', 'music_vinyl', 'music_cd', 'music_cassette', 'global_wishlist'];
-        settings.statsWidgets = settings.statsWidgets || ['total', 'vinyl', 'cd', 'cassette', 'artist'];
+        settings.navbarShortcuts = settings.navbarShortcuts || registry.getDefaultNavbarShortcuts();
+        settings.statsWidgets = settings.statsWidgets || registry.getDefaultStatsWidgets();
 
         res.locals.settings = settings;
 
@@ -46,18 +37,19 @@ async function settingsMiddleware(req: any, res: any, next: any) {
             ? fullPath.slice(BASE_URL.length)
             : fullPath;
 
-        const queryType = req.query.type; // ex: ?type=books
+        const queryType = req.query.type;
 
         let detectedType = 'home';
-
-        if (path.includes('vinyl') || path.includes('search-discogs') || path.includes('cd') || path.includes('cassette') || path.includes('album') || path.includes('music')) {
-            detectedType = 'music';
-        } else if (path.includes('book') || path.includes('books')) {
-            detectedType = 'books';
-        } else if (path.includes('game') || path.includes('games')) {
-            detectedType = 'games';
-        } else if (path.includes('dvd')) {
-            detectedType = 'dvd';
+        const foundPlugin = registry.getAll().find(p =>
+            path.includes(p.routePrefix.toLowerCase()) ||
+            path.includes(p.id.toLowerCase()) ||
+            path.includes(p.collectionType.toLowerCase()) ||
+            (p.pathAliases || []).some(alias => path.includes(alias.toLowerCase()))
+        );
+        if (foundPlugin) {
+            // Use collectionType: it keys settings.modules and matches the ?type= query param,
+            // so module gating and category detection stay correct even if id !== collectionType.
+            detectedType = foundPlugin.collectionType;
         }
 
         res.locals.detectedType = detectedType;
@@ -65,18 +57,17 @@ async function settingsMiddleware(req: any, res: any, next: any) {
 
         res.locals.currentType = activeType;
 
-        const isAllowedAction = req.method === 'DELETE' || path.startsWith(BASE_URL + '/api/') ||
-            path.includes('/book/') || path.includes('/dvd/') || path.includes('/game/') || path.includes('/album/') ||
-            path.includes('/save-');
+        const isAllowedAction = req.method === 'DELETE' || path.startsWith('/api/') ||
+            registry.getAll().some(p => path.includes(p.routePrefix) || path.includes(`/save-${p.id}`));
 
-        if (activeType === 'books' && !settings.modules?.books && path !== '/' && !isAllowedAction) {
-            return res.status(404).render('404');
-        }
-        if (activeType === 'dvd' && !settings.modules?.dvd && path !== '/' && !isAllowedAction) {
-            return res.status(404).render('404');
-        }
-        if (activeType === 'games' && !settings.modules?.games && path !== '/' && !isAllowedAction) {
-            return res.status(404).render('404');
+        if (detectedType !== 'home') {
+            const isEnabled = settings.modules && (
+                (settings.modules as any)[detectedType] || 
+                (settings.modules instanceof Map ? settings.modules.get(detectedType) : false)
+            );
+            if (!isEnabled && path !== '/' && !isAllowedAction) {
+                return res.status(404).render('404');
+            }
         }
 
         next();

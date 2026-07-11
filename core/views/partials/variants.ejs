@@ -1,0 +1,44 @@
+<% if (typeof variants !== 'undefined' && variants.length > 0) { %>
+    <div class="mt-16 pt-8 border-t border-black/10 dark:border-white/10 transition-colors">
+        <h3 class="text-xl font-bold mb-6 flex items-center gap-2">
+            <i class="fa-solid fa-copy text-primary-theme"></i>
+            <%= t('detail.variants_title') %>
+        </h3>
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
+            <% variants.forEach(variant => { %>
+                <% 
+                    const detailUrl = `${plugin.routePrefix}/${variant._id}`;
+                %>
+                <a href="<%= baseUrl + detailUrl %>" class="group block">
+                    <div class="aspect-square rounded-xl overflow-hidden card-theme border border-black/5 dark:border-white/10 shadow-sm hover:shadow-md transition-all duration-300 relative flex items-center justify-center">
+                        <% 
+                            const varImg = variant.user_image || variant.cover_image || '/ressources/logo.png';
+                        %>
+                        <img src="<%= varImg %>" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" alt="<%= variant.title %>">
+                        
+                        <% 
+                            let label = '';
+                            if (variant.variant_color) {
+                                label = variant.variant_color;
+                            } else if (variant.format_type) {
+                                label = variant.format_type;
+                            } else if (variant.format) {
+                                label = variant.format;
+                            } else if (variant.media_type) {
+                                label = t('media.' + variant.media_type, { defaultValue: variant.media_type });
+                            }
+                        %>
+                        <% if (label) { %>
+                            <div class="absolute bottom-2 left-2 right-2 bg-black/75 backdrop-blur-sm text-white text-[10px] px-2 py-1 rounded truncate text-center font-semibold">
+                                <%= label %>
+                            </div>
+                        <% } %>
+                    </div>
+                    <div class="mt-2 text-xs font-semibold truncate group-hover:text-primary-theme transition-colors text-center">
+                        <%= label %>
+                    </div>
+                </a>
+            <% }) %>
+        </div>
+    </div>
+<% } %>

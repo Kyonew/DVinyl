@@ -1,0 +1,211 @@
+<%- include('../../views/partials/header') %>
+
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
+<div class="max-w-screen-lg mx-auto pb-20 px-4">
+    
+    <div class="text-center mb-8 md:mb-12 pt-4 md:pt-8">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary-theme/10 text-primary-theme mb-4">
+            <i class="fa-solid fa-<%= plugin.icon %> text-3xl"></i>
+        </div>
+        <h1 class="text-3xl md:text-4xl font-black"><%= t('add_' + plugin.i18nKey + '.title', { defaultValue: t('add_vinyl.title') }) %></h1>
+        <p class="opacity-60 mt-2"><%= t('add_' + plugin.i18nKey + '.desc', { defaultValue: t('add_vinyl.desc') }) %></p>
+    </div>
+
+    <form action="<%= baseUrl %>/search-<%= plugin.id %>" method="POST" class="max-w-2xl mx-auto mb-10">
+        <% if (plugin.searchFormPartial && plugin.partialsPath) { %>
+            <%- include('../../' + plugin.partialsPath + '/' + plugin.searchFormPartial, { zone: 'top', searchType: locals.searchType }) %>
+        <% } else if (locals.searchType) { %>
+            <input type="hidden" name="type" value="<%= searchType %>">
+        <% } %>
+        <div class="flex flex-col sm:flex-row gap-3">
+            <div class="flex-grow relative group">
+                <div class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none z-10">
+                    <i class="fa-solid fa-search opacity-50 group-focus-within:text-primary-theme transition-colors"></i>
+                </div>
+                <input type="text" name="query" value="<%= locals.searchQuery || '' %>"
+                    class="block w-full p-4 pl-12 text-base bg-black/5 dark:bg-white/5 border border-transparent focus:border-primary-theme rounded-2xl focus:ring-2 focus:ring-primary-theme/50 placeholder-opacity-50 transition-all outline-none"
+                    placeholder="<%= t('add_' + plugin.i18nKey + '.search_placeholder', { defaultValue: t('add_vinyl.search_placeholder') }) %>" autofocus required>
+            </div>
+            <button type="submit"
+                class="bg-primary-theme hover:brightness-110 text-white font-bold px-8 py-4 rounded-2xl shadow-lg shadow-primary-theme/20 transition-all active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap">
+                <i class="fa-solid fa-search"></i>
+                <%= t('common.search') %>
+            </button>
+        </div>
+
+        <% if (plugin.searchFormPartial && plugin.partialsPath) { %>
+            <%- include('../../' + plugin.partialsPath + '/' + plugin.searchFormPartial, { zone: 'bottom', searchType: locals.searchType }) %>
+        <% } %>
+
+        <div class="flex items-center gap-3 mt-4 justify-center">
+            <span class="text-xs font-bold uppercase opacity-30"><%= t('add_vinyl.separator_or') %></span>
+        </div>
+
+        <div class="flex flex-col items-center justify-center mt-6 gap-3">
+            <button type="button" id="start-scan"
+                class="bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 active:scale-95">
+                <i class="fa-solid fa-barcode"></i>
+                <%= t('add_' + plugin.i18nKey + '.btn_scan', { defaultValue: t('add_vinyl.btn_scan') }) %>
+            </button>
+
+            <% if (plugin.getManualDefaults) { %>
+                <a href="<%= baseUrl %>/add-<%= plugin.id %>/manual"
+                    class="text-xs text-primary-theme hover:underline font-bold transition-all flex items-center gap-1.5 mt-2">
+                    <i class="fa-solid fa-keyboard"></i>
+                    <%= t('add_' + plugin.i18nKey + '.manual_entry', { defaultValue: t('add_vinyl.manual_entry') }) %>
+                </a>
+            <% } %>
+        </div>
+
+        <div id="reader" class="hidden mt-6 rounded-2xl overflow-hidden shadow-lg border border-black/10 dark:border-white/10"></div>
+    </form>
+
+    <% if (locals.results) { %>
+        <div class="mb-4 flex items-center justify-between">
+            <h2 class="text-xl font-bold transition-colors"><%= t('add_' + plugin.i18nKey + '.results_title', { defaultValue: t('add_vinyl.results_title') }) %></h2>
+            <span class="bg-black/10 dark:bg-white/10 text-xs font-mono px-2 py-1 rounded opacity-70 transition-colors"><%= results.length %></span>
+        </div>
+
+        <% if (results.length === 0) { %>
+            <div class="text-center py-12 card-theme bg-opacity-50 rounded-xl border-dashed opacity-70 transition-colors">
+                <i class="fa-solid fa-ghost text-4xl mb-3 opacity-50"></i>
+                <p><%= t('add_' + plugin.i18nKey + '.no_results', { defaultValue: t('add_vinyl.no_results') }) %></p>
+            </div>
+        <% } else { %>
+            <% 
+                const aspect = plugin.aspectRatioClass || 'aspect-[2/3]';
+            %>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <% results.forEach(item => { %>
+                    <%
+                        const confirmParams = [];
+                        if (locals.searchType && locals.searchType !== plugin.id) confirmParams.push('type=' + encodeURIComponent(searchType));
+                        if (locals.scanned_barcode) confirmParams.push('barcode=' + encodeURIComponent(scanned_barcode));
+                        const confirmQs = confirmParams.length ? '?' + confirmParams.join('&') : '';
+                    %>
+                    <a href="<%= baseUrl %>/confirm-<%= plugin.id %>/<%= item.id || item.hardcover_id || item.tmdb_id || item.igdb_id %><%- confirmQs %>" class="card-theme rounded-xl overflow-hidden hover:border-primary-theme transition-all group flex flex-col hover:shadow-lg hover:-translate-y-1">
+                        <div class="relative <%= aspect %> bg-black/5 dark:bg-white/5">
+                            <% if (item.cover_image && !item.cover_image.includes('spacer.gif')) { %>
+                                <img src="<%= item.cover_image %>" onerror="this.onerror=null; this.src='<%= baseUrl %>/ressources/logo.png';" class="w-full h-full object-cover">
+                            <% } else { %>
+                                <div class="w-full h-full flex items-center justify-center opacity-30">
+                                    <i class="fa-solid fa-<%= plugin.icon %> text-3xl"></i>
+                                </div>
+                            <% } %>
+                        </div>
+
+                        <div class="p-3 flex flex-col flex-grow">
+                            <h3 class="font-bold text-sm leading-tight mb-1 line-clamp-2 transition-colors"><%= item.title %></h3>
+                            <% const creatorLine = item.artist || item.author || item.director || item.developer || item.creator; %>
+                            <% if (creatorLine) { %>
+                                <p class="opacity-60 text-xs mb-1 transition-colors line-clamp-1"><%= creatorLine %></p>
+                            <% } %>
+                            <p class="opacity-40 text-[10px] mb-2 transition-colors"><%= item.country ? item.country + ' • ' : '' %><%= item.year %></p>
+
+                            <% if (item.is_advanced_cd) { %>
+                                <div class="flex items-center gap-1 mb-2">
+                                    <span class="text-[10px] font-bold text-white px-2 py-0.5 rounded-full shadow-md truncate max-w-full <%= item.is_advanced_cd === 'sacd' ? 'bg-red-600/90' : 'bg-blue-600/90' %>">
+                                        <%= item.is_advanced_cd === 'sacd' ? t('media.sacd') : t('media.cdr') %>
+                                    </span>
+                                </div>
+                            <% } %>
+
+                            <% if (item.variant_info) { %>
+                                <div class="flex items-center gap-1 mb-3">
+                                    <span class="w-2 h-2 rounded-full bg-primary-theme inline-block flex-shrink-0"></span>
+                                    <span class="text-[10px] opacity-70 truncate max-w-full font-medium italic"><%= item.variant_info %></span>
+                                </div>
+                            <% } %>
+
+                            <div class="flex flex-wrap gap-1 mt-auto">
+                                <% if (Array.isArray(item.format)) { %>
+                                    <% item.format.slice(0, 2).forEach(fmt => { %>
+                                        <span class="text-[9px] bg-black/5 dark:bg-white/10 opacity-70 px-1.5 py-0.5 rounded border border-transparent truncate max-w-full transition-colors"><%= fmt %></span>
+                                    <% }) %>
+                                <% } else if (item.format) { %>
+                                    <span class="text-[9px] bg-black/5 dark:bg-white/10 opacity-70 px-1.5 py-0.5 rounded border border-transparent truncate max-w-full transition-colors">
+                                        <%= t('media.' + item.format, { defaultValue: item.format }) %>
+                                    </span>
+                                <% } else if (item.pages) { %>
+                                    <span class="text-[9px] bg-black/5 dark:bg-white/10 opacity-70 px-1.5 py-0.5 rounded border border-transparent truncate max-w-full transition-colors"><%= item.pages %> p.</span>
+                                <% } %>
+                            </div>
+                        </div>
+                    </a>
+                <% }) %>
+            </div>
+        <% } %>
+    <% } %>
+</div>
+
+<script>
+    const scanTranslations = {
+        btnDefault: '<i class="fa-solid fa-barcode text-primary-theme text-xl"></i> <span><%= t("add_" + plugin.i18nKey + ".btn_scan", { defaultValue: t("add_vinyl.btn_scan") }) %></span>',
+        init: '<i class="fa-solid fa-spinner fa-spin text-xl"></i> <span><%= t("add_vinyl.scan_init") %></span>',
+        stop: '<i class="fa-solid fa-xmark text-xl"></i> <span><%= t("add_vinyl.scan_stop") %></span>',
+        found: '<i class="fa-solid fa-check text-xl"></i> <span><%= t("add_vinyl.scan_found") %></span>',
+        error: '<%= t("add_vinyl.scan_error") %>'
+    };
+
+    const html5QrCode = new Html5Qrcode("reader");
+    const scanButton = document.getElementById('start-scan');
+    const readerDiv = document.getElementById('reader');
+    const searchInput = document.querySelector('input[name="query"]');
+    const form = document.querySelector('form[action="<%= baseUrl %>/search-<%= plugin.id %>"]');
+    let isScanning = false;
+
+    scanButton.addEventListener('click', () => {
+        if (isScanning) {
+            html5QrCode.stop().then(() => {
+                readerDiv.classList.add('hidden');
+                scanButton.innerHTML = scanTranslations.btnDefault;
+                
+                scanButton.classList.remove('bg-red-600', 'hover:bg-red-500', 'text-white');
+                scanButton.classList.add('bg-black/5', 'dark:bg-white/5', 'hover:bg-black/10', 'dark:hover:bg-white/10');
+                
+                isScanning = false;
+            }).catch(err => console.error("Error stopping scan", err));
+        } else {
+            readerDiv.classList.remove('hidden');
+            scanButton.innerHTML = scanTranslations.init;
+            
+            const config = { 
+                fps: 10, 
+                qrbox: { width: 250, height: 150 }, 
+                aspectRatio: 1.0,
+                formatsToSupport: [ 
+                    Html5QrcodeSupportedFormats.EAN_13,
+                    Html5QrcodeSupportedFormats.EAN_8,
+                    Html5QrcodeSupportedFormats.UPC_A,
+                    Html5QrcodeSupportedFormats.UPC_E
+                ]
+            };
+            
+            html5QrCode.start(
+                { facingMode: "environment" },
+                config,
+                (decodedText) => {
+                    html5QrCode.stop().then(() => {
+                        readerDiv.classList.add('hidden');
+                        scanButton.innerHTML = scanTranslations.found;
+                        searchInput.value = decodedText;
+                        form.submit();
+                    });
+                },
+                (errorMessage) => {}
+            ).then(() => {
+                isScanning = true;
+                scanButton.innerHTML = scanTranslations.stop;
+                
+                scanButton.classList.remove('bg-black/5', 'dark:bg-white/5', 'hover:bg-black/10', 'dark:hover:bg-white/10');
+                scanButton.classList.add('bg-red-600', 'hover:bg-red-500', 'text-white');
+            }).catch(err => {
+                console.error("Error starting scan", err);
+                scanButton.innerHTML = scanTranslations.error;
+            });
+        }
+    });
+</script>
+
+<%- include('../../views/partials/footer') %>

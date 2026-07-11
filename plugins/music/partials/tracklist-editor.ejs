@@ -1,0 +1,105 @@
+<div class="mt-6 border-t border-black/10 dark:border-white/10 pt-6">
+    <div class="flex items-center justify-between mb-3">
+        <h3 class="text-sm font-bold uppercase tracking-widest opacity-60 flex items-center gap-2">
+            <i class="fa-solid fa-music"></i> <%= t('confirm_vinyl.tracks_title') %>
+            <span id="tlCount" class="font-mono font-normal text-xs opacity-60"></span>
+        </h3>
+    </div>
+
+    <div class="mb-1 hidden md:grid grid-cols-[3.5rem_1fr_3.5rem_1.5rem] gap-2 px-1">
+        <span class="text-[10px] font-bold uppercase opacity-30"><%= t('tracklist.col_position') %></span>
+        <span class="text-[10px] font-bold uppercase opacity-30"><%= t('tracklist.col_title') %></span>
+        <span class="text-[10px] font-bold uppercase opacity-30 text-right"><%= t('tracklist.col_duration') %></span>
+        <span></span>
+    </div>
+
+    <div id="tlEditor" class="space-y-1.5"></div>
+
+    <button type="button" id="tlAddBtn"
+        class="mt-3 w-full py-2.5 text-xs font-bold opacity-30 hover:opacity-70 border-2 border-dashed border-current rounded-xl transition-all flex items-center justify-center gap-2">
+        <i class="fa-solid fa-plus"></i> <%= t('tracklist.add_track') %>
+    </button>
+
+    <input type="hidden" name="tracklist_json" id="tlJson" value="<%= JSON.stringify(item.tracklist || []) %>">
+</div>
+
+<script>
+(function () {
+    const editor  = document.getElementById('tlEditor');
+    const jsonIn  = document.getElementById('tlJson');
+    const countEl = document.getElementById('tlCount');
+    const addBtn  = document.getElementById('tlAddBtn');
+
+    function updateJson() {
+        const tracks = Array.from(editor.querySelectorAll('.tl-row')).map(row => ({
+            position: row.querySelector('.tl-pos').value.trim(),
+            title:    row.querySelector('.tl-title').value.trim(),
+            duration: row.querySelector('.tl-dur').value.trim()
+        }));
+        jsonIn.value = JSON.stringify(tracks);
+        const n = tracks.filter(t => t.title).length;
+        countEl.textContent = n ? `(${n})` : '';
+    }
+
+    function makeRow(track) {
+        const row = document.createElement('div');
+        row.className = 'tl-row grid grid-cols-[3.5rem_1fr_3.5rem_1.5rem] gap-2 items-center group';
+
+        const base = 'bg-black/5 dark:bg-white/5 rounded-lg text-xs p-2 outline-none focus:ring-1 focus:ring-primary-theme w-full';
+
+        const pos = document.createElement('input');
+        pos.type = 'text'; pos.value = track.position || '';
+        pos.placeholder = 'A1';
+        pos.className = base + ' tl-pos font-mono';
+
+        const title = document.createElement('input');
+        title.type = 'text'; title.value = track.title || '';
+        title.placeholder = '...';
+        title.className = base + ' tl-title';
+
+        const dur = document.createElement('input');
+        dur.type = 'text'; dur.value = track.duration || '';
+        dur.placeholder = '0:00';
+        dur.className = base + ' tl-dur font-mono text-right';
+
+        const del = document.createElement('button');
+        del.type = 'button';
+        del.className = 'tl-del opacity-0 group-hover:opacity-40 hover:!opacity-100 hover:text-red-500 transition-all text-center';
+        del.innerHTML = '<i class="fa-solid fa-xmark text-xs"></i>';
+        del.addEventListener('click', () => { row.remove(); updateJson(); });
+
+        dur.addEventListener('blur', () => {
+            const v = dur.value.trim();
+            if (!v) return;
+            if (/^\d+$/.test(v)) {
+                dur.value = `${v}:00`;
+            } else if (/^\d+:\d$/.test(v)) {
+                dur.value = v.replace(/:(\d)$/, ':0$1');
+            } else if (!/^\d+:\d{2}$/.test(v)) {
+                dur.value = '';
+            }
+            updateJson();
+        });
+
+        [pos, title, dur].forEach(inp => {
+            row.appendChild(inp);
+            inp.addEventListener('input', updateJson);
+        });
+        row.appendChild(del);
+        return row;
+    }
+
+    const initial = JSON.parse(jsonIn.value || '[]');
+    initial.forEach(t => editor.appendChild(makeRow(t)));
+    updateJson();
+
+    addBtn.addEventListener('click', () => {
+        const row = makeRow({});
+        editor.appendChild(row);
+        row.querySelector('.tl-title').focus();
+        updateJson();
+    });
+
+    document.querySelector('form').addEventListener('submit', updateJson, { capture: true });
+})();
+</script>

@@ -1,0 +1,6 @@
+<% if (item.series) { %>
+    <span class="px-3 py-1 bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400 rounded-full text-xs flex items-center gap-1.5">
+        <i class="fa-solid fa-swatchbook text-[10px]"></i>
+        <%= item.series %> <%= item.volume ? '#' + item.volume : '' %>
+    </span>
+<% } %>
