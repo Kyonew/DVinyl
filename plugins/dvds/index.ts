@@ -308,7 +308,7 @@ export const dvdPlugin: PluginDefinition = {
     };
   },
 
-  async findDuplicate(ownerId: any, data: Record<string, any>): Promise<any | null> {
+  async findDuplicate(collectionId: any, data: Record<string, any>): Promise<any | null> {
     const tmdbId = data.tmdb_id;
     const matchFormat = data.format || 'dvd';
     const matchZone = (data.zone || '').trim();
@@ -333,7 +333,7 @@ export const dvdPlugin: PluginDefinition = {
 
     if (tmdbId) {
       const query: any = {
-        owner: ownerId,
+        collection: collectionId,
         in_wishlist: false,
         kind: 'Dvd',
         tmdb_id: parseInt(tmdbId)
@@ -350,7 +350,7 @@ export const dvdPlugin: PluginDefinition = {
     const matchDirector = (data.director || data.creator || '').trim();
 
     const query: any = {
-      owner: ownerId,
+      collection: collectionId,
       in_wishlist: false,
       kind: 'Dvd',
       title: { $regex: new RegExp(`^${escapeRegExp(matchTitle)}$`, 'i') },
@@ -364,7 +364,7 @@ export const dvdPlugin: PluginDefinition = {
     return await Item.findOne(query);
   },
 
-  async findPotentialDuplicates(ownerId: any, data: Record<string, any>): Promise<any[]> {
+  async findPotentialDuplicates(collectionId: any, data: Record<string, any>): Promise<any[]> {
     const or: any[] = [];
     if (data.tmdb_id) {
       or.push({ tmdb_id: parseInt(data.tmdb_id) });
@@ -379,7 +379,7 @@ export const dvdPlugin: PluginDefinition = {
     }
     if (or.length === 0) return [];
     return Item.find({
-      owner: ownerId,
+      collection: collectionId,
       in_wishlist: false,
       kind: 'Dvd',
       $or: or
@@ -389,7 +389,7 @@ export const dvdPlugin: PluginDefinition = {
   async getVariants(item: any): Promise<any[]> {
     if (!item) return [];
     return await Item.find({
-      owner: item.owner,
+      collection: item.collection,
       in_wishlist: false,
       kind: 'Dvd',
       _id: { $ne: item._id },

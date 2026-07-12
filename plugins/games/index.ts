@@ -321,7 +321,7 @@ export const gamesPlugin: PluginDefinition = {
     };
   },
 
-  async findDuplicate(ownerId: any, data: Record<string, any>): Promise<any | null> {
+  async findDuplicate(collectionId: any, data: Record<string, any>): Promise<any | null> {
     const igdbId = data.igdb_id;
     const matchPlatform = data.platform || 'other';
     const matchFormat = data.format || 'physical';
@@ -347,7 +347,7 @@ export const gamesPlugin: PluginDefinition = {
 
     if (igdbId) {
       const query: any = {
-        owner: ownerId,
+        collection: collectionId,
         in_wishlist: false,
         kind: 'Game',
         igdb_id: parseInt(igdbId)
@@ -363,7 +363,7 @@ export const gamesPlugin: PluginDefinition = {
     const matchTitle = (data.title || '').trim();
 
     const query: any = {
-      owner: ownerId,
+      collection: collectionId,
       in_wishlist: false,
       kind: 'Game',
       title: { $regex: new RegExp(`^${escapeRegExp(matchTitle)}$`, 'i') }
@@ -379,7 +379,7 @@ export const gamesPlugin: PluginDefinition = {
     return await Item.findOne(query);
   },
 
-  async findPotentialDuplicates(ownerId: any, data: Record<string, any>): Promise<any[]> {
+  async findPotentialDuplicates(collectionId: any, data: Record<string, any>): Promise<any[]> {
     const or: any[] = [];
     if (data.igdb_id) {
       or.push({ igdb_id: parseInt(data.igdb_id) });
@@ -390,7 +390,7 @@ export const gamesPlugin: PluginDefinition = {
     }
     if (or.length === 0) return [];
     return Item.find({
-      owner: ownerId,
+      collection: collectionId,
       in_wishlist: false,
       kind: 'Game',
       $or: or
@@ -400,7 +400,7 @@ export const gamesPlugin: PluginDefinition = {
   async getVariants(item: any): Promise<any[]> {
     if (!item) return [];
     return await Item.find({
-      owner: item.owner,
+      collection: item.collection,
       in_wishlist: false,
       kind: 'Game',
       _id: { $ne: item._id },

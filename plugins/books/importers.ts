@@ -44,6 +44,7 @@ async function importGoodreads(req: any, res: any) {
   }
 
   const userId = req.user._id;
+  const activeCollectionId = res.locals.activeCollectionId;
   const defaultFormat = default_format || 'paperback';
   const defaultLanguage = default_language || '';
 
@@ -68,7 +69,7 @@ async function importGoodreads(req: any, res: any) {
         const author = item['author_name']?.trim() || '';
         if (!title || !author) continue;
 
-        const existing = await Item.findOne({ owner: userId, title, author, kind: 'Book' });
+        const existing = await Item.findOne({ collection: activeCollectionId, title, author, kind: 'Book' });
         if (existing) continue;
 
         const isbn = item['isbn13']?.trim() || item['isbn']?.trim() || '';
@@ -153,6 +154,7 @@ async function importGoodreads(req: any, res: any) {
           kind: 'Book',
           media_type: 'book',
           owner: userId,
+          collection: activeCollectionId,
           title,
           author,
           isbn,

@@ -6,10 +6,20 @@
             <h1 class="text-2xl md:text-3xl font-bold flex items-center gap-3 transition-colors">
                 <i class="fa-solid fa-shield-halved text-primary-theme"></i>
                 <%= t('admin.title') %>
+                <span class="text-base font-bold opacity-50">- <%= locals.collectionDoc ? collectionDoc.name : '' %></span>
             </h1>
-            <div
-                class="w-fit text-[10px] font-black tracking-widest opacity-40 border border-black/10 dark:border-white/10 px-3 py-1 rounded-full">
-                v<%= appVersion %>
+            <div class="flex items-center gap-3">
+                <% if (user.isAdmin) { %>
+                    <a href="<%= baseUrl %>/admin/instance"
+                        class="flex items-center gap-2 text-xs font-black uppercase tracking-widest bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-4 py-2 rounded-full transition-all">
+                        <i class="fa-solid fa-server"></i>
+                        <%= t('admin.instance.title') %>
+                    </a>
+                <% } %>
+                <div
+                    class="w-fit text-[10px] font-black tracking-widest opacity-40 border border-black/10 dark:border-white/10 px-3 py-1 rounded-full">
+                    v<%= appVersion %>
+                </div>
             </div>
         </div>
 
@@ -129,6 +139,15 @@
             </div>
         </section>
 
+        <% if (locals.successMessage && !locals.newPassword) { %>
+            <div class="bg-primary-theme/10 border border-primary-theme/30 p-4 rounded-2xl text-center mb-6 transition-colors">
+                <p class="text-sm font-bold text-primary-theme flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-check-circle"></i>
+                    <%= successMessage %>
+                </p>
+            </div>
+        <% } %>
+
         <% if (locals.newPassword) { %>
             <div
                 class="bg-primary-theme/10 border border-primary-theme/30 p-6 rounded-2xl text-center animate-pulse transition-colors">
@@ -152,130 +171,176 @@
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between py-6 gap-4 mb-4">
                         <h1 class="text-2xl md:text-3xl font-bold flex items-center gap-3 transition-colors">
                             <i class="fa-solid fa-users text-neutral-400 dark:text-neutral-500"></i>
-                            <%= t('admin.users_count', { count: users.length }) %>
+                            <%= t('admin.members.title', { count: (locals.members || []).length }) %>
                         </h1>
-                        <button onclick="toggleModal('addUserModal')"
+                        <button onclick="toggleModal('addMemberModal')"
                             class="group relative flex items-center gap-3 bg-primary-theme hover:brightness-110 text-white px-5 py-3 rounded-2xl shadow-lg shadow-primary-theme/20 transition-all active:scale-95 overflow-hidden">
                             <div
                                 class="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform">
                             </div>
                             <i class="fa-solid fa-user-plus text-sm relative"></i>
                             <span class="text-xs font-black relative">
-                                <%= t('admin.modal.title') %>
+                                <%= t('admin.members.create_btn') %>
                             </span>
                         </button>
                     </div>
 
-                    <div class="hidden md:block card-theme rounded-2xl overflow-hidden shadow-lg transition-colors">
-                        <table class="w-full text-left text-sm opacity-80">
-                            <thead class="bg-black/5 dark:bg-white/5 text-xs uppercase opacity-70 transition-colors">
-                                <tr>
-                                    <th class="px-6 py-4">
-                                        <%= t('admin.table.user') %>
-                                    </th>
-                                    <th class="px-6 py-4">
-                                        <%= t('admin.table.email') %>
-                                    </th>
-                                    <th class="px-6 py-4">
-                                        <%= t('admin.table.last_change') %>
-                                    </th>
-                                    <th class="px-6 py-4 text-right">
-                                        <%= t('admin.table.actions') %>
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-black/5 dark:divide-white/5 transition-colors">
-                                <% users.forEach(u=> { %>
-                                    <tr class="hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
-                                        <td class="px-6 py-4 font-medium flex items-center gap-3">
-                                            <img src="<%= baseUrl + u.img %>"
-                                                class="w-8 h-8 rounded-full border border-black/10 dark:border-white/10 object-cover">
-                                            <%= u.username %>
-                                        </td>
-                                        <td class="px-6 py-4">
-                                            <%= u.email %>
-                                        </td>
-                                        <td class="px-6 py-4 text-xs opacity-70">
-                                            <%= new Date(u.lastChange).toLocaleDateString(currentLng==='fr' ? 'fr-FR'
-                                                : 'en-US' ) %>
-                                        </td>
-                                        <td class="px-6 py-4 text-right flex justify-end gap-2">
-                                            <form action="<%= baseUrl %>/admin/reset-password" method="POST"
-                                                onsubmit="return confirm('<%= t('admin.confirm_reset', { name: u.username }) %>')">
-                                                <input type="hidden" name="userId" value="<%= u._id %>">
-                                                <button type="submit"
-                                                    class="text-yellow-600 bg-yellow-100 dark:bg-yellow-500/10 p-2 rounded-lg transition-colors hover:brightness-110"
-                                                    title="<%= t('admin.tooltips.reset_password') %>">
-                                                    <i class="fa-solid fa-key"></i>
-                                                </button>
-                                            </form>
-                                            <% if (u._id.toString() !==user._id.toString()) { %>
-                                                <form action="<%= baseUrl %>/admin/delete-user" method="POST"
-                                                    onsubmit="return confirm('<%= t('admin.confirm_delete_user', { name: u.username }) %>')">
-                                                    <input type="hidden" name="userId" value="<%= u._id %>">
-                                                    <button type="submit"
-                                                        class="text-red-600 bg-red-100 dark:bg-red-500/10 p-2 rounded-lg transition-colors hover:brightness-110"
-                                                        title="<%= t('admin.tooltips.delete') %>">
-                                                        <i class="fa-solid fa-trash"></i>
-                                                    </button>
-                                                </form>
-                                                <% } %>
-                                        </td>
+                    <!-- Invite an existing instance user -->
+                    <form action="<%= baseUrl %>/admin/members/invite" method="POST"
+                        class="flex flex-col sm:flex-row items-stretch gap-2 mb-6">
+                        <input type="text" name="identifier" required
+                            placeholder="<%= t('admin.members.invite_placeholder') %>"
+                            class="flex-1 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary-theme/40 transition-colors">
+                        <select name="role"
+                            class="bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl px-4 py-3 text-sm outline-none cursor-pointer">
+                            <option class="bg-white dark:bg-[#1a1a1a]" value="viewer"><%= t('admin.members.role_viewer') %></option>
+                            <option class="bg-white dark:bg-[#1a1a1a]" value="editor"><%= t('admin.members.role_editor') %></option>
+                            <option class="bg-white dark:bg-[#1a1a1a]" value="admin"><%= t('admin.members.role_admin') %></option>
+                        </select>
+                        <button type="submit"
+                            class="flex items-center justify-center gap-2 bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-5 py-3 rounded-2xl text-xs font-black transition-all">
+                            <i class="fa-solid fa-envelope"></i>
+                            <%= t('admin.members.invite_btn') %>
+                        </button>
+                    </form>
+
+                    <div class="card-theme rounded-2xl overflow-hidden shadow-lg transition-colors">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-sm opacity-80 min-w-[600px]">
+                                <thead class="bg-black/5 dark:bg-white/5 text-xs uppercase opacity-70 transition-colors">
+                                    <tr>
+                                        <th class="px-6 py-4">
+                                            <%= t('admin.table.user') %>
+                                        </th>
+                                        <th class="px-6 py-4">
+                                            <%= t('admin.members.col_role') %>
+                                        </th>
+                                        <th class="px-6 py-4 text-right">
+                                            <%= t('admin.table.actions') %>
+                                        </th>
                                     </tr>
-                                    <% }) %>
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody class="divide-y divide-black/5 dark:divide-white/5 transition-colors">
+                                    <% (locals.members || []).forEach(m=> { const mu = m.user; %>
+                                        <tr class="hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+                                            <td class="px-6 py-4 font-medium">
+                                                <div class="flex items-center gap-3">
+                                                    <img src="<%= baseUrl + (mu.img || '/ressources/no-pp.jpg') %>"
+                                                        class="w-8 h-8 rounded-full border border-black/10 dark:border-white/10 object-cover">
+                                                    <div class="overflow-hidden">
+                                                        <p class="truncate"><%= mu.username %>
+                                                            <% if (mu.isAdmin) { %>
+                                                                <span class="text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-primary-theme/10 text-primary-theme">
+                                                                    <%= t('admin.instance.admin_badge') %>
+                                                                </span>
+                                                            <% } %>
+                                                        </p>
+                                                        <p class="text-[10px] opacity-60 truncate"><%= mu.email %></p>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td class="px-6 py-4">
+                                                <% if (String(mu._id) === String(user._id)) { %>
+                                                    <!-- Own role: read-only (another admin must change it) -->
+                                                    <span class="inline-block bg-black/5 dark:bg-white/5 rounded-lg px-3 py-2 text-xs font-bold opacity-70">
+                                                        <%= t('admin.members.role_' + m.role) %>
+                                                    </span>
+                                                <% } else { %>
+                                                    <form action="<%= baseUrl %>/admin/members/role" method="POST" class="flex items-center gap-2">
+                                                        <input type="hidden" name="userId" value="<%= mu._id %>">
+                                                        <select name="role" onchange="this.form.submit()"
+                                                            class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg px-3 py-2 text-xs font-bold outline-none cursor-pointer">
+                                                            <option class="bg-white dark:bg-[#1a1a1a]" value="viewer" <%= m.role === 'viewer' ? 'selected' : '' %>><%= t('admin.members.role_viewer') %></option>
+                                                            <option class="bg-white dark:bg-[#1a1a1a]" value="editor" <%= m.role === 'editor' ? 'selected' : '' %>><%= t('admin.members.role_editor') %></option>
+                                                            <option class="bg-white dark:bg-[#1a1a1a]" value="admin" <%= m.role === 'admin' ? 'selected' : '' %>><%= t('admin.members.role_admin') %></option>
+                                                        </select>
+                                                    </form>
+                                                <% } %>
+                                            </td>
+                                            <td class="px-6 py-4 text-right">
+                                                <div class="flex justify-end gap-2">
+                                                    <% if (!mu.isAdmin) { %>
+                                                        <form action="<%= baseUrl %>/admin/members/reset-password" method="POST"
+                                                            onsubmit="return confirm('<%= t('admin.confirm_reset', { name: mu.username }) %>')">
+                                                            <input type="hidden" name="userId" value="<%= mu._id %>">
+                                                            <button type="submit"
+                                                                class="text-yellow-600 bg-yellow-100 dark:bg-yellow-500/10 p-2 rounded-lg transition-colors hover:brightness-110"
+                                                                title="<%= t('admin.tooltips.reset_password') %>">
+                                                                <i class="fa-solid fa-key"></i>
+                                                            </button>
+                                                        </form>
+                                                    <% } %>
+                                                    <form action="<%= baseUrl %>/admin/members/remove" method="POST"
+                                                        onsubmit="return confirm('<%= t('admin.members.confirm_remove', { name: mu.username }) %>')">
+                                                        <input type="hidden" name="userId" value="<%= mu._id %>">
+                                                        <button type="submit"
+                                                            class="text-red-600 bg-red-100 dark:bg-red-500/10 p-2 rounded-lg transition-colors hover:brightness-110"
+                                                            title="<%= t('admin.members.remove_btn') %>">
+                                                            <i class="fa-solid fa-user-minus"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <% }) %>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <section>
+                    <div class="flex items-center gap-4 mb-6">
+                        <h2 class="text-xl font-bold flex items-center gap-2 transition-colors whitespace-nowrap">
+                            <i class="fa-solid fa-layer-group text-primary-theme"></i>
+                            <%= t('admin.my_collection.title') %>
+                        </h2>
+                        <div class="flex-grow border-t border-black/10 dark:border-white/10 transition-colors"></div>
                     </div>
 
-                    <div class="md:hidden space-y-4">
-                        <% users.forEach(u=> { %>
-                            <div class="card-theme p-5 rounded-2xl shadow-sm space-y-4 transition-colors">
-                                <div class="flex items-center gap-4">
-                                    <img src="<%= baseUrl + u.img %>"
-                                        class="w-12 h-12 rounded-full border border-black/10 dark:border-white/10 object-cover">
-                                    <div class="overflow-hidden">
-                                        <p class="font-bold truncate">
-                                            <%= u.username %>
-                                        </p>
-                                        <p class="text-xs opacity-60 truncate">
-                                            <%= u.email %>
-                                        </p>
-                                    </div>
+                    <div class="card-theme rounded-3xl p-6 md:p-8 shadow-sm transition-colors space-y-6">
+                        <% if (locals.collectionDoc) { %>
+                            <form action="<%= baseUrl %>/admin/collections/<%= collectionDoc._id %>/rename" method="POST"
+                                class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                                <div class="flex-1 space-y-2">
+                                    <label class="block text-[10px] font-black uppercase tracking-widest opacity-50 ml-1">
+                                        <%= t('admin.my_collection.name_label') %>
+                                    </label>
+                                    <input type="text" name="name" value="<%= collectionDoc.name %>" required
+                                        class="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary-theme/40 transition-colors">
                                 </div>
-                                <div
-                                    class="flex items-center justify-between pt-4 border-t border-black/5 dark:border-white/5">
-                                    <div class="flex flex-col">
-                                        <span class="text-[9px] opacity-50 uppercase font-bold tracking-wider">
-                                            <%= t('admin.table.last_change') %>
-                                        </span>
-                                        <span class="text-xs opacity-70">
-                                            <%= new Date(u.lastChange).toLocaleDateString(currentLng==='fr' ? 'fr-FR'
-                                                : 'en-US' ) %>
-                                        </span>
-                                    </div>
-                                    <div class="flex gap-2">
-                                        <form action="<%= baseUrl %>/admin/reset-password" method="POST"
-                                            onsubmit="return confirm('<%= t('admin.confirm_reset', { name: u.username }) %>')">
-                                            <input type="hidden" name="userId" value="<%= u._id %>">
-                                            <button type="submit"
-                                                class="text-yellow-600 bg-yellow-50 dark:bg-yellow-500/10 px-4 py-2 rounded-xl border border-yellow-200 dark:border-yellow-500/20 text-sm font-bold">
-                                                <i class="fa-solid fa-key"></i>
-                                            </button>
-                                        </form>
-                                        <% if (u._id.toString() !==user._id.toString()) { %>
-                                            <form action="<%= baseUrl %>/admin/delete-user" method="POST"
-                                                onsubmit="return confirm('<%= t('admin.confirm_delete_user', { name: u.username }) %>')">
-                                                <input type="hidden" name="userId" value="<%= u._id %>">
-                                                <button type="submit"
-                                                    class="text-red-600 bg-red-50 dark:bg-red-500/10 px-4 py-2 rounded-xl border border-red-200 dark:border-red-500/20 text-sm font-bold">
-                                                    <i class="fa-solid fa-trash"></i>
-                                                </button>
-                                            </form>
-                                            <% } %>
-                                    </div>
-                                </div>
+                                <button type="submit"
+                                    class="sm:self-end flex items-center justify-center gap-2 bg-primary-theme hover:brightness-110 text-white px-6 py-3 rounded-2xl text-xs font-black transition-all active:scale-95">
+                                    <i class="fa-solid fa-pen"></i>
+                                    <%= t('admin.collections.rename') %>
+                                </button>
+                            </form>
+                        <% } %>
+
+                        <div class="border-t border-black/5 dark:border-white/5 pt-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                            <div>
+                                <h3 class="text-lg font-bold flex items-center gap-2 mb-1">
+                                    <i class="fa-solid fa-database text-primary-theme"></i>
+                                    <%= t('admin.collection_backup.title') %>
+                                </h3>
+                                <p class="text-xs opacity-60">
+                                    <%= t('admin.collection_backup.subtitle') %>
+                                </p>
                             </div>
-                            <% }) %>
+                            <div class="flex flex-wrap gap-3">
+                                <a href="<%= baseUrl %>/backup/collection/export"
+                                    class="flex-1 sm:flex-none bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-file-export"></i>
+                                    <%= t('admin.backup.export_btn') %>
+                                </a>
+                                <label
+                                    class="flex-1 sm:flex-none bg-black/5 dark:bg-white/5 hover:bg-yellow-500 hover:text-white px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer">
+                                    <i class="fa-solid fa-file-import"></i>
+                                    <%= t('admin.backup.import_btn') %>
+                                        <input type="file" id="collectionBackupInput" class="hidden" accept=".json">
+                                </label>
+                            </div>
+                        </div>
                     </div>
                 </section>
 
@@ -362,46 +427,6 @@
                 <section>
                     <div class="flex items-center gap-4 mb-6">
                         <h2 class="text-xl font-bold flex items-center gap-2 transition-colors whitespace-nowrap">
-                            <i class="fa-solid fa-database text-primary-theme"></i>
-                            <%= t('admin.backup.section_title') %>
-                        </h2>
-                        <div class="flex-grow border-t border-black/10 dark:border-white/10 transition-colors"></div>
-                    </div>
-                    <p class="text-sm opacity-50 -mt-3 mb-6">
-                        <%= t('admin.backup.section_subtitle') %>
-                    </p>
-
-                    <div class="card-theme rounded-3xl p-6 md:p-8 shadow-sm transition-colors">
-                        <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                            <div>
-                                <h2 class="text-xl font-bold flex items-center gap-2 mb-2">
-                                    <i class="fa-solid fa-database text-primary-theme"></i>
-                                    <%= t('admin.backup.title') %>
-                                </h2>
-                                <p class="text-sm opacity-60">
-                                    <%= t('admin.backup.subtitle') %>
-                                </p>
-                            </div>
-                            <div class="flex flex-wrap gap-3">
-                                <a href="<%= baseUrl %>/backup/export"
-                                    class="flex-1 sm:flex-none bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-file-export"></i>
-                                    <%= t('admin.backup.export_btn') %>
-                                </a>
-                                <label
-                                    class="flex-1 sm:flex-none bg-black/5 dark:bg-white/5 hover:bg-yellow-500 hover:text-white px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer">
-                                    <i class="fa-solid fa-file-import"></i>
-                                    <%= t('admin.backup.import_btn') %>
-                                        <input type="file" id="backupInput" class="hidden" accept=".json">
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <section>
-                    <div class="flex items-center gap-4 mb-6">
-                        <h2 class="text-xl font-bold flex items-center gap-2 transition-colors whitespace-nowrap">
                             <i class="fa-solid fa-wrench text-primary-theme"></i>
                             <%= t('admin.maintenance.title') %>
                         </h2>
@@ -453,175 +478,24 @@
                 </section>
 
 
-                <section>
-                    <h2 class="text-xl font-bold mb-6 flex items-center gap-2 transition-colors">
-                        <i class="fa-solid fa-ban text-red-500"></i>
-                        <%= t('admin.blocked_ips_title', { count: blockedIps.length }) %>
-                    </h2>
-                    <% if(blockedIps.length> 0) { %>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                            <% blockedIps.forEach(ip=> { %>
-                                <div
-                                    class="card-theme p-5 rounded-2xl flex justify-between items-center group hover:border-red-500/50 transition-colors shadow-sm">
-                                    <div class="overflow-hidden">
-                                        <span class="block font-mono font-bold truncate">
-                                            <%= ip.ip %>
-                                        </span>
-                                        <span class="text-[10px] opacity-50 uppercase tracking-tighter">
-                                            <%= new Date(ip.createdAt).toLocaleDateString(currentLng==='fr' ? 'fr-FR'
-                                                : 'en-US' ) %>
-                                        </span>
-                                    </div>
-                                    <form action="<%= baseUrl %>/admin/unblock-ip" method="POST">
-                                        <input type="hidden" name="ipId" value="<%= ip._id %>">
-                                        <button type="submit"
-                                            class="h-10 w-10 flex items-center justify-center bg-black/5 dark:bg-white/5 opacity-60 hover:text-green-500 hover:opacity-100 rounded-xl transition-colors"
-                                            title="<%= t('admin.tooltips.unblock') %>">
-                                            <i class="fa-solid fa-lock-open"></i>
-                                        </button>
-                                    </form>
-                                </div>
-                                <% }) %>
-                        </div>
-                        <% } else { %>
-                            <div
-                                class="p-12 border-2 border-dashed border-black/10 dark:border-white/10 rounded-3xl text-center opacity-50 transition-colors">
-                                <i class="fa-solid fa-shield-check text-4xl mb-3 opacity-30 block"></i>
-                                <%= t('admin.no_blocked_ips') %>
-                            </div>
-                            <% } %>
-                </section>
-
-                <section>
-                    <div class="flex items-center justify-between mb-6">
-                        <h2 class="text-xl font-bold flex items-center gap-2 transition-colors">
-                            <i class="fa-solid fa-satellite-dish text-primary-theme"></i>
-                            <%= t('admin.logs_title') %>
-                        </h2>
-                        <div class="md:hidden text-[10px] uppercase font-bold opacity-50 flex items-center gap-1">
-                            <i class="fa-solid fa-left-right animate-pulse"></i> Scroll
-                        </div>
-                    </div>
-                    <div class="card-theme rounded-2xl overflow-hidden shadow-lg transition-colors">
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left text-sm opacity-80 min-w-[700px]">
-                                <thead
-                                    class="bg-black/5 dark:bg-white/5 text-xs uppercase opacity-70 transition-colors">
-                                    <tr>
-                                        <th class="px-6 py-4">
-                                            <%= t('admin.table.user') %>
-                                        </th>
-                                        <th class="px-6 py-4">
-                                            <%= t('admin.table.loc') %>
-                                        </th>
-                                        <th class="px-6 py-4">
-                                            <%= t('admin.table.ip_device') %>
-                                        </th>
-                                        <th class="px-6 py-4">
-                                            <%= t('admin.table.date') %>
-                                        </th>
-                                        <th class="px-6 py-4 text-right">
-                                            <%= t('admin.table.security') %>
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-black/5 dark:divide-white/5 transition-colors">
-                                    <% logs.forEach(log=> { %>
-                                        <tr class="hover:bg-black/5 dark:hover:bg-white/5 transition-colors group">
-                                            <td class="px-6 py-4">
-                                                <div class="font-bold">
-                                                    <%= log.username %>
-                                                </div>
-                                                <div class="text-[10px] opacity-60 truncate">
-                                                    <%= log.email %>
-                                                </div>
-                                            </td>
-                                            <td class="px-6 py-4">
-                                                <% if(log.country && log.country !=='XX' ) { %>
-                                                    <div class="flex items-center gap-2">
-                                                        <img src="https://flagcdn.com/24x18/<%= log.country.toLowerCase() %>.png"
-                                                            class="rounded-sm shadow-sm" alt="Flag">
-                                                        <span class="font-mono text-xs">
-                                                            <%= log.country %>
-                                                        </span>
-                                                    </div>
-                                                    <div class="text-[10px] opacity-60 uppercase">
-                                                        <%= log.city %>
-                                                    </div>
-                                                    <% } else { %>
-                                                        <span class="opacity-50 text-xs"><i
-                                                                class="fa-solid fa-globe"></i>
-                                                            <%= t('admin.local_connection') %>
-                                                        </span>
-                                                        <% } %>
-                                            </td>
-                                            <td class="px-6 py-4">
-                                                <div class="text-primary-theme font-mono text-xs mb-1">
-                                                    <%= log.ip %>
-                                                </div>
-                                                <div class="text-[10px] opacity-60 max-w-[120px] truncate"
-                                                    title="<%= log.userAgent %>">
-                                                    <%= log.userAgent.includes('Windows') ? 'Windows' :
-                                                        (log.userAgent.includes('Mac') ? 'Mac' : 'Mobile/Linux' ) %>
-                                                </div>
-                                            </td>
-                                            <td class="px-6 py-4 text-[10px] whitespace-nowrap">
-                                                <% const diff=Math.floor((new Date() - new Date(log.timestamp)) /
-                                                    60000); let timeText=diff < 60 ? t('admin.time_ago_min', { count:
-                                                    diff }) : new
-                                                    Date(log.timestamp).toLocaleDateString(currentLng==='fr' ? 'fr-FR'
-                                                    : 'en-US' ); %>
-                                                    <%= timeText %>
-                                            </td>
-                                            <td class="px-6 py-4 text-right">
-                                                <div class="flex justify-end gap-2 opacity-100 transition-opacity">
-                                                    <% if (log.user) { %>
-                                                        <form action="<%= baseUrl %>/admin/reset-password" method="POST"
-                                                            onsubmit="return confirm('<%= t('admin.confirm_reset', { name: log.username }) %>')">
-                                                            <input type="hidden" name="userId" value="<%= log.user %>">
-                                                            <button type="submit"
-                                                                class="bg-black/5 dark:bg-white/5 hover:bg-yellow-500 hover:text-white p-2 rounded-xl border border-transparent transition-colors"
-                                                                title="<%= t('admin.tooltips.reset_password') %>">
-                                                                <i class="fa-solid fa-key"></i>
-                                                            </button>
-                                                        </form>
-                                                        <% } %>
-                                                            <form action="<%= baseUrl %>/admin/block-ip" method="POST"
-                                                                onsubmit="return confirm('<%= t('admin.confirm_block_ip', { ip: log.ip }) %>')">
-                                                                <input type="hidden" name="ipAddress"
-                                                                    value="<%= log.ip %>">
-                                                                <button type="submit"
-                                                                    class="bg-black/5 dark:bg-white/5 hover:bg-red-600 hover:text-white p-2 rounded-xl border border-transparent transition-colors"
-                                                                    title="<%= t('admin.tooltips.block') %>">
-                                                                    <i class="fa-solid fa-ban"></i>
-                                                                </button>
-                                                            </form>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                        <% }) %>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </section>
+                
 
     </div>
 
 
-    <div id="addUserModal"
+    <div id="addMemberModal"
         class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
-        <div class="absolute inset-0" onclick="toggleModal('addUserModal')"></div>
+        <div class="absolute inset-0" onclick="toggleModal('addMemberModal')"></div>
         <div
             class="card-theme relative w-full max-w-md rounded-[2.5rem] p-8 md:p-10 shadow-2xl transition-all animate-scale-in">
-            <button onclick="toggleModal('addUserModal')"
+            <button onclick="toggleModal('addMemberModal')"
                 class="absolute top-6 right-6 opacity-40 hover:opacity-100 hover:rotate-90 transition-all">
                 <i class="fa-solid fa-xmark text-2xl"></i>
             </button>
             <h3 class="text-2xl font-black mb-8">
-                <%= t('admin.modal.title') %>
+                <%= t('admin.members.create_btn') %>
             </h3>
-            <form action="<%= baseUrl %>/admin/add-user" method="POST" class="space-y-6">
+            <form action="<%= baseUrl %>/admin/members/create" method="POST" class="space-y-6">
                 <div class="space-y-2">
                     <label class="block text-[10px] font-black uppercase tracking-widest opacity-50 ml-1">
                         <%= t('admin.modal.username') %>
@@ -635,6 +509,17 @@
                     </label>
                     <input type="email" name="email" required placeholder="email@domaine.com"
                         class="w-full bg-black/5 dark:bg-white/5 border-2 border-transparent focus:border-primary-theme/30 rounded-2xl p-4 outline-none transition-all placeholder:opacity-30">
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-[10px] font-black uppercase tracking-widest opacity-50 ml-1">
+                        <%= t('admin.members.col_role') %>
+                    </label>
+                    <select name="role"
+                        class="w-full bg-black/5 dark:bg-white/5 border-2 border-transparent focus:border-primary-theme/30 rounded-2xl p-4 outline-none transition-all cursor-pointer">
+                        <option class="bg-white dark:bg-[#1a1a1a]" value="viewer"><%= t('admin.members.role_viewer') %></option>
+                        <option class="bg-white dark:bg-[#1a1a1a]" value="editor" selected><%= t('admin.members.role_editor') %></option>
+                        <option class="bg-white dark:bg-[#1a1a1a]" value="admin"><%= t('admin.members.role_admin') %></option>
+                    </select>
                 </div>
                 <button type="submit"
                     class="w-full bg-primary-theme text-white font-black py-5 rounded-2xl shadow-lg shadow-primary-theme/20 hover:brightness-110 active:scale-95 transition-all mt-4">
@@ -655,22 +540,22 @@
                 document.body.style.overflow = modal.classList.contains('hidden') ? 'auto' : 'hidden';
             }
 
-            document.getElementById('backupInput').onchange = function (e) {
+            document.getElementById('collectionBackupInput').onchange = function (e) {
                 const file = e.target.files[0];
                 if (!file) return;
-                if (confirm("<%= t('admin.backup.confirm_import') %>")) {
+                if (confirm("<%= t('admin.collection_backup.confirm_import') %>")) {
                     const reader = new FileReader();
                     reader.onload = async (event) => {
                         try {
                             const backupData = JSON.parse(event.target.result);
-                            const response = await fetch('<%= baseUrl %>/backup/import', {
+                            const response = await fetch('<%= baseUrl %>/backup/collection/import', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify(backupData)
                             });
                             if (response.ok) {
                                 alert("<%= t('admin.backup.import_success') %>");
-                                window.location.href = '<%= baseUrl %>/login';
+                                window.location.reload();
                             } else {
                                 alert("<%= t('admin.backup.import_error') %>");
                             }

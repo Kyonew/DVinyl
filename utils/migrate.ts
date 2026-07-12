@@ -1,7 +1,9 @@
 import Item from '../models/Item';
 import Settings from '../models/Settings';
 import User from '../models/User';
+import Collection from '../models/Collection';
 import { registry } from '../core/registry';
+import { findOrCreateDefaultCollection } from './collectionHelpers';
 
 export const migrateDatabase = async () => {
     try {
@@ -56,6 +58,58 @@ export const migrateDatabase = async () => {
         );
         if (legacyUsers.length > 0 || cleared.modifiedCount > 0) {
             console.log(`[MIGRATION] discogsUsername → pluginData.music for ${legacyUsers.length} user(s); field removed from ${cleared.modifiedCount}.`);
+        }
+
+        // Pre-multi-collection installs had no Collection document; every item implicitly
+        // belonged to the single admin. Merge all pre-existing items into one default
+        // collection and make every user a member with an active collection.
+        // Idempotent: only touches items/users still missing the new fields.
+        const defaultCollection = await findOrCreateDefaultCollection();
+        if (defaultCollection) {
+            const itemsBackfill = await Item.updateMany(
+                { collection: { $exists: false } },
+                { $set: { collection: defaultCollection._id } }
+            );
+            if (itemsBackfill.modifiedCount > 0) {
+                console.log(`[MIGRATION] ${itemsBackfill.modifiedCount} item(s) attached to the default collection.`);
+            }
+
+            const usersBackfill = await User.updateMany(
+                { lastActiveCollectionId: { $exists: false } },
+                { $set: { lastActiveCollectionId: defaultCollection._id } }
+            );
+            if (usersBackfill.modifiedCount > 0) {
+                console.log(`[MIGRATION] ${usersBackfill.modifiedCount} user(s) given an active collection.`);
+            }
+
+            // Make every existing user a member of the default collection (idempotent via $addToSet).
+            const existingMemberIds = new Set(
+                (defaultCollection.members || []).map((m: any) => String(m.user))
+            );
+            const allUsers = await User.find({}, '_id isAdmin').lean();
+            let addedMembers = 0;
+            for (const u of allUsers) {
+                if (existingMemberIds.has(String(u._id))) continue;
+                await Collection.updateOne(
+                    { _id: defaultCollection._id },
+                    { $addToSet: { members: { user: u._id, role: u.isAdmin ? 'admin' : 'viewer' } } }
+                );
+                addedMembers += 1;
+            }
+            if (addedMembers > 0) {
+                console.log(`[MIGRATION] ${addedMembers} user(s) added as members of the default collection.`);
+            }
+
+            // Settings became per-collection: attach the historical global Settings
+            // document(s) to the default collection so its theme/modules/visibility
+            // carry over unchanged. New collections get their own doc lazily.
+            const settingsBackfill = await Settings.updateMany(
+                { collection: { $exists: false } },
+                { $set: { collection: defaultCollection._id } }
+            );
+            if (settingsBackfill.modifiedCount > 0) {
+                console.log(`[MIGRATION] ${settingsBackfill.modifiedCount} settings document(s) attached to the default collection.`);
+            }
         }
 
     } catch (error) {

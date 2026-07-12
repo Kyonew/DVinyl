@@ -140,7 +140,7 @@
       
       <a href="<%= baseUrl || '/' %>" class="flex items-center space-x-3 group">
         <img src="<%= baseUrl %>/ressources/logo.png" alt="Logo" class="h-8 w-8 rounded-full object-cover group-hover:rotate-12 transition-transform">
-        <span class="self-center text-2xl font-semibold text-inherit">Vinyl</span>
+        <span class="self-center text-2xl font-semibold text-inherit"><%= locals.activeCollection && locals.activeCollection.name ? activeCollection.name : 'Vinyl' %></span>
       </a>
 
       <div class="flex items-center md:order-2 gap-4">
@@ -161,7 +161,35 @@
               <span class="block text-xs opacity-60 truncate text-[var(--text-sub)]"><%= user.email %></span>
             </div>
             <ul class="py-2">
+              <% if ((locals.userCollections || []).length > 1) { %>
+              <li class="px-4 pt-1 pb-1">
+                <span class="block text-[9px] uppercase font-bold tracking-wider opacity-50 text-[var(--text-sub)]"><%= t('nav.collections') %></span>
+              </li>
+              <% (locals.userCollections || []).forEach(c => { %>
+              <li>
+                <form action="<%= baseUrl %>/collection/switch" method="POST">
+                  <input type="hidden" name="collectionId" value="<%= c._id %>">
+                  <button type="submit" class="w-[calc(100%-1rem)] text-left block px-4 py-2 text-sm text-[var(--text-main)] hover:bg-black/5 dark:hover:bg-white/10 mx-2 rounded transition flex items-center gap-3 <%= String(c._id) === String(locals.activeCollectionId) ? 'font-bold' : '' %>">
+                    <i class="fa-solid <%= String(c._id) === String(locals.activeCollectionId) ? 'fa-circle-check text-primary-theme' : 'fa-layer-group opacity-70' %> w-5 text-center"></i>
+                    <span class="truncate"><%= c.name %></span>
+                  </button>
+                </form>
+              </li>
+              <% }) %>
+              <li class="border-t border-black/5 dark:border-white/10 my-1"></li>
+              <% } %>
+              <% if (locals.isCollectionAdmin || user.isAdmin) { %>
+              <li class="px-4 pt-1 pb-1">
+                <span class="block text-[9px] uppercase font-bold tracking-wider opacity-50 text-[var(--text-sub)]"><%= t('nav.administration') %></span>
+              </li>
               <% if (user.isAdmin) { %>
+              <li>
+                <a href="<%= baseUrl %>/admin/instance" class="block px-4 py-2 text-sm text-[var(--text-main)] hover:bg-black/5 dark:hover:bg-white/10 mx-2 rounded transition flex items-center gap-3">
+                  <i class="fa-solid fa-server w-5 text-center opacity-70"></i> <span><%= t('nav.instance') %></span>
+                </a>
+              </li>
+              <% } %>
+              <% if (locals.isCollectionAdmin) { %>
               <li>
                 <a href="<%= baseUrl %>/admin" class="block px-4 py-2 text-sm text-[var(--text-main)] hover:bg-black/5 dark:hover:bg-white/10 mx-2 rounded transition flex items-center gap-3">
                   <i class="fa-solid fa-crown w-5 text-center opacity-70"></i> <span><%= t('nav.admin') %></span>
@@ -172,6 +200,8 @@
                   <i class="fa-solid fa-wand-magic-sparkles w-5 text-center opacity-70"></i> <span>Personnalisation</span>
                 </a>
               </li>
+              <% } %>
+              <li class="border-t border-black/5 dark:border-white/10 my-1"></li>
               <% } %>
               <li>
                 <a href="<%= baseUrl %>/settings" class="block px-4 py-2 text-sm text-[var(--text-main)] hover:bg-black/5 dark:hover:bg-white/10 mx-2 rounded transition flex items-center gap-3">

@@ -223,7 +223,59 @@
       "title": "Sichtbarkeitseinstellungen"
     },
     "module_settings": "Modul-Einstellungen",
-    "advanced_cd_desc": "Sucht auch nach SACD- und CDr-Formaten auf Discogs"
+    "advanced_cd_desc": "Sucht auch nach SACD- und CDr-Formaten auf Discogs",
+    "collections": {
+      "title": "Sammlungen ({{count}})",
+      "name_placeholder": "Name der neuen Sammlung",
+      "create": "Erstellen",
+      "col_name": "Name",
+      "col_slug": "Slug",
+      "col_members": "Mitglieder",
+      "default_badge": "Standard",
+      "rename": "Umbenennen",
+      "confirm_delete": "Sammlung {{name}} und ALLE ihre Elemente löschen? Nicht rückgängig zu machen."
+    },
+    "instance": {
+      "title": "Instanz",
+      "subtitle": "Globale Verwaltung: Benutzer, Sammlungen, Sicherheit und vollständiges Backup.",
+      "admin_badge": "Instanz",
+      "manage": "Verwalten",
+      "add_member": "Instanzbenutzer hinzufügen",
+      "stat_users": "Benutzer",
+      "stat_collections": "Sammlungen",
+      "stat_items": "Elemente",
+      "stat_blocked": "Gesperrte IPs",
+      "backup_title": "Instanz-Backup",
+      "backup_subtitle": "Exportiert die GESAMTE Instanz: alle Benutzer, alle Sammlungen mit ihren Elementen, Einstellungen und Login-Logs - in einer Datei.",
+      "backup_warning": "Der Import ersetzt ALLE Daten der Instanz (alle Sammlungen, alle Benutzer). Um eine einzelne Sammlung wiederherzustellen, nutzen Sie deren eigenes Backup auf der Admin-Seite dieser Sammlung.",
+      "backup_confirm_import": "Dieser Import ERSETZT die GESAMTE Instanz: alle Benutzer, alle Sammlungen und ihre Elemente. Sie werden abgemeldet. Fortfahren?"
+    },
+    "logs_delete_last": {
+      "count_placeholder": "Anzahl",
+      "btn": "Löschen",
+      "confirm": "Die letzten {{count}} Login-Logs löschen?"
+    },
+    "members": {
+      "title": "Mitglieder ({{count}})",
+      "create_btn": "Mitglied erstellen",
+      "invite_placeholder": "E-Mail oder Benutzername eines bestehenden Benutzers",
+      "invite_btn": "Einladen",
+      "col_role": "Rolle",
+      "role_viewer": "Betrachter",
+      "role_editor": "Bearbeiter",
+      "role_admin": "Admin",
+      "confirm_remove": "{{name}} aus dieser Sammlung entfernen?",
+      "remove_btn": "Aus der Sammlung entfernen"
+    },
+    "my_collection": {
+      "title": "Meine Sammlung",
+      "name_label": "Name der Sammlung"
+    },
+    "collection_backup": {
+      "title": "Sammlungs-Backup",
+      "subtitle": "Diese Sammlung exportieren (Elemente + Einstellungen) oder ihren Inhalt durch ein Backup ersetzen.",
+      "confirm_import": "Der Import ERSETZT alle Elemente dieser Sammlung. Fortfahren?"
+    }
   },
   "auth": {
     "email_invalid": "Bitte geben Sie eine gültige E-Mail-Adresse ein",
@@ -395,7 +447,7 @@
     "sleeve_condition_generic": "Generische Hülle",
     "add_cover": "Titelbild hinzufügen",
     "manual_title": "Album manuell hinzufügen",
-    "manual_mode_hint": "Manuelle Eingabe — keine Discogs-Daten. Marktschätzung nicht verfügbar.",
+    "manual_mode_hint": "Manuelle Eingabe - keine Discogs-Daten. Marktschätzung nicht verfügbar.",
     "tracklist_label": "Titelliste"
   },
   "detail": {
@@ -570,7 +622,21 @@
     "user_deleted": "Benutzer gelöscht.",
     "username_available": "Benutzername verfügbar!",
     "username_current": "Dies ist Ihr aktueller Benutzername.",
-    "batch_barcode_success": "{{count}} Barcodes aktualisiert!"
+    "batch_barcode_success": "{{count}} Barcodes aktualisiert!",
+    "collection_created": "Sammlung erstellt!",
+    "error_collection_name": "Ein Sammlungsname ist erforderlich.",
+    "collection_renamed": "Sammlung umbenannt!",
+    "member_added": "Mitglied hinzugefügt!",
+    "member_role_updated": "Rolle aktualisiert!",
+    "member_removed": "Mitglied entfernt.",
+    "collection_deleted": "Sammlung gelöscht.",
+    "error_member": "Vorgang fehlgeschlagen.",
+    "error_member_not_found": "Benutzer nicht gefunden.",
+    "error_member_exists": "Dieser Benutzer ist bereits Mitglied.",
+    "error_last_admin": "Unmöglich: letzter Admin der Sammlung.",
+    "error_delete_default_collection": "Die Standardsammlung kann nicht gelöscht werden.",
+    "error_self_role": "Sie können Ihre eigene Rolle nicht ändern.",
+    "error_shared_member_reset": "Dieser Benutzer gehört zu anderen Sammlungen; nur der Instanz-Admin kann sein Passwort zurücksetzen."
   },
   "modal": {
     "add_hub_subtitle": "Wählen Sie den Medientyp aus, den Sie Ihrer Sammlung hinzufügen möchten",
@@ -592,7 +658,10 @@
     "settings": "Einstellungen",
     "theme_dark": "Dunkler Modus",
     "theme_light": "Lichtmodus",
-    "wishlist": "Wunschliste"
+    "wishlist": "Wunschliste",
+    "collections": "Sammlungen",
+    "instance": "Instanz",
+    "administration": "Verwaltung"
   },
   "perso": {
     "backHome": "Zurück nach Hause",
@@ -773,5 +842,9 @@
   },
   "add": {
     "manual_entry": "Manueller Eintrag"
+  },
+  "no_collection": {
+    "title": "Kein Sammlungszugriff",
+    "message": "Sie sind noch kein Mitglied einer Sammlung. Bitten Sie einen Administrator, Sie hinzuzufügen - Ihr Zugriff erscheint hier automatisch."
   }
 }

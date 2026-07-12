@@ -94,7 +94,21 @@
     "password_mismatch": "Les mots de passe ne correspondent pas.",
     "avatar_success": "Photo de profil mise à jour !",
     "estimate_error": "Erreur lors de l'estimation",
-    "batch_barcode_success": "{{count}} codes-barres mis à jour !"
+    "batch_barcode_success": "{{count}} codes-barres mis à jour !",
+    "collection_created": "Collection créée !",
+    "error_collection_name": "Un nom de collection est requis.",
+    "collection_renamed": "Collection renommée !",
+    "member_added": "Membre ajouté !",
+    "member_role_updated": "Rôle mis à jour !",
+    "member_removed": "Membre retiré.",
+    "collection_deleted": "Collection supprimée.",
+    "error_member": "Échec de l'opération.",
+    "error_member_not_found": "Utilisateur introuvable.",
+    "error_member_exists": "Cet utilisateur est déjà membre.",
+    "error_last_admin": "Impossible : c'est le dernier admin de la collection.",
+    "error_delete_default_collection": "La collection par défaut ne peut pas être supprimée.",
+    "error_self_role": "Vous ne pouvez pas modifier votre propre rôle.",
+    "error_shared_member_reset": "Cet utilisateur appartient à d'autres collections ; seul l'admin de l'instance peut réinitialiser son mot de passe."
   },
   "media": {
     "vinyl": "Vinyle",
@@ -378,7 +392,59 @@
       "title": "Paramètres de visibilité"
     },
     "module_settings": "Réglages du module",
-    "advanced_cd_desc": "Recherche aussi les formats SACD et CDr sur Discogs"
+    "advanced_cd_desc": "Recherche aussi les formats SACD et CDr sur Discogs",
+    "collections": {
+      "title": "Collections ({{count}})",
+      "name_placeholder": "Nom de la nouvelle collection",
+      "create": "Créer",
+      "col_name": "Nom",
+      "col_slug": "Slug",
+      "col_members": "Membres",
+      "default_badge": "Défaut",
+      "rename": "Renommer",
+      "confirm_delete": "Supprimer la collection {{name}} et TOUS ses items ? Action irréversible."
+    },
+    "instance": {
+      "title": "Instance",
+      "subtitle": "Gestion globale : utilisateurs, collections, sécurité et sauvegarde complète.",
+      "admin_badge": "Instance",
+      "manage": "Gérer",
+      "add_member": "Ajouter un utilisateur de l'instance",
+      "stat_users": "Utilisateurs",
+      "stat_collections": "Collections",
+      "stat_items": "Items",
+      "stat_blocked": "IPs bloquées",
+      "backup_title": "Sauvegarde de l'instance",
+      "backup_subtitle": "Exporte TOUTE l'instance : tous les utilisateurs, toutes les collections avec leurs items, réglages et logs de connexion - dans un seul fichier.",
+      "backup_warning": "L'import remplace TOUTES les données de l'instance (toutes les collections, tous les utilisateurs). Pour restaurer une seule collection, utilisez sa sauvegarde dédiée depuis la page admin de cette collection.",
+      "backup_confirm_import": "Cet import va REMPLACER TOUTE l'instance : tous les utilisateurs, toutes les collections et leurs items. Vous serez déconnecté. Continuer ?"
+    },
+    "logs_delete_last": {
+      "count_placeholder": "Nombre",
+      "btn": "Supprimer",
+      "confirm": "Supprimer les {{count}} derniers logs de connexion ?"
+    },
+    "members": {
+      "title": "Membres ({{count}})",
+      "create_btn": "Créer un membre",
+      "invite_placeholder": "Email ou nom d'utilisateur existant",
+      "invite_btn": "Inviter",
+      "col_role": "Rôle",
+      "role_viewer": "Lecteur",
+      "role_editor": "Éditeur",
+      "role_admin": "Admin",
+      "confirm_remove": "Retirer {{name}} de cette collection ?",
+      "remove_btn": "Retirer de la collection"
+    },
+    "my_collection": {
+      "title": "Ma collection",
+      "name_label": "Nom de la collection"
+    },
+    "collection_backup": {
+      "title": "Sauvegarde de la collection",
+      "subtitle": "Exporter cette collection (items + réglages) ou remplacer son contenu par une sauvegarde.",
+      "confirm_import": "L'import va REMPLACER tous les items de cette collection. Continuer ?"
+    }
   },
   "collection": {
     "title": "Ma Collection",
@@ -442,7 +508,7 @@
     "sleeve_condition_generic": "Pochette générique",
     "add_cover": "Ajouter une pochette",
     "manual_title": "Ajouter un album manuellement",
-    "manual_mode_hint": "Saisie manuelle — pas de données Discogs. L'estimation de marché ne sera pas disponible.",
+    "manual_mode_hint": "Saisie manuelle - pas de données Discogs. L'estimation de marché ne sera pas disponible.",
     "tracklist_label": "Liste des pistes"
   },
   "edit_vinyl": {
@@ -498,7 +564,10 @@
     "theme_light": "Mode Clair",
     "home": "Accueil",
     "wishlist": "Souhaits",
-    "collection": "Collection"
+    "collection": "Collection",
+    "collections": "Collections",
+    "instance": "Instance",
+    "administration": "Administration"
   },
   "footer": {
     "made_with": "Développé avec",
@@ -773,5 +842,9 @@
   },
   "add": {
     "manual_entry": "Ajout manuel"
+  },
+  "no_collection": {
+    "title": "Aucune collection",
+    "message": "Vous n'avez accès à aucune collection pour le moment. Demandez à un administrateur de vous ajouter à l'une d'elles - votre accès apparaîtra ici automatiquement."
   }
 }

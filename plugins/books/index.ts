@@ -296,14 +296,14 @@ export const booksPlugin: PluginDefinition = {
     };
   },
 
-  async findDuplicate(ownerId: any, data: Record<string, any>): Promise<any | null> {
+  async findDuplicate(collectionId: any, data: Record<string, any>): Promise<any | null> {
     const matchFormat = data.format || 'paperback';
     const isbn = data.isbn || data.barcode;
 
     if (isbn) {
       const cleanIsbn = String(isbn).replace(/[- ]/g, '');
       const query: any = {
-        owner: ownerId,
+        collection: collectionId,
         in_wishlist: false,
         kind: 'Book',
         $or: [
@@ -322,7 +322,7 @@ export const booksPlugin: PluginDefinition = {
     const matchAuthor = (data.author || data.creator || '').trim();
 
     const query: any = {
-      owner: ownerId,
+      collection: collectionId,
       in_wishlist: false,
       kind: 'Book',
       title: { $regex: new RegExp(`^${escapeRegExp(matchTitle)}$`, 'i') },
@@ -335,7 +335,7 @@ export const booksPlugin: PluginDefinition = {
     return await Item.findOne(query);
   },
 
-  async findPotentialDuplicates(ownerId: any, data: Record<string, any>): Promise<any[]> {
+  async findPotentialDuplicates(collectionId: any, data: Record<string, any>): Promise<any[]> {
     const or: any[] = [];
     const cleanIsbn = String(data.isbn || data.barcode || '').replace(/[- ]/g, '');
     if (cleanIsbn) {
@@ -351,7 +351,7 @@ export const booksPlugin: PluginDefinition = {
     }
     if (or.length === 0) return [];
     return Item.find({
-      owner: ownerId,
+      collection: collectionId,
       in_wishlist: false,
       kind: 'Book',
       $or: or
@@ -361,7 +361,7 @@ export const booksPlugin: PluginDefinition = {
   async getVariants(item: any): Promise<any[]> {
     if (!item) return [];
     return await Item.find({
-      owner: item.owner,
+      collection: item.collection,
       in_wishlist: false,
       kind: 'Book',
       _id: { $ne: item._id },

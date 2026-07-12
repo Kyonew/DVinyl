@@ -350,7 +350,7 @@ export const musicPlugin: PluginDefinition = {
     };
   },
 
-  async findDuplicate(ownerId: any, data: Record<string, any>): Promise<any | null> {
+  async findDuplicate(collectionId: any, data: Record<string, any>): Promise<any | null> {
     const discogsId = data.discogs_id;
     const title = data.title;
     const artist = data.artist;
@@ -359,7 +359,7 @@ export const musicPlugin: PluginDefinition = {
 
     if (discogsId) {
       const query: any = {
-        owner: ownerId,
+        collection: collectionId,
         in_wishlist: false,
         kind: 'Music',
         discogs_id: parseInt(discogsId),
@@ -381,7 +381,7 @@ export const musicPlugin: PluginDefinition = {
     const matchArtist = (artist || '').trim();
 
     const query: any = {
-      owner: ownerId,
+      collection: collectionId,
       in_wishlist: false,
       kind: 'Music',
       title: { $regex: new RegExp(`^${escapeRegExp(matchTitle)}$`, 'i') },
@@ -401,7 +401,7 @@ export const musicPlugin: PluginDefinition = {
     return await Item.findOne(query);
   },
 
-  async findPotentialDuplicates(ownerId: any, data: Record<string, any>): Promise<any[]> {
+  async findPotentialDuplicates(collectionId: any, data: Record<string, any>): Promise<any[]> {
     const or: any[] = [];
     if (data.discogs_id) {
       or.push({ discogs_id: parseInt(data.discogs_id) });
@@ -414,7 +414,7 @@ export const musicPlugin: PluginDefinition = {
     }
     if (or.length === 0) return [];
     return Item.find({
-      owner: ownerId,
+      collection: collectionId,
       in_wishlist: false,
       kind: 'Music',
       $or: or
@@ -423,7 +423,7 @@ export const musicPlugin: PluginDefinition = {
 
   async getVariants(item: any): Promise<any[]> {
     return Item.find({
-      owner: item.owner,
+      collection: item.collection,
       kind: 'Music',
       _id: { $ne: item._id },
       in_wishlist: false,

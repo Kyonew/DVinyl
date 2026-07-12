@@ -1,5 +1,3 @@
-import User from '../models/User';
-
 /**
  * Fetches JSON data from a URL.
  */
@@ -20,14 +18,6 @@ export async function fetchText(url: string, options?: RequestInit): Promise<str
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   return response.text();
-}
-
-/**
- * Retrieves the MongoDB ObjectId of the admin user.
- */
-export async function getAdminId(): Promise<any> {
-  const admin = await User.findOne({ isAdmin: true }).select('_id');
-  return admin ? admin._id : null;
 }
 
 /**

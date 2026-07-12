@@ -1,5 +1,4 @@
 import { PluginApiRoute } from '../../core/types';
-import { getAdminId } from '../../core/helpers';
 import Item from '../../models/Item';
 
 const fetchJson = async (url: string, options?: RequestInit): Promise<any> => {
@@ -13,9 +12,8 @@ const fetchJson = async (url: string, options?: RequestInit): Promise<any> => {
 // GET ALL COLLECTION DISCOGS IDs (used for global estimates)
 async function getCollectionIds(req: any, res: any) {
   try {
-    const adminId = await getAdminId();
     const albums = await Item.find({
-      owner: adminId,
+      collection: res.locals.activeCollectionId,
       in_wishlist: false,
       $or: [{ kind: 'Music' }, { kind: { $exists: false } }]
     }).select('discogs_id quantity').lean();
@@ -178,7 +176,7 @@ async function batchUpdateBarcodes(req: any, res: any) {
       const [discogsId, barcode] = line.split(':').map((s: string) => s.trim());
       if (discogsId && barcode) {
         const result = await Item.updateMany(
-          { discogs_id: parseInt(discogsId), kind: 'Music' },
+          { discogs_id: parseInt(discogsId), kind: 'Music', collection: res.locals.activeCollectionId },
           { $set: { barcode: barcode, barcode_locked: true } }
         );
         count += result.modifiedCount;

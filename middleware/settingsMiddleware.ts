@@ -7,9 +7,23 @@ async function settingsMiddleware(req: any, res: any, next: any) {
     try {
         res.locals.allThemes = themesConfig;
 
-        const dbSettings = await Settings.findOne().lean();
+        // Settings are scoped per collection (one document per collection, like
+        // independent containers). Requires collectionMiddleware to have run first.
+        const activeCollectionId = res.locals.activeCollectionId;
 
-        // All defaults derive from the registered plugins (fresh-install / missing fields)
+        let dbSettings = null;
+        if (activeCollectionId) {
+            // Atomic upsert (+ the unique index on `collection` in models/Settings.ts):
+            // concurrent first-visits to a brand-new collection (e.g. the page load and
+            // its automatic manifest.json fetch) must not create two Settings documents.
+            dbSettings = await Settings.findOneAndUpdate(
+                { collection: activeCollectionId },
+                { $setOnInsert: { collection: activeCollectionId } },
+                { upsert: true, new: true, setDefaultsOnInsert: true }
+            ).lean();
+        }
+
+        // All defaults derive from the registered plugins (anonymous requests / fresh install)
         const defaultSettings = {
             siteName: 'DVinyl',
             modules: registry.getDefaultModules(),

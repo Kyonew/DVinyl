@@ -3,8 +3,8 @@ import mongoose from 'mongoose';
 import { PluginDefinition } from '../types';
 import Item from '../../models/Item';
 import User from '../../models/User';
-import { requireAuth, requireAdmin } from '../../middleware/authMiddleware';
-import { parseGenresAndStyles, getAdminId, isBarcodeQuery, lookupBarcodeTitle } from '../helpers';
+import { requireAuth, requireCollectionRole } from '../../middleware/authMiddleware';
+import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle } from '../helpers';
 
 export function createItemRoutes(plugin: PluginDefinition): Router {
   const router = express.Router();
@@ -12,7 +12,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   // EXTERNAL SEARCH
   if (plugin.searchProvider) {
     // GET /add-{type} -> render 'add' page
-    router.get(`/add-${plugin.id}`, requireAuth, async (req: any, res: any) => {
+    router.get(`/add-${plugin.id}`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
       try {
         const formatParam = req.query.format as string || req.query.type as string;
         res.render('add', {
@@ -29,7 +29,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
     });
 
     // POST /search-{type} -> search results
-    router.post(`/search-${plugin.id}`, requireAuth, async (req: any, res: any) => {
+    router.post(`/search-${plugin.id}`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
       const { query, type, year, country, genre_filter, label_filter } = req.body;
       const rawQuery = typeof query === 'string' ? query.trim() : '';
       let searchQuery = rawQuery;
@@ -80,13 +80,13 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
     });
 
     // GET /confirm-{type}/:id -> show details from external API before saving
-    router.get(`/confirm-${plugin.id}/:id`, requireAuth, async (req: any, res: any) => {
+    router.get(`/confirm-${plugin.id}/:id`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
       const externalId = req.params.id;
       const searchTypeHint = req.query.type as string | undefined;
 
       try {
         const details = await plugin.searchProvider!.getDetails(externalId, { type: searchTypeHint, language: req.language });
-        const adminId = await getAdminId();
+        const activeCollectionId = res.locals.activeCollectionId;
 
         // Providers return the creator under a generic `creator` key; make sure
         // the plugin-specific field (artist, author, director, developer) is always set
@@ -99,18 +99,18 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           details.barcode = String(req.query.barcode);
         }
 
-        const locations = await Item.distinct('location', { owner: adminId, location: { $ne: "" } });
+        const locations = await Item.distinct('location', { collection: activeCollectionId, location: { $ne: "" } });
         const genres = await Item.distinct('genre', {
-          owner: adminId,
+          collection: activeCollectionId,
           genre: { $ne: "" },
           $or: [{ kind: plugin.kind }, { kind: { $exists: false } }]
         });
 
         let existingItemsArray: any[];
         if (plugin.findPotentialDuplicates) {
-          existingItemsArray = await plugin.findPotentialDuplicates(adminId, details);
+          existingItemsArray = await plugin.findPotentialDuplicates(activeCollectionId, details);
         } else {
-          const exactDuplicate = await plugin.findDuplicate(adminId, details);
+          const exactDuplicate = await plugin.findDuplicate(activeCollectionId, details);
           existingItemsArray = exactDuplicate ? [exactDuplicate] : [];
         }
 
@@ -138,28 +138,32 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
     });
   }
 
-  // PLUGIN IMPORTERS (bulk imports: Discogs, Goodreads, CSV...)
+  // PLUGIN IMPORTERS (bulk imports: Discogs, Goodreads, CSV...). requireAdmin marks
+  // bulk/destructive importers (e.g. CSV, RSS) as collection-admin-only, same tier as
+  // the bulk tools in routes/adminRoutes.ts (delete-last-items, refresh-all).
   for (const importer of plugin.importers || []) {
-    const middlewares = importer.requireAdmin ? [requireAuth, requireAdmin] : [requireAuth];
+    const middlewares = importer.requireAdmin
+      ? [requireAuth, requireCollectionRole('admin')]
+      : [requireAuth, requireCollectionRole('editor')];
     router.post(`/import/${importer.id}`, ...middlewares, (req: any, res: any) => importer.handler(req, res));
   }
 
   // PLUGIN API ROUTES (e.g. Discogs estimate for music)
   for (const apiRouteDef of plugin.apiRoutes || []) {
-    const middlewares = apiRouteDef.requireAdmin ? [requireAuth, requireAdmin] : [requireAuth];
+    const middlewares = apiRouteDef.requireAdmin ? [requireAuth, requireCollectionRole('admin')] : [requireAuth];
     (router as any)[apiRouteDef.method](apiRouteDef.path, ...middlewares, (req: any, res: any) => apiRouteDef.handler(req, res));
   }
 
   // MANUAL ADD ENTRY
   if (plugin.getManualDefaults) {
-    router.get(`/add-${plugin.id}/manual`, requireAuth, async (req: any, res: any) => {
+    router.get(`/add-${plugin.id}/manual`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
       try {
         const defaults = plugin.getManualDefaults!();
-        const adminId = await getAdminId();
+        const activeCollectionId = res.locals.activeCollectionId;
 
-        const locations = await Item.distinct('location', { owner: adminId, location: { $ne: "" } });
+        const locations = await Item.distinct('location', { collection: activeCollectionId, location: { $ne: "" } });
         const genres = await Item.distinct('genre', {
-          owner: adminId,
+          collection: activeCollectionId,
           genre: { $ne: "" },
           $or: [{ kind: plugin.kind }, { kind: { $exists: false } }]
         });
@@ -182,7 +186,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   }
 
   // SAVE HANDLER (Create / Update)
-  router.post(`/save-${plugin.id}`, requireAuth, requireAdmin, async (req: any, res: any) => {
+  router.post(`/save-${plugin.id}`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
     try {
       const {
         mongo_id, title, year, cover_image, user_image,
@@ -191,6 +195,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       } = req.body;
 
       const adminId = req.user._id;
+      const activeCollectionId = res.locals.activeCollectionId;
       const isWishlist = in_wishlist === 'true';
       const isBarcodeLocked = barcode_locked === 'on' || barcode_locked === 'true' || barcode_locked === true;
 
@@ -257,12 +262,17 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       let isEdit = false;
 
       if (mongo_id) {
-        existingItem = await Item.findById(mongo_id);
+        // Scope the edit to the active collection so a stale mongo_id (e.g. from a
+        // form left open after switching collections) can't target another item. A
+        // miss here must fail outright, not fall through to the duplicate-match
+        // branch below and silently overwrite an unrelated item.
+        existingItem = await Item.findOne({ _id: mongo_id, collection: activeCollectionId });
+        if (!existingItem) {
+          return res.status(404).send(req.t('errors.not_found'));
+        }
         isEdit = true;
-      }
-
-      if (!existingItem) {
-        existingItem = await plugin.findDuplicate(adminId, req.body);
+      } else {
+        existingItem = await plugin.findDuplicate(activeCollectionId, req.body);
       }
 
       if (existingItem) {
@@ -298,7 +308,8 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         const Model = mongoose.model(plugin.kind);
         await Model.create({
           ...updateData,
-          owner: adminId
+          owner: adminId,
+          collection: activeCollectionId
         });
       }
 
@@ -315,20 +326,20 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
 
   // STANDARD CRUD ROUTE ACTIONS
   // GET /{prefix}/edit/:id -> edit form
-  router.get(`${plugin.routePrefix}/edit/:id`, requireAuth, requireAdmin, async (req: any, res: any) => {
+  router.get(`${plugin.routePrefix}/edit/:id`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
     try {
       if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
         return res.status(404).send(req.t('errors.not_found'));
       }
-      const item = await Item.findById(req.params.id);
+      const activeCollectionId = res.locals.activeCollectionId;
+      const item = await Item.findOne({ _id: req.params.id, collection: activeCollectionId });
       if (!item) {
         return res.status(404).send(req.t('errors.not_found'));
       }
 
-      const adminId = await getAdminId();
-      const locations = await Item.distinct('location', { owner: adminId, location: { $ne: "" } });
+      const locations = await Item.distinct('location', { collection: activeCollectionId, location: { $ne: "" } });
       const genres = await Item.distinct('genre', {
-        owner: adminId,
+        collection: activeCollectionId,
         genre: { $ne: "" },
         $or: [{ kind: plugin.kind }, { kind: { $exists: false } }]
       });
@@ -352,7 +363,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
         return res.status(404).send(req.t('errors.not_found'));
       }
-      const item = await Item.findById(req.params.id);
+      const item = await Item.findOne({ _id: req.params.id, collection: res.locals.activeCollectionId });
       if (!item) {
         return res.status(404).send(req.t('errors.not_found'));
       }
@@ -373,10 +384,9 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   });
 
   // DELETE /api/{prefix}/:id -> delete item
-  router.delete(`/api${plugin.routePrefix}/:id`, requireAuth, requireAdmin, async (req: any, res: any) => {
+  router.delete(`/api${plugin.routePrefix}/:id`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
     try {
-      // Only the owner may delete their own item (matches the legacy per-type routes)
-      const item = await Item.findOne({ _id: req.params.id, owner: req.user._id });
+      const item = await Item.findOne({ _id: req.params.id, collection: res.locals.activeCollectionId });
       if (!item) {
         return res.status(404).json({ success: false, error: req.t('errors.not_found') });
       }
@@ -390,9 +400,9 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
 
   // POST /api/{prefix}/:id/refresh-info -> refresh metadata of single item
   if (plugin.refreshItem) {
-    router.post(`/api${plugin.routePrefix}/:id/refresh-info`, requireAuth, requireAdmin, async (req: any, res: any) => {
+    router.post(`/api${plugin.routePrefix}/:id/refresh-info`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
       try {
-        const item = await Item.findById(req.params.id);
+        const item = await Item.findOne({ _id: req.params.id, collection: res.locals.activeCollectionId });
         if (!item) {
           return res.status(404).json({ success: false, error: "Item not found" });
         }
@@ -411,9 +421,12 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   }
 
   // POST /api/{prefix}/:id/move-to-collection -> move from wishlist to collection
-  router.post(`/api${plugin.routePrefix}/:id/move-to-collection`, requireAuth, requireAdmin, async (req: any, res: any) => {
+  router.post(`/api${plugin.routePrefix}/:id/move-to-collection`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
     try {
-      await Item.findByIdAndUpdate(req.params.id, { in_wishlist: false, added_at: new Date() });
+      await Item.findOneAndUpdate(
+        { _id: req.params.id, collection: res.locals.activeCollectionId },
+        { in_wishlist: false, added_at: new Date() }
+      );
       res.json({ success: true });
     } catch (err: any) {
       console.error(`Move to collection error for ${plugin.id}:`, err.message);

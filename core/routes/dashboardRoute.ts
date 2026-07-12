@@ -3,17 +3,20 @@ import { registry } from '../registry';
 import Item from '../../models/Item';
 import { requireAuth } from '../../middleware/authMiddleware';
 import { applyVisibilityFilter, applyEnabledModulesFilter } from '../../utils/visibilityHelper';
-import { getAdminId } from '../helpers';
 
 const router = express.Router();
 
 router.get('/', requireAuth, async (req: any, res: any) => {
   try {
-    const adminId = await getAdminId();
+    const activeCollectionId = res.locals.activeCollectionId;
+    if (!activeCollectionId) {
+      // The user is a member of no collection: explicit empty state, not a hollow dashboard
+      return res.render('no-collection', { user: res.locals.user });
+    }
     const settings = res.locals.settings;
 
-    let queryAll: any = { owner: adminId, in_wishlist: false };
-    applyVisibilityFilter(queryAll, res.locals.isAdmin, settings);
+    let queryAll: any = { collection: activeCollectionId, in_wishlist: false };
+    applyVisibilityFilter(queryAll, res.locals.isCollectionAdmin, settings);
     applyEnabledModulesFilter(queryAll, settings);
     const allItems = await Item.find(queryAll).lean() as any[];
 
@@ -31,8 +34,8 @@ router.get('/', requireAuth, async (req: any, res: any) => {
     }
 
     // Latest collection items
-    let latestQuery: any = { owner: adminId, in_wishlist: false };
-    applyVisibilityFilter(latestQuery, res.locals.isAdmin, settings);
+    let latestQuery: any = { collection: activeCollectionId, in_wishlist: false };
+    applyVisibilityFilter(latestQuery, res.locals.isCollectionAdmin, settings);
     applyEnabledModulesFilter(latestQuery, settings);
     const latestItems = await Item.find(latestQuery).sort({ added_at: -1 }).limit(4).lean() as any[];
 
@@ -42,8 +45,8 @@ router.get('/', requireAuth, async (req: any, res: any) => {
     });
 
     // Wishlist items
-    let wishlistQuery: any = { owner: adminId, in_wishlist: true };
-    applyVisibilityFilter(wishlistQuery, res.locals.isAdmin, settings);
+    let wishlistQuery: any = { collection: activeCollectionId, in_wishlist: true };
+    applyVisibilityFilter(wishlistQuery, res.locals.isCollectionAdmin, settings);
     applyEnabledModulesFilter(wishlistQuery, settings);
     const wishlistItems = await Item.find(wishlistQuery).sort({ added_at: -1 }).limit(4).lean() as any[];
 

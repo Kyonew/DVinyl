@@ -26,7 +26,7 @@
             </form>
 
             <div class="flex flex-wrap justify-center gap-4 pt-4 text-sm opacity-80">
-                <% if (user.isAdmin) { %>
+                <% if (locals.canEditCollection) { %>
                     <%
                         const fastAddRoutes = {};
                         registry.getAll().filter(p => settings.modules && settings.modules[p.collectionType])
@@ -220,6 +220,7 @@
     </section>
 </div>
 
+<% if (locals.canEditCollection) { %>
 <div id="addHubModal" class="fixed inset-0 z-[100] hidden bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4">
     <%
         const addHubPlugins = registry.getEnabled(settings);
@@ -276,5 +277,6 @@
         if (e.target === this) toggleAddModal();
     });
 </script>
+<% } %>
 
 <%- include('partials/footer') %>

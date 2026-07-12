@@ -94,7 +94,21 @@
     "password_mismatch": "Passwords do not match.",
     "avatar_success": "Profile picture updated!",
     "estimate_error": "Error during estimation",
-    "batch_barcode_success": "{{count}} barcodes updated!"
+    "batch_barcode_success": "{{count}} barcodes updated!",
+    "collection_created": "Collection created!",
+    "error_collection_name": "A collection name is required.",
+    "collection_renamed": "Collection renamed!",
+    "member_added": "Member added!",
+    "member_role_updated": "Role updated!",
+    "member_removed": "Member removed.",
+    "collection_deleted": "Collection deleted.",
+    "error_member": "Operation failed.",
+    "error_member_not_found": "User not found.",
+    "error_member_exists": "This user is already a member.",
+    "error_last_admin": "Impossible: this is the last admin of the collection.",
+    "error_delete_default_collection": "The default collection cannot be deleted.",
+    "error_self_role": "You cannot change your own role.",
+    "error_shared_member_reset": "This user belongs to other collections; only the instance admin can reset their password."
   },
   "media": {
     "vinyl": "Vinyl",
@@ -378,7 +392,59 @@
       "file_label": "CSV file"
     },
     "module_settings": "Module settings",
-    "advanced_cd_desc": "Also search SACD and CDr formats on Discogs"
+    "advanced_cd_desc": "Also search SACD and CDr formats on Discogs",
+    "collections": {
+      "title": "Collections ({{count}})",
+      "name_placeholder": "New collection name",
+      "create": "Create",
+      "col_name": "Name",
+      "col_slug": "Slug",
+      "col_members": "Members",
+      "default_badge": "Default",
+      "rename": "Rename",
+      "confirm_delete": "Delete the collection {{name}} and ALL its items? This cannot be undone."
+    },
+    "instance": {
+      "title": "Instance",
+      "subtitle": "Global management: users, collections, security and full backup.",
+      "admin_badge": "Instance",
+      "manage": "Manage",
+      "add_member": "Add an instance user",
+      "stat_users": "Users",
+      "stat_collections": "Collections",
+      "stat_items": "Items",
+      "stat_blocked": "Blocked IPs",
+      "backup_title": "Instance backup",
+      "backup_subtitle": "Exports the ENTIRE instance: every user, every collection with its items, settings and login logs - in a single file.",
+      "backup_warning": "Importing replaces ALL data of the instance (all collections, all users). To restore a single collection, use its own backup from that collection's admin page.",
+      "backup_confirm_import": "This import will REPLACE the ENTIRE instance: all users, all collections and their items. You will be logged out. Continue?"
+    },
+    "logs_delete_last": {
+      "count_placeholder": "Count",
+      "btn": "Delete last",
+      "confirm": "Delete the {{count}} most recent login logs?"
+    },
+    "members": {
+      "title": "Members ({{count}})",
+      "create_btn": "Create a member",
+      "invite_placeholder": "Email or username of an existing user",
+      "invite_btn": "Invite",
+      "col_role": "Role",
+      "role_viewer": "Viewer",
+      "role_editor": "Editor",
+      "role_admin": "Admin",
+      "confirm_remove": "Remove {{name}} from this collection?",
+      "remove_btn": "Remove from collection"
+    },
+    "my_collection": {
+      "title": "My collection",
+      "name_label": "Collection name"
+    },
+    "collection_backup": {
+      "title": "Collection backup",
+      "subtitle": "Export this collection (items + settings) or replace its content with a backup file.",
+      "confirm_import": "Importing will REPLACE every item of this collection. Continue?"
+    }
   },
   "collection": {
     "title": "My Collection",
@@ -442,7 +508,7 @@
     "sleeve_condition_generic": "Generic Sleeve",
     "add_cover": "Add cover",
     "manual_title": "Add album manually",
-    "manual_mode_hint": "Manual entry — no Discogs data. Market estimation will not be available.",
+    "manual_mode_hint": "Manual entry - no Discogs data. Market estimation will not be available.",
     "tracklist_label": "Tracklist"
   },
   "edit_vinyl": {
@@ -498,7 +564,10 @@
     "theme_light": "Light Mode",
     "home": "Home",
     "wishlist": "Wishlist",
-    "collection": "Collection"
+    "collection": "Collection",
+    "collections": "Collections",
+    "instance": "Instance",
+    "administration": "Administration"
   },
   "footer": {
     "made_with": "Made with",
@@ -773,5 +842,9 @@
   },
   "add": {
     "manual_entry": "Manual entry"
+  },
+  "no_collection": {
+    "title": "No collection access",
+    "message": "You are not a member of any collection yet. Ask an administrator to add you to one - your access will appear here automatically."
   }
 }

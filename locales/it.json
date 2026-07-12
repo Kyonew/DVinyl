@@ -223,7 +223,59 @@
       "title": "Impostazioni di visibilità"
     },
     "module_settings": "Impostazioni del modulo",
-    "advanced_cd_desc": "Cerca anche i formati SACD e CDr su Discogs"
+    "advanced_cd_desc": "Cerca anche i formati SACD e CDr su Discogs",
+    "collections": {
+      "title": "Collezioni ({{count}})",
+      "name_placeholder": "Nome della nuova collezione",
+      "create": "Crea",
+      "col_name": "Nome",
+      "col_slug": "Slug",
+      "col_members": "Membri",
+      "default_badge": "Predef.",
+      "rename": "Rinomina",
+      "confirm_delete": "Eliminare la collezione {{name}} e TUTTI i suoi elementi? Irreversibile."
+    },
+    "instance": {
+      "title": "Istanza",
+      "subtitle": "Gestione globale: utenti, collezioni, sicurezza e backup completo.",
+      "admin_badge": "Istanza",
+      "manage": "Gestisci",
+      "add_member": "Aggiungi un utente dell'istanza",
+      "stat_users": "Utenti",
+      "stat_collections": "Collezioni",
+      "stat_items": "Elementi",
+      "stat_blocked": "IP bloccati",
+      "backup_title": "Backup dell'istanza",
+      "backup_subtitle": "Esporta TUTTA l'istanza: tutti gli utenti, tutte le collezioni con i loro elementi, impostazioni e log - in un unico file.",
+      "backup_warning": "L'importazione sostituisce TUTTI i dati dell'istanza (tutte le collezioni, tutti gli utenti). Per ripristinare una singola collezione, usa il suo backup dedicato dalla pagina admin di quella collezione.",
+      "backup_confirm_import": "Questa importazione SOSTITUIRÀ TUTTA l'istanza: tutti gli utenti, tutte le collezioni e i loro elementi. Verrai disconnesso. Continuare?"
+    },
+    "logs_delete_last": {
+      "count_placeholder": "Numero",
+      "btn": "Elimina",
+      "confirm": "Eliminare gli ultimi {{count}} log di accesso?"
+    },
+    "members": {
+      "title": "Membri ({{count}})",
+      "create_btn": "Crea un membro",
+      "invite_placeholder": "Email o nome di un utente esistente",
+      "invite_btn": "Invita",
+      "col_role": "Ruolo",
+      "role_viewer": "Lettore",
+      "role_editor": "Editor",
+      "role_admin": "Admin",
+      "confirm_remove": "Rimuovere {{name}} da questa collezione?",
+      "remove_btn": "Rimuovi dalla collezione"
+    },
+    "my_collection": {
+      "title": "La mia collezione",
+      "name_label": "Nome della collezione"
+    },
+    "collection_backup": {
+      "title": "Backup della collezione",
+      "subtitle": "Esporta questa collezione (elementi + impostazioni) o sostituisci il suo contenuto con un backup.",
+      "confirm_import": "L'importazione SOSTITUIRÀ tutti gli elementi di questa collezione. Continuare?"
+    }
   },
   "auth": {
     "email_invalid": "Inserisci un'e-mail valida",
@@ -395,7 +447,7 @@
     "sleeve_condition_generic": "Copertina generica",
     "add_cover": "Aggiungi copertina",
     "manual_title": "Aggiungi album manualmente",
-    "manual_mode_hint": "Inserimento manuale — nessun dato Discogs. La stima di mercato non sarà disponibile.",
+    "manual_mode_hint": "Inserimento manuale - nessun dato Discogs. La stima di mercato non sarà disponibile.",
     "tracklist_label": "Tracce"
   },
   "detail": {
@@ -570,7 +622,21 @@
     "user_deleted": "Utente eliminato.",
     "username_available": "Nome utente disponibile!",
     "username_current": "Questo è il tuo nome utente attuale.",
-    "batch_barcode_success": "{{count}} codici a barre aggiornati!"
+    "batch_barcode_success": "{{count}} codici a barre aggiornati!",
+    "collection_created": "Collezione creata!",
+    "error_collection_name": "È richiesto un nome per la collezione.",
+    "collection_renamed": "Collezione rinominata!",
+    "member_added": "Membro aggiunto!",
+    "member_role_updated": "Ruolo aggiornato!",
+    "member_removed": "Membro rimosso.",
+    "collection_deleted": "Collezione eliminata.",
+    "error_member": "Operazione fallita.",
+    "error_member_not_found": "Utente non trovato.",
+    "error_member_exists": "Questo utente è già membro.",
+    "error_last_admin": "Impossibile: è l'ultimo admin della collezione.",
+    "error_delete_default_collection": "La collezione predefinita non può essere eliminata.",
+    "error_self_role": "Non puoi modificare il tuo ruolo.",
+    "error_shared_member_reset": "Questo utente appartiene ad altre collezioni; solo l'admin dell'istanza può reimpostare la sua password."
   },
   "modal": {
     "add_hub_subtitle": "Seleziona il tipo di media da aggiungere alla tua raccolta",
@@ -592,7 +658,10 @@
     "settings": "Impostazioni",
     "theme_dark": "Modalità oscura",
     "theme_light": "Modalità luce",
-    "wishlist": "Lista dei desideri"
+    "wishlist": "Lista dei desideri",
+    "collections": "Collezioni",
+    "instance": "Istanza",
+    "administration": "Amministrazione"
   },
   "perso": {
     "backHome": "Ritorno a casa",
@@ -773,5 +842,9 @@
   },
   "add": {
     "manual_entry": "Inserimento manuale"
+  },
+  "no_collection": {
+    "title": "Nessun accesso alle collezioni",
+    "message": "Non sei ancora membro di nessuna collezione. Chiedi a un amministratore di aggiungerti - il tuo accesso apparirà qui automaticamente."
   }
 }

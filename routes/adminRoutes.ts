@@ -5,7 +5,9 @@ import User from "../models/User";
 import BlockedIP from "../models/blockedIP";
 import LoginLog from "../models/LoginLog";
 import Settings from "../models/Settings";
-import { requireAuth, requireAdmin } from "../middleware/authMiddleware";
+import Collection from "../models/Collection";
+import { requireAuth, requireAdmin, requireCollectionRole } from "../middleware/authMiddleware";
+import { generateUniqueSlug } from "../utils/collectionHelpers";
 import PRESETS from "../config/themes";
 import Item from "../models/Item";
 
@@ -26,29 +28,30 @@ const createPassword = (length = 12): string => {
 
 const escapeRegExp = (str: string): string => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-interface AdminData {
+interface CollectionAdminData {
+  allGenres: Record<string, string[]>;
+  visibilitySettings: any;
+  collectionDoc: any;
+  members: any[];
+}
+
+interface InstanceAdminData {
   users: any[];
   blockedIps: any[];
   logs: any[];
-  allGenres: Record<string, string[]>;
-  visibilitySettings: any;
+  collections: any[];
+  itemsTotal: number;
 }
 
 /**
- * Helper to load the common admin data used by the dashboard view.
- * Centralizing this avoids duplicating queries across handlers.
+ * Data for the per-collection admin page (/admin): everything scoped to the
+ * active collection - genres for the visibility panel, visibility settings,
+ * the collection document itself and its members (user info populated).
  */
-async function loadAdminData(): Promise<AdminData> {
-  const users = await User.find().sort({ lastChange: -1 });
-  const blockedIps = await BlockedIP.find().sort({ createdAt: -1 });
-  const logs = await LoginLog.find().sort({ timestamp: -1 }).limit(20);
-
-  // Get distinct genres grouped by kind
-  const admin = await User.findOne({ isAdmin: true }).select("_id");
-  const adminId = admin ? admin._id : null;
-
+async function loadCollectionAdminData(activeCollectionId: any): Promise<CollectionAdminData> {
+  // Get distinct genres grouped by kind (scoped to the active collection)
   const pipeline = [
-    { $match: { owner: adminId } },
+    { $match: { collection: activeCollectionId } },
     {
       $project: {
         kind: 1,
@@ -80,20 +83,78 @@ async function loadAdminData(): Promise<AdminData> {
   });
 
   const visibilitySettings =
-    (await Settings.findOne().populate("visibility.hiddenItems").lean()) || {};
+    (await Settings.findOne({ collection: activeCollectionId }).populate("visibility.hiddenItems").lean()) || {};
 
-  return { users, blockedIps, logs, allGenres, visibilitySettings };
+  const collectionDoc = await Collection.findById(activeCollectionId)
+    .populate("members.user", "username email img isAdmin lastChange")
+    .lean();
+
+  const members = (collectionDoc?.members || []).filter((m: any) => m.user);
+
+  return { allGenres, visibilitySettings, collectionDoc, members };
 }
 
-// DASHBOARD (GET)
-router.get("/", requireAuth, requireAdmin, async (req: any, res: any) => {
+/**
+ * Data for the instance admin page (/admin/instance): global users, IPs,
+ * login logs and the full collections list (members populated + item counts,
+ * to drive the per-collection management modal).
+ */
+async function loadInstanceAdminData(): Promise<InstanceAdminData> {
+  const users = await User.find().sort({ lastChange: -1 });
+  const blockedIps = await BlockedIP.find().sort({ createdAt: -1 });
+  const logs = await LoginLog.find().sort({ timestamp: -1 }).limit(20);
+  const collections: any[] = await Collection.find()
+    .sort({ created_at: -1 })
+    .populate("members.user", "username email img isAdmin")
+    .lean();
+
+  const counts = await Item.aggregate([
+    { $group: { _id: "$collection", n: { $sum: 1 } } },
+  ]);
+  const countByCollection: Record<string, number> = {};
+  let itemsTotal = 0;
+  for (const c of counts) {
+    countByCollection[String(c._id)] = c.n;
+    itemsTotal += c.n;
+  }
+  for (const c of collections) {
+    c.itemCount = countByCollection[String(c._id)] || 0;
+    // Drop membership rows whose user was deleted outside the app
+    c.members = (c.members || []).filter((m: any) => m.user);
+  }
+
+  return { users, blockedIps, logs, collections, itemsTotal };
+}
+
+// COLLECTION ADMIN PAGE (GET /admin) - gated on the active collection's admin role
+router.get("/", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
   try {
-    const data = await loadAdminData();
+    const data = await loadCollectionAdminData(res.locals.activeCollectionId);
 
     // Read optional message key from query and translate in the view.
     const msgKey = req.query.msg as string | undefined;
 
     res.render("admin", {
+      ...data,
+      user: res.locals.user,
+      successMessage: msgKey ? req.t(`messages.${msgKey}`) : null,
+      newPassword: null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send(req.t("errors.generic_server_error"));
+  }
+});
+
+// INSTANCE ADMIN PAGE (GET /admin/instance): global users, all collections, IPs,
+// login logs, whole-instance backup. Distinct from GET / above, which manages
+// only the active collection and is reachable by a collection's own admins.
+router.get("/instance", requireAuth, requireAdmin, async (req: any, res: any) => {
+  try {
+    const data = await loadInstanceAdminData();
+    const msgKey = req.query.msg as string | undefined;
+
+    res.render("admin-instance", {
       ...data,
       user: res.locals.user,
       successMessage: msgKey ? req.t(`messages.${msgKey}`) : null,
@@ -106,7 +167,8 @@ router.get("/", requireAuth, requireAdmin, async (req: any, res: any) => {
   }
 });
 
-// Add user (POST)
+// Add user at the INSTANCE level (POST) - creates a global account with no
+// collection membership; collection admins attach members from their own page.
 router.post("/add-user", requireAuth, requireAdmin, async (req: any, res: any) => {
   try {
     const { username, email } = req.body;
@@ -126,9 +188,213 @@ router.post("/add-user", requireAuth, requireAdmin, async (req: any, res: any) =
       { $set: { password: hashedPassword } },
     );
 
-    // Reload admin data (including logs) for the rendered view.
-    const data = await loadAdminData();
+    const data = await loadInstanceAdminData();
 
+    res.render("admin-instance", {
+      ...data,
+      user: res.locals.user,
+      successMessage: req.t("messages.user_created_success", { name: username }),
+      newPassword: password,
+      apiKeyStatus: registry.getApiKeyStatus(),
+    });
+  } catch (err) {
+    console.error("Creation error:", err);
+    res.redirect("/admin/instance?msg=user_created");
+  }
+});
+
+// Create collection (POST) - instance level: only the instance admin creates collections.
+router.post("/collections/create", requireAuth, requireAdmin, async (req: any, res: any) => {
+  try {
+    const name = (req.body.name || "").trim();
+    if (!name) {
+      return res.redirect("/admin/instance?msg=error_collection_name");
+    }
+
+    const slug = await generateUniqueSlug(name);
+    await Collection.create({
+      name,
+      slug,
+      createdBy: req.user._id,
+      isDefault: false,
+      members: [{ user: req.user._id, role: "admin" }],
+    });
+
+    res.redirect("/admin/instance?msg=collection_created");
+  } catch (err) {
+    console.error("Collection creation error:", err);
+    res.redirect("/admin/instance?msg=error_collection_name");
+  }
+});
+
+// Rename collection (POST) - a collection admin renames HIS OWN (active) collection;
+// the instance admin can rename any. Slug stays stable (not used for routing).
+router.post("/collections/:id/rename", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
+  try {
+    const name = (req.body.name || "").trim();
+    if (!name) {
+      return res.redirect("/admin?msg=error_collection_name");
+    }
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.redirect("/admin");
+    }
+
+    const isOwnActive = String(req.params.id) === String(res.locals.activeCollectionId);
+    if (!isOwnActive && !res.locals.user.isAdmin) {
+      return res.redirect("/admin");
+    }
+
+    await Collection.updateOne({ _id: req.params.id }, { $set: { name } });
+    res.redirect(isOwnActive ? "/admin?msg=collection_renamed" : "/admin/instance?msg=collection_renamed");
+  } catch (err) {
+    console.error("Collection rename error:", err);
+    res.redirect("/admin?msg=error_collection_name");
+  }
+});
+
+// Delete collection (POST) - instance level, destructive cascade: removes the
+// collection's items and settings. The default collection cannot be deleted.
+router.post("/collections/:id/delete", requireAuth, requireAdmin, async (req: any, res: any) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.redirect("/admin/instance");
+    }
+    const target = await Collection.findById(req.params.id);
+    if (!target) {
+      return res.redirect("/admin/instance");
+    }
+    if (target.isDefault) {
+      return res.redirect("/admin/instance?msg=error_delete_default_collection");
+    }
+
+    await Item.deleteMany({ collection: target._id });
+    await Settings.deleteMany({ collection: target._id });
+    // Users pointing at this collection self-heal to another membership on next request
+    await User.updateMany(
+      { lastActiveCollectionId: target._id },
+      { $set: { lastActiveCollectionId: null } },
+    );
+    await Collection.deleteOne({ _id: target._id });
+
+    res.redirect("/admin/instance?msg=collection_deleted");
+  } catch (err) {
+    console.error("Collection delete error:", err);
+    res.redirect("/admin/instance");
+  }
+});
+
+// ============ INSTANCE-LEVEL MEMBER MANAGEMENT (any collection by :id) ============
+// The instance admin manages any collection's members straight from /admin/instance.
+
+router.post("/instance/collections/:id/members/add", requireAuth, requireAdmin, async (req: any, res: any) => {
+  try {
+    const { userId } = req.body;
+    const role = ["admin", "editor", "viewer"].includes(req.body.role) ? req.body.role : "viewer";
+    if (!mongoose.Types.ObjectId.isValid(req.params.id) || !mongoose.Types.ObjectId.isValid(userId)) {
+      return res.redirect("/admin/instance");
+    }
+
+    const target = await User.findById(userId).select("_id lastActiveCollectionId");
+    if (!target) return res.redirect("/admin/instance?msg=error_member_not_found");
+
+    const already = await Collection.findOne({ _id: req.params.id, "members.user": userId });
+    if (already) return res.redirect("/admin/instance?msg=error_member_exists");
+
+    await Collection.updateOne(
+      { _id: req.params.id },
+      { $addToSet: { members: { user: userId, role } } },
+    );
+    // Give homeless users a landing collection right away
+    if (!target.lastActiveCollectionId) {
+      await User.updateOne({ _id: userId }, { $set: { lastActiveCollectionId: req.params.id } });
+    }
+
+    res.redirect("/admin/instance?msg=member_added");
+  } catch (err) {
+    console.error("Instance member add error:", err);
+    res.redirect("/admin/instance?msg=error_member");
+  }
+});
+
+router.post("/instance/collections/:id/members/role", requireAuth, requireAdmin, async (req: any, res: any) => {
+  try {
+    const { userId } = req.body;
+    const role = ["admin", "editor", "viewer"].includes(req.body.role) ? req.body.role : null;
+    if (!role || !mongoose.Types.ObjectId.isValid(req.params.id) || !mongoose.Types.ObjectId.isValid(userId)) {
+      return res.redirect("/admin/instance");
+    }
+
+    await Collection.updateOne(
+      { _id: req.params.id, "members.user": userId },
+      { $set: { "members.$.role": role } },
+    );
+    res.redirect("/admin/instance?msg=member_role_updated");
+  } catch (err) {
+    console.error("Instance member role error:", err);
+    res.redirect("/admin/instance?msg=error_member");
+  }
+});
+
+router.post("/instance/collections/:id/members/remove", requireAuth, requireAdmin, async (req: any, res: any) => {
+  try {
+    const { userId } = req.body;
+    if (!mongoose.Types.ObjectId.isValid(req.params.id) || !mongoose.Types.ObjectId.isValid(userId)) {
+      return res.redirect("/admin/instance");
+    }
+
+    await Collection.updateOne(
+      { _id: req.params.id },
+      { $pull: { members: { user: userId } } },
+    );
+    await User.updateOne(
+      { _id: userId, lastActiveCollectionId: req.params.id },
+      { $set: { lastActiveCollectionId: null } },
+    );
+
+    res.redirect("/admin/instance?msg=member_removed");
+  } catch (err) {
+    console.error("Instance member remove error:", err);
+    res.redirect("/admin/instance?msg=error_member");
+  }
+});
+
+// ============ COLLECTION MEMBERS (collection-admin scope) ============
+
+const MEMBER_ROLES = ["admin", "editor", "viewer"];
+
+/** True if the collection keeps at least one 'admin' member besides `excludedUserId`. */
+function hasAnotherCollectionAdmin(collectionDoc: any, excludedUserId: any): boolean {
+  return (collectionDoc?.members || []).some(
+    (m: any) => m.role === "admin" && String(m.user) !== String(excludedUserId),
+  );
+}
+
+// Create a NEW instance user directly as a member of the active collection.
+router.post("/members/create", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
+  try {
+    const { username, email } = req.body;
+    const role = MEMBER_ROLES.includes(req.body.role) ? req.body.role : "viewer";
+    const password = createPassword();
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newUser = await User.create({
+      username,
+      email,
+      password: password,
+      lastChange: new Date(),
+    });
+    await User.updateOne({ _id: newUser._id }, { $set: { password: hashedPassword } });
+
+    await Collection.updateOne(
+      { _id: res.locals.activeCollectionId },
+      { $addToSet: { members: { user: newUser._id, role } } },
+    );
+    await User.updateOne(
+      { _id: newUser._id },
+      { $set: { lastActiveCollectionId: res.locals.activeCollectionId } },
+    );
+
+    const data = await loadCollectionAdminData(res.locals.activeCollectionId);
     res.render("admin", {
       ...data,
       user: res.locals.user,
@@ -136,10 +402,149 @@ router.post("/add-user", requireAuth, requireAdmin, async (req: any, res: any) =
       newPassword: password,
     });
   } catch (err) {
-    console.error("Creation error:", err);
-    res.redirect("/admin?msg=user_created");
+    console.error("Member creation error:", err);
+    res.redirect("/admin?msg=error_member");
   }
 });
+
+// Invite an EXISTING instance user into the active collection (by email or username).
+router.post("/members/invite", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
+  try {
+    const identifier = (req.body.identifier || "").trim();
+    const role = MEMBER_ROLES.includes(req.body.role) ? req.body.role : "viewer";
+    if (!identifier) return res.redirect("/admin?msg=error_member_not_found");
+
+    const target: any = await User.findOne({
+      $or: [{ email: identifier.toLowerCase() }, { username: identifier }],
+    });
+    if (!target) return res.redirect("/admin?msg=error_member_not_found");
+
+    const already = await Collection.findOne({
+      _id: res.locals.activeCollectionId,
+      "members.user": target._id,
+    });
+    if (already) return res.redirect("/admin?msg=error_member_exists");
+
+    await Collection.updateOne(
+      { _id: res.locals.activeCollectionId },
+      { $addToSet: { members: { user: target._id, role } } },
+    );
+
+    res.redirect("/admin?msg=member_added");
+  } catch (err) {
+    console.error("Member invite error:", err);
+    res.redirect("/admin?msg=error_member");
+  }
+});
+
+// Change a member's role. One cannot change one's OWN role (another admin must),
+// and the last collection admin cannot be demoted.
+router.post("/members/role", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
+  try {
+    const { userId } = req.body;
+    const role = MEMBER_ROLES.includes(req.body.role) ? req.body.role : null;
+    if (!role || !mongoose.Types.ObjectId.isValid(userId)) return res.redirect("/admin");
+
+    if (String(userId) === String(req.user._id)) {
+      return res.redirect("/admin?msg=error_self_role");
+    }
+
+    const coll = await Collection.findById(res.locals.activeCollectionId);
+    const member = (coll?.members || []).find((m: any) => String(m.user) === String(userId));
+    if (!member) return res.redirect("/admin?msg=error_member_not_found");
+
+    if (member.role === "admin" && role !== "admin" && !hasAnotherCollectionAdmin(coll, userId)) {
+      return res.redirect("/admin?msg=error_last_admin");
+    }
+
+    await Collection.updateOne(
+      { _id: res.locals.activeCollectionId, "members.user": userId },
+      { $set: { "members.$.role": role } },
+    );
+    res.redirect("/admin?msg=member_role_updated");
+  } catch (err) {
+    console.error("Member role error:", err);
+    res.redirect("/admin?msg=error_member");
+  }
+});
+
+// Remove a member from the active collection. The last collection admin cannot leave.
+router.post("/members/remove", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
+  try {
+    const { userId } = req.body;
+    if (!mongoose.Types.ObjectId.isValid(userId)) return res.redirect("/admin");
+
+    const coll = await Collection.findById(res.locals.activeCollectionId);
+    const member = (coll?.members || []).find((m: any) => String(m.user) === String(userId));
+    if (!member) return res.redirect("/admin?msg=error_member_not_found");
+
+    if (member.role === "admin" && !hasAnotherCollectionAdmin(coll, userId)) {
+      return res.redirect("/admin?msg=error_last_admin");
+    }
+
+    await Collection.updateOne(
+      { _id: res.locals.activeCollectionId },
+      { $pull: { members: { user: userId } } },
+    );
+    // If they were browsing this collection, let the middleware pick another one
+    await User.updateOne(
+      { _id: userId, lastActiveCollectionId: res.locals.activeCollectionId },
+      { $set: { lastActiveCollectionId: null } },
+    );
+
+    res.redirect("/admin?msg=member_removed");
+  } catch (err) {
+    console.error("Member remove error:", err);
+    res.redirect("/admin?msg=error_member");
+  }
+});
+
+// Reset a member's password. Refused when the target is the instance admin OR
+// belongs to any other collection: resetting a shared user's password would let
+// this collection's admin impersonate them and take over their roles elsewhere.
+router.post("/members/reset-password", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
+  try {
+    const { userId } = req.body;
+    if (!mongoose.Types.ObjectId.isValid(userId)) return res.redirect("/admin");
+
+    const isMember = await Collection.findOne({
+      _id: res.locals.activeCollectionId,
+      "members.user": userId,
+    });
+    const target: any = await User.findById(userId);
+    if (!isMember || !target || target.isAdmin) {
+      return res.redirect("/admin?msg=error_member_not_found");
+    }
+
+    const otherMembership = await Collection.findOne({
+      _id: { $ne: res.locals.activeCollectionId },
+      "members.user": userId,
+    });
+    if (otherMembership && !res.locals.user.isAdmin) {
+      return res.redirect("/admin?msg=error_shared_member_reset");
+    }
+
+    const password = createPassword();
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await User.updateOne(
+      { _id: userId },
+      { $set: { password: hashedPassword, lastChange: new Date() } },
+    );
+
+    const data = await loadCollectionAdminData(res.locals.activeCollectionId);
+    res.render("admin", {
+      ...data,
+      user: res.locals.user,
+      successMessage: req.t("messages.password_reset_success", { name: target.username }),
+      newPassword: password,
+    });
+  } catch (err) {
+    console.error("Member reset error:", err);
+    res.redirect("/admin?msg=error_member");
+  }
+});
+
+// ============ INSTANCE USERS ============
 
 // Reset password (POST)
 router.post("/reset-password", requireAuth, requireAdmin, async (req: any, res: any) => {
@@ -157,18 +562,19 @@ router.post("/reset-password", requireAuth, requireAdmin, async (req: any, res: 
       );
 
       // Reload data for the view after change.
-      const data = await loadAdminData();
+      const data = await loadInstanceAdminData();
 
-      res.render("admin", {
+      res.render("admin-instance", {
         ...data,
         user: res.locals.user,
         successMessage: req.t("messages.password_reset_success", {
           name: userToUpdate.username,
         }),
         newPassword: password,
+        apiKeyStatus: registry.getApiKeyStatus(),
       });
     } else {
-      res.redirect("/admin");
+      res.redirect("/admin/instance");
     }
   } catch (err) {
     console.error(err);
@@ -176,15 +582,16 @@ router.post("/reset-password", requireAuth, requireAdmin, async (req: any, res: 
   }
 });
 
-// Delete user (POST)
+// Delete user (POST) - instance level; also drops every collection membership.
 router.post("/delete-user", requireAuth, requireAdmin, async (req: any, res: any) => {
   try {
     if (req.body.userId === res.locals.user._id.toString())
-      return res.redirect("/admin?msg=delete_self_error");
+      return res.redirect("/admin/instance?msg=delete_self_error");
     await User.findByIdAndDelete(req.body.userId);
-    res.redirect("/admin?msg=user_deleted");
+    await Collection.updateMany({}, { $pull: { members: { user: req.body.userId } } });
+    res.redirect("/admin/instance?msg=user_deleted");
   } catch (err) {
-    res.redirect("/admin");
+    res.redirect("/admin/instance");
   }
 });
 
@@ -193,22 +600,38 @@ router.post("/block-ip", requireAuth, requireAdmin, async (req: any, res: any) =
     const { ipAddress } = req.body;
     const exists = await BlockedIP.findOne({ ip: ipAddress });
     if (!exists) await BlockedIP.create({ ip: ipAddress });
-    res.redirect("/admin?msg=ip_blocked");
+    res.redirect("/admin/instance?msg=ip_blocked");
   } catch (err) {
-    res.redirect("/admin");
+    res.redirect("/admin/instance");
   }
 });
 
 router.post("/unblock-ip", requireAuth, requireAdmin, async (req: any, res: any) => {
   try {
     await BlockedIP.findByIdAndDelete(req.body.ipId);
-    res.redirect("/admin?msg=ip_unblocked");
+    res.redirect("/admin/instance?msg=ip_unblocked");
   } catch (err) {
-    res.redirect("/admin");
+    res.redirect("/admin/instance");
   }
 });
 
-router.get("/personnalisation", requireAuth, requireAdmin, async (req: any, res: any) => {
+// Delete the N most recent login logs (instance level, JSON API like delete-last-items).
+router.post("/delete-last-logs", requireAuth, requireAdmin, async (req: any, res: any) => {
+  const n = parseInt(req.body.count);
+  if (!n || n < 1) return res.status(400).json({ error: "Invalid count" });
+
+  try {
+    const logs = await LoginLog.find().sort({ timestamp: -1 }).limit(n).select("_id");
+    const ids = logs.map((l) => l._id);
+    const result = await LoginLog.deleteMany({ _id: { $in: ids } });
+    res.json({ deleted: result.deletedCount });
+  } catch (err: any) {
+    console.error("[ERR] delete-last-logs:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get("/personnalisation", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
   try {
     res.render("personnalisation", {
       presets: PRESETS,
@@ -222,7 +645,7 @@ router.get("/personnalisation", requireAuth, requireAdmin, async (req: any, res:
 router.post(
   "/personnalisation/save",
   requireAuth,
-  requireAdmin,
+  requireCollectionRole("admin"),
   async (req: any, res: any) => {
     try {
       const {
@@ -260,7 +683,11 @@ router.post(
         if (preset) update[`theme.${p.collectionType}.preset`] = preset;
       }
 
-      await Settings.findOneAndUpdate({}, { $set: update }, { upsert: true });
+      await Settings.findOneAndUpdate(
+      { collection: res.locals.activeCollectionId },
+      { $set: update },
+      { upsert: true },
+    );
 
       res.redirect("/admin/personnalisation?msg=saved");
     } catch (err) {
@@ -270,7 +697,7 @@ router.post(
   },
 );
 
-router.post("/modules/save", requireAuth, requireAdmin, async (req: any, res: any) => {
+router.post("/modules/save", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
   try {
     const moduleKeys = registry.getAll().map(p => p.collectionType);
 
@@ -290,7 +717,11 @@ router.post("/modules/save", requireAuth, requireAdmin, async (req: any, res: an
       }
     }
 
-    await Settings.findOneAndUpdate({}, { $set: update }, { upsert: true });
+    await Settings.findOneAndUpdate(
+      { collection: res.locals.activeCollectionId },
+      { $set: update },
+      { upsert: true },
+    );
 
     res.redirect("/admin?msg=saved");
   } catch (err) {
@@ -299,9 +730,9 @@ router.post("/modules/save", requireAuth, requireAdmin, async (req: any, res: an
   }
 });
 
-router.post("/visibility/save", requireAuth, requireAdmin, async (req: any, res: any) => {
+router.post("/visibility/save", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
   try {
-    const { applyToAdmin, hiddenItems, hiddenGenres, hiddenTypes } = req.body;
+    const { applyToAdmin, hiddenItems, hiddenGenres, hiddenTypes } = req.body || {};
 
     let parsedItems = [];
     if (hiddenItems) {
@@ -329,7 +760,11 @@ router.post("/visibility/save", requireAuth, requireAdmin, async (req: any, res:
           : [],
     };
 
-    await Settings.findOneAndUpdate({}, { $set: update }, { upsert: true });
+    await Settings.findOneAndUpdate(
+      { collection: res.locals.activeCollectionId },
+      { $set: update },
+      { upsert: true },
+    );
 
     res.redirect("/admin?msg=saved");
   } catch (err) {
@@ -341,15 +776,12 @@ router.post("/visibility/save", requireAuth, requireAdmin, async (req: any, res:
 router.get(
   "/api/search-collection",
   requireAuth,
-  requireAdmin,
+  requireCollectionRole("admin"),
   async (req: any, res: any) => {
     try {
       const { q } = req.query;
       const trimmedQ = typeof q === 'string' ? q.trim() : '';
       if (!trimmedQ) return res.json([]);
-
-      const admin = await User.findOne({ isAdmin: true }).select('_id');
-      const adminId = admin ? admin._id : null;
 
       const regex = new RegExp(escapeRegExp(trimmedQ), 'i');
       const searchOr: any[] = [
@@ -365,7 +797,7 @@ router.get(
       }
 
       const items = await Item.find({
-        owner: adminId,
+        collection: res.locals.activeCollectionId,
         $or: searchOr
       }).limit(10).select('_id title artist author director kind cover_image format format_type platform media_type').lean();
 
@@ -380,7 +812,7 @@ router.get(
 router.get(
   "/api/search-image-universal",
   requireAuth,
-  requireAdmin,
+  requireCollectionRole("editor"),
   async (req: any, res: any) => {
     let { q, type } = req.query;
     q = typeof q === 'string' ? q.trim() : '';
@@ -408,7 +840,7 @@ router.get(
 router.post(
   "/delete-last-items",
   requireAuth,
-  requireAdmin,
+  requireCollectionRole("admin"),
   async (req: any, res: any) => {
     const { count, kind } = req.body;
     const n = parseInt(count);
@@ -419,7 +851,7 @@ router.post(
       return res.status(400).json({ error: "Invalid kind" });
 
     try {
-      const items = await Item.find({ owner: req.user._id, kind })
+      const items = await Item.find({ collection: res.locals.activeCollectionId, kind })
         .sort({ added_at: -1, _id: -1 })
         .limit(n)
         .select("_id");
@@ -438,7 +870,7 @@ router.post(
 router.post(
   "/refresh-all/:pluginId",
   requireAuth,
-  requireAdmin,
+  requireCollectionRole("admin"),
   async (req: any, res: any) => {
     const { pluginId } = req.params;
     const { mode = "all" } = req.body;
@@ -450,7 +882,7 @@ router.post(
       const idField = plugin.externalIdField || '_id';
 
       let query: any = {
-        owner: req.user._id,
+        collection: res.locals.activeCollectionId,
         [idField]: { $exists: true, $ne: null }
       };
 

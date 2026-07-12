@@ -50,6 +50,13 @@ const userSchema = new mongoose.Schema({
     // Plugin-scoped user data: { [pluginId]: { [key]: value } }, e.g. { music: { discogsUsername: 'foo' } }.
     // Lets a plugin persist per-user state without adding a field to the core User model.
     pluginData: { type: mongoose.Schema.Types.Mixed, default: {} },
+    // The collection this user is currently browsing. Persisted (not session-only)
+    // so it survives logout / a new browser / another device.
+    lastActiveCollectionId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Collection',
+        default: null
+    },
     lastChange: {
         type: Date,
         default: Date.now

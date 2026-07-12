@@ -1,5 +1,7 @@
 import express from 'express';
 import User from '../models/User';
+import Collection from '../models/Collection';
+import { generateUniqueSlug } from '../utils/collectionHelpers';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 
@@ -44,6 +46,20 @@ router.post('/', async (req, res) => {
 
         // Force-update the stored password hash
         await User.updateOne({ _id: newAdmin._id }, { $set: { password: hashedPassword } });
+
+        // Create the default collection for the first admin (migrate.ts can't have done this
+        // at boot: there were zero users then). The admin becomes its first member/owner.
+        const collection = await Collection.create({
+            name: 'Vinyl',
+            slug: await generateUniqueSlug('Vinyl'),
+            createdBy: newAdmin._id,
+            isDefault: true,
+            members: [{ user: newAdmin._id, role: 'admin' }]
+        });
+        await User.updateOne(
+            { _id: newAdmin._id },
+            { $set: { lastActiveCollectionId: collection._id } }
+        );
 
         // Issue JWT and set cookie
         const token = createToken(newAdmin._id);

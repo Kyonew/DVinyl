@@ -11,6 +11,7 @@ import i18next from 'i18next';
 import i18nMiddleware from 'i18next-http-middleware';
 
 import settingsMiddleware from './middleware/settingsMiddleware.js';
+import collectionMiddleware from './middleware/collectionMiddleware.js';
 import themesConfig from './config/themes.js';
 import { BASE_URL } from './config/constants.js';
 import { connectDB } from './config/db.js';
@@ -145,7 +146,11 @@ app.use(async (req: any, res, next) => {
   }
 });
 
-// Check user middleware (populate res.locals.user for all views)
+// Resolve the active collection for the logged-in user. Must run BEFORE
+// settingsMiddleware: settings are per-collection and need activeCollectionId.
+app.use(collectionMiddleware);
+
+// Load the active collection's settings (per-collection container)
 app.use(settingsMiddleware);
 
 // Installation gatekeeper middleware

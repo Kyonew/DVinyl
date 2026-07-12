@@ -2,7 +2,7 @@
 
     <%
         // Importer-sync actions (e.g. Discogs wantlist sync) declared by any plugin, rendered generically.
-        const wishlistActions = user.isAdmin
+        const wishlistActions = locals.canEditCollection
             ? registry.getAll().flatMap(p => {
                 const bucket = (user.pluginData && user.pluginData[p.id]) || {};
                 return (p.collectionActions || [])
@@ -108,7 +108,7 @@
                                     </div>
                                 </a>
 
-                                <% if (user.isAdmin) { %>
+                                <% if (locals.canEditCollection) { %>
                                     <button onclick="moveToCollection('<%= album._id %>', '<%= routePrefix %>')"
                                         class="w-full py-2.5 md:py-2 bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white text-primary-theme text-[10px] md:text-xs font-bold uppercase transition-colors flex items-center justify-center gap-1.5 border-t border-black/10 dark:border-white/10 active:brightness-90">
                                         <i class="fa-solid fa-check"></i>
@@ -144,7 +144,7 @@
             }
         }
 
-    <% if (user.isAdmin) { %>
+    <% if (locals.canEditCollection) { %>
         const jsBaseUrl = '<%= baseUrl %>';
         const socket = io({ path: jsBaseUrl + '/socket.io' });
 

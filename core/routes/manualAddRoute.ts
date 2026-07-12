@@ -1,13 +1,12 @@
 import express from 'express';
 import { registry } from '../registry';
 import Item from '../../models/Item';
-import { requireAuth } from '../../middleware/authMiddleware';
-import { getAdminId } from '../helpers';
+import { requireAuth, requireCollectionRole } from '../../middleware/authMiddleware';
 
 const router = express.Router();
 
 // GET /manual-add -> Renders manual add selector and dynamic form
-router.get('/manual-add', requireAuth, async (req: any, res: any) => {
+router.get('/manual-add', requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
   try {
     const settings = res.locals.settings;
     const enabledPlugins = registry.getEnabled(settings).filter(p => typeof p.getManualDefaults === 'function');
@@ -24,11 +23,11 @@ router.get('/manual-add', requireAuth, async (req: any, res: any) => {
     }
 
     const defaults = selectedPlugin.getManualDefaults!();
-    const adminId = await getAdminId();
+    const activeCollectionId = res.locals.activeCollectionId;
 
-    const locations = await Item.distinct('location', { owner: adminId, location: { $ne: "" } });
+    const locations = await Item.distinct('location', { collection: activeCollectionId, location: { $ne: "" } });
     const genres = await Item.distinct('genre', {
-      owner: adminId,
+      collection: activeCollectionId,
       genre: { $ne: "" },
       $or: [{ kind: selectedPlugin.kind }, { kind: { $exists: false } }]
     });

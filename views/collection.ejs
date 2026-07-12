@@ -5,7 +5,7 @@
         // Filter by admin rights and per-user data requirements (e.g. a stored Discogs username).
         const _collectionPlugin = registry.getAll().find(p => p.collectionType === currentType);
         const _userBucket = (_collectionPlugin && user && user.pluginData && user.pluginData[_collectionPlugin.id]) || {};
-        const collectionActions = (user.isAdmin && _collectionPlugin)
+        const collectionActions = (locals.canEditCollection && _collectionPlugin)
             ? (_collectionPlugin.collectionActions || []).filter(a => !a.requiresUserData || _userBucket[a.requiresUserData])
             : [];
         const hasEstimateAction = collectionActions.some(a => a.behavior === 'estimate');
@@ -24,7 +24,7 @@
                         <%= t('common.items') %>
                 </span>
             </h1>
-            <% if (user.isAdmin) { %>
+            <% if (locals.canEditCollection) { %>
                 <%
                     // Add button target: external-search page if the plugin has one, else manual entry
                     const currentPlugin = registry.getAll().find(p => p.collectionType === currentType);
@@ -885,7 +885,7 @@
         }
     
 
-    <% if (user.isAdmin) { %>
+    <% if (locals.canEditCollection) { %>
         // Collection-level actions declared by the active plugin (see CollectionAction).
         const COLLECTION_ACTIONS = <%- JSON.stringify(collectionActions) %>;
         const jsBaseUrl = '<%= baseUrl %>';

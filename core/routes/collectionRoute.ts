@@ -2,20 +2,24 @@ import express from 'express';
 import mongoose from 'mongoose';
 import { registry } from '../registry';
 import Item from '../../models/Item';
+import Collection from '../../models/Collection';
+import User from '../../models/User';
 import { requireAuth } from '../../middleware/authMiddleware';
 import { applyVisibilityFilter, applyEnabledModulesFilter } from '../../utils/visibilityHelper';
-import { getAdminId, escapeRegExp } from '../helpers';
+import { escapeRegExp } from '../helpers';
 
 const router = express.Router();
 
 router.get('/wishlist', requireAuth, async (req: any, res: any) => {
   try {
-    const adminId = await getAdminId();
+    if (!res.locals.activeCollectionId) {
+      return res.render('no-collection', { user: res.locals.user });
+    }
     let query: any = {
-      owner: adminId,
+      collection: res.locals.activeCollectionId,
       in_wishlist: true
     };
-    applyVisibilityFilter(query, res.locals.isAdmin, res.locals.settings);
+    applyVisibilityFilter(query, res.locals.isCollectionAdmin, res.locals.settings);
 
     applyEnabledModulesFilter(query, res.locals.settings);
 
@@ -36,7 +40,10 @@ router.get('/wishlist', requireAuth, async (req: any, res: any) => {
 
 router.get('/collection', requireAuth, async (req: any, res: any) => {
   try {
-    const adminId = await getAdminId();
+    const activeCollectionId = res.locals.activeCollectionId;
+    if (!activeCollectionId) {
+      return res.render('no-collection', { user: res.locals.user });
+    }
     const settings = res.locals.settings;
     const { search, type, format, location, genre, style, artist, decade } = req.query;
 
@@ -53,7 +60,7 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string) || 25));
 
-    let query: any = { owner: adminId, in_wishlist: false };
+    let query: any = { collection: activeCollectionId, in_wishlist: false };
     let conditions: any[] = [];
 
     const enabledPlugins = registry.getEnabled(settings);
@@ -167,7 +174,7 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
       query.$and = conditions;
     }
 
-    applyVisibilityFilter(query, res.locals.isAdmin, settings);
+    applyVisibilityFilter(query, res.locals.isCollectionAdmin, settings);
     applyEnabledModulesFilter(query, settings);
 
     const totalItems = await Item.countDocuments(query);
@@ -212,7 +219,7 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
 
     // DYNAMIC ARTIST LIST
     const artistList = await (async () => {
-      const baseQuery: any = { owner: adminId, in_wishlist: false };
+      const baseQuery: any = { collection: activeCollectionId, in_wishlist: false };
       if (!type || type === 'all') {
         const promises = enabledPlugins.map(plugin => 
           Item.distinct(plugin.creatorField, { ...baseQuery, [plugin.creatorField]: { $nin: ['', null] } })
@@ -235,15 +242,15 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
       return plugin ? plugin.formatForView(item) : item;
     });
 
-    const locations = await Item.distinct('location', { owner: adminId, location: { $nin: ['', null] } });
+    const locations = await Item.distinct('location', { collection: activeCollectionId, location: { $nin: ['', null] } });
 
     const genresList = await Promise.all([
-      Item.distinct('genres', { owner: adminId, genres: { $nin: ['', null] } }),
-      Item.distinct('genre', { owner: adminId, genre: { $nin: ['', null] } })
+      Item.distinct('genres', { collection: activeCollectionId, genres: { $nin: ['', null] } }),
+      Item.distinct('genre', { collection: activeCollectionId, genre: { $nin: ['', null] } })
     ]);
     const genres = [...new Set(genresList.flat())].filter(Boolean).sort();
 
-    const styles = await Item.distinct('styles', { owner: adminId, styles: { $nin: ['', null] } });
+    const styles = await Item.distinct('styles', { collection: activeCollectionId, styles: { $nin: ['', null] } });
     styles.sort();
 
     res.render('collection', {
@@ -274,6 +281,40 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
   } catch (err: any) {
     console.error("Collection page loading error:", err.message);
     res.status(500).send(req.t('errors.generic_server_error'));
+  }
+});
+
+// Switch the user's active collection. Requires membership: without this check,
+// a signed-in user could switch into and browse any collection by guessing its id.
+router.post('/collection/switch', requireAuth, async (req: any, res: any) => {
+  const back = req.get('Referer') || '/';
+  try {
+    const { collectionId } = req.body;
+    if (!mongoose.Types.ObjectId.isValid(collectionId)) {
+      return res.redirect(back);
+    }
+
+    const target = await Collection.findOne({
+      _id: collectionId,
+      'members.user': req.user._id
+    });
+    if (!target) {
+      return res.redirect(back);
+    }
+
+    await User.updateOne(
+      { _id: req.user._id },
+      { $set: { lastActiveCollectionId: target._id } }
+    );
+
+    // Only follow redirectTo if it's a same-site relative path: a leading "/" but not
+    // "//" (browsers treat "//host" as protocol-relative, i.e. an external redirect).
+    const redirectTo = req.body.redirectTo;
+    const isSafeRelativePath = typeof redirectTo === 'string' && redirectTo.startsWith('/') && !redirectTo.startsWith('//');
+    res.redirect(isSafeRelativePath ? redirectTo : back);
+  } catch (err: any) {
+    console.error("Collection switch error:", err.message);
+    res.redirect(back);
   }
 });
 

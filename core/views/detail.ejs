@@ -263,7 +263,7 @@
             <% } %>
 
             <!-- Admin Actions Block -->
-            <% if (user && user.isAdmin) { %>
+            <% if (user && locals.canEditCollection) { %>
                 <div class="pt-6 border-t border-black/10 dark:border-white/10 flex justify-end gap-4 transition-colors">
                     <div class="flex-1 flex gap-2">
                         <% if (plugin.refreshItem) { %>

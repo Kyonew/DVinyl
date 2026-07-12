@@ -8,6 +8,7 @@ import { STANDARD_FORMAT_TERMS } from './constants';
 async function importDiscogs(req: any, res: any) {
   const { discogsUrl, full, type } = req.body;
   const userId = req.user._id;
+  const activeCollectionId = res.locals.activeCollectionId;
   const token = process.env.DISCOGS_TOKEN;
 
   // The URL is provided by the admin import form; the collection "sync" button omits it and
@@ -52,7 +53,7 @@ async function importDiscogs(req: any, res: any) {
 
       for (const item of listItems) {
         const info = item.basic_information;
-        const existing = await Item.findOne({ discogs_id: info.id, owner: userId }) as any;
+        const existing = await Item.findOne({ discogs_id: info.id, collection: activeCollectionId }) as any;
 
         if (existing) {
           if (full === true && (!existing.tracklist || existing.tracklist.length === 0)) {
@@ -132,6 +133,7 @@ async function importDiscogs(req: any, res: any) {
           tracklist,
           discogs_id: info.id,
           owner: userId,
+          collection: activeCollectionId,
           added_at: new Date(),
           location: '',
           genre: info.genres?.[0] || '',
@@ -164,6 +166,7 @@ async function importDiscogs(req: any, res: any) {
 async function importMusikSammler(req: any, res: any) {
   const { csv, type } = req.body;
   const userId = req.user._id;
+  const activeCollectionId = res.locals.activeCollectionId;
 
   if (!csv) {
     return res.status(400).json({ error: "Missing CSV data" });
@@ -231,7 +234,7 @@ async function importMusikSammler(req: any, res: any) {
 
       // Check if duplicate (case-insensitive, like the pre-refactor import)
       const existing = await Item.findOne({
-        owner: userId,
+        collection: activeCollectionId,
         title: new RegExp(`^${escapeRegExp(title)}$`, 'i'),
         artist: new RegExp(`^${escapeRegExp(artist)}$`, 'i')
       }) as any;
@@ -326,6 +329,7 @@ async function importMusikSammler(req: any, res: any) {
         media_type,
         in_wishlist: isWishlist,
         owner: userId,
+        collection: activeCollectionId,
         comments,
         location: '',
         genre,

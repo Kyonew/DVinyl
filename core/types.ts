@@ -87,11 +87,13 @@ export interface PluginDefinition {
 
   formatForView(item: any): any;
 
-  findDuplicate(ownerId: any, data: Record<string, any>): Promise<any | null>;
+  // Duplicate detection is scoped to a single collection (each collection is an
+  // independent container: the same item may exist in two collections separately).
+  findDuplicate(collectionId: any, data: Record<string, any>): Promise<any | null>;
 
   // Broader duplicate candidates for the confirm page's warning banner
   // (e.g. same discogs_id OR same title+artist, without filtering by format)
-  findPotentialDuplicates?(ownerId: any, data: Record<string, any>): Promise<any[]>;
+  findPotentialDuplicates?(collectionId: any, data: Record<string, any>): Promise<any[]>;
 
   // Form fields the duplicate warning depends on (e.g. ['media_type','variant_color'])
   duplicateCheckFields?: string[];

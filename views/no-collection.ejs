@@ -1,0 +1,17 @@
+<%- include('partials/header') %>
+
+<div class="max-w-screen-md mx-auto px-4 pt-24 pb-32">
+    <div class="card-theme rounded-[2.5rem] p-10 md:p-16 shadow-sm text-center transition-colors">
+        <div class="w-20 h-20 rounded-full bg-primary-theme/10 text-primary-theme flex items-center justify-center mx-auto mb-8">
+            <i class="fa-solid fa-layer-group text-3xl"></i>
+        </div>
+        <h1 class="text-2xl md:text-3xl font-black mb-4">
+            <%= t('no_collection.title') %>
+        </h1>
+        <p class="text-sm opacity-60 leading-relaxed max-w-md mx-auto">
+            <%= t('no_collection.message') %>
+        </p>
+    </div>
+</div>
+
+<%- include('partials/footer') %>

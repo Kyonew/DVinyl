@@ -81,3 +81,24 @@ export const requireAdmin = (req: any, res: any, next: any) => {
     res.redirect('/'); // Not admin, redirect
   }
 };
+
+const ROLE_LEVEL: Record<string, number> = { viewer: 1, editor: 2, admin: 3 };
+
+/**
+ * Gates a route on the user's role in the ACTIVE collection (set by collectionMiddleware).
+ * Instance admins always pass (their collectionRole is forced to 'admin').
+ * Role ladder: viewer < editor < admin.
+ */
+export const requireCollectionRole = (minRole: 'viewer' | 'editor' | 'admin') => {
+  return (req: any, res: any, next: any) => {
+    const role = res.locals.collectionRole;
+    if (role && (ROLE_LEVEL[role] ?? 0) >= (ROLE_LEVEL[minRole] ?? 99)) {
+      return next();
+    }
+    // Mirror requireAdmin's behavior for pages; JSON for API-style calls
+    if (req.method !== 'GET' && (req.xhr || (req.headers.accept || '').includes('json'))) {
+      return res.status(403).json({ success: false, error: 'Forbidden' });
+    }
+    res.redirect('/');
+  };
+};
