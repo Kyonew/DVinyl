@@ -178,6 +178,31 @@
                             <%= t('common.edit') %>
                         </button>
                     </div>
+
+                    <% if (oidcEnabled) { %>
+                        <div
+                            class="flex items-center justify-between p-4 bg-black/5 dark:bg-white/5 rounded-xl border border-transparent transition-colors mt-4">
+                            <div>
+                                <p class="font-medium transition-colors">
+                                    <%= t('settings.oidc_title') %>
+                                </p>
+                                <p class="opacity-50 text-xs mt-1 transition-colors">
+                                    <%= (user.oidc && user.oidc.sub) ? t('settings.oidc_linked_label') : t('settings.oidc_not_linked_label') %>
+                                </p>
+                            </div>
+                            <% if (user.oidc && user.oidc.sub) { %>
+                                <button id="oidc-unlink-btn"
+                                    class="text-sm bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 px-3 py-1.5 rounded-lg transition-colors border border-transparent">
+                                    <%= t('settings.oidc_unlink_btn') %>
+                                </button>
+                            <% } else { %>
+                                <a href="<%= baseUrl %>/settings/oidc/link"
+                                    class="text-sm bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 px-3 py-1.5 rounded-lg transition-colors border border-transparent">
+                                    <%= t('settings.oidc_link_btn') %>
+                                </a>
+                            <% } %>
+                        </div>
+                    <% } %>
                 </div>
 
             </div>
@@ -313,8 +338,35 @@
             passwordSuccess: "<%= t('messages.password_success') %>",
             passwordMismatch: "<%= t('messages.password_mismatch') %>",
             usernameAvailable: "<%= t('messages.username_available') %>",
-            genericError: "<%= t('messages.generic_error') %>"
+            genericError: "<%= t('messages.generic_error') %>",
+            oidcLinked: "<%= t('messages.oidc_linked') %>",
+            oidcAlreadyLinked: "<%= t('messages.oidc_already_linked') %>",
+            oidcUnlinked: "<%= t('messages.oidc_unlinked') %>"
         };
+
+        const oidcStatus = new URLSearchParams(location.search).get('oidc');
+        if (oidcStatus === 'linked') alert(translations.oidcLinked);
+        if (oidcStatus === 'already_linked') alert(translations.oidcAlreadyLinked);
+        if (oidcStatus === 'error') alert(translations.genericError);
+        if (oidcStatus) history.replaceState(null, '', location.pathname);
+
+        const oidcUnlinkBtn = document.getElementById('oidc-unlink-btn');
+        if (oidcUnlinkBtn) {
+            oidcUnlinkBtn.addEventListener('click', async function () {
+                try {
+                    const res = await fetch('<%= baseUrl %>/settings/oidc/unlink', { method: 'POST' });
+                    const data = await res.json();
+                    if (data.success) {
+                        alert(translations.oidcUnlinked);
+                        location.reload();
+                    } else {
+                        alert(translations.genericError);
+                    }
+                } catch (err) {
+                    alert(translations.genericError);
+                }
+            });
+        }
 
 
         if (usernameInput) {

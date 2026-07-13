@@ -57,7 +57,12 @@
     "currency_label": "Devise préférée",
     "currency_eur": "Euro (€)",
     "currency_usd": "Dollar ($)",
-    "currency_gbp": "Livre sterling (£)"
+    "currency_gbp": "Livre sterling (£)",
+    "oidc_title": "Authentification unique (SSO)",
+    "oidc_linked_label": "Lié à votre fournisseur d'identité",
+    "oidc_not_linked_label": "Non lié",
+    "oidc_link_btn": "Lier le compte",
+    "oidc_unlink_btn": "Délier"
   },
   "errors": {
     "username_taken": "Ce pseudo est déjà utilisé.",
@@ -108,7 +113,10 @@
     "error_last_admin": "Impossible : c'est le dernier admin de la collection.",
     "error_delete_default_collection": "La collection par défaut ne peut pas être supprimée.",
     "error_self_role": "Vous ne pouvez pas modifier votre propre rôle.",
-    "error_shared_member_reset": "Cet utilisateur appartient à d'autres collections ; seul l'admin de l'instance peut réinitialiser son mot de passe."
+    "error_shared_member_reset": "Cet utilisateur appartient à d'autres collections ; seul l'admin de l'instance peut réinitialiser son mot de passe.",
+    "oidc_linked": "Compte lié avec succès !",
+    "oidc_already_linked": "Cette identité SSO est déjà liée à un autre compte.",
+    "oidc_unlinked": "Compte délié."
   },
   "media": {
     "vinyl": "Vinyle",
@@ -580,7 +588,11 @@
     "email_placeholder": "exemple@email.com",
     "password_label": "Mot de passe",
     "password_placeholder": "Mot de passe",
-    "submit_btn": "Se connecter"
+    "submit_btn": "Se connecter",
+    "or_divider": "OU",
+    "sso_button": "Se connecter via SSO",
+    "error_oidc_unlinked": "Aucun compte n'est lié à cette identité SSO. Connectez-vous d'abord avec votre mot de passe, puis liez votre compte depuis les paramètres.",
+    "error_oidc_unavailable": "La connexion SSO est momentanément indisponible. Réessayez ou utilisez votre mot de passe."
   },
   "setup": {
     "title": "Installation DVinyl",

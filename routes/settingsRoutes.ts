@@ -178,6 +178,17 @@ router.post('/update-language', requireAuth, async (req, res) => {
     }
 });
 
+// Unlink the currently linked SSO (OIDC) identity, if any.
+router.post('/oidc/unlink', requireAuth, async (req, res) => {
+    try {
+        await User.findByIdAndUpdate(res.locals.user._id, { $unset: { oidc: 1 } });
+        res.json({ success: true, message: req.t('messages.oidc_unlinked') });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: req.t('messages.generic_error') });
+    }
+});
+
 router.post('/update-currency', requireAuth, async (req, res) => {
     const { currency } = req.body;
     const userId = res.locals.user._id;

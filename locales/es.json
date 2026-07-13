@@ -562,7 +562,11 @@
     "password_placeholder": "Contraseña",
     "submit_btn": "Iniciar sesión",
     "title": "Acceso",
-    "welcome": "Bienvenido de nuevo"
+    "welcome": "Bienvenido de nuevo",
+    "or_divider": "O",
+    "sso_button": "Iniciar sesión con SSO",
+    "error_oidc_unlinked": "Ninguna cuenta está vinculada a esta identidad SSO. Inicia sesión primero con tu contraseña y luego vincula tu cuenta desde Ajustes.",
+    "error_oidc_unavailable": "El inicio de sesión SSO no está disponible en este momento. Inténtalo de nuevo o usa tu contraseña."
   },
   "media": {
     "4k": "4K Ultra HD",
@@ -636,7 +640,10 @@
     "error_last_admin": "Imposible: es el último admin de la colección.",
     "error_delete_default_collection": "La colección predeterminada no puede eliminarse.",
     "error_self_role": "No puedes cambiar tu propio rol.",
-    "error_shared_member_reset": "Este usuario pertenece a otras colecciones; solo el admin de la instancia puede restablecer su contraseña."
+    "error_shared_member_reset": "Este usuario pertenece a otras colecciones; solo el admin de la instancia puede restablecer su contraseña.",
+    "oidc_linked": "¡Cuenta vinculada correctamente!",
+    "oidc_already_linked": "Esta identidad SSO ya está vinculada a otra cuenta.",
+    "oidc_unlinked": "Cuenta desvinculada."
   },
   "modal": {
     "add_hub_subtitle": "Seleccione el tipo de medios para agregar a su colección",
@@ -729,7 +736,12 @@
     "password_warning": "Se cerrará su sesión después del cambio.",
     "preferences_title": "Preferencias",
     "security_title": "Seguridad",
-    "username_label": "Nombre de usuario"
+    "username_label": "Nombre de usuario",
+    "oidc_title": "Inicio de sesión único (SSO)",
+    "oidc_linked_label": "Vinculada a tu proveedor de identidad",
+    "oidc_not_linked_label": "No vinculada",
+    "oidc_link_btn": "Vincular cuenta",
+    "oidc_unlink_btn": "Desvincular"
   },
   "setup": {
     "admin_config": "Configuración de administrador",

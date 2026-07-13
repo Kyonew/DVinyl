@@ -57,7 +57,12 @@
     "currency_label": "Preferred currency",
     "currency_eur": "Euro (€)",
     "currency_usd": "US Dollar ($)",
-    "currency_gbp": "British Pound (£)"
+    "currency_gbp": "British Pound (£)",
+    "oidc_title": "Single Sign-On",
+    "oidc_linked_label": "Linked to your identity provider",
+    "oidc_not_linked_label": "Not linked",
+    "oidc_link_btn": "Link account",
+    "oidc_unlink_btn": "Unlink"
   },
   "errors": {
     "username_taken": "This username is already taken.",
@@ -108,7 +113,10 @@
     "error_last_admin": "Impossible: this is the last admin of the collection.",
     "error_delete_default_collection": "The default collection cannot be deleted.",
     "error_self_role": "You cannot change your own role.",
-    "error_shared_member_reset": "This user belongs to other collections; only the instance admin can reset their password."
+    "error_shared_member_reset": "This user belongs to other collections; only the instance admin can reset their password.",
+    "oidc_linked": "Account linked successfully!",
+    "oidc_already_linked": "This SSO identity is already linked to another account.",
+    "oidc_unlinked": "Account unlinked."
   },
   "media": {
     "vinyl": "Vinyl",
@@ -580,7 +588,11 @@
     "email_placeholder": "example@email.com",
     "password_label": "Password",
     "password_placeholder": "Password",
-    "submit_btn": "Sign In"
+    "submit_btn": "Sign In",
+    "or_divider": "OR",
+    "sso_button": "Sign in with SSO",
+    "error_oidc_unlinked": "No account is linked to this SSO identity. Sign in with your password first, then link your account from Settings.",
+    "error_oidc_unavailable": "SSO sign-in is currently unavailable. Please try again or use your password."
   },
   "setup": {
     "title": "DVinyl Setup",

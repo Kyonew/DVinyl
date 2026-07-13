@@ -90,7 +90,41 @@ export const handleErrors = (err: any) => {
  * Render the login page.
  */
 export const login_get = (req: any, res: any) => {
-  res.render('login');
+  res.render('login', { oidcError: req.query.error || null });
+};
+
+/**
+ * Issue the JWT session cookie for an already-authenticated user and record
+ * a LoginLog entry. Used by both password login and OIDC login.
+ */
+export const issueSession = async (req: any, res: any, user: any) => {
+  const clientIp = getClientIp(req);
+  const geo = await getGeoLocation(clientIp);
+
+  await LoginLog.create({
+    user: user._id,
+    username: user.username,
+    email: user.email,
+    ip: clientIp,
+    country: geo?.country || 'XX',
+    city: geo?.city || req.t('common.unknown'),
+    userAgent: req.headers['user-agent'],
+    status: 'success'
+  });
+
+  const passjwt = process.env.PASSJWT;
+  if (!passjwt) {
+    throw new Error("PASSJWT environment variable is missing");
+  }
+
+  const token = jwt.sign({ id: user._id }, passjwt, { expiresIn: '3d' });
+
+  res.cookie('jwt', token, {
+    httpOnly: true,
+    maxAge: 3 * 24 * 60 * 60 * 1000,
+    secure: process.env.PROD === 'true', // Only send cookie over HTTPS in production
+    sameSite: 'lax' // Mitigate CSRF
+  });
 };
 
 /**
@@ -113,36 +147,10 @@ export const login_post = async (req: any, res: any) => {
   try {
     const user = await (User as any).login(email, password);
 
-    const clientIp = getClientIp(req);
-    const geo = await getGeoLocation(clientIp);
-
-    await LoginLog.create({
-      user: user._id,
-      username: user.username,
-      email: user.email,
-      ip: clientIp,
-      country: geo?.country || 'XX',
-      city: geo?.city || req.t('common.unknown'),
-      userAgent: req.headers['user-agent'],
-      status: 'success'
-    });
-
     // Clear failed attempts on successful login.
     if (loginAttempts[email]) delete loginAttempts[email];
 
-    const passjwt = process.env.PASSJWT;
-    if (!passjwt) {
-      throw new Error("PASSJWT environment variable is missing");
-    }
-
-    const token = jwt.sign({ id: user._id }, passjwt, { expiresIn: '3d' });
-
-    res.cookie('jwt', token, {
-      httpOnly: true,
-      maxAge: 3 * 24 * 60 * 60 * 1000,
-      secure: process.env.PROD === 'true', // Only send cookie over HTTPS in production
-      sameSite: 'lax' // Mitigate CSRF
-    });
+    await issueSession(req, res, user);
     res.status(200).json({ user: user._id });
 
   } catch (err) {

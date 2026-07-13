@@ -562,7 +562,11 @@
     "password_placeholder": "Passwort",
     "submit_btn": "Anmelden",
     "title": "Login",
-    "welcome": "Willkommen zurück"
+    "welcome": "Willkommen zurück",
+    "or_divider": "ODER",
+    "sso_button": "Mit SSO anmelden",
+    "error_oidc_unlinked": "Diesem SSO-Konto ist kein Benutzerkonto zugeordnet. Melden Sie sich zunächst mit Ihrem Passwort an und verknüpfen Sie Ihr Konto dann in den Einstellungen.",
+    "error_oidc_unavailable": "Die SSO-Anmeldung ist derzeit nicht verfügbar. Versuchen Sie es erneut oder verwenden Sie Ihr Passwort."
   },
   "media": {
     "4k": "4K Ultra HD",
@@ -636,7 +640,10 @@
     "error_last_admin": "Unmöglich: letzter Admin der Sammlung.",
     "error_delete_default_collection": "Die Standardsammlung kann nicht gelöscht werden.",
     "error_self_role": "Sie können Ihre eigene Rolle nicht ändern.",
-    "error_shared_member_reset": "Dieser Benutzer gehört zu anderen Sammlungen; nur der Instanz-Admin kann sein Passwort zurücksetzen."
+    "error_shared_member_reset": "Dieser Benutzer gehört zu anderen Sammlungen; nur der Instanz-Admin kann sein Passwort zurücksetzen.",
+    "oidc_linked": "Konto erfolgreich verknüpft!",
+    "oidc_already_linked": "Diese SSO-Identität ist bereits mit einem anderen Konto verknüpft.",
+    "oidc_unlinked": "Verknüpfung aufgehoben."
   },
   "modal": {
     "add_hub_subtitle": "Wählen Sie den Medientyp aus, den Sie Ihrer Sammlung hinzufügen möchten",
@@ -729,7 +736,12 @@
     "password_warning": "Nach der Änderung werden Sie abgemeldet.",
     "preferences_title": "Präferenzen",
     "security_title": "Sicherheit",
-    "username_label": "Benutzername"
+    "username_label": "Benutzername",
+    "oidc_title": "Single Sign-On",
+    "oidc_linked_label": "Mit Ihrem Identitätsanbieter verknüpft",
+    "oidc_not_linked_label": "Nicht verknüpft",
+    "oidc_link_btn": "Konto verknüpfen",
+    "oidc_unlink_btn": "Verknüpfung aufheben"
   },
   "setup": {
     "admin_config": "Admin-Konfiguration",

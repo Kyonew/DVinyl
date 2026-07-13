@@ -57,11 +57,22 @@ const userSchema = new mongoose.Schema({
         ref: 'Collection',
         default: null
     },
+    // OIDC identity linked from the Settings page. Optional: password login
+    // always remains available. `sub` is the subject claim issued by the
+    // identity provider and identifies the external account.
+    oidc: {
+        sub: { type: String },
+        linkedAt: { type: Date }
+    },
     lastChange: {
         type: Date,
         default: Date.now
     }
 });
+
+// An OIDC identity can only be linked to one account. The index is sparse so
+// that users without a linked identity do not collide on the missing field.
+userSchema.index({ 'oidc.sub': 1 }, { unique: true, sparse: true });
 
 
 /**

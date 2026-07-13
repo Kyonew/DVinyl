@@ -14,6 +14,7 @@ import settingsMiddleware from './middleware/settingsMiddleware.js';
 import collectionMiddleware from './middleware/collectionMiddleware.js';
 import themesConfig from './config/themes.js';
 import { BASE_URL } from './config/constants.js';
+import { isOidcEnabled, getOidcButtonLabel } from './config/oidc.js';
 import { connectDB } from './config/db.js';
 import { migrateDatabase } from './utils/migrate.js';
 
@@ -31,6 +32,7 @@ import authRoutes from './routes/authRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
 import backupRoutes from './routes/backupRoutes.js';
+import oidcRoutes from './routes/oidcRoutes.js';
 
 import dashboardRoute from './core/routes/dashboardRoute.js';
 import collectionRoute from './core/routes/collectionRoute.js';
@@ -122,6 +124,8 @@ app.use(async (req: any, res, next) => {
   res.locals.currentLng = req.language;
   res.locals.appVersion = pkg.version;
   res.locals.baseUrl = BASE_URL;
+  res.locals.oidcEnabled = isOidcEnabled();
+  res.locals.oidcButtonLabel = getOidcButtonLabel();
   req.io = io;
   next();
 });
@@ -206,6 +210,9 @@ app.use(BASE_URL, authRoutes);
 app.use(BASE_URL + '/admin', adminRoutes);
 app.use(BASE_URL + '/settings', settingsRoutes);
 app.use(BASE_URL + '/backup', backupRoutes);
+if (isOidcEnabled()) {
+  app.use(BASE_URL, oidcRoutes);
+}
 
 app.use(BASE_URL, dashboardRoute);
 app.use(BASE_URL, collectionRoute);
