@@ -169,6 +169,7 @@
               <li>
                 <form action="<%= baseUrl %>/collection/switch" method="POST">
                   <input type="hidden" name="collectionId" value="<%= c._id %>">
+                  <input type="hidden" name="redirectTo" value="/">
                   <button type="submit" class="w-[calc(100%-1rem)] text-left block px-4 py-2 text-sm text-[var(--text-main)] hover:bg-black/5 dark:hover:bg-white/10 mx-2 rounded transition flex items-center gap-3 <%= String(c._id) === String(locals.activeCollectionId) ? 'font-bold' : '' %>">
                     <i class="fa-solid <%= String(c._id) === String(locals.activeCollectionId) ? 'fa-circle-check text-primary-theme' : 'fa-layer-group opacity-70' %> w-5 text-center"></i>
                     <span class="truncate"><%= c.name %></span>
