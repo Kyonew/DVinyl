@@ -1,0 +1,27 @@
+<% if (item.set_num) { %>
+    <span class="px-3 py-1 bg-primary-theme/10 border border-primary-theme/20 text-primary-theme rounded-full text-xs flex items-center gap-1">
+        <i class="fa-solid fa-hashtag text-[10px]"></i>
+        <%= item.set_num %>
+    </span>
+<% } %>
+
+<% if (item.pieces) { %>
+    <span class="px-3 py-1 bg-black/5 dark:bg-white/10 border border-transparent rounded-full text-xs opacity-80 flex items-center gap-1">
+        <i class="fa-solid fa-puzzle-piece text-[10px] opacity-55"></i>
+        <%= item.pieces %> <%= t('lego_detail.pieces_label') %>
+    </span>
+<% } %>
+
+<% if (item.minifigs) { %>
+    <span class="px-3 py-1 bg-black/5 dark:bg-white/10 border border-transparent rounded-full text-xs opacity-80 flex items-center gap-1">
+        <i class="fa-solid fa-person text-[10px] opacity-55"></i>
+        <%= item.minifigs %> <%= t('lego_detail.minifigs_label') %>
+    </span>
+<% } %>
+
+<% if (item.year) { %>
+    <span class="px-3 py-1 bg-black/5 dark:bg-white/10 border border-transparent rounded-full text-xs opacity-80 flex items-center gap-1">
+        <i class="fa-solid fa-calendar text-[10px] opacity-55"></i>
+        <%= item.year %>
+    </span>
+<% } %>

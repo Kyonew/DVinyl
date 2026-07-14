@@ -606,7 +606,9 @@
     "collector": "Coleccionista",
     "limited": "Edición Limitada",
     "steelbook": "Steelbook",
-    "book": "Libro"
+    "book": "Libro",
+    "lego": "LEGO",
+    "legos": "Sets LEGO"
   },
   "messages": {
     "avatar_success": "¡Foto de perfil actualizada!",
@@ -710,7 +712,8 @@
     "country": "US, Europa...",
     "genres": "Rock, Pop...",
     "styles": "Prog Rock, Synth-pop...",
-    "publisher": "Ej: Anagrama..."
+    "publisher": "Ej: Anagrama...",
+    "lego_set_num": "Ej: 42115"
   },
   "settings": {
     "avatar_gravatar_btn": "Importar desde Gravatar",
@@ -779,7 +782,12 @@
     "top_studio_label": "Estudio Favorito",
     "games_total_label": "Total Videojuegos",
     "top_developer_label": "Desarrollador Favorito",
-    "top_game_publisher_label": "Editor Favorito (Juegos)"
+    "top_game_publisher_label": "Editor Favorito (Juegos)",
+    "lego_total_label": "Total de sets LEGO",
+    "lego_pieces_label": "Total de piezas",
+    "lego_minifigs_label": "Total de minifiguras",
+    "lego_sealed_label": "Sets sellados",
+    "top_theme_label": "Tema principal"
   },
   "status": {
     "read": "Leer",
@@ -935,5 +943,50 @@
     "default_color": "Color por defecto",
     "reset": "Restablecer",
     "customized": "Personalizado"
+  },
+  "add_lego": {
+    "title": "Añadir un set LEGO",
+    "desc": "Busca un set por número (ej: 42115) o por nombre vía Rebrickable.",
+    "search_placeholder": "Número o nombre del set...",
+    "results_title": "Resultados",
+    "no_results": "No se encontró ningún set.",
+    "manual_entry": "Entrada manual",
+    "btn_scan": "Escanear"
+  },
+  "confirm_lego": {
+    "title": "Confirmar adición",
+    "desc": "Verifica la información y completa los detalles de tu set.",
+    "config_title": "Revisar y completar",
+    "field_title": "Nombre del set",
+    "field_set_num": "Número de set",
+    "field_theme": "Tema",
+    "field_year": "Año",
+    "field_pieces": "Número de piezas",
+    "field_minifigs": "Minifiguras",
+    "field_format": "Estado",
+    "field_barcode": "Código de barras",
+    "field_quantity": "Cantidad",
+    "field_rating": "Valoración (sobre 5)",
+    "field_comments": "Notas / Comentarios",
+    "comments_placeholder": "Ej: Comprado de segunda mano, instrucciones incluidas...",
+    "cond_sealed": "Sellado (nuevo)",
+    "cond_built": "Montado",
+    "cond_dismantled": "Desmontado",
+    "cond_incomplete": "Incompleto",
+    "theme_label": "Tema",
+    "year_label": "Año",
+    "barcode_label": "Código de barras",
+    "btn_collection": "Añadir a la colección",
+    "btn_wishlist": "Añadir a la Wishlist"
+  },
+  "edit_lego": {
+    "title": "Editar set"
+  },
+  "lego_detail": {
+    "pieces_label": "piezas",
+    "minifigs_label": "minifiguras",
+    "set_num_label": "Número de set",
+    "theme_label": "Tema",
+    "delete_confirm": "¿Seguro que quieres eliminar este set de tu colección?"
   }
 }

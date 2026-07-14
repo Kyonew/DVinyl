@@ -160,7 +160,9 @@
     "physical": "Physical",
     "collector": "Collector",
     "limited": "Limited Edition",
-    "steelbook": "Steelbook"
+    "steelbook": "Steelbook",
+    "lego": "LEGO",
+    "legos": "LEGO Sets"
   },
   "index": {
     "welcome": "Hello",
@@ -192,7 +194,12 @@
     "top_studio_label": "Top Studio",
     "games_total_label": "Total Video Games",
     "top_developer_label": "Top Developer",
-    "top_game_publisher_label": "Top Publisher (Games)"
+    "top_game_publisher_label": "Top Publisher (Games)",
+    "lego_total_label": "Total LEGO sets",
+    "lego_pieces_label": "Total pieces",
+    "lego_minifigs_label": "Total minifigures",
+    "lego_sealed_label": "Sealed sets",
+    "top_theme_label": "Top theme"
   },
   "modal": {
     "estimate_title": "Estimating...",
@@ -631,7 +638,8 @@
     "country": "US, Europe...",
     "genres": "Rock, Pop...",
     "styles": "Prog Rock, Synth-pop...",
-    "publisher": "Ex: Penguin..."
+    "publisher": "Ex: Penguin...",
+    "lego_set_num": "e.g. 42115"
   },
   "perso": {
     "title": "Personnalisation",
@@ -935,5 +943,50 @@
     "default_color": "Default color",
     "reset": "Reset",
     "customized": "Customized"
+  },
+  "add_lego": {
+    "title": "Add a LEGO set",
+    "desc": "Search a set by number (e.g. 42115) or by name via Rebrickable.",
+    "search_placeholder": "Set number or name...",
+    "results_title": "Results",
+    "no_results": "No set found.",
+    "manual_entry": "Manual entry",
+    "btn_scan": "Scan"
+  },
+  "confirm_lego": {
+    "title": "Confirm addition",
+    "desc": "Check the information and complete your set's details.",
+    "config_title": "Review and complete",
+    "field_title": "Set name",
+    "field_set_num": "Set number",
+    "field_theme": "Theme",
+    "field_year": "Year",
+    "field_pieces": "Piece count",
+    "field_minifigs": "Minifigures",
+    "field_format": "Condition",
+    "field_barcode": "Barcode",
+    "field_quantity": "Quantity",
+    "field_rating": "Rating (out of 5)",
+    "field_comments": "Notes / Comments",
+    "comments_placeholder": "e.g. Bought used, instructions included...",
+    "cond_sealed": "Sealed (new)",
+    "cond_built": "Built",
+    "cond_dismantled": "Dismantled",
+    "cond_incomplete": "Incomplete",
+    "theme_label": "Theme",
+    "year_label": "Year",
+    "barcode_label": "Barcode",
+    "btn_collection": "Add to collection",
+    "btn_wishlist": "Add to Wishlist"
+  },
+  "edit_lego": {
+    "title": "Edit set"
+  },
+  "lego_detail": {
+    "pieces_label": "pieces",
+    "minifigs_label": "minifigs",
+    "set_num_label": "Set number",
+    "theme_label": "Theme",
+    "delete_confirm": "Do you really want to remove this set from your collection?"
   }
 }

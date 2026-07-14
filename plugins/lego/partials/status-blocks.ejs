@@ -1,0 +1,24 @@
+<div class="w-full mt-6 grid grid-cols-2 gap-4">
+    <div class="card-theme p-4 rounded-xl text-center shadow-sm">
+        <span class="block text-[10px] uppercase font-bold opacity-50 mb-1">
+            <%= t('confirm_lego.field_format') %>
+        </span>
+        <% let condColor = 'text-sky-500';
+           if (item.format === 'sealed') condColor = 'text-emerald-500';
+           else if (item.format === 'dismantled') condColor = 'text-amber-500';
+           else if (item.format === 'incomplete') condColor = 'text-red-500'; %>
+        <span class="text-sm font-bold <%= condColor %>">
+            <%= t('confirm_lego.cond_' + (item.format || 'built')) %>
+        </span>
+    </div>
+    <div class="card-theme p-4 rounded-xl text-center shadow-sm">
+        <span class="block text-[10px] uppercase font-bold opacity-50 mb-1">
+            <%= t('confirm_lego.field_rating') %>
+        </span>
+        <div class="flex justify-center text-yellow-500 text-xs">
+            <% for (let i = 1; i <= 5; i++) { %>
+                <i class="<%= i <= item.user_rating ? 'fa-solid' : (i - 0.5 === item.user_rating ? 'fa-solid fa-star-half-stroke' : 'fa-regular') %> fa-star"></i>
+            <% } %>
+        </div>
+    </div>
+</div>
