@@ -614,6 +614,7 @@
     "avatar_upload_error": "Errore durante il caricamento dell'immagine.",
     "estimate_error": "Errore durante la stima",
     "generic_error": "Si è verificato un errore.",
+    "gravatar_not_found": "Nessun Gravatar trovato per questa email.",
     "ip_blocked": "Indirizzo IP bloccato.",
     "ip_unblocked": "Indirizzo IP sbloccato.",
     "language_updated": "Lingua aggiornata.",
@@ -712,7 +713,10 @@
     "publisher": "Es: Mondadori..."
   },
   "settings": {
+    "avatar_gravatar_btn": "Importa da Gravatar",
     "avatar_hint": "Massimo 5 MB. \nJPG, PNG, GIF, WEBP.",
+    "avatar_remove_btn": "Rimuovi foto",
+    "avatar_remove_confirm": "Rimuovere l'immagine del profilo attuale?",
     "confirm_password_label": "Conferma la nuova password",
     "currency_eur": "Euro (€)",
     "currency_gbp": "Sterlina britannica (£)",

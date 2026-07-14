@@ -614,6 +614,7 @@
     "avatar_upload_error": "Fehler beim Hochladen des Bildes.",
     "estimate_error": "Fehler bei der Schätzung",
     "generic_error": "Es ist ein Fehler aufgetreten.",
+    "gravatar_not_found": "Kein Gravatar für diese E-Mail-Adresse gefunden.",
     "ip_blocked": "IP-Adresse blockiert.",
     "ip_unblocked": "IP-Adresse entsperrt.",
     "language_updated": "Sprache aktualisiert.",
@@ -712,7 +713,10 @@
     "publisher": "Bsp.: Suhrkamp..."
   },
   "settings": {
+    "avatar_gravatar_btn": "Von Gravatar importieren",
     "avatar_hint": "Maximal 5 MB. \nJPG, PNG, GIF, WEBP.",
+    "avatar_remove_btn": "Foto entfernen",
+    "avatar_remove_confirm": "Aktuelles Profilbild entfernen?",
     "confirm_password_label": "Bestätigen Sie das neue Passwort",
     "currency_eur": "Euro (€)",
     "currency_gbp": "Britisches Pfund (£)",

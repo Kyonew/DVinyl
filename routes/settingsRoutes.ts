@@ -2,11 +2,29 @@ import express from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import User from '../models/User';
 import { requireAuth } from '../middleware/authMiddleware';
 
 const router = express.Router();
+
+const AVATARS_DIR = path.join(__dirname, '../public/uploads/avatars');
+const DEFAULT_AVATAR = '/ressources/no-pp.jpg';
+
+// Removes a user's previously uploaded avatar file from disk, if any (never touches the default image).
+const removeAvatarFile = (avatarPath?: string | null) => {
+    if (!avatarPath || avatarPath.includes('no-pp.jpg')) return;
+    const absolutePath = path.join(__dirname, '../public', avatarPath);
+    if (fs.existsSync(absolutePath)) fs.unlinkSync(absolutePath);
+};
+
+const EXT_BY_CONTENT_TYPE: Record<string, string> = {
+    'image/jpeg': '.jpg',
+    'image/png': '.png',
+    'image/gif': '.gif',
+    'image/webp': '.webp'
+};
 
 // Multer configuration (image uploads)
 const storage = multer.diskStorage({
@@ -87,17 +105,7 @@ router.post('/upload-avatar', requireAuth, upload.single('avatar'), async (req, 
 
         // Retrieve previous avatar to remove it from disk
         const currentUser = await User.findById(userId);
-        const oldAvatarPath = currentUser?.img; // e.g. "/uploads/avatars/avatar-123.jpg"
-
-        // Remove old file from disk if not the default image
-        if (oldAvatarPath && !oldAvatarPath.includes('no-pp.jpg')) {
-            const absoluteOldPath = path.join(__dirname, '../public', oldAvatarPath);
-
-            if (fs.existsSync(absoluteOldPath)) {
-                fs.unlinkSync(absoluteOldPath);
-                console.log(`🗑️ Removed old avatar: ${absoluteOldPath}`);
-            }
-        }
+        removeAvatarFile(currentUser?.img);
 
         // Update DB with new path
         const newAvatarPath = `/uploads/avatars/${req.file.filename}`;
@@ -105,6 +113,60 @@ router.post('/upload-avatar', requireAuth, upload.single('avatar'), async (req, 
 
         res.json({ success: true, message: req.t('messages.avatar_updated'), avatarPath: newAvatarPath });
 
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: req.t('messages.generic_error') });
+    }
+});
+
+// Import avatar from Gravatar (opt-in: only triggered by explicit user action, never automatically).
+router.post('/import-gravatar', requireAuth, async (req, res) => {
+    try {
+        const userId = res.locals.user._id;
+        const currentUser = await User.findById(userId);
+        if (!currentUser) return res.status(404).json({ success: false, message: req.t('messages.generic_error') });
+
+        const hash = crypto.createHash('sha256').update(currentUser.email.trim().toLowerCase()).digest('hex');
+        const gravatarUrl = `https://www.gravatar.com/avatar/${hash}?s=256&d=404`;
+
+        const gravatarRes = await fetch(gravatarUrl);
+        if (gravatarRes.status === 404) {
+            return res.status(404).json({ success: false, message: req.t('messages.gravatar_not_found') });
+        }
+        if (!gravatarRes.ok) {
+            return res.status(502).json({ success: false, message: req.t('messages.generic_error') });
+        }
+
+        const contentType = gravatarRes.headers.get('content-type') || 'image/jpeg';
+        const ext = EXT_BY_CONTENT_TYPE[contentType] || '.jpg';
+        const buffer = Buffer.from(await gravatarRes.arrayBuffer());
+
+        if (!fs.existsSync(AVATARS_DIR)) fs.mkdirSync(AVATARS_DIR, { recursive: true });
+        const filename = `avatar-${userId}-${Date.now()}${ext}`;
+        fs.writeFileSync(path.join(AVATARS_DIR, filename), buffer);
+
+        removeAvatarFile(currentUser.img);
+
+        const newAvatarPath = `/uploads/avatars/${filename}`;
+        await User.findByIdAndUpdate(userId, { img: newAvatarPath });
+
+        res.json({ success: true, message: req.t('messages.avatar_updated'), avatarPath: newAvatarPath });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: req.t('messages.generic_error') });
+    }
+});
+
+// Remove the current avatar and fall back to the default image.
+router.post('/remove-avatar', requireAuth, async (req, res) => {
+    try {
+        const userId = res.locals.user._id;
+        const currentUser = await User.findById(userId);
+        removeAvatarFile(currentUser?.img);
+
+        await User.findByIdAndUpdate(userId, { img: DEFAULT_AVATAR });
+
+        res.json({ success: true, message: req.t('messages.avatar_updated'), avatarPath: DEFAULT_AVATAR });
     } catch (error) {
         console.error(error);
         res.status(500).json({ success: false, message: req.t('messages.generic_error') });

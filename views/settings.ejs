@@ -269,6 +269,19 @@
                     <%= t('settings.avatar_hint') %>
                 </p>
             </form>
+
+            <div class="grid grid-cols-2 gap-3 mt-3">
+                <button type="button" id="gravatar-import-btn"
+                    class="bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 font-medium py-3 rounded-xl transition-colors border border-transparent text-sm">
+                    <i class="fas fa-globe mr-1"></i>
+                    <%= t('settings.avatar_gravatar_btn') %>
+                </button>
+                <button type="button" id="avatar-remove-btn"
+                    class="bg-black/5 dark:bg-white/5 hover:bg-red-500/10 hover:text-red-500 font-medium py-3 rounded-xl transition-colors border border-transparent text-sm">
+                    <i class="fas fa-trash mr-1"></i>
+                    <%= t('settings.avatar_remove_btn') %>
+                </button>
+            </div>
         </div>
     </div>
 
@@ -335,6 +348,8 @@
         const translations = {
             avatarSuccess: "<%= t('messages.avatar_success') %>",
             avatarError: "<%= t('messages.avatar_error') %>",
+            gravatarNotFound: "<%= t('messages.gravatar_not_found') %>",
+            confirmRemoveAvatar: "<%= t('settings.avatar_remove_confirm') %>",
             passwordSuccess: "<%= t('messages.password_success') %>",
             passwordMismatch: "<%= t('messages.password_mismatch') %>",
             usernameAvailable: "<%= t('messages.username_available') %>",
@@ -429,6 +444,55 @@
                         document.getElementById('current-avatar').src = data.avatarPath;
                         closeModal('avatar-modal');
                         alert(translations.avatarSuccess);
+                        window.location.reload();
+                    } else {
+                        alert(translations.avatarError + ': ' + data.message);
+                    }
+                } catch (e) {
+                    alert(translations.genericError);
+                }
+            });
+        }
+
+        const gravatarImportBtn = document.getElementById('gravatar-import-btn');
+        if (gravatarImportBtn) {
+            gravatarImportBtn.addEventListener('click', async function () {
+                gravatarImportBtn.disabled = true;
+                try {
+                    const res = await fetch('<%= baseUrl %>/settings/import-gravatar', { method: 'POST' });
+                    const data = await res.json();
+
+                    if (data.success) {
+                        document.getElementById('current-avatar').src = data.avatarPath;
+                        document.getElementById('avatar-preview').src = data.avatarPath;
+                        closeModal('avatar-modal');
+                        alert(translations.avatarSuccess);
+                        window.location.reload();
+                    } else if (res.status === 404) {
+                        alert(translations.gravatarNotFound);
+                    } else {
+                        alert(translations.avatarError + ': ' + data.message);
+                    }
+                } catch (e) {
+                    alert(translations.genericError);
+                } finally {
+                    gravatarImportBtn.disabled = false;
+                }
+            });
+        }
+
+        const avatarRemoveBtn = document.getElementById('avatar-remove-btn');
+        if (avatarRemoveBtn) {
+            avatarRemoveBtn.addEventListener('click', async function () {
+                if (!confirm(translations.confirmRemoveAvatar)) return;
+                try {
+                    const res = await fetch('<%= baseUrl %>/settings/remove-avatar', { method: 'POST' });
+                    const data = await res.json();
+
+                    if (data.success) {
+                        document.getElementById('current-avatar').src = data.avatarPath;
+                        document.getElementById('avatar-preview').src = data.avatarPath;
+                        closeModal('avatar-modal');
                         window.location.reload();
                     } else {
                         alert(translations.avatarError + ': ' + data.message);

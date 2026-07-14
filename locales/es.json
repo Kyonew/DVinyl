@@ -614,6 +614,7 @@
     "avatar_upload_error": "Error al cargar la imagen.",
     "estimate_error": "Error durante la estimación",
     "generic_error": "Se produjo un error.",
+    "gravatar_not_found": "No se encontró ningún Gravatar para este email.",
     "ip_blocked": "Dirección IP bloqueada.",
     "ip_unblocked": "Dirección IP desbloqueada.",
     "language_updated": "Idioma actualizado.",
@@ -712,7 +713,10 @@
     "publisher": "Ej: Anagrama..."
   },
   "settings": {
+    "avatar_gravatar_btn": "Importar desde Gravatar",
     "avatar_hint": "Máximo 5 MB. \nJPG, PNG, GIF, WEBP.",
+    "avatar_remove_btn": "Eliminar foto",
+    "avatar_remove_confirm": "¿Eliminar la foto de perfil actual?",
     "confirm_password_label": "Confirmar nueva contraseña",
     "currency_eur": "euros (€)",
     "currency_gbp": "Libra británica (£)",
