@@ -26,7 +26,7 @@ router.get('/export', requireAuth, requireAdmin, async (req, res) => {
             }
         };
 
-        const fileName = `dvinyl_backup_${new Date().toISOString().split('T')[0]}.json`;
+        const fileName = `dvinyl_instance_${new Date().toISOString().split('T')[0]}.json`;
         res.setHeader('Content-disposition', 'attachment; filename=' + fileName);
         res.setHeader('Content-type', 'application/json');
         res.send(JSON.stringify(data, null, 2));
@@ -180,7 +180,7 @@ router.get('/collection/export', requireAuth, requireCollectionRole('admin'), as
         };
 
         const slug = collection?.slug || 'collection';
-        const fileName = `dvinyl_${slug}_${new Date().toISOString().split('T')[0]}.json`;
+        const fileName = `dvinyl_collection-${slug}_${new Date().toISOString().split('T')[0]}.json`;
         res.setHeader('Content-disposition', 'attachment; filename=' + fileName);
         res.setHeader('Content-type', 'application/json');
         res.send(JSON.stringify(data, null, 2));
