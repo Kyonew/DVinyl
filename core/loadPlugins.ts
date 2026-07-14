@@ -3,6 +3,8 @@ import path from 'path';
 import { registry } from './registry';
 import { PluginDefinition } from './types';
 
+export const PLUGINS_DIR = path.join(__dirname, '..', 'plugins');
+
 /**
  * Auto-discovers and registers every plugin under `plugins/`.
  *
@@ -15,14 +17,12 @@ import { PluginDefinition } from './types';
  * so display order stays stable and controllable.
  */
 export function loadPlugins(): void {
-  const pluginsDir = path.join(__dirname, '..', 'plugins');
-
-  if (!fs.existsSync(pluginsDir)) {
+  if (!fs.existsSync(PLUGINS_DIR)) {
     console.warn('[PluginLoader] No plugins/ directory found.');
     return;
   }
 
-  const dirs = fs.readdirSync(pluginsDir, { withFileTypes: true })
+  const dirs = fs.readdirSync(PLUGINS_DIR, { withFileTypes: true })
     .filter(d => d.isDirectory())
     .map(d => d.name);
 
@@ -30,28 +30,9 @@ export function loadPlugins(): void {
   const seen = { id: new Map<string, string>(), kind: new Map<string, string>(), routePrefix: new Map<string, string>(), collectionType: new Map<string, string>() };
 
   for (const dir of dirs) {
-    let mod: any;
-    try {
-      mod = require(path.join(pluginsDir, dir, 'index'));
-    } catch (err: any) {
-      console.error(`[PluginLoader] plugins/${dir} failed to load, skipped: ${err.message}`);
-      continue;
-    }
-
-    const plugin: PluginDefinition | undefined =
-      mod.default && isPlugin(mod.default)
-        ? mod.default
-        : Object.values(mod).find(isPlugin) as PluginDefinition | undefined;
-
+    const { plugin, errors } = loadPluginFromDir(dir);
     if (!plugin) {
-      console.warn(`[PluginLoader] plugins/${dir} exports no valid PluginDefinition, skipped.`);
-      continue;
-    }
-
-    // Validate the contract: required fields + uniqueness across plugins
-    const problems = validatePlugin(plugin, dir);
-    if (problems.length > 0) {
-      console.error(`[PluginLoader] plugins/${dir} is invalid, skipped:\n  - ${problems.join('\n  - ')}`);
+      console.error(`[PluginLoader] plugins/${dir} skipped:\n  - ${errors.join('\n  - ')}`);
       continue;
     }
 
@@ -76,6 +57,44 @@ export function loadPlugins(): void {
     .forEach(plugin => registry.register(plugin));
 
   console.log(`[PluginLoader] Registered ${registry.getAll().length} plugin(s): ${registry.getAll().map(p => p.id).join(', ')}`);
+}
+
+/**
+ * Loads and shape-validates a single plugins/<dir> module, without registering it.
+ * Used by the boot-time scan above and by the custom-plugin hot (re)load, which
+ * clears the require cache first to pick up a rewritten plugin.json/index.ts.
+ */
+export function loadPluginFromDir(dir: string, freshRequire = false): { plugin?: PluginDefinition; errors: string[] } {
+  const dirPath = path.join(PLUGINS_DIR, dir);
+
+  if (freshRequire) {
+    for (const key of Object.keys(require.cache)) {
+      if (key.startsWith(dirPath + path.sep)) delete require.cache[key];
+    }
+  }
+
+  let mod: any;
+  try {
+    mod = require(path.join(dirPath, 'index'));
+  } catch (err: any) {
+    return { errors: [`failed to load: ${err.message}`] };
+  }
+
+  const plugin: PluginDefinition | undefined =
+    mod.default && isPlugin(mod.default)
+      ? mod.default
+      : Object.values(mod).find(isPlugin) as PluginDefinition | undefined;
+
+  if (!plugin) {
+    return { errors: ['exports no valid PluginDefinition'] };
+  }
+
+  const problems = validatePlugin(plugin, dir);
+  if (problems.length > 0) {
+    return { errors: problems };
+  }
+
+  return { plugin, errors: [] };
 }
 
 function isPlugin(value: any): value is PluginDefinition {

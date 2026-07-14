@@ -9,6 +9,8 @@ services:
       - "3099:3099" # External port : Internal port
     volumes:
       - ./public/uploads:/app/public/uploads
+      # Custom plugins created via /create-plugin must survive image rebuilds
+      - ./plugins:/app/plugins
     env_file:
         - .env
     depends_on:

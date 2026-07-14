@@ -25,9 +25,11 @@ import BlockedIP from './models/blockedIP.js';
 // Core & Registry
 import { registry } from './core/registry.js';
 import { loadPlugins } from './core/loadPlugins.js';
+import { mountPluginRoutes, pluginDispatcher } from './core/pluginRuntime.js';
 
 // Routes imports
 import setupRoutes from './routes/setupRoutes.js';
+import pluginBuilderRoutes from './routes/pluginBuilderRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
@@ -37,7 +39,6 @@ import oidcRoutes from './routes/oidcRoutes.js';
 import dashboardRoute from './core/routes/dashboardRoute.js';
 import collectionRoute from './core/routes/collectionRoute.js';
 import manualAddRoute from './core/routes/manualAddRoute.js';
-import { createItemRoutes } from './core/routes/itemRoutes.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -209,6 +210,7 @@ app.use(BASE_URL + '/setup', setupRoutes);
 app.use(BASE_URL, authRoutes);
 app.use(BASE_URL + '/admin', adminRoutes);
 app.use(BASE_URL + '/settings', settingsRoutes);
+app.use(BASE_URL + '/create-plugin', pluginBuilderRoutes);
 app.use(BASE_URL + '/backup', backupRoutes);
 if (isOidcEnabled()) {
   app.use(BASE_URL, oidcRoutes);
@@ -218,9 +220,12 @@ app.use(BASE_URL, dashboardRoute);
 app.use(BASE_URL, collectionRoute);
 app.use(BASE_URL, manualAddRoute);
 
+// Plugin routers live behind a runtime dispatcher (not mounted directly on `app`)
+// so custom plugins created via /create-plugin are reachable without a restart.
 for (const plugin of registry.getAll()) {
-  app.use(BASE_URL, createItemRoutes(plugin));
+  mountPluginRoutes(plugin);
 }
+app.use(BASE_URL, pluginDispatcher);
 
 app.use((req, res) => {
   res.status(404).render('404');

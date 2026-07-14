@@ -17,6 +17,26 @@ class PluginRegistry {
     }
   }
 
+  /**
+   * Removes a plugin (custom-plugin edit/delete at runtime). Also drops the
+   * Mongoose discriminator model so re-registering with an updated schema works
+   * without restart.
+   */
+  unregister(id: string): void {
+    const plugin = this.plugins.get(id);
+    if (!plugin) return;
+    this.plugins.delete(id);
+    try {
+      if ((Item as any).discriminators) {
+        delete (Item as any).discriminators[plugin.kind];
+      }
+      mongoose.deleteModel(plugin.kind);
+      console.log(`[PluginRegistry] Unregistered plugin ${id} (${plugin.kind})`);
+    } catch (err: any) {
+      console.warn(`[PluginRegistry] Unregister ${id} warning: ${err.message}`);
+    }
+  }
+
   get(id: string): PluginDefinition | undefined {
     return this.plugins.get(id);
   }
