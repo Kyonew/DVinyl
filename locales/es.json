@@ -860,9 +860,9 @@
     "message": "Todavía no eres miembro de ninguna colección. Pide a un administrador que te añada a una - tu acceso aparecerá aquí automáticamente."
   },
   "create_plugin": {
-    "title": "Creador de plugins",
+    "title": "Editor de plugins",
     "subtitle": "Crea tu propio tipo de colección (figuras, cartas, cómics...) sin escribir código. El plugin se genera en la carpeta plugins/ y se puede usar de inmediato, como los módulos nativos. Los plugins creados aquí funcionan solo con entrada manual (sin API externa).",
-    "existing_title": "Mis plugins creados",
+    "existing_title": "Mis plugins personalizados",
     "section_identity": "Identidad",
     "name_label": "Nombre del plugin",
     "name_ph": "Ej: Figuras, Cartas Pokémon...",
@@ -922,6 +922,14 @@
     "err_reserved_field": "Un campo personalizado usa un nombre reservado (título, año, código de barras... ya están gestionados).",
     "err_duplicate_field": "Dos campos personalizados comparten el mismo nombre.",
     "err_select_needs_options": "Una lista desplegable necesita al menos una opción.",
-    "err_too_many": "Se alcanzó el número máximo de plugins personalizados (30)."
+    "err_too_many": "Se alcanzó el número máximo de plugins personalizados (30).",
+    "section_defaults": "Plugins por defecto",
+    "section_builder": "Crear un nuevo plugin",
+    "customize": "Personalizar",
+    "customize_hint": "Icono y colores de las insignias, aplicados solo a esta colección.",
+    "format_colors": "Colores de las insignias",
+    "default_color": "Color por defecto",
+    "reset": "Restablecer",
+    "customized": "Personalizado"
   }
 }

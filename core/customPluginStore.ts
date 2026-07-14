@@ -48,6 +48,10 @@ const FIELD_NAME_RE = /^[a-z][a-z0-9_]{0,29}$/;
 const ICON_RE = /^fa-[a-z0-9-]{1,40}$/;
 const FIELD_TYPES = new Set(['text', 'number', 'textarea', 'select', 'boolean', 'tags']);
 
+export function isValidIcon(icon: string): boolean {
+  return ICON_RE.test(icon);
+}
+
 export function slugify(input: string): string {
   return String(input || '')
     .toLowerCase()

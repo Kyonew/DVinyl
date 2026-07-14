@@ -860,7 +860,7 @@
     "message": "You are not a member of any collection yet. Ask an administrator to add you to one - your access will appear here automatically."
   },
   "create_plugin": {
-    "title": "Plugin builder",
+    "title": "Plugin editor",
     "subtitle": "Create your own collection type (figures, cards, comics...) without writing code. The plugin is generated in the plugins/ folder and becomes usable immediately, just like the built-in modules. Plugins created here are manual-entry only (no external API).",
     "existing_title": "My custom plugins",
     "section_identity": "Identity",
@@ -922,6 +922,14 @@
     "err_reserved_field": "A custom field uses a reserved name (title, year, barcode... are already handled).",
     "err_duplicate_field": "Two custom fields share the same name.",
     "err_select_needs_options": "A dropdown needs at least one option.",
-    "err_too_many": "Maximum number of custom plugins reached (30)."
+    "err_too_many": "Maximum number of custom plugins reached (30).",
+    "section_defaults": "Default plugins",
+    "section_builder": "Create a new plugin",
+    "customize": "Customize",
+    "customize_hint": "Icon and badge colors, applied to this collection only.",
+    "format_colors": "Badge colors",
+    "default_color": "Default color",
+    "reset": "Reset",
+    "customized": "Customized"
   }
 }

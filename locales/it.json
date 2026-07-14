@@ -860,9 +860,9 @@
     "message": "Non sei ancora membro di nessuna collezione. Chiedi a un amministratore di aggiungerti - il tuo accesso apparirà qui automaticamente."
   },
   "create_plugin": {
-    "title": "Creatore di plugin",
+    "title": "Editor di plugin",
     "subtitle": "Crea il tuo tipo di collezione (statuine, carte, fumetti...) senza scrivere codice. Il plugin viene generato nella cartella plugins/ e diventa subito utilizzabile, come i moduli nativi. I plugin creati qui funzionano solo con inserimento manuale (nessuna API esterna).",
-    "existing_title": "I miei plugin creati",
+    "existing_title": "I miei plugin personalizzati",
     "section_identity": "Identità",
     "name_label": "Nome del plugin",
     "name_ph": "Es: Statuine, Carte Pokémon...",
@@ -922,6 +922,14 @@
     "err_reserved_field": "Un campo personalizzato usa un nome riservato (titolo, anno, codice a barre... sono già gestiti).",
     "err_duplicate_field": "Due campi personalizzati hanno lo stesso nome.",
     "err_select_needs_options": "Un menu a tendina richiede almeno un'opzione.",
-    "err_too_many": "Numero massimo di plugin personalizzati raggiunto (30)."
+    "err_too_many": "Numero massimo di plugin personalizzati raggiunto (30).",
+    "section_defaults": "Plugin predefiniti",
+    "section_builder": "Crea un nuovo plugin",
+    "customize": "Personalizza",
+    "customize_hint": "Icona e colori dei badge, applicati solo a questa collezione.",
+    "format_colors": "Colori dei badge",
+    "default_color": "Colore predefinito",
+    "reset": "Reimposta",
+    "customized": "Personalizzato"
   }
 }

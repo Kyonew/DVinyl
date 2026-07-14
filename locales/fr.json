@@ -860,9 +860,9 @@
     "message": "Vous n'avez accès à aucune collection pour le moment. Demandez à un administrateur de vous ajouter à l'une d'elles - votre accès apparaîtra ici automatiquement."
   },
   "create_plugin": {
-    "title": "Créateur de plugin",
+    "title": "Éditeur de plugins",
     "subtitle": "Créez votre propre type de collection (figurines, cartes, BD...) sans écrire de code. Le plugin est généré dans le dossier plugins/ et devient utilisable immédiatement, comme les modules natifs. Les plugins créés ici fonctionnent en saisie manuelle (pas d'API externe).",
-    "existing_title": "Mes plugins créés",
+    "existing_title": "Mes plugins custom",
     "section_identity": "Identité",
     "name_label": "Nom du plugin",
     "name_ph": "Ex: Figurines, Cartes Pokémon...",
@@ -922,6 +922,14 @@
     "err_reserved_field": "Un champ personnalisé utilise un nom réservé (titre, année, code-barres... sont déjà gérés).",
     "err_duplicate_field": "Deux champs personnalisés portent le même nom.",
     "err_select_needs_options": "Une liste déroulante doit avoir au moins une option.",
-    "err_too_many": "Nombre maximum de plugins personnalisés atteint (30)."
+    "err_too_many": "Nombre maximum de plugins personnalisés atteint (30).",
+    "section_defaults": "Plugins par défaut",
+    "section_builder": "Créer un nouveau plugin",
+    "customize": "Personnaliser",
+    "customize_hint": "Icône et couleurs des étiquettes, appliquées uniquement à cette collection.",
+    "format_colors": "Couleurs des étiquettes",
+    "default_color": "Couleur par défaut",
+    "reset": "Réinitialiser",
+    "customized": "Personnalisé"
   }
 }

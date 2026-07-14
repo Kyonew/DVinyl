@@ -860,9 +860,9 @@
     "message": "Sie sind noch kein Mitglied einer Sammlung. Bitten Sie einen Administrator, Sie hinzuzufügen - Ihr Zugriff erscheint hier automatisch."
   },
   "create_plugin": {
-    "title": "Plugin-Baukasten",
+    "title": "Plugin-Editor",
     "subtitle": "Erstelle deinen eigenen Sammlungstyp (Figuren, Karten, Comics...) ohne Code zu schreiben. Das Plugin wird im plugins/-Ordner generiert und ist sofort nutzbar, wie die nativen Module. Hier erstellte Plugins funktionieren nur mit manueller Eingabe (keine externe API).",
-    "existing_title": "Meine erstellten Plugins",
+    "existing_title": "Meine eigenen Plugins",
     "section_identity": "Identität",
     "name_label": "Plugin-Name",
     "name_ph": "Z. B. Figuren, Pokémon-Karten...",
@@ -922,6 +922,14 @@
     "err_reserved_field": "Ein eigenes Feld verwendet einen reservierten Namen (Titel, Jahr, Barcode... sind bereits vorhanden).",
     "err_duplicate_field": "Zwei eigene Felder haben denselben Namen.",
     "err_select_needs_options": "Eine Auswahlliste braucht mindestens eine Option.",
-    "err_too_many": "Maximale Anzahl eigener Plugins erreicht (30)."
+    "err_too_many": "Maximale Anzahl eigener Plugins erreicht (30).",
+    "section_defaults": "Standard-Plugins",
+    "section_builder": "Neues Plugin erstellen",
+    "customize": "Anpassen",
+    "customize_hint": "Symbol und Badge-Farben, gelten nur für diese Sammlung.",
+    "format_colors": "Badge-Farben",
+    "default_color": "Standardfarbe",
+    "reset": "Zurücksetzen",
+    "customized": "Angepasst"
   }
 }

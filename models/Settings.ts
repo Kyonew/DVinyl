@@ -36,6 +36,12 @@ const settingsSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.Mixed,
         default: () => registry.getDefaultPluginSettings()
     },
+    // Per-collection cosmetic overrides applied on top of the shared plugin
+    // definitions: { [pluginId]: { icon: 'fa-xxx', formatColors: { [formatValue]: paletteColor } } }
+    pluginCustomization: {
+        type: mongoose.Schema.Types.Mixed,
+        default: () => ({})
+    },
     fastAdd: { type: String, default: '' },
     visibility: {
         applyToAdmin: { type: Boolean, default: false },

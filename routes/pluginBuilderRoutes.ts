@@ -8,6 +8,7 @@ import {
   writeCustomPluginDir,
   deleteCustomPluginDir,
   getCustomConfig,
+  isValidIcon,
   CUSTOM_PLUGIN_PALETTE,
   CUSTOM_PLUGIN_ICONS
 } from '../core/customPluginStore';
@@ -36,7 +37,7 @@ async function listCustomPlugins() {
   return out;
 }
 
-// GET /create-plugin[?edit=<id>] -> builder page
+// GET /create-plugin[?edit=<id>] -> plugin editor page
 router.get('/', async (req: any, res: any) => {
   try {
     const customPlugins = await listCustomPlugins();
@@ -45,9 +46,24 @@ router.get('/', async (req: any, res: any) => {
       ? (customPlugins.find(c => c.config.id === editId)?.config || null)
       : null;
 
+    const settings = res.locals.settings;
+    const customization = settings?.pluginCustomization || {};
+
+    // Cosmetic-override targets: every plugin, with translated labels for the modal
+    const customizablePlugins = registry.getAll().map(p => ({
+      id: p.id,
+      label: req.t(p.label),
+      icon: p.icon,
+      isCustom: !!getCustomConfig(p),
+      enabled: settings?.modules?.[p.collectionType] === true,
+      formats: (p.formats || []).map(f => ({ value: f.value, label: req.t(f.label) })),
+      current: customization[p.id] || {}
+    }));
+
     res.render('create-plugin', {
       user: res.locals.user,
       customPlugins,
+      customizablePlugins,
       editConfig,
       palette: CUSTOM_PLUGIN_PALETTE,
       iconChoices: CUSTOM_PLUGIN_ICONS
@@ -55,6 +71,51 @@ router.get('/', async (req: any, res: any) => {
   } catch (err: any) {
     console.error('[PluginBuilder] page error:', err);
     res.status(500).send(req.t('errors.generic_server_error'));
+  }
+});
+
+// POST /create-plugin/customize/:pluginId -> per-collection cosmetic overrides
+// (icon, format badge colors). An empty submission clears the override.
+router.post('/customize/:pluginId', async (req: any, res: any) => {
+  try {
+    const plugin = registry.get(req.params.pluginId);
+    if (!plugin) {
+      return res.status(404).json({ success: false, error: req.t('errors.not_found') });
+    }
+    const activeCollectionId = res.locals.activeCollectionId;
+    if (!activeCollectionId) {
+      return res.status(400).json({ success: false, error: req.t('errors.generic_server_error') });
+    }
+
+    const cosmetics: any = {};
+    const icon = typeof req.body.icon === 'string' ? req.body.icon.trim() : '';
+    if (icon) {
+      if (!isValidIcon(icon)) {
+        return res.status(400).json({ success: false, error: req.t('create_plugin.err_bad_icon') });
+      }
+      cosmetics.icon = icon;
+    }
+
+    const submitted = req.body.formatColors || {};
+    const formatColors: Record<string, string> = {};
+    for (const f of plugin.formats || []) {
+      const color = submitted[f.value];
+      if (typeof color === 'string' && (CUSTOM_PLUGIN_PALETTE as readonly string[]).includes(color)) {
+        formatColors[f.value] = color;
+      }
+    }
+    if (Object.keys(formatColors).length > 0) cosmetics.formatColors = formatColors;
+
+    const path = `pluginCustomization.${plugin.id}`;
+    const update = (cosmetics.icon || cosmetics.formatColors)
+      ? { $set: { [path]: cosmetics } }
+      : { $unset: { [path]: '' } };
+    await Settings.updateOne({ collection: activeCollectionId }, update);
+
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('[PluginBuilder] customize error:', err);
+    res.status(500).json({ success: false, error: req.t('errors.generic_server_error') });
   }
 });
 

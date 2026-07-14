@@ -26,6 +26,7 @@ import BlockedIP from './models/blockedIP.js';
 import { registry } from './core/registry.js';
 import { loadPlugins } from './core/loadPlugins.js';
 import { mountPluginRoutes, pluginDispatcher } from './core/pluginRuntime.js';
+import { applyPluginCustomization } from './core/pluginCustomization.js';
 
 // Routes imports
 import setupRoutes from './routes/setupRoutes.js';
@@ -183,7 +184,9 @@ app.use(async (req, res, next) => {
 
 app.use((req, res, next) => {
   res.locals.allThemes = themesConfig;
-  res.locals.registry = registry;
+  // Views read the registry through a per-request facade so the active
+  // collection's cosmetic overrides (settings.pluginCustomization) apply
+  applyPluginCustomization(res);
   next();
 });
 
