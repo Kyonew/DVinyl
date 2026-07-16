@@ -310,9 +310,11 @@
     "filter_mode_hide": "Nascondere",
     "filter_mode_show": "Spettacolo",
     "styles_filter": "Stili",
+    "platform_filter": "Console",
     "clear_all": "Cancella tutti i filtri",
     "search_genre_placeholder": "Cerca generi...",
     "search_style_placeholder": "Cerca stili...",
+    "search_platform_placeholder": "Cerca console...",
     "active_filters": "Filtri attivi:"
   },
   "common": {
@@ -785,6 +787,7 @@
     "games_total_label": "Totale Videogiochi",
     "top_developer_label": "Sviluppatore Preferito",
     "top_game_publisher_label": "Editore Preferito (Giochi)",
+    "top_platform_label": "Console Preferita",
     "lego_total_label": "Totale set LEGO",
     "lego_pieces_label": "Totale pezzi",
     "lego_minifigs_label": "Totale minifigure",

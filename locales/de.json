@@ -310,9 +310,11 @@
     "filter_mode_hide": "Verstecken",
     "filter_mode_show": "Zeigen",
     "styles_filter": "Styles",
+    "platform_filter": "Konsole",
     "clear_all": "Alle Filter löschen",
     "search_genre_placeholder": "Genres suchen...",
     "search_style_placeholder": "Styles suchen...",
+    "search_platform_placeholder": "Konsolen suchen...",
     "active_filters": "Aktive Filter:"
   },
   "common": {
@@ -785,6 +787,7 @@
     "games_total_label": "Videospiele Gesamt",
     "top_developer_label": "Top-Entwickler",
     "top_game_publisher_label": "Top-Publisher (Spiele)",
+    "top_platform_label": "Top-Konsole",
     "lego_total_label": "LEGO-Sets gesamt",
     "lego_pieces_label": "Teile gesamt",
     "lego_minifigs_label": "Minifiguren gesamt",

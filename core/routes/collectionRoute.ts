@@ -45,7 +45,7 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
       return res.render('no-collection', { user: res.locals.user });
     }
     const settings = res.locals.settings;
-    const { search, type, format, location, genre, style, artist, decade } = req.query;
+    const { search, type, format, location, genre, style, platform, artist, decade } = req.query;
 
     const trimmedSearch = typeof search === 'string' ? search.trim() : '';
     const trimmedArtist = typeof artist === 'string' ? artist.trim() : '';
@@ -153,6 +153,16 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
       }
     }
 
+    // PLATFORM FILTER
+    if (platform) {
+      const platformArr = platform.split(',').map((p: string) => p.trim()).filter(Boolean);
+      if (platformArr.length > 0) {
+        conditions.push({
+          platform: { $in: platformArr.map((p: string) => new RegExp(`^${escapeRegExp(p)}$`, 'i')) }
+        });
+      }
+    }
+
     // DECADE FILTER
     if (decade) {
       const decadeArr = decade.split(',').map((d: string) => parseInt(d)).filter((d: number) => !isNaN(d));
@@ -253,6 +263,9 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
     const styles = await Item.distinct('styles', { collection: activeCollectionId, styles: { $nin: ['', null] } });
     styles.sort();
 
+    const platforms = await Item.distinct('platform', { collection: activeCollectionId, platform: { $nin: ['', null, 'other'] } });
+    platforms.sort();
+
     res.render('collection', {
       albums: albumsFormatted,
       totalItems,
@@ -265,6 +278,7 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
       queryLocation: location || '',
       queryGenre: genre || '',
       queryStyle: style || '',
+      queryPlatform: platform || '',
       queryArtist: trimmedArtist,
       queryDecade: decade || '',
       filterMode,
@@ -275,6 +289,7 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
       locations,
       genres,
       styles,
+      platforms,
       user: res.locals.user,
       settings
     });

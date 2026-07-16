@@ -106,7 +106,8 @@ export const gamesPlugin: PluginDefinition = {
     { id: 'game_steelbook', label: 'media.steelbook', icon: 'fa-shield', color: 'bg-sky-100 dark:bg-sky-900/30', text: 'text-sky-600', kind: 'count' },
     { id: 'game_digital', label: 'media.digital', icon: 'fa-cloud', color: 'bg-cyan-100 dark:bg-cyan-900/30', text: 'text-cyan-600', kind: 'count' },
     { id: 'game_developer', label: 'stats.top_developer_label', icon: 'fa-code', color: 'bg-emerald-100 dark:bg-emerald-500/20', kind: 'top' },
-    { id: 'game_publisher', label: 'stats.top_game_publisher_label', icon: 'fa-building-columns', color: 'bg-teal-100 dark:bg-teal-500/20', kind: 'top' }
+    { id: 'game_publisher', label: 'stats.top_game_publisher_label', icon: 'fa-building-columns', color: 'bg-teal-100 dark:bg-teal-500/20', kind: 'top' },
+    { id: 'game_platform', label: 'stats.top_platform_label', icon: 'fa-tv', color: 'bg-indigo-100 dark:bg-indigo-500/20', kind: 'top' }
   ],
 
   schemaDefinition: {
@@ -304,7 +305,8 @@ export const gamesPlugin: PluginDefinition = {
       game_steelbook: countByFormat('steelbook'),
       game_digital: countByFormat('digital'),
       game_developer: getTop('developer'),
-      game_publisher: getTop('publisher')
+      game_publisher: getTop('publisher'),
+      game_platform: getTop('platform')
     };
   },
 

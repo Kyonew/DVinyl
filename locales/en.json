@@ -196,6 +196,7 @@
     "games_total_label": "Total Video Games",
     "top_developer_label": "Top Developer",
     "top_game_publisher_label": "Top Publisher (Games)",
+    "top_platform_label": "Top Console",
     "lego_total_label": "Total LEGO sets",
     "lego_pieces_label": "Total pieces",
     "lego_minifigs_label": "Total minifigures",
@@ -483,9 +484,11 @@
     "filter_mode_show": "Show",
     "filter_mode_hide": "Hide",
     "styles_filter": "Styles",
+    "platform_filter": "Console",
     "clear_all": "Clear all filters",
     "search_genre_placeholder": "Search genres...",
     "search_style_placeholder": "Search styles...",
+    "search_platform_placeholder": "Search consoles...",
     "active_filters": "Active filters:"
   },
   "confirm_vinyl": {

@@ -196,6 +196,7 @@
     "games_total_label": "Total Jeux Vidéo",
     "top_developer_label": "Développeur Favori",
     "top_game_publisher_label": "Éditeur Favori (Jeux)",
+    "top_platform_label": "Console Favorite",
     "lego_total_label": "Total sets LEGO",
     "lego_pieces_label": "Total de pièces",
     "lego_minifigs_label": "Total minifigurines",
@@ -483,9 +484,11 @@
     "filter_mode_show": "Afficher",
     "filter_mode_hide": "Masquer",
     "styles_filter": "Styles",
+    "platform_filter": "Console",
     "clear_all": "Effacer tous les filtres",
     "search_genre_placeholder": "Rechercher des genres...",
     "search_style_placeholder": "Rechercher des styles...",
+    "search_platform_placeholder": "Rechercher des consoles...",
     "active_filters": "Filtres actifs :"
   },
   "confirm_vinyl": {
