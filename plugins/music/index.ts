@@ -26,7 +26,7 @@ export const musicPlugin: PluginDefinition = {
   routePrefix: '/album',
   collectionType: 'music',
   creatorField: 'artist',
-  extraSearchFields: ['tracklist.title'],
+  extraSearchFields: ['tracklist.title', 'tracklist.tags'],
   supportsBarcodeSearch: false,
   aspectRatioClass: 'aspect-square',
   supportsUserImage: true,
@@ -107,7 +107,17 @@ export const musicPlugin: PluginDefinition = {
     sleeve_condition: { type: String, default: '' },
     discogs_id: Number,
     country: { type: String, default: '' },
-    tracklist: [{ position: String, title: String, duration: String }]
+    tracklist: [{
+      position: String,
+      title: String,
+      duration: String,
+      rating: { type: Number, min: 0, max: 5 },
+      tags: [String],
+      notes: String,
+      bpm: Number,
+      key: String,
+      lyrics: String
+    }]
   },
 
   formats: [
@@ -477,10 +487,37 @@ export const musicPlugin: PluginDefinition = {
     const url = `https://api.discogs.com/releases/${discogsId}?token=${token}`;
     const data = await fetchJson(url, { headers: { 'Authorization': `Discogs token=${token}`, 'User-Agent': 'DVinylApp/2.0' } });
 
+    // Re-attach user-authored per-track fields (rating, tags, notes, bpm, key,
+    // cached lyrics) onto the fresh Discogs tracklist. Match by position+title,
+    // then title alone (Discogs sometimes renumbers positions), then position
+    // alone (the user may have corrected a title locally).
+    const userFields = ['rating', 'tags', 'notes', 'bpm', 'key', 'lyrics'];
+    const norm = (s: any) => String(s || '').trim().toLowerCase();
+    const oldTracks: any[] = (item.tracklist || []).map((t: any) => t.toObject ? t.toObject() : t);
+    const byPosTitle = new Map<string, any>();
+    const byTitle = new Map<string, any>();
+    const byPos = new Map<string, any>();
+    for (const t of oldTracks) {
+      byPosTitle.set(`${norm(t.position)}|${norm(t.title)}`, t);
+      if (!byTitle.has(norm(t.title))) byTitle.set(norm(t.title), t);
+      if (norm(t.position) && !byPos.has(norm(t.position))) byPos.set(norm(t.position), t);
+    }
+    const mergedTracklist = (data.tracklist || []).map((t: any) => {
+      const old = byPosTitle.get(`${norm(t.position)}|${norm(t.title)}`)
+        || byTitle.get(norm(t.title))
+        || byPos.get(norm(t.position));
+      if (!old) return t;
+      const merged: any = { ...t };
+      for (const f of userFields) {
+        if (old[f] !== undefined && old[f] !== null) merged[f] = old[f];
+      }
+      return merged;
+    });
+
     const updateData: any = {
       genres: data.genres || [],
       styles: data.styles || [],
-      tracklist: data.tracklist || []
+      tracklist: mergedTracklist
     };
 
     if (!item.barcode_locked) {
@@ -498,7 +535,10 @@ export const musicPlugin: PluginDefinition = {
       updateData.genre = data.genres[0];
     }
 
-    await Item.findByIdAndUpdate(item._id, { $set: updateData });
+    // `kind` in the filter makes Mongoose cast against the Music discriminator
+    // schema; without it, strict mode silently strips `tracklist` (not a base
+    // Item path) and the refresh looks successful while persisting nothing.
+    await Item.updateOne({ _id: item._id, kind: 'Music' }, { $set: updateData });
     return updateData;
   }
 };

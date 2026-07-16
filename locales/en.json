@@ -864,7 +864,23 @@
     "col_position": "Pos.",
     "col_title": "Title",
     "col_duration": "Dur.",
-    "add_track": "Add track"
+    "add_track": "Add track",
+    "rating": "Rating",
+    "tags": "Tags",
+    "tags_placeholder": "house, funk, sample...",
+    "notes": "Notes",
+    "notes_placeholder": "Personal notes about this track...",
+    "bpm": "BPM",
+    "key": "Key",
+    "key_placeholder": "Am / 8A",
+    "lyrics": "Lyrics",
+    "load_lyrics": "Load lyrics",
+    "lyrics_loading": "Searching...",
+    "lyrics_not_found": "Lyrics not found.",
+    "search_genius": "Search on Genius",
+    "saved": "Saved!",
+    "lyrics_placeholder": "Type or paste the lyrics here...",
+    "add_lyrics_manual": "Add lyrics manually"
   },
   "add": {
     "manual_entry": "Manual entry"

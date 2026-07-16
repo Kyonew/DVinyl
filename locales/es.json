@@ -864,7 +864,23 @@
     "col_position": "Pos.",
     "col_title": "Título",
     "col_duration": "Dur.",
-    "add_track": "Añadir pista"
+    "add_track": "Añadir pista",
+    "rating": "Valoración",
+    "tags": "Etiquetas",
+    "tags_placeholder": "house, funk, sample...",
+    "notes": "Notas",
+    "notes_placeholder": "Notas personales sobre esta pista...",
+    "bpm": "BPM",
+    "key": "Tonalidad",
+    "key_placeholder": "Am / 8A",
+    "lyrics": "Letra",
+    "load_lyrics": "Cargar la letra",
+    "lyrics_loading": "Buscando...",
+    "lyrics_not_found": "Letra no encontrada.",
+    "search_genius": "Buscar en Genius",
+    "saved": "¡Guardado!",
+    "lyrics_placeholder": "Escribe o pega la letra aquí...",
+    "add_lyrics_manual": "Añadir la letra manualmente"
   },
   "add": {
     "manual_entry": "Entrada manual"

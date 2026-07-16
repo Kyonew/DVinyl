@@ -864,7 +864,23 @@
     "col_position": "Pos.",
     "col_title": "Titolo",
     "col_duration": "Dur.",
-    "add_track": "Aggiungi traccia"
+    "add_track": "Aggiungi traccia",
+    "rating": "Valutazione",
+    "tags": "Tag",
+    "tags_placeholder": "house, funk, sample...",
+    "notes": "Note",
+    "notes_placeholder": "Note personali su questa traccia...",
+    "bpm": "BPM",
+    "key": "Tonalità",
+    "key_placeholder": "Am / 8A",
+    "lyrics": "Testo",
+    "load_lyrics": "Carica il testo",
+    "lyrics_loading": "Ricerca...",
+    "lyrics_not_found": "Testo non trovato.",
+    "search_genius": "Cerca su Genius",
+    "saved": "Salvato!",
+    "lyrics_placeholder": "Digita o incolla il testo qui...",
+    "add_lyrics_manual": "Aggiungi il testo manualmente"
   },
   "add": {
     "manual_entry": "Inserimento manuale"

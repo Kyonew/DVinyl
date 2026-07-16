@@ -864,7 +864,23 @@
     "col_position": "Pos.",
     "col_title": "Titel",
     "col_duration": "Dauer",
-    "add_track": "Titel hinzufügen"
+    "add_track": "Titel hinzufügen",
+    "rating": "Bewertung",
+    "tags": "Tags",
+    "tags_placeholder": "House, Funk, Sample...",
+    "notes": "Notizen",
+    "notes_placeholder": "Persönliche Notizen zu diesem Track...",
+    "bpm": "BPM",
+    "key": "Tonart",
+    "key_placeholder": "Am / 8A",
+    "lyrics": "Songtext",
+    "load_lyrics": "Songtext laden",
+    "lyrics_loading": "Suche...",
+    "lyrics_not_found": "Songtext nicht gefunden.",
+    "search_genius": "Auf Genius suchen",
+    "saved": "Gespeichert!",
+    "lyrics_placeholder": "Songtext hier eingeben oder einfügen...",
+    "add_lyrics_manual": "Songtext manuell hinzufügen"
   },
   "add": {
     "manual_entry": "Manueller Eintrag"

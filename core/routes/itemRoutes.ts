@@ -150,7 +150,11 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
 
   // PLUGIN API ROUTES (e.g. Discogs estimate for music)
   for (const apiRouteDef of plugin.apiRoutes || []) {
-    const middlewares = apiRouteDef.requireAdmin ? [requireAuth, requireCollectionRole('admin')] : [requireAuth];
+    const middlewares = apiRouteDef.requireAdmin
+      ? [requireAuth, requireCollectionRole('admin')]
+      : apiRouteDef.requireEditor
+        ? [requireAuth, requireCollectionRole('editor')]
+        : [requireAuth];
     (router as any)[apiRouteDef.method](apiRouteDef.path, ...middlewares, (req: any, res: any) => apiRouteDef.handler(req, res));
   }
 
@@ -408,9 +412,12 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         }
 
         const result = await plugin.refreshItem!(item, req);
-        // Persist the refreshed metadata (some plugins already persist internally; this is idempotent)
+        // Persist the refreshed metadata (some plugins already persist internally; this is
+        // idempotent). The filter needs `kind` so Mongoose casts against the discriminator
+        // schema; without it, plugin-only paths like tracklist are silently stripped by
+        // strict mode.
         if (result && Object.keys(result).length > 0) {
-          await Item.updateOne({ _id: item._id }, { $set: result });
+          await Item.updateOne({ _id: item._id, kind: plugin.kind }, { $set: result });
         }
         res.json({ success: true, ...result });
       } catch (err: any) {

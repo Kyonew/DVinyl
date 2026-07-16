@@ -195,6 +195,7 @@ export interface PluginApiRoute {
   method: 'get' | 'post' | 'put' | 'delete';
   path: string; // full path (e.g. '/api/estimate/:discogsId')
   requireAdmin?: boolean;
+  requireEditor?: boolean;
   handler(req: any, res: any): Promise<any> | any;
 }
 

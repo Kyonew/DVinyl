@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { PluginApiRoute } from '../../core/types';
 import Item from '../../models/Item';
 
@@ -191,8 +192,120 @@ async function batchUpdateBarcodes(req: any, res: any) {
 }
 
 
+// PER-TRACK USER METADATA (rating, tags, notes, bpm, key)
+async function updateTrackMeta(req: any, res: any) {
+  try {
+    const { id, trackId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(trackId)) {
+      return res.status(404).json({ success: false, error: 'Not found' });
+    }
+
+    const set: Record<string, any> = {};
+    const unset: Record<string, any> = {};
+    const body = req.body || {};
+
+    if ('rating' in body) {
+      const rating = Number(body.rating);
+      if (!Number.isFinite(rating) || rating < 0 || rating > 5) {
+        return res.status(400).json({ success: false, error: 'Invalid rating' });
+      }
+      if (rating === 0) unset['tracklist.$.rating'] = 1;
+      else set['tracklist.$.rating'] = rating;
+    }
+    if ('bpm' in body) {
+      const bpm = Number(body.bpm);
+      if (body.bpm === '' || body.bpm === null) unset['tracklist.$.bpm'] = 1;
+      else if (!Number.isFinite(bpm) || bpm <= 0 || bpm > 1000) {
+        return res.status(400).json({ success: false, error: 'Invalid bpm' });
+      } else set['tracklist.$.bpm'] = bpm;
+    }
+    if ('key' in body) set['tracklist.$.key'] = String(body.key || '').slice(0, 20);
+    if ('notes' in body) set['tracklist.$.notes'] = String(body.notes || '').slice(0, 2000);
+    if ('lyrics' in body) {
+      const lyrics = String(body.lyrics || '').trim().slice(0, 20000);
+      if (lyrics) set['tracklist.$.lyrics'] = lyrics;
+      else unset['tracklist.$.lyrics'] = 1; // emptying the field clears the cache too
+    }
+    if ('tags' in body) {
+      const tags = Array.isArray(body.tags) ? body.tags : String(body.tags || '').split(',');
+      set['tracklist.$.tags'] = tags
+        .map((t: any) => String(t).trim().slice(0, 40))
+        .filter(Boolean)
+        .slice(0, 20);
+    }
+
+    const update: any = {};
+    if (Object.keys(set).length) update.$set = set;
+    if (Object.keys(unset).length) update.$unset = unset;
+    if (!Object.keys(update).length) {
+      return res.status(400).json({ success: false, error: 'Nothing to update' });
+    }
+
+    const result = await Item.updateOne(
+      { _id: id, collection: res.locals.activeCollectionId, kind: 'Music', 'tracklist._id': trackId },
+      update
+    );
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ success: false, error: 'Not found' });
+    }
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('[ERR] track meta update:', err.message);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+}
+
+// TRACK LYRICS (lyrics.ovh, best effort, cached on the track subdocument)
+async function getTrackLyrics(req: any, res: any) {
+  try {
+    const { id, trackId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(trackId)) {
+      return res.status(404).json({ success: false, error: 'Not found' });
+    }
+
+    const item: any = await Item.findOne(
+      { _id: id, collection: res.locals.activeCollectionId, kind: 'Music', 'tracklist._id': trackId },
+      { artist: 1, 'tracklist.$': 1 }
+    ).lean();
+    const track = item?.tracklist?.[0];
+    if (!track) return res.status(404).json({ success: false, error: 'Not found' });
+
+    if (track.lyrics) {
+      return res.json({ success: true, lyrics: track.lyrics, cached: true });
+    }
+
+    // Discogs disambiguates homonym artists with a trailing "(2)"; lyrics.ovh won't know it
+    const artist = String(item.artist || '').replace(/\s*\(\d+\)\s*$/, '').trim();
+    const title = String(track.title || '').trim();
+    if (!artist || !title) return res.json({ success: false, error: 'not_found' });
+
+    const url = `https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`;
+    const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    if (!response.ok) return res.json({ success: false, error: 'not_found' });
+
+    const data: any = await response.json();
+    const lyrics = String(data.lyrics || '').trim();
+    if (!lyrics) return res.json({ success: false, error: 'not_found' });
+
+    // The filter needs `kind` so Mongoose casts against the Music discriminator
+    // schema. Without it, the base Item schema (which has no `tracklist` path)
+    // silently strips the $set under strict mode.
+    await Item.updateOne(
+      { _id: id, kind: 'Music', 'tracklist._id': trackId },
+      { $set: { 'tracklist.$.lyrics': lyrics } }
+    );
+    res.json({ success: true, lyrics });
+  } catch (err: any) {
+    // lyrics.ovh is a community service and flaky: report as a soft miss, never a 500
+    console.error('[ERR] lyrics fetch:', err.message);
+    res.json({ success: false, error: 'unavailable' });
+  }
+}
+
 export const musicApiRoutes: PluginApiRoute[] = [
   { method: 'get', path: '/api/collection/ids', handler: getCollectionIds },
+  { method: 'post', path: '/api/album/:id/track/:trackId/meta', requireEditor: true, handler: updateTrackMeta },
+  { method: 'get', path: '/api/album/:id/track/:trackId/lyrics', handler: getTrackLyrics },
   { method: 'get', path: '/api/estimate/:discogsId', handler: getEstimate },
   { method: 'get', path: '/api/search-discogs-gallery', requireAdmin: true, handler: searchDiscogsGallery },
   { method: 'post', path: '/api/batch-update-barcodes', requireAdmin: true, handler: batchUpdateBarcodes }

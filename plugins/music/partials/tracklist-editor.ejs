@@ -31,7 +31,10 @@
     const addBtn = document.getElementById('tlAddBtn');
 
     function updateJson() {
+        // Spread the original track object first: per-track user data (rating,
+        // tags, notes, bpm, key, lyrics) and subdoc _id must survive an edit.
         const tracks = Array.from(editor.querySelectorAll('.tl-row')).map(row => ({
+            ...(row._track || {}),
             position: row.querySelector('.tl-pos').value.trim(),
             title: row.querySelector('.tl-title').value.trim(),
             duration: row.querySelector('.tl-dur').value.trim()
@@ -44,6 +47,7 @@
     function makeRow(track) {
         const row = document.createElement('div');
         row.className = 'tl-row grid grid-cols-[3.5rem_1fr_3.5rem_1.5rem] gap-2 items-center group';
+        row._track = track;
 
         const base = 'bg-black/5 dark:bg-white/5 rounded-lg text-xs p-2 outline-none focus:ring-1 focus:ring-primary-theme w-full';
 
