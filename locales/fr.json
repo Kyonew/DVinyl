@@ -160,6 +160,7 @@
     "collector": "Collector",
     "limited": "Édition Limitée",
     "steelbook": "Steelbook",
+    "digital": "Digital",
     "book": "Livre",
     "lego": "LEGO",
     "legos": "Sets LEGO"
@@ -717,7 +718,8 @@
     "hardcover": "Relié",
     "graphic_novel": "Roman Graphique",
     "manga": "Manga",
-    "comic": "Comic"
+    "comic": "Comic",
+    "digital": "Digital"
   },
   "status": {
     "to_read": "À lire",

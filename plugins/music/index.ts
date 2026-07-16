@@ -79,13 +79,15 @@ export const musicPlugin: PluginDefinition = {
     { id: 'music', label: 'media.music', url: '/collection?type=music' },
     { id: 'music_vinyl', label: 'media.vinyls', url: '/collection?type=music&format=vinyl' },
     { id: 'music_cd', label: 'media.cds', url: '/collection?type=music&format=cd' },
-    { id: 'music_cassette', label: 'media.cassettes', url: '/collection?type=music&format=cassette' }
+    { id: 'music_cassette', label: 'media.cassettes', url: '/collection?type=music&format=cassette' },
+    { id: 'music_digital', label: 'media.digital', url: '/collection?type=music&format=digital' }
   ],
 
   statsWidgets: [
     { id: 'vinyl', label: 'media.vinyls', icon: 'fa-record-vinyl', color: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-600', kind: 'count' },
     { id: 'cd', label: 'media.cds', icon: 'fa-compact-disc', color: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-600', kind: 'count' },
     { id: 'cassette', label: 'media.cassettes', icon: 'fa-tape', color: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-600', kind: 'count' },
+    { id: 'digital', label: 'media.digital', icon: 'fa-cloud', color: 'bg-cyan-100 dark:bg-cyan-900/30', text: 'text-cyan-600', kind: 'count' },
     { id: 'artist', label: 'stats.top_artist_label', icon: 'fa-crown', color: 'bg-purple-100 dark:bg-purple-500/20', kind: 'top' },
     { id: 'music_genre', label: 'stats.top_genre_label', icon: 'fa-music', color: 'bg-pink-100 dark:bg-pink-500/20', kind: 'top' },
     { id: 'label', label: 'stats.top_label_label', icon: 'fa-building', color: 'bg-emerald-100 dark:bg-emerald-500/20', kind: 'top' }
@@ -97,7 +99,7 @@ export const musicPlugin: PluginDefinition = {
     catalog_number: String,
     media_type: {
       type: String,
-      enum: ['vinyl', 'cd', 'cassette'],
+      enum: ['vinyl', 'cd', 'cassette', 'digital'],
       default: 'vinyl'
     },
     format_type: { type: String, default: 'Vinyl' },
@@ -112,6 +114,7 @@ export const musicPlugin: PluginDefinition = {
     { value: 'vinyl', label: 'media.vinyl', color: 'bg-green-600/90' },
     { value: 'cd', label: 'media.cd', color: 'bg-blue-600/90' },
     { value: 'cassette', label: 'media.cassette', color: 'bg-orange-600/90' },
+    { value: 'digital', label: 'media.digital', color: 'bg-cyan-600/90' },
   ],
 
   // Field order drives the layout (2-column pairs):
@@ -148,7 +151,8 @@ export const musicPlugin: PluginDefinition = {
       options: [
         { value: 'vinyl', label: 'media.vinyl', icon: 'fa-record-vinyl' },
         { value: 'cd', label: 'media.cd', icon: 'fa-compact-disc' },
-        { value: 'cassette', label: 'media.cassette', icon: 'fa-tape' }
+        { value: 'cassette', label: 'media.cassette', icon: 'fa-tape' },
+        { value: 'digital', label: 'media.digital', icon: 'fa-cloud' }
       ],
       showIn: ['edit', 'confirm', 'manual'],
       group: 'main',
@@ -323,6 +327,7 @@ export const musicPlugin: PluginDefinition = {
       vinyl: countByFormat('vinyl'),
       cd: countByFormat('cd'),
       cassette: countByFormat('cassette'),
+      digital: countByFormat('digital'),
       artist: getTop('artist'),
       music_genre: getTop('genre'),
       label: getTop('label'),

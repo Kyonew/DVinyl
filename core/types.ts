@@ -193,17 +193,17 @@ export interface ImageSearchProvider {
 
 export interface PluginApiRoute {
   method: 'get' | 'post' | 'put' | 'delete';
-  path: string;                                 // full path (e.g. '/api/estimate/:discogsId')
+  path: string; // full path (e.g. '/api/estimate/:discogsId')
   requireAdmin?: boolean;
   handler(req: any, res: any): Promise<any> | any;
 }
 
 export interface FastAddOption {
-  value: string;   // value stored in settings.fastAdd (e.g. 'vinyl')
-  label: string;   // i18n key
-  icon: string;    // FontAwesome icon
-  color: string;   // Tailwind class for the selected background (peer-checked:bg-...)
-  url: string;     // quick-add button target
+  value: string; // value stored in settings.fastAdd (e.g. 'vinyl')
+  label: string; // i18n key
+  icon: string; // FontAwesome icon
+  color: string; // Tailwind class for the selected background (peer-checked:bg-...)
+  url: string; // quick-add button target
 }
 
 export interface PluginStats {
@@ -217,34 +217,34 @@ export interface BulkRefreshProvider {
 export interface FormatOption {
   value: string;
   label: string;
-  color?: string;   // Tailwind badge class (e.g. 'bg-green-600/90'), default gray if absent
+  color?: string; // Tailwind badge class (e.g. 'bg-green-600/90'), default gray if absent
 }
 
 export interface NavbarShortcut {
-  id: string;      // id stored in settings.navbarShortcuts (e.g. 'game_physical')
-  label: string;   // i18n key
-  url: string;     // relative URL (e.g. '/collection?type=games&format=physical')
+  id: string; // id stored in settings.navbarShortcuts (e.g. 'game_physical')
+  label: string; // i18n key
+  url: string; // relative URL (e.g. '/collection?type=games&format=physical')
 }
 
 export interface StatWidget {
-  id: string;      // id stored in settings.statsWidgets, matches a getStats() key
-  label: string;   // i18n key
-  icon: string;    // FontAwesome icon (e.g. 'fa-gamepad')
-  color: string;   // Tailwind classes for the badge background
-  text?: string;   // Tailwind class for the text (count widgets)
-  kind: 'count' | 'top';  // 'count' -> number; 'top' -> { name, count }
+  id: string; // id stored in settings.statsWidgets, matches a getStats() key
+  label: string; // i18n key
+  icon: string; // FontAwesome icon (e.g. 'fa-gamepad')
+  color: string; // Tailwind classes for the badge background
+  text?: string; // Tailwind class for the text (count widgets)
+  kind: 'count' | 'top'; // 'count' -> number; 'top' -> { name, count }
 }
 
 export interface PluginSetting {
-  key: string;             // key stored in settings.pluginSettings[pluginId][key]
-  label: string;           // i18n key or plain text
-  type: 'boolean';         // extensible later (select, text...)
+  key: string; // key stored in settings.pluginSettings[pluginId][key]
+  label: string; // i18n key or plain text
+  type: 'boolean'; // extensible later (select, text...)
   default?: any;
-  description?: string;    // i18n key or plain text (help shown under the toggle)
+  description?: string; // i18n key or plain text (help shown under the toggle)
 }
 
 export interface PluginImporter {
-  id: string;                                   // URL segment: POST /import/{id}
+  id: string; // URL segment: POST /import/{id}
   requireAdmin?: boolean;
   handler(req: any, res: any): Promise<any> | any;
 
@@ -254,27 +254,27 @@ export interface PluginImporter {
 }
 
 export interface ImporterUI {
-  label: string;          // i18n key, button/card title
-  icon: string;           // FontAwesome icon (e.g. 'fa-rss')
-  description?: string;   // i18n key, subtitle
-  color?: string;         // Tailwind accent class (e.g. 'amber')
-  help?: string[];        // i18n keys, help steps (optional, e.g. Goodreads guide)
-  warning?: string;       // i18n key, warning shown before the button
+  label: string; // i18n key, button/card title
+  icon: string; // FontAwesome icon (e.g. 'fa-rss')
+  description?: string; // i18n key, subtitle
+  color?: string; // Tailwind accent class (e.g. 'amber')
+  help?: string[]; // i18n keys, help steps (optional, e.g. Goodreads guide)
+  warning?: string; // i18n key, warning shown before the button
   fields: ImportField[];
-  submitLabel: string;    // i18n key, submit button label
+  submitLabel: string; // i18n key, submit button label
 }
 
 export interface ImportField {
-  name: string;                                     // name sent in the POST body
-  label: string;                                    // i18n key
+  name: string; // name sent in the POST body
+  label: string; // i18n key
   type: 'text' | 'url' | 'textarea' | 'select' | 'file';
   placeholder?: string;
-  hint?: string;                                    // i18n key
+  hint?: string; // i18n key
   required?: boolean;
   default?: string;
-  accept?: string;                                  // for type 'file' (e.g. '.csv')
-  fileEncoding?: 'text';                            // 'file' is read and sent as text in this field
-  options?: { value: string; label: string }[];     // for type 'select'
+  accept?: string; // for type 'file' (e.g. '.csv')
+  fileEncoding?: 'text'; // 'file' is read and sent as text in this field
+  options?: { value: string; label: string }[]; // for type 'select'
 }
 
 export interface DetailZone {
@@ -289,10 +289,10 @@ export interface DetailZone {
 //    iterate registry.getAll().flatMap(p => p.collectionActions)).
 //  - 'importer-sync': triggers POST /import/{importerId} (via socket.io), then reloads the page.
 export interface CollectionAction {
-  id: string;                 // unique id within the plugin
-  label: string;              // i18n key (button text)
-  icon: string;               // FontAwesome icon (e.g. 'fa-calculator')
-  tooltip?: string;           // i18n key (title)
+  id: string; // unique id within the plugin
+  label: string; // i18n key (button text)
+  icon: string; // FontAwesome icon (e.g. 'fa-calculator')
+  tooltip?: string; // i18n key (title)
   behavior: 'estimate' | 'importer-sync';
 
   // Only show the button if user.pluginData[plugin.id][requiresUserData] is set
@@ -301,10 +301,10 @@ export interface CollectionAction {
 
   // behavior 'estimate': standardized price estimation capability.
   estimate?: {
-    idsEndpoint: string;      // GET -> { success, albums: [{ [idField], quantity }] }
+    idsEndpoint: string; // GET -> { success, albums: [{ [idField], quantity }] }
     estimateEndpoint: string; // GET `${estimateEndpoint}/${id}` -> { success, price: { value } }
-    idField: string;          // field holding the external id (e.g. 'discogs_id')
-    maxMultiplier?: number;   // upper bound of the price range (default 1.3)
+    idField: string; // field holding the external id (e.g. 'discogs_id')
+    maxMultiplier?: number; // upper bound of the price range (default 1.3)
   };
 
   // behavior 'importer-sync': id of the importer to trigger (POST /import/{importerId}).

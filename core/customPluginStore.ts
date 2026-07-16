@@ -124,7 +124,7 @@ export function buildConfigFromSubmission(body: any, existing?: CustomPluginConf
   const seenNames = new Set<string>();
   for (const raw of Array.isArray(body.fields) ? body.fields.slice(0, 15) : []) {
     const fieldLabel = cleanText(raw?.label, 40);
-    if (!fieldLabel) continue;   // ignore empty builder rows
+    if (!fieldLabel) continue; // ignore empty builder rows
     const name = FIELD_NAME_RE.test(cleanText(raw?.name, 30)) ? cleanText(raw.name, 30) : slugify(fieldLabel).replace(/-/g, '_');
     if (!FIELD_NAME_RE.test(name)) { errors.push('create_plugin.err_bad_field_name'); continue; }
     if (RESERVED_FIELD_NAMES.has(name)) { errors.push('create_plugin.err_reserved_field'); continue; }

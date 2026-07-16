@@ -11,43 +11,43 @@ import Item from '../models/Item';
  */
 export interface CustomPluginConfig {
   custom: true;
-  id: string;               // slug, folder name, collectionType and routePrefix (/<id>)
-  kind: string;             // Mongoose discriminator, generated once ("CustomFigurines"), stable across edits
-  label: string;            // plain-text display name (used verbatim, i18next falls back to the key)
-  icon: string;             // FontAwesome icon (fa-xxx)
-  color?: string;           // Tailwind color name (e.g. 'teal') driving badges/widgets accents
-  order?: number;           // display order, defaults to 200 (after the built-in plugins)
+  id: string; // slug, folder name, collectionType and routePrefix (/<id>)
+  kind: string; // Mongoose discriminator, generated once ("CustomFigurines"), stable across edits
+  label: string; // plain-text display name (used verbatim, i18next falls back to the key)
+  icon: string; // FontAwesome icon (fa-xxx)
+  color?: string; // Tailwind color name (e.g. 'teal') driving badges/widgets accents
+  order?: number; // display order, defaults to 200 (after the built-in plugins)
   imageShape?: 'poster' | 'square';
   secondaryImage?: boolean; // show the secondary (user) image editor
-  creatorLabel: string;     // plain-text label of the creator field ("Artiste", "Fabricant"...)
+  creatorLabel: string; // plain-text label of the creator field ("Artiste", "Fabricant"...)
   features?: {
     year?: boolean;
     barcode?: boolean;
-    rating?: boolean;       // personal rating out of 5 (stored as user_rating)
+    rating?: boolean; // personal rating out of 5 (stored as user_rating)
     comments?: boolean;
     location?: boolean;
     genre?: boolean;
-    tracklist?: boolean;    // music-style position/title/duration list
+    tracklist?: boolean; // music-style position/title/duration list
   };
   fields?: CustomFieldConfig[];
   formats?: CustomFormatConfig[];
 }
 
 export interface CustomFieldConfig {
-  name: string;             // slug, becomes the Mongo path
-  label: string;            // plain text
+  name: string; // slug, becomes the Mongo path
+  label: string; // plain text
   type: 'text' | 'number' | 'textarea' | 'select' | 'boolean' | 'tags';
   required?: boolean;
   group?: 'main' | 'metadata';
   placeholder?: string;
-  options?: { value: string; label: string }[];   // for type 'select'
+  options?: { value: string; label: string }[]; // for type 'select'
   default?: any;
 }
 
 export interface CustomFormatConfig {
-  value: string;            // slug
-  label: string;            // plain text
-  color?: string;           // Tailwind color name, defaults to the plugin color
+  value: string; // slug
+  label: string; // plain text
+  color?: string; // Tailwind color name, defaults to the plugin color
 }
 
 const DEFAULT_COLOR = 'teal';

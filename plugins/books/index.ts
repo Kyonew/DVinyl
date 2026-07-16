@@ -56,7 +56,8 @@ export const booksPlugin: PluginDefinition = {
     { id: 'book_paperback', label: 'media.paperback', url: '/collection?type=books&format=paperback' },
     { id: 'book_manga', label: 'media.manga', url: '/collection?type=books&format=manga' },
     { id: 'book_comic', label: 'media.comic', url: '/collection?type=books&format=comic' },
-    { id: 'book_graphic_novel', label: 'media.graphic_novel', url: '/collection?type=books&format=graphic_novel' }
+    { id: 'book_graphic_novel', label: 'media.graphic_novel', url: '/collection?type=books&format=graphic_novel' },
+    { id: 'book_digital', label: 'media.digital', url: '/collection?type=books&format=digital' }
   ],
 
   statsWidgets: [
@@ -65,6 +66,7 @@ export const booksPlugin: PluginDefinition = {
     { id: 'book_paperback', label: 'media.paperback_pl', icon: 'fa-book-journal-whills', color: 'bg-fuchsia-100 dark:bg-fuchsia-900/30', text: 'text-fuchsia-600', kind: 'count' },
     { id: 'book_manga', label: 'media.mangas', icon: 'fa-book-open', color: 'bg-pink-100 dark:bg-pink-900/30', text: 'text-pink-600', kind: 'count' },
     { id: 'book_comic', label: 'media.comics', icon: 'fa-mask', color: 'bg-indigo-100 dark:bg-indigo-900/30', text: 'text-indigo-600', kind: 'count' },
+    { id: 'book_digital', label: 'media.digital', icon: 'fa-cloud', color: 'bg-cyan-100 dark:bg-cyan-900/30', text: 'text-cyan-600', kind: 'count' },
     { id: 'author', label: 'stats.top_author_label', icon: 'fa-pen-nib', color: 'bg-amber-100 dark:bg-amber-500/20', kind: 'top' },
     { id: 'publisher', label: 'stats.top_publisher_label', icon: 'fa-book-open', color: 'bg-orange-100 dark:bg-orange-500/20', kind: 'top' }
   ],
@@ -77,9 +79,9 @@ export const booksPlugin: PluginDefinition = {
     isbn: String,
     pages: Number,
     language: String,
-    format: { 
-      type: String, 
-      enum: ['hardcover', 'paperback', 'manga', 'comic', 'graphic_novel'],
+    format: {
+      type: String,
+      enum: ['hardcover', 'paperback', 'manga', 'comic', 'graphic_novel', 'digital'],
       default: 'paperback'
     },
     series: String,
@@ -106,7 +108,8 @@ export const booksPlugin: PluginDefinition = {
     { value: 'hardcover', label: 'format.hardcover', color: 'bg-purple-600/90' },
     { value: 'manga', label: 'format.manga', color: 'bg-pink-600/90' },
     { value: 'comic', label: 'format.comic', color: 'bg-indigo-600/90' },
-    { value: 'graphic_novel', label: 'format.graphic_novel', color: 'bg-violet-600/90' }
+    { value: 'graphic_novel', label: 'format.graphic_novel', color: 'bg-violet-600/90' },
+    { value: 'digital', label: 'format.digital', color: 'bg-cyan-600/90' }
   ],
 
   formFields: [
@@ -161,7 +164,8 @@ export const booksPlugin: PluginDefinition = {
         { value: 'hardcover', label: 'format.hardcover' },
         { value: 'manga', label: 'format.manga' },
         { value: 'comic', label: 'format.comic' },
-        { value: 'graphic_novel', label: 'format.graphic_novel' }
+        { value: 'graphic_novel', label: 'format.graphic_novel' },
+        { value: 'digital', label: 'format.digital' }
       ]
     },
     {
@@ -270,6 +274,7 @@ export const booksPlugin: PluginDefinition = {
       book_comic: countByFormat('comic'),
       book_hardcover: countByFormat('hardcover'),
       book_paperback: countByFormat('paperback'),
+      book_digital: countByFormat('digital'),
       author: getTop('author'),
       publisher: getTop('publisher')
     };

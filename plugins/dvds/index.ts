@@ -58,7 +58,8 @@ export const dvdPlugin: PluginDefinition = {
     { id: 'dvd_bluray', label: 'media.bluray', url: '/collection?type=dvd&format=bluray' },
     { id: 'dvd_4k', label: 'media.4k', url: '/collection?type=dvd&format=4k' },
     { id: 'dvd_vhs', label: 'media.vhs', url: '/collection?type=dvd&format=vhs' },
-    { id: 'dvd_laserdisc', label: 'media.laserdisc', url: '/collection?type=dvd&format=laserdisc' }
+    { id: 'dvd_laserdisc', label: 'media.laserdisc', url: '/collection?type=dvd&format=laserdisc' },
+    { id: 'dvd_digital', label: 'media.digital', url: '/collection?type=dvd&format=digital' }
   ],
 
   statsWidgets: [
@@ -68,6 +69,7 @@ export const dvdPlugin: PluginDefinition = {
     { id: 'dvd_4k', label: 'media.4k_pl', icon: 'fa-wand-magic-sparkles', color: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-600', kind: 'count' },
     { id: 'dvd_vhs', label: 'media.vhss', icon: 'fa-tape', color: 'bg-stone-100 dark:bg-stone-900/30', text: 'text-stone-600', kind: 'count' },
     { id: 'dvd_laserdisc', label: 'media.laserdiscs', icon: 'fa-compact-disc', color: 'bg-teal-100 dark:bg-teal-900/30', text: 'text-teal-600', kind: 'count' },
+    { id: 'dvd_digital', label: 'media.digital', icon: 'fa-cloud', color: 'bg-cyan-100 dark:bg-cyan-900/30', text: 'text-cyan-600', kind: 'count' },
     { id: 'director', label: 'stats.top_director_label', icon: 'fa-clapperboard', color: 'bg-red-100 dark:bg-red-500/20', kind: 'top' },
     { id: 'studio', label: 'stats.top_studio_label', icon: 'fa-video', color: 'bg-rose-100 dark:bg-rose-500/20', kind: 'top' }
   ],
@@ -86,7 +88,7 @@ export const dvdPlugin: PluginDefinition = {
     },
     format: {
       type: String,
-      enum: ['dvd', 'bluray', '4k', 'vhs', 'laserdisc'],
+      enum: ['dvd', 'bluray', '4k', 'vhs', 'laserdisc', 'digital'],
       default: 'dvd'
     },
     is_boxset: { type: Boolean, default: false },
@@ -112,7 +114,8 @@ export const dvdPlugin: PluginDefinition = {
     { value: 'bluray', label: 'media.bluray', color: 'bg-indigo-700/90' },
     { value: '4k', label: 'media.4k', color: 'bg-red-600/90' },
     { value: 'vhs', label: 'media.vhs', color: 'bg-amber-600/90' },
-    { value: 'laserdisc', label: 'media.laserdisc', color: 'bg-purple-600/90' }
+    { value: 'laserdisc', label: 'media.laserdisc', color: 'bg-purple-600/90' },
+    { value: 'digital', label: 'media.digital', color: 'bg-cyan-600/90' }
   ],
 
   formFields: [
@@ -167,7 +170,8 @@ export const dvdPlugin: PluginDefinition = {
         { value: 'bluray', label: 'media.bluray' },
         { value: '4k', label: 'media.4k' },
         { value: 'vhs', label: 'media.vhs' },
-        { value: 'laserdisc', label: 'media.laserdisc' }
+        { value: 'laserdisc', label: 'media.laserdisc' },
+        { value: 'digital', label: 'media.digital' }
       ]
     },
     {
@@ -280,6 +284,7 @@ export const dvdPlugin: PluginDefinition = {
       dvd_4k: countByFormat('4k'),
       dvd_vhs: countByFormat('vhs'),
       dvd_laserdisc: countByFormat('laserdisc'),
+      dvd_digital: countByFormat('digital'),
       director: getTop('director'),
       studio: getTop('studio')
     };

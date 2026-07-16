@@ -25,15 +25,15 @@
 
 <script>
 (function () {
-    const editor  = document.getElementById('tlEditor');
-    const jsonIn  = document.getElementById('tlJson');
+    const editor = document.getElementById('tlEditor');
+    const jsonIn = document.getElementById('tlJson');
     const countEl = document.getElementById('tlCount');
-    const addBtn  = document.getElementById('tlAddBtn');
+    const addBtn = document.getElementById('tlAddBtn');
 
     function updateJson() {
         const tracks = Array.from(editor.querySelectorAll('.tl-row')).map(row => ({
             position: row.querySelector('.tl-pos').value.trim(),
-            title:    row.querySelector('.tl-title').value.trim(),
+            title: row.querySelector('.tl-title').value.trim(),
             duration: row.querySelector('.tl-dur').value.trim()
         }));
         jsonIn.value = JSON.stringify(tracks);

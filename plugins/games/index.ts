@@ -28,7 +28,7 @@ export const gamesPlugin: PluginDefinition = {
   searchProvider: igdbProvider,
   imageSearchType: 'game',
   requiredEnvKeys: ['TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET'],
-  duplicateCheckFields: ['platform', 'region'],
+  duplicateCheckFields: ['platform', 'region', 'format'],
   partialsPath: 'plugins/games/partials',
   detailZones: [
     { id: 'badge', partial: 'game-status.ejs' },
@@ -94,7 +94,8 @@ export const gamesPlugin: PluginDefinition = {
     { id: 'game_physical', label: 'media.physical', url: '/collection?type=games&format=physical' },
     { id: 'game_collector', label: 'media.collector', url: '/collection?type=games&format=collector' },
     { id: 'game_limited', label: 'media.limited', url: '/collection?type=games&format=limited' },
-    { id: 'game_steelbook', label: 'media.steelbook', url: '/collection?type=games&format=steelbook' }
+    { id: 'game_steelbook', label: 'media.steelbook', url: '/collection?type=games&format=steelbook' },
+    { id: 'game_digital', label: 'media.digital', url: '/collection?type=games&format=digital' }
   ],
 
   statsWidgets: [
@@ -103,6 +104,7 @@ export const gamesPlugin: PluginDefinition = {
     { id: 'game_collector', label: 'media.collector', icon: 'fa-gem', color: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-600', kind: 'count' },
     { id: 'game_limited', label: 'media.limited', icon: 'fa-star', color: 'bg-purple-100 dark:bg-purple-900/30', text: 'text-purple-600', kind: 'count' },
     { id: 'game_steelbook', label: 'media.steelbook', icon: 'fa-shield', color: 'bg-sky-100 dark:bg-sky-900/30', text: 'text-sky-600', kind: 'count' },
+    { id: 'game_digital', label: 'media.digital', icon: 'fa-cloud', color: 'bg-cyan-100 dark:bg-cyan-900/30', text: 'text-cyan-600', kind: 'count' },
     { id: 'game_developer', label: 'stats.top_developer_label', icon: 'fa-code', color: 'bg-emerald-100 dark:bg-emerald-500/20', kind: 'top' },
     { id: 'game_publisher', label: 'stats.top_game_publisher_label', icon: 'fa-building-columns', color: 'bg-teal-100 dark:bg-teal-500/20', kind: 'top' }
   ],
@@ -115,7 +117,7 @@ export const gamesPlugin: PluginDefinition = {
     region: { type: String, default: '' },
     format: {
       type: String,
-      enum: ['physical', 'collector', 'limited', 'steelbook'],
+      enum: ['physical', 'collector', 'limited', 'steelbook', 'digital'],
       default: 'physical'
     },
     playStatus: {
@@ -139,7 +141,8 @@ export const gamesPlugin: PluginDefinition = {
     { value: 'physical', label: 'media.physical', color: 'bg-emerald-600/90' },
     { value: 'collector', label: 'media.collector', color: 'bg-amber-600/90' },
     { value: 'limited', label: 'media.limited', color: 'bg-purple-600/90' },
-    { value: 'steelbook', label: 'media.steelbook', color: 'bg-sky-600/90' }
+    { value: 'steelbook', label: 'media.steelbook', color: 'bg-sky-600/90' },
+    { value: 'digital', label: 'media.digital', color: 'bg-cyan-600/90' }
   ],
 
   formFields: [
@@ -206,7 +209,8 @@ export const gamesPlugin: PluginDefinition = {
         { value: 'physical', label: 'media.physical' },
         { value: 'collector', label: 'media.collector' },
         { value: 'limited', label: 'media.limited' },
-        { value: 'steelbook', label: 'media.steelbook' }
+        { value: 'steelbook', label: 'media.steelbook' },
+        { value: 'digital', label: 'media.digital' }
       ]
     },
     {
@@ -298,6 +302,7 @@ export const gamesPlugin: PluginDefinition = {
       game_collector: countByFormat('collector'),
       game_limited: countByFormat('limited'),
       game_steelbook: countByFormat('steelbook'),
+      game_digital: countByFormat('digital'),
       game_developer: getTop('developer'),
       game_publisher: getTop('publisher')
     };
@@ -354,6 +359,9 @@ export const gamesPlugin: PluginDefinition = {
       };
       if (matchPlatform) {
         query.platform = matchPlatform;
+      }
+      if (matchFormat) {
+        query.format = matchFormat;
       }
       applyVariant(query);
       const item = await Item.findOne(query);

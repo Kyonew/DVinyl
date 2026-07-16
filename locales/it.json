@@ -529,7 +529,8 @@
     "graphic_novel": "Romanzo grafico",
     "hardcover": "Copertina rigida",
     "manga": "Manga",
-    "paperback": "Paperback"
+    "paperback": "Paperback",
+    "digital": "Digitale"
   },
   "image_source": {
     "hint": "Fare clic per sfogliare i file",
@@ -606,6 +607,7 @@
     "collector": "Collector",
     "limited": "Edizione Limitata",
     "steelbook": "Steelbook",
+    "digital": "Digitale",
     "book": "Libro",
     "lego": "LEGO",
     "legos": "Set LEGO"
