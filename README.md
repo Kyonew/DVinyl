@@ -129,9 +129,9 @@ No Docker? No worries. Have a look at the other ways to install and run DVinyl i
 ## Contributing
 
 This is honestly my first app of this kind, so I am wide open to help, ideas and advice. If you
-want to jump in, have a look at [CONTRIBUTING.md](./CONTRIBUTING.md) and the
-[Code of Conduct](./CODE_OF_CONDUCT.md) first. Bug reports and feature ideas are just as welcome as
-code.
+want to jump in, have a look at [CONTRIBUTING.md](./.github/CONTRIBUTING.md) and the
+[Code of Conduct](./.github/CODE_OF_CONDUCT.md) first. Bug reports and feature ideas are just as
+welcome as code.
 
 ## License
 

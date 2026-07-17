@@ -354,7 +354,7 @@ Common gotchas:
 ## Sharing your plugin
 
 Built something others could enjoy? Please open a pull request! New official plugins are very
-welcome. Have a look at [CONTRIBUTING.md](../CONTRIBUTING.md) first, keep the plugin self contained
+welcome. Have a look at [CONTRIBUTING.md](../.github/CONTRIBUTING.md) first, keep the plugin self contained
 inside its folder, and include the English (and ideally French) translation keys it needs.
 
 Happy building! 🩵

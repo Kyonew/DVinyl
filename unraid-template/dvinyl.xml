@@ -8,8 +8,8 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/Kyonew/DVinyl/issues</Support>
   <Project>https://github.com/Kyonew/DVinyl</Project>
-  <Overview>A self-hosted media collection manager for your Vinyls, CDs, Books, Games, and DVDs.</Overview>
-  <Description>DVinyl is a self-hosted media collection manager for your Vinyls, CDs, Books, Games, and DVDs. Keep track of your collection easily. Note: Requires a separate MongoDB instance.</Description>
+  <Overview>A self-hosted, plugin based collection manager for your Vinyls, CDs, Books, Movies, Games and LEGO sets.</Overview>
+  <Description>DVinyl is a self-hosted collection manager for physical media. Catalog, value and organize your music, books, movies, video games and LEGO sets from one customizable interface. Every media type is a plugin, so you enable only what you need. Note: Requires a separate MongoDB instance.</Description>
   <Category>MediaApp:Books MediaApp:Video MediaApp:Other</Category>
   <WebUI>http://[IP]:[PORT:3099]</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/Kyonew/DVinyl/main/unraid-template/dvinyl.xml</TemplateURL>
@@ -38,4 +38,11 @@
   <Config Name="TMDB API Key" Target="TMDB_API_KEY" Default="" Mode="" Description="Your TMDB API Key for DVDs." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
   <Config Name="Twitch Client ID" Target="TWITCH_CLIENT_ID" Default="" Mode="" Description="Your Twitch Client ID for Games." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
   <Config Name="Twitch Client Secret" Target="TWITCH_CLIENT_SECRET" Default="" Mode="" Description="Your Twitch Client Secret for Games." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+  <Config Name="Rebrickable API Key" Target="REBRICKABLE_API_KEY" Default="" Mode="" Description="Your Rebrickable API Key for LEGO sets." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+
+  <Config Name="OIDC Issuer URL" Target="OIDC_ISSUER_URL" Default="" Mode="" Description="Optional single sign-on. Your OIDC provider issuer URL (Authentik, Keycloak, Authelia, pocketID...). Leave empty to disable SSO." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="OIDC Client ID" Target="OIDC_CLIENT_ID" Default="" Mode="" Description="Optional single sign-on. The client ID registered on your OIDC provider." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="OIDC Client Secret" Target="OIDC_CLIENT_SECRET" Default="" Mode="" Description="Optional single sign-on. The client secret registered on your OIDC provider." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+  <Config Name="OIDC Redirect URI" Target="OIDC_REDIRECT_URI" Default="" Mode="" Description="Optional single sign-on. Must exactly match the callback registered on your provider, always ending with /login/oidc/callback." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="OIDC Button Label" Target="OIDC_BUTTON_LABEL" Default="" Mode="" Description="Optional single sign-on. Text shown on the SSO login button, for example 'Sign in with Authentik'." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
 </Container>

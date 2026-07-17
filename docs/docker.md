@@ -11,7 +11,6 @@ Best for: Most users who just want to run the app. No need to clone the full rep
 Create a new folder and a `docker-compose.yml` file with this content:
 
 ```yaml
-version: '3.8'
 services:
   dvinyl-app:
     image: ghcr.io/kyonew/dvinyl:latest
@@ -37,7 +36,7 @@ volumes:
   mongo_data:
 ```
 
-If you are stuggling with the deploy, you can try this config (thank you @mistic100) :
+If you are struggling with the deploy, you can try this config (thank you @mistic100) :
 
 ```yaml
 services:
@@ -90,6 +89,12 @@ For both case, you can use the provided `.env.example` as a starting point.
 docker compose up -d
 ```
 
+Then open `http://localhost:3099`.
+
+> [!TIP]
+> If you have `make` installed, `make docker-up` runs this for you. Run `make help` to see every
+> available command.
+
 ## Option 2: Build from Source
 
 Best for: Developers or those who want to customize the code.
@@ -111,6 +116,8 @@ If you are using the GHCR image (Option 1):
 ```bash
 docker compose pull
 docker compose up -d
+# with make:
+make docker-update
 ```
 
 ### Updating (Manual Build)
@@ -145,5 +152,5 @@ sudo rm -rf ./mongo_data
 sudo docker compose up -d
 ```
 
-[← Back to README](../README.md)  
+[← Back to README](../README.md) · [Installation guide](./getting-started.md) ·
 [Get your API keys →](./api-keys.md)

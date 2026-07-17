@@ -45,7 +45,7 @@ npm install
 cp .env.example .env
 ```
 
-Then fill in your `.env` (see the [API keys guide](./docs/api-keys.md)) and start the app:
+Then fill in your `.env` (see the [API keys guide](../docs/api-keys.md)) and start the app:
 
 **Run locally with Node:**
 
@@ -63,7 +63,7 @@ make docker-up
 docker compose up -d
 ```
 
-The [Getting started](./docs/getting-started.md) and [Docker](./docs/docker.md) guides have the
+The [Getting started](../docs/getting-started.md) and [Docker](../docs/docker.md) guides have the
 full details.
 
 ## Making changes
@@ -82,14 +82,14 @@ two paths:
   itself. Great for personal types. See the guide on the [Wiki](https://github.com/Kyonew/DVinyl/wiki).
 - **With code:** drop a `plugins/<id>/` folder that exports a plugin definition to add a full media
   type with its own external API, importers and stats. The
-  [Plugin development guide](./docs/plugin-development.md) walks you through it.
+  [Plugin development guide](../docs/plugin-development.md) walks you through it.
 
 If you build a code plugin that others could enjoy, please open a PR. New official plugins are
 always welcome.
 
 ## Translations
 
-Translation files live in [`locales/`](./locales) (one JSON file per language). To fix or add
+Translation files live in [`locales/`](../locales) (one JSON file per language). To fix or add
 strings, edit the matching file and keep the same keys as `en.json`. To add a brand new language,
 copy `en.json`, translate the values, and open a PR.
 

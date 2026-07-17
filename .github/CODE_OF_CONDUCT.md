@@ -43,7 +43,7 @@ Instances of abusive, harassing, or otherwise unacceptable behavior may be repor
 3. **Start the title with `[Code of Conduct]`** so maintainers can immediately tell your report apart from a security vulnerability.
 4. Describe the incident with as much relevant detail as you are comfortable sharing.
 
-> ⚠️ **Warning:** This is the same private channel used for [security disclosures](https://github.com/Kyonew/DVinyl/blob/main/SECURITY.md), but the two are triaged differently. A report is handled under this document only when its title is prefixed with `[Code of Conduct]`, anything else is treated as a security vulnerability. Please keep a conduct complaint and a vulnerability report separate, one advisory each.
+> ⚠️ **Warning:** This is the same private channel used for [security disclosures](./SECURITY.md), but the two are triaged differently. A report is handled under this document only when its title is prefixed with `[Code of Conduct]`, anything else is treated as a security vulnerability. Please keep a conduct complaint and a vulnerability report separate, one advisory each.
 
 All complaints will be reviewed and investigated **promptly and fairly**. All community leaders are obligated to respect the **privacy and security of the reporter** of any incident, and will determine and communicate the appropriate response on a case-by-case basis.
 
