@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 Documentation and guides
+    url: https://github.com/Kyonew/DVinyl/wiki
+    about: User guides and no-code tutorials live on the Wiki.
+  - name: 💬 Questions and discussions
+    url: https://github.com/Kyonew/DVinyl/discussions
+    about: For general questions, ideas and help, open a discussion instead of an issue.
+  - name: ▶️ Live demo
+    url: https://demo.kyonew.me/
+    about: Try DVinyl before installing anything.

@@ -1,112 +1,146 @@
-![banner dvinyl](./docs/img/banner.png)
+<p align="center">
+  <img src="./docs/img/banner.webp" alt="DVinyl banner" width="100%">
+</p>
 
---- 
+<p align="center">
+  <b>DVinyl</b> is a modern, self-hostable collection manager for physical media lovers.<br>
+  Catalog, value and organize your vinyls, CDs, books, movies, games and more, all from one cozy place.
+</p>
 
-**DVinyl** is a modern, self-hostable collection manager designed for physical media enthusiasts. From Vinyls and CDs to Books, Movies and Games, catalog, value, and organize your entire physical library through a single, customizable interface.
+<p align="center">
+  <a href="https://demo.kyonew.me/"><img src="https://img.shields.io/badge/Live_Demo-demo.kyonew.me-6E56CF?style=for-the-badge&logo=readthedocs&logoColor=white" alt="Live Demo"></a>
+  <a href="./docs/getting-started.md"><img src="https://img.shields.io/badge/Documentation-Read-3178C6?style=for-the-badge&logo=gitbook&logoColor=white" alt="Documentation"></a>
+  <a href="https://github.com/Kyonew/DVinyl/wiki"><img src="https://img.shields.io/badge/Wiki-Guides-24292F?style=for-the-badge&logo=github&logoColor=white" alt="Wiki"></a>
+</p>
 
-Built in JavaScript.
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Self-Hosted](https://img.shields.io/badge/Self--Hosted-Yes-green.svg)](#)
-[![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](#)
-
-
-
-## Overview
-
-DVinyl allows you to keep track of your physical music, books or even DVD collection. It uses the Discogs API, Hardcover API, IGDB API & TMDB API to retrieve important metadata and, for music, market valuations for your collection. This provides you with a convenient and full customizable dashboard for your home server.
-
-## ✨ Key Features
-
-### 📚 Universal Collection Management
-
-   * **Multi-Format Support:** Manage your Music (Vinyls, CDs, Cassettes), Books (Manga, Comics, Hardcover), and Movies (Blu-ray, 4K, VHS, LaserDisc) and video games in one unified library.
-   * **Smart Import:** Add items instantly using Discogs Release IDs or import your entire existing Discogs collection in one click.
-   * **Physical Scanner:*** Scan your physical media to bridge the gap between your shelf and your digital database.
-   * **Advanced Organization:** Easily track the physical location of every item in your home.
-
-### 🎨 Fully Customizable Experience
-
-   * **Tailored Interface:** Customize your navigation bar with shortcuts that matter to you.
-   * **Personalized Analytics:** Build your dashboard with modular statistics widgets.
-   * **Category Themes:** Apply unique visual themes to differentiate your music, book, and movie libraries.
-   * **Native Design:** Optimized for mobile with seamless Dark & Light modes.
-
-### 💎 Advanced Tools & Privacy
-
-   * **Market Insights:** Get real-time value estimates (Low/Median/High) for your **music** collection.
-   * **Wishlist System:** Keep track of your future finds.
-   * **Secure Access:** Integrated authentication system for private viewing or sharing your collection with others.
-   * **Multilingual:** Fully localized in English 🇬🇧 and French 🇫🇷.
-
-
-*<small>(may only work in France)</small>
-
-## Documentation
-
-To keep things organized, I have split the documentation into specialized guides:
-
-* 🏁 [**Getting Started**](./docs/getting-started.md) - Manual installation and requirements.
-* 🐳 [**Docker Deployment**](./docs/docker.md) - Deploying via Docker Compose *(Recommended)*.
-* 🔑 [**API Configuration**](./docs/api-keys.md) - How to obtain your Discogs, Hardcover and TMDB API keys.
+<p align="center">
+  <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT">
+  <img src="https://img.shields.io/badge/Version-3.0.0-blue.svg" alt="Version">
+  <img src="https://img.shields.io/badge/Self--Hosted-Yes-green.svg" alt="Self-Hosted">
+  <img src="https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white" alt="Docker">
+</p>
 
 ---
 
-## Quick Start (Docker)
+## Hey there 👋
 
-The fastest way to run DVinyl is using the pre-built Docker image. You only need a `docker-compose.yml` and a `.env` file.
+DVinyl is a little home for your physical collection. It lives on your own server, pulls in cover
+art and metadata from the big databases (Discogs, Hardcover, TMDB, IGDB, Rebrickable), can even
+estimate what your music is worth, and lays it all out on a dashboard you get to shape yourself.
 
-1. **Create a `docker-compose.yml`** (see [Docker Deployment Guide](./docs/docker.md) for the full file).
-2. **Setup your environment variables** in a `.env` file (go check how to get your [api keys](./docs/api-keys.md)).
-3. **Run the application**:
+DVinyl is **plugin based**: every media type is a plugin, so you turn on only what you
+care about, and you can add your own type without touching the core.
+
+Want to see it before installing anything? Take the [live demo](https://demo.kyonew.me/) for a spin.
+
+## What it can do
+
+### 📦 Your whole shelf, in one place
+- **Many formats.** Music (vinyls, CDs, cassettes), books (manga, comics, hardcover), movies
+  (Blu-ray, 4K, DVD, VHS, LaserDisc), video games and LEGO sets.
+- **Multiple collections.** Keep separate libraries (yours, the family's, a specific room) and
+  switch between them whenever you like.
+- **Smart import.** Add an item by ID or barcode, or bulk import a whole existing collection
+  (a full Discogs library, for example) in one click.
+- **Barcode scanner.** Point at the barcode of a physical item and let DVinyl find it for you.
+- **Market value.** Live low, median and high estimates for your music collection.
+- **Wishlist.** Keep an eye on the pieces you are still hunting for.
+
+### 🎨 Make it yours
+- **14 color themes.** Ocean, Forest, Sunset, Sakura, Midnight and more, each with a light and a
+  dark variant, and you can even set a different theme per category.
+- **Modular dashboard.** Pick the stat widgets you want and add your own navbar shortcuts.
+- **Responsive.** Built to feel right on mobile too.
+- **Multilingual.** English, French, German, Spanish and Italian.
+
+### 👥 Share it, your way
+- **Users and roles.** Invite people to a collection as admin, editor or viewer, so everyone gets
+  the right level of access.
+- **SSO login (OIDC).** Optional single sign-on with providers like Authentik, Keycloak, Authelia
+  or pocketID.
+- **Private or shared.** Keep your collection to yourself or open it up for others to browse.
+
+## Built-in plugins
+
+| Plugin | Media | Metadata source |
+| :----- | :---- | :-------------- |
+| Music  | Vinyls, CDs, cassettes | Discogs |
+| Books  | Books, manga, comics   | Hardcover |
+| Movies | Blu-ray, 4K, DVD, VHS  | TMDB |
+| Games  | Video games            | IGDB |
+| LEGO   | LEGO sets              | Rebrickable |
+
+Every plugin can be turned on or off per collection from the admin panel.
+
+## Build your own type
+
+DVinyl is made to grow with you. There are two ways to add a new kind of collection:
+
+- **Plugin editor (no code).** Create a manual collection type right from the app, with your own
+  fields, formats, icon and colors. No restart, no coding required.
+  See the [Plugin editor guide](https://github.com/Kyonew/DVinyl/wiki) on the Wiki.
+- **Code plugin (with API).** Drop a `plugins/<id>/` folder that exports a plugin definition to add
+  a full media type with its own external API, importers and stats.
+  See the [Plugin development guide](./docs/plugin-development.md).
+  Built one you are proud of? Do not hesitate to open a PR, I would genuinely love to see it! 🙌
+
+## Quick start (Docker)
+
+The fastest way to run DVinyl is the pre-built Docker image. All you need is a `docker-compose.yml`
+and a `.env` file.
+
+1. Create a `docker-compose.yml` (the [Docker guide](./docs/docker.md) has the full file).
+2. Set your environment variables in a `.env` file (see [API keys](./docs/api-keys.md)).
+3. Start it up:
    ```bash
    docker compose up -d
    ```
 
-Access the application at `http://localhost:3099`.
+Then open `http://localhost:3099` and you are good to go.
 
-# Tech stack
+> [!TIP]
+> If you have `make` installed, `make docker-up` runs step 3 for you. Run `make help` to see every
+> available command.
 
-| **Component**    | **Technology**                    |
-| :--------------- | :-------------------------------- |
-| **Backend**      | Node.js / Express                 |
-| **Database**     | MongoDB                           |
-| **Frontend**     | EJS Templates                     |
-| **Styling**      | Tailwind CSS                      |
-| **Localization** | i18next                           |
-| **API**          | Discogs / Hardcover / TMDB / IGDB |
+No Docker? No worries. Have a look at the other ways to install and run DVinyl in the
+[Getting started guide](./docs/getting-started.md).
 
-# Screenshots <small>with Ocean theme</small>
+## Documentation
 
-| 🖥️ Desktop View | 📱 Mobile View |
-|-----------------|----------------|
-| ![Dashboard Desktop](./docs/img/desktop-dashboard.jpg) | ![Dashboard Mobile](./docs/img/mobile-dashboard.jpg) |
-| [![Collection Desktop](./docs/img/desktop-collection.jpg)](./docs/img/desktop-collection.jpg) | [![Collection Mobile](./docs/img/mobile-collection.jpg)](./docs/img/mobile-collection.jpg) |
-| [![Detail Desktop](./docs/img/desktop-detail.jpg)](./docs/img/desktop-detail.jpg) | [![Detail Mobile](./docs/img/mobile-detail.jpg)](./docs/img/mobile-detail.jpg) |
+| Guide | What is inside |
+| :---- | :------------- |
+| [Getting started](./docs/getting-started.md) | Manual installation and requirements |
+| [Docker deployment](./docs/docker.md) | Deploy with Docker Compose (recommended) |
+| [API keys](./docs/api-keys.md) | Get your Discogs, Hardcover, TMDB, IGDB and Rebrickable keys |
+| [Plugin development](./docs/plugin-development.md) | Build your own media type as a code plugin |
+| [Wiki](https://github.com/Kyonew/DVinyl/wiki) | User guides and no-code tutorials |
 
+## Tech stack
 
-# 🤝 Contributing
+| Component | Technology |
+| :-------- | :--------- |
+| Backend | Node.js, Express |
+| Database | MongoDB |
+| Frontend | EJS templates |
+| Styling | Tailwind CSS |
+| Localization | i18next |
+| Metadata APIs | Discogs, Hardcover, TMDB, IGDB, Rebrickable |
 
-Honestly, this is my first app of this kind. I am open to any help and advice for this app and my future ones!
+## Contributing
 
-If you want to help, you can:
+This is honestly my first app of this kind, so I am wide open to help, ideas and advice. If you
+want to jump in, have a look at [CONTRIBUTING.md](./CONTRIBUTING.md) and the
+[Code of Conduct](./CODE_OF_CONDUCT.md) first. Bug reports and feature ideas are just as welcome as
+code.
 
-1. Fork the project.
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`).
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`).
-4. Push to the branch (`git push origin feature/AmazingFeature`).
-5. Open a Pull Request.
+## License
 
-# 📄 License
+Distributed under the MIT License. See [LICENSE](./LICENSE) for the details.
 
-Distributed under the MIT License. See `LICENSE` for more information.
-
-<br>
-
-> [!IMPORTANT]
->
-> Please note that parts of the frontend and docstrings were generated with the assistance of AI tools. While I reviewed and corrected the output where necessary, this project is not 100% human-made.
+> [!NOTE]
+> Please note that parts of the frontend and comments were generated with the assistance of AI tools. While I reviewed and corrected the output where necessary, this project is not 100% human-made.
 >
 > Your feedback is highly appreciated, even for the backend, where I may have made significant errors. I would be grateful for any suggestions or comments to improve the project.
 >
 > Thank you for your understanding <3
+
