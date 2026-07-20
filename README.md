@@ -31,7 +31,8 @@ estimate what your music is worth, and lays it all out on a dashboard you get to
 DVinyl is **plugin based**: every media type is a plugin, so you turn on only what you
 care about, and you can add your own type without touching the core.
 
-Want to see it before installing anything? Take the [live demo](https://demo.kyonew.me/) for a spin.
+Want to see it before installing anything? Have a look at the [live demo](https://demo.kyonew.me/), a
+read-only preview of a finished instance.
 
 ## What it can do
 
