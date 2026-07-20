@@ -105,11 +105,52 @@ These are the core variables. See [API keys](./api-keys.md) for the metadata ser
 Single sign-on (OIDC) is optional and configured through extra environment variables. See the
 commented block in `.env.example` for the details.
 
+## 🌐 Behind a reverse proxy (HTTPS)
+
+To expose DVinyl on the internet, put a reverse proxy (nginx, Caddy, Traefik, Nginx Proxy Manager...)
+in front of it and let the proxy handle HTTPS. DVinyl itself keeps listening on plain HTTP on
+`VINYL_PORT`; the proxy terminates TLS and forwards requests to it.
+
+Two things to set:
+
+- **`PROD=true`.** This tells DVinyl it is served over HTTPS: it marks its session cookies as
+  `secure` and trusts the first proxy in front of it (so it reads the forwarded protocol correctly).
+  Leaving it `false` behind HTTPS breaks logins; setting it `true` without HTTPS also breaks them.
+- **`BASE_URL`.** Leave it empty to serve DVinyl at the root of a domain (`https://dvinyl.example.com`).
+  Set it to a sub-path (for example `/dvinyl`) if you serve it under one
+  (`https://example.com/dvinyl`), and make the proxy pass that path through unchanged.
+
+Make sure the proxy forwards the standard `X-Forwarded-*` headers (most do by default) and allows
+**WebSocket upgrades**, which DVinyl uses for live updates. A minimal nginx location looks like:
+
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:3099;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
+    # WebSocket (live updates)
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+}
+```
+
+> [!TIP]
+> Serving over HTTPS also enables the **camera barcode scanner** on phones: browsers block camera
+> access on plain `http://` addresses, so the scanner only works on `localhost` or over HTTPS.
+
 ## ✅ First run
 
 Open DVinyl in your browser and follow the setup screen to create your admin account. From the admin
 panel you can then enable the media types you want to collect, create collections and invite other
 users.
+
+> [!TIP]
+> Installed and running? The [Wiki](https://github.com/Kyonew/DVinyl/wiki) is the user handbook: how
+> to add and import items, customize your dashboard, share collections, back up your data and build
+> your own no-code media type.
 
 ---
 

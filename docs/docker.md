@@ -89,11 +89,16 @@ For both case, you can use the provided `.env.example` as a starting point.
 docker compose up -d
 ```
 
-Then open `http://localhost:3099`.
+Then open `http://localhost:3099` and follow the setup screen to create your admin account.
 
 > [!TIP]
 > If you have `make` installed, `make docker-up` runs this for you. Run `make help` to see every
 > available command.
+
+> [!TIP]
+> Up and running? The [Wiki](https://github.com/Kyonew/DVinyl/wiki) walks you through actually using
+> DVinyl: adding and importing items, customizing the dashboard, sharing collections and backing up
+> your data.
 
 ## Option 2: Build from Source
 
