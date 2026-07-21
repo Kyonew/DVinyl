@@ -1,12 +1,15 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import Item from '../models/Item';
 import User from '../models/User';
 import LoginLog from '../models/LoginLog';
 import Settings from '../models/Settings';
 import Collection from '../models/Collection';
+import CustomPlugin from '../models/CustomPlugin';
 import { requireAuth, requireAdmin, requireCollectionRole } from '../middleware/authMiddleware';
 import { registry } from '../core/registry';
 import { migrateDatabase } from '../utils/migrate';
+import { applyCustomPluginsFromDB } from '../core/customPluginSync';
 
 const router = express.Router();
 
@@ -20,6 +23,7 @@ router.get('/export', requireAuth, requireAdmin, async (req, res) => {
             logs: await LoginLog.find({}).lean(),
             settings: await Settings.find({}).lean(),
             collections: await Collection.find({}).lean(),
+            customPlugins: await CustomPlugin.find({}).lean(),
             metadata: {
                 version: "3.1.0",
                 date: new Date()
@@ -81,7 +85,8 @@ router.post('/import', async (req, res) => {
             Item.deleteMany({}),
             User.deleteMany({}),
             Settings.deleteMany({}),
-            Collection.deleteMany({})
+            Collection.deleteMany({}),
+            CustomPlugin.deleteMany({})
         ]);
 
         if (hasCollections) {
@@ -101,13 +106,25 @@ router.post('/import', async (req, res) => {
         if (data.albums && data.albums.length > 0) {
             // Legacy backups may hold items without a `kind`; assign the plugin that claims legacy items
             const legacyKind = registry.getAll().find(p => p.matchesLegacyItems)?.kind || 'Music';
+            const toId = (v: any) => (typeof v === 'string' && mongoose.Types.ObjectId.isValid(v))
+                ? new mongoose.Types.ObjectId(v) : v;
             const cleanAlbums = data.albums.map((album: any) => {
-                const fixed = album.kind ? { ...album } : { ...album, kind: legacyKind };
+                const fixed: any = album.kind ? { ...album } : { ...album, kind: legacyKind };
                 // Without the collections themselves, stale collection ids would orphan items
                 if (!hasCollections) delete fixed.collection;
+                // Cast the ref/date fields back to their BSON types (they are strings in JSON).
+                if (fixed._id) fixed._id = toId(fixed._id);
+                if (fixed.owner) fixed.owner = toId(fixed.owner);
+                if (fixed.collection) fixed.collection = toId(fixed.collection);
+                if (fixed.added_at) fixed.added_at = new Date(fixed.added_at);
+                if (fixed.updated_at) fixed.updated_at = new Date(fixed.updated_at);
                 return fixed;
             });
-            await Item.insertMany(cleanAlbums);
+            // Insert with the native driver, bypassing Mongoose validation. A backup is
+            // authoritative: re-validating restored items against the live (possibly stricter)
+            // discriminator schema (e.g. a custom type whose `creator` became required) would
+            // reject legitimately-saved items and, since the wipe already ran, gut the instance.
+            await Item.collection.insertMany(cleanAlbums);
         }
 
         if (data.logs && data.logs.length > 0) {
@@ -124,11 +141,21 @@ router.post('/import', async (req, res) => {
             await Settings.create(clean);
         }
 
+        // No-code plugin definitions. Absent from dumps predating v3.1.
+        if (Array.isArray(data.customPlugins) && data.customPlugins.length > 0) {
+            await CustomPlugin.insertMany(data.customPlugins);
+        }
+
         // Rebuild the multi-collection invariants (default collection, item/user/settings
         // stamps, memberships). Idempotent; also heals legacy dumps. migrateDatabase()
         // only logs on failure (it must not crash server startup when called at boot),
         // so check its core invariant here rather than trusting a bare "it didn't throw".
         await migrateDatabase();
+
+        // Reconcile no-code plugins with the freshly imported DB: re-materialize the
+        // plugins/<id>/ folders and hot-register them, pruning any from the old instance.
+        await applyCustomPluginsFromDB();
+
         const restoredCollectionCount = await Collection.countDocuments();
 
         res.cookie('jwt', '', { maxAge: 1 });

@@ -72,9 +72,11 @@
                         const baseFmt = item.format || item.media_type || '';
                         const baseFmtOpt = (plugin.formats || []).find(f => String(f.value) === String(baseFmt));
                     %>
+                    <% if (baseFmt || item.format_type) { %>
                     <span class="px-3 py-1 rounded-full text-xs font-bold tracking-wider bg-primary-theme text-white shadow-sm">
                         <%= baseFmtOpt ? t(baseFmtOpt.label, { defaultValue: baseFmtOpt.label }) : t('media.' + baseFmt, { defaultValue: baseFmt || item.format_type }) %>
                     </span>
+                    <% } %>
 
                     <% if (item.variant_color) { %>
                         <span class="px-3 py-1 bg-primary-theme/10 border border-primary-theme/20 text-primary-theme rounded-full text-xs flex items-center gap-2 transition-colors">

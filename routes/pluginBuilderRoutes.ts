@@ -13,6 +13,7 @@ import {
   CUSTOM_PLUGIN_ICONS
 } from '../core/customPluginStore';
 import { registerPluginDirAtRuntime, unregisterPluginAtRuntime } from '../core/pluginRuntime';
+import { saveCustomPluginToDB, deleteCustomPluginFromDB } from '../core/customPluginSync';
 
 /**
  * /create-plugin: builder for user-created ("custom") plugins.
@@ -150,6 +151,10 @@ router.post('/save', async (req: any, res: any) => {
       }
     }
 
+    // Persist to the DB (source of truth). The folder is just a regenerable cache,
+    // so this is what makes the plugin survive rebuilds and travel with backups.
+    await saveCustomPluginToDB(config, existing?.id);
+
     // Enable the module right away for the admin's active collection
     const activeCollectionId = res.locals.activeCollectionId;
     if (activeCollectionId) {
@@ -178,6 +183,7 @@ router.post('/delete/:id', async (req: any, res: any) => {
 
     deleteCustomPluginDir(config.id);
     unregisterPluginAtRuntime(config.id);
+    await deleteCustomPluginFromDB(config.id);
 
     res.json({ success: true });
   } catch (err: any) {

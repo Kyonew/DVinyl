@@ -139,6 +139,24 @@ docker compose up --build -d
 
 By default, the database data is stored in a Docker volume named mongo-data. This ensures your collection is not lost when you stop or update the containers.
 
+## 🧩 No-code plugins and Docker
+
+Collection types you build with the in-app **plugin editor** (`/create-plugin`) are stored **in the
+database**. Their `plugins/<id>/` folder on disk is only a regenerable cache: DVinyl re-creates it
+from the database at startup.
+
+In practice, that means:
+
+- **Nothing extra to mount.** As long as your **database** volume is persisted (`./mongo_data`, which
+  it is in every example here), your no-code plugins survive `docker compose pull`, `up --build` and
+  `down`. DVinyl rebuilds their folders on startup.
+- **They travel with an instance backup.** An instance export carries your no-code plugin definitions
+  along with everything else, and restoring brings them back.
+
+Bind-mounting `./plugins:/app/plugins` (as the repository's build-from-source `docker-compose.yml`
+does) is optional. It only keeps the generated folders on the host between rebuilds; the database
+remains the source of truth.
+
 ## 🗑️ Full reset & Data loss
 
 If you have made significant changes and need to rebuild the application from a clean slate, follow the steps below.

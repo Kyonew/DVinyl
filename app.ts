@@ -25,6 +25,7 @@ import BlockedIP from './models/blockedIP.js';
 // Core & Registry
 import { registry } from './core/registry.js';
 import { loadPlugins } from './core/loadPlugins.js';
+import { syncCustomPluginsOnBoot } from './core/customPluginSync.js';
 import { mountPluginRoutes, pluginDispatcher } from './core/pluginRuntime.js';
 import { applyPluginCustomization } from './core/pluginCustomization.js';
 
@@ -238,6 +239,9 @@ app.use((req, res) => {
 connectDB()
   .then(async () => {
     await migrateDatabase();
+    // Re-materialize no-code plugins from the DB: re-grows plugins/<id>/ folders on
+    // a fresh/rebuilt container and backfills the DB from any pre-existing folders.
+    await syncCustomPluginsOnBoot();
     const port = process.env.VINYL_PORT || 3099;
     server.listen(port, () => {
       console.log(`🚀 Server started on port ${port}`);
