@@ -124,15 +124,28 @@ export const migrateDatabase = async () => {
                 console.log(`[MIGRATION] ${addedMembers} user(s) added as members of the default collection.`);
             }
 
-            // Settings became per-collection: attach the historical global Settings
-            // document(s) to the default collection so its theme/modules/visibility
-            // carry over unchanged. New collections get their own doc lazily.
-            const settingsBackfill = await Settings.updateMany(
-                { collection: { $exists: false } },
-                { $set: { collection: defaultCollection._id } }
-            );
-            if (settingsBackfill.modifiedCount > 0) {
-                console.log(`[MIGRATION] ${settingsBackfill.modifiedCount} settings document(s) attached to the default collection.`);
+            // Settings became per-collection: attach the historical global Settings doc to
+            // the default collection so its theme/modules/visibility carry over unchanged.
+            // Robust against a placeholder doc the app may have auto-created for the
+            // collection on an earlier (aborted) boot + a first visit (settingsMiddleware
+            // upserts a defaults doc): the unique `collection` index would otherwise make a
+            // blind updateMany throw E11000 and leave the real theme orphaned. Resolve in
+            // favour of the historical doc; idempotent on re-run.
+            const orphans = await Settings.find({ collection: { $exists: false } }).select('_id').lean();
+            const canonical = orphans[0];
+            if (canonical) {
+                const canonicalId = canonical._id;
+                await Settings.deleteMany({
+                    $or: [
+                        { collection: defaultCollection._id },                         // placeholder(s) for this collection
+                        { collection: { $exists: false }, _id: { $ne: canonicalId } }, // extra global docs
+                    ],
+                });
+                await Settings.updateOne(
+                    { _id: canonicalId },
+                    { $set: { collection: defaultCollection._id } }
+                );
+                console.log(`[MIGRATION] historical settings attached to the default collection (theme/modules preserved).`);
             }
         }
 
