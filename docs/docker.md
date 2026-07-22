@@ -150,15 +150,8 @@ In practice, that means:
 - **Nothing extra to mount.** As long as your **database** volume is persisted (`./mongo_data`, which
   it is in every example here), your no-code plugins survive `docker compose pull`, `up --build` and
   `down`. DVinyl rebuilds their folders on startup.
-- **They travel with an instance backup.** An instance export carries your no-code plugin definitions
-  along with everything else, and restoring brings them back.
-
-You do **not** need to bind-mount `./plugins:/app/plugins`. The database is the source of truth and
-the folders are regenerated on every start, so the mount adds nothing for normal use. It is also
-best avoided: the container runs as root, so mounting `./plugins` makes the host folder root-owned,
-which can get in the way of `git` on a build-from-source checkout. The only reason to add it is
-plugin **development** — editing a plugin's `.ts` on the host and picking up the change with a plain
-`docker restart` instead of a full image rebuild.
+- **They travel with an instance backup.** An instance export includes your no-code plugin
+  definitions along with everything else, and restoring brings them back.
 
 ## 🗑️ Full reset & Data loss
 
