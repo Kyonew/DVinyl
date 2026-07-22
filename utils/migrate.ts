@@ -7,6 +7,30 @@ import { findOrCreateDefaultCollection } from './collectionHelpers';
 
 export const migrateDatabase = async () => {
     try {
+        // Legacy Settings could store theme.<key>.preset as an object (e.g. { default: 'default' })
+        // instead of the string the current schema expects. Normalize via the native driver
+        // BEFORE any Mongoose hydration of Settings — otherwise findOne() below throws a
+        // CastError and the try/catch aborts the entire migration. Idempotent: a second run
+        // finds no object-typed presets left to fix.
+        const settingsColl = (Settings.collection as any);
+        const themeDocs = await settingsColl.find({ theme: { $exists: true } }).toArray();
+        for (const doc of themeDocs) {
+            if (!doc.theme || typeof doc.theme !== 'object') continue;
+            const fixes: Record<string, string> = {};
+            for (const [key, val] of Object.entries<any>(doc.theme)) {
+                const preset = val?.preset;
+                if (preset !== null && typeof preset === 'object') {
+                    // Prefer a nested string (e.g. { default: 'default' } → 'default'), else fall back.
+                    const coerced = typeof preset.default === 'string' ? preset.default : 'default';
+                    fixes[`theme.${key}.preset`] = coerced;
+                }
+            }
+            if (Object.keys(fixes).length > 0) {
+                await settingsColl.updateOne({ _id: doc._id }, { $set: fixes });
+                console.log(`[MIGRATION] normalized ${Object.keys(fixes).length} malformed theme preset(s) in settings ${doc._id}.`);
+            }
+        }
+
         const oldItemsCount = await Item.countDocuments({ kind: { $exists: false } });
 
         if (oldItemsCount > 0) {
