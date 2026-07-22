@@ -153,9 +153,12 @@ In practice, that means:
 - **They travel with an instance backup.** An instance export carries your no-code plugin definitions
   along with everything else, and restoring brings them back.
 
-Bind-mounting `./plugins:/app/plugins` (as the repository's build-from-source `docker-compose.yml`
-does) is optional. It only keeps the generated folders on the host between rebuilds; the database
-remains the source of truth.
+You do **not** need to bind-mount `./plugins:/app/plugins`. The database is the source of truth and
+the folders are regenerated on every start, so the mount adds nothing for normal use. It is also
+best avoided: the container runs as root, so mounting `./plugins` makes the host folder root-owned,
+which can get in the way of `git` on a build-from-source checkout. The only reason to add it is
+plugin **development** — editing a plugin's `.ts` on the host and picking up the change with a plain
+`docker restart` instead of a full image rebuild.
 
 ## 🗑️ Full reset & Data loss
 
