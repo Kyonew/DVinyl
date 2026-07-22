@@ -199,6 +199,9 @@ export default createCustomPlugin(require('./plugin.json'));
 `;
 
 export function writeCustomPluginDir(config: CustomPluginConfig): void {
+  // Guard against path traversal: config.id may reach here unvalidated via the
+  // DB->disk sync path (restore / boot), not just the validated builder route.
+  if (!ID_RE.test(config.id)) throw new Error(`Invalid custom plugin id "${config.id}"`);
   const dir = path.join(PLUGINS_DIR, config.id);
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, 'plugin.json'), JSON.stringify(config, null, 2) + '\n');

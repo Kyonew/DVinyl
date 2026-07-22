@@ -12,12 +12,13 @@
     // Dynamic duplicate checking: the banner reacts to the plugin's distinguishing
     // fields (media_type + variant_color for music, platform for games, format for dvd/books)
     (function () {
-        const dupFields = <%- JSON.stringify(plugin.duplicateCheckFields || []) %>;
+        // '<' is escaped so a stored field value containing '</script>' cannot break out of this inline script.
+        const dupFields = <%- JSON.stringify(plugin.duplicateCheckFields || []).replace(/</g, '\\u003c') %>;
         const existingItems = <%- JSON.stringify((locals.existingItems || []).map(item => {
             const entry = { quantity: item.quantity };
             (plugin.duplicateCheckFields || []).forEach(f => { entry[f] = item[f]; });
             return entry;
-        })) %>;
+        })).replace(/</g, '\\u003c') %>;
 
         let banner, desc, submitBtn;
 
