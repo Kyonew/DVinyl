@@ -26,7 +26,7 @@ services:
       - mongodb
 
   mongodb:
-    image: mongo:latest
+    image: mongo:8.0
     container_name: dvinyl_db
     restart: unless-stopped
     volumes:
@@ -61,7 +61,7 @@ services:
       - /mnt/<uploads_dataset>:/app/public/uploads
 
   mongodb:
-    image: mongo:latest
+    image: mongo:8.0
     pull_policy: missing
     container_name: dvinyl_db
     restart: unless-stopped
@@ -69,12 +69,21 @@ services:
       - /mnt/<mongo_dataset>:/data/db
 ```
 
-> Note: If you're using a **Raspberry Pi** and MongoDB keeps restarting, try a different version of MongoDB, such as:
+> **Why `mongo:8.0` and not `mongo:latest`?** Pinning a major version means a routine
+> `docker compose pull` only ever brings **patch** updates. `:latest` can silently jump a
+> major version (e.g. to a future MongoDB 9.0), and MongoDB refuses to start on data files
+> written by a newer version, so an unattended pull could leave your database down. `8.0` is
+> the current stable major.
+>
+> **Older / low-power hardware (Raspberry Pi, older NAS/CPUs).** MongoDB 5.0+ requires a CPU
+> with AVX support. If `mongodb` keeps restarting on such hardware, pin an older major instead:
 > ```yaml
 > mongodb:
 >   image: mongo:4.4.18
 > ```
-> Thank you @oliverjunker for this!
+> This only works on a **fresh** database. You cannot point an older MongoDB at data files that
+> a newer version already wrote (that's a downgrade, and it's refused). Thank you @oliverjunker
+> for the tip!
 
 ### 2. Prepare Environment
 
@@ -114,6 +123,12 @@ docker compose up --build -d
 
 ## 🔄 Updating
 
+> [!IMPORTANT]
+> **Back up first.** Before any update, export a whole-instance backup from the app, open the
+> **Instance** admin page (`/admin/instance`) and use **Backup → Export** and, if you want a
+> belt-and-braces copy, snapshot your `./mongo_data` folder while the containers are stopped. Updates are designed to be safe and
+> automatic, but a backup is your one-command way back if anything surprises you.
+
 ### Updating (Pre-built Image)
 
 If you are using the GHCR image (Option 1):
@@ -133,6 +148,13 @@ If you cloned the repository (Option 2):
 git pull
 docker compose up --build -d
 ```
+
+### Rolling back
+
+If an update misbehaves, roll the app image back to the previous tag (pin a specific version
+instead of `latest`, e.g. `image: ghcr.io/kyonew/dvinyl:2.6.0`) and restore the instance backup
+you exported above. Because the app image and your data are separate, downgrading the **app** is
+safe; just don't downgrade the **MongoDB** major below the version that last wrote your data.
 
 
 ## 💾 Persistence

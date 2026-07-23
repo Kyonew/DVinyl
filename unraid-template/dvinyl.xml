@@ -20,7 +20,7 @@
   <DateInstalled></DateInstalled>
   <DonateText/>
   <DonateLink/>
-  <Requires>MongoDB database. You must install a MongoDB container first and link it via the MONGODB_URL variable.</Requires>
+  <Requires>MongoDB database. Install a MongoDB container first and link it via the MONGODB_URL variable. Recommended image: mongo:8.0 (pin a major version rather than :latest so an update never jumps a major and refuses to start on existing data). MongoDB 5.0+ needs a CPU with AVX support; on older hardware without AVX, use mongo:4.4.18 on a fresh database instead. Never point an older MongoDB at data files a newer version already wrote (downgrades are refused), and upgrade only one major at a time.</Requires>
   
   <Config Name="WebUI Port" Target="3099" Default="3099" Mode="tcp" Description="The port DVinyl will be accessible on." Type="Port" Display="always" Required="true" Mask="false">3099</Config>
   
