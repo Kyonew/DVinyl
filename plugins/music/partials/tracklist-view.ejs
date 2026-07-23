@@ -399,7 +399,7 @@ async function importTracklist(itemId, discogsId) {
         }
     } catch (err) {
         btn.disabled = false;
-        btnText.innerText = "<%= t('detail.import_tracklist_btn') %>";
+        btnText.innerText = <%- JSON.stringify(t('detail.import_tracklist_btn')).replace(/</g, '\\u003c') %>;
         errorMsg.classList.remove('hidden');
     }
 }

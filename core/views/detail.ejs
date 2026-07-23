@@ -453,7 +453,7 @@
             if (response.ok && data.success) {
                 window.location.reload();
             } else {
-                alert("<%= t('detail.refresh_info_error') %>");
+                alert(<%- JSON.stringify(t('detail.refresh_info_error')).replace(/</g, '\\u003c') %>);
                 btn.disabled = false;
                 icon.classList.remove('fa-spin');
             }

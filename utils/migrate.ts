@@ -5,6 +5,26 @@ import Collection from '../models/Collection';
 import { registry } from '../core/registry';
 import { findOrCreateDefaultCollection } from './collectionHelpers';
 
+/**
+ * Legacy Settings could store theme.<key>.preset as an object (e.g. { default: 'default' })
+ * instead of the string the current schema expects. Coerce every malformed preset to a string,
+ * in place, and report whether anything changed. Shared by the boot migration (below) and the
+ * whole-instance import, which inserts settings via Mongoose (Settings.create) and would
+ * otherwise throw a CastError on such a doc before the migration ever runs.
+ */
+export const normalizeThemePresets = (theme: any): boolean => {
+    if (!theme || typeof theme !== 'object') return false;
+    let changed = false;
+    for (const [key, val] of Object.entries<any>(theme)) {
+        const preset = val?.preset;
+        if (preset !== null && typeof preset === 'object') {
+            theme[key].preset = typeof preset.default === 'string' ? preset.default : 'default';
+            changed = true;
+        }
+    }
+    return changed;
+};
+
 export const migrateDatabase = async () => {
     try {
         // Legacy Settings could store theme.<key>.preset as an object (e.g. { default: 'default' })

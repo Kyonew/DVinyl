@@ -432,7 +432,9 @@ export const gamesPlugin: PluginDefinition = {
       genre: genres[0] || '',
       year: formatted.year,
       developer: formatted.developer || item.developer,
-      publisher: formatted.publisher || item.publisher
+      publisher: formatted.publisher || item.publisher,
+      // `description` holds the IGDB summary shown on the detail page — persist it on refresh too
+      description: formatted.description || item.description
     };
 
     await Item.updateOne({ _id: item._id }, { $set: updateData });

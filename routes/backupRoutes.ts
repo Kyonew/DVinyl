@@ -8,7 +8,7 @@ import Collection from '../models/Collection';
 import CustomPlugin from '../models/CustomPlugin';
 import { requireAuth, requireAdmin, requireCollectionRole } from '../middleware/authMiddleware';
 import { registry } from '../core/registry';
-import { migrateDatabase } from '../utils/migrate';
+import { migrateDatabase, normalizeThemePresets } from '../utils/migrate';
 import { applyCustomPluginsFromDB } from '../core/customPluginSync';
 
 const router = express.Router();
@@ -141,6 +141,12 @@ router.post('/import', async (req, res) => {
         for (const s of settingsDocs) {
             const clean = { ...s };
             if (!hasCollections) delete clean.collection;
+            // A legacy Settings doc can hold theme.<key>.preset as an object (e.g. the games
+            // plugin's { default: 'default' }). Settings.create() validates and would throw a
+            // CastError here, after the wipe already ran, before migrateDatabase() gets to
+            // normalize it, leaving the instance half-restored. Normalize up front, like the
+            // boot migration does via the native driver.
+            normalizeThemePresets(clean.theme);
             await Settings.create(clean);
         }
 
