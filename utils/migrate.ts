@@ -9,7 +9,7 @@ export const migrateDatabase = async () => {
     try {
         // Legacy Settings could store theme.<key>.preset as an object (e.g. { default: 'default' })
         // instead of the string the current schema expects. Normalize via the native driver
-        // BEFORE any Mongoose hydration of Settings — otherwise findOne() below throws a
+        // BEFORE any Mongoose hydration of Settings, otherwise findOne() below throws a
         // CastError and the try/catch aborts the entire migration. Idempotent: a second run
         // finds no object-typed presets left to fix.
         const settingsColl = (Settings.collection as any);
@@ -38,7 +38,13 @@ export const migrateDatabase = async () => {
             const legacyKind = registry.getAll().find(p => p.matchesLegacyItems)?.kind || 'Music';
             console.log(`[MIGRATION] : Found ${oldItemsCount} old items...`);
             console.log('[MIGRATION] Updating...');
-            const result = await Item.updateMany(
+            // MUST go through the native driver: `kind` is the Mongoose discriminatorKey,
+            // and Mongoose silently strips it from $set on updates (guarding against changing
+            // a document's discriminator). A plain Item.updateMany() therefore touches the docs
+            // (updated_at bumps) but never actually writes `kind`, leaving pre-plugins items
+            // discriminator-less, so registry.getByKind() can't resolve their plugin and they
+            // render unformatted. The native collection bypasses that stripping.
+            const result = await Item.collection.updateMany(
                 { kind: { $exists: false } },
                 { $set: { kind: legacyKind } }
             );
@@ -49,17 +55,30 @@ export const migrateDatabase = async () => {
         // advancedCD moved from a fake module toggle to a music plugin setting.
         // We only reach this branch on a legacy install (modules.advancedCD present),
         // and it deletes the key afterwards, so the legacy value always wins (idempotent).
-        const s: any = await Settings.findOne();
-        if (s && s.modules && typeof s.modules.get === 'function' && s.modules.get('advancedCD') !== undefined) {
-            const legacy = s.modules.get('advancedCD');
-            const ps = s.pluginSettings || {};
-            ps.music = ps.music || {};
-            ps.music.advancedCD = legacy;
-            s.modules.delete('advancedCD');
-            s.pluginSettings = ps;
-            s.markModified('pluginSettings');
-            await s.save();
-            console.log(`[MIGRATION] advancedCD (${legacy}) moved to pluginSettings.music.`);
+        //
+        // Isolated in its own try/catch on purpose: this is the ONLY place we HYDRATE a
+        // legacy Settings doc (findOne, not .lean(), the block needs .modules.get/delete
+        // and .save()). If an install carries some other malformed Settings field beyond
+        // the theme.preset case normalized above, hydration throws a CastError. Without
+        // this guard that error would bubble to the outer catch and silently skip the
+        // collection-merge block below, leaving items collection-less and non-admin users
+        // without a membership (empty app) on every boot. The advancedCD backfill is
+        // best-effort; the collection migration is not, it must always run.
+        try {
+            const s: any = await Settings.findOne();
+            if (s && s.modules && typeof s.modules.get === 'function' && s.modules.get('advancedCD') !== undefined) {
+                const legacy = s.modules.get('advancedCD');
+                const ps = s.pluginSettings || {};
+                ps.music = ps.music || {};
+                ps.music.advancedCD = legacy;
+                s.modules.delete('advancedCD');
+                s.pluginSettings = ps;
+                s.markModified('pluginSettings');
+                await s.save();
+                console.log(`[MIGRATION] advancedCD (${legacy}) moved to pluginSettings.music.`);
+            }
+        } catch (advancedCDError) {
+            console.error('[MIGRATION] advancedCD backfill skipped (non-fatal):', advancedCDError);
         }
 
         // discogsUsername moved from a core User field to plugin-scoped pluginData.music.
