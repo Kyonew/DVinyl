@@ -511,9 +511,6 @@
     "api_error": "Es konnte keine Verbindung zu Discogs hergestellt werden.",
     "current_password_incorrect": "Das aktuelle Passwort ist falsch.",
     "sso_no_local_password": "Dieses Konto verwendet Single Sign-On (SSO) und hat kein lokales Passwort zum Ändern.",
-    "delete_self_error": "Sie können sich nicht selbst löschen.",
-    "delete_admin_error": "Sie können keinen anderen Instanz-Administrator löschen.",
-    "reset_admin_error": "Sie können das Passwort eines anderen Instanz-Administrators nicht zurücksetzen.",
     "generic_server_error": "Interner Serverfehler.",
     "invalid_credentials": "Ungültige Anmeldeinformationen",
     "invalid_theme": "Ungültiges Thema.",
@@ -656,7 +653,10 @@
     "error_shared_member_reset": "Dieser Benutzer gehört zu anderen Sammlungen; nur der Instanz-Admin kann sein Passwort zurücksetzen.",
     "oidc_linked": "Konto erfolgreich verknüpft!",
     "oidc_already_linked": "Diese SSO-Identität ist bereits mit einem anderen Konto verknüpft.",
-    "oidc_unlinked": "Verknüpfung aufgehoben."
+    "oidc_unlinked": "Verknüpfung aufgehoben.",
+    "delete_self_error": "Sie können sich nicht selbst löschen.",
+    "delete_admin_error": "Sie können keinen anderen Instanz-Administrator löschen.",
+    "reset_admin_error": "Sie können das Passwort eines anderen Instanz-Administrators nicht zurücksetzen."
   },
   "modal": {
     "add_hub_subtitle": "Wählen Sie den Medientyp aus, den Sie Ihrer Sammlung hinzufügen möchten",

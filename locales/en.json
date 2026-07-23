@@ -77,9 +77,6 @@
     "generic_server_error": "Internal server error.",
     "api_error": "Could not connect to Discogs.",
     "save_error": "Error while saving.",
-    "delete_self_error": "You cannot delete yourself.",
-    "delete_admin_error": "You cannot delete another instance administrator.",
-    "reset_admin_error": "You cannot reset another instance administrator's password.",
     "invalid_credentials": "Invalid credentials",
     "too_many_attempts_timed": "Too many attempts. Try again in {{seconds}} seconds.",
     "too_many_attempts_blocked": "Too many attempts. Try again in 5 minutes.",
@@ -125,7 +122,10 @@
     "error_shared_member_reset": "This user belongs to other collections; only the instance admin can reset their password.",
     "oidc_linked": "Account linked successfully!",
     "oidc_already_linked": "This SSO identity is already linked to another account.",
-    "oidc_unlinked": "Account unlinked."
+    "oidc_unlinked": "Account unlinked.",
+    "delete_self_error": "You cannot delete yourself.",
+    "delete_admin_error": "You cannot delete another instance administrator.",
+    "reset_admin_error": "You cannot reset another instance administrator's password."
   },
   "media": {
     "vinyl": "Vinyl",

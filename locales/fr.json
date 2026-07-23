@@ -77,9 +77,6 @@
     "generic_server_error": "Erreur interne du serveur.",
     "api_error": "Impossible de contacter Discogs.",
     "save_error": "Erreur lors de la sauvegarde.",
-    "delete_self_error": "Impossible de se supprimer soi-même.",
-    "delete_admin_error": "Impossible de supprimer un autre administrateur d'instance.",
-    "reset_admin_error": "Impossible de réinitialiser le mot de passe d'un autre administrateur d'instance.",
     "invalid_credentials": "Identifiants invalides",
     "too_many_attempts_timed": "Trop de tentatives. Réessaie dans {{seconds}} secondes.",
     "too_many_attempts_blocked": "Trop de tentatives. Réessaie dans 5 minutes.",
@@ -125,7 +122,10 @@
     "error_shared_member_reset": "Cet utilisateur appartient à d'autres collections ; seul l'admin de l'instance peut réinitialiser son mot de passe.",
     "oidc_linked": "Compte lié avec succès !",
     "oidc_already_linked": "Cette identité SSO est déjà liée à un autre compte.",
-    "oidc_unlinked": "Compte délié."
+    "oidc_unlinked": "Compte délié.",
+    "delete_self_error": "Impossible de se supprimer soi-même.",
+    "delete_admin_error": "Impossible de supprimer un autre administrateur d'instance.",
+    "reset_admin_error": "Impossible de réinitialiser le mot de passe d'un autre administrateur d'instance."
   },
   "media": {
     "vinyl": "Vinyle",

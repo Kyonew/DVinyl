@@ -511,9 +511,6 @@
     "api_error": "Impossibile connettersi a Discogs.",
     "current_password_incorrect": "La password attuale non è corretta.",
     "sso_no_local_password": "Questo account usa il single sign-on (SSO) e non ha una password locale da modificare.",
-    "delete_self_error": "Non puoi eliminare te stesso.",
-    "delete_admin_error": "Non puoi eliminare un altro amministratore dell'istanza.",
-    "reset_admin_error": "Non puoi reimpostare la password di un altro amministratore dell'istanza.",
     "generic_server_error": "Errore interno del server.",
     "invalid_credentials": "Credenziali non valide",
     "invalid_theme": "Tema non valido.",
@@ -656,7 +653,10 @@
     "error_shared_member_reset": "Questo utente appartiene ad altre collezioni; solo l'admin dell'istanza può reimpostare la sua password.",
     "oidc_linked": "Account collegato con successo!",
     "oidc_already_linked": "Questa identità SSO è già collegata a un altro account.",
-    "oidc_unlinked": "Account scollegato."
+    "oidc_unlinked": "Account scollegato.",
+    "delete_self_error": "Non puoi eliminare te stesso.",
+    "delete_admin_error": "Non puoi eliminare un altro amministratore dell'istanza.",
+    "reset_admin_error": "Non puoi reimpostare la password di un altro amministratore dell'istanza."
   },
   "modal": {
     "add_hub_subtitle": "Seleziona il tipo di media da aggiungere alla tua raccolta",
