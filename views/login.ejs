@@ -37,7 +37,13 @@
         <h1 class="text-3xl font-bold text-white mb-8 text-center">
           👋 <%= t('login.welcome') %>
         </h1>
-        
+
+        <% if (typeof oidcError !== 'undefined' && oidcError) { %>
+          <div class="error text-sm text-center mb-6">
+            <%= t(oidcError === 'oidc_unlinked' ? 'login.error_oidc_unlinked' : 'login.error_oidc_unavailable') %>
+          </div>
+        <% } %>
+
         <form action="<%= baseUrl %>/login" class="space-y-6">
           <div class="grid gap-4">
             <div>
@@ -82,6 +88,21 @@
             <%= t('login.submit_btn') %>
           </button>
         </form>
+
+        <% if (oidcEnabled) { %>
+          <div class="flex items-center gap-3 my-6">
+            <div class="flex-grow border-t border-gray-700"></div>
+            <span class="text-xs text-gray-400 uppercase"><%= t('login.or_divider') %></span>
+            <div class="flex-grow border-t border-gray-700"></div>
+          </div>
+
+          <a
+            href="<%= baseUrl %>/login/oidc"
+            class="w-full flex items-center justify-center gap-2 bg-transparent border border-gray-700 hover:bg-gray-800 text-white font-semibold py-3 px-6 rounded-lg transition-all">
+            <i class="fas fa-shield-halved"></i>
+            <%= oidcButtonLabel || t('login.sso_button') %>
+          </a>
+        <% } %>
       </div>
     </section>
   </div>

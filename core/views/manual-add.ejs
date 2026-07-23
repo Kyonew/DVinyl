@@ -1,0 +1,125 @@
+<%- include('../../views/partials/header') %>
+
+<div class="max-w-screen-xl mx-auto pb-20 px-4 md:px-0">
+
+    <nav class="flex mb-6 text-sm opacity-60 transition-colors">
+        <a href="<%= baseUrl %>/collection" class="hover:opacity-100 transition-opacity flex items-center py-2">
+            <i class="fa-solid fa-arrow-left mr-2"></i> <%= t('common.cancel_back') %>
+        </a>
+    </nav>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+        <!-- Left Side: Cover Image Preview -->
+        <div class="lg:col-span-4 space-y-6">
+            <div class="card-theme rounded-xl p-6 sticky top-24 transition-colors shadow-sm">
+                <div class="<%= plugin.aspectRatioClass || 'aspect-[2/3]' %> rounded-lg overflow-hidden shadow-lg relative group bg-black/5 dark:bg-white/5">
+                    <img id="livePreview" src="<%= item.cover_image || '/ressources/logo.png' %>" class="w-full h-full object-cover transition-all duration-500">
+                    <div class="absolute inset-0 bg-black/40 hidden group-hover:flex items-center justify-center text-white text-xs font-bold backdrop-blur-sm">
+                        <%= t('confirm_' + plugin.i18nKey + '.cover_preview', { defaultValue: t('confirm_vinyl.cover_preview') }) %>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side: Selector and Forms -->
+        <div class="lg:col-span-8 space-y-6">
+            <!-- Segmented Selector Tab for Type -->
+            <div class="card-theme p-1.5 rounded-2xl flex gap-1 transition-colors shadow-sm">
+                <% for (const p of enabledPlugins) { %>
+                    <a href="<%= baseUrl %>/manual-add?type=<%= p.id %>" class="flex-grow flex items-center justify-center gap-2 py-3.5 text-xs font-black uppercase tracking-widest rounded-xl transition-all <%= p.id === plugin.id ? 'bg-primary-theme text-white shadow-md' : 'opacity-50 hover:opacity-100' %>">
+                        <i class="fa-solid fa-<%= p.icon %>"></i> <%= t(p.label) %>
+                    </a>
+                <% } %>
+            </div>
+
+            <div class="card-theme rounded-xl p-6 md:p-8 transition-colors shadow-sm">
+                <h1 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                    <i class="fa-solid fa-pencil text-primary-theme"></i> <%= t('add.manual_entry') %>
+                </h1>
+
+                <form action="<%= baseUrl %>/save-<%= plugin.id %>" method="POST" class="space-y-6">
+                    <input type="hidden" name="mongo_id" value="">
+
+                    <!-- Main Fields (grouped by pairs) -->
+                    <div class="space-y-6">
+                        <%
+                        const mainFields = plugin.formFields.filter(f => f.showIn.includes('manual') && f.group === 'main' && f.type !== 'custom');
+                        for (let i = 0; i < mainFields.length; i += 2) {
+                            const field1 = mainFields[i];
+                            const field2 = mainFields[i+1];
+                        %>
+                            <div class="grid grid-cols-1 <%= field2 ? 'md:grid-cols-2' : '' %> gap-6">
+                                <% if (field1) { %>
+                                    <div>
+                                        <%- include('partials/fields/' + field1.type, { field: field1, value: item[field1.name], item }) %>
+                                    </div>
+                                <% } %>
+                                <% if (field2) { %>
+                                    <div>
+                                        <%- include('partials/fields/' + field2.type, { field: field2, value: item[field2.name], item }) %>
+                                    </div>
+                                <% } %>
+                            </div>
+                        <% } %>
+                    </div>
+
+                    <!-- Custom fields from plugin (like tracklist editor), end of the "album info" section -->
+                    <%
+                    const customFields = plugin.formFields.filter(f => f.showIn.includes('manual') && f.type === 'custom');
+                    customFields.forEach(field => {
+                    %>
+                        <%- include('../../' + plugin.partialsPath + '/' + field.partial, { field, item }) %>
+                    <% }) %>
+
+                    <%- include('partials/item-images', { plugin, item }) %>
+
+                    <hr class="border-black/10 dark:border-white/10 my-6 transition-colors">
+
+                    <!-- Metadata Fields (grouped by pairs) -->
+                    <div class="space-y-6">
+                        <%
+                        const metaFields = plugin.formFields.filter(f => f.showIn.includes('manual') && f.group === 'metadata' && f.type !== 'custom');
+                        for (let i = 0; i < metaFields.length; i += 2) {
+                            const field1 = metaFields[i];
+                            const field2 = metaFields[i+1];
+                        %>
+                            <div class="grid grid-cols-1 <%= field2 ? 'md:grid-cols-2' : '' %> gap-6">
+                                <% if (field1) { %>
+                                    <div>
+                                        <%- include('partials/fields/' + field1.type, { field: field1, value: item[field1.name], item }) %>
+                                    </div>
+                                <% } %>
+                                <% if (field2) { %>
+                                    <div>
+                                        <%- include('partials/fields/' + field2.type, { field: field2, value: item[field2.name], item }) %>
+                                    </div>
+                                <% } %>
+                            </div>
+                        <% } %>
+                    </div>
+
+                    <div class="pt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <button type="submit" name="in_wishlist" value="true" class="bg-black/5 dark:bg-white/5 hover:bg-pink-500 hover:text-white font-bold rounded-lg text-sm px-5 py-4 transition-colors flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-gift"></i> <%= t('confirm_' + plugin.i18nKey + '.btn_wishlist', { defaultValue: t('confirm_vinyl.btn_wishlist') }) %>
+                        </button>
+                        <button type="submit" name="in_wishlist" value="false" class="text-white bg-primary-theme hover:brightness-110 font-bold rounded-lg text-lg px-5 py-4 transition-transform hover:scale-[1.01] flex items-center justify-center gap-2 shadow-lg shadow-primary-theme/20">
+                            <i class="fa-solid fa-check"></i> <%= t('confirm_' + plugin.i18nKey + '.btn_collection', { defaultValue: t('confirm_vinyl.btn_collection') }) %>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('partials/item-images-js', { plugin }) %>
+
+<style>
+    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(100,100,100,0.2); border-radius: 2px; }
+    .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
+</style>
+
+<%- include('../../views/partials/footer') %>

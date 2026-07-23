@@ -47,10 +47,7 @@
                         </select>
                     </div>
 
-                    <% const themeCats=[ {key: 'music' , label: t('perso.themes.music'), icon: 'fa-music' },
-                        {key: 'books' , label: t('perso.themes.books'), icon: 'fa-book' }, {key: 'dvd' , label:
-                        t('perso.themes.dvd'), icon: 'fa-film' }, {key: 'games' , label:
-                        t('perso.themes.games'), icon: 'fa-gamepad' } ] %>
+                    <% const themeCats = registry.getEnabled(settings).map(p => ({ key: p.collectionType, label: t(p.label), icon: 'fa-' + p.icon })); %>
 
                         <% themeCats.forEach((tTheme)=> { %>
                             <div class="space-y-2">
@@ -87,24 +84,23 @@
                 </p>
 
                 <div class="space-y-6">
-                    <% const shortcutGroups=[ { label: t('perso.modules.global'), active: true, options: [ {
-                        id: 'global_home' , label: t('nav.home') }, { id: 'global_collection' , label:
-                        t('nav.collection') }, { id: 'global_wishlist' , label: t('nav.wishlist') } ] }, { label:
-                        t('perso.modules.music'), active: settings.modules.music, options: [ { id: 'music' , label:
-                        t('media.music') }, { id: 'music_vinyl' , label: t('media.vinyls') }, { id: 'music_cd' , label:
-                        t('media.cds') }, { id: 'music_cassette' , label: t('media.cassettes') } ] }, { label:
-                        t('perso.modules.books'), active: settings.modules.books, options: [ { id: 'books' , label:
-                        t('media.books') }, { id: 'book_hardcover' , label: t('media.hardcover') }, {
-                        id: 'book_paperback' , label: t('media.paperback') }, { id: 'book_manga' , label:
-                        t('media.manga') }, { id: 'book_comic' , label: t('media.comic') }, { id: 'book_graphic_novel' ,
-                        label: t('media.graphic_novel') } ] }, { label: t('perso.modules.dvd'), active:
-                        settings.modules.dvd, options: [ { id: 'dvd' , label: t('media.dvd_gen') }, { id: 'dvd_dvd' ,
-                        label: t('media.dvd') }, { id: 'dvd_bluray' , label: t('media.bluray') }, { id: 'dvd_4k' ,
-                        label: t('media.4k') }, { id: 'dvd_vhs' , label: t('media.vhs') }, { id: 'dvd_laserdisc' ,
-                        label: t('media.laserdisc') } ] }, { label: t('perso.modules.games'), active:
-                        settings.modules.games, options: [ { id: 'games' , label: t('media.games') }, { id: 'game_physical' ,
-                        label: t('media.physical') }, { id: 'game_collector' , label: t('media.collector') }, { id: 'game_limited' ,
-                        label: t('media.limited') }, { id: 'game_steelbook' , label: t('media.steelbook') } ] } ] %>
+                    <%
+                    // Global group plus one group per plugin (navbarShortcuts declared by the plugin)
+                    const shortcutGroups = [
+                        { label: t('perso.modules.global'), active: true, options: [
+                            { id: 'global_home', label: t('nav.home') },
+                            { id: 'global_collection', label: t('nav.collection') },
+                            { id: 'global_wishlist', label: t('nav.wishlist') }
+                        ] }
+                    ];
+                    registry.getAll().forEach(p => {
+                        shortcutGroups.push({
+                            label: t(p.label),
+                            active: !!(settings.modules && settings.modules[p.collectionType]),
+                            options: (p.navbarShortcuts || []).map(sc => ({ id: sc.id, label: t(sc.label) }))
+                        });
+                    });
+                    %>
 
                         <div class="flex gap-2 overflow-x-auto pb-2 scrollbar-hide flex-nowrap">
                             <% shortcutGroups.forEach((group, idx)=> { %>
@@ -164,18 +160,18 @@
                 </p>
 
                 <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    <% const fastAddOptions=[ { value: '' , label: t('perso.fastAdd_disabled'), icon: 'fa-xmark' ,
-                        color: 'peer-checked:bg-gray-500' }, ]; if (settings.modules.music) { fastAddOptions.push( {
-                        value: 'vinyl' , label: t('media.vinyls'), icon: 'fa-record-vinyl' ,
-                        color: 'peer-checked:bg-green-600' }, { value: 'cd' , label: t('media.cds'),
-                        icon: 'fa-compact-disc' , color: 'peer-checked:bg-blue-600' }, { value: 'cassette' , label:
-                        t('media.cassettes'), icon: 'fa-tape' , color: 'peer-checked:bg-orange-600' } ); } if
-                        (settings.modules.books) { fastAddOptions.push( { value: 'book' , label: t('media.books'),
-                        icon: 'fa-book' , color: 'peer-checked:bg-amber-600' } ); } if (settings.modules.dvd) {
-                        fastAddOptions.push( { value: 'dvd' , label: t('media.dvd_gen'), icon: 'fa-film' ,
-                        color: 'peer-checked:bg-red-600' } ); } if (settings.modules.games) {
-                        fastAddOptions.push( { value: 'game' , label: t('media.games'), icon: 'fa-gamepad' ,
-                        color: 'peer-checked:bg-emerald-600' } ); } %>
+                    <%
+                    const fastAddOptions = [
+                        { value: '', label: t('perso.fastAdd_disabled'), icon: 'fa-xmark', color: 'peer-checked:bg-gray-500' }
+                    ];
+                    registry.getAll().forEach(p => {
+                        if (settings.modules && settings.modules[p.collectionType]) {
+                            (p.fastAddOptions || []).forEach(o => {
+                                fastAddOptions.push({ value: o.value, label: t(o.label), icon: o.icon, color: o.color });
+                            });
+                        }
+                    });
+                    %>
                         <% fastAddOptions.forEach(opt=> { %>
                             <label class="cursor-pointer relative group">
                                 <input type="radio" name="fastAdd" value="<%= opt.value %>" class="peer sr-only"
@@ -207,66 +203,21 @@
                 </p>
 
                 <div class="space-y-6">
-                    <% const statOptions=[ 
-                        { 
-                            group: t('perso.modules.global'), 
-                            active: true, 
-                            options: [ 
-                                { id: 'total' , label: t('stats.total_label') } 
-                            ] 
-                        }, 
-                        { 
-                            group: t('perso.modules.music'), 
-                            active: settings.modules.music, 
-                            options: [ 
-                                { id: 'vinyl' , label: t('media.vinyls') }, 
-                                { id: 'cd' , label: t('media.cds') }, 
-                                { id: 'cassette' , label: t('media.cassettes') }, 
-                                { id: 'artist' , label: t('stats.top_artist_label') },
-                                { id: 'music_genre', label: t('stats.top_genre_label') },
-                                { id: 'label', label: t('stats.top_label_label') }
-                            ] 
-                        }, 
-                        { 
-                            group: t('perso.modules.books'), 
-                            active: settings.modules.books, 
-                            options: [ 
-                                { id: 'book_total' , label: t('stats.books_total_label') }, 
-                                { id: 'book_hardcover' , label: t('media.hardcover_pl') }, 
-                                { id: 'book_paperback' , label: t('media.paperback_pl') }, 
-                                { id: 'book_manga' , label: t('media.mangas') }, 
-                                { id: 'book_comic' , label: t('media.comics') }, 
-                                { id: 'author' , label: t('stats.top_author_label') },
-                                { id: 'publisher', label: t('stats.top_publisher_label') }
-                            ] 
-                        }, 
-                        { 
-                            group: t('perso.modules.dvd'), 
-                            active: settings.modules.dvd, 
-                            options: [ 
-                                { id: 'dvd_total' , label: t('stats.dvd_total_label') }, 
-                                { id: 'dvd_bluray' , label: t('media.blurays') }, 
-                                { id: 'dvd_4k' , label: t('media.4k_pl') }, 
-                                { id: 'dvd_vhs' , label: t('media.vhss') }, 
-                                { id: 'dvd_laserdisc' , label: t('media.laserdiscs') }, 
-                                { id: 'director' , label: t('stats.top_director_label') },
-                                { id: 'studio', label: t('stats.top_studio_label') }
-                            ] 
-                        },
-                        { 
-                            group: t('perso.modules.games'), 
-                            active: settings.modules.games, 
-                            options: [ 
-                                { id: 'game_total' , label: t('stats.games_total_label') }, 
-                                { id: 'game_physical' , label: t('media.physical') }, 
-                                { id: 'game_collector' , label: t('media.collector') }, 
-                                { id: 'game_limited' , label: t('media.limited') }, 
-                                { id: 'game_steelbook' , label: t('media.steelbook') }, 
-                                { id: 'game_developer' , label: t('stats.top_developer_label') },
-                                { id: 'game_publisher', label: t('stats.top_game_publisher_label') }
-                            ] 
-                        } 
-                    ] %>
+                    <%
+                    // Global widget plus widgets declared by each plugin (statsWidgets)
+                    const statOptions = [
+                        { group: t('perso.modules.global'), active: true, options: [
+                            { id: 'total', label: t('stats.total_label') }
+                        ] }
+                    ];
+                    registry.getAll().forEach(p => {
+                        statOptions.push({
+                            group: t(p.label),
+                            active: !!(settings.modules && settings.modules[p.collectionType]),
+                            options: (p.statsWidgets || []).map(w => ({ id: w.id, label: t(w.label) }))
+                        });
+                    });
+                    %>
 
                         <div class="flex gap-2 overflow-x-auto pb-2 scrollbar-hide flex-nowrap">
                             <% statOptions.forEach((group, idx)=> { %>

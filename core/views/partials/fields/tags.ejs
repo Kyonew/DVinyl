@@ -1,0 +1,10 @@
+<% const withGenreList = field.name === 'genres' && typeof genres !== 'undefined' && Array.isArray(genres) && genres.length > 0; %>
+<label class="block mb-2 text-sm font-bold uppercase tracking-widest opacity-60"><%= t(field.label) %></label>
+<input type="text" name="<%= field.name %>" value="<%= Array.isArray(value) ? value.join(', ') : (value || '') %>" <%- withGenreList ? 'list="genreList"' : '' %> class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme block w-full p-3 outline-none" placeholder="<%= field.placeholder ? t(field.placeholder) : '' %>">
+<% if (withGenreList) { %>
+    <datalist id="genreList">
+        <% genres.forEach(g => { %>
+            <option value="<%= g %>">
+        <% }) %>
+    </datalist>
+<% } %>

@@ -29,7 +29,8 @@
     "filters": "Filtres",
     "already_in_collection_title": "Cet élément semble déjà présent dans votre collection",
     "already_in_collection_desc": "Cet élément figure déjà dans votre collection (Quantité actuelle : {{qty}}). Si vous le confirmez, sa quantité sera augmentée.",
-    "btn_add_anyway": "Ajouter quand même"
+    "btn_add_anyway": "Ajouter quand même",
+    "forbidden": "Accès interdit"
   },
   "settings": {
     "page_title": "Paramètres du compte",
@@ -47,6 +48,9 @@
     "new_username_label": "Nouveau pseudo",
     "modal_avatar_title": "Nouvelle photo",
     "avatar_hint": "Max 5 Mo. JPG, PNG, GIF, WEBP.",
+    "avatar_gravatar_btn": "Importer depuis Gravatar",
+    "avatar_remove_btn": "Supprimer la photo",
+    "avatar_remove_confirm": "Supprimer la photo de profil actuelle ?",
     "modal_password_title": "Mot de passe",
     "password_warning": "Vous serez déconnecté après le changement.",
     "current_password_label": "Mot de passe actuel",
@@ -56,7 +60,12 @@
     "currency_label": "Devise préférée",
     "currency_eur": "Euro (€)",
     "currency_usd": "Dollar ($)",
-    "currency_gbp": "Livre sterling (£)"
+    "currency_gbp": "Livre sterling (£)",
+    "oidc_title": "Authentification unique (SSO)",
+    "oidc_linked_label": "Lié à votre fournisseur d'identité",
+    "oidc_not_linked_label": "Non lié",
+    "oidc_link_btn": "Lier le compte",
+    "oidc_unlink_btn": "Délier"
   },
   "errors": {
     "username_taken": "Ce pseudo est déjà utilisé.",
@@ -72,7 +81,8 @@
     "too_many_attempts_timed": "Trop de tentatives. Réessaie dans {{seconds}} secondes.",
     "too_many_attempts_blocked": "Trop de tentatives. Réessaie dans 5 minutes.",
     "404_title": "Oups ! Sillon sans issue.",
-    "404_desc": "La page que vous cherchez semble avoir été rayée de la collection ou le module associé est actuellement désactivé."
+    "404_desc": "La page que vous cherchez semble avoir été rayée de la collection ou le module associé est actuellement désactivé.",
+    "not_found": "Élément introuvable."
   },
   "messages": {
     "username_current": "C'est votre pseudo actuel.",
@@ -91,8 +101,26 @@
     "password_reset_success": "Mot de passe réinitialisé pour {{name}}.",
     "password_mismatch": "Les mots de passe ne correspondent pas.",
     "avatar_success": "Photo de profil mise à jour !",
+    "gravatar_not_found": "Aucun Gravatar trouvé pour cet email.",
     "estimate_error": "Erreur lors de l'estimation",
-    "batch_barcode_success": "{{count}} codes-barres mis à jour !"
+    "batch_barcode_success": "{{count}} codes-barres mis à jour !",
+    "collection_created": "Collection créée !",
+    "error_collection_name": "Un nom de collection est requis.",
+    "collection_renamed": "Collection renommée !",
+    "member_added": "Membre ajouté !",
+    "member_role_updated": "Rôle mis à jour !",
+    "member_removed": "Membre retiré.",
+    "collection_deleted": "Collection supprimée.",
+    "error_member": "Échec de l'opération.",
+    "error_member_not_found": "Utilisateur introuvable.",
+    "error_member_exists": "Cet utilisateur est déjà membre.",
+    "error_last_admin": "Impossible : c'est le dernier admin de la collection.",
+    "error_delete_default_collection": "La collection par défaut ne peut pas être supprimée.",
+    "error_self_role": "Vous ne pouvez pas modifier votre propre rôle.",
+    "error_shared_member_reset": "Cet utilisateur appartient à d'autres collections ; seul l'admin de l'instance peut réinitialiser son mot de passe.",
+    "oidc_linked": "Compte lié avec succès !",
+    "oidc_already_linked": "Cette identité SSO est déjà liée à un autre compte.",
+    "oidc_unlinked": "Compte délié."
   },
   "media": {
     "vinyl": "Vinyle",
@@ -132,7 +160,10 @@
     "collector": "Collector",
     "limited": "Édition Limitée",
     "steelbook": "Steelbook",
-    "book": "Livre"
+    "digital": "Digital",
+    "book": "Livre",
+    "lego": "LEGO",
+    "legos": "Sets LEGO"
   },
   "index": {
     "welcome": "Salut",
@@ -164,7 +195,13 @@
     "owned_times": "Possédé {{count}} fois dans la collection",
     "games_total_label": "Total Jeux Vidéo",
     "top_developer_label": "Développeur Favori",
-    "top_game_publisher_label": "Éditeur Favori (Jeux)"
+    "top_game_publisher_label": "Éditeur Favori (Jeux)",
+    "top_platform_label": "Console Favorite",
+    "lego_total_label": "Total sets LEGO",
+    "lego_pieces_label": "Total de pièces",
+    "lego_minifigs_label": "Total minifigurines",
+    "lego_sealed_label": "Sets scellés",
+    "top_theme_label": "Thème le plus présent"
   },
   "modal": {
     "estimate_title": "Estimation en cours...",
@@ -282,7 +319,15 @@
       "title": "Importation Discogs",
       "subtitle": "Importez votre collection ou votre wishlist Discogs",
       "collection": "Importer la collection",
-      "wantlist": "Importer la wishlist"
+      "wantlist": "Importer la wishlist",
+      "url_label": "URL du profil Discogs",
+      "url_hint": "Votre page collection ou wantlist publique",
+      "type_label": "Cible",
+      "full_label": "Mode",
+      "full_hint": "Le mode complet importe aussi les tracklists (plus lent)",
+      "mode_fast": "Rapide",
+      "mode_full": "Complet (avec tracklists)",
+      "btn_start": "Démarrer l'import"
     },
     "maintenance": {
       "title": "Maintenance",
@@ -349,7 +394,8 @@
       "step4": "Déposez le fichier ci-dessous et lancez l'importation",
       "drop_hint": "Glissez votre fichier CSV ici ou cliquez pour parcourir",
       "file_ready": "Fichier prêt à être importé",
-      "btn_import": "Lancer l'importation"
+      "btn_import": "Lancer l'importation",
+      "file_label": "Fichier CSV"
     },
     "visibility": {
       "apply_to_admin": "Appliquez également ces règles à l'administrateur",
@@ -365,6 +411,60 @@
       "subtitle": "Cachez des éléments spécifiques de votre collection aux invités (ou à vous-même).",
       "success_msg": "Paramètres de visibilité mis à jour.",
       "title": "Paramètres de visibilité"
+    },
+    "module_settings": "Réglages du module",
+    "advanced_cd_desc": "Recherche aussi les formats SACD et CDr sur Discogs",
+    "collections": {
+      "title": "Collections ({{count}})",
+      "name_placeholder": "Nom de la nouvelle collection",
+      "create": "Créer",
+      "col_name": "Nom",
+      "col_slug": "Slug",
+      "col_members": "Membres",
+      "default_badge": "Défaut",
+      "rename": "Renommer",
+      "confirm_delete": "Supprimer la collection {{name}} et TOUS ses items ? Action irréversible."
+    },
+    "instance": {
+      "title": "Instance",
+      "subtitle": "Gestion globale : utilisateurs, collections, sécurité et sauvegarde complète.",
+      "admin_badge": "Instance",
+      "manage": "Gérer",
+      "add_member": "Ajouter un utilisateur de l'instance",
+      "stat_users": "Utilisateurs",
+      "stat_collections": "Collections",
+      "stat_items": "Items",
+      "stat_blocked": "IPs bloquées",
+      "backup_title": "Sauvegarde de l'instance",
+      "backup_subtitle": "Exporte TOUTE l'instance : tous les utilisateurs, toutes les collections avec leurs items, réglages et logs de connexion - dans un seul fichier.",
+      "backup_warning": "L'import remplace TOUTES les données de l'instance (toutes les collections, tous les utilisateurs). Pour restaurer une seule collection, utilisez sa sauvegarde dédiée depuis la page admin de cette collection.",
+      "backup_confirm_import": "Cet import va REMPLACER TOUTE l'instance : tous les utilisateurs, toutes les collections et leurs items. Vous serez déconnecté. Continuer ?"
+    },
+    "logs_delete_last": {
+      "count_placeholder": "Nombre",
+      "btn": "Supprimer",
+      "confirm": "Supprimer les {{count}} derniers logs de connexion ?"
+    },
+    "members": {
+      "title": "Membres ({{count}})",
+      "create_btn": "Créer un membre",
+      "invite_placeholder": "Email ou nom d'utilisateur existant",
+      "invite_btn": "Inviter",
+      "col_role": "Rôle",
+      "role_viewer": "Lecteur",
+      "role_editor": "Éditeur",
+      "role_admin": "Admin",
+      "confirm_remove": "Retirer {{name}} de cette collection ?",
+      "remove_btn": "Retirer de la collection"
+    },
+    "my_collection": {
+      "title": "Ma collection",
+      "name_label": "Nom de la collection"
+    },
+    "collection_backup": {
+      "title": "Sauvegarde de la collection",
+      "subtitle": "Exporter cette collection (items + réglages) ou remplacer son contenu par une sauvegarde.",
+      "confirm_import": "L'import va REMPLACER tous les items de cette collection. Continuer ?"
     }
   },
   "collection": {
@@ -384,9 +484,11 @@
     "filter_mode_show": "Afficher",
     "filter_mode_hide": "Masquer",
     "styles_filter": "Styles",
+    "platform_filter": "Console",
     "clear_all": "Effacer tous les filtres",
     "search_genre_placeholder": "Rechercher des genres...",
     "search_style_placeholder": "Rechercher des styles...",
+    "search_platform_placeholder": "Rechercher des consoles...",
     "active_filters": "Filtres actifs :"
   },
   "confirm_vinyl": {
@@ -429,7 +531,8 @@
     "sleeve_condition_generic": "Pochette générique",
     "add_cover": "Ajouter une pochette",
     "manual_title": "Ajouter un album manuellement",
-    "manual_mode_hint": "Saisie manuelle — pas de données Discogs. L'estimation de marché ne sera pas disponible."
+    "manual_mode_hint": "Saisie manuelle - pas de données Discogs. L'estimation de marché ne sera pas disponible.",
+    "tracklist_label": "Liste des pistes"
   },
   "edit_vinyl": {
     "title": "Modifier l'album",
@@ -484,7 +587,10 @@
     "theme_light": "Mode Clair",
     "home": "Accueil",
     "wishlist": "Souhaits",
-    "collection": "Collection"
+    "collection": "Collection",
+    "collections": "Collections",
+    "instance": "Instance",
+    "administration": "Administration"
   },
   "footer": {
     "made_with": "Développé avec",
@@ -497,7 +603,11 @@
     "email_placeholder": "exemple@email.com",
     "password_label": "Mot de passe",
     "password_placeholder": "Mot de passe",
-    "submit_btn": "Se connecter"
+    "submit_btn": "Se connecter",
+    "or_divider": "OU",
+    "sso_button": "Se connecter via SSO",
+    "error_oidc_unlinked": "Aucun compte n'est lié à cette identité SSO. Connectez-vous d'abord avec votre mot de passe, puis liez votre compte depuis les paramètres.",
+    "error_oidc_unavailable": "La connexion SSO est momentanément indisponible. Réessayez ou utilisez votre mot de passe."
   },
   "setup": {
     "title": "Installation DVinyl",
@@ -524,7 +634,16 @@
     "password_too_short": "Le mot de passe doit faire 6 caractères minimum"
   },
   "placeholders": {
-    "location": "ex: Étagère A - Carton 3"
+    "location": "ex: Étagère A - Carton 3",
+    "year": "Ex: 1994",
+    "barcode": "Code-barres...",
+    "catalog_number": "Ex: COL 12345...",
+    "label": "Ex: Columbia...",
+    "country": "US, Europe...",
+    "genres": "Rock, Pop...",
+    "styles": "Prog Rock, Synth-pop...",
+    "publisher": "Ex: Gallimard...",
+    "lego_set_num": "Ex: 42115"
   },
   "perso": {
     "title": "Personnalisation",
@@ -562,7 +681,8 @@
     "search_placeholder": "Titre, Auteur ou ISBN...",
     "btn_scan": "Scanner un ISBN",
     "results_title": "Résultats",
-    "no_results": "Aucun livre trouvé."
+    "no_results": "Aucun livre trouvé.",
+    "manual_entry": "Introuvable ? Ajouter manuellement"
   },
   "confirm_book": {
     "publisher_label": "Éditeur",
@@ -601,7 +721,8 @@
     "hardcover": "Relié",
     "graphic_novel": "Roman Graphique",
     "manga": "Manga",
-    "comic": "Comic"
+    "comic": "Comic",
+    "digital": "Digital"
   },
   "status": {
     "to_read": "À lire",
@@ -633,7 +754,8 @@
     "scan_found": "Code trouvé !",
     "scan_error": "Erreur de caméra",
     "movie": "Film",
-    "tv_show": "Série"
+    "tv_show": "Série",
+    "manual_entry": "Introuvable ? Ajouter manuellement"
   },
   "confirm_dvd": {
     "title": "Confirmer l'ajout",
@@ -659,7 +781,16 @@
     "status_watched": "Vu",
     "replace_cover": "Remplacer la pochette principale",
     "btn_collection": "Ajouter à la collection",
-    "btn_wishlist": "Ajouter à la Wishlist"
+    "btn_wishlist": "Ajouter à la Wishlist",
+    "studio_label": "Studio",
+    "field_media_type": "Type",
+    "field_zone": "Zone",
+    "barcode_label": "Code-barres",
+    "comments_placeholder": "Ex: Pressage original de 1986, acheté aux Puces...",
+    "media_type_movie": "Film",
+    "media_type_tv": "Série",
+    "field_is_boxset": "C'est un coffret (Boxset)",
+    "field_watch_status": "Statut"
   },
   "edit_dvd": {
     "title": "Modifier l'exemplaire"
@@ -689,7 +820,8 @@
     "scan_stop": "Arrêter le scan",
     "scan_found": "Code trouvé !",
     "scan_error": "Erreur de caméra",
-    "barcode_warning": "Le scan peut ne pas fonctionner correctement pour le moment."
+    "barcode_warning": "Le scan peut ne pas fonctionner correctement pour le moment.",
+    "manual_entry": "Introuvable ? Ajouter manuellement"
   },
   "confirm_game": {
     "config_title": "Vérifier et compléter",
@@ -713,7 +845,8 @@
     "replace_cover": "Remplacer la pochette principale",
     "btn_collection": "Ajouter à la collection",
     "btn_wishlist": "Ajouter à la Wishlist",
-    "cover_preview": "Aperçu de la couverture"
+    "cover_preview": "Aperçu de la couverture",
+    "publisher_label": "Éditeur"
   },
   "edit_game": {
     "title": "Modifier le jeu"
@@ -734,6 +867,147 @@
     "col_position": "Pos.",
     "col_title": "Titre",
     "col_duration": "Durée",
-    "add_track": "Ajouter une piste"
+    "add_track": "Ajouter une piste",
+    "rating": "Note",
+    "tags": "Tags",
+    "tags_placeholder": "house, funk, sample...",
+    "notes": "Notes",
+    "notes_placeholder": "Notes personnelles sur ce morceau...",
+    "bpm": "BPM",
+    "key": "Tonalité",
+    "key_placeholder": "Am / 8A",
+    "lyrics": "Paroles",
+    "load_lyrics": "Charger les paroles",
+    "lyrics_loading": "Recherche...",
+    "lyrics_not_found": "Paroles introuvables.",
+    "search_genius": "Chercher sur Genius",
+    "saved": "Enregistré !",
+    "lyrics_placeholder": "Saisis ou colle les paroles ici...",
+    "add_lyrics_manual": "Saisir les paroles manuellement"
+  },
+  "add": {
+    "manual_entry": "Ajout manuel"
+  },
+  "no_collection": {
+    "title": "Aucune collection",
+    "message": "Vous n'avez accès à aucune collection pour le moment. Demandez à un administrateur de vous ajouter à l'une d'elles - votre accès apparaîtra ici automatiquement."
+  },
+  "create_plugin": {
+    "title": "Éditeur de plugins",
+    "subtitle": "Créez votre propre type de collection (figurines, cartes, BD...) sans écrire de code. Le plugin est généré dans le dossier plugins/ et devient utilisable immédiatement, comme les modules natifs. Les plugins créés ici fonctionnent en saisie manuelle (pas d'API externe).",
+    "existing_title": "Mes plugins custom",
+    "section_identity": "Identité",
+    "name_label": "Nom du plugin",
+    "name_ph": "Ex: Figurines, Cartes Pokémon...",
+    "creator_label": "Champ « créateur »",
+    "creator_ph": "Ex: Fabricant, Artiste, Auteur...",
+    "creator_hint": "Le nom du champ principal associé à chaque élément (comme « Artiste » pour la musique).",
+    "icon_label": "Icône",
+    "color_label": "Couleur",
+    "section_image": "Image",
+    "shape_poster": "Affiche (2/3)",
+    "shape_square": "Carré (pochette)",
+    "secondary_label": "Image secondaire",
+    "secondary_desc": "Ajoute un second visuel modifiable (comme le disque pour la musique).",
+    "section_basics": "Champs standards",
+    "basics_desc": "Activez les champs prêts à l'emploi que vous voulez proposer sur ce type d'élément.",
+    "feature_year": "Année",
+    "feature_barcode": "Code-barres",
+    "feature_genre": "Genres",
+    "feature_rating": "Note (sur 5)",
+    "feature_comments": "Notes personnelles",
+    "feature_location": "Emplacement",
+    "feature_tracklist": "Liste de pistes",
+    "section_formats": "Formats / éditions",
+    "formats_desc": "Optionnel : les déclinaisons de vos éléments (ex: Neuf / Occasion, Standard / Collector). Chaque format a son badge coloré et son filtre.",
+    "format_name_ph": "Ex: Édition collector",
+    "add_format": "Ajouter un format",
+    "section_fields": "Champs personnalisés",
+    "fields_desc": "Ajoutez vos propres champs : texte, nombre, liste déroulante, case à cocher...",
+    "field_label_ph": "Ex: Échelle, Matière, Numéro...",
+    "add_field": "Ajouter un champ",
+    "type_text": "Texte",
+    "type_number": "Nombre",
+    "type_textarea": "Texte long",
+    "type_select": "Liste déroulante",
+    "type_boolean": "Case à cocher",
+    "type_tags": "Étiquettes",
+    "field_group_main": "Section principale",
+    "field_group_meta": "Métadonnées",
+    "field_required": "Obligatoire",
+    "field_options_ph": "Options séparées par des virgules (ex: Petit, Moyen, Grand)",
+    "preview_title": "Aperçu en direct",
+    "preview_card": "Carte dans la collection",
+    "preview_form": "Formulaire d'ajout",
+    "preview_sample_title": "Mon premier élément",
+    "preview_sample_creator": "Exemple",
+    "save_btn": "Créer le plugin",
+    "update_btn": "Enregistrer les modifications",
+    "saving": "Enregistrement...",
+    "delete_confirm": "Supprimer ce plugin ? Les %COUNT% élément(s) déjà enregistrés resteront en base de données mais ne seront plus visibles.",
+    "err_label_required": "Le nom du plugin est requis.",
+    "err_bad_id": "L'identifiant du plugin est invalide (minuscules, chiffres et tirets, 2 à 30 caractères).",
+    "err_reserved_id": "Ce nom est réservé par l'application, choisissez-en un autre.",
+    "err_id_taken": "Un plugin ou un dossier porte déjà ce nom.",
+    "err_bad_icon": "L'icône est invalide (format attendu : fa-xxx).",
+    "err_creator_required": "Le libellé du champ créateur est requis.",
+    "err_bad_field_name": "Un champ personnalisé a un nom invalide.",
+    "err_reserved_field": "Un champ personnalisé utilise un nom réservé (titre, année, code-barres... sont déjà gérés).",
+    "err_duplicate_field": "Deux champs personnalisés portent le même nom.",
+    "err_select_needs_options": "Une liste déroulante doit avoir au moins une option.",
+    "err_too_many": "Nombre maximum de plugins personnalisés atteint (30).",
+    "section_defaults": "Plugins par défaut",
+    "section_builder": "Créer un nouveau plugin",
+    "customize": "Personnaliser",
+    "customize_hint": "Icône et couleurs des étiquettes, appliquées uniquement à cette collection.",
+    "format_colors": "Couleurs des étiquettes",
+    "default_color": "Couleur par défaut",
+    "reset": "Réinitialiser",
+    "customized": "Personnalisé"
+  },
+  "add_lego": {
+    "title": "Ajouter un set LEGO",
+    "desc": "Recherchez un set par numéro (ex: 42115) ou par nom via Rebrickable.",
+    "search_placeholder": "Numéro ou nom du set...",
+    "results_title": "Résultats",
+    "no_results": "Aucun set trouvé.",
+    "manual_entry": "Saisie manuelle",
+    "btn_scan": "Scanner"
+  },
+  "confirm_lego": {
+    "title": "Confirmer l'ajout",
+    "desc": "Vérifiez les informations et complétez les détails de votre set.",
+    "config_title": "Vérifier et compléter",
+    "field_title": "Nom du set",
+    "field_set_num": "Numéro de set",
+    "field_theme": "Thème",
+    "field_year": "Année",
+    "field_pieces": "Nombre de pièces",
+    "field_minifigs": "Minifigurines",
+    "field_format": "État",
+    "field_barcode": "Code-barres",
+    "field_quantity": "Quantité",
+    "field_rating": "Note (sur 5)",
+    "field_comments": "Notes / Commentaires",
+    "comments_placeholder": "Ex: Acheté d'occasion, notice incluse...",
+    "cond_sealed": "Scellé (neuf)",
+    "cond_built": "Monté",
+    "cond_dismantled": "Démonté",
+    "cond_incomplete": "Incomplet",
+    "theme_label": "Thème",
+    "year_label": "Année",
+    "barcode_label": "Code-barres",
+    "btn_collection": "Ajouter à la collection",
+    "btn_wishlist": "Ajouter à la Wishlist"
+  },
+  "edit_lego": {
+    "title": "Modifier le set"
+  },
+  "lego_detail": {
+    "pieces_label": "pièces",
+    "minifigs_label": "minifigs",
+    "set_num_label": "Numéro de set",
+    "theme_label": "Thème",
+    "delete_confirm": "Voulez-vous vraiment supprimer ce set de votre collection ?"
   }
 }

@@ -1,3 +1,11 @@
+<%
+    // Format value -> localized label, built from every plugin's declared formats (registry-driven,
+    // i18n-correct). Used both server-side and injected into the client script below.
+    const formatLabelMap = {};
+    registry.getAll().forEach(p => (p.formats || []).forEach(f => {
+        formatLabelMap[String(f.value).toLowerCase()] = t(f.label, { defaultValue: f.label });
+    }));
+%>
 <section class="card-theme rounded-3xl p-6 shadow-sm mb-10 transition-colors">
     <div class="flex flex-col gap-8">
         <div class="flex items-center gap-4">
@@ -35,7 +43,7 @@
             <div>
                 <h3 class="text-sm font-bold opacity-80 mb-3"><%= t('admin.visibility.hidden_types') || 'Hidden Types' %></h3>
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <% ['Music', 'Book', 'Dvd', 'Game'].forEach(kind => { %>
+                    <% registry.getEnabled(settings).map(p => p.kind).forEach(kind => { %>
                         <label class="flex items-center gap-2 p-3 rounded-xl bg-black/5 dark:bg-white/5 cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-colors">
                             <input type="checkbox" name="hiddenTypes" value="<%= kind %>" <%= visibilitySettings.visibility && visibilitySettings.visibility.hiddenTypes.includes(kind) ? 'checked' : '' %> class="w-4 h-4 text-primary-theme bg-white border-black/20 rounded focus:ring-primary-theme">
                             <span class="text-xs font-bold opacity-70"><%= t('media.' + kind.toLowerCase()) || kind %></span>
@@ -48,7 +56,8 @@
             <div>
                 <h3 class="text-sm font-bold opacity-80 mb-3"><%= t('admin.visibility.hidden_genres') || 'Hidden Genres' %></h3>
                 <div class="max-h-60 overflow-y-auto p-4 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 space-y-4">
-                    <% Object.keys(allGenres).forEach(kind => { %>
+                    <% const enabledKinds = registry.getEnabled(settings).map(p => p.kind); %>
+                    <% Object.keys(allGenres).filter(kind => enabledKinds.includes(kind)).forEach(kind => { %>
                         <div>
                             <div class="text-[10px] font-black uppercase tracking-widest opacity-50 mb-2 border-b border-black/5 dark:border-white/5 pb-1">
                                 <%= t('media.' + kind.toLowerCase()) || kind %>
@@ -96,7 +105,7 @@
                                         <div class="text-[10px] opacity-50 truncate">
                                             <%= item.artist || item.author || item.director %>
                                             <% let fmt = item.format || item.media_type || item.platform || item.format_type; %>
-                                            <% if (fmt) { %> • <%= t('media.' + fmt.toLowerCase()) || fmt %><% } %>
+                                            <% if (fmt) { %> • <%= formatLabelMap[String(fmt).toLowerCase()] || fmt %><% } %>
                                         </div>
                                     </div>
                                 </div>
@@ -124,20 +133,12 @@
 <script>
     let hiddenItemsArr = JSON.parse(document.getElementById('hiddenItemsInput').value || '[]');
     
+    // Registry-driven, i18n-correct format labels (built server-side from every plugin's formats).
+    const FORMAT_LABELS = <%- JSON.stringify(formatLabelMap) %>;
     const getFormatLabel = (item) => {
-        const fmt = item.format || item.media_type || item.platform || item.format_type || '';
+        const fmt = (item.format || item.media_type || item.platform || item.format_type || '').toLowerCase();
         if (!fmt) return '';
-        const map = {
-            'vinyl': 'Vinyle',
-            'cd': 'CD',
-            'cassette': 'Cassette',
-            'dvd': 'DVD',
-            'bluray': 'Blu-ray',
-            '4k': '4K',
-            'paperback': 'Broché',
-            'hardcover': 'Relié'
-        };
-        return ' • ' + (map[fmt.toLowerCase()] || fmt.charAt(0).toUpperCase() + fmt.slice(1));
+        return ' • ' + (FORMAT_LABELS[fmt] || fmt.charAt(0).toUpperCase() + fmt.slice(1));
     };
 
     document.getElementById('itemSearch').addEventListener('input', async function(e) {

@@ -1,0 +1,42 @@
+<%# Generic tracklist detail view for builder-generated (custom) plugins.
+    Same layout as the music plugin's tracklist-view, without the Discogs import. %>
+<% if (item.tracklist && item.tracklist.length > 0) { %>
+<div class="mt-6">
+    <h3 class="text-lg font-bold mb-4 flex items-center gap-2 transition-colors">
+        <i class="fa-solid fa-list-ul opacity-50"></i>
+        <%= t('detail.tracklist_title') %>
+    </h3>
+    <div class="card-theme rounded-xl overflow-hidden shadow-sm transition-colors">
+        <div class="max-h-[400px] overflow-y-auto custom-scrollbar relative">
+            <table class="w-full text-left text-sm opacity-80">
+                <thead class="bg-[var(--bg-nav)] text-[var(--text-sub)] text-xs uppercase font-bold sticky top-0 z-10 shadow-md transition-colors">
+                    <tr>
+                        <th class="px-4 py-3 w-14 text-center">#</th>
+                        <th class="px-4 py-3">
+                            <%= t('confirm_vinyl.field_title') %>
+                        </th>
+                        <th class="px-4 py-3 text-right">
+                            <%= t('tracklist.col_duration') %>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-black/5 dark:divide-white/5 transition-colors">
+                    <% item.tracklist.forEach(track => { %>
+                        <tr class="hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+                            <td class="px-4 py-3 text-center font-mono text-primary-theme font-bold opacity-80">
+                                <%= track.position %>
+                            </td>
+                            <td class="px-4 py-3 font-medium transition-colors">
+                                <%= track.title %>
+                            </td>
+                            <td class="px-4 py-3 text-right font-mono text-xs opacity-70">
+                                <%= track.duration %>
+                            </td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+<% } %>

@@ -1,0 +1,6 @@
+<div class="flex items-center mt-6">
+  <input type="checkbox" name="<%= field.name %>" id="chk-<%= field.name %>" <%= value ? 'checked' : '' %> class="w-4 h-4 text-primary-theme bg-black/5 dark:bg-white/10 border-transparent rounded focus:ring-primary-theme focus:ring-2 cursor-pointer transition-colors">
+  <label for="chk-<%= field.name %>" class="ml-2 text-sm font-bold cursor-pointer opacity-80 hover:opacity-100 transition-opacity">
+    <%= t(field.label) %>
+  </label>
+</div>

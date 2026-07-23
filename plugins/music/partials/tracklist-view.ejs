@@ -1,0 +1,407 @@
+<div class="mt-6">
+    <h3 class="text-lg font-bold mb-4 flex items-center gap-2 transition-colors">
+        <i class="fa-solid fa-list-ul opacity-50"></i>
+        <%= t('detail.tracklist_title') %>
+    </h3>
+<div class="card-theme rounded-xl overflow-hidden shadow-sm transition-colors">
+    <% if (item.tracklist && item.tracklist.length > 0) { %>
+        <div class="max-h-[400px] overflow-y-auto custom-scrollbar relative">
+            <table class="w-full text-left text-sm opacity-80">
+                <thead class="bg-[var(--bg-nav)] text-[var(--text-sub)] text-xs uppercase font-bold sticky top-0 z-10 shadow-md transition-colors">
+                    <tr>
+                        <th class="px-4 py-3 w-14 text-center">#</th>
+                        <th class="px-4 py-3">
+                            <%= t('confirm_vinyl.field_title') %>
+                        </th>
+                        <th class="px-4 py-3 text-right">
+                            <%= t('confirm_vinyl.year_label') === 'Année' ? 'Durée' : 'Duration' %>
+                        </th>
+                        <th class="w-10"></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-black/5 dark:divide-white/5 transition-colors">
+                    <% item.tracklist.forEach((track, idx) => { %>
+                        <tr class="tm-row hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer group" data-idx="<%= idx %>">
+                            <td class="px-4 py-3 text-center font-mono text-primary-theme font-bold opacity-80 align-top">
+                                <%= track.position %>
+                            </td>
+                            <td class="px-4 py-3 font-medium transition-colors">
+                                <%= track.title %>
+                                <div class="tm-meta flex flex-wrap items-center gap-x-2 gap-y-1 mt-0.5 empty:hidden" data-idx="<%= idx %>"></div>
+                            </td>
+                            <td class="px-4 py-3 text-right font-mono text-xs opacity-70 align-top">
+                                <%= track.duration %>
+                            </td>
+                            <td class="pr-4 py-3 text-right align-top">
+                                <i class="fa-solid fa-circle-info text-xs opacity-20 group-hover:opacity-60 group-hover:text-primary-theme transition-all"></i>
+                            </td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
+    <% } else { %>
+        <div class="flex flex-col items-center justify-center py-12 opacity-40">
+            <i class="fa-solid fa-music text-4xl mb-4 opacity-50"></i>
+            <p class="text-sm italic mb-4">
+                <%= t('detail.no_tracklist') %>
+            </p>
+
+            <% if (user && user.isAdmin) { %>
+                <button id="importTracklistBtn"
+                    onclick="importTracklist('<%= item._id %>', '<%= item.discogs_id %>')"
+                    class="bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 active:scale-95 shadow-sm">
+                    <i class="fa-solid fa-file-import"></i>
+                    <span id="importBtnText">
+                        <%= t('detail.import_tracklist_btn') %>
+                    </span>
+                </button>
+                <div id="importError" class="text-xs text-red-500 mt-2 hidden">
+                    <%= t('detail.tracklist_not_found') %>
+                </div>
+            <% } %>
+        </div>
+    <% } %>
+</div>
+</div>
+
+<% if (item.tracklist && item.tracklist.length > 0) { %>
+<!-- Track detail modal -->
+<div id="tmOverlay" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-end sm:items-center justify-center p-0 sm:p-6">
+    <div class="card-theme w-full sm:max-w-lg max-h-[92vh] rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+        <div class="flex items-start justify-between gap-4 px-5 pt-5 pb-4 border-b border-black/10 dark:border-white/10">
+            <div class="min-w-0">
+                <div class="text-[10px] font-mono font-bold text-primary-theme opacity-80" id="tmPos"></div>
+                <h3 class="font-bold text-base leading-snug truncate" id="tmTitle"></h3>
+                <div class="text-xs font-mono opacity-50" id="tmDur"></div>
+            </div>
+            <button type="button" id="tmClose" class="opacity-40 hover:opacity-100 transition-opacity p-1 shrink-0">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+
+        <div class="overflow-y-auto custom-scrollbar px-5 py-4 space-y-5 text-sm">
+            <!-- Rating -->
+            <div>
+                <span class="block text-[10px] uppercase tracking-widest opacity-50 font-bold mb-2"><%= t('tracklist.rating') %></span>
+                <div id="tmStars" class="flex gap-1 text-xl">
+                    <% for (let s = 1; s <= 5; s++) { %>
+                        <button type="button" data-star="<%= s %>" class="tm-star transition-transform <%= locals.canEditCollection ? 'hover:scale-110 cursor-pointer' : 'cursor-default' %>">
+                            <i class="fa-regular fa-star opacity-30"></i>
+                        </button>
+                    <% } %>
+                </div>
+            </div>
+
+            <!-- BPM / Key -->
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <span class="block text-[10px] uppercase tracking-widest opacity-50 font-bold mb-2"><%= t('tracklist.bpm') %></span>
+                    <input type="number" id="tmBpm" min="1" max="1000" placeholder="120"
+                        <%= locals.canEditCollection ? '' : 'disabled' %>
+                        class="w-full bg-black/5 dark:bg-white/5 rounded-lg text-sm p-2.5 outline-none focus:ring-1 focus:ring-primary-theme font-mono disabled:opacity-50">
+                </div>
+                <div>
+                    <span class="block text-[10px] uppercase tracking-widest opacity-50 font-bold mb-2"><%= t('tracklist.key') %></span>
+                    <input type="text" id="tmKey" maxlength="20" placeholder="<%= t('tracklist.key_placeholder') %>"
+                        <%= locals.canEditCollection ? '' : 'disabled' %>
+                        class="w-full bg-black/5 dark:bg-white/5 rounded-lg text-sm p-2.5 outline-none focus:ring-1 focus:ring-primary-theme font-mono disabled:opacity-50">
+                </div>
+            </div>
+
+            <!-- Tags -->
+            <div>
+                <span class="block text-[10px] uppercase tracking-widest opacity-50 font-bold mb-2"><%= t('tracklist.tags') %></span>
+                <input type="text" id="tmTags" placeholder="<%= t('tracklist.tags_placeholder') %>"
+                    <%= locals.canEditCollection ? '' : 'disabled' %>
+                    class="w-full bg-black/5 dark:bg-white/5 rounded-lg text-sm p-2.5 outline-none focus:ring-1 focus:ring-primary-theme disabled:opacity-50">
+            </div>
+
+            <!-- Notes -->
+            <div>
+                <span class="block text-[10px] uppercase tracking-widest opacity-50 font-bold mb-2"><%= t('tracklist.notes') %></span>
+                <textarea id="tmNotes" rows="3" maxlength="2000" placeholder="<%= t('tracklist.notes_placeholder') %>"
+                    <%= locals.canEditCollection ? '' : 'disabled' %>
+                    class="w-full bg-black/5 dark:bg-white/5 rounded-lg text-sm p-2.5 outline-none focus:ring-1 focus:ring-primary-theme resize-y disabled:opacity-50"></textarea>
+            </div>
+
+            <!-- Lyrics -->
+            <div>
+                <span class="block text-[10px] uppercase tracking-widest opacity-50 font-bold mb-2"><%= t('tracklist.lyrics') %></span>
+                <button type="button" id="tmLyricsBtn"
+                    class="w-full py-2.5 text-xs font-bold opacity-40 hover:opacity-80 border-2 border-dashed border-current rounded-xl transition-all flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-align-left"></i> <%= t('tracklist.load_lyrics') %>
+                </button>
+                <textarea id="tmLyrics" rows="8" maxlength="20000" placeholder="<%= t('tracklist.lyrics_placeholder') %>"
+                    <%= locals.canEditCollection ? '' : 'disabled' %>
+                    class="hidden w-full bg-black/5 dark:bg-white/5 rounded-lg p-3 text-xs leading-relaxed outline-none focus:ring-1 focus:ring-primary-theme resize-y custom-scrollbar disabled:opacity-70"></textarea>
+                <div id="tmLyricsMiss" class="hidden text-xs opacity-60 italic">
+                    <%= t('tracklist.lyrics_not_found') %>
+                    <a id="tmGeniusLink" href="#" target="_blank" rel="noopener" class="not-italic text-primary-theme hover:underline ml-1">
+                        <%= t('tracklist.search_genius') %> <i class="fa-solid fa-external-link-alt text-[9px]"></i>
+                    </a>
+                    <% if (locals.canEditCollection) { %>
+                    <button type="button" id="tmLyricsAdd" class="block not-italic mt-2 text-primary-theme hover:underline font-medium">
+                        <i class="fa-solid fa-pen text-[9px]"></i> <%= t('tracklist.add_lyrics_manual') %>
+                    </button>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+
+        <% if (locals.canEditCollection) { %>
+        <div class="px-5 py-4 border-t border-black/10 dark:border-white/10 flex items-center justify-end gap-3">
+            <span id="tmSaveMsg" class="text-xs opacity-0 transition-opacity"></span>
+            <button type="button" id="tmSave"
+                class="bg-primary-theme text-white text-sm font-bold px-5 py-2 rounded-lg hover:opacity-90 active:scale-95 transition-all">
+                <%= t('common.save') %>
+            </button>
+        </div>
+        <% } %>
+    </div>
+</div>
+
+<script>
+(function () {
+    const tracks = <%- JSON.stringify((item.tracklist || []).map(tr => ({
+        _id: String(tr._id || ""),
+        position: tr.position || "",
+        title: tr.title || "",
+        duration: tr.duration || "",
+        rating: tr.rating || 0,
+        tags: tr.tags || [],
+        notes: tr.notes || "",
+        bpm: tr.bpm || "",
+        key: tr.key || "",
+        has_lyrics: !!tr.lyrics
+    }))).replace(/</g, '\\u003c') %>;
+    const canEdit = <%= locals.canEditCollection ? 'true' : 'false' %>;
+    const artist = <%- JSON.stringify(String(item.artist || '')).replace(/</g, '\\u003c') %>;
+    const apiBase = '<%= baseUrl %>/api/album/<%= item._id %>/track/';
+
+    const overlay = document.getElementById('tmOverlay');
+    const els = {
+        pos: document.getElementById('tmPos'),
+        title: document.getElementById('tmTitle'),
+        dur: document.getElementById('tmDur'),
+        bpm: document.getElementById('tmBpm'),
+        key: document.getElementById('tmKey'),
+        tags: document.getElementById('tmTags'),
+        notes: document.getElementById('tmNotes'),
+        lyricsBtn: document.getElementById('tmLyricsBtn'),
+        lyrics: document.getElementById('tmLyrics'),
+        lyricsMiss: document.getElementById('tmLyricsMiss'),
+        lyricsAdd: document.getElementById('tmLyricsAdd'),
+        geniusLink: document.getElementById('tmGeniusLink'),
+        saveMsg: document.getElementById('tmSaveMsg'),
+        saveBtn: document.getElementById('tmSave')
+    };
+    let current = -1;
+    let modalRating = 0;
+
+    // Compact per-row indicators (stars / tags / bpm / key), rebuilt after each save
+    function renderRowMeta(idx) {
+        const tr = tracks[idx];
+        const box = document.querySelector(`.tm-meta[data-idx="${idx}"]`);
+        if (!box) return;
+        box.innerHTML = '';
+        if (tr.rating > 0) {
+            const stars = document.createElement('span');
+            stars.className = 'text-amber-400 text-[10px] tracking-tight';
+            stars.innerHTML = '<i class="fa-solid fa-star"></i>'.repeat(tr.rating);
+            box.appendChild(stars);
+        }
+        (tr.tags || []).forEach(tag => {
+            const chip = document.createElement('span');
+            chip.className = 'px-1.5 py-px bg-primary-theme/10 text-primary-theme rounded text-[10px] font-medium';
+            chip.textContent = tag;
+            box.appendChild(chip);
+        });
+        const mono = [];
+        if (tr.bpm) mono.push(tr.bpm + ' BPM');
+        if (tr.key) mono.push(tr.key);
+        if (mono.length) {
+            const span = document.createElement('span');
+            span.className = 'font-mono text-[10px] opacity-50';
+            span.textContent = mono.join(' · ');
+            box.appendChild(span);
+        }
+    }
+    tracks.forEach((_, i) => renderRowMeta(i));
+
+    function paintStars(n) {
+        document.querySelectorAll('.tm-star i').forEach((icon, i) => {
+            icon.className = i < n ? 'fa-solid fa-star text-amber-400' : 'fa-regular fa-star opacity-30';
+        });
+    }
+
+    function openModal(idx) {
+        current = idx;
+        const tr = tracks[idx];
+        els.pos.textContent = tr.position;
+        els.title.textContent = tr.title;
+        els.dur.textContent = tr.duration;
+        modalRating = tr.rating || 0;
+        paintStars(modalRating);
+        els.bpm.value = tr.bpm || '';
+        els.key.value = tr.key || '';
+        els.tags.value = (tr.tags || []).join(', ');
+        els.notes.value = tr.notes || '';
+        els.lyrics.classList.add('hidden');
+        els.lyrics.value = '';
+        els.lyricsMiss.classList.add('hidden');
+        els.lyricsBtn.classList.remove('hidden');
+        els.lyricsBtn.disabled = false;
+        els.lyricsBtn.innerHTML = '<i class="fa-solid fa-align-left"></i> <%= t("tracklist.load_lyrics") %>';
+        els.geniusLink.href = 'https://genius.com/search?q=' + encodeURIComponent(artist.replace(/\s*\(\d+\)\s*$/, '') + ' ' + tr.title);
+        overlay.classList.remove('hidden');
+        overlay.classList.add('flex');
+        document.body.style.overflow = 'hidden';
+        // Lyrics already cached server-side: show them right away instead of
+        // making the user click "load" again on every open.
+        if (tr.has_lyrics) loadLyrics(idx);
+    }
+
+    function closeModal() {
+        overlay.classList.add('hidden');
+        overlay.classList.remove('flex');
+        document.body.style.overflow = '';
+        current = -1;
+    }
+
+    document.querySelectorAll('.tm-row').forEach(row => {
+        row.addEventListener('click', () => openModal(Number(row.dataset.idx)));
+    });
+    document.getElementById('tmClose').addEventListener('click', closeModal);
+    overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && current >= 0) closeModal(); });
+
+    if (canEdit) {
+        document.querySelectorAll('.tm-star').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const n = Number(btn.dataset.star);
+                modalRating = (modalRating === n) ? 0 : n; // click the same star to clear
+                paintStars(modalRating);
+            });
+        });
+    }
+
+    async function loadLyrics(idx) {
+        const tr = tracks[idx];
+        els.lyricsBtn.disabled = true;
+        els.lyricsBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> <%= t("tracklist.lyrics_loading") %>';
+        try {
+            const res = await fetch(apiBase + tr._id + '/lyrics');
+            const data = await res.json();
+            // The modal may have moved to another track while we were fetching
+            if (idx !== current) return;
+            els.lyricsBtn.classList.add('hidden');
+            if (data.success && data.lyrics) {
+                els.lyrics.value = data.lyrics;
+                els.lyrics.classList.remove('hidden');
+                tr.has_lyrics = true;
+            } else {
+                els.lyricsMiss.classList.remove('hidden');
+            }
+        } catch (err) {
+            if (idx !== current) return;
+            els.lyricsBtn.classList.add('hidden');
+            els.lyricsMiss.classList.remove('hidden');
+        }
+    }
+
+    els.lyricsBtn.addEventListener('click', () => loadLyrics(current));
+
+    if (els.lyricsAdd) {
+        els.lyricsAdd.addEventListener('click', () => {
+            els.lyricsMiss.classList.add('hidden');
+            els.lyrics.classList.remove('hidden');
+            els.lyrics.focus();
+        });
+    }
+
+    if (els.saveBtn) {
+        els.saveBtn.addEventListener('click', async () => {
+            const tr = tracks[current];
+            const payload = {
+                rating: modalRating,
+                bpm: els.bpm.value.trim(),
+                key: els.key.value.trim(),
+                tags: els.tags.value,
+                notes: els.notes.value
+            };
+            // Only send lyrics when the textarea was shown (loaded or manual entry):
+            // sending '' for a track whose lyrics were never opened would clear its cache.
+            if (!els.lyrics.classList.contains('hidden')) {
+                payload.lyrics = els.lyrics.value;
+            }
+            els.saveBtn.disabled = true;
+            try {
+                const res = await fetch(apiBase + tr._id + '/meta', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error || 'error');
+                tr.rating = modalRating;
+                tr.bpm = payload.bpm ? Number(payload.bpm) : '';
+                tr.key = payload.key;
+                tr.tags = payload.tags.split(',').map(s => s.trim()).filter(Boolean);
+                tr.notes = payload.notes;
+                if ('lyrics' in payload) tr.has_lyrics = !!payload.lyrics.trim();
+                renderRowMeta(current);
+                els.saveMsg.textContent = <%- JSON.stringify(t("tracklist.saved")) %>;
+                els.saveMsg.className = 'text-xs text-green-500 transition-opacity';
+                setTimeout(closeModal, 450);
+            } catch (err) {
+                els.saveMsg.textContent = <%- JSON.stringify(t("messages.generic_error")) %>;
+                els.saveMsg.className = 'text-xs text-red-500 transition-opacity';
+            } finally {
+                els.saveBtn.disabled = false;
+                setTimeout(() => { els.saveMsg.className = 'text-xs opacity-0 transition-opacity'; }, 2500);
+            }
+        });
+    }
+})();
+</script>
+<% } %>
+
+<% if (user && user.isAdmin && (!item.tracklist || item.tracklist.length === 0)) { %>
+<script>
+async function importTracklist(itemId, discogsId) {
+    const btn = document.getElementById('importTracklistBtn');
+    const btnText = document.getElementById('importBtnText');
+    const errorMsg = document.getElementById('importError');
+
+    if (!discogsId || discogsId === "null" || discogsId === "undefined") {
+        errorMsg.classList.remove('hidden');
+        return;
+    }
+
+    btn.disabled = true;
+    errorMsg.classList.add('hidden');
+    btnText.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> <%= t('detail.importing') %>`;
+
+    try {
+        const response = await fetch(`<%= baseUrl %>/api/album/${itemId}/refresh-info`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ discogsId })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            window.location.reload();
+        } else {
+            throw new Error("Import failed");
+        }
+    } catch (err) {
+        btn.disabled = false;
+        btnText.innerText = <%- JSON.stringify(t('detail.import_tracklist_btn')).replace(/</g, '\\u003c') %>;
+        errorMsg.classList.remove('hidden');
+    }
+}
+</script>
+<% } %>

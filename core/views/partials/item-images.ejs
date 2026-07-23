@@ -1,0 +1,101 @@
+<!-- Images: replace cover + secondary visual (shared by confirm & manual-add) -->
+                    <hr class="border-black/10 dark:border-white/10 my-6 transition-colors">
+                    <div class="space-y-4">
+                        <div class="flex items-center">
+                            <input id="checkEditCover" type="checkbox" class="w-4 h-4 text-primary-theme bg-black/5 dark:bg-white/10 border-transparent rounded focus:ring-primary-theme focus:ring-2 cursor-pointer transition-colors">
+                            <label for="checkEditCover" class="ml-2 text-sm font-bold cursor-pointer opacity-80 hover:opacity-100 transition-opacity">
+                                <%= t('confirm_' + plugin.i18nKey + '.replace_cover', { defaultValue: t('confirm_vinyl.replace_cover') }) %>
+                            </label>
+                        </div>
+
+                        <input type="hidden" name="cover_image" id="inputCoverImage" value="<%= item.cover_image %>">
+
+                        <div id="boxEditCover" class="hidden p-4 card-theme rounded-2xl border border-black/10 dark:border-white/10 shadow-inner transition-all">
+                            <div class="flex gap-1 mb-4 p-1 bg-black/5 dark:bg-white/5 rounded-xl">
+                                <button type="button" onclick="setImgTab('cover', 'local')" id="tab-cover-local" class="flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all bg-primary-theme text-white">
+                                    <i class="fa-solid fa-upload mr-1"></i> <%= t('image_source.local') %>
+                                </button>
+                                <button type="button" onclick="setImgTab('cover', 'url')" id="tab-cover-url" class="flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all opacity-50">
+                                    <i class="fa-solid fa-link mr-1"></i> <%= t('image_source.url') %>
+                                </button>
+                                <button type="button" onclick="setImgTab('cover', 'search')" id="tab-cover-search" class="flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all opacity-50">
+                                    <i class="fa-solid fa-search mr-1"></i> <%= t('image_source.search') %>
+                                </button>
+                            </div>
+
+                            <div id="pane-cover-local" class="img-pane-cover">
+                                <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-black/10 dark:border-white/10 rounded-2xl cursor-pointer hover:bg-black/5 transition-all">
+                                    <div class="flex flex-col items-center justify-center py-4">
+                                        <i class="fa-solid fa-cloud-arrow-up text-2xl opacity-20 mb-2"></i>
+                                        <p class="text-xs font-bold opacity-50 italic"><%= t('image_source.hint') %></p>
+                                    </div>
+                                    <input type="file" id="fileInputCover" class="hidden" accept="image/*">
+                                </label>
+                            </div>
+
+                            <div id="pane-cover-url" class="img-pane-cover hidden">
+                                <input type="url" id="urlInputCover" placeholder="https://site.com/couverture.jpg" class="w-full bg-white dark:bg-black/20 border-transparent rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-primary-theme">
+                                <p class="text-[9px] mt-2 opacity-50 italic"><%= t('image_source.url_hint') %></p>
+                            </div>
+
+                            <div id="pane-cover-search" class="img-pane-cover hidden">
+                                <div class="flex gap-2 mb-4">
+                                    <input type="text" id="queryCover" value="<%= item[plugin.creatorField] %> <%= item.title %>" class="flex-grow bg-white dark:bg-black/20 border-transparent rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-primary-theme">
+                                    <button type="button" onclick="runUniversalSearch('cover')" class="bg-primary-theme text-white px-4 rounded-lg">
+                                        <i class="fa-solid fa-search"></i>
+                                    </button>
+                                </div>
+                                <div id="resultsCover" class="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto custom-scrollbar"></div>
+                            </div>
+                        </div>
+
+                        <% if (plugin.supportsUserImage) { %>
+                            <div class="flex items-center">
+                                <input id="checkEditDisc" type="checkbox" class="w-4 h-4 text-primary-theme bg-black/5 dark:bg-white/10 border-transparent rounded focus:ring-primary-theme focus:ring-2 cursor-pointer transition-colors">
+                                <label for="checkEditDisc" class="ml-2 text-sm font-bold cursor-pointer opacity-80 hover:opacity-100 transition-opacity">
+                                    <%= t('confirm_' + plugin.i18nKey + '.add_secondary_visual', { defaultValue: t('confirm_vinyl.add_secondary_visual') }) %>
+                                </label>
+                            </div>
+
+                            <input type="hidden" name="user_image" id="inputUserImage" value="<%= item.user_image || '' %>">
+
+                            <div id="boxEditDisc" class="hidden p-4 card-theme rounded-2xl border border-primary-theme/30 shadow-inner">
+                                <div class="flex gap-1 mb-4 p-1 bg-black/5 dark:bg-white/5 rounded-xl">
+                                    <button type="button" onclick="setImgTab('disc', 'local')" id="tab-disc-local" class="flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all bg-primary-theme text-white">
+                                        <i class="fa-solid fa-upload mr-1"></i> <%= t('image_source.local') %>
+                                    </button>
+                                    <button type="button" onclick="setImgTab('disc', 'url')" id="tab-disc-url" class="flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all opacity-50">
+                                        <i class="fa-solid fa-link mr-1"></i> <%= t('image_source.url') %>
+                                    </button>
+                                    <button type="button" onclick="setImgTab('disc', 'search')" id="tab-disc-search" class="flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all opacity-50">
+                                        <i class="fa-solid fa-search mr-1"></i> <%= t('image_source.search') %>
+                                    </button>
+                                </div>
+
+                                <div id="pane-disc-local" class="img-pane-disc">
+                                    <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-black/10 dark:border-white/10 rounded-2xl cursor-pointer hover:bg-black/5 transition-all">
+                                        <div class="flex flex-col items-center justify-center py-4">
+                                            <i class="fa-solid fa-compact-disc text-2xl opacity-20 mb-2"></i>
+                                            <p class="text-xs font-bold opacity-50 italic"><%= t('image_source.hint') %></p>
+                                        </div>
+                                        <input type="file" id="fileInputDisc" class="hidden" accept="image/*">
+                                    </label>
+                                </div>
+
+                                <div id="pane-disc-url" class="img-pane-disc hidden">
+                                    <input type="url" id="urlInputDisc" placeholder="https://site.com/mockup.jpg" class="w-full bg-white dark:bg-black/20 border-transparent rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-primary-theme">
+                                </div>
+
+                                <div id="pane-disc-search" class="img-pane-disc hidden">
+                                    <div class="flex gap-2 mb-4">
+                                        <input type="text" id="queryDisc" value="<%= item[plugin.creatorField] %> <%= item.title %> <%= item.variant_color || '' %>" class="flex-grow bg-white dark:bg-black/20 border-transparent rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-primary-theme">
+                                        <button type="button" onclick="runUniversalSearch('disc')" class="bg-primary-theme text-white px-4 rounded-lg">
+                                            <i class="fa-solid fa-search"></i>
+                                        </button>
+                                    </div>
+                                    <div id="resultsDisc" class="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto custom-scrollbar"></div>
+                                </div>
+                            </div>
+                        <% } %>
+                    </div>
+

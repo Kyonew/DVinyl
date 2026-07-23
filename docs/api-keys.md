@@ -1,43 +1,71 @@
 # 🔑 API Configuration
 
-DVinyl relies on external APIs to fetch metadata and visuals. Follow these steps to get your API keys.
-> You can have every key for **free**. 
+DVinyl uses external services to fetch metadata, cover art and, for music, market values. You only
+need the keys for the media types you actually plan to use, and **every key is free**.
 
-## 🎵 Discogs API (Required)
+| Media type | Service | Environment variable | Needed if you collect |
+| :--------- | :------ | :------------------- | :-------------------- |
+| Music | Discogs | `DISCOGS_TOKEN` | Vinyls, CDs, cassettes |
+| Books | Hardcover | `HARDCOVER_API_KEY` | Books, manga, comics |
+| Movies | TMDB | `TMDB_API_KEY` | Blu-ray, 4K, DVD, VHS |
+| Games | IGDB (Twitch) | `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET` | Video games |
+| LEGO | Rebrickable | `REBRICKABLE_API_KEY` | LEGO sets |
 
-*Used for fetching album metadata, tracklists, and market value.*
+Add the keys you need to your `.env` file. Any media type whose key is missing simply stays disabled
+in the admin panel until you provide it.
 
-1.  Log in to [Discogs.com](https://www.discogs.com/).
-2.  Go to **Settings > Developers**.
-3.  Click **Generate new token**.
-4.  Copy this token and paste it into your `.env` file as `DISCOGS_TOKEN`.
+## 🎵 Discogs (Music)
 
-## 📚 Hardcover *(Optional if you don't want to add books to your collection)*
+Used for album metadata, tracklists and market value.
 
-### Get an API Key
-1.  Go to the [Hardcover website](https://hardcover.app/) and **create an account**.
-3.  Then go to the [API section](https://hardcover.app/account/api) page and pick up your **token** (don't copy the word "bearer", e.g : `eyJhb....`)
-5.  Paste it into `.env` as `HARDCOVER_API_KEY`.
+1. Log in to [Discogs.com](https://www.discogs.com/).
+2. Go to **Settings > Developers**.
+3. Click **Generate new token**.
+4. Copy the token into your `.env` as `DISCOGS_TOKEN`.
 
-## 📀 TMDB API *(Optional if you don't want to add DVDs to your collection)*
+## 📚 Hardcover (Books)
 
-1. Go to [The Movie DataBase website](https://www.themoviedb.org/) and **create an account**.
-2. Then, you can find your API key (not 'token') in [this page](https://www.themoviedb.org/settings/api)
-3. Paste it into `.env` as `TMDB_API_KEY`
+Used for book metadata and covers.
 
-## 🎮 IGDB API *(Optional if you don't want to add Games to your collection)*
+1. Create an account on the [Hardcover website](https://hardcover.app/).
+2. Open the [API section](https://hardcover.app/account/api) and copy your **token** (do not include
+   the word "bearer", so it should look like `eyJhb...`).
+3. Paste it into your `.env` as `HARDCOVER_API_KEY`.
 
-*Used for fetching video game metadata and covers.*
+## 📀 TMDB (Movies)
 
-1. Go to the [Twitch Developer Console](https://dev.twitch.tv/console/apps) and log in (requires 2FA).
+Used for movie metadata and posters.
+
+1. Create an account on [The Movie Database](https://www.themoviedb.org/).
+2. Find your API key (not the "token") on [this page](https://www.themoviedb.org/settings/api).
+3. Paste it into your `.env` as `TMDB_API_KEY`.
+
+## 🎮 IGDB (Games)
+
+Used for video game metadata and covers. IGDB is powered by Twitch, so you create the credentials in
+the Twitch developer console.
+
+1. Go to the [Twitch Developer Console](https://dev.twitch.tv/console/apps) and log in (2FA
+   required).
 2. Click **Register Your Application**.
-3. Name it "DVinyl", set OAuth Redirect URL to `https://localhost`, and Category to `Application Integration`.
+3. Name it "DVinyl", set the OAuth Redirect URL to `https://localhost`, and set the category to
+   **Application Integration**.
 4. Once created, copy the **Client ID**.
 5. Click **New Secret** to generate a **Client Secret**.
-6. Paste them into `.env` as `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET`.
+6. Paste both into your `.env` as `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET`.
+
+## 🧱 Rebrickable (LEGO)
+
+Used for LEGO set metadata, themes, piece counts and covers.
+
+1. Create a free account on [Rebrickable](https://rebrickable.com/).
+2. Open the [API settings page](https://rebrickable.com/api/) and copy your **API key** (generate
+   one if you do not have it yet).
+3. Paste it into your `.env` as `REBRICKABLE_API_KEY`.
 
 ---
 
-⚠️ **Security Note:** Never commit your `.env` file to GitHub. It contains sensitive credentials that should remain private.
+> [!WARNING]
+> Never commit your `.env` file. It holds sensitive credentials that must stay private.
 
-[← Back to README](../README.md)  
+[← Back to the README](../README.md)

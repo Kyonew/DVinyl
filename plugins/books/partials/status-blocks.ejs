@@ -1,0 +1,23 @@
+<div class="w-full mt-6 grid grid-cols-2 gap-4">
+    <div class="card-theme p-4 rounded-xl text-center shadow-sm">
+        <span class="block text-[10px] uppercase font-bold opacity-50 mb-1">
+            <%= t('confirm_book.field_status') %>
+        </span>
+        <% let statusColor = 'text-gray-500';
+           if (item.readingStatus === 'reading') statusColor = 'text-blue-500';
+           else if (item.readingStatus === 'read') statusColor = 'text-green-500'; %>
+        <span class="text-sm font-bold <%= statusColor %>">
+            <%= item.readingStatus === 'reading' ? t('status.reading') : (item.readingStatus === 'read' ? t('status.read') : t('status.to_read')) %>
+        </span>
+    </div>
+    <div class="card-theme p-4 rounded-xl text-center shadow-sm">
+        <span class="block text-[10px] uppercase font-bold opacity-50 mb-1">
+            <%= t('confirm_book.field_rating') %>
+        </span>
+        <div class="flex justify-center text-yellow-500 text-xs">
+            <% for (let i = 1; i <= 5; i++) { %>
+                <i class="<%= i <= item.rating ? 'fa-solid' : (i - 0.5 === item.rating ? 'fa-solid fa-star-half-stroke' : 'fa-regular') %> fa-star"></i>
+            <% } %>
+        </div>
+    </div>
+</div>

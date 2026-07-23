@@ -1,0 +1,24 @@
+<%
+    let totalSecs = 0;
+    (item.tracklist || []).forEach(function(tr) {
+        if (tr.duration && /^\d+:\d{2}$/.test(tr.duration)) {
+            const p = tr.duration.split(':');
+            totalSecs += parseInt(p[0]) * 60 + parseInt(p[1]);
+        }
+    });
+    let durationLabel = '';
+    if (totalSecs > 0) {
+        const h = Math.floor(totalSecs / 3600);
+        const m = Math.floor((totalSecs % 3600) / 60);
+        const s = totalSecs % 60;
+        durationLabel = h > 0
+            ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+            : `${m}:${String(s).padStart(2,'0')}`;
+    }
+%>
+<% if (durationLabel) { %>
+    <span class="px-3 py-1 bg-black/5 dark:bg-white/10 border border-transparent rounded-full text-xs opacity-80 transition-colors flex items-center gap-1.5">
+        <i class="fa-regular fa-clock opacity-60"></i>
+        <%= durationLabel %>
+    </span>
+<% } %>

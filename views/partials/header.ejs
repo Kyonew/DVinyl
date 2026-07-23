@@ -6,21 +6,17 @@
   
   const rawCategory = (typeof locals.currentType !== 'undefined') ? locals.currentType : (locals.detectedType || 'home');
 
-  let themeKey = 'home'; 
-  
-  const musicTypes = ['music', 'vinyl', 'cd', 'cassette', 'add-vinyl', 'album'];
-  const bookTypes  = ['books', 'add-book', 'book'];
-  const dvdTypes   = ['dvd', 'add-dvd'];
-  const gameTypes  = ['games', 'add-game', 'game'];
-
-  if (musicTypes.includes(rawCategory)) {
-      themeKey = 'music';
-  } else if (bookTypes.includes(rawCategory)) {
-      themeKey = 'books';
-  } else if (dvdTypes.includes(rawCategory)) {
-      themeKey = 'dvd';
-  } else if (gameTypes.includes(rawCategory)) {
-      themeKey = 'games';
+  // Theme key derived from the registry: matches collectionType, id, /add-<id>, routePrefix or a pathAlias
+  let themeKey = 'home';
+  if (typeof registry !== 'undefined' && registry) {
+      const themePlugin = registry.getAll().find(p =>
+          rawCategory === p.collectionType ||
+          rawCategory === p.id ||
+          rawCategory === 'add-' + p.id ||
+          rawCategory === p.routePrefix.replace('/', '') ||
+          (p.pathAliases || []).includes(rawCategory)
+      );
+      if (themePlugin) themeKey = themePlugin.collectionType;
   }
 
   let activePresetKey = 'default';
@@ -35,7 +31,7 @@
 
   const safeFallback = { 
       light: { bg: '#e2e8f0', card: '#ffffff', navbar: '#1e293b', navText: '#ffffff', text: '#0f172a', subtext: '#475569', highlight: '#10b981' },
-      dark:  { bg: '#171717', card: '#262626', navbar: '#0a0a0a', navText: '#ffffff', text: '#ffffff', subtext: '#a3a3a3', highlight: '#10b981' }
+      dark: { bg: '#171717', card: '#262626', navbar: '#0a0a0a', navText: '#ffffff', text: '#ffffff', subtext: '#a3a3a3', highlight: '#10b981' }
   };
 
   const activeTheme = (THEMES[activePresetKey]) ? THEMES[activePresetKey] : (THEMES['default'] || safeFallback);
@@ -144,7 +140,7 @@
       
       <a href="<%= baseUrl || '/' %>" class="flex items-center space-x-3 group">
         <img src="<%= baseUrl %>/ressources/logo.png" alt="Logo" class="h-8 w-8 rounded-full object-cover group-hover:rotate-12 transition-transform">
-        <span class="self-center text-2xl font-semibold text-inherit">Vinyl</span>
+        <span class="self-center text-2xl font-semibold text-inherit"><%= locals.activeCollection && locals.activeCollection.name ? activeCollection.name : 'Vinyl' %></span>
       </a>
 
       <div class="flex items-center md:order-2 gap-4">
@@ -165,7 +161,36 @@
               <span class="block text-xs opacity-60 truncate text-[var(--text-sub)]"><%= user.email %></span>
             </div>
             <ul class="py-2">
+              <% if ((locals.userCollections || []).length > 1) { %>
+              <li class="px-4 pt-1 pb-1">
+                <span class="block text-[9px] uppercase font-bold tracking-wider opacity-50 text-[var(--text-sub)]"><%= t('nav.collections') %></span>
+              </li>
+              <% (locals.userCollections || []).forEach(c => { %>
+              <li>
+                <form action="<%= baseUrl %>/collection/switch" method="POST">
+                  <input type="hidden" name="collectionId" value="<%= c._id %>">
+                  <input type="hidden" name="redirectTo" value="/">
+                  <button type="submit" class="w-[calc(100%-1rem)] text-left block px-4 py-2 text-sm text-[var(--text-main)] hover:bg-black/5 dark:hover:bg-white/10 mx-2 rounded transition flex items-center gap-3 <%= String(c._id) === String(locals.activeCollectionId) ? 'font-bold' : '' %>">
+                    <i class="fa-solid <%= String(c._id) === String(locals.activeCollectionId) ? 'fa-circle-check text-primary-theme' : 'fa-layer-group opacity-70' %> w-5 text-center"></i>
+                    <span class="truncate"><%= c.name %></span>
+                  </button>
+                </form>
+              </li>
+              <% }) %>
+              <li class="border-t border-black/5 dark:border-white/10 my-1"></li>
+              <% } %>
+              <% if (locals.isCollectionAdmin || user.isAdmin) { %>
+              <li class="px-4 pt-1 pb-1">
+                <span class="block text-[9px] uppercase font-bold tracking-wider opacity-50 text-[var(--text-sub)]"><%= t('nav.administration') %></span>
+              </li>
               <% if (user.isAdmin) { %>
+              <li>
+                <a href="<%= baseUrl %>/admin/instance" class="block px-4 py-2 text-sm text-[var(--text-main)] hover:bg-black/5 dark:hover:bg-white/10 mx-2 rounded transition flex items-center gap-3">
+                  <i class="fa-solid fa-server w-5 text-center opacity-70"></i> <span><%= t('nav.instance') %></span>
+                </a>
+              </li>
+              <% } %>
+              <% if (locals.isCollectionAdmin) { %>
               <li>
                 <a href="<%= baseUrl %>/admin" class="block px-4 py-2 text-sm text-[var(--text-main)] hover:bg-black/5 dark:hover:bg-white/10 mx-2 rounded transition flex items-center gap-3">
                   <i class="fa-solid fa-crown w-5 text-center opacity-70"></i> <span><%= t('nav.admin') %></span>
@@ -176,6 +201,8 @@
                   <i class="fa-solid fa-wand-magic-sparkles w-5 text-center opacity-70"></i> <span>Personnalisation</span>
                 </a>
               </li>
+              <% } %>
+              <li class="border-t border-black/5 dark:border-white/10 my-1"></li>
               <% } %>
               <li>
                 <a href="<%= baseUrl %>/settings" class="block px-4 py-2 text-sm text-[var(--text-main)] hover:bg-black/5 dark:hover:bg-white/10 mx-2 rounded transition flex items-center gap-3">
@@ -208,33 +235,20 @@
 
       <div class="items-center justify-between hidden w-full md:flex md:w-auto md:order-1" id="navbar-user">
         <ul class="flex flex-col font-medium p-4 md:p-0 mt-4 rounded-lg md:flex-row md:space-x-8 md:mt-0 md:border-0 md:bg-transparent">
-          <% 
+          <%
+            // Global shortcuts plus shortcuts declared by each plugin (navbarShortcuts)
             const shortcutConfig = {
                 'global_home': { label: t('nav.home'), url: '/' },
                 'global_collection': { label: t('nav.collection'), url: '/collection' },
-                'global_wishlist': { label: t('nav.wishlist'), url: '/wishlist' },
-
-                'music': { label: t('media.music'), url: '/collection?type=music', module: 'music' },
-                'music_vinyl': { label: t('media.vinyls'), url: '/collection?type=music&format=vinyl', module: 'music' },
-                'music_cd': { label: t('media.cds'), url: '/collection?type=music&format=cd', module: 'music' },
-                'music_cassette': { label: t('media.cassettes'), url: '/collection?type=music&format=cassette', module: 'music' },
-
-                'books': { label: t('media.books'), url: '/collection?type=books', module: 'books' },
-                'book_hardcover': { label: t('media.hardcover'), url: '/collection?type=books&format=hardcover', module: 'books' },
-                'book_paperback': { label: t('media.paperback'), url: '/collection?type=books&format=paperback', module: 'books' },
-                'book_manga': { label: t('media.manga'), url: '/collection?type=books&format=manga', module: 'books' },
-                'book_comic': { label: t('media.comic'), url: '/collection?type=books&format=comic', module: 'books' },
-                'book_graphic_novel': { label: t('media.graphic_novel'), url: '/collection?type=books&format=graphic_novel', module: 'books' },
-
-                'dvd': { label: t('media.dvd_gen'), url: '/collection?type=dvd', module: 'dvd' },
-                'dvd_dvd': { label: t('media.dvd'), url: '/collection?type=dvd&format=dvd', module: 'dvd' },
-                'dvd_bluray': { label: t('media.bluray'), url: '/collection?type=dvd&format=bluray', module: 'dvd' },
-                'dvd_4k': { label: t('media.4k'), url: '/collection?type=dvd&format=4k', module: 'dvd' },
-                'dvd_vhs': { label: t('media.vhs'), url: '/collection?type=dvd&format=vhs', module: 'dvd' },
-                'dvd_laserdisc': { label: t('media.laserdisc'), url: '/collection?type=dvd&format=laserdisc', module: 'dvd' },
-                
-                'games': { label: t('media.games'), url: '/collection?type=games', module: 'games' }
+                'global_wishlist': { label: t('nav.wishlist'), url: '/wishlist' }
             };
+            if (typeof registry !== 'undefined' && registry) {
+                registry.getAll().forEach(p => {
+                    (p.navbarShortcuts || []).forEach(s => {
+                        shortcutConfig[s.id] = { label: t(s.label), url: s.url, module: p.collectionType };
+                    });
+                });
+            }
 
             if (settings && settings.navbarShortcuts) {
               settings.navbarShortcuts.forEach(id => {

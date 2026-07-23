@@ -1,0 +1,744 @@
+<%- include('partials/header') %>
+
+    <div class="max-w-screen-xl mx-auto px-4 pb-20 space-y-10">
+
+        <!-- Distinct "console" banner: theme-aware (light/dark) but visually set apart
+             from collection pages by its strong contrast block + server iconography -->
+        <div class="mt-6 rounded-[2rem] bg-neutral-100 text-neutral-900 dark:bg-neutral-900 dark:text-white border border-black/10 dark:border-white/10 shadow-xl overflow-hidden relative transition-colors">
+            <div class="absolute inset-0 opacity-15 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary-theme via-transparent to-transparent"></div>
+            <div class="relative p-8 md:p-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div class="flex items-center gap-5">
+                    <div class="w-14 h-14 rounded-2xl bg-primary-theme/15 text-primary-theme flex items-center justify-center shrink-0">
+                        <i class="fa-solid fa-server text-2xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl md:text-3xl font-black tracking-tight flex items-center gap-3">
+                            <%= t('admin.instance.title') %> DVinyl
+                        </h1>
+                        <p class="text-xs md:text-sm opacity-50 mt-1">
+                            <%= t('admin.instance.subtitle') %>
+                        </p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="text-[10px] font-black tracking-widest opacity-40 border border-black/15 dark:border-white/15 px-3 py-1 rounded-full">
+                        v<%= appVersion %>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Instance stats -->
+            <div class="relative grid grid-cols-2 md:grid-cols-4 divide-x divide-black/10 dark:divide-white/10 border-t border-black/10 dark:border-white/10">
+                <div class="p-5 md:p-6 text-center">
+                    <p class="text-2xl md:text-3xl font-black"><%= users.length %></p>
+                    <p class="text-[10px] uppercase tracking-widest opacity-40 font-bold mt-1"><%= t('admin.instance.stat_users') %></p>
+                </div>
+                <div class="p-5 md:p-6 text-center">
+                    <p class="text-2xl md:text-3xl font-black"><%= (locals.collections || []).length %></p>
+                    <p class="text-[10px] uppercase tracking-widest opacity-40 font-bold mt-1"><%= t('admin.instance.stat_collections') %></p>
+                </div>
+                <div class="p-5 md:p-6 text-center">
+                    <p class="text-2xl md:text-3xl font-black"><%= locals.itemsTotal || 0 %></p>
+                    <p class="text-[10px] uppercase tracking-widest opacity-40 font-bold mt-1"><%= t('admin.instance.stat_items') %></p>
+                </div>
+                <div class="p-5 md:p-6 text-center">
+                    <p class="text-2xl md:text-3xl font-black"><%= blockedIps.length %></p>
+                    <p class="text-[10px] uppercase tracking-widest opacity-40 font-bold mt-1"><%= t('admin.instance.stat_blocked') %></p>
+                </div>
+            </div>
+        </div>
+
+        <% if (locals.successMessage && !locals.newPassword) { %>
+            <div class="bg-primary-theme/10 border border-primary-theme/30 p-4 rounded-2xl text-center mb-6 transition-colors">
+                <p class="text-sm font-bold text-primary-theme flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-check-circle"></i>
+                    <%= successMessage %>
+                </p>
+            </div>
+        <% } %>
+
+        <% if (locals.newPassword) { %>
+            <div
+                class="bg-primary-theme/10 border border-primary-theme/30 p-6 rounded-2xl text-center animate-pulse transition-colors">
+                <h2 class="text-lg font-bold text-primary-theme mb-2">
+                    <i class="fa-solid fa-check-circle"></i>
+                    <%= successMessage %>
+                </h2>
+                <p class="text-sm opacity-70 mb-4">
+                    <%= t('admin.temp_password_hint') %>
+                </p>
+                <div
+                    class="bg-white dark:bg-black/50 p-4 rounded-xl inline-flex items-center gap-3 border border-primary-theme/30 shadow-sm overflow-hidden max-w-full">
+                    <code class="text-xl md:text-2xl font-mono select-all break-all"><%= newPassword %></code>
+                </div>
+            </div>
+            <% } %>
+
+                <!-- ============ COLLECTIONS ============ -->
+                <section>
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between py-6 gap-4 mb-2">
+                        <h2 class="text-xl md:text-2xl font-bold flex items-center gap-3 transition-colors">
+                            <i class="fa-solid fa-layer-group text-primary-theme"></i>
+                            <%= t('admin.collections.title', { count: (locals.collections || []).length }) %>
+                        </h2>
+                        <button onclick="toggleModal('createCollectionModal')"
+                            class="flex items-center gap-2 bg-primary-theme hover:brightness-110 text-white px-5 py-3 rounded-2xl shadow-lg shadow-primary-theme/20 transition-all active:scale-95">
+                            <i class="fa-solid fa-plus text-sm"></i>
+                            <span class="text-xs font-black">
+                                <%= t('admin.collections.create') %>
+                            </span>
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <% (locals.collections || []).forEach(c => { %>
+                            <div class="card-theme rounded-3xl p-6 shadow-sm transition-colors flex flex-col gap-4">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div class="overflow-hidden">
+                                        <h3 class="text-lg font-black truncate flex items-center gap-2">
+                                            <%= c.name %>
+                                            <% if (c.isDefault) { %>
+                                                <span class="text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-primary-theme/10 text-primary-theme whitespace-nowrap">
+                                                    <%= t('admin.collections.default_badge') %>
+                                                </span>
+                                            <% } %>
+                                        </h3>
+                                        <p class="font-mono text-[10px] opacity-50 truncate"><%= c.slug %></p>
+                                    </div>
+                                    <div class="flex gap-2 shrink-0">
+                                        <button onclick="toggleModal('collModal-<%= c._id %>')"
+                                            class="flex items-center gap-2 bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-4 py-2 rounded-xl text-xs font-black transition-all">
+                                            <i class="fa-solid fa-gear"></i>
+                                            <%= t('admin.instance.manage') %>
+                                        </button>
+                                        <% if (!c.isDefault) { %>
+                                            <form action="<%= baseUrl %>/admin/collections/<%= c._id %>/delete" method="POST"
+                                                onsubmit="return confirm('<%= t('admin.collections.confirm_delete', { name: c.name }) %>')">
+                                                <button type="submit"
+                                                    class="text-red-600 bg-red-100 dark:bg-red-500/10 p-2 rounded-xl transition-colors hover:brightness-110"
+                                                    title="<%= t('admin.tooltips.delete') %>">
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        <% } %>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-5 text-xs opacity-70 border-t border-black/5 dark:border-white/5 pt-4">
+                                    <span class="flex items-center gap-2">
+                                        <i class="fa-solid fa-users opacity-50"></i>
+                                        <%= (c.members || []).length %> <%= t('admin.collections.col_members').toLowerCase() %>
+                                    </span>
+                                    <span class="flex items-center gap-2">
+                                        <i class="fa-solid fa-compact-disc opacity-50"></i>
+                                        <%= c.itemCount || 0 %> <%= t('admin.instance.stat_items').toLowerCase() %>
+                                    </span>
+                                    <span class="flex items-center gap-2 ml-auto">
+                                        <i class="fa-regular fa-calendar opacity-50"></i>
+                                        <%= c.created_at ? new Date(c.created_at).toLocaleDateString(currentLng==='fr' ? 'fr-FR' : 'en-US') : '-' %>
+                                    </span>
+                                </div>
+                                <!-- Member avatars preview -->
+                                <div class="flex -space-x-2">
+                                    <% (c.members || []).slice(0, 8).forEach(m => { %>
+                                        <img src="<%= baseUrl + (m.user.img || '/ressources/no-pp.jpg') %>"
+                                            title="<%= m.user.username %> (<%= t('admin.members.role_' + m.role) %>)"
+                                            class="w-8 h-8 rounded-full border-2 border-white dark:border-neutral-800 object-cover">
+                                    <% }) %>
+                                    <% if ((c.members || []).length > 8) { %>
+                                        <span class="w-8 h-8 rounded-full bg-black/10 dark:bg-white/10 border-2 border-white dark:border-neutral-800 flex items-center justify-center text-[10px] font-black">
+                                            +<%= c.members.length - 8 %>
+                                        </span>
+                                    <% } %>
+                                </div>
+                            </div>
+                        <% }) %>
+                    </div>
+                </section>
+
+                <!-- ============ USERS ============ -->
+                <section>
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between py-6 gap-4 mb-4">
+                        <h2 class="text-xl md:text-2xl font-bold flex items-center gap-3 transition-colors">
+                            <i class="fa-solid fa-users text-primary-theme"></i>
+                            <%= t('admin.users_count', { count: users.length }) %>
+                        </h2>
+                        <button onclick="toggleModal('addUserModal')"
+                            class="group relative flex items-center gap-3 bg-primary-theme hover:brightness-110 text-white px-5 py-3 rounded-2xl shadow-lg shadow-primary-theme/20 transition-all active:scale-95 overflow-hidden">
+                            <div
+                                class="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform">
+                            </div>
+                            <i class="fa-solid fa-user-plus text-sm relative"></i>
+                            <span class="text-xs font-black relative">
+                                <%= t('admin.modal.title') %>
+                            </span>
+                        </button>
+                    </div>
+
+                    <div class="hidden md:block card-theme rounded-2xl overflow-hidden shadow-lg transition-colors">
+                        <table class="w-full text-left text-sm opacity-80">
+                            <thead class="bg-black/5 dark:bg-white/5 text-xs uppercase opacity-70 transition-colors">
+                                <tr>
+                                    <th class="px-6 py-4">
+                                        <%= t('admin.table.user') %>
+                                    </th>
+                                    <th class="px-6 py-4">
+                                        <%= t('admin.table.email') %>
+                                    </th>
+                                    <th class="px-6 py-4">
+                                        <%= t('admin.instance.stat_collections') %>
+                                    </th>
+                                    <th class="px-6 py-4">
+                                        <%= t('admin.table.last_change') %>
+                                    </th>
+                                    <th class="px-6 py-4 text-right">
+                                        <%= t('admin.table.actions') %>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-black/5 dark:divide-white/5 transition-colors">
+                                <% users.forEach(u=> {
+                                    const memberOf = (locals.collections || []).filter(c => (c.members || []).some(m => String(m.user._id) === String(u._id)));
+                                %>
+                                    <tr class="hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+                                        <td class="px-6 py-4 font-medium flex items-center gap-3">
+                                            <img src="<%= baseUrl + u.img %>"
+                                                class="w-8 h-8 rounded-full border border-black/10 dark:border-white/10 object-cover">
+                                            <%= u.username %>
+                                            <% if (u.isAdmin) { %>
+                                                <span class="text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-primary-theme/10 text-primary-theme">
+                                                    <%= t('admin.instance.admin_badge') %>
+                                                </span>
+                                            <% } %>
+                                        </td>
+                                        <td class="px-6 py-4">
+                                            <%= u.email %>
+                                        </td>
+                                        <td class="px-6 py-4 text-xs opacity-70">
+                                            <% if (memberOf.length > 0) { %>
+                                                <%= memberOf.map(c => c.name).join(', ') %>
+                                            <% } else { %>
+                                                <span class="opacity-40">-</span>
+                                            <% } %>
+                                        </td>
+                                        <td class="px-6 py-4 text-xs opacity-70">
+                                            <%= new Date(u.lastChange).toLocaleDateString(currentLng==='fr' ? 'fr-FR'
+                                                : 'en-US' ) %>
+                                        </td>
+                                        <td class="px-6 py-4 text-right flex justify-end gap-2">
+                                            <form action="<%= baseUrl %>/admin/reset-password" method="POST"
+                                                onsubmit="return confirm('<%= t('admin.confirm_reset', { name: u.username }) %>')">
+                                                <input type="hidden" name="userId" value="<%= u._id %>">
+                                                <button type="submit"
+                                                    class="text-yellow-600 bg-yellow-100 dark:bg-yellow-500/10 p-2 rounded-lg transition-colors hover:brightness-110"
+                                                    title="<%= t('admin.tooltips.reset_password') %>">
+                                                    <i class="fa-solid fa-key"></i>
+                                                </button>
+                                            </form>
+                                            <% if (u._id.toString() !==user._id.toString()) { %>
+                                                <form action="<%= baseUrl %>/admin/delete-user" method="POST"
+                                                    onsubmit="return confirm('<%= t('admin.confirm_delete_user', { name: u.username }) %>')">
+                                                    <input type="hidden" name="userId" value="<%= u._id %>">
+                                                    <button type="submit"
+                                                        class="text-red-600 bg-red-100 dark:bg-red-500/10 p-2 rounded-lg transition-colors hover:brightness-110"
+                                                        title="<%= t('admin.tooltips.delete') %>">
+                                                        <i class="fa-solid fa-trash"></i>
+                                                    </button>
+                                                </form>
+                                                <% } %>
+                                        </td>
+                                    </tr>
+                                    <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="md:hidden space-y-4">
+                        <% users.forEach(u=> { %>
+                            <div class="card-theme p-5 rounded-2xl shadow-sm space-y-4 transition-colors">
+                                <div class="flex items-center gap-4">
+                                    <img src="<%= baseUrl + u.img %>"
+                                        class="w-12 h-12 rounded-full border border-black/10 dark:border-white/10 object-cover">
+                                    <div class="overflow-hidden">
+                                        <p class="font-bold truncate">
+                                            <%= u.username %>
+                                        </p>
+                                        <p class="text-xs opacity-60 truncate">
+                                            <%= u.email %>
+                                        </p>
+                                    </div>
+                                </div>
+                                <div
+                                    class="flex items-center justify-between pt-4 border-t border-black/5 dark:border-white/5">
+                                    <div class="flex flex-col">
+                                        <span class="text-[9px] opacity-50 uppercase font-bold tracking-wider">
+                                            <%= t('admin.table.last_change') %>
+                                        </span>
+                                        <span class="text-xs opacity-70">
+                                            <%= new Date(u.lastChange).toLocaleDateString(currentLng==='fr' ? 'fr-FR'
+                                                : 'en-US' ) %>
+                                        </span>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <form action="<%= baseUrl %>/admin/reset-password" method="POST"
+                                            onsubmit="return confirm('<%= t('admin.confirm_reset', { name: u.username }) %>')">
+                                            <input type="hidden" name="userId" value="<%= u._id %>">
+                                            <button type="submit"
+                                                class="text-yellow-600 bg-yellow-50 dark:bg-yellow-500/10 px-4 py-2 rounded-xl border border-yellow-200 dark:border-yellow-500/20 text-sm font-bold">
+                                                <i class="fa-solid fa-key"></i>
+                                            </button>
+                                        </form>
+                                        <% if (u._id.toString() !==user._id.toString()) { %>
+                                            <form action="<%= baseUrl %>/admin/delete-user" method="POST"
+                                                onsubmit="return confirm('<%= t('admin.confirm_delete_user', { name: u.username }) %>')">
+                                                <input type="hidden" name="userId" value="<%= u._id %>">
+                                                <button type="submit"
+                                                    class="text-red-600 bg-red-50 dark:bg-red-500/10 px-4 py-2 rounded-xl border border-red-200 dark:border-red-500/20 text-sm font-bold">
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </button>
+                                            </form>
+                                            <% } %>
+                                    </div>
+                                </div>
+                            </div>
+                            <% }) %>
+                    </div>
+                </section>
+
+                <!-- ============ INSTANCE BACKUP (whole instance, not a single collection) ============ -->
+                <section>
+                    <div class="flex items-center gap-4 mb-6">
+                        <h2 class="text-xl font-bold flex items-center gap-2 transition-colors whitespace-nowrap">
+                            <i class="fa-solid fa-database text-primary-theme"></i>
+                            <%= t('admin.instance.backup_title') %>
+                        </h2>
+                        <div class="flex-grow border-t border-black/10 dark:border-white/10 transition-colors"></div>
+                    </div>
+
+                    <div class="card-theme rounded-3xl p-6 md:p-8 shadow-sm transition-colors border border-amber-500/20">
+                        <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                            <div class="max-w-xl">
+                                <h2 class="text-xl font-bold flex items-center gap-2 mb-2">
+                                    <i class="fa-solid fa-server text-primary-theme"></i>
+                                    <%= t('admin.instance.backup_title') %>
+                                </h2>
+                                <p class="text-sm opacity-60 mb-3">
+                                    <%= t('admin.instance.backup_subtitle') %>
+                                </p>
+                                <p class="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-start gap-2">
+                                    <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
+                                    <%= t('admin.instance.backup_warning') %>
+                                </p>
+                            </div>
+                            <div class="flex flex-wrap gap-3">
+                                <a href="<%= baseUrl %>/backup/export"
+                                    class="flex-1 sm:flex-none bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-file-export"></i>
+                                    <%= t('admin.backup.export_btn') %>
+                                </a>
+                                <label
+                                    class="flex-1 sm:flex-none bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500 hover:text-white px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer">
+                                    <i class="fa-solid fa-file-import"></i>
+                                    <%= t('admin.backup.import_btn') %>
+                                        <input type="file" id="backupInput" class="hidden" accept=".json">
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ============ BLOCKED IPS ============ -->
+                <section>
+                    <h2 class="text-xl font-bold mb-6 flex items-center gap-2 transition-colors">
+                        <i class="fa-solid fa-ban text-red-500"></i>
+                        <%= t('admin.blocked_ips_title', { count: blockedIps.length }) %>
+                    </h2>
+                    <% if(blockedIps.length> 0) { %>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <% blockedIps.forEach(ip=> { %>
+                                <div
+                                    class="card-theme p-5 rounded-2xl flex justify-between items-center group hover:border-red-500/50 transition-colors shadow-sm">
+                                    <div class="overflow-hidden">
+                                        <span class="block font-mono font-bold truncate">
+                                            <%= ip.ip %>
+                                        </span>
+                                        <span class="text-[10px] opacity-50 uppercase tracking-tighter">
+                                            <%= new Date(ip.createdAt).toLocaleDateString(currentLng==='fr' ? 'fr-FR'
+                                                : 'en-US' ) %>
+                                        </span>
+                                    </div>
+                                    <form action="<%= baseUrl %>/admin/unblock-ip" method="POST">
+                                        <input type="hidden" name="ipId" value="<%= ip._id %>">
+                                        <button type="submit"
+                                            class="h-10 w-10 flex items-center justify-center bg-black/5 dark:bg-white/5 opacity-60 hover:text-green-500 hover:opacity-100 rounded-xl transition-colors"
+                                            title="<%= t('admin.tooltips.unblock') %>">
+                                            <i class="fa-solid fa-lock-open"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                                <% }) %>
+                        </div>
+                        <% } else { %>
+                            <div
+                                class="p-12 border-2 border-dashed border-black/10 dark:border-white/10 rounded-3xl text-center opacity-50 transition-colors">
+                                <i class="fa-solid fa-shield-check text-4xl mb-3 opacity-30 block"></i>
+                                <%= t('admin.no_blocked_ips') %>
+                            </div>
+                            <% } %>
+                </section>
+
+                <!-- ============ LOGIN LOGS ============ -->
+                <section>
+                    <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+                        <h2 class="text-xl font-bold flex items-center gap-2 transition-colors">
+                            <i class="fa-solid fa-satellite-dish text-primary-theme"></i>
+                            <%= t('admin.logs_title') %>
+                        </h2>
+                        <div class="flex items-center gap-3">
+                            <div class="md:hidden text-[10px] uppercase font-bold opacity-50 flex items-center gap-1">
+                                <i class="fa-solid fa-left-right animate-pulse"></i> Scroll
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <input type="number" id="deleteLogsCount" min="1" placeholder="<%= t('admin.logs_delete_last.count_placeholder') %>"
+                                    class="w-24 bg-black/5 dark:bg-white/5 rounded-xl px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-red-500/30">
+                                <button onclick="confirmDeleteLastLogs()"
+                                    class="flex items-center gap-2 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white border border-red-500/20 hover:border-red-500 font-black text-xs px-4 py-2 rounded-xl transition-all active:scale-95"
+                                    title="<%= t('admin.logs_delete_last.btn') %>">
+                                    <i class="fa-solid fa-trash"></i>
+                                    <span class="hidden sm:inline"><%= t('admin.logs_delete_last.btn') %></span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-theme rounded-2xl overflow-hidden shadow-lg transition-colors">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-sm opacity-80 min-w-[700px]">
+                                <thead
+                                    class="bg-black/5 dark:bg-white/5 text-xs uppercase opacity-70 transition-colors">
+                                    <tr>
+                                        <th class="px-6 py-4">
+                                            <%= t('admin.table.user') %>
+                                        </th>
+                                        <th class="px-6 py-4">
+                                            <%= t('admin.table.loc') %>
+                                        </th>
+                                        <th class="px-6 py-4">
+                                            <%= t('admin.table.ip_device') %>
+                                        </th>
+                                        <th class="px-6 py-4">
+                                            <%= t('admin.table.date') %>
+                                        </th>
+                                        <th class="px-6 py-4 text-right">
+                                            <%= t('admin.table.security') %>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-black/5 dark:divide-white/5 transition-colors">
+                                    <% logs.forEach(log=> { %>
+                                        <tr class="hover:bg-black/5 dark:hover:bg-white/5 transition-colors group">
+                                            <td class="px-6 py-4">
+                                                <div class="font-bold">
+                                                    <%= log.username %>
+                                                </div>
+                                                <div class="text-[10px] opacity-60 truncate">
+                                                    <%= log.email %>
+                                                </div>
+                                            </td>
+                                            <td class="px-6 py-4">
+                                                <% if(log.country && log.country !=='XX' ) { %>
+                                                    <div class="flex items-center gap-2">
+                                                        <img src="https://flagcdn.com/24x18/<%= log.country.toLowerCase() %>.png"
+                                                            class="rounded-sm shadow-sm" alt="Flag">
+                                                        <span class="font-mono text-xs">
+                                                            <%= log.country %>
+                                                        </span>
+                                                    </div>
+                                                    <div class="text-[10px] opacity-60 uppercase">
+                                                        <%= log.city %>
+                                                    </div>
+                                                    <% } else { %>
+                                                        <span class="opacity-50 text-xs"><i
+                                                                class="fa-solid fa-globe"></i>
+                                                            <%= t('admin.local_connection') %>
+                                                        </span>
+                                                        <% } %>
+                                            </td>
+                                            <td class="px-6 py-4">
+                                                <div class="text-primary-theme font-mono text-xs mb-1">
+                                                    <%= log.ip %>
+                                                </div>
+                                                <div class="text-[10px] opacity-60 max-w-[120px] truncate"
+                                                    title="<%= log.userAgent %>">
+                                                    <%= log.userAgent.includes('Windows') ? 'Windows' :
+                                                        (log.userAgent.includes('Mac') ? 'Mac' : 'Mobile/Linux' ) %>
+                                                </div>
+                                            </td>
+                                            <td class="px-6 py-4 text-[10px] whitespace-nowrap">
+                                                <% const diff=Math.floor((new Date() - new Date(log.timestamp)) /
+                                                    60000); let timeText=diff < 60 ? t('admin.time_ago_min', { count:
+                                                    diff }) : new
+                                                    Date(log.timestamp).toLocaleDateString(currentLng==='fr' ? 'fr-FR'
+                                                    : 'en-US' ); %>
+                                                    <%= timeText %>
+                                            </td>
+                                            <td class="px-6 py-4 text-right">
+                                                <div class="flex justify-end gap-2 opacity-100 transition-opacity">
+                                                    <% if (log.user) { %>
+                                                        <form action="<%= baseUrl %>/admin/reset-password" method="POST"
+                                                            onsubmit="return confirm('<%= t('admin.confirm_reset', { name: log.username }) %>')">
+                                                            <input type="hidden" name="userId" value="<%= log.user %>">
+                                                            <button type="submit"
+                                                                class="bg-black/5 dark:bg-white/5 hover:bg-yellow-500 hover:text-white p-2 rounded-xl border border-transparent transition-colors"
+                                                                title="<%= t('admin.tooltips.reset_password') %>">
+                                                                <i class="fa-solid fa-key"></i>
+                                                            </button>
+                                                        </form>
+                                                        <% } %>
+                                                            <form action="<%= baseUrl %>/admin/block-ip" method="POST"
+                                                                onsubmit="return confirm('<%= t('admin.confirm_block_ip', { ip: log.ip }) %>')">
+                                                                <input type="hidden" name="ipAddress"
+                                                                    value="<%= log.ip %>">
+                                                                <button type="submit"
+                                                                    class="bg-black/5 dark:bg-white/5 hover:bg-red-600 hover:text-white p-2 rounded-xl border border-transparent transition-colors"
+                                                                    title="<%= t('admin.tooltips.block') %>">
+                                                                    <i class="fa-solid fa-ban"></i>
+                                                                </button>
+                                                            </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <% }) %>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+    </div>
+
+    <!-- ============ MODALS ============ -->
+
+    <!-- Create collection -->
+    <div id="createCollectionModal"
+        class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
+        <div class="absolute inset-0" onclick="toggleModal('createCollectionModal')"></div>
+        <div class="card-theme relative w-full max-w-md rounded-[2.5rem] p-8 md:p-10 shadow-2xl transition-all animate-scale-in">
+            <button onclick="toggleModal('createCollectionModal')"
+                class="absolute top-6 right-6 opacity-40 hover:opacity-100 hover:rotate-90 transition-all">
+                <i class="fa-solid fa-xmark text-2xl"></i>
+            </button>
+            <h3 class="text-2xl font-black mb-8">
+                <%= t('admin.collections.create') %>
+            </h3>
+            <form action="<%= baseUrl %>/admin/collections/create" method="POST" class="space-y-6">
+                <div class="space-y-2">
+                    <label class="block text-[10px] font-black uppercase tracking-widest opacity-50 ml-1">
+                        <%= t('admin.my_collection.name_label') %>
+                    </label>
+                    <input type="text" name="name" required
+                        placeholder="<%= t('admin.collections.name_placeholder') %>"
+                        class="w-full bg-black/5 dark:bg-white/5 border-2 border-transparent focus:border-primary-theme/30 rounded-2xl p-4 outline-none transition-all placeholder:opacity-30">
+                </div>
+                <button type="submit"
+                    class="w-full bg-primary-theme text-white font-black py-5 rounded-2xl shadow-lg shadow-primary-theme/20 hover:brightness-110 active:scale-95 transition-all mt-4">
+                    <%= t('admin.collections.create') %>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Per-collection management modals -->
+    <% (locals.collections || []).forEach(c => {
+        const memberIds = new Set((c.members || []).map(m => String(m.user._id)));
+        const nonMembers = users.filter(u => !memberIds.has(String(u._id)));
+    %>
+        <div id="collModal-<%= c._id %>"
+            class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
+            <div class="absolute inset-0" onclick="toggleModal('collModal-<%= c._id %>')"></div>
+            <div class="card-theme relative w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-[2.5rem] p-8 md:p-10 shadow-2xl transition-all animate-scale-in">
+                <button onclick="toggleModal('collModal-<%= c._id %>')"
+                    class="absolute top-6 right-6 opacity-40 hover:opacity-100 hover:rotate-90 transition-all">
+                    <i class="fa-solid fa-xmark text-2xl"></i>
+                </button>
+                <h3 class="text-2xl font-black mb-2 pr-10 flex items-center gap-2">
+                    <i class="fa-solid fa-layer-group text-primary-theme text-lg"></i>
+                    <%= c.name %>
+                </h3>
+                <p class="font-mono text-[10px] opacity-50 mb-8"><%= c.slug %></p>
+
+                <!-- Rename -->
+                <form action="<%= baseUrl %>/admin/collections/<%= c._id %>/rename" method="POST" class="flex items-stretch gap-2 mb-8">
+                    <input type="text" name="name" value="<%= c.name %>" required
+                        class="flex-1 min-w-0 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary-theme/40 transition-colors">
+                    <button type="submit" title="<%= t('admin.collections.rename') %>"
+                        class="flex items-center gap-2 bg-primary-theme/10 text-primary-theme hover:bg-primary-theme hover:text-white px-4 py-3 rounded-2xl text-xs font-black transition-all">
+                        <i class="fa-solid fa-pen"></i>
+                        <%= t('admin.collections.rename') %>
+                    </button>
+                </form>
+
+                <!-- Members -->
+                <h4 class="text-[10px] font-black uppercase tracking-widest opacity-50 mb-3">
+                    <%= t('admin.members.title', { count: (c.members || []).length }) %>
+                </h4>
+                <div class="space-y-2 mb-8">
+                    <% (c.members || []).forEach(m => { %>
+                        <div class="flex items-center gap-3 bg-black/5 dark:bg-white/5 rounded-2xl p-3">
+                            <img src="<%= baseUrl + (m.user.img || '/ressources/no-pp.jpg') %>"
+                                class="w-8 h-8 rounded-full border border-black/10 dark:border-white/10 object-cover shrink-0">
+                            <div class="overflow-hidden flex-1">
+                                <p class="text-sm font-bold truncate"><%= m.user.username %>
+                                    <% if (m.user.isAdmin) { %>
+                                        <span class="text-[8px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-full bg-primary-theme/10 text-primary-theme">
+                                            <%= t('admin.instance.admin_badge') %>
+                                        </span>
+                                    <% } %>
+                                </p>
+                                <p class="text-[10px] opacity-50 truncate"><%= m.user.email %></p>
+                            </div>
+                            <form action="<%= baseUrl %>/admin/instance/collections/<%= c._id %>/members/role" method="POST" class="shrink-0">
+                                <input type="hidden" name="userId" value="<%= m.user._id %>">
+                                <select name="role" onchange="this.form.submit()"
+                                    class="bg-white dark:bg-black/20 border border-transparent rounded-lg px-2 py-1.5 text-[10px] font-bold outline-none cursor-pointer">
+                                    <option class="bg-white dark:bg-[#1a1a1a]" value="viewer" <%= m.role === 'viewer' ? 'selected' : '' %>><%= t('admin.members.role_viewer') %></option>
+                                    <option class="bg-white dark:bg-[#1a1a1a]" value="editor" <%= m.role === 'editor' ? 'selected' : '' %>><%= t('admin.members.role_editor') %></option>
+                                    <option class="bg-white dark:bg-[#1a1a1a]" value="admin" <%= m.role === 'admin' ? 'selected' : '' %>><%= t('admin.members.role_admin') %></option>
+                                </select>
+                            </form>
+                            <form action="<%= baseUrl %>/admin/instance/collections/<%= c._id %>/members/remove" method="POST" class="shrink-0"
+                                onsubmit="return confirm('<%= t('admin.members.confirm_remove', { name: m.user.username }) %>')">
+                                <input type="hidden" name="userId" value="<%= m.user._id %>">
+                                <button type="submit"
+                                    class="text-red-600 bg-red-100 dark:bg-red-500/10 p-2 rounded-lg transition-colors hover:brightness-110"
+                                    title="<%= t('admin.members.remove_btn') %>">
+                                    <i class="fa-solid fa-user-minus text-xs"></i>
+                                </button>
+                            </form>
+                        </div>
+                    <% }) %>
+                </div>
+
+                <!-- Add an instance user -->
+                <% if (nonMembers.length > 0) { %>
+                    <h4 class="text-[10px] font-black uppercase tracking-widest opacity-50 mb-3">
+                        <%= t('admin.instance.add_member') %>
+                    </h4>
+                    <form action="<%= baseUrl %>/admin/instance/collections/<%= c._id %>/members/add" method="POST"
+                        class="flex flex-col sm:flex-row items-stretch gap-2">
+                        <select name="userId" required
+                            class="flex-1 min-w-0 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl px-4 py-3 text-sm outline-none cursor-pointer">
+                            <% nonMembers.forEach(u => { %>
+                                <option class="bg-white dark:bg-[#1a1a1a]" value="<%= u._id %>"><%= u.username %> (<%= u.email %>)</option>
+                            <% }) %>
+                        </select>
+                        <select name="role"
+                            class="bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl px-4 py-3 text-sm outline-none cursor-pointer">
+                            <option class="bg-white dark:bg-[#1a1a1a]" value="viewer"><%= t('admin.members.role_viewer') %></option>
+                            <option class="bg-white dark:bg-[#1a1a1a]" value="editor"><%= t('admin.members.role_editor') %></option>
+                            <option class="bg-white dark:bg-[#1a1a1a]" value="admin"><%= t('admin.members.role_admin') %></option>
+                        </select>
+                        <button type="submit"
+                            class="flex items-center justify-center gap-2 bg-primary-theme hover:brightness-110 text-white px-5 py-3 rounded-2xl text-xs font-black transition-all active:scale-95">
+                            <i class="fa-solid fa-user-plus"></i>
+                        </button>
+                    </form>
+                <% } %>
+            </div>
+        </div>
+    <% }) %>
+
+    <!-- Create instance user -->
+    <div id="addUserModal"
+        class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
+        <div class="absolute inset-0" onclick="toggleModal('addUserModal')"></div>
+        <div
+            class="card-theme relative w-full max-w-md rounded-[2.5rem] p-8 md:p-10 shadow-2xl transition-all animate-scale-in">
+            <button onclick="toggleModal('addUserModal')"
+                class="absolute top-6 right-6 opacity-40 hover:opacity-100 hover:rotate-90 transition-all">
+                <i class="fa-solid fa-xmark text-2xl"></i>
+            </button>
+            <h3 class="text-2xl font-black mb-8">
+                <%= t('admin.modal.title') %>
+            </h3>
+            <form action="<%= baseUrl %>/admin/add-user" method="POST" class="space-y-6">
+                <div class="space-y-2">
+                    <label class="block text-[10px] font-black uppercase tracking-widest opacity-50 ml-1">
+                        <%= t('admin.modal.username') %>
+                    </label>
+                    <input type="text" name="username" required placeholder="Ex: John"
+                        class="w-full bg-black/5 dark:bg-white/5 border-2 border-transparent focus:border-primary-theme/30 rounded-2xl p-4 outline-none transition-all placeholder:opacity-30">
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-[10px] font-black uppercase tracking-widest opacity-50 ml-1">
+                        <%= t('admin.modal.email') %>
+                    </label>
+                    <input type="email" name="email" required placeholder="email@domaine.com"
+                        class="w-full bg-black/5 dark:bg-white/5 border-2 border-transparent focus:border-primary-theme/30 rounded-2xl p-4 outline-none transition-all placeholder:opacity-30">
+                </div>
+                <button type="submit"
+                    class="w-full bg-primary-theme text-white font-black py-5 rounded-2xl shadow-lg shadow-primary-theme/20 hover:brightness-110 active:scale-95 transition-all mt-4">
+                    <%= t('admin.modal.submit') %>
+                </button>
+            </form>
+        </div>
+    </div>
+
+
+    <%- include('partials/footer') %>
+
+        <script>
+            function toggleModal(id) {
+                const modal = document.getElementById(id);
+                modal.classList.toggle('hidden');
+                document.body.style.overflow = modal.classList.contains('hidden') ? 'auto' : 'hidden';
+            }
+
+            async function confirmDeleteLastLogs() {
+                const count = parseInt(document.getElementById('deleteLogsCount')?.value);
+                if (!count || count < 1) return;
+
+                const message = "<%= t('admin.logs_delete_last.confirm') %>".replace('{{count}}', count);
+                if (!confirm(message)) return;
+
+                try {
+                    const response = await fetch('<%= baseUrl %>/admin/delete-last-logs', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ count })
+                    });
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.error || 'Erreur');
+                    window.location.reload();
+                } catch (err) {
+                    alert(err.message);
+                }
+            }
+
+            document.getElementById('backupInput').onchange = function (e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                if (confirm("<%= t('admin.instance.backup_confirm_import') %>")) {
+                    const reader = new FileReader();
+                    reader.onload = async (event) => {
+                        try {
+                            const backupData = JSON.parse(event.target.result);
+                            const response = await fetch('<%= baseUrl %>/backup/import', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(backupData)
+                            });
+                            if (response.ok) {
+                                const result = await response.json();
+                                alert(result.warning || "<%= t('admin.backup.import_success') %>");
+                                window.location.href = '<%= baseUrl %>/login';
+                            } else {
+                                alert("<%= t('admin.backup.import_error') %>");
+                            }
+                        } catch (err) {
+                            alert("<%= t('admin.backup.json_error') %>");
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+                this.value = '';
+            };
+        </script>

@@ -1,0 +1,73 @@
+<% if (zone === 'top') { %>
+    <div class="grid grid-cols-3 gap-3 mb-6">
+        <label class="cursor-pointer relative group">
+            <input type="radio" name="type" value="vinyl" class="peer sr-only"
+                <%= (locals.searchType === 'vinyl' || !locals.searchType || locals.searchType === 'music') ? 'checked' : '' %>>
+            <div
+                class="h-full flex flex-col items-center justify-center p-3 md:p-4 rounded-2xl border border-transparent bg-black/5 dark:bg-white/5 text-center transition-all peer-checked:bg-green-600 peer-checked:text-white hover:bg-black/10 dark:hover:bg-white/10 opacity-70 peer-checked:opacity-100 peer-checked:shadow-md">
+                <i class="fa-solid fa-record-vinyl text-xl md:text-2xl mb-1 block"></i>
+                <span class="text-xs font-bold">
+                    <%= t('media.vinyl') %>
+                </span>
+            </div>
+        </label>
+
+        <label class="cursor-pointer relative group">
+            <input type="radio" name="type" value="cd" class="peer sr-only" <%= (locals.searchType === 'cd')
+                ? 'checked' : '' %>>
+            <div
+                class="h-full flex flex-col items-center justify-center p-3 md:p-4 rounded-2xl border border-transparent bg-black/5 dark:bg-white/5 text-center transition-all peer-checked:bg-blue-600 peer-checked:text-white hover:bg-black/10 dark:hover:bg-white/10 opacity-70 peer-checked:opacity-100 peer-checked:shadow-md">
+                <i class="fa-solid fa-compact-disc text-xl md:text-2xl mb-1 block"></i>
+                <span class="text-xs font-bold">
+                    <%= t('media.cd') %>
+                </span>
+            </div>
+        </label>
+
+        <label class="cursor-pointer relative group">
+            <input type="radio" name="type" value="cassette" class="peer sr-only" <%= (typeof searchType
+                !== 'undefined' && searchType === 'cassette') ? 'checked' : '' %>>
+            <div
+                class="h-full flex flex-col items-center justify-center p-3 md:p-4 rounded-2xl border border-transparent bg-black/5 dark:bg-white/5 text-center transition-all peer-checked:bg-orange-600 peer-checked:text-white hover:bg-black/10 dark:hover:bg-white/10 opacity-70 peer-checked:opacity-100 peer-checked:shadow-md">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" class="mx-auto mb-1">
+                    <rect width="20" height="16" x="2" y="4" rx="2" />
+                    <circle cx="8" cy="10" r="2" />
+                    <path d="M8 12h8" />
+                    <circle cx="16" cy="10" r="2" />
+                    <path d="m6 20 .7-2.9A1.4 1.4 0 0 1 8.1 16h7.8a1.4 1.4 0 0 1 1.4 1l.7 3" />
+                </svg>
+                <span class="text-xs font-bold">
+                    <%= t('media.cassette') %>
+                </span>
+            </div>
+        </label>
+    </div>
+<% } else if (zone === 'bottom') { %>
+    <!-- Advanced Filters -->
+    <div class="mt-4 flex justify-center">
+        <button type="button" onclick="document.getElementById('advanced-filters').classList.toggle('hidden'); document.getElementById('filter-icon').classList.toggle('fa-chevron-up'); document.getElementById('filter-icon').classList.toggle('fa-chevron-down')" class="text-xs opacity-50 hover:opacity-100 flex items-center gap-2 transition-opacity font-bold uppercase tracking-wider">
+            <i id="filter-icon" class="fa-solid fa-chevron-down"></i> <%= t('add_vinyl.advanced_filters') || 'Filtres avancés' %>
+        </button>
+    </div>
+
+    <div id="advanced-filters" class="hidden mt-4 p-4 rounded-2xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div>
+            <label class="block text-[10px] font-black uppercase opacity-40 mb-1"><%= t('add_vinyl.filter_year') || 'Année' %></label>
+            <input type="number" name="year" class="w-full p-3 text-sm rounded-xl bg-white dark:bg-black/50 border border-transparent focus:ring-2 focus:ring-primary-theme outline-none" placeholder="<%= t('add_vinyl.filter_ex_year') || 'Ex: 1994' %>">
+        </div>
+        <div>
+            <label class="block text-[10px] font-black uppercase opacity-40 mb-1"><%= t('add_vinyl.filter_country') || 'Pays' %></label>
+            <input type="text" name="country" class="w-full p-3 text-sm rounded-xl bg-white dark:bg-black/50 border border-transparent focus:ring-2 focus:ring-primary-theme outline-none" placeholder="<%= t('add_vinyl.filter_ex_country') || 'Ex: UK' %>">
+        </div>
+        <div>
+            <label class="block text-[10px] font-black uppercase opacity-40 mb-1"><%= t('add_vinyl.filter_genre') || 'Genre' %></label>
+            <input type="text" name="genre_filter" class="w-full p-3 text-sm rounded-xl bg-white dark:bg-black/50 border border-transparent focus:ring-2 focus:ring-primary-theme outline-none" placeholder="<%= t('add_vinyl.filter_ex_genre') || 'Ex: Electronic' %>">
+        </div>
+        <div>
+            <label class="block text-[10px] font-black uppercase opacity-40 mb-1"><%= t('add_vinyl.filter_label') || 'Label' %></label>
+            <input type="text" name="label_filter" class="w-full p-3 text-sm rounded-xl bg-white dark:bg-black/50 border border-transparent focus:ring-2 focus:ring-primary-theme outline-none" placeholder="<%= t('add_vinyl.filter_ex_label') || 'Ex: EMI' %>">
+        </div>
+    </div>
+<% } %>

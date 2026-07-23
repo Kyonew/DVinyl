@@ -1,0 +1,177 @@
+<%
+    // All bulk importers that declare a UI, from enabled plugins
+    const uiImporters = [];
+    registry.getEnabled(settings).forEach(p => {
+        (p.importers || []).forEach(imp => { if (imp.ui) uiImporters.push({ plugin: p, imp }); });
+    });
+%>
+
+<% if (uiImporters.length > 0) { %>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <% uiImporters.forEach(({ imp }) => { const ui = imp.ui; const accent = ui.color || 'primary'; %>
+        <div class="card-theme rounded-3xl p-6 md:p-8 shadow-sm transition-colors">
+            <div class="flex flex-col gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-black/5 dark:bg-white/5 flex items-center justify-center shrink-0">
+                        <i class="fa-solid <%= ui.icon %> text-primary-theme"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold"><%= t(ui.label) %></h3>
+                        <% if (ui.description) { %><p class="text-xs opacity-50"><%= t(ui.description) %></p><% } %>
+                    </div>
+                </div>
+                <div class="pt-2 border-t border-black/5 dark:border-white/5">
+                    <button type="button" onclick="toggleImportModal('<%= imp.id %>')"
+                        class="w-full bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-4 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2">
+                        <i class="fa-solid <%= ui.icon %>"></i> <%= t(ui.label) %>
+                    </button>
+                </div>
+            </div>
+        </div>
+    <% }) %>
+</div>
+
+<!-- Import modals (one per importer) -->
+<% uiImporters.forEach(({ imp }) => { const ui = imp.ui; %>
+    <div id="importModal_<%= imp.id %>" class="fixed inset-0 z-[120] hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="absolute inset-0" onclick="toggleImportModal('<%= imp.id %>')"></div>
+        <div class="relative card-theme w-full max-w-lg rounded-3xl p-6 md:p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <button type="button" onclick="toggleImportModal('<%= imp.id %>')" class="absolute top-5 right-5 opacity-40 hover:opacity-100 transition-opacity">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+
+            <h3 class="text-xl font-bold flex items-center gap-2 mb-1">
+                <i class="fa-solid <%= ui.icon %> text-primary-theme"></i> <%= t(ui.label) %>
+            </h3>
+            <% if (ui.description) { %><p class="text-sm opacity-60 mb-4"><%= t(ui.description) %></p><% } %>
+
+            <% if (ui.help && ui.help.length) { %>
+                <ol class="text-xs opacity-70 space-y-1.5 mb-5 list-decimal list-inside bg-black/5 dark:bg-white/5 rounded-2xl p-4">
+                    <% ui.help.forEach(step => { %><li><%= t(step) %></li><% }) %>
+                </ol>
+            <% } %>
+
+            <div class="space-y-4">
+                <% ui.fields.forEach(f => { %>
+                    <div>
+                        <label class="block text-[10px] font-black uppercase tracking-widest opacity-50 mb-1.5"><%= t(f.label) %></label>
+                        <% if (f.type === 'select') { %>
+                            <select data-import-field="<%= f.name %>" <%= f.required ? 'required' : '' %>
+                                class="bg-black/5 dark:bg-white/5 border border-transparent text-sm rounded-lg focus:ring-primary-theme block w-full p-3 outline-none cursor-pointer">
+                                <% (f.options || []).forEach(o => { %>
+                                    <option value="<%= o.value %>" class="bg-white dark:bg-[#1a1a1a]" <%= (f.default === o.value) ? 'selected' : '' %>><%= t(o.label, { defaultValue: o.label }) %></option>
+                                <% }) %>
+                            </select>
+                        <% } else if (f.type === 'textarea') { %>
+                            <textarea data-import-field="<%= f.name %>" <%= f.required ? 'required' : '' %> rows="4"
+                                placeholder="<%= f.placeholder || '' %>"
+                                class="bg-black/5 dark:bg-white/5 border border-transparent text-sm rounded-lg focus:ring-primary-theme block w-full p-3 outline-none font-mono"></textarea>
+                        <% } else if (f.type === 'file') { %>
+                            <input type="file" data-import-field="<%= f.name %>" <%= f.fileEncoding ? ('data-encoding="' + f.fileEncoding + '"') : '' %> accept="<%= f.accept || '' %>" <%= f.required ? 'required' : '' %>
+                                class="block w-full text-sm text-neutral-500 file:mr-3 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-primary-theme file:text-white hover:file:brightness-110 cursor-pointer">
+                        <% } else { %>
+                            <input type="<%= f.type %>" data-import-field="<%= f.name %>" <%= f.required ? 'required' : '' %>
+                                value="<%= f.default || '' %>" placeholder="<%= f.placeholder || '' %>"
+                                class="bg-black/5 dark:bg-white/5 border border-transparent text-sm rounded-lg focus:ring-primary-theme block w-full p-3 outline-none">
+                        <% } %>
+                        <% if (f.hint) { %><p class="text-[10px] opacity-40 mt-1.5"><%= t(f.hint) %></p><% } %>
+                    </div>
+                <% }) %>
+            </div>
+
+            <% if (ui.warning) { %>
+                <div class="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[11px] text-amber-600 dark:text-amber-400 flex items-start gap-2">
+                    <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
+                    <span><%= t(ui.warning) %></span>
+                </div>
+            <% } %>
+
+            <div id="importErr_<%= imp.id %>" class="hidden mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-500">
+                <span data-err-text></span>
+            </div>
+
+            <button type="button" id="importBtn_<%= imp.id %>" onclick="runPluginImport('<%= imp.id %>')"
+                class="w-full mt-6 bg-primary-theme text-white font-bold px-6 py-3.5 rounded-2xl hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2">
+                <i class="fa-solid fa-cloud-arrow-down"></i> <%= t(ui.submitLabel) %>
+            </button>
+        </div>
+    </div>
+<% }) %>
+
+<script>
+    (function () {
+        const importTranslations = {
+            loading: '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> <%= t("admin.modal.import_loading") %>',
+            started: '<i class="fa-solid fa-spinner fa-spin mr-2"></i> <%= t("admin.modal.import_started") %>',
+            done: '<%= t("admin.modal.import_done") %>'
+        };
+        let activeImport = null; // { id, btn, original }
+
+        window.toggleImportModal = function (id) {
+            const m = document.getElementById('importModal_' + id);
+            if (m) m.classList.toggle('hidden');
+        };
+
+        window.runPluginImport = async function (importerId) {
+            const modal = document.getElementById('importModal_' + importerId);
+            const btn = document.getElementById('importBtn_' + importerId);
+            const errBox = document.getElementById('importErr_' + importerId);
+            const body = {};
+            for (const el of modal.querySelectorAll('[data-import-field]')) {
+                const name = el.getAttribute('data-import-field');
+                if (el.type === 'file') {
+                    const file = el.files && el.files[0];
+                    if (!file) { if (el.required) { el.focus(); return; } continue; }
+                    body[name] = await file.text();
+                } else {
+                    if (el.required && !String(el.value).trim()) { el.focus(); return; }
+                    body[name] = el.value;
+                }
+            }
+            if (body.full !== undefined) body.full = (body.full === 'true');
+
+            errBox.classList.add('hidden');
+            const original = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = importTranslations.loading;
+            activeImport = { id: importerId, btn, original };
+
+            try {
+                const res = await fetch('<%= baseUrl %>/import/' + importerId, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Error'); }
+                btn.innerHTML = importTranslations.started;
+            } catch (err) {
+                errBox.querySelector('[data-err-text]').innerText = err.message;
+                errBox.classList.remove('hidden');
+                btn.disabled = false;
+                btn.innerHTML = original;
+                activeImport = null;
+            }
+        };
+
+        const importSocket = io({ path: '<%= baseUrl %>/socket.io' });
+        importSocket.on('import_progress', (data) => {
+            if (!activeImport) return;
+            const suffix = data.total ? (data.current + ' / ' + data.total) : ('' + data.current);
+            activeImport.btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> ' + suffix;
+        });
+        importSocket.on('import_finished', (data) => {
+            if (!activeImport) return;
+            alert(data.count + ' ' + importTranslations.done);
+            window.location.reload();
+        });
+        importSocket.on('import_error', (data) => {
+            if (!activeImport) return;
+            const errBox = document.getElementById('importErr_' + activeImport.id);
+            if (errBox) { errBox.querySelector('[data-err-text]').innerText = data.message; errBox.classList.remove('hidden'); }
+            activeImport.btn.disabled = false;
+            activeImport.btn.innerHTML = activeImport.original;
+            activeImport = null;
+        });
+    })();
+</script>
+<% } %>

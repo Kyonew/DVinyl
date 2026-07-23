@@ -1,0 +1,55 @@
+name: 🧩 Plugin idea or submission
+description: Suggest a new media type, or share a plugin you have built.
+title: "[Plugin]: "
+labels: ["plugin"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        DVinyl grows through plugins, so this kind of issue is very welcome! 🧩
+        Use this to suggest a new official media type, or to tell me about a plugin you built.
+        New to plugins? The [Plugin development guide](../../docs/plugin-development.md) and the
+        [Wiki](https://github.com/Kyonew/DVinyl/wiki) explain both the code and no-code paths.
+  - type: input
+    id: media-type
+    attributes:
+      label: Media type
+      description: What kind of collection is this about?
+      placeholder: Trading cards, board games, stamps, figurines...
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What is this issue about?
+      options:
+        - "Idea for a new official plugin"
+        - "I built a plugin and want to share or PR it"
+        - "Question about building a plugin"
+    validations:
+      required: true
+  - type: dropdown
+    id: approach
+    attributes:
+      label: Which approach fits best?
+      options:
+        - "Code plugin (has an external API or data source)"
+        - "No-code plugin (manual entry only)"
+        - "Not sure yet"
+    validations:
+      required: false
+  - type: input
+    id: data-source
+    attributes:
+      label: Data source or API
+      description: Is there a public API or database that could provide metadata and cover art?
+      placeholder: "Name and URL of the API, or 'manual entry only'"
+    validations:
+      required: false
+  - type: textarea
+    id: description
+    attributes:
+      label: Details
+      description: Describe the plugin, the fields it needs, and anything else useful.
+    validations:
+      required: true

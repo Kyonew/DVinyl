@@ -1,0 +1,49 @@
+name: 💡 Feature request
+description: Got an idea to make DVinyl better? I would love to hear it.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for sharing your idea! 💡
+        No idea is too small, feel free to describe it however you like.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before suggesting
+      options:
+        - label: I searched the existing issues and did not find a similar request.
+          required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: What is missing or frustrating today?
+      placeholder: I would love to be able to...
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: How could it work?
+      description: Describe the feature or behavior you have in mind.
+    validations:
+      required: false
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+      description: Any workaround or other approach you thought about?
+    validations:
+      required: false
+  - type: dropdown
+    id: help
+    attributes:
+      label: Would you like to help build it?
+      options:
+        - "I would just love to see it happen"
+        - "I could help test it"
+        - "I could open a PR for it"
+    validations:
+      required: false

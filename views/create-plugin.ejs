@@ -1,0 +1,804 @@
+<%- include('partials/header') %>
+
+<style>
+    /* header.ejs only defines bg/text primary-theme helpers; the pickers need the border variant */
+    .border-primary-theme { border-color: var(--highlight) !important; }
+</style>
+
+<div class="max-w-screen-xl mx-auto px-4 pb-20 space-y-10">
+
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between py-6 gap-4">
+        <h1 class="text-2xl md:text-3xl font-bold flex items-center gap-3 transition-colors">
+            <i class="fa-solid fa-wand-magic-sparkles text-primary-theme"></i>
+            <%= t('create_plugin.title') %>
+        </h1>
+        <a href="<%= baseUrl %>/admin"
+            class="flex items-center gap-2 text-xs font-black uppercase tracking-widest bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-4 py-2 rounded-full transition-all w-fit">
+            <i class="fa-solid fa-shield-halved"></i>
+            <%= t('admin.title') %>
+        </a>
+    </div>
+
+    <!-- Default plugins: per-collection cosmetic overrides -->
+    <section class="card-theme rounded-3xl p-6 shadow-sm transition-colors">
+        <h2 class="text-sm font-black uppercase tracking-widest opacity-80 mb-1 flex items-center gap-2">
+            <i class="fa-solid fa-puzzle-piece text-primary-theme"></i>
+            <%= t('create_plugin.section_defaults') %>
+        </h2>
+        <p class="text-xs opacity-50 mb-4"><%= t('create_plugin.customize_hint') %></p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <% customizablePlugins.filter(p => !p.isCustom).forEach(p => {
+                const displayIcon = p.current.icon || ('fa-' + p.icon);
+                const isCustomized = !!(p.current.icon || p.current.formatColors); %>
+                <div class="flex items-center gap-4 bg-black/5 dark:bg-white/5 rounded-2xl p-4 <%= p.enabled ? '' : 'opacity-50' %>">
+                    <div class="w-11 h-11 rounded-xl bg-primary-theme/10 text-primary-theme flex items-center justify-center shrink-0">
+                        <i class="fa-solid <%= displayIcon %> text-lg"></i>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <div class="font-bold text-sm truncate flex items-center gap-2">
+                            <%= p.label %>
+                            <span class="w-2 h-2 rounded-full shrink-0 <%= p.enabled ? 'bg-green-500' : 'bg-gray-400' %>"></span>
+                        </div>
+                        <% if (isCustomized) { %>
+                            <div class="text-[11px] opacity-50"><i class="fa-solid fa-palette mr-1"></i><%= t('create_plugin.customized') %></div>
+                        <% } %>
+                    </div>
+                    <button type="button" onclick="openCustomize('<%= p.id %>')" title="<%= t('create_plugin.customize') %>"
+                        class="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-primary-theme hover:text-white transition-all shrink-0">
+                        <i class="fa-solid fa-palette text-xs"></i>
+                    </button>
+                </div>
+            <% }) %>
+        </div>
+    </section>
+
+    <!-- Existing custom plugins -->
+    <% if (customPlugins.length > 0) { %>
+    <section class="card-theme rounded-3xl p-6 shadow-sm transition-colors">
+        <h2 class="text-sm font-black uppercase tracking-widest opacity-80 mb-4 flex items-center gap-2">
+            <i class="fa-solid fa-cubes text-primary-theme"></i>
+            <%= t('create_plugin.existing_title') %>
+        </h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <% customPlugins.forEach(cp => { %>
+                <div class="flex items-center gap-4 bg-black/5 dark:bg-white/5 rounded-2xl p-4">
+                    <div class="w-11 h-11 rounded-xl bg-<%= cp.config.color %>-100 dark:bg-<%= cp.config.color %>-900/30 text-<%= cp.config.color %>-600 flex items-center justify-center shrink-0">
+                        <i class="fa-solid <%= cp.config.icon %> text-lg"></i>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <div class="font-bold text-sm truncate"><%= cp.config.label %></div>
+                        <div class="text-[11px] opacity-50 font-mono">/<%= cp.config.id %> · <%= cp.itemCount %> <%= t('common.items') %></div>
+                    </div>
+                    <div class="flex items-center gap-1 shrink-0">
+                        <button type="button" onclick="openCustomize('<%= cp.config.id %>')" title="<%= t('create_plugin.customize') %>"
+                            class="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-primary-theme hover:text-white transition-all">
+                            <i class="fa-solid fa-palette text-xs"></i>
+                        </button>
+                        <a href="<%= baseUrl %>/create-plugin?edit=<%= cp.config.id %>" title="<%= t('common.edit') %>"
+                            class="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-primary-theme hover:text-white transition-all">
+                            <i class="fa-solid fa-pen text-xs"></i>
+                        </a>
+                        <button type="button" title="<%= t('common.delete') %>"
+                            onclick="deleteCustomPlugin('<%= cp.config.id %>', <%= cp.itemCount %>)"
+                            class="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-red-500 hover:text-white transition-all">
+                            <i class="fa-solid fa-trash text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+            <% }) %>
+        </div>
+    </section>
+    <% } %>
+
+    <div class="pt-4">
+        <h2 class="text-xl md:text-2xl font-bold flex items-center gap-3 transition-colors">
+            <i class="fa-solid <%= editConfig ? 'fa-pen' : 'fa-plus' %> text-primary-theme"></i>
+            <%= editConfig ? (t('common.edit') + ' : ' + editConfig.label) : t('create_plugin.section_builder') %>
+        </h2>
+        <p class="text-sm opacity-60 mt-2 max-w-3xl"><%= t('create_plugin.subtitle') %></p>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-[1fr_420px] gap-8 items-start">
+
+        <!-- ===================== BUILDER ===================== -->
+        <div class="space-y-8">
+
+            <div id="builderError" class="hidden bg-red-500/10 border border-red-500/40 text-red-500 rounded-2xl p-4 text-sm font-bold"></div>
+
+            <!-- Identity -->
+            <section class="card-theme rounded-3xl p-6 shadow-sm transition-colors space-y-6">
+                <h2 class="text-sm font-black uppercase tracking-widest opacity-80 flex items-center gap-2">
+                    <span class="w-6 h-6 rounded-full bg-primary-theme text-white text-xs flex items-center justify-center font-black">1</span>
+                    <%= t('create_plugin.section_identity') %>
+                </h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block mb-2 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('create_plugin.name_label') %></label>
+                        <input id="pluginLabel" type="text" maxlength="40" placeholder="<%= t('create_plugin.name_ph') %>"
+                            class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme block w-full p-3 outline-none">
+                        <p class="text-[11px] opacity-40 mt-2 font-mono">URL : /collection?type=<span id="slugPreview">…</span></p>
+                    </div>
+                    <div>
+                        <label class="block mb-2 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('create_plugin.creator_label') %></label>
+                        <input id="creatorLabel" type="text" maxlength="30" placeholder="<%= t('create_plugin.creator_ph') %>"
+                            class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme block w-full p-3 outline-none">
+                        <p class="text-[11px] opacity-40 mt-2"><%= t('create_plugin.creator_hint') %></p>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block mb-2 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('create_plugin.icon_label') %></label>
+                    <div id="iconGrid" class="flex flex-wrap gap-2">
+                        <% iconChoices.forEach(ic => { %>
+                            <button type="button" data-icon="<%= ic %>"
+                                class="icon-choice w-10 h-10 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-primary-theme/20 flex items-center justify-center transition-all">
+                                <i class="fa-solid <%= ic %>"></i>
+                            </button>
+                        <% }) %>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block mb-2 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('create_plugin.color_label') %></label>
+                    <div id="colorGrid" class="flex flex-wrap gap-2">
+                        <% palette.forEach(c => { %>
+                            <button type="button" data-color="<%= c %>"
+                                class="color-choice w-8 h-8 rounded-full bg-<%= c %>-500 transition-all hover:scale-110 border-4 border-transparent"></button>
+                        <% }) %>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Image -->
+            <section class="card-theme rounded-3xl p-6 shadow-sm transition-colors space-y-6">
+                <h2 class="text-sm font-black uppercase tracking-widest opacity-80 flex items-center gap-2">
+                    <span class="w-6 h-6 rounded-full bg-primary-theme text-white text-xs flex items-center justify-center font-black">2</span>
+                    <%= t('create_plugin.section_image') %>
+                </h2>
+
+                <div class="grid grid-cols-2 gap-4 max-w-md">
+                    <button type="button" data-shape="poster" class="shape-choice group rounded-2xl border-2 border-black/10 dark:border-white/10 p-4 flex flex-col items-center gap-3 transition-all">
+                        <div class="w-14 aspect-[2/3] rounded-lg bg-black/10 dark:bg-white/10 flex items-center justify-center">
+                            <i class="fa-solid fa-image opacity-40"></i>
+                        </div>
+                        <span class="text-xs font-bold"><%= t('create_plugin.shape_poster') %></span>
+                    </button>
+                    <button type="button" data-shape="square" class="shape-choice group rounded-2xl border-2 border-black/10 dark:border-white/10 p-4 flex flex-col items-center gap-3 transition-all">
+                        <div class="w-14 aspect-square rounded-lg bg-black/10 dark:bg-white/10 flex items-center justify-center self-center my-auto">
+                            <i class="fa-solid fa-image opacity-40"></i>
+                        </div>
+                        <span class="text-xs font-bold"><%= t('create_plugin.shape_square') %></span>
+                    </button>
+                </div>
+
+                <label class="flex items-center gap-3 cursor-pointer w-fit">
+                    <input id="secondaryImage" type="checkbox" class="sr-only peer">
+                    <div class="relative w-11 h-6 bg-black/10 dark:bg-white/10 rounded-full peer peer-checked:bg-primary-theme after:content-[''] after:absolute after:top-0.5 after:start-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
+                    <div>
+                        <span class="text-sm font-bold"><%= t('create_plugin.secondary_label') %></span>
+                        <p class="text-[11px] opacity-50"><%= t('create_plugin.secondary_desc') %></p>
+                    </div>
+                </label>
+            </section>
+
+            <!-- Built-in features -->
+            <section class="card-theme rounded-3xl p-6 shadow-sm transition-colors space-y-4">
+                <h2 class="text-sm font-black uppercase tracking-widest opacity-80 flex items-center gap-2">
+                    <span class="w-6 h-6 rounded-full bg-primary-theme text-white text-xs flex items-center justify-center font-black">3</span>
+                    <%= t('create_plugin.section_basics') %>
+                </h2>
+                <p class="text-xs opacity-50"><%= t('create_plugin.basics_desc') %></p>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <%
+                    const featureDefs = [
+                        { key: 'year',      icon: 'fa-calendar',       label: t('create_plugin.feature_year') },
+                        { key: 'barcode',   icon: 'fa-barcode',        label: t('create_plugin.feature_barcode') },
+                        { key: 'genre',     icon: 'fa-tags',           label: t('create_plugin.feature_genre') },
+                        { key: 'rating',    icon: 'fa-star',           label: t('create_plugin.feature_rating') },
+                        { key: 'comments',  icon: 'fa-comment-dots',   label: t('create_plugin.feature_comments') },
+                        { key: 'location',  icon: 'fa-location-dot',   label: t('create_plugin.feature_location') },
+                        { key: 'tracklist', icon: 'fa-list-ol',        label: t('create_plugin.feature_tracklist') }
+                    ];
+                    featureDefs.forEach(f => { %>
+                        <label class="flex items-center gap-3 cursor-pointer bg-black/5 dark:bg-white/5 rounded-xl px-4 py-3 hover:bg-black/10 dark:hover:bg-white/10 transition-colors">
+                            <input type="checkbox" class="feature-toggle accent-current w-4 h-4" data-feature="<%= f.key %>">
+                            <i class="fa-solid <%= f.icon %> opacity-40 w-4 text-center"></i>
+                            <span class="text-sm font-medium"><%= f.label %></span>
+                        </label>
+                    <% }) %>
+                </div>
+            </section>
+
+            <!-- Formats -->
+            <section class="card-theme rounded-3xl p-6 shadow-sm transition-colors space-y-4">
+                <h2 class="text-sm font-black uppercase tracking-widest opacity-80 flex items-center gap-2">
+                    <span class="w-6 h-6 rounded-full bg-primary-theme text-white text-xs flex items-center justify-center font-black">4</span>
+                    <%= t('create_plugin.section_formats') %>
+                </h2>
+                <p class="text-xs opacity-50"><%= t('create_plugin.formats_desc') %></p>
+
+                <div id="formatRows" class="space-y-2"></div>
+
+                <button type="button" id="addFormatBtn"
+                    class="w-full py-2.5 text-xs font-bold opacity-30 hover:opacity-70 border-2 border-dashed border-current rounded-xl transition-all flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-plus"></i> <%= t('create_plugin.add_format') %>
+                </button>
+            </section>
+
+            <!-- Custom fields -->
+            <section class="card-theme rounded-3xl p-6 shadow-sm transition-colors space-y-4">
+                <h2 class="text-sm font-black uppercase tracking-widest opacity-80 flex items-center gap-2">
+                    <span class="w-6 h-6 rounded-full bg-primary-theme text-white text-xs flex items-center justify-center font-black">5</span>
+                    <%= t('create_plugin.section_fields') %>
+                </h2>
+                <p class="text-xs opacity-50"><%= t('create_plugin.fields_desc') %></p>
+
+                <div id="fieldRows" class="space-y-3"></div>
+
+                <button type="button" id="addFieldBtn"
+                    class="w-full py-2.5 text-xs font-bold opacity-30 hover:opacity-70 border-2 border-dashed border-current rounded-xl transition-all flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-plus"></i> <%= t('create_plugin.add_field') %>
+                </button>
+            </section>
+
+            <button type="button" id="saveBtn"
+                class="w-full text-white bg-primary-theme hover:brightness-110 font-bold rounded-2xl text-lg px-5 py-4 transition-transform hover:scale-[1.01] flex items-center justify-center gap-2 shadow-lg shadow-primary-theme/20">
+                <i class="fa-solid <%= editConfig ? 'fa-floppy-disk' : 'fa-wand-magic-sparkles' %>"></i>
+                <span id="saveBtnText"><%= editConfig ? t('create_plugin.update_btn') : t('create_plugin.save_btn') %></span>
+            </button>
+        </div>
+
+        <!-- ===================== LIVE PREVIEW ===================== -->
+        <div class="xl:sticky xl:top-24 space-y-6">
+            <h2 class="text-sm font-black uppercase tracking-widest opacity-50 flex items-center gap-2">
+                <i class="fa-solid fa-eye"></i> <%= t('create_plugin.preview_title') %>
+            </h2>
+
+            <!-- Card preview -->
+            <div class="card-theme rounded-3xl p-6 shadow-sm transition-colors">
+                <p class="text-[10px] font-black uppercase tracking-widest opacity-40 mb-4"><%= t('create_plugin.preview_card') %></p>
+                <div class="max-w-[220px] mx-auto">
+                    <div class="group relative rounded-2xl overflow-hidden shadow-lg">
+                        <div id="pvCover" class="aspect-[2/3] bg-gradient-to-br from-black/20 to-black/50 dark:from-white/10 dark:to-black/60 flex items-center justify-center transition-all">
+                            <i id="pvCoverIcon" class="fa-solid fa-box text-5xl opacity-30"></i>
+                        </div>
+                        <span id="pvBadge" class="hidden absolute top-2 left-2 text-white text-[10px] font-black uppercase px-2 py-1 rounded-md shadow"></span>
+                    </div>
+                    <div class="mt-3 px-1">
+                        <div id="pvTitle" class="font-bold text-sm truncate"><%= t('create_plugin.preview_sample_title') %></div>
+                        <div id="pvCreator" class="text-xs opacity-60 truncate"><%= t('create_plugin.preview_sample_creator') %></div>
+                        <div id="pvYear" class="hidden text-[11px] opacity-40 font-mono">2024</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form preview -->
+            <div class="card-theme rounded-3xl p-6 shadow-sm transition-colors">
+                <p class="text-[10px] font-black uppercase tracking-widest opacity-40 mb-4"><%= t('create_plugin.preview_form') %></p>
+                <div id="pvForm" class="space-y-3"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Per-collection cosmetic customization modal (icon + badge colors) -->
+<div id="customizeModal" class="hidden fixed inset-0 z-50 bg-black/60 items-center justify-center p-4">
+    <div class="card-theme rounded-3xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto space-y-5">
+        <div class="flex items-center justify-between">
+            <h3 class="font-bold text-lg flex items-center gap-2">
+                <i class="fa-solid fa-palette text-primary-theme"></i>
+                <span id="czTitle"></span>
+            </h3>
+            <button type="button" onclick="closeCustomize()"
+                class="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/10 transition-colors">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <p class="text-xs opacity-50"><%= t('create_plugin.customize_hint') %></p>
+
+        <div>
+            <label class="block mb-2 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('create_plugin.icon_label') %></label>
+            <div id="czIconGrid" class="flex flex-wrap gap-2">
+                <% iconChoices.forEach(ic => { %>
+                    <button type="button" data-icon="<%= ic %>"
+                        class="cz-icon w-10 h-10 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-primary-theme/20 flex items-center justify-center transition-all">
+                        <i class="fa-solid <%= ic %>"></i>
+                    </button>
+                <% }) %>
+            </div>
+        </div>
+
+        <div id="czFormatsWrap">
+            <label class="block mb-2 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('create_plugin.format_colors') %></label>
+            <div id="czFormats" class="space-y-2"></div>
+        </div>
+
+        <div id="czError" class="hidden text-red-500 text-sm font-bold"></div>
+
+        <div class="flex items-center gap-3 pt-2">
+            <button type="button" onclick="saveCustomize(false)"
+                class="flex-1 text-white bg-primary-theme hover:brightness-110 font-bold rounded-xl px-5 py-3 transition-all">
+                <%= t('common.save') %>
+            </button>
+            <button type="button" onclick="saveCustomize(true)"
+                class="px-5 py-3 rounded-xl font-bold text-sm bg-black/5 dark:bg-white/5 hover:bg-red-500 hover:text-white transition-colors">
+                <%= t('create_plugin.reset') %>
+            </button>
+        </div>
+    </div>
+</div>
+
+<%- include('partials/footer') %>
+
+<script>
+(function () {
+    const baseUrl = '<%= baseUrl %>';
+    // Values are injected through JSON.stringify with '<' escaped: user-provided
+    // labels cannot break out of the script block, and translated strings keep
+    // their quotes instead of being HTML-entity encoded.
+    const editConfig = <%- editConfig ? JSON.stringify(editConfig).replace(/</g, '\\u003c') : 'null' %>;
+    const palette = <%- JSON.stringify(palette) %>;
+
+    <%
+    const builderI18n = {
+        fieldTypes: {
+            text: t('create_plugin.type_text'),
+            number: t('create_plugin.type_number'),
+            textarea: t('create_plugin.type_textarea'),
+            select: t('create_plugin.type_select'),
+            boolean: t('create_plugin.type_boolean'),
+            tags: t('create_plugin.type_tags')
+        },
+        groupMain: t('create_plugin.field_group_main'),
+        groupMeta: t('create_plugin.field_group_meta'),
+        required: t('create_plugin.field_required'),
+        fieldLabelPh: t('create_plugin.field_label_ph'),
+        formatPh: t('create_plugin.format_name_ph'),
+        optionsPh: t('create_plugin.field_options_ph'),
+        deleteConfirm: t('create_plugin.delete_confirm'),
+        saving: t('create_plugin.saving'),
+        pvTitle: t('create_plugin.preview_sample_title'),
+        pvCreator: t('create_plugin.preview_sample_creator'),
+        pvComments: t('create_plugin.feature_comments'),
+        pvLocation: t('create_plugin.feature_location'),
+        pvYear: t('create_plugin.feature_year'),
+        pvBarcode: t('create_plugin.feature_barcode'),
+        pvGenre: t('create_plugin.feature_genre'),
+        pvRating: t('create_plugin.feature_rating'),
+        pvTracklist: t('create_plugin.feature_tracklist'),
+        pvFormat: t('confirm_vinyl.field_format'),
+        pvQuantity: t('confirm_vinyl.field_quantity'),
+        pvTitleField: t('confirm_vinyl.field_title')
+    };
+    %>
+    const i18n = <%- JSON.stringify(builderI18n).replace(/</g, '\\u003c') %>;
+
+    // ---- State ---------------------------------------------------------------
+    const state = {
+        icon: 'fa-box',
+        color: 'teal',
+        shape: 'poster'
+    };
+
+    function slugify(s) {
+        return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30);
+    }
+
+    const $ = id => document.getElementById(id);
+
+    // Same select/option styling as the rest of the app (admin.ejs, fields/select.ejs):
+    // without the explicit text color + option background, the native dropdown renders
+    // white-on-white in dark mode.
+    const SELECT_CLASSES = 'bg-black/5 dark:bg-white/5 border border-transparent text-gray-900 dark:text-white rounded-lg text-sm p-2.5 outline-none cursor-pointer';
+    const OPTION_CLASSES = 'bg-white dark:bg-[#1a1a1a]';
+
+    // ---- Icon / color / shape pickers -----------------------------------------
+    document.querySelectorAll('.icon-choice').forEach(btn => {
+        btn.addEventListener('click', () => { state.icon = btn.dataset.icon; syncPickers(); renderPreview(); });
+    });
+    document.querySelectorAll('.color-choice').forEach(btn => {
+        btn.addEventListener('click', () => { state.color = btn.dataset.color; syncPickers(); renderPreview(); });
+    });
+    document.querySelectorAll('.shape-choice').forEach(btn => {
+        btn.addEventListener('click', () => { state.shape = btn.dataset.shape; syncPickers(); renderPreview(); });
+    });
+
+    function syncPickers() {
+        document.querySelectorAll('.icon-choice').forEach(b => {
+            const on = b.dataset.icon === state.icon;
+            b.classList.toggle('bg-primary-theme', on);
+            b.classList.toggle('text-white', on);
+        });
+        document.querySelectorAll('.color-choice').forEach(b => {
+            b.classList.toggle('border-primary-theme', b.dataset.color === state.color);
+            b.classList.toggle('scale-110', b.dataset.color === state.color);
+        });
+        document.querySelectorAll('.shape-choice').forEach(b => {
+            b.classList.toggle('border-primary-theme', b.dataset.shape === state.shape);
+        });
+    }
+
+    // ---- Dynamic rows: formats -------------------------------------------------
+    function addFormatRow(data) {
+        data = data || {};
+        const row = document.createElement('div');
+        row.className = 'fmt-row flex items-center gap-2';
+        row.dataset.value = data.value || '';
+
+        const input = document.createElement('input');
+        input.type = 'text'; input.maxLength = 30;
+        input.placeholder = i18n.formatPh;
+        input.value = data.label || '';
+        input.className = 'fmt-label flex-1 bg-black/5 dark:bg-white/5 rounded-lg text-sm p-2.5 outline-none focus:ring-1 focus:ring-primary-theme';
+        input.addEventListener('input', renderPreview);
+
+        const colorSel = document.createElement('select');
+        colorSel.className = 'fmt-color ' + SELECT_CLASSES;
+        palette.forEach(c => {
+            const o = document.createElement('option');
+            o.value = c; o.textContent = c;
+            o.className = OPTION_CLASSES;
+            if ((data.color || state.color) === c) o.selected = true;
+            colorSel.appendChild(o);
+        });
+        colorSel.addEventListener('change', renderPreview);
+
+        const del = document.createElement('button');
+        del.type = 'button';
+        del.className = 'w-9 h-9 rounded-lg flex items-center justify-center opacity-40 hover:opacity-100 hover:text-red-500 transition-all shrink-0';
+        del.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+        del.addEventListener('click', () => { row.remove(); renderPreview(); });
+
+        row.append(input, colorSel, del);
+        $('formatRows').appendChild(row);
+    }
+
+    // ---- Dynamic rows: custom fields --------------------------------------------
+    function addFieldRow(data) {
+        data = data || {};
+        const row = document.createElement('div');
+        row.className = 'field-row bg-black/5 dark:bg-white/5 rounded-xl p-3 space-y-2';
+        row.dataset.name = data.name || '';
+
+        const top = document.createElement('div');
+        top.className = 'flex items-center gap-2';
+
+        const label = document.createElement('input');
+        label.type = 'text'; label.maxLength = 40;
+        label.placeholder = i18n.fieldLabelPh;
+        label.value = data.label || '';
+        label.className = 'fld-label flex-1 bg-black/5 dark:bg-white/5 rounded-lg text-sm p-2.5 outline-none focus:ring-1 focus:ring-primary-theme';
+        label.addEventListener('input', renderPreview);
+
+        const type = document.createElement('select');
+        type.className = 'fld-type ' + SELECT_CLASSES;
+        Object.keys(i18n.fieldTypes).forEach(tp => {
+            const o = document.createElement('option');
+            o.value = tp; o.textContent = i18n.fieldTypes[tp];
+            o.className = OPTION_CLASSES;
+            if ((data.type || 'text') === tp) o.selected = true;
+            type.appendChild(o);
+        });
+
+        const del = document.createElement('button');
+        del.type = 'button';
+        del.className = 'w-9 h-9 rounded-lg flex items-center justify-center opacity-40 hover:opacity-100 hover:text-red-500 transition-all shrink-0';
+        del.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+        del.addEventListener('click', () => { row.remove(); renderPreview(); });
+
+        top.append(label, type, del);
+
+        const bottom = document.createElement('div');
+        bottom.className = 'flex flex-wrap items-center gap-x-4 gap-y-2';
+
+        const group = document.createElement('select');
+        group.className = 'fld-group ' + SELECT_CLASSES.replace('text-sm p-2.5', 'text-xs p-2');
+        [['main', i18n.groupMain], ['metadata', i18n.groupMeta]].forEach(([v, l]) => {
+            const o = document.createElement('option');
+            o.value = v; o.textContent = l;
+            o.className = OPTION_CLASSES;
+            if ((data.group || 'metadata') === v) o.selected = true;
+            group.appendChild(o);
+        });
+        group.addEventListener('change', renderPreview);
+
+        const reqLabel = document.createElement('label');
+        reqLabel.className = 'flex items-center gap-2 text-xs cursor-pointer opacity-70';
+        const req = document.createElement('input');
+        req.type = 'checkbox';
+        req.className = 'fld-required w-3.5 h-3.5';
+        req.checked = data.required === true;
+        req.addEventListener('change', renderPreview);
+        reqLabel.append(req, document.createTextNode(i18n.required));
+
+        const options = document.createElement('input');
+        options.type = 'text';
+        options.placeholder = i18n.optionsPh;
+        options.value = Array.isArray(data.options) ? data.options.map(o => o.label).join(', ') : '';
+        options.className = 'fld-options flex-1 min-w-[180px] bg-black/5 dark:bg-white/5 rounded-lg text-xs p-2 outline-none focus:ring-1 focus:ring-primary-theme';
+        options.addEventListener('input', renderPreview);
+
+        bottom.append(group, reqLabel, options);
+        row.append(top, bottom);
+
+        function syncOptionsVisibility() {
+            options.classList.toggle('hidden', type.value !== 'select');
+        }
+        type.addEventListener('change', () => { syncOptionsVisibility(); renderPreview(); });
+        syncOptionsVisibility();
+
+        $('fieldRows').appendChild(row);
+    }
+
+    $('addFormatBtn').addEventListener('click', () => addFormatRow());
+    $('addFieldBtn').addEventListener('click', () => addFieldRow());
+
+    // ---- Collect current state ---------------------------------------------------
+    function collect() {
+        const features = {};
+        document.querySelectorAll('.feature-toggle').forEach(cb => { features[cb.dataset.feature] = cb.checked; });
+
+        const formats = Array.from(document.querySelectorAll('.fmt-row')).map(r => ({
+            value: r.dataset.value || undefined,
+            label: r.querySelector('.fmt-label').value.trim(),
+            color: r.querySelector('.fmt-color').value
+        })).filter(f => f.label);
+
+        const fields = Array.from(document.querySelectorAll('.field-row')).map(r => ({
+            name: r.dataset.name || undefined,
+            label: r.querySelector('.fld-label').value.trim(),
+            type: r.querySelector('.fld-type').value,
+            group: r.querySelector('.fld-group').value,
+            required: r.querySelector('.fld-required').checked,
+            options: r.querySelector('.fld-options').value.split(',').map(s => s.trim()).filter(Boolean)
+        })).filter(f => f.label);
+
+        return {
+            editId: editConfig ? editConfig.id : '',
+            label: $('pluginLabel').value.trim(),
+            id: editConfig ? editConfig.id : slugify($('pluginLabel').value),
+            icon: state.icon,
+            color: state.color,
+            imageShape: state.shape,
+            secondaryImage: $('secondaryImage').checked,
+            creatorLabel: $('creatorLabel').value.trim(),
+            features, formats, fields
+        };
+    }
+
+    // ---- Live preview -----------------------------------------------------------
+    function mockInput(labelText, kind) {
+        const wrap = document.createElement('div');
+        const lab = document.createElement('div');
+        lab.className = 'text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1';
+        lab.textContent = labelText;
+        wrap.appendChild(lab);
+        const box = document.createElement('div');
+        box.className = 'bg-black/5 dark:bg-white/5 rounded-lg ' + (kind === 'textarea' ? 'h-14' : 'h-8');
+        if (kind === 'boolean') {
+            box.className = 'w-10 h-5 rounded-full bg-black/10 dark:bg-white/10 relative';
+            box.innerHTML = '<span class="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow"></span>';
+        }
+        if (kind === 'select') box.innerHTML = '<div class="h-full flex items-center justify-end pr-2 opacity-30"><i class="fa-solid fa-chevron-down text-[10px]"></i></div>';
+        wrap.appendChild(box);
+        return wrap;
+    }
+
+    function renderPreview() {
+        const cfg = collect();
+
+        $('slugPreview').textContent = cfg.id || '…';
+
+        // Card
+        $('pvCover').className = (cfg.imageShape === 'square' ? 'aspect-square' : 'aspect-[2/3]') +
+            ' bg-gradient-to-br from-black/20 to-black/50 dark:from-white/10 dark:to-black/60 flex items-center justify-center transition-all';
+        $('pvCoverIcon').className = 'fa-solid ' + cfg.icon + ' text-5xl opacity-30';
+        $('pvTitle').textContent = i18n.pvTitle;
+        $('pvCreator').textContent = cfg.creatorLabel ? (cfg.creatorLabel + ' : ' + i18n.pvCreator) : i18n.pvCreator;
+        $('pvYear').classList.toggle('hidden', !cfg.features.year);
+
+        const badge = $('pvBadge');
+        if (cfg.formats.length > 0) {
+            badge.textContent = cfg.formats[0].label;
+            badge.className = 'absolute top-2 left-2 text-white text-[10px] font-black uppercase px-2 py-1 rounded-md shadow bg-' + (cfg.formats[0].color || cfg.color) + '-600/90';
+        } else {
+            badge.className = 'hidden';
+        }
+
+        // Form
+        const form = $('pvForm');
+        form.innerHTML = '';
+        form.appendChild(mockInput(i18n.pvTitleField + ' *', 'text'));
+        form.appendChild(mockInput((cfg.creatorLabel || '…') + ' *', 'text'));
+        if (cfg.formats.length > 0) form.appendChild(mockInput(i18n.pvFormat, 'select'));
+        form.appendChild(mockInput(i18n.pvQuantity, 'number'));
+        cfg.fields.filter(f => f.group === 'main').forEach(f =>
+            form.appendChild(mockInput(f.label + (f.required ? ' *' : ''), f.type)));
+        if (cfg.features.tracklist) form.appendChild(mockInput(i18n.pvTracklist, 'textarea'));
+
+        const divider = document.createElement('hr');
+        divider.className = 'border-black/10 dark:border-white/10 !my-4';
+        form.appendChild(divider);
+
+        if (cfg.features.year) form.appendChild(mockInput(i18n.pvYear, 'text'));
+        if (cfg.features.barcode) form.appendChild(mockInput(i18n.pvBarcode, 'text'));
+        if (cfg.features.genre) form.appendChild(mockInput(i18n.pvGenre, 'text'));
+        cfg.fields.filter(f => f.group === 'metadata').forEach(f =>
+            form.appendChild(mockInput(f.label + (f.required ? ' *' : ''), f.type)));
+        if (cfg.features.rating) form.appendChild(mockInput(i18n.pvRating, 'number'));
+        if (cfg.features.comments) form.appendChild(mockInput(i18n.pvComments, 'textarea'));
+        if (cfg.features.location) form.appendChild(mockInput(i18n.pvLocation, 'text'));
+    }
+
+    ['pluginLabel', 'creatorLabel'].forEach(id => $(id).addEventListener('input', renderPreview));
+    $('secondaryImage').addEventListener('change', renderPreview);
+    document.querySelectorAll('.feature-toggle').forEach(cb => cb.addEventListener('change', renderPreview));
+
+    // ---- Save ----------------------------------------------------------------------
+    $('saveBtn').addEventListener('click', async () => {
+        const btn = $('saveBtn');
+        const txt = $('saveBtnText');
+        const errBox = $('builderError');
+        errBox.classList.add('hidden');
+        btn.disabled = true;
+        const prev = txt.textContent;
+        txt.textContent = i18n.saving;
+
+        try {
+            const res = await fetch(baseUrl + '/create-plugin/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify(collect())
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                throw new Error((data.errors || []).join(' · ') || 'Error');
+            }
+            window.location.href = baseUrl + '/collection?type=' + data.id;
+        } catch (err) {
+            errBox.textContent = err.message;
+            errBox.classList.remove('hidden');
+            btn.disabled = false;
+            txt.textContent = prev;
+        }
+    });
+
+    // ---- Per-collection cosmetic customization modal -----------------------------------
+    const customizable = <%- JSON.stringify(customizablePlugins).replace(/</g, '\\u003c') %>;
+    const czDefaultColor = <%- JSON.stringify(t('create_plugin.default_color')) %>;
+    let czPluginId = null;
+    let czIcon = '';
+
+    function czSyncIcons() {
+        document.querySelectorAll('.cz-icon').forEach(b => {
+            const on = b.dataset.icon === czIcon;
+            b.classList.toggle('bg-primary-theme', on);
+            b.classList.toggle('text-white', on);
+        });
+    }
+
+    document.querySelectorAll('.cz-icon').forEach(btn => {
+        // Clicking the selected icon again clears the override (back to the plugin default)
+        btn.addEventListener('click', () => {
+            czIcon = (czIcon === btn.dataset.icon) ? '' : btn.dataset.icon;
+            czSyncIcons();
+        });
+    });
+
+    window.openCustomize = function (id) {
+        const data = customizable.find(p => p.id === id);
+        if (!data) return;
+        czPluginId = id;
+        czIcon = data.current.icon || '';
+        $('czTitle').textContent = data.label;
+        $('czError').classList.add('hidden');
+        czSyncIcons();
+
+        const wrap = $('czFormats');
+        wrap.innerHTML = '';
+        $('czFormatsWrap').classList.toggle('hidden', data.formats.length === 0);
+        data.formats.forEach(f => {
+            const row = document.createElement('div');
+            row.className = 'flex items-center gap-3';
+
+            const lab = document.createElement('span');
+            lab.className = 'flex-1 text-sm font-medium truncate';
+            lab.textContent = f.label;
+
+            const sel = document.createElement('select');
+            sel.className = 'cz-color ' + SELECT_CLASSES;
+            sel.dataset.format = f.value;
+            const none = document.createElement('option');
+            none.value = ''; none.textContent = czDefaultColor;
+            none.className = OPTION_CLASSES;
+            sel.appendChild(none);
+            palette.forEach(c => {
+                const o = document.createElement('option');
+                o.value = c; o.textContent = c;
+                o.className = OPTION_CLASSES;
+                if ((data.current.formatColors || {})[f.value] === c) o.selected = true;
+                sel.appendChild(o);
+            });
+
+            row.append(lab, sel);
+            wrap.appendChild(row);
+        });
+
+        const modal = $('customizeModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    };
+
+    window.closeCustomize = function () {
+        const modal = $('customizeModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        czPluginId = null;
+    };
+
+    window.saveCustomize = async function (reset) {
+        if (!czPluginId) return;
+        const body = { icon: '', formatColors: {} };
+        if (!reset) {
+            body.icon = czIcon;
+            document.querySelectorAll('.cz-color').forEach(sel => {
+                if (sel.value) body.formatColors[sel.dataset.format] = sel.value;
+            });
+        }
+        try {
+            const res = await fetch(baseUrl + '/create-plugin/customize/' + czPluginId, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) throw new Error(data.error || 'Error');
+            window.location.reload();
+        } catch (err) {
+            const errBox = $('czError');
+            errBox.textContent = err.message;
+            errBox.classList.remove('hidden');
+        }
+    };
+
+    $('customizeModal').addEventListener('click', e => {
+        if (e.target === $('customizeModal')) closeCustomize();
+    });
+
+    // ---- Delete (existing plugins list) ----------------------------------------------
+    window.deleteCustomPlugin = async function (id, itemCount) {
+        if (!confirm(i18n.deleteConfirm.replace('%COUNT%', itemCount))) return;
+        try {
+            const res = await fetch(baseUrl + '/create-plugin/delete/' + id, {
+                method: 'POST',
+                headers: { 'Accept': 'application/json' }
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) throw new Error(data.error || 'Error');
+            window.location.reload();
+        } catch (err) {
+            alert(err.message);
+        }
+    };
+
+    // ---- Init ---------------------------------------------------------------------------
+    if (editConfig) {
+        $('pluginLabel').value = editConfig.label || '';
+        $('creatorLabel').value = editConfig.creatorLabel || '';
+        state.icon = editConfig.icon || 'fa-box';
+        state.color = editConfig.color || 'teal';
+        state.shape = editConfig.imageShape === 'square' ? 'square' : 'poster';
+        $('secondaryImage').checked = editConfig.secondaryImage === true;
+        const features = editConfig.features || {};
+        document.querySelectorAll('.feature-toggle').forEach(cb => { cb.checked = features[cb.dataset.feature] === true; });
+        (editConfig.formats || []).forEach(addFormatRow);
+        (editConfig.fields || []).forEach(addFieldRow);
+    }
+
+    syncPickers();
+    renderPreview();
+})();
+</script>

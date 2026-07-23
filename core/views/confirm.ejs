@@ -1,0 +1,235 @@
+<%- include('../../views/partials/header') %>
+
+<div class="max-w-screen-xl mx-auto pb-20 px-4 md:px-0">
+    
+    <nav class="flex mb-6 text-sm opacity-60 transition-colors">
+        <a href="<%= baseUrl %>/add-<%= plugin.id %>" class="hover:opacity-100 transition-opacity flex items-center py-2">
+            <i class="fa-solid fa-arrow-left mr-2"></i> <%= t('common.back_to_search') %>
+        </a>
+    </nav>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        <!-- Left Side: Visual & Quick Details -->
+        <div class="lg:col-span-4 space-y-6">
+            <div class="card-theme rounded-xl p-6 sticky top-24 transition-colors shadow-sm">
+                
+                <div class="<%= plugin.aspectRatioClass || 'aspect-[2/3]' %> rounded-lg overflow-hidden mb-4 shadow-lg relative group bg-black/5 dark:bg-white/5">
+                    <img id="livePreview" src="<%= item.cover_image || '/ressources/logo.png' %>" class="w-full h-full object-cover transition-all duration-500">
+                    <div class="absolute inset-0 bg-black/40 hidden group-hover:flex items-center justify-center text-white text-xs font-bold backdrop-blur-sm">
+                        <%= t('confirm_' + plugin.i18nKey + '.cover_preview', { defaultValue: t('confirm_vinyl.cover_preview') }) %>
+                    </div>
+                </div>
+                
+                <h2 class="text-xl font-bold mb-1 leading-tight"><%= item.title %></h2>
+                <p class="opacity-60 mb-4"><%= item[plugin.creatorField] || 'Unknown' %></p>
+
+                <div class="space-y-3 text-sm border-t border-black/10 dark:border-white/10 pt-4 transition-colors">
+                    <%
+                    const summaryVal = plugin.summaryField ? item[plugin.summaryField.field] : '';
+                    if (plugin.summaryField && summaryVal) { %>
+                        <div class="flex justify-between">
+                            <span class="opacity-60"><%= t(plugin.summaryField.label) %></span>
+                            <span class="font-medium text-right"><%= summaryVal %></span>
+                        </div>
+                    <% } %>
+                    <% if (item.catalog_number) { %>
+                        <div class="flex justify-between">
+                            <span class="opacity-60"><%= t('confirm_' + plugin.i18nKey + '.catalog_label', { defaultValue: t('confirm_vinyl.catalog_label') }) %></span>
+                            <span class="font-mono opacity-80"><%= item.catalog_number %></span>
+                        </div>
+                    <% } %>
+                    <% if (item.barcode) { %>
+                        <div class="flex justify-between">
+                            <span class="opacity-60"><%= t('confirm_' + plugin.i18nKey + '.barcode_label', { defaultValue: t('confirm_vinyl.barcode_label') }) %></span>
+                            <span class="font-mono opacity-80"><%= item.barcode %></span>
+                        </div>
+                    <% } %>
+                    <% if (item.year) { %>
+                        <div class="flex justify-between">
+                            <span class="opacity-60"><%= t('confirm_' + plugin.i18nKey + '.year_label', { defaultValue: t('confirm_vinyl.year_label') }) %></span>
+                            <span><%= item.year %></span>
+                        </div>
+                    <% } %>
+                    <% if (item.country) { %>
+                        <div class="flex justify-between">
+                            <span class="opacity-60"><%= t('confirm_' + plugin.i18nKey + '.country', { defaultValue: t('confirm_vinyl.country') }) %></span>
+                            <span class="font-medium"><%= item.country %></span>
+                        </div>
+                    <% } %>
+                </div>
+
+                <% if (item.tracklist && item.tracklist.length > 0) { %>
+                    <div class="mt-6 border-t border-black/10 dark:border-white/10 pt-4 transition-colors">
+                        <h3 class="text-xs uppercase font-bold opacity-50 mb-3"><%= t('confirm_' + plugin.i18nKey + '.tracks_title', { defaultValue: t('confirm_vinyl.tracks_title') }) %></h3>
+                        <ul class="text-sm space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                            <% item.tracklist.forEach(track => { %>
+                                <li class="flex gap-3 opacity-70 hover:opacity-100 transition-opacity">
+                                    <span class="font-mono opacity-50 w-6 text-right flex-shrink-0"><%= track.position %></span>
+                                    <span class="truncate"><%= track.title %></span>
+                                    <% if (track.duration) { %>
+                                        <span class="ml-auto text-xs opacity-50"><%= track.duration %></span>
+                                    <% } %>
+                                </li>
+                            <% }) %>
+                        </ul>
+                    </div>
+                <% } %>
+
+                <% if (item.description) { %>
+                    <div class="mt-6 border-t border-black/10 dark:border-white/10 pt-4 transition-colors">
+                        <h3 class="text-xs uppercase font-bold opacity-50 mb-3"><%= t('confirm_' + plugin.i18nKey + '.description_title', { defaultValue: t('confirm_book.description_title') }) %></h3>
+                        <div class="text-sm opacity-70 max-h-40 overflow-y-auto pr-2 custom-scrollbar text-justify">
+                            <%= item.description %>
+                        </div>
+                    </div>
+                <% } %>
+            </div>
+        </div>
+
+        <!-- Right Side: Forms & Settings -->
+        <div class="lg:col-span-8">
+            <div class="card-theme rounded-xl p-6 md:p-8 transition-colors shadow-sm">
+                <h1 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                    <i class="fa-solid fa-pen-to-square text-primary-theme"></i> <%= t('confirm_' + plugin.i18nKey + '.config_title', { defaultValue: t('confirm_vinyl.config_title') }) %>
+                </h1>
+
+                <!-- Duplicate warning banner -->
+                <%- include('partials/duplicate-warning') %>
+
+                <form action="<%= baseUrl %>/save-<%= plugin.id %>" method="POST" class="space-y-6">
+                    <%
+                    // Everything the API provided must reach the save handler, even without a visible input:
+                    // 1. formFields hidden by showCondition (manual-only in API mode and vice versa)
+                    // 2. plugin schema scalars not covered by any confirm formField (external ids, isbn...)
+                    const visibleNames = new Set(plugin.formFields.filter(f => {
+                        if (!f.showIn.includes('confirm') || f.type === 'custom') return false;
+                        if (f.showCondition === 'manual-only' && !isManual) return false;
+                        if (f.showCondition === 'api-only' && isManual) return false;
+                        return true;
+                    }).map(f => f.name));
+
+                    const hiddenInputs = [];
+                    plugin.formFields.forEach(f => {
+                        if (!f.showIn.includes('confirm') || f.type === 'custom' || visibleNames.has(f.name)) return;
+                        if ((f.showCondition === 'manual-only' && !isManual) || (f.showCondition === 'api-only' && isManual)) {
+                            hiddenInputs.push(f.name);
+                        }
+                    });
+                    Object.keys(plugin.schemaDefinition).forEach(k => {
+                        if (visibleNames.has(k) || hiddenInputs.includes(k)) return;
+                        const v = item[k];
+                        if (v === undefined || v === null) return;
+                        // Scalars and string arrays (genres, styles...) are submitted; other objects (tracklist) have dedicated inputs
+                        const isStringArray = Array.isArray(v) && v.every(x => typeof x === 'string');
+                        if (typeof v === 'object' && !isStringArray) return;
+                        hiddenInputs.push(k);
+                    });
+                    hiddenInputs.forEach(name => {
+                        const hv = item[name];
+                    %>
+                        <input type="hidden" name="<%= name %>" value="<%= Array.isArray(hv) ? hv.join(', ') : (hv ?? '') %>">
+                    <% }) %>
+                    <% if (item.hardcover_id) { %>
+                        <input type="hidden" name="hardcover_id" value="<%= item.hardcover_id %>">
+                    <% } %>
+
+                    <!-- Dynamically render formFields grouped by group (main first, then metadata) -->
+                    
+                    <!-- Main Fields (grouped by pairs) -->
+                    <div class="space-y-6">
+                        <% 
+                        const mainFields = plugin.formFields.filter(f => {
+                            if (!f.showIn.includes('confirm')) return false;
+                            if (f.showCondition === 'manual-only' && !isManual) return false;
+                            if (f.showCondition === 'api-only' && isManual) return false;
+                            return f.group === 'main' && f.type !== 'custom';
+                        });
+                        for (let i = 0; i < mainFields.length; i += 2) { 
+                            const field1 = mainFields[i];
+                            const field2 = mainFields[i+1];
+                        %>
+                            <div class="grid grid-cols-1 <%= field2 ? 'md:grid-cols-2' : '' %> gap-6">
+                                <% if (field1) { %>
+                                    <div>
+                                        <%- include('partials/fields/' + field1.type, { field: field1, value: item[field1.name], item }) %>
+                                    </div>
+                                <% } %>
+                                <% if (field2) { %>
+                                    <div>
+                                        <%- include('partials/fields/' + field2.type, { field: field2, value: item[field2.name], item }) %>
+                                    </div>
+                                <% } %>
+                            </div>
+                        <% } %>
+                    </div>
+
+                    <!-- Custom fields from plugin (like tracklist editor), end of the "album info" section -->
+                    <%
+                    const customFields = plugin.formFields.filter(f => {
+                        if (!f.showIn.includes('confirm')) return false;
+                        if (f.showCondition === 'manual-only' && !isManual) return false;
+                        if (f.showCondition === 'api-only' && isManual) return false;
+                        return f.type === 'custom';
+                    });
+                    customFields.forEach(field => {
+                    %>
+                        <%- include('../../' + plugin.partialsPath + '/' + field.partial, { field, item }) %>
+                    <% }) %>
+
+                    <%- include('partials/item-images', { plugin, item }) %>
+
+                    <hr class="border-black/10 dark:border-white/10 my-6 transition-colors">
+
+                    <!-- Metadata Fields (grouped by pairs) -->
+                    <div class="space-y-6">
+                        <% 
+                        const metaFields = plugin.formFields.filter(f => {
+                            if (!f.showIn.includes('confirm')) return false;
+                            if (f.showCondition === 'manual-only' && !isManual) return false;
+                            if (f.showCondition === 'api-only' && isManual) return false;
+                            return f.group === 'metadata' && f.type !== 'custom';
+                        });
+                        for (let i = 0; i < metaFields.length; i += 2) { 
+                            const field1 = metaFields[i];
+                            const field2 = metaFields[i+1];
+                        %>
+                            <div class="grid grid-cols-1 <%= field2 ? 'md:grid-cols-2' : '' %> gap-6">
+                                <% if (field1) { %>
+                                    <div>
+                                        <%- include('partials/fields/' + field1.type, { field: field1, value: item[field1.name], item }) %>
+                                    </div>
+                                <% } %>
+                                <% if (field2) { %>
+                                    <div>
+                                        <%- include('partials/fields/' + field2.type, { field: field2, value: item[field2.name], item }) %>
+                                    </div>
+                                <% } %>
+                            </div>
+                        <% } %>
+                    </div>
+
+                    <div class="pt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <button type="submit" name="in_wishlist" value="true" class="bg-black/5 dark:bg-white/5 hover:bg-pink-500 hover:text-white font-bold rounded-lg text-sm px-5 py-4 transition-colors flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-gift"></i> <%= t('confirm_' + plugin.i18nKey + '.btn_wishlist', { defaultValue: t('confirm_vinyl.btn_wishlist') }) %>
+                        </button>
+                        <button type="submit" name="in_wishlist" value="false" class="text-white bg-primary-theme hover:brightness-110 font-bold rounded-lg text-lg px-5 py-4 transition-transform hover:scale-[1.01] flex items-center justify-center gap-2 shadow-lg shadow-primary-theme/20">
+                            <i class="fa-solid fa-check"></i> <%= t('confirm_' + plugin.i18nKey + '.btn_collection', { defaultValue: t('confirm_vinyl.btn_collection') }) %>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('partials/item-images-js', { plugin }) %>
+
+<style>
+    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(100,100,100,0.2); border-radius: 2px; }
+    .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
+</style>
+
+<%- include('../../views/partials/footer') %>
