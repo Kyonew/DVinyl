@@ -510,7 +510,10 @@
     "404_title": "Hoppla! \nGroove nicht gefunden.",
     "api_error": "Es konnte keine Verbindung zu Discogs hergestellt werden.",
     "current_password_incorrect": "Das aktuelle Passwort ist falsch.",
+    "sso_no_local_password": "Dieses Konto verwendet Single Sign-On (SSO) und hat kein lokales Passwort zum Ändern.",
     "delete_self_error": "Sie können sich nicht selbst löschen.",
+    "delete_admin_error": "Sie können keinen anderen Instanz-Administrator löschen.",
+    "reset_admin_error": "Sie können das Passwort eines anderen Instanz-Administrators nicht zurücksetzen.",
     "generic_server_error": "Interner Serverfehler.",
     "invalid_credentials": "Ungültige Anmeldeinformationen",
     "invalid_theme": "Ungültiges Thema.",
@@ -569,6 +572,7 @@
     "or_divider": "ODER",
     "sso_button": "Mit SSO anmelden",
     "error_oidc_unlinked": "Diesem SSO-Konto ist kein Benutzerkonto zugeordnet. Melden Sie sich zunächst mit Ihrem Passwort an und verknüpfen Sie Ihr Konto dann in den Einstellungen.",
+    "error_oidc_forbidden": "Ihr Konto ist nicht berechtigt, auf diese Instanz zuzugreifen.",
     "error_oidc_unavailable": "Die SSO-Anmeldung ist derzeit nicht verfügbar. Versuchen Sie es erneut oder verwenden Sie Ihr Passwort."
   },
   "media": {

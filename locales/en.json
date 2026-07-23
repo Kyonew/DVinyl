@@ -70,6 +70,7 @@
   "errors": {
     "username_taken": "This username is already taken.",
     "current_password_incorrect": "Current password is incorrect.",
+    "sso_no_local_password": "This account uses single sign-on (SSO) and has no local password to change.",
     "invalid_theme": "Invalid theme.",
     "lang_change_error": "Error while changing language.",
     "setup_error": "Setup error occurred.",
@@ -77,6 +78,8 @@
     "api_error": "Could not connect to Discogs.",
     "save_error": "Error while saving.",
     "delete_self_error": "You cannot delete yourself.",
+    "delete_admin_error": "You cannot delete another instance administrator.",
+    "reset_admin_error": "You cannot reset another instance administrator's password.",
     "invalid_credentials": "Invalid credentials",
     "too_many_attempts_timed": "Too many attempts. Try again in {{seconds}} seconds.",
     "too_many_attempts_blocked": "Too many attempts. Try again in 5 minutes.",
@@ -609,6 +612,7 @@
     "or_divider": "OR",
     "sso_button": "Sign in with SSO",
     "error_oidc_unlinked": "No account is linked to this SSO identity. Sign in with your password first, then link your account from Settings.",
+    "error_oidc_forbidden": "Your account is not allowed to access this instance.",
     "error_oidc_unavailable": "SSO sign-in is currently unavailable. Please try again or use your password."
   },
   "setup": {

@@ -510,7 +510,10 @@
     "404_title": "¡Ups! \nSurco no encontrado.",
     "api_error": "No se pudo conectar a Discogs.",
     "current_password_incorrect": "La contraseña actual es incorrecta.",
+    "sso_no_local_password": "Esta cuenta usa inicio de sesión único (SSO) y no tiene una contraseña local que cambiar.",
     "delete_self_error": "No puedes borrarte a ti mismo.",
+    "delete_admin_error": "No puedes eliminar a otro administrador de instancia.",
+    "reset_admin_error": "No puedes restablecer la contraseña de otro administrador de instancia.",
     "generic_server_error": "Error Interno del Servidor.",
     "invalid_credentials": "Credenciales no válidas",
     "invalid_theme": "Tema no válido.",
@@ -569,6 +572,7 @@
     "or_divider": "O",
     "sso_button": "Iniciar sesión con SSO",
     "error_oidc_unlinked": "Ninguna cuenta está vinculada a esta identidad SSO. Inicia sesión primero con tu contraseña y luego vincula tu cuenta desde Ajustes.",
+    "error_oidc_forbidden": "Tu cuenta no tiene permiso para acceder a esta instancia.",
     "error_oidc_unavailable": "El inicio de sesión SSO no está disponible en este momento. Inténtalo de nuevo o usa tu contraseña."
   },
   "media": {

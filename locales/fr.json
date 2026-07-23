@@ -70,6 +70,7 @@
   "errors": {
     "username_taken": "Ce pseudo est déjà utilisé.",
     "current_password_incorrect": "Le mot de passe actuel est incorrect.",
+    "sso_no_local_password": "Ce compte utilise l'authentification unique (SSO) et n'a pas de mot de passe local à modifier.",
     "invalid_theme": "Thème invalide.",
     "lang_change_error": "Erreur lors du changement de langue.",
     "setup_error": "Erreur lors de l'installation.",
@@ -77,6 +78,8 @@
     "api_error": "Impossible de contacter Discogs.",
     "save_error": "Erreur lors de la sauvegarde.",
     "delete_self_error": "Impossible de se supprimer soi-même.",
+    "delete_admin_error": "Impossible de supprimer un autre administrateur d'instance.",
+    "reset_admin_error": "Impossible de réinitialiser le mot de passe d'un autre administrateur d'instance.",
     "invalid_credentials": "Identifiants invalides",
     "too_many_attempts_timed": "Trop de tentatives. Réessaie dans {{seconds}} secondes.",
     "too_many_attempts_blocked": "Trop de tentatives. Réessaie dans 5 minutes.",
@@ -609,6 +612,7 @@
     "or_divider": "OU",
     "sso_button": "Se connecter via SSO",
     "error_oidc_unlinked": "Aucun compte n'est lié à cette identité SSO. Connectez-vous d'abord avec votre mot de passe, puis liez votre compte depuis les paramètres.",
+    "error_oidc_forbidden": "Votre compte n'est pas autorisé à accéder à cette instance.",
     "error_oidc_unavailable": "La connexion SSO est momentanément indisponible. Réessayez ou utilisez votre mot de passe."
   },
   "setup": {

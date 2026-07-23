@@ -19,9 +19,12 @@ const userSchema = new mongoose.Schema({
         lowercase: true,
         validate: [isEmail, "auth.email_invalid"]
     },
+    // Required for local (password) accounts only. Accounts provisioned through
+    // an identity provider have `oidc.sub` set and no local password: they can
+    // only sign in through SSO. See the guard in `login()` below.
     password: {
         type: String,
-        required: [true, "auth.password_required"],
+        required: [function (this: any) { return !this.oidc?.sub; }, "auth.password_required"],
         minlength: [6, "auth.password_too_short"]
     },
     img: {
@@ -62,7 +65,10 @@ const userSchema = new mongoose.Schema({
     // identity provider and identifies the external account.
     oidc: {
         sub: { type: String },
-        linkedAt: { type: Date }
+        linkedAt: { type: Date },
+        // True when the account was created automatically on first SSO login
+        // (JIT provisioning) rather than linked from an existing local account.
+        autoProvisioned: { type: Boolean }
     },
     lastChange: {
         type: Date,
@@ -87,6 +93,12 @@ userSchema.index({ 'oidc.sub': 1 }, { unique: true, sparse: true });
 userSchema.statics.login = async function (email, password) {
     const user = await this.findOne({ email });
     if (user) {
+        // SSO-only accounts have no local password: reject the password login
+        // path cleanly instead of letting bcrypt.compare throw on an undefined
+        // hash. These users must authenticate through their identity provider.
+        if (!user.password) {
+            throw Error('incorrect password');
+        }
         const auth = await bcrypt.compare(password, user.password);
         if (auth) {
             return user;

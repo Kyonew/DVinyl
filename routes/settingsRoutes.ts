@@ -183,6 +183,11 @@ router.post('/update-password', requireAuth, async (req, res) => {
             res.status(500).json({ success: false, message: "User not found" });
             return;
         }
+        // SSO-only accounts (provisioned through the IdP) have no local password
+        // to change; they authenticate exclusively through their provider.
+        if (!user.password) {
+            return res.status(400).json({ success: false, message: req.t('errors.sso_no_local_password') });
+        }
         const isMatch = await bcrypt.compare(currentPassword, user.password);
         if (!isMatch) {
             return res.status(400).json({ success: false, message: req.t('errors.current_password_incorrect') });

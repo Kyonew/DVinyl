@@ -198,6 +198,8 @@
                             <tbody class="divide-y divide-black/5 dark:divide-white/5 transition-colors">
                                 <% users.forEach(u=> {
                                     const memberOf = (locals.collections || []).filter(c => (c.members || []).some(m => String(m.user._id) === String(u._id)));
+                                    // Instance admins are peers: hide destructive actions on OTHER admins.
+                                    const isOtherAdmin = u.isAdmin && u._id.toString() !== user._id.toString();
                                 %>
                                     <tr class="hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
                                         <td class="px-6 py-4 font-medium flex items-center gap-3">
@@ -225,6 +227,7 @@
                                                 : 'en-US' ) %>
                                         </td>
                                         <td class="px-6 py-4 text-right flex justify-end gap-2">
+                                            <% if (!isOtherAdmin) { %>
                                             <form action="<%= baseUrl %>/admin/reset-password" method="POST"
                                                 onsubmit="return confirm('<%= t('admin.confirm_reset', { name: u.username }) %>')">
                                                 <input type="hidden" name="userId" value="<%= u._id %>">
@@ -234,7 +237,8 @@
                                                     <i class="fa-solid fa-key"></i>
                                                 </button>
                                             </form>
-                                            <% if (u._id.toString() !==user._id.toString()) { %>
+                                            <% } %>
+                                            <% if (u._id.toString() !==user._id.toString() && !u.isAdmin) { %>
                                                 <form action="<%= baseUrl %>/admin/delete-user" method="POST"
                                                     onsubmit="return confirm('<%= t('admin.confirm_delete_user', { name: u.username }) %>')">
                                                     <input type="hidden" name="userId" value="<%= u._id %>">
@@ -253,7 +257,9 @@
                     </div>
 
                     <div class="md:hidden space-y-4">
-                        <% users.forEach(u=> { %>
+                        <% users.forEach(u=> {
+                            const isOtherAdmin = u.isAdmin && u._id.toString() !== user._id.toString();
+                        %>
                             <div class="card-theme p-5 rounded-2xl shadow-sm space-y-4 transition-colors">
                                 <div class="flex items-center gap-4">
                                     <img src="<%= baseUrl + u.img %>"
@@ -279,6 +285,7 @@
                                         </span>
                                     </div>
                                     <div class="flex gap-2">
+                                        <% if (!isOtherAdmin) { %>
                                         <form action="<%= baseUrl %>/admin/reset-password" method="POST"
                                             onsubmit="return confirm('<%= t('admin.confirm_reset', { name: u.username }) %>')">
                                             <input type="hidden" name="userId" value="<%= u._id %>">
@@ -287,7 +294,8 @@
                                                 <i class="fa-solid fa-key"></i>
                                             </button>
                                         </form>
-                                        <% if (u._id.toString() !==user._id.toString()) { %>
+                                        <% } %>
+                                        <% if (u._id.toString() !==user._id.toString() && !u.isAdmin) { %>
                                             <form action="<%= baseUrl %>/admin/delete-user" method="POST"
                                                 onsubmit="return confirm('<%= t('admin.confirm_delete_user', { name: u.username }) %>')">
                                                 <input type="hidden" name="userId" value="<%= u._id %>">

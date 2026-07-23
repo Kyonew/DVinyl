@@ -554,6 +554,17 @@ router.post("/reset-password", requireAuth, requireAdmin, async (req: any, res: 
     const { userId } = req.body;
     const userToUpdate = await User.findById(userId);
 
+    // Instance admins are peers: none may reset another instance admin's
+    // password (that would let them hijack the account). Resetting your own is
+    // still allowed.
+    if (
+      userToUpdate &&
+      userToUpdate.isAdmin &&
+      userToUpdate._id.toString() !== res.locals.user._id.toString()
+    ) {
+      return res.redirect("/admin/instance?msg=reset_admin_error");
+    }
+
     if (userToUpdate) {
       const password = createPassword();
       const hashedPassword = await bcrypt.hash(password, 10);
@@ -589,6 +600,10 @@ router.post("/delete-user", requireAuth, requireAdmin, async (req: any, res: any
   try {
     if (req.body.userId === res.locals.user._id.toString())
       return res.redirect("/admin/instance?msg=delete_self_error");
+    // Instance admins are peers: none may delete another instance admin.
+    const target = await User.findById(req.body.userId);
+    if (target && target.isAdmin)
+      return res.redirect("/admin/instance?msg=delete_admin_error");
     await User.findByIdAndDelete(req.body.userId);
     await Collection.updateMany({}, { $pull: { members: { user: req.body.userId } } });
     console.log(`[ADMIN] User deleted: ${req.body.userId} by ${res.locals.user?.email}`);

@@ -2,8 +2,85 @@ import User from '../models/User';
 import { issueSession } from './authController';
 import {
     getOidcConfig,
-    getOidcRedirectUri
+    getOidcRedirectUri,
+    getOidcScope,
+    getOidcGroupsClaim,
+    getOidcAllowedGroup,
+    getOidcAdminGroup,
+    isOidcSignupEnabled
 } from '../config/oidc';
+
+/**
+ * Resolve the user's group memberships from the ID token claims, falling back
+ * to the UserInfo endpoint when the configured claim is absent from the token
+ * (some IdPs only expose groups there). Always returns an array of strings.
+ */
+const resolveGroups = async (config: any, tokens: any, claims: any): Promise<string[]> => {
+    const groupsClaim = getOidcGroupsClaim();
+    let groups = claims?.[groupsClaim];
+
+    if (groups === undefined && tokens?.access_token) {
+        try {
+            const { fetchUserInfo } = await import('openid-client');
+            const info = await fetchUserInfo(config, tokens.access_token, claims.sub);
+            groups = (info as any)?.[groupsClaim];
+        } catch (err) {
+            console.warn('[OIDC] Could not fetch UserInfo to resolve groups:', err);
+        }
+    }
+
+    if (Array.isArray(groups)) return groups.map(String);
+    if (typeof groups === 'string') return [groups];
+    return [];
+};
+
+/**
+ * Derive a candidate username from the IdP claims, preferring an explicit
+ * preferred_username, then the display name, then the local part of the email.
+ * Whitespace is collapsed and the result capped to the User schema limits.
+ */
+const deriveUsername = (claims: any, email: string): string => {
+    const raw = claims?.preferred_username || claims?.name || email.split('@')[0];
+    const cleaned = String(raw).trim().replace(/\s+/g, '_').slice(0, 40);
+    return cleaned || 'user';
+};
+
+/**
+ * Create a JIT-provisioned, SSO-only account (no local password). On a username
+ * collision a numeric suffix is appended and creation retried; a duplicate email
+ * or oidc.sub is a genuine conflict and is allowed to propagate.
+ */
+const createProvisionedUser = async (
+    email: string,
+    baseUsername: string,
+    sub: string,
+    isAdmin: boolean
+) => {
+    // Backdate lastChange: we issue a JWT immediately after creation, and its
+    // `iat` is floored to whole seconds. A same-instant `new Date()` would sit a
+    // few hundred ms *after* the token's iat, so authMiddleware's staleness check
+    // (iat*1000 < lastChange) would reject the fresh token and bounce to /login.
+    const lastChange = new Date(Date.now() - 60_000);
+
+    for (let attempt = 0; attempt < 20; attempt++) {
+        const username = attempt === 0 ? baseUsername : `${baseUsername}${attempt + 1}`;
+        try {
+            return await User.create({
+                username,
+                email,
+                isAdmin,
+                oidc: { sub, linkedAt: new Date(), autoProvisioned: true },
+                lastChange
+            });
+        } catch (err: any) {
+            if (err?.code === 11000 && err?.keyPattern?.username) {
+                continue;
+            }
+            throw err;
+        }
+    }
+    throw new Error('Could not allocate a unique username for the provisioned account');
+};
 
 /**
  * Build the IdP authorization URL (PKCE + state + nonce), store the values
@@ -25,7 +102,7 @@ const startAuthorization = async (req: any, res: any, linkUserId?: string) => {
 
     const authUrl = buildAuthorizationUrl(config, {
         redirect_uri: getOidcRedirectUri(),
-        scope: 'openid email profile',
+        scope: getOidcScope(),
         code_challenge: codeChallenge,
         code_challenge_method: 'S256',
         state,
@@ -112,15 +189,71 @@ export const oidc_callback_get = async (req: any, res: any) => {
             return res.redirect('/settings?oidc=linked');
         }
 
-        // Login flow. Accounts are never auto-created from an OIDC identity:
-        // the user must have linked it from Settings beforehand.
+        // Login flow.
+        const allowedGroup = getOidcAllowedGroup();
         const user = await User.findOne({ 'oidc.sub': sub });
-        if (!user) {
+
+        if (user) {
+            // Re-verify group membership on every login: a user removed from the
+            // allowed group in the IdP loses access immediately, even though the
+            // account still exists.
+            if (allowedGroup) {
+                const groups = await resolveGroups(config, tokens, claims);
+                if (!groups.includes(allowedGroup)) {
+                    console.warn(`[OIDC] Access denied for ${user.email}: not in group "${allowedGroup}"`);
+                    return res.redirect('/login?error=oidc_forbidden');
+                }
+            }
+            await issueSession(req, res, user);
+            return res.redirect('/');
+        }
+
+        // Unknown identity. Without JIT provisioning enabled, the user must have
+        // linked the identity from Settings beforehand.
+        if (!isOidcSignupEnabled()) {
             return res.redirect('/login?error=oidc_unlinked');
         }
 
-        await issueSession(req, res, user);
-        res.redirect('/');
+        // Provisioning requires a verified email (used to key the account and to
+        // safely link an existing local account).
+        // An email is required to key the account (the User schema mandates it).
+        // Some IdPs encode email_verified as the string "true" rather than a boolean.
+        const emailVerified = claims.email_verified === true || claims.email_verified === 'true';
+        const email = typeof claims.email === 'string' ? claims.email.toLowerCase() : undefined;
+        if (!email) {
+            console.warn('[OIDC] Signup refused: no email claim from the IdP');
+            return res.redirect('/login?error=oidc_forbidden');
+        }
+
+        const groups = await resolveGroups(config, tokens, claims);
+        if (allowedGroup && !groups.includes(allowedGroup)) {
+            console.warn(`[OIDC] Signup refused for ${email}: not in group "${allowedGroup}"`);
+            return res.redirect('/login?error=oidc_forbidden');
+        }
+
+        // Link to an existing local account with the same email rather than
+        // creating a duplicate. This is only safe when the IdP has verified the
+        // email: linking a merely-claimed address to an existing account would
+        // allow account takeover. Group membership was already checked above.
+        const existingByEmail = await User.findOne({ email });
+        if (existingByEmail) {
+            if (!emailVerified) {
+                console.warn(`[OIDC] Refusing to link SSO identity to existing account <${email}>: email not verified by the IdP`);
+                return res.redirect('/login?error=oidc_forbidden');
+            }
+            (existingByEmail as any).oidc = { sub, linkedAt: new Date(), autoProvisioned: false };
+            await existingByEmail.save();
+            await issueSession(req, res, existingByEmail);
+            return res.redirect('/');
+        }
+
+        const adminGroup = getOidcAdminGroup();
+        const isAdmin = !!(adminGroup && groups.includes(adminGroup));
+        const newUser = await createProvisionedUser(email, deriveUsername(claims, email), sub, isAdmin);
+        console.log(`[OIDC] Provisioned account ${newUser.username} <${email}>${isAdmin ? ' (admin)' : ''} from SSO`);
+
+        await issueSession(req, res, newUser);
+        return res.redirect('/');
     } catch (err) {
         console.error('[OIDC] Callback failed:', err);
         res.redirect(stashed.linkUserId ? '/settings?oidc=error' : '/login?error=oidc_unavailable');

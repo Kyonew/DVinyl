@@ -58,7 +58,7 @@ read-only preview of a finished instance.
 - **Users and roles.** Invite people to a collection as admin, editor or viewer, so everyone gets
   the right level of access.
 - **SSO login (OIDC).** Optional single sign-on with providers like Authentik, Keycloak, Authelia
-  or pocketID.
+  or pocketID, with optional automatic account creation from an identity provider group.
 - **Private or shared.** Keep your collection to yourself or open it up for others to browse.
 
 ## Built-in plugins

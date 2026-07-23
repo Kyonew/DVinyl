@@ -39,8 +39,9 @@
         </h1>
 
         <% if (typeof oidcError !== 'undefined' && oidcError) { %>
+          <% const oidcErrorKeys = { oidc_unlinked: 'login.error_oidc_unlinked', oidc_forbidden: 'login.error_oidc_forbidden' }; %>
           <div class="error text-sm text-center mb-6">
-            <%= t(oidcError === 'oidc_unlinked' ? 'login.error_oidc_unlinked' : 'login.error_oidc_unavailable') %>
+            <%= t(oidcErrorKeys[oidcError] || 'login.error_oidc_unavailable') %>
           </div>
         <% } %>
 
