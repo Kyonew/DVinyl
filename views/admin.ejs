@@ -80,11 +80,13 @@
                                         </div>
                                         <div class="flex items-center gap-2">
                                             <% if (mod.settings.length > 0) { %>
-                                                <button type="button" onclick="event.preventDefault(); document.getElementById('opts-<%= mod.pluginId %>').classList.toggle('hidden');"
-                                                    class="w-8 h-8 rounded-lg flex items-center justify-center bg-white dark:bg-black/20 shadow-sm opacity-60 hover:opacity-100 hover:text-primary-theme transition-all"
+                                                <span role="button" tabindex="0"
+                                                    onclick="event.preventDefault(); document.getElementById('opts-<%= mod.pluginId %>').classList.toggle('hidden');"
+                                                    onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); document.getElementById('opts-<%= mod.pluginId %>').classList.toggle('hidden');}"
+                                                    class="w-8 h-8 rounded-lg flex items-center justify-center bg-white dark:bg-black/20 shadow-sm opacity-60 hover:opacity-100 hover:text-primary-theme transition-all cursor-pointer"
                                                     title="<%= t('admin.module_settings') %>">
                                                     <i class="fa-solid fa-gear text-xs"></i>
-                                                </button>
+                                                </span>
                                             <% } %>
                                             <div class="relative inline-flex items-center cursor-pointer">
                                                 <input type="checkbox" name="<%= mod.key %>Active" <%=settings.modules &&

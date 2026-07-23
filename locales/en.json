@@ -85,6 +85,8 @@
     "not_found": "Item not found."
   },
   "messages": {
+    "saved": "Saved!",
+    "error_no_module": "You must keep at least one module active.",
     "username_current": "This is your current username.",
     "username_available": "Username available!",
     "generic_error": "An error occurred.",

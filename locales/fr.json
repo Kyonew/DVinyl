@@ -85,6 +85,8 @@
     "not_found": "Élément introuvable."
   },
   "messages": {
+    "saved": "Enregistré !",
+    "error_no_module": "Impossible : au moins un module doit rester actif.",
     "username_current": "C'est votre pseudo actuel.",
     "username_available": "Pseudo disponible !",
     "generic_error": "Une erreur est survenue.",

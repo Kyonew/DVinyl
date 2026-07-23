@@ -615,6 +615,8 @@
     "legos": "LEGO-Sets"
   },
   "messages": {
+    "saved": "Gespeichert!",
+    "error_no_module": "Mindestens ein Modul muss aktiv bleiben.",
     "avatar_success": "Profilbild aktualisiert!",
     "avatar_updated": "Profilbild aktualisiert!",
     "avatar_upload_error": "Fehler beim Hochladen des Bildes.",

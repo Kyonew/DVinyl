@@ -615,6 +615,8 @@
     "legos": "Set LEGO"
   },
   "messages": {
+    "saved": "Salvato!",
+    "error_no_module": "Impossibile: almeno un modulo deve restare attivo.",
     "avatar_success": "Immagine del profilo aggiornata!",
     "avatar_updated": "Immagine del profilo aggiornata!",
     "avatar_upload_error": "Errore durante il caricamento dell'immagine.",
