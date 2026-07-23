@@ -112,6 +112,8 @@ export const issueSession = async (req: any, res: any, user: any) => {
     status: 'success'
   });
 
+  console.log(`[AUTH] Session issued for ${user.email} (${clientIp}${geo?.country ? ', ' + geo.country : ''})`);
+
   const passjwt = process.env.PASSJWT;
   if (!passjwt) {
     throw new Error("PASSJWT environment variable is missing");
@@ -162,10 +164,13 @@ export const login_post = async (req: any, res: any) => {
     // If threshold reached, set a temporary block window.
     if (loginAttempts[email].count >= MAX_ATTEMPTS) {
       loginAttempts[email].blockedUntil = now + BLOCK_TIME;
+      console.warn(`[AUTH] ${email} temporarily blocked after ${loginAttempts[email].count} failed attempts (from ${getClientIp(req)})`);
       return res.status(429).json({
         errors: { login: req.t('errors.too_many_attempts_blocked') }
       });
     }
+
+    console.warn(`[AUTH] Login failed for ${email}: ${(err as any)?.message} (attempt ${loginAttempts[email].count}/${MAX_ATTEMPTS})`);
 
     // Retrieve the error key from handleErrors.
     const errorKeys = handleErrors(err);
@@ -181,6 +186,7 @@ export const login_post = async (req: any, res: any) => {
  * GET /logout
  */
 export const logout_get = (req: any, res: any) => {
+  console.log(`[AUTH] Logout${req.user?.email ? ': ' + req.user.email : ''}`);
   res.cookie('jwt', '', { maxAge: 1 });
   res.redirect('/');
 };

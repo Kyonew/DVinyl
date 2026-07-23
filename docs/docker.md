@@ -26,7 +26,7 @@ services:
       - mongodb
 
   mongodb:
-    image: mongo:8.0
+    image: mongo:latest
     container_name: dvinyl_db
     restart: unless-stopped
     volumes:
@@ -61,7 +61,7 @@ services:
       - /mnt/<uploads_dataset>:/app/public/uploads
 
   mongodb:
-    image: mongo:8.0
+    image: mongo:latest
     pull_policy: missing
     container_name: dvinyl_db
     restart: unless-stopped
@@ -69,11 +69,6 @@ services:
       - /mnt/<mongo_dataset>:/data/db
 ```
 
-> **Why `mongo:8.0` and not `mongo:latest`?** Pinning a major version means a routine
-> `docker compose pull` only ever brings **patch** updates. `:latest` can silently jump a
-> major version (e.g. to a future MongoDB 9.0), and MongoDB refuses to start on data files
-> written by a newer version, so an unattended pull could leave your database down. `8.0` is
-> the current stable major.
 >
 > **Older / low-power hardware (Raspberry Pi, older NAS/CPUs).** MongoDB 5.0+ requires a CPU
 > with AVX support. If `mongodb` keeps restarting on such hardware, pin an older major instead:

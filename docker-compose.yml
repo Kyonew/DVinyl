@@ -16,7 +16,7 @@ services:
 
   # Database service
   mongodb:
-    image: mongo:8.0
+    image: mongo:latest
     container_name: dvinyl_db
     restart: unless-stopped
     volumes:

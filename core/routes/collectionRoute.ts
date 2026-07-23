@@ -322,6 +322,8 @@ router.post('/collection/switch', requireAuth, async (req: any, res: any) => {
       { $set: { lastActiveCollectionId: target._id } }
     );
 
+    console.log(`[COLLECTION] ${req.user.email} switched to "${target.name}" (${target._id})`);
+
     // Only follow redirectTo if it's a same-site relative path: a leading "/" but not
     // "//" (browsers treat "//host" as protocol-relative, i.e. an external redirect).
     const redirectTo = req.body.redirectTo;

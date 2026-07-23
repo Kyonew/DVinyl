@@ -16,6 +16,7 @@ if (!MONGODB_URL) {
 }
 
 export const connectDB = async () => {
+  console.log('[DB] Connecting to MongoDB...');
   await mongoose.connect(MONGODB_URL);
-  console.log('✅ MongoDB connected');
+  console.log(`[DB] MongoDB connected (${mongoose.connection.name})`);
 };

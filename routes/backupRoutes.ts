@@ -31,11 +31,12 @@ router.get('/export', requireAuth, requireAdmin, async (req, res) => {
         };
 
         const fileName = `dvinyl_instance_${new Date().toISOString().split('T')[0]}.json`;
+        console.log(`[BACKUP] Instance export: ${data.users.length} user(s), ${data.albums.length} item(s), ${data.collections.length} collection(s)`);
         res.setHeader('Content-disposition', 'attachment; filename=' + fileName);
         res.setHeader('Content-type', 'application/json');
         res.send(JSON.stringify(data, null, 2));
     } catch (err) {
-        console.error(err);
+        console.error("[BACKUP] Instance export failed:", err);
         res.status(500).send("Export failed");
     }
 });
@@ -79,6 +80,8 @@ router.post('/import', async (req, res) => {
         }
 
         const hasCollections = Array.isArray(data.collections) && data.collections.length > 0;
+
+        console.log(`[BACKUP] Instance import started (dump version ${data.metadata?.version || 'unknown'}, ${hasCollections ? 'with' : 'without'} collections): ${data.users?.length || 0} user(s), ${data.albums?.length || 0} item(s). Wiping current data...`);
 
         await Promise.all([
             LoginLog.deleteMany({}),
@@ -157,6 +160,7 @@ router.post('/import', async (req, res) => {
         await applyCustomPluginsFromDB();
 
         const restoredCollectionCount = await Collection.countDocuments();
+        console.log(`[BACKUP] Instance import finished: ${restoredCollectionCount} collection(s) rebuilt, ${await Item.countDocuments()} item(s) restored`);
 
         res.cookie('jwt', '', { maxAge: 1 });
         if (restoredCollectionCount === 0) {

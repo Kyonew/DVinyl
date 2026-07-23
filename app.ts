@@ -238,16 +238,18 @@ app.use((req, res) => {
 // Database connection and server start
 connectDB()
   .then(async () => {
+    console.log('[BOOT] Running database migrations...');
     await migrateDatabase();
     // Re-materialize no-code plugins from the DB: re-grows plugins/<id>/ folders on
     // a fresh/rebuilt container and backfills the DB from any pre-existing folders.
+    console.log('[BOOT] Syncing custom plugins...');
     await syncCustomPluginsOnBoot();
     const port = process.env.VINYL_PORT || 3099;
     server.listen(port, () => {
-      console.log(`🚀 Server started on port ${port}`);
+      console.log(`[BOOT] Server started on port ${port} (BASE_URL="${BASE_URL || '/'}", env=${process.env.PROD === 'true' ? 'production' : 'development'})`);
     });
   })
-  .catch((err: any) => console.log('❌DB Error:', err));
+  .catch((err: any) => console.error('[BOOT] DB Error:', err));
 
 
 // Socket event

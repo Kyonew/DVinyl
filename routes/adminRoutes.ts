@@ -188,6 +188,8 @@ router.post("/add-user", requireAuth, requireAdmin, async (req: any, res: any) =
       { $set: { password: hashedPassword } },
     );
 
+    console.log(`[ADMIN] User created: ${username} <${email}> by ${res.locals.user?.email}`);
+
     const data = await loadInstanceAdminData();
 
     res.render("admin-instance", {
@@ -198,7 +200,7 @@ router.post("/add-user", requireAuth, requireAdmin, async (req: any, res: any) =
       apiKeyStatus: registry.getApiKeyStatus(),
     });
   } catch (err) {
-    console.error("Creation error:", err);
+    console.error("[ADMIN] User creation error:", err);
     res.redirect("/admin/instance?msg=user_created");
   }
 });
@@ -589,8 +591,10 @@ router.post("/delete-user", requireAuth, requireAdmin, async (req: any, res: any
       return res.redirect("/admin/instance?msg=delete_self_error");
     await User.findByIdAndDelete(req.body.userId);
     await Collection.updateMany({}, { $pull: { members: { user: req.body.userId } } });
+    console.log(`[ADMIN] User deleted: ${req.body.userId} by ${res.locals.user?.email}`);
     res.redirect("/admin/instance?msg=user_deleted");
   } catch (err) {
+    console.error("[ADMIN] User deletion error:", err);
     res.redirect("/admin/instance");
   }
 });
@@ -600,8 +604,10 @@ router.post("/block-ip", requireAuth, requireAdmin, async (req: any, res: any) =
     const { ipAddress } = req.body;
     const exists = await BlockedIP.findOne({ ip: ipAddress });
     if (!exists) await BlockedIP.create({ ip: ipAddress });
+    console.log(`[ADMIN] IP blocked: ${ipAddress} by ${res.locals.user?.email}${exists ? ' (already blocked)' : ''}`);
     res.redirect("/admin/instance?msg=ip_blocked");
   } catch (err) {
+    console.error("[ADMIN] block-ip error:", err);
     res.redirect("/admin/instance");
   }
 });
@@ -609,8 +615,10 @@ router.post("/block-ip", requireAuth, requireAdmin, async (req: any, res: any) =
 router.post("/unblock-ip", requireAuth, requireAdmin, async (req: any, res: any) => {
   try {
     await BlockedIP.findByIdAndDelete(req.body.ipId);
+    console.log(`[ADMIN] IP unblocked: ${req.body.ipId} by ${res.locals.user?.email}`);
     res.redirect("/admin/instance?msg=ip_unblocked");
   } catch (err) {
+    console.error("[ADMIN] unblock-ip error:", err);
     res.redirect("/admin/instance");
   }
 });
