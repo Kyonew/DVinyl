@@ -6,6 +6,8 @@ import LoginLog from '../models/LoginLog';
 import Settings from '../models/Settings';
 import Collection from '../models/Collection';
 import CustomPlugin from '../models/CustomPlugin';
+import InstanceSettings from '../models/InstanceSettings';
+import { invalidateInstanceSettingsCache } from '../utils/instanceSettings';
 import { requireAuth, requireAdmin, requireCollectionRole } from '../middleware/authMiddleware';
 import { registry } from '../core/registry';
 import { migrateDatabase, normalizeThemePresets } from '../utils/migrate';
@@ -24,6 +26,7 @@ router.get('/export', requireAuth, requireAdmin, async (req, res) => {
             settings: await Settings.find({}).lean(),
             collections: await Collection.find({}).lean(),
             customPlugins: await CustomPlugin.find({}).lean(),
+            instanceSettings: await InstanceSettings.findOne({ key: 'instance' }).lean(),
             metadata: {
                 version: "3.1.0",
                 date: new Date()
@@ -89,8 +92,12 @@ router.post('/import', async (req, res) => {
             User.deleteMany({}),
             Settings.deleteMany({}),
             Collection.deleteMany({}),
-            CustomPlugin.deleteMany({})
+            CustomPlugin.deleteMany({}),
+            InstanceSettings.deleteMany({})
         ]);
+        // The singleton is cached in memory; the wipe above must not leave a stale copy
+        // authorizing (or blocking) collection creation until the next restart.
+        invalidateInstanceSettingsCache();
 
         if (hasCollections) {
             await Collection.insertMany(data.collections);
@@ -153,6 +160,18 @@ router.post('/import', async (req, res) => {
         // No-code plugin definitions. Absent from dumps predating v3.1.
         if (Array.isArray(data.customPlugins) && data.customPlugins.length > 0) {
             await CustomPlugin.insertMany(data.customPlugins);
+        }
+
+        // Instance-wide policy singleton. Absent from older dumps, in which case the
+        // schema defaults (self-service off) apply on the next read.
+        if (data.instanceSettings) {
+            const { _id, created_at, updated_at, __v, ...values } = data.instanceSettings;
+            await InstanceSettings.updateOne(
+                { key: 'instance' },
+                { $set: { ...values, key: 'instance' } },
+                { upsert: true }
+            );
+            invalidateInstanceSettingsCache();
         }
 
         // Rebuild the multi-collection invariants (default collection, item/user/settings

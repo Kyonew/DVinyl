@@ -5,4 +5,5 @@
 /mongo_data_test
 docker-compose.override.yml
 .vscode/
+.claude/
 dist/

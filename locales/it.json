@@ -248,7 +248,12 @@
       "backup_title": "Backup dell'istanza",
       "backup_subtitle": "Esporta TUTTA l'istanza: tutti gli utenti, tutte le collezioni con i loro elementi, impostazioni e log - in un unico file.",
       "backup_warning": "L'importazione sostituisce TUTTI i dati dell'istanza (tutte le collezioni, tutti gli utenti). Per ripristinare una singola collezione, usa il suo backup dedicato dalla pagina admin di quella collezione.",
-      "backup_confirm_import": "Questa importazione SOSTITUIRÀ TUTTA l'istanza: tutti gli utenti, tutte le collezioni e i loro elementi. Verrai disconnesso. Continuare?"
+      "backup_confirm_import": "Questa importazione SOSTITUIRÀ TUTTA l'istanza: tutti gli utenti, tutte le collezioni e i loro elementi. Verrai disconnesso. Continuare?",
+      "self_service_title": "Collezioni in self-service",
+      "allow_member_creation": "Consenti ai membri di creare la propria collezione",
+      "allow_member_creation_desc": "Qualsiasi utente dell'istanza (account locale o SSO) potrà creare la propria collezione e diventarne amministratore, senza alcun intervento da parte tua. Se disattivato, solo l'amministratore dell'istanza crea le collezioni.",
+      "max_collections": "Numero massimo di collezioni per utente",
+      "max_collections_desc": "Conta solo le collezioni create dall'utente; quelle semplicemente condivise con lui non contano. Gli amministratori dell'istanza non hanno limiti."
     },
     "logs_delete_last": {
       "count_placeholder": "Numero",
@@ -656,7 +661,9 @@
     "oidc_unlinked": "Account scollegato.",
     "delete_self_error": "Non puoi eliminare te stesso.",
     "delete_admin_error": "Non puoi eliminare un altro amministratore dell'istanza.",
-    "reset_admin_error": "Non puoi reimpostare la password di un altro amministratore dell'istanza."
+    "reset_admin_error": "Non puoi reimpostare la password di un altro amministratore dell'istanza.",
+    "error_collection_quota": "Hai raggiunto il numero massimo di collezioni consentito.",
+    "error_collection_forbidden": "La creazione di collezioni non è consentita su questa istanza."
   },
   "modal": {
     "add_hub_subtitle": "Seleziona il tipo di media da aggiungere alla tua raccolta",
@@ -681,7 +688,8 @@
     "wishlist": "Lista dei desideri",
     "collections": "Collezioni",
     "instance": "Istanza",
-    "administration": "Amministrazione"
+    "administration": "Amministrazione",
+    "new_collection": "Nuova collezione"
   },
   "perso": {
     "backHome": "Ritorno a casa",
@@ -896,7 +904,9 @@
   },
   "no_collection": {
     "title": "Nessun accesso alle collezioni",
-    "message": "Non sei ancora membro di nessuna collezione. Chiedi a un amministratore di aggiungerti - il tuo accesso apparirà qui automaticamente."
+    "message": "Non sei ancora membro di nessuna collezione. Chiedi a un amministratore di aggiungerti - il tuo accesso apparirà qui automaticamente.",
+    "message_can_create": "Non hai ancora nessuna collezione. Crea la tua per iniziare ad aggiungere elementi: ne sarai l'amministratore.",
+    "create_btn": "Crea la mia collezione"
   },
   "create_plugin": {
     "title": "Editor di plugin",

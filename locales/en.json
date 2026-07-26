@@ -125,7 +125,9 @@
     "oidc_unlinked": "Account unlinked.",
     "delete_self_error": "You cannot delete yourself.",
     "delete_admin_error": "You cannot delete another instance administrator.",
-    "reset_admin_error": "You cannot reset another instance administrator's password."
+    "reset_admin_error": "You cannot reset another instance administrator's password.",
+    "error_collection_quota": "You have reached the maximum number of collections allowed.",
+    "error_collection_forbidden": "Creating a collection is not allowed on this instance."
   },
   "media": {
     "vinyl": "Vinyl",
@@ -443,7 +445,12 @@
       "backup_title": "Instance backup",
       "backup_subtitle": "Exports the ENTIRE instance: every user, every collection with its items, settings and login logs - in a single file.",
       "backup_warning": "Importing replaces ALL data of the instance (all collections, all users). To restore a single collection, use its own backup from that collection's admin page.",
-      "backup_confirm_import": "This import will REPLACE the ENTIRE instance: all users, all collections and their items. You will be logged out. Continue?"
+      "backup_confirm_import": "This import will REPLACE the ENTIRE instance: all users, all collections and their items. You will be logged out. Continue?",
+      "self_service_title": "Self-service collections",
+      "allow_member_creation": "Allow members to create their own collection",
+      "allow_member_creation_desc": "Any user of the instance (local or SSO account) will be able to create their own collection and become its administrator, with no action from you. When off, only the instance administrator creates collections.",
+      "max_collections": "Maximum collections per user",
+      "max_collections_desc": "Only counts collections the user created; collections merely shared with them don't count. Instance administrators are not limited."
     },
     "logs_delete_last": {
       "count_placeholder": "Count",
@@ -595,7 +602,8 @@
     "collection": "Collection",
     "collections": "Collections",
     "instance": "Instance",
-    "administration": "Administration"
+    "administration": "Administration",
+    "new_collection": "New collection"
   },
   "footer": {
     "made_with": "Made with",
@@ -896,7 +904,9 @@
   },
   "no_collection": {
     "title": "No collection access",
-    "message": "You are not a member of any collection yet. Ask an administrator to add you to one - your access will appear here automatically."
+    "message": "You are not a member of any collection yet. Ask an administrator to add you to one - your access will appear here automatically.",
+    "message_can_create": "You don't have a collection yet. Create your own to start adding items - you'll be its administrator.",
+    "create_btn": "Create my collection"
   },
   "create_plugin": {
     "title": "Plugin editor",

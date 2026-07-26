@@ -248,7 +248,12 @@
       "backup_title": "Copia de la instancia",
       "backup_subtitle": "Exporta TODA la instancia: todos los usuarios, todas las colecciones con sus elementos, ajustes y registros - en un solo archivo.",
       "backup_warning": "La importación reemplaza TODOS los datos de la instancia (todas las colecciones, todos los usuarios). Para restaurar una sola colección, usa su copia dedicada desde la página de administración de esa colección.",
-      "backup_confirm_import": "Esta importación REEMPLAZARÁ TODA la instancia: todos los usuarios, todas las colecciones y sus elementos. Se cerrará tu sesión. ¿Continuar?"
+      "backup_confirm_import": "Esta importación REEMPLAZARÁ TODA la instancia: todos los usuarios, todas las colecciones y sus elementos. Se cerrará tu sesión. ¿Continuar?",
+      "self_service_title": "Colecciones en autoservicio",
+      "allow_member_creation": "Permitir que los miembros creen su propia colección",
+      "allow_member_creation_desc": "Cualquier usuario de la instancia (cuenta local o SSO) podrá crear su propia colección y convertirse en su administrador, sin que tengas que intervenir. Si se desactiva, solo el administrador de la instancia crea colecciones.",
+      "max_collections": "Número máximo de colecciones por usuario",
+      "max_collections_desc": "Solo cuenta las colecciones creadas por el usuario; las que simplemente se comparten con él no cuentan. Los administradores de la instancia no tienen límite."
     },
     "logs_delete_last": {
       "count_placeholder": "Cantidad",
@@ -656,7 +661,9 @@
     "oidc_unlinked": "Cuenta desvinculada.",
     "delete_self_error": "No puedes borrarte a ti mismo.",
     "delete_admin_error": "No puedes eliminar a otro administrador de instancia.",
-    "reset_admin_error": "No puedes restablecer la contraseña de otro administrador de instancia."
+    "reset_admin_error": "No puedes restablecer la contraseña de otro administrador de instancia.",
+    "error_collection_quota": "Has alcanzado el número máximo de colecciones permitido.",
+    "error_collection_forbidden": "La creación de colecciones no está permitida en esta instancia."
   },
   "modal": {
     "add_hub_subtitle": "Seleccione el tipo de medios para agregar a su colección",
@@ -681,7 +688,8 @@
     "wishlist": "Lista de deseos",
     "collections": "Colecciones",
     "instance": "Instancia",
-    "administration": "Administración"
+    "administration": "Administración",
+    "new_collection": "Nueva colección"
   },
   "perso": {
     "backHome": "De vuelta a casa",
@@ -896,7 +904,9 @@
   },
   "no_collection": {
     "title": "Sin acceso a colecciones",
-    "message": "Todavía no eres miembro de ninguna colección. Pide a un administrador que te añada a una - tu acceso aparecerá aquí automáticamente."
+    "message": "Todavía no eres miembro de ninguna colección. Pide a un administrador que te añada a una - tu acceso aparecerá aquí automáticamente.",
+    "message_can_create": "Aún no tienes ninguna colección. Crea la tuya para empezar a añadir elementos: serás su administrador.",
+    "create_btn": "Crear mi colección"
   },
   "create_plugin": {
     "title": "Editor de plugins",

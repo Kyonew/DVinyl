@@ -155,6 +155,58 @@
                     </div>
                 </section>
 
+                <!-- ============ SELF-SERVICE COLLECTIONS (instance policy) ============ -->
+                <section>
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between py-6 gap-4 mb-2">
+                        <h2 class="text-xl md:text-2xl font-bold flex items-center gap-3 transition-colors">
+                            <i class="fa-solid fa-user-plus text-primary-theme"></i>
+                            <%= t('admin.instance.self_service_title') %>
+                        </h2>
+                    </div>
+
+                    <form action="<%= baseUrl %>/admin/instance/settings" method="POST"
+                        class="card-theme rounded-3xl p-6 md:p-8 shadow-sm transition-colors space-y-6">
+
+                        <label class="flex items-start justify-between gap-6 cursor-pointer">
+                            <div>
+                                <p class="text-sm font-black"><%= t('admin.instance.allow_member_creation') %></p>
+                                <p class="text-xs opacity-60 mt-1 leading-relaxed max-w-2xl">
+                                    <%= t('admin.instance.allow_member_creation_desc') %>
+                                </p>
+                            </div>
+                            <div class="relative inline-flex items-center shrink-0 mt-1">
+                                <input type="checkbox" id="allowMemberCollectionCreation"
+                                    name="allowMemberCollectionCreation"
+                                    <%= locals.instanceSettings && instanceSettings.allowMemberCollectionCreation ? 'checked' : '' %>
+                                    class="sr-only peer">
+                                <div class="w-11 h-6 bg-black/10 dark:bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500">
+                                </div>
+                            </div>
+                        </label>
+
+                        <div id="quotaRow"
+                            class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-black/5 dark:border-white/5 pt-6 transition-opacity">
+                            <div>
+                                <p class="text-sm font-black"><%= t('admin.instance.max_collections') %></p>
+                                <p class="text-xs opacity-60 mt-1 leading-relaxed max-w-2xl">
+                                    <%= t('admin.instance.max_collections_desc') %>
+                                </p>
+                            </div>
+                            <input type="number" name="maxCollectionsPerUser" min="1" max="100"
+                                value="<%= locals.instanceSettings ? instanceSettings.maxCollectionsPerUser : 1 %>"
+                                class="w-24 shrink-0 p-3 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 text-center font-black focus:outline-none focus:border-primary-theme transition-colors">
+                        </div>
+
+                        <div class="flex justify-end border-t border-black/5 dark:border-white/5 pt-6">
+                            <button type="submit"
+                                class="flex items-center gap-2 bg-primary-theme hover:brightness-110 text-white px-5 py-3 rounded-2xl shadow-lg shadow-primary-theme/20 transition-all active:scale-95">
+                                <i class="fa-solid fa-floppy-disk text-sm"></i>
+                                <span class="text-xs font-black"><%= t('common.save') %></span>
+                            </button>
+                        </div>
+                    </form>
+                </section>
+
                 <!-- ============ USERS ============ -->
                 <section>
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between py-6 gap-4 mb-4">
@@ -720,6 +772,17 @@
                     alert(err.message);
                 }
             }
+
+            // Dim the per-user quota while self-service creation is off (the value is
+            // still submitted and stored, so toggling back keeps the admin's number).
+            (function () {
+                const toggle = document.getElementById('allowMemberCollectionCreation');
+                const quotaRow = document.getElementById('quotaRow');
+                if (!toggle || !quotaRow) return;
+                const sync = () => quotaRow.classList.toggle('opacity-40', !toggle.checked);
+                toggle.addEventListener('change', sync);
+                sync();
+            })();
 
             document.getElementById('backupInput').onchange = function (e) {
                 const file = e.target.files[0];

@@ -7,13 +7,15 @@ import User from '../../models/User';
 import { requireAuth } from '../../middleware/authMiddleware';
 import { applyVisibilityFilter, applyEnabledModulesFilter } from '../../utils/visibilityHelper';
 import { escapeRegExp } from '../helpers';
+import { generateUniqueSlug } from '../../utils/collectionHelpers';
+import { checkCollectionCreation } from '../../utils/instanceSettings';
 
 const router = express.Router();
 
 router.get('/wishlist', requireAuth, async (req: any, res: any) => {
   try {
     if (!res.locals.activeCollectionId) {
-      return res.render('no-collection', { user: res.locals.user });
+      return res.render('no-collection', { user: res.locals.user, msgKey: req.query.msg });
     }
     let query: any = {
       collection: res.locals.activeCollectionId,
@@ -42,7 +44,7 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
   try {
     const activeCollectionId = res.locals.activeCollectionId;
     if (!activeCollectionId) {
-      return res.render('no-collection', { user: res.locals.user });
+      return res.render('no-collection', { user: res.locals.user, msgKey: req.query.msg });
     }
     const settings = res.locals.settings;
     const { search, type, format, location, genre, style, platform, artist, decade } = req.query;
@@ -296,6 +298,47 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
   } catch (err: any) {
     console.error("Collection page loading error:", err.message);
     res.status(500).send(req.t('errors.generic_server_error'));
+  }
+});
+
+// Create a collection as an ordinary member. Gated on the instance-wide toggle and
+// per-user quota (utils/instanceSettings.ts); instance admins bypass both and also
+// have the richer /admin/collections/create path. The creator becomes 'admin' of what
+// they create, which grants them the collection admin page, its settings and members.
+router.post('/collection/create', requireAuth, async (req: any, res: any) => {
+  try {
+    // Re-checked server-side: the UI hides the entry points, but the toggle may have
+    // been switched off (or the quota filled from another tab) since the page was rendered.
+    const verdict = await checkCollectionCreation(req.user);
+    if (verdict !== 'ok') {
+      return res.redirect(verdict === 'quota' ? '/?msg=error_collection_quota' : '/?msg=error_collection_forbidden');
+    }
+
+    const name = (req.body.name || '').trim().slice(0, 60);
+    if (!name) {
+      return res.redirect('/?msg=error_collection_name');
+    }
+
+    const collection = await Collection.create({
+      name,
+      slug: await generateUniqueSlug(name),
+      createdBy: req.user._id,
+      isDefault: false,
+      members: [{ user: req.user._id, role: 'admin' }]
+    });
+
+    // Land the user in the collection they just created rather than leaving them on
+    // whatever they were browsing (for a first-time user, on the no-collection page).
+    await User.updateOne(
+      { _id: req.user._id },
+      { $set: { lastActiveCollectionId: collection._id } }
+    );
+
+    console.log(`[COLLECTION] ${req.user.email} created "${collection.name}" (${collection._id})`);
+    res.redirect('/?msg=collection_created');
+  } catch (err: any) {
+    console.error('Collection self-create error:', err.message);
+    res.redirect('/?msg=error_collection_name');
   }
 });
 

@@ -1,6 +1,7 @@
 import Collection from '../models/Collection';
 import User from '../models/User';
 import { resolveActiveCollectionForUser } from '../utils/collectionHelpers';
+import { canUserCreateCollection } from '../utils/instanceSettings';
 
 /**
  * Resolves the current user's active collection and exposes it to routes/views:
@@ -10,6 +11,8 @@ import { resolveActiveCollectionForUser } from '../utils/collectionHelpers';
  *   - res.locals.collectionRole     : 'admin' | 'editor' | 'viewer' | null for the active collection
  *   - res.locals.isCollectionAdmin  : role === 'admin' (instance admins always qualify)
  *   - res.locals.canEditCollection  : role is admin or editor (drives mutation UI/routes)
+ *   - res.locals.canCreateCollection: instance admin, or the instance allows it and the
+ *                                     user is under their quota (drives the "new collection" UI)
  *   - req.activeCollectionId        : same id, for route handlers
  *
  * Self-heals: if the persisted lastActiveCollectionId is stale/missing, it resolves a
@@ -22,6 +25,7 @@ async function collectionMiddleware(req: any, res: any, next: any) {
     res.locals.collectionRole = null;
     res.locals.isCollectionAdmin = false;
     res.locals.canEditCollection = false;
+    res.locals.canCreateCollection = false;
 
     if (!req.user) {
         return next();
@@ -71,6 +75,8 @@ async function collectionMiddleware(req: any, res: any, next: any) {
         res.locals.userCollections = await Collection
             .find({ 'members.user': req.user._id }, 'name slug')
             .lean();
+
+        res.locals.canCreateCollection = await canUserCreateCollection(req.user);
 
         next();
     } catch (err) {

@@ -8,6 +8,7 @@ import Settings from "../models/Settings";
 import Collection from "../models/Collection";
 import { requireAuth, requireAdmin, requireCollectionRole } from "../middleware/authMiddleware";
 import { generateUniqueSlug } from "../utils/collectionHelpers";
+import { getInstanceSettings, saveInstanceSettings, InstanceSettingsData } from "../utils/instanceSettings";
 import PRESETS from "../config/themes";
 import Item from "../models/Item";
 
@@ -41,6 +42,7 @@ interface InstanceAdminData {
   logs: any[];
   collections: any[];
   itemsTotal: number;
+  instanceSettings: InstanceSettingsData;
 }
 
 /**
@@ -123,7 +125,14 @@ async function loadInstanceAdminData(): Promise<InstanceAdminData> {
     c.members = (c.members || []).filter((m: any) => m.user);
   }
 
-  return { users, blockedIps, logs, collections, itemsTotal };
+  return {
+    users,
+    blockedIps,
+    logs,
+    collections,
+    itemsTotal,
+    instanceSettings: await getInstanceSettings(),
+  };
 }
 
 // COLLECTION ADMIN PAGE (GET /admin) - gated on the active collection's admin role
@@ -202,6 +211,33 @@ router.post("/add-user", requireAuth, requireAdmin, async (req: any, res: any) =
   } catch (err) {
     console.error("[ADMIN] User creation error:", err);
     res.redirect("/admin/instance?msg=user_created");
+  }
+});
+
+// Instance-wide settings (POST) - currently the member self-service collection toggle
+// and its per-user quota. Stored in the InstanceSettings singleton, not in the
+// per-collection Settings document.
+router.post("/instance/settings", requireAuth, requireAdmin, async (req: any, res: any) => {
+  try {
+    // Unchecked checkboxes are simply absent from the body
+    const allow = req.body.allowMemberCollectionCreation === "on"
+      || req.body.allowMemberCollectionCreation === "true";
+
+    // Clamp to the schema's bounds: the number input is client-side only, a crafted
+    // POST could otherwise store 0 (nobody can create) or a negative quota.
+    const parsed = parseInt(req.body.maxCollectionsPerUser, 10);
+    const max = Math.min(100, Math.max(1, isNaN(parsed) ? 1 : parsed));
+
+    await saveInstanceSettings({
+      allowMemberCollectionCreation: allow,
+      maxCollectionsPerUser: max,
+    });
+
+    console.log(`[ADMIN] Instance settings updated by ${res.locals.user?.email}: member collection creation ${allow ? "enabled" : "disabled"} (max ${max}/user)`);
+    res.redirect("/admin/instance?msg=saved");
+  } catch (err) {
+    console.error("[ADMIN] Instance settings error:", err);
+    res.redirect("/admin/instance?msg=generic_error");
   }
 });
 

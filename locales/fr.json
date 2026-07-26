@@ -125,7 +125,9 @@
     "oidc_unlinked": "Compte délié.",
     "delete_self_error": "Impossible de se supprimer soi-même.",
     "delete_admin_error": "Impossible de supprimer un autre administrateur d'instance.",
-    "reset_admin_error": "Impossible de réinitialiser le mot de passe d'un autre administrateur d'instance."
+    "reset_admin_error": "Impossible de réinitialiser le mot de passe d'un autre administrateur d'instance.",
+    "error_collection_quota": "Vous avez atteint le nombre maximum de collections autorisé.",
+    "error_collection_forbidden": "La création de collection n'est pas autorisée sur cette instance."
   },
   "media": {
     "vinyl": "Vinyle",
@@ -443,7 +445,12 @@
       "backup_title": "Sauvegarde de l'instance",
       "backup_subtitle": "Exporte TOUTE l'instance : tous les utilisateurs, toutes les collections avec leurs items, réglages et logs de connexion - dans un seul fichier.",
       "backup_warning": "L'import remplace TOUTES les données de l'instance (toutes les collections, tous les utilisateurs). Pour restaurer une seule collection, utilisez sa sauvegarde dédiée depuis la page admin de cette collection.",
-      "backup_confirm_import": "Cet import va REMPLACER TOUTE l'instance : tous les utilisateurs, toutes les collections et leurs items. Vous serez déconnecté. Continuer ?"
+      "backup_confirm_import": "Cet import va REMPLACER TOUTE l'instance : tous les utilisateurs, toutes les collections et leurs items. Vous serez déconnecté. Continuer ?",
+      "self_service_title": "Collections en libre-service",
+      "allow_member_creation": "Autoriser les membres à créer leur propre collection",
+      "allow_member_creation_desc": "Tout utilisateur de l'instance (compte local ou SSO) pourra créer sa propre collection et en devenir administrateur, sans intervention de votre part. Désactivé, seul l'administrateur de l'instance crée des collections.",
+      "max_collections": "Nombre de collections maximum par utilisateur",
+      "max_collections_desc": "Ne compte que les collections dont l'utilisateur est le créateur ; celles qui lui sont simplement partagées ne comptent pas. Les administrateurs de l'instance ne sont pas limités."
     },
     "logs_delete_last": {
       "count_placeholder": "Nombre",
@@ -595,7 +602,8 @@
     "collection": "Collection",
     "collections": "Collections",
     "instance": "Instance",
-    "administration": "Administration"
+    "administration": "Administration",
+    "new_collection": "Nouvelle collection"
   },
   "footer": {
     "made_with": "Développé avec",
@@ -896,7 +904,9 @@
   },
   "no_collection": {
     "title": "Aucune collection",
-    "message": "Vous n'avez accès à aucune collection pour le moment. Demandez à un administrateur de vous ajouter à l'une d'elles - votre accès apparaîtra ici automatiquement."
+    "message": "Vous n'avez accès à aucune collection pour le moment. Demandez à un administrateur de vous ajouter à l'une d'elles - votre accès apparaîtra ici automatiquement.",
+    "message_can_create": "Vous n'avez encore aucune collection. Créez la vôtre pour commencer à ajouter vos items - vous en serez l'administrateur.",
+    "create_btn": "Créer ma collection"
   },
   "create_plugin": {
     "title": "Éditeur de plugins",

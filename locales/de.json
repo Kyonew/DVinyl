@@ -248,7 +248,12 @@
       "backup_title": "Instanz-Backup",
       "backup_subtitle": "Exportiert die GESAMTE Instanz: alle Benutzer, alle Sammlungen mit ihren Elementen, Einstellungen und Login-Logs - in einer Datei.",
       "backup_warning": "Der Import ersetzt ALLE Daten der Instanz (alle Sammlungen, alle Benutzer). Um eine einzelne Sammlung wiederherzustellen, nutzen Sie deren eigenes Backup auf der Admin-Seite dieser Sammlung.",
-      "backup_confirm_import": "Dieser Import ERSETZT die GESAMTE Instanz: alle Benutzer, alle Sammlungen und ihre Elemente. Sie werden abgemeldet. Fortfahren?"
+      "backup_confirm_import": "Dieser Import ERSETZT die GESAMTE Instanz: alle Benutzer, alle Sammlungen und ihre Elemente. Sie werden abgemeldet. Fortfahren?",
+      "self_service_title": "Sammlungen in Selbstbedienung",
+      "allow_member_creation": "Mitgliedern erlauben, eine eigene Sammlung zu erstellen",
+      "allow_member_creation_desc": "Jeder Benutzer der Instanz (lokales Konto oder SSO) kann eine eigene Sammlung erstellen und wird deren Administrator, ganz ohne dein Zutun. Ist die Option aus, erstellt nur der Instanz-Administrator Sammlungen.",
+      "max_collections": "Maximale Anzahl Sammlungen pro Benutzer",
+      "max_collections_desc": "Zählt nur Sammlungen, die der Benutzer selbst erstellt hat; mit ihm geteilte Sammlungen zählen nicht. Instanz-Administratoren sind nicht begrenzt."
     },
     "logs_delete_last": {
       "count_placeholder": "Anzahl",
@@ -656,7 +661,9 @@
     "oidc_unlinked": "Verknüpfung aufgehoben.",
     "delete_self_error": "Sie können sich nicht selbst löschen.",
     "delete_admin_error": "Sie können keinen anderen Instanz-Administrator löschen.",
-    "reset_admin_error": "Sie können das Passwort eines anderen Instanz-Administrators nicht zurücksetzen."
+    "reset_admin_error": "Sie können das Passwort eines anderen Instanz-Administrators nicht zurücksetzen.",
+    "error_collection_quota": "Du hast die maximal zulässige Anzahl an Sammlungen erreicht.",
+    "error_collection_forbidden": "Das Erstellen von Sammlungen ist auf dieser Instanz nicht erlaubt."
   },
   "modal": {
     "add_hub_subtitle": "Wählen Sie den Medientyp aus, den Sie Ihrer Sammlung hinzufügen möchten",
@@ -681,7 +688,8 @@
     "wishlist": "Wunschliste",
     "collections": "Sammlungen",
     "instance": "Instanz",
-    "administration": "Verwaltung"
+    "administration": "Verwaltung",
+    "new_collection": "Neue Sammlung"
   },
   "perso": {
     "backHome": "Zurück nach Hause",
@@ -896,7 +904,9 @@
   },
   "no_collection": {
     "title": "Kein Sammlungszugriff",
-    "message": "Sie sind noch kein Mitglied einer Sammlung. Bitten Sie einen Administrator, Sie hinzuzufügen - Ihr Zugriff erscheint hier automatisch."
+    "message": "Sie sind noch kein Mitglied einer Sammlung. Bitten Sie einen Administrator, Sie hinzuzufügen - Ihr Zugriff erscheint hier automatisch.",
+    "message_can_create": "Du hast noch keine Sammlung. Erstelle deine eigene, um Einträge hinzuzufügen - du wirst ihr Administrator.",
+    "create_btn": "Meine Sammlung erstellen"
   },
   "create_plugin": {
     "title": "Plugin-Editor",

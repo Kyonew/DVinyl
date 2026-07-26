@@ -11,7 +11,7 @@ router.get('/', requireAuth, async (req: any, res: any) => {
     const activeCollectionId = res.locals.activeCollectionId;
     if (!activeCollectionId) {
       // The user is a member of no collection: explicit empty state, not a hollow dashboard
-      return res.render('no-collection', { user: res.locals.user });
+      return res.render('no-collection', { user: res.locals.user, msgKey: req.query.msg });
     }
     const settings = res.locals.settings;
 

@@ -161,10 +161,18 @@
               <span class="block text-xs opacity-60 truncate text-[var(--text-sub)]"><%= user.email %></span>
             </div>
             <ul class="py-2">
-              <% if ((locals.userCollections || []).length > 1) { %>
+              <%
+                // The collections block shows the switcher (only useful with 2+ memberships)
+                // and/or the self-service creation entry, so it appears as soon as either applies.
+                const hasSwitcher = (locals.userCollections || []).length > 1;
+                const showCollectionsBlock = hasSwitcher || locals.canCreateCollection;
+              %>
+              <% if (showCollectionsBlock) { %>
               <li class="px-4 pt-1 pb-1">
                 <span class="block text-[9px] uppercase font-bold tracking-wider opacity-50 text-[var(--text-sub)]"><%= t('nav.collections') %></span>
               </li>
+              <% } %>
+              <% if (hasSwitcher) { %>
               <% (locals.userCollections || []).forEach(c => { %>
               <li>
                 <form action="<%= baseUrl %>/collection/switch" method="POST">
@@ -177,6 +185,17 @@
                 </form>
               </li>
               <% }) %>
+              <% } %>
+              <% if (locals.canCreateCollection) { %>
+              <li>
+                <button type="button" data-new-collection-open
+                  class="w-[calc(100%-1rem)] text-left block px-4 py-2 text-sm text-[var(--text-main)] hover:bg-black/5 dark:hover:bg-white/10 mx-2 rounded transition flex items-center gap-3">
+                  <i class="fa-solid fa-plus w-5 text-center opacity-70"></i>
+                  <span class="truncate"><%= t('nav.new_collection') %></span>
+                </button>
+              </li>
+              <% } %>
+              <% if (showCollectionsBlock) { %>
               <li class="border-t border-black/5 dark:border-white/10 my-1"></li>
               <% } %>
               <% if (locals.isCollectionAdmin || user.isAdmin) { %>
@@ -271,6 +290,31 @@
     </div>
   </nav>
 
+  <% if (locals.user && locals.canCreateCollection) { %>
+  <!-- Self-service collection creation, opened from the user dropdown. Self-contained
+       (its own toggle script) since the header is included by every page. -->
+  <div id="newCollectionModal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+    <div class="absolute inset-0" data-new-collection-close></div>
+    <div class="relative card-theme rounded-[2rem] p-8 md:p-10 shadow-2xl w-full max-w-md">
+      <button type="button" data-new-collection-close
+        class="absolute top-5 right-5 w-9 h-9 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-[var(--text-main)]">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      <h3 class="text-2xl font-black mb-8 text-[var(--text-main)]"><%= t('nav.new_collection') %></h3>
+      <form action="<%= baseUrl %>/collection/create" method="POST" class="space-y-6">
+        <input type="text" name="name" required maxlength="60" autocomplete="off"
+          placeholder="<%= t('admin.collections.name_placeholder') %>"
+          class="w-full p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 text-sm text-[var(--text-main)] focus:outline-none focus:border-primary-theme transition-colors">
+        <button type="submit"
+          class="w-full flex items-center justify-center gap-2 bg-primary-theme hover:brightness-110 text-white px-6 py-4 rounded-2xl shadow-lg shadow-primary-theme/20 transition-all active:scale-95">
+          <i class="fa-solid fa-plus text-sm"></i>
+          <span class="text-xs font-black"><%= t('admin.collections.create') %></span>
+        </button>
+      </form>
+    </div>
+  </div>
+  <% } %>
+
   <script>
     document.body.classList.add('js-ready');
     const navTranslations = {
@@ -315,6 +359,26 @@
         }
     });
     
+    // New-collection modal (only rendered when the user is allowed to create one)
+    document.addEventListener('DOMContentLoaded', () => {
+        const modal = document.getElementById('newCollectionModal');
+        if (!modal) return;
+
+        const setOpen = (open) => {
+            modal.classList.toggle('hidden', !open);
+            modal.classList.toggle('flex', open);
+            if (open) modal.querySelector('input[name="name"]')?.focus();
+        };
+
+        document.querySelectorAll('[data-new-collection-open]')
+            .forEach(el => el.addEventListener('click', () => setOpen(true)));
+        modal.querySelectorAll('[data-new-collection-close]')
+            .forEach(el => el.addEventListener('click', () => setOpen(false)));
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') setOpen(false);
+        });
+    });
+
     window.addEventListener('load', () => {
         const loader = document.getElementById('page-loader');
         if(loader) {
