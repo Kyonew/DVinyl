@@ -137,6 +137,15 @@ export const migrateDatabase = async () => {
                 console.log(`[MIGRATION] ${itemsBackfill.modifiedCount} item(s) attached to the default collection.`);
             }
 
+            // A MISSING lastActiveCollectionId is the legacy marker: the field didn't exist
+            // before multi-collections. Users created since then always carry it (the schema
+            // defaults it to null), so this identifies pre-migration accounts exactly.
+            // Captured BEFORE the updateMany below, which is what clears the marker.
+            const legacyUserIds = new Set(
+                (await User.find({ lastActiveCollectionId: { $exists: false } }, '_id').lean())
+                    .map((u: any) => String(u._id))
+            );
+
             const usersBackfill = await User.updateMany(
                 { lastActiveCollectionId: { $exists: false } },
                 { $set: { lastActiveCollectionId: defaultCollection._id } }
@@ -145,7 +154,12 @@ export const migrateDatabase = async () => {
                 console.log(`[MIGRATION] ${usersBackfill.modifiedCount} user(s) given an active collection.`);
             }
 
-            // Make every existing user a member of the default collection (idempotent via $addToSet).
+            // Make every LEGACY user a member of the default collection (idempotent via $addToSet).
+            // Restricted to legacy accounts on purpose: this loop used to run over every user on
+            // every boot, which silently re-joined accounts an admin had removed, and handed a
+            // viewer seat on the default collection to users meant to only have their own
+            // (self-service creation, OIDC auto-provisioning). Membership is granted explicitly
+            // from the admin pages; migration only heals the pre-multi-collection era.
             const existingMemberIds = new Set(
                 (defaultCollection.members || []).map((m: any) => String(m.user))
             );
@@ -153,6 +167,7 @@ export const migrateDatabase = async () => {
             let addedMembers = 0;
             for (const u of allUsers) {
                 if (existingMemberIds.has(String(u._id))) continue;
+                if (!legacyUserIds.has(String(u._id))) continue;
                 await Collection.updateOne(
                     { _id: defaultCollection._id },
                     { $addToSet: { members: { user: u._id, role: u.isAdmin ? 'admin' : 'viewer' } } }
