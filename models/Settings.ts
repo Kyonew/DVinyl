@@ -51,6 +51,10 @@ const settingsSchema = new mongoose.Schema({
         default: () => ({})
     },
     fastAdd: { type: String, default: '' },
+    // When false, adding an item never bumps an existing one's quantity: every add
+    // creates its own entry, even when the plugin's duplicate key matches. Item types
+    // without a format (custom plugins) otherwise merge on title + creator alone.
+    mergeDuplicates: { type: Boolean, default: true },
     visibility: {
         applyToAdmin: { type: Boolean, default: false },
         hiddenItems: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Item' }],

@@ -224,6 +224,8 @@
     },
     "module_settings": "Ajustes del módulo",
     "advanced_cd_desc": "También busca los formatos SACD y CDr en Discogs",
+    "merge_duplicates": "Fusionar duplicados",
+    "merge_duplicates_desc": "Añadir un ítem que ya está en la colección aumenta su cantidad en vez de crear una segunda entrada. Desactívalo para crear siempre una entrada separada.",
     "collections": {
       "title": "Colecciones ({{count}})",
       "name_placeholder": "Nombre de la nueva colección",

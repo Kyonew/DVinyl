@@ -769,6 +769,8 @@ router.post("/modules/save", requireAuth, requireCollectionRole("admin"), async 
       update[`modules.${key}`] = req.body[`${key}Active`] === "on";
     }
 
+    update.mergeDuplicates = req.body.mergeDuplicates === "on";
+
     // Plugin-scoped settings (⚙ per module): pluginSetting_<pluginId>_<key>
     for (const p of registry.getAll()) {
       for (const opt of p.settings || []) {

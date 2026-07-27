@@ -423,6 +423,8 @@
     },
     "module_settings": "Module settings",
     "advanced_cd_desc": "Also search SACD and CDr formats on Discogs",
+    "merge_duplicates": "Merge duplicates",
+    "merge_duplicates_desc": "Adding an item already in the collection increases its quantity instead of creating a second entry. Turn this off to always create a separate entry.",
     "collections": {
       "title": "Collections ({{count}})",
       "name_placeholder": "New collection name",

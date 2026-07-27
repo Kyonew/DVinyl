@@ -307,7 +307,10 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           return res.status(404).send(req.t('errors.not_found'));
         }
         isEdit = true;
-      } else {
+      } else if (res.locals.settings?.mergeDuplicates !== false) {
+        // Opt-out per collection: with the merge disabled every add gets its own entry
+        // instead of bumping the matching item's quantity. Settings documents predating
+        // the option have no value at all, so only an explicit false turns it off.
         existingItem = await plugin.findDuplicate(activeCollectionId, req.body);
       }
 
