@@ -42,6 +42,14 @@ const settingsSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.Mixed,
         default: () => ({})
     },
+    // Per-collection user-defined fields added on top of a plugin's own fields, for
+    // native and custom plugins alike:
+    //   { [pluginId]: [{ name, label, type, group, placeholder, options }] }
+    // Values land in item.extra[name]; see core/pluginExtraFields.ts.
+    pluginExtraFields: {
+        type: mongoose.Schema.Types.Mixed,
+        default: () => ({})
+    },
     fastAdd: { type: String, default: '' },
     visibility: {
         applyToAdmin: { type: Boolean, default: false },

@@ -9,6 +9,10 @@ import { applyVisibilityFilter, applyEnabledModulesFilter } from '../../utils/vi
 import { escapeRegExp } from '../helpers';
 import { generateUniqueSlug } from '../../utils/collectionHelpers';
 import { checkCollectionCreation } from '../../utils/instanceSettings';
+import {
+  getExtraFields, buildExtraFieldConditions, parseExtraSort, extraSortKey,
+  filterParam, isFilterable, isRangeFilter, isPickerFilter, EXTRA_ANY, EXTRA_NONE
+} from '../pluginExtraFields';
 
 const router = express.Router();
 
@@ -63,7 +67,12 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
     const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string) || 25));
 
     let query: any = { collection: activeCollectionId, in_wishlist: false };
+    // Two separate buckets. `conditions` holds the user's criteria, which filterMode
+    // 'hide' inverts. `scopeConditions` holds what defines *which items the page is
+    // about at all* (the selected type): inverting that would widen the page to other
+    // types instead of narrowing it, so it is always ANDed as-is.
     let conditions: any[] = [];
+    let scopeConditions: any[] = [];
 
     const enabledPlugins = registry.getEnabled(settings);
 
@@ -95,8 +104,10 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
       const plugin = enabledPlugins.find(p => p.id === type);
       if (plugin) {
         if (plugin.matchesLegacyItems) {
-          // Compatibility with older DB where kind was absent (pre-plugins era)
-          conditions.push({
+          // Compatibility with older DB where kind was absent (pre-plugins era).
+          // Needs an $or, so it cannot live on query.kind like the other plugins do,
+          // hence the scope bucket rather than a plain query field.
+          scopeConditions.push({
             $or: [{ kind: plugin.kind }, { kind: { $exists: false } }]
           });
         } else {
@@ -179,11 +190,24 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
       }
     }
 
+    // USER-DEFINED FIELD FILTERS
+    // Scoped to a selected type: the fields are declared per plugin, so they are
+    // meaningless while the collection shows every type at once.
+    const selectedPlugin = (type && type !== 'all')
+      ? enabledPlugins.find(p => p.id === type)
+      : undefined;
+    const extraDefs = selectedPlugin ? getExtraFields(settings, selectedPlugin.id) : [];
+    conditions.push(...buildExtraFieldConditions(extraDefs, req.query));
+
     const filterMode = (req.query.filterMode as string) || 'show';
-    if (filterMode === 'hide' && conditions.length > 0) {
-      query.$and = [{ $nor: [{ $and: conditions }] }];
-    } else if (conditions.length > 0) {
-      query.$and = conditions;
+    // 'hide' negates the criteria as a block ("everything except what matches"), then
+    // the scope is re-applied on top so the exclusion stays inside the selected type.
+    const criteria = conditions.length === 0 ? []
+      : filterMode === 'hide' ? [{ $nor: [{ $and: conditions }] }]
+        : conditions;
+    const allConditions = [...scopeConditions, ...criteria];
+    if (allConditions.length > 0) {
+      query.$and = allConditions;
     }
 
     applyVisibilityFilter(query, res.locals.isCollectionAdmin, settings);
@@ -193,6 +217,9 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
 
     // BUILD SORT OBJECT
     const buildSortObj = () => {
+      const extraSort = parseExtraSort(sort as string, extraDefs);
+      if (extraSort) return extraSort;
+
       const sortMap: Record<string, any> = {
         'added_desc': { added_at: -1 },
         'added_asc': { added_at: 1 },
@@ -268,6 +295,48 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
     const platforms = await Item.distinct('platform', { collection: activeCollectionId, platform: { $nin: ['', null, 'other'] } });
     platforms.sort();
 
+    // Filter controls for the selected type's user-defined fields. Picker filters offer
+    // the values actually stored (a select uses its declared options instead, so an
+    // option nobody used yet is still selectable and shows its label).
+    const extraFilters = await Promise.all(
+      extraDefs.filter(isFilterable).map(async (field) => {
+        const control = {
+          name: field.name,
+          label: field.label,
+          type: field.type,
+          kind: isRangeFilter(field) ? 'range' : (field.type === 'boolean' ? 'boolean' : 'picker'),
+          param: filterParam(field),
+          paramFrom: filterParam(field, 'from'),
+          paramTo: filterParam(field, 'to'),
+          sortKey: extraSortKey(field),
+          value: (req.query[filterParam(field)] as string) || '',
+          from: (req.query[filterParam(field, 'from')] as string) || '',
+          to: (req.query[filterParam(field, 'to')] as string) || '',
+          choices: [] as { value: string; label: string }[]
+        };
+
+        if (field.type === 'select') {
+          control.choices = (field.options || []).map(o => ({ value: o.value, label: o.label }));
+        } else if (isPickerFilter(field)) {
+          const typeQuery = selectedPlugin!.matchesLegacyItems
+            ? { collection: activeCollectionId, $or: [{ kind: selectedPlugin!.kind }, { kind: { $exists: false } }] }
+            : { collection: activeCollectionId, kind: selectedPlugin!.kind };
+          const values = await Item.distinct(`extra.${field.name}`, {
+            ...typeQuery,
+            [`extra.${field.name}`]: { $nin: ['', null] }
+          });
+          control.choices = values
+            .filter((v: any) => typeof v === 'string' || typeof v === 'number')
+            .map((v: any) => String(v))
+            .sort()
+            .slice(0, 200)
+            .map((v: string) => ({ value: v, label: v }));
+        }
+
+        return control;
+      })
+    );
+
     res.render('collection', {
       albums: albumsFormatted,
       totalItems,
@@ -292,6 +361,9 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
       genres,
       styles,
       platforms,
+      extraFilters,
+      extraAny: EXTRA_ANY,
+      extraNone: EXTRA_NONE,
       user: res.locals.user,
       settings
     });

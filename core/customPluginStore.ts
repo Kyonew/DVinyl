@@ -36,17 +36,17 @@ const RESERVED_IDS = new Set([
 ]);
 
 // Paths of the base Item schema + form plumbing: custom fields may not redefine them.
-const RESERVED_FIELD_NAMES = new Set([
+export const RESERVED_FIELD_NAMES = new Set([
   '_id', 'kind', 'owner', 'collection', 'title', 'year', 'cover_image', 'user_image',
   'in_wishlist', 'comments', 'location', 'quantity', 'genre', 'genres', 'styles',
   'barcode', 'barcode_locked', 'added_at', 'updated_at', 'creator', 'format',
-  'tracklist', 'user_rating', 'mongo_id'
+  'tracklist', 'user_rating', 'mongo_id', 'extra'
 ]);
 
 const ID_RE = /^[a-z][a-z0-9-]{1,29}$/;
-const FIELD_NAME_RE = /^[a-z][a-z0-9_]{0,29}$/;
+export const FIELD_NAME_RE = /^[a-z][a-z0-9_]{0,29}$/;
 const ICON_RE = /^fa-[a-z0-9-]{1,40}$/;
-const FIELD_TYPES = new Set(['text', 'number', 'textarea', 'select', 'boolean', 'tags']);
+export const FIELD_TYPES = new Set(['text', 'number', 'textarea', 'select', 'boolean', 'tags', 'date']);
 
 export function isValidIcon(icon: string): boolean {
   return ICON_RE.test(icon);
@@ -68,7 +68,7 @@ function pascalCase(slug: string): string {
 // Labels end up in EJS <script> blocks via JSON.stringify (admin.ejs module list,
 // the builder's edit prefill), so angle brackets are stripped to rule out any
 // </script> breakout regardless of the sink.
-function cleanText(value: any, max: number): string {
+export function cleanText(value: any, max: number): string {
   return String(value ?? '').replace(/[<>]/g, '').trim().slice(0, max);
 }
 

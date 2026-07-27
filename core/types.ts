@@ -149,7 +149,7 @@ export interface PluginDefinition {
 export interface FieldDefinition {
   name: string;
   label: string;
-  type: 'text' | 'number' | 'select' | 'radio-cards' | 'boolean' | 'rating' | 'hidden' | 'tags' | 'textarea' | 'custom';
+  type: 'text' | 'number' | 'select' | 'radio-cards' | 'boolean' | 'rating' | 'hidden' | 'tags' | 'textarea' | 'date' | 'custom';
   required?: boolean;
   options?: { value: string; label: string; icon?: string }[];
   default?: any;
@@ -159,6 +159,10 @@ export interface FieldDefinition {
   placeholder?: string;
   hint?: string;
   showCondition?: 'manual-only' | 'api-only' | 'always';
+
+  // User-defined field declared in settings.pluginExtraFields, not by the plugin itself.
+  // Its value is stored under item.extra[name] instead of a real schema path.
+  extraField?: boolean;
 }
 export interface SearchProvider {
   name: string;

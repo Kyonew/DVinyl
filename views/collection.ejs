@@ -360,6 +360,19 @@
                                                     <% } %>
                                             </button>
                                             <% } %>
+                                    <% (locals.extraFilters || []).forEach(xf => {
+                                        const xfActive = currentSort.startsWith(xf.sortKey + '_');
+                                        const xfDir = xfActive ? (currentSort.endsWith('_asc') ? 'asc' : 'desc') : 'asc';
+                                    %>
+                                        <button onclick="handleSort('<%= xf.sortKey %>', '<%= xfDir %>', false)"
+                                            class="w-full flex items-center justify-between gap-2 p-2.5 text-sm rounded-lg transition-all cursor-pointer
+                                            <%= xfActive ? 'bg-primary-theme/10 text-primary-theme font-semibold' : 'hover:bg-black/5 dark:hover:bg-white/5 opacity-70 hover:opacity-100' %>">
+                                            <span class="truncate"><%= xf.label %></span>
+                                            <% if (xfActive) { %>
+                                                <i class="fa-solid fa-arrow-<%= xfDir === 'asc' ? 'up' : 'down' %> text-[11px]"></i>
+                                            <% } %>
+                                        </button>
+                                    <% }) %>
                     </div>
                 </div>
 
@@ -386,8 +399,51 @@
                 </div>
             </div>
 
+            <!-- User-defined field filters, on their own row: their number depends on what
+                 the collection admin declared, so they must not squeeze the main row. -->
+            <% const xFilters = locals.extraFilters || []; %>
+            <% if (xFilters.length > 0) { %>
+                <!-- Wrapping grid rather than a single flex row: the number of controls is
+                     whatever the collection admin declared, so the row must reflow instead
+                     of squeezing everything onto one line. A range takes two columns, which
+                     leaves each of its two inputs about the width of a normal filter. -->
+                <div id="extraFilterContainer" class="hidden sm:grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
+                    <% xFilters.forEach(xf => { %>
+                        <div class="min-w-0 <%= xf.kind === 'range' ? 'sm:col-span-2' : '' %>">
+                            <label class="block mb-1 text-[10px] font-bold uppercase tracking-widest opacity-40 truncate" title="<%= xf.label %>"><%= xf.label %></label>
+                            <% if (xf.kind === 'range') { %>
+                                <div class="flex items-center gap-1">
+                                    <%# min-w-0 defeats the intrinsic minimum width of a date input, which
+                                        would otherwise overflow the cell and overlap the next filter %>
+                                    <input type="<%= xf.type === 'date' ? 'date' : 'number' %>" class="xf-range block w-full min-w-0 p-2 text-xs card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme outline-none"
+                                        data-param="<%= xf.paramFrom %>" value="<%= xf.from %>" title="<%= t('collection.xf_from') %>">
+                                    <span class="opacity-30 text-xs shrink-0">→</span>
+                                    <input type="<%= xf.type === 'date' ? 'date' : 'number' %>" class="xf-range block w-full min-w-0 p-2 text-xs card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme outline-none"
+                                        data-param="<%= xf.paramTo %>" value="<%= xf.to %>" title="<%= t('collection.xf_to') %>">
+                                </div>
+                            <% } else { %>
+                                <select class="xf-select block w-full p-2.5 text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme outline-none cursor-pointer"
+                                    data-param="<%= xf.param %>">
+                                    <option value="" class="bg-white dark:bg-[#1a1a1a]"><%= t('common.all') %></option>
+                                    <% if (xf.kind === 'boolean') { %>
+                                        <option value="true" class="bg-white dark:bg-[#1a1a1a]" <%= xf.value === 'true' ? 'selected' : '' %>><%= t('common.yes') %></option>
+                                        <option value="false" class="bg-white dark:bg-[#1a1a1a]" <%= xf.value === 'false' ? 'selected' : '' %>><%= t('common.no') %></option>
+                                    <% } else { %>
+                                        <option value="<%= locals.extraAny %>" class="bg-white dark:bg-[#1a1a1a]" <%= xf.value === locals.extraAny ? 'selected' : '' %>><%= t('collection.xf_any') %></option>
+                                        <option value="<%= locals.extraNone %>" class="bg-white dark:bg-[#1a1a1a]" <%= xf.value === locals.extraNone ? 'selected' : '' %>><%= t('collection.xf_none') %></option>
+                                        <% xf.choices.forEach(c => { %>
+                                            <option value="<%= c.value %>" class="bg-white dark:bg-[#1a1a1a]" <%= xf.value === c.value ? 'selected' : '' %>><%= t(c.label, { defaultValue: c.label }) %></option>
+                                        <% }) %>
+                                    <% } %>
+                                </select>
+                            <% } %>
+                        </div>
+                    <% }) %>
+                </div>
+            <% } %>
+
             <!-- Active Filter Badges/Pills -->
-            <% 
+            <%
                 const activePills = [];
                 if (locals.querySearch) activePills.push({ key: 'search', label: t('collection.filter_placeholder') + ': "' + locals.querySearch + '"' });
                 if (locals.queryLocation) activePills.push({ key: 'location', label: t('common.location') + ': "' + locals.queryLocation + '"' });
@@ -405,6 +461,18 @@
                 if (locals.queryPlatform) {
                     activePills.push({ key: 'platform', label: t('collection.platform_filter') + ': ' + locals.queryPlatform.split(',').join(', ') });
                 }
+
+                // One pill per active user-defined filter; a range contributes one per bound
+                xFilters.forEach(xf => {
+                    const readable = (v) => v === locals.extraAny ? t('collection.xf_any')
+                        : v === locals.extraNone ? t('collection.xf_none')
+                        : v === 'true' ? t('common.yes')
+                        : v === 'false' ? t('common.no')
+                        : t(v, { defaultValue: v });
+                    if (xf.value) activePills.push({ key: xf.param, label: xf.label + ': ' + readable(xf.value) });
+                    if (xf.from) activePills.push({ key: xf.paramFrom, label: xf.label + ' ≥ ' + xf.from });
+                    if (xf.to) activePills.push({ key: xf.paramTo, label: xf.label + ' ≤ ' + xf.to });
+                });
             %>
 
             <% if (activePills.length > 0) { %>
@@ -629,13 +697,12 @@
         }
 
         function toggleMobileFilters() {
-            const container = document.getElementById('filterContainer');
-            if (container.classList.contains('hidden')) {
-                container.classList.remove('hidden');
-                container.classList.add('grid');
-            } else {
-                container.classList.add('hidden');
-            }
+            const containers = [document.getElementById('filterContainer'), document.getElementById('extraFilterContainer')];
+            const opening = containers[0].classList.contains('hidden');
+            containers.filter(Boolean).forEach(container => {
+                container.classList.toggle('hidden', !opening);
+                if (opening) container.classList.add('grid');
+            });
         }
 
         function updateURLParams(key, value) {
@@ -686,6 +753,12 @@
                 if (checkedDecades.length) url.searchParams.set('decade', checkedDecades.join(','));
             }
 
+            // User-defined field filters, declared per plugin: each control carries the
+            // query param it owns, so nothing here needs to know their names.
+            document.querySelectorAll('.xf-select, .xf-range').forEach(el => {
+                validateAndSetUrlSearchParamString(el.dataset.param, el.value);
+            });
+
             validateAndSetUrlSearchParamString('limit', currentLimit);
             validateAndSetUrlSearchParamString('sort', currentSort);
             validateAndSetUrlSearchParamString('artist', artistInput?.value);
@@ -712,6 +785,12 @@
                 if (e.key !== 'Enter') return;
                 reloadPage();
             });
+        });
+
+        // A date/number input fires 'change' once the value is complete, so applying
+        // right away does not reload half-typed bounds.
+        document.querySelectorAll('.xf-select, .xf-range').forEach(element => {
+            element.addEventListener('change', () => reloadPage());
         });
 
         function clearFilterParam(key) {

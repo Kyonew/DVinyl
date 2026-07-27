@@ -12,6 +12,7 @@ import {
   CUSTOM_PLUGIN_PALETTE,
   CUSTOM_PLUGIN_ICONS
 } from '../core/customPluginStore';
+import { sanitizeExtraFields, getExtraFields } from '../core/pluginExtraFields';
 import { registerPluginDirAtRuntime, unregisterPluginAtRuntime } from '../core/pluginRuntime';
 import { saveCustomPluginToDB, deleteCustomPluginFromDB } from '../core/customPluginSync';
 
@@ -58,7 +59,8 @@ router.get('/', async (req: any, res: any) => {
       isCustom: !!getCustomConfig(p),
       enabled: settings?.modules?.[p.collectionType] === true,
       formats: (p.formats || []).map(f => ({ value: f.value, label: req.t(f.label) })),
-      current: customization[p.id] || {}
+      current: customization[p.id] || {},
+      extraFields: getExtraFields(settings, p.id)
     }));
 
     res.render('create-plugin', {
@@ -107,10 +109,29 @@ router.post('/customize/:pluginId', async (req: any, res: any) => {
     }
     if (Object.keys(formatColors).length > 0) cosmetics.formatColors = formatColors;
 
-    const path = `pluginCustomization.${plugin.id}`;
-    const update = (cosmetics.icon || cosmetics.formatColors)
-      ? { $set: { [path]: cosmetics } }
-      : { $unset: { [path]: '' } };
+    // User-defined fields. Only validated and written when the submission carries the
+    // key, so a caller that only changes the icon never touches the declared fields.
+    let extraUpdate: { set?: any; unset?: string } | null = null;
+    if (req.body.extraFields !== undefined) {
+      const { fields, errors } = sanitizeExtraFields(req.body.extraFields, plugin);
+      if (errors.length > 0) {
+        return res.status(400).json({ success: false, error: errors.map(e => req.t(e)).join(' ') });
+      }
+      const path = `pluginExtraFields.${plugin.id}`;
+      extraUpdate = fields.length > 0 ? { set: { [path]: fields } } : { unset: path };
+    }
+
+    const cosmeticsPath = `pluginCustomization.${plugin.id}`;
+    const $set: any = {};
+    const $unset: any = {};
+    if (cosmetics.icon || cosmetics.formatColors) $set[cosmeticsPath] = cosmetics;
+    else $unset[cosmeticsPath] = '';
+    if (extraUpdate?.set) Object.assign($set, extraUpdate.set);
+    if (extraUpdate?.unset) $unset[extraUpdate.unset] = '';
+
+    const update: any = {};
+    if (Object.keys($set).length > 0) update.$set = $set;
+    if (Object.keys($unset).length > 0) update.$unset = $unset;
     await Settings.updateOne({ collection: activeCollectionId }, update);
 
     res.json({ success: true });

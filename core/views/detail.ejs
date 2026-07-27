@@ -166,27 +166,68 @@
             <!-- Dynamic Metadata Card Grid -->
             <div class="card-theme rounded-xl p-6 grid grid-cols-2 gap-y-6 gap-x-4 transition-colors shadow-sm">
                 <%
-                const detailFields = plugin.formFields.filter(f => 
-                    f.showIn.includes('detail') && 
+                const dateLocale = { fr: 'fr-FR', de: 'de-DE', es: 'es-ES', it: 'it-IT' }[currentLng] || 'en-US';
+                // Date-only values are stored as UTC midnight; formatting them in UTC keeps
+                // the displayed day identical to the one that was picked in the form.
+                // Falls back to the raw value: a field switched from text to date after the
+                // fact still holds unparseable strings, and "Invalid Date" helps nobody.
+                const formatDay = d => {
+                    const parsed = new Date(d);
+                    return isNaN(parsed.getTime()) ? d : parsed.toLocaleDateString(dateLocale, { timeZone: 'UTC' });
+                };
+
+                // Paths rendered by a dedicated block further down this page (genres/styles
+                // chips, comments card). Listing them by name keeps them out of the generic
+                // grid without excluding every field sharing their type.
+                const renderedElsewhere = ['comments', 'genres', 'styles'];
+
+                const detailFields = plugin.formFields.filter(f =>
+                    f.showIn.includes('detail') &&
                     !['title', plugin.creatorField].includes(f.name) &&
-                    f.type !== 'custom' && f.type !== 'tags' && f.type !== 'textarea'
+                    !renderedElsewhere.includes(f.name) &&
+                    f.type !== 'custom'
                 );
                 detailFields.forEach(field => {
                     const val = item[field.name];
-                    if (val !== undefined && val !== null && val !== '' && val !== 0) {
+                    const isEmpty = val === undefined || val === null || val === ''
+                        || val === 0 || (Array.isArray(val) && val.length === 0);
+                    // A boolean field is meaningful even when false, unlike an empty string
+                    if (!isEmpty || field.type === 'boolean') {
                 %>
-                    <div>
+                    <div class="<%= field.type === 'textarea' ? 'col-span-2' : '' %>">
                         <span class="block text-xs opacity-50 uppercase font-bold mb-1">
                             <%= t(field.label) %>
                         </span>
-                        <span class="font-medium transition-colors">
-                            <%= val %>
-                            <% if (field.name === 'barcode' && item.barcode_locked) { %>
-                                <i class="fa-solid fa-lock text-[10px] text-primary-theme opacity-50 ml-1"></i>
-                            <% } %>
-                        </span>
+                        <% if (field.type === 'tags' && Array.isArray(val)) { %>
+                            <div class="flex flex-wrap gap-2">
+                                <% val.forEach(tag => { %>
+                                    <span class="bg-black/5 dark:bg-white/10 text-xs font-medium px-2.5 py-1 rounded-full transition-colors"><%= tag %></span>
+                                <% }) %>
+                            </div>
+                        <% } else if (field.type === 'textarea') { %>
+                            <p class="font-medium whitespace-pre-line transition-colors"><%= val %></p>
+                        <% } else { %>
+                            <span class="font-medium transition-colors">
+                                <% if (field.type === 'boolean') { %>
+                                    <%= val ? t('common.yes') : t('common.no') %>
+                                <% } else if (field.type === 'date') { %>
+                                    <%= formatDay(val) %>
+                                <% } else if (field.options) {
+                                    // Show the option label, not the slug stored in the document.
+                                    // defaultValue covers the plain-text labels of user-defined
+                                    // fields, whose labels are not i18n keys.
+                                    const opt = field.options.find(o => String(o.value) === String(val)); %>
+                                    <%= opt ? t(opt.label, { defaultValue: opt.label }) : val %>
+                                <% } else { %>
+                                    <%= val %>
+                                <% } %>
+                                <% if (field.name === 'barcode' && item.barcode_locked) { %>
+                                    <i class="fa-solid fa-lock text-[10px] text-primary-theme opacity-50 ml-1"></i>
+                                <% } %>
+                            </span>
+                        <% } %>
                     </div>
-                <% 
+                <%
                     }
                 });
                 %>
@@ -195,7 +236,7 @@
                         <%= t('detail.added_at') %>
                     </span>
                     <span class="transition-colors">
-                        <%= new Date(item.added_at).toLocaleDateString(currentLng === 'fr' ? 'fr-FR' : 'en-US') %>
+                        <%= new Date(item.added_at).toLocaleDateString(dateLocale) %>
                     </span>
                 </div>
                 <!-- External "source" link, declared by the plugin -->

@@ -2,10 +2,36 @@ import mongoose from 'mongoose';
 import { PluginDefinition } from './types';
 import Item from '../models/Item';
 
+const FLATTENS_EXTRA = Symbol('flattensExtra');
+
+/**
+ * Wraps formatForView so the user-defined values stored in item.extra are also
+ * readable at the top level of the view model. Views index fields as
+ * `item[field.name]`, and the extra fields are declared with a plain name, so
+ * without this every one of them would render empty.
+ *
+ * Done once at registration rather than in each of the plugins' formatForView, and
+ * spread under the plugin's own output so a plugin path always wins over a stale
+ * extra value carrying the same name.
+ */
+function flattenExtraValues(plugin: PluginDefinition): void {
+  if ((plugin as any)[FLATTENS_EXTRA]) return;
+  const original = plugin.formatForView.bind(plugin);
+  plugin.formatForView = function (item: any): any {
+    const view = original(item);
+    if (!view || typeof view !== 'object') return view;
+    const extra = view.extra;
+    if (!extra || typeof extra !== 'object' || Array.isArray(extra)) return view;
+    return { ...extra, ...view };
+  };
+  (plugin as any)[FLATTENS_EXTRA] = true;
+}
+
 class PluginRegistry {
   private plugins: Map<string, PluginDefinition> = new Map();
 
   register(plugin: PluginDefinition): void {
+    flattenExtraValues(plugin);
     this.plugins.set(plugin.id, plugin);
 
     try {

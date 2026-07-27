@@ -29,7 +29,14 @@ const itemSchema = new mongoose.Schema({
   styles: [String],
   barcode: { type: String, default: '' },
   barcode_locked: { type: Boolean, default: false },
-  added_at: { type: Date, default: Date.now }
+  added_at: { type: Date, default: Date.now },
+
+  // Values of the user-defined fields declared per collection in
+  // settings.pluginExtraFields. Deliberately schemaless: the definitions are scoped
+  // to a collection while the Mongoose discriminators are process-wide, so a typed
+  // path could not express "this field exists on Music in collection A only".
+  // Reads go through the plugin decoration layer, which knows the declared type.
+  extra: { type: mongoose.Schema.Types.Mixed, default: () => ({}) }
 
 }, options);
 

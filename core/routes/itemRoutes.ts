@@ -5,6 +5,7 @@ import Item from '../../models/Item';
 import User from '../../models/User';
 import { requireAuth, requireCollectionRole } from '../../middleware/authMiddleware';
 import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle } from '../helpers';
+import { getExtraFields, toFieldDefinitions } from '../pluginExtraFields';
 
 export function createItemRoutes(plugin: PluginDefinition): Router {
   const router = express.Router();
@@ -224,8 +225,15 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         kind: plugin.kind
       };
 
+      // createItemRoutes() captures the shared plugin singleton at boot, so the fields
+      // the per-collection decoration layer adds for the views are absent here. They
+      // are read back from the active collection's settings, otherwise everything the
+      // form posts for them would be silently dropped.
+      const extraFields = toFieldDefinitions(getExtraFields(res.locals.settings, plugin.id));
+      const extraValues: Record<string, any> = {};
+
       // Handle plugin specific fields
-      for (const field of plugin.formFields) {
+      for (const field of [...plugin.formFields, ...extraFields]) {
         if ([
           'title', 'year', 'cover_image', 'user_image', 'in_wishlist', 'comments',
           'location', 'quantity', 'barcode', 'barcode_locked', 'added_at', 'genres', 'styles', 'genre'
@@ -240,13 +248,37 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           value = JSON.parse(req.body[`${field.name}_json`]);
         } else if (field.type === 'number') {
           value = value ? Number(value) : undefined;
+        } else if (field.type === 'date') {
+          // The date input posts YYYY-MM-DD, parsed as UTC midnight so the stored day
+          // never shifts with the server timezone. An emptied input yields null rather
+          // than undefined, so clearing the field actually unsets the stored value
+          // instead of leaving the previous one in place.
+          const raw = typeof value === 'string' ? value.trim() : value;
+          const parsed = !raw ? null
+            : new Date(/^\d{4}-\d{2}-\d{2}$/.test(raw) ? `${raw}T00:00:00.000Z` : raw);
+          value = parsed && !isNaN(parsed.getTime()) ? parsed : null;
         } else if (field.type === 'boolean') {
           value = value === 'on' || value === 'true' || value === true;
+        } else if (field.type === 'tags' && typeof value === 'string') {
+          // Tags inputs post a raw comma-separated string. Plugins with their own
+          // schema path split it in normalizeForSave(); extra fields have no plugin
+          // to do it for them, so the generic split happens here.
+          if (field.extraField) {
+            value = value.split(',').map((s: string) => s.trim()).filter(Boolean);
+          }
         }
 
         if (value !== undefined) {
-          updateData[field.name] = value;
+          if (field.extraField) {
+            extraValues[field.name] = value;
+          } else {
+            updateData[field.name] = value;
+          }
         }
+      }
+
+      if (Object.keys(extraValues).length > 0) {
+        updateData.extra = extraValues;
       }
 
       // Plugin schema fields without a form field (external ids like discogs_id,
@@ -305,6 +337,16 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
               saveObj[key] = (key === idField && /^\d+$/.test(String(incoming))) ? parseInt(String(incoming)) : incoming;
             }
           }
+        }
+
+        // Address the extra values one key at a time: `$set: { extra: {...} }` would
+        // replace the whole bag and drop the values of any field this form did not
+        // carry (one removed from the settings, or declared in another collection).
+        if (saveObj.extra && typeof saveObj.extra === 'object') {
+          for (const [key, value] of Object.entries(saveObj.extra)) {
+            saveObj[`extra.${key}`] = value;
+          }
+          delete saveObj.extra;
         }
 
         await Item.updateOne({ _id: existingItem._id }, { $set: saveObj }, { strict: false });

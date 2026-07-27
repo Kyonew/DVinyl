@@ -12,6 +12,7 @@ import { requireAuth, requireAdmin, requireCollectionRole } from '../middleware/
 import { registry } from '../core/registry';
 import { migrateDatabase, normalizeThemePresets } from '../utils/migrate';
 import { applyCustomPluginsFromDB } from '../core/customPluginSync';
+import { collectExtraDateFields, reviveExtraDates } from '../core/pluginExtraFields';
 
 const router = express.Router();
 
@@ -118,6 +119,9 @@ router.post('/import', async (req, res) => {
             const legacyKind = registry.getAll().find(p => p.matchesLegacyItems)?.kind || 'Music';
             const toId = (v: any) => (typeof v === 'string' && mongoose.Types.ObjectId.isValid(v))
                 ? new mongoose.Types.ObjectId(v) : v;
+            const extraDateFields = collectExtraDateFields(
+                Array.isArray(data.settings) ? data.settings : (data.settings ? [data.settings] : [])
+            );
             const cleanAlbums = data.albums.map((album: any) => {
                 const fixed: any = album.kind ? { ...album } : { ...album, kind: legacyKind };
                 // Without the collections themselves, stale collection ids would orphan items
@@ -128,6 +132,10 @@ router.post('/import', async (req, res) => {
                 if (fixed.collection) fixed.collection = toId(fixed.collection);
                 if (fixed.added_at) fixed.added_at = new Date(fixed.added_at);
                 if (fixed.updated_at) fixed.updated_at = new Date(fixed.updated_at);
+                // Same treatment for the date-typed user-defined fields, which sit in a
+                // Mixed path and would otherwise come back as strings
+                if (fixed.extra) fixed.extra = { ...fixed.extra };
+                reviveExtraDates(fixed, extraDateFields);
                 return fixed;
             });
             // Insert with the native driver, bypassing Mongoose validation. A backup is
@@ -273,14 +281,20 @@ router.post('/collection/import', requireAuth, requireCollectionRole('admin'), a
 
         if (data.albums.length > 0) {
             const legacyKind = registry.getAll().find(p => p.matchesLegacyItems)?.kind || 'Music';
+            const extraDateFields = collectExtraDateFields(
+                Array.isArray(data.settings) ? data.settings : (data.settings ? [data.settings] : [])
+            );
             const cleanAlbums = data.albums.map((album: any) => {
                 const { _id, __v, ...rest } = album;
-                return {
+                const fixed: any = {
                     ...rest,
                     kind: rest.kind || legacyKind,
                     owner: req.user._id,
                     collection: activeCollectionId
                 };
+                if (fixed.extra) fixed.extra = { ...fixed.extra };
+                reviveExtraDates(fixed, extraDateFields);
+                return fixed;
             });
             await Item.insertMany(cleanAlbums);
         }

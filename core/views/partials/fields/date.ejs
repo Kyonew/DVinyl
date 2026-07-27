@@ -1,0 +1,16 @@
+<%
+// <input type="date"> only accepts YYYY-MM-DD. Stored values are dates without a
+// time component, saved as UTC midnight, so they are read back through the UTC
+// getters: local getters would shift the day by one in negative-offset timezones.
+let dateValue = '';
+if (value) {
+    const d = value instanceof Date ? value : new Date(value);
+    if (!isNaN(d.getTime())) {
+        dateValue = d.getUTCFullYear() + '-'
+            + String(d.getUTCMonth() + 1).padStart(2, '0') + '-'
+            + String(d.getUTCDate()).padStart(2, '0');
+    }
+}
+%>
+<label class="block mb-2 text-sm font-bold uppercase tracking-widest opacity-60"><%= t(field.label) %></label>
+<input type="date" name="<%= field.name %>" value="<%= dateValue %>" <%= field.required ? 'required' : '' %> class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme block w-full p-3 outline-none">

@@ -36,7 +36,7 @@ export interface CustomPluginConfig {
 export interface CustomFieldConfig {
   name: string; // slug, becomes the Mongo path
   label: string; // plain text
-  type: 'text' | 'number' | 'textarea' | 'select' | 'boolean' | 'tags';
+  type: 'text' | 'number' | 'textarea' | 'select' | 'boolean' | 'tags' | 'date';
   required?: boolean;
   group?: 'main' | 'metadata';
   placeholder?: string;
@@ -97,7 +97,8 @@ export function createCustomPlugin(config: CustomPluginConfig): PluginDefinition
       f.type === 'number' ? Number
         : f.type === 'boolean' ? { type: Boolean, default: !!f.default }
           : f.type === 'tags' ? { type: [String], default: [] }
-            : String;
+            : f.type === 'date' ? Date
+              : String;
   }
 
   // ---- Form fields ----------------------------------------------------------
@@ -206,7 +207,7 @@ export function createCustomPlugin(config: CustomPluginConfig): PluginDefinition
       : f.type === 'boolean' ? false
         : f.type === 'tags' ? []
           : f.type === 'select' ? (f.options?.[0]?.value ?? '')
-            : '';
+            : ''; // 'date' included: the date input reads an empty string as "no value"
   }
 
   // Exact duplicate: same title + creator (case-insensitive), same format if declared
@@ -340,7 +341,10 @@ function toFieldDefinition(f: CustomFieldConfig, group: 'main' | 'metadata'): Fi
     label: f.label,
     type: f.type,
     required: f.required === true,
-    showIn: ['edit', 'confirm', 'manual'],
+    // 'detail' included so a user-defined field is readable on the item page and not
+    // only in the edit form. The detail view skips the paths it renders in dedicated
+    // sections, so nothing is displayed twice.
+    showIn: ['edit', 'confirm', 'detail', 'manual'],
     group
   };
   if (f.placeholder) field.placeholder = f.placeholder;
