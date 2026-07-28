@@ -14,6 +14,7 @@ import {
 } from '../core/customPluginStore';
 import { sanitizeExtraFields, getExtraFields } from '../core/pluginExtraFields';
 import { placeholderUrl } from '../core/placeholderImage';
+import { cardFieldCandidates, getCardLines, MAX_CARD_LINES } from '../core/cardFields';
 import { registerPluginDirAtRuntime, unregisterPluginAtRuntime } from '../core/pluginRuntime';
 import { saveCustomPluginToDB, deleteCustomPluginFromDB } from '../core/customPluginSync';
 
@@ -62,16 +63,24 @@ router.get('/', async (req: any, res: any) => {
     const settings = res.locals.settings;
     const customization = settings?.pluginCustomization || {};
 
-    // Cosmetic-override targets: every plugin, with translated labels for the modal
-    const customizablePlugins = registry.getAll().map(p => ({
+    // Cosmetic-override targets: every plugin, with translated labels for the modal.
+    // Read through the decorated registry so the collection's user-defined fields are
+    // offered as card fields too.
+    const customizablePlugins = res.locals.registry.getAll().map((p: any) => ({
       id: p.id,
       label: req.t(p.label),
       icon: p.icon,
       isCustom: !!getCustomConfig(p),
       enabled: settings?.modules?.[p.collectionType] === true,
-      formats: (p.formats || []).map(f => ({ value: f.value, label: req.t(f.label) })),
+      formats: (p.formats || []).map((f: any) => ({ value: f.value, label: req.t(f.label) })),
       current: customization[p.id] || {},
-      extraFields: getExtraFields(settings, p.id)
+      extraFields: getExtraFields(settings, p.id),
+      cardFieldChoices: cardFieldCandidates(p).map(f => ({
+        name: f.name,
+        label: req.t(f.label, { defaultValue: f.label })
+      })),
+      // What the cards show today, so an untouched plugin opens on its real state
+      cardFields: p.defaultCardFields || [p.creatorField]
     }));
 
     res.render('create-plugin', {
@@ -81,7 +90,8 @@ router.get('/', async (req: any, res: any) => {
       editConfig,
       editPlaceholder,
       palette: CUSTOM_PLUGIN_PALETTE,
-      iconChoices: CUSTOM_PLUGIN_ICONS
+      iconChoices: CUSTOM_PLUGIN_ICONS,
+      maxCardLines: MAX_CARD_LINES
     });
   } catch (err: any) {
     console.error('[PluginBuilder] page error:', err);
@@ -121,6 +131,17 @@ router.post('/customize/:pluginId', async (req: any, res: any) => {
     }
     if (Object.keys(formatColors).length > 0) cosmetics.formatColors = formatColors;
 
+    // Card fields. Reordered to the plugin's own field order (the modal is a selection,
+    // not a ranking) and capped, so a crafted payload cannot overflow the card.
+    if (Array.isArray(req.body.cardFields)) {
+      const decorated = res.locals.registry.get(plugin.id) || plugin;
+      const picked = new Set(req.body.cardFields.filter((n: any) => typeof n === 'string'));
+      cosmetics.cardFields = cardFieldCandidates(decorated)
+        .map(f => f.name)
+        .filter(name => picked.has(name))
+        .slice(0, MAX_CARD_LINES);
+    }
+
     // User-defined fields. Only validated and written when the submission carries the
     // key, so a caller that only changes the icon never touches the declared fields.
     let extraUpdate: { set?: any; unset?: string } | null = null;
@@ -136,7 +157,7 @@ router.post('/customize/:pluginId', async (req: any, res: any) => {
     const cosmeticsPath = `pluginCustomization.${plugin.id}`;
     const $set: any = {};
     const $unset: any = {};
-    if (cosmetics.icon || cosmetics.formatColors) $set[cosmeticsPath] = cosmetics;
+    if (cosmetics.icon || cosmetics.formatColors || cosmetics.cardFields) $set[cosmeticsPath] = cosmetics;
     else $unset[cosmeticsPath] = '';
     if (extraUpdate?.set) Object.assign($set, extraUpdate.set);
     if (extraUpdate?.unset) $unset[extraUpdate.unset] = '';

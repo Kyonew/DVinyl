@@ -533,43 +533,7 @@
                                         <% } %>
                             </div>
 
-                            <div class="p-3">
-                                <h3 class="font-bold text-sm truncate" title="<%= album.title %>">
-                                    <%= album.title %>
-                                </h3>
-                                <p class="text-xs opacity-60 truncate mb-2">
-                                    <%= (itemPlugin ? album[itemPlugin.creatorField] : album.artist) || album.author || album.developer || album.director || 'Inconnu' %>
-                                </p>
-
-                                <% if(album.format_type || album.variant_color) { 
-                                    let cleanedFormat = '';
-                                    if (album.format_type) {
-                                        cleanedFormat = album.format_type
-                                            .split(',')
-                                            .map(s => s.trim())
-                                            .filter(s => !['vinyl', 'album', 'reissue', 'repress', 'cd', 'cassette'].includes(s.toLowerCase()))
-                                            .join(', ');
-                                        if (!cleanedFormat) cleanedFormat = album.format_type;
-                                    }
-                                %>
-                                    <div class="flex items-center gap-1.5 mt-1 min-w-0 overflow-hidden">
-                                        <% if(cleanedFormat) { %>
-                                            <span class="text-[9px] md:text-[10px] opacity-60 bg-black/5 dark:bg-white/10 px-1.5 py-0.5 rounded border border-transparent truncate max-w-[50%] font-medium transition-colors" title="<%= album.format_type %>">
-                                                <%= cleanedFormat %>
-                                            </span>
-                                        <% } %>
-                                        <% if(album.variant_color) { %>
-                                            <div class="flex items-center gap-1 min-w-0 truncate" title="<%= album.variant_color %>">
-                                                <span
-                                                    class="w-1.5 h-1.5 rounded-full bg-primary-theme inline-block flex-shrink-0"></span>
-                                                <span class="text-[9px] md:text-[10px] opacity-60 truncate">
-                                                    <%= album.variant_color %>
-                                                </span>
-                                            </div>
-                                        <% } %>
-                                    </div>
-                                <% } %>
-                            </div>
+                            <%- include('partials/item-card-body', { item: album, plugin: itemPlugin, size: 'collection' }) %>
                         </a>
                     </div>
                     <% }) %>

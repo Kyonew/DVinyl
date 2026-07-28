@@ -998,6 +998,8 @@
     "customize": "Personnaliser",
     "customize_hint": "Icône et couleurs des étiquettes, appliquées uniquement à cette collection.",
     "format_colors": "Couleurs des étiquettes",
+    "card_fields": "Champs de la carte",
+    "card_fields_hint": "Affichés sous la pochette dans toutes les grilles, dans l'ordre déclaré par le plugin. {{count}} maximum.",
     "default_color": "Couleur par défaut",
     "reset": "Réinitialiser",
     "customized": "Personnalisé"

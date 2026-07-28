@@ -93,6 +93,23 @@ export const musicPlugin: PluginDefinition = {
     { id: 'label', label: 'stats.top_label_label', icon: 'fa-building', color: 'bg-emerald-100 dark:bg-emerald-500/20', kind: 'top' }
   ],
 
+  defaultCardFields: ['artist', 'format_type', 'variant_color'],
+  cardFieldStyles: { format_type: 'pill', variant_color: 'dot' },
+
+  // format_type comes from Discogs as a full descriptor ("Vinyl, LP, Album, Reissue").
+  // The card only has room for what distinguishes this copy, and the media badge right
+  // above already says vinyl or CD, so those words are dropped.
+  cardFieldValue(name: string, item: any): string | null {
+    if (name !== 'format_type' || !item.format_type) return null;
+    const noise = ['vinyl', 'album', 'reissue', 'repress', 'cd', 'cassette'];
+    const kept = String(item.format_type)
+      .split(',')
+      .map((s: string) => s.trim())
+      .filter((s: string) => !noise.includes(s.toLowerCase()))
+      .join(', ');
+    return kept || String(item.format_type);
+  },
+
   schemaDefinition: {
     artist: { type: String, required: true },
     label: String,

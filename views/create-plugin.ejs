@@ -366,6 +366,14 @@
             <div id="czFormats" class="space-y-2"></div>
         </div>
 
+        <div id="czCardFieldsWrap">
+            <label class="block mb-1 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('create_plugin.card_fields') %></label>
+            <p class="text-xs opacity-50 mb-2">
+                <%= t('create_plugin.card_fields_hint', { count: maxCardLines }) %>
+            </p>
+            <div id="czCardFields" class="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-52 overflow-y-auto custom-scrollbar pr-1"></div>
+        </div>
+
         <div>
             <label class="block mb-1 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('create_plugin.extra_fields') %></label>
             <p class="text-xs opacity-50 mb-2"><%= t('create_plugin.extra_fields_hint') %></p>
@@ -997,6 +1005,46 @@
 
     $('czAddFieldBtn').addEventListener('click', () => czAddFieldRow());
 
+    // ---- Card fields (selection only: the order is the plugin's own) -------------------
+    const MAX_CARD_LINES = <%= maxCardLines %>;
+
+    function czSyncCardFieldLimit() {
+        const boxes = Array.from(document.querySelectorAll('.cz-card-field'));
+        const reached = boxes.filter(b => b.checked).length >= MAX_CARD_LINES;
+        boxes.forEach(b => {
+            b.disabled = reached && !b.checked;
+            b.closest('label').classList.toggle('opacity-40', b.disabled);
+        });
+    }
+
+    function czRenderCardFields(data) {
+        const wrap = $('czCardFields');
+        wrap.innerHTML = '';
+        const choices = data.cardFieldChoices || [];
+        $('czCardFieldsWrap').classList.toggle('hidden', choices.length === 0);
+
+        const selected = new Set(data.current.cardFields || data.cardFields || []);
+        choices.forEach(choice => {
+            const label = document.createElement('label');
+            label.className = 'flex items-center gap-2 text-sm px-2 py-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer transition-colors';
+
+            const box = document.createElement('input');
+            box.type = 'checkbox';
+            box.className = 'cz-card-field accent-primary-theme w-4 h-4 shrink-0';
+            box.value = choice.name;
+            box.checked = selected.has(choice.name);
+            box.addEventListener('change', czSyncCardFieldLimit);
+
+            const text = document.createElement('span');
+            text.className = 'truncate';
+            text.textContent = choice.label;
+
+            label.append(box, text);
+            wrap.appendChild(label);
+        });
+        czSyncCardFieldLimit();
+    }
+
     window.openCustomize = function (id) {
         const data = customizable.find(p => p.id === id);
         if (!data) return;
@@ -1008,6 +1056,8 @@
 
         $('czFields').innerHTML = '';
         (data.extraFields || []).forEach(f => czAddFieldRow(f));
+
+        czRenderCardFields(data);
 
         const wrap = $('czFormats');
         wrap.innerHTML = '';
@@ -1064,6 +1114,10 @@
             document.querySelectorAll('.cz-color').forEach(sel => {
                 if (sel.value) body.formatColors[sel.dataset.format] = sel.value;
             });
+            // Always sent, so unchecking everything is honoured as "title only" instead
+            // of falling back to the plugin's own fields
+            body.cardFields = Array.from(document.querySelectorAll('.cz-card-field'))
+                .filter(b => b.checked).map(b => b.value);
             body.extraFields = Array.from(document.querySelectorAll('.cz-field-row')).map(r => ({
                 name: r.dataset.name || undefined,
                 label: r.querySelector('.czf-label').value.trim(),

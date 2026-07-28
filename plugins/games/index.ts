@@ -110,6 +110,8 @@ export const gamesPlugin: PluginDefinition = {
     { id: 'game_platform', label: 'stats.top_platform_label', icon: 'fa-tv', color: 'bg-indigo-100 dark:bg-indigo-500/20', kind: 'top' }
   ],
 
+  defaultCardFields: ['developer'],
+
   schemaDefinition: {
     developer: { type: String, default: '' },
     publisher: { type: String, default: '' },

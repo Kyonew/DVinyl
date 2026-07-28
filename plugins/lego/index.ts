@@ -62,6 +62,8 @@ export const legoPlugin: PluginDefinition = {
     { id: 'lego_theme', label: 'stats.top_theme_label', icon: 'fa-layer-group', color: 'bg-sky-100 dark:bg-sky-500/20', kind: 'top' }
   ],
 
+  defaultCardFields: ['theme'],
+
   schemaDefinition: {
     set_num: { type: String, default: '' },
     theme: { type: String, default: '' },

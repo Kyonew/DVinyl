@@ -17,6 +17,9 @@ import { getExtraFields, toFieldDefinitions } from './pluginExtraFields';
 export interface PluginCosmetics {
   icon?: string;
   formatColors?: Record<string, string>;
+  // Fields shown under the cover on cards; overrides the plugin's defaultCardFields.
+  // An empty array is a deliberate "title only", so presence is what matters here.
+  cardFields?: string[];
 }
 
 export type PluginCustomizationMap = Record<string, PluginCosmetics>;
@@ -24,7 +27,7 @@ export type PluginCustomizationMap = Record<string, PluginCosmetics>;
 export function decoratePlugin(plugin: PluginDefinition, map: PluginCustomizationMap, settings?: any): PluginDefinition {
   const cosmetics = map?.[plugin.id];
   const extraDefs = settings ? getExtraFields(settings, plugin.id) : [];
-  const hasCosmetics = !!cosmetics && (!!cosmetics.icon || !!cosmetics.formatColors);
+  const hasCosmetics = !!cosmetics && (!!cosmetics.icon || !!cosmetics.formatColors || !!cosmetics.cardFields);
   if (!hasCosmetics && extraDefs.length === 0) return plugin;
 
   const clone: any = { ...plugin };
@@ -40,6 +43,9 @@ export function decoratePlugin(plugin: PluginDefinition, map: PluginCustomizatio
         ? { ...f, color: `bg-${cosmetics.formatColors![f.value]}-600/90` }
         : f
     );
+  }
+  if (cosmetics?.cardFields) {
+    clone.defaultCardFields = cosmetics.cardFields;
   }
   if (extraDefs.length > 0) {
     // Appended, so user-defined fields land at the end of their own group and the

@@ -257,6 +257,7 @@ export function createCustomPlugin(config: CustomPluginConfig): PluginDefinition
     creatorField: 'creator',
     supportsUserImage: config.secondaryImage === true,
     placeholderImage: placeholder,
+    defaultCardFields: ['creator'],
     partialsPath: CUSTOM_PARTIALS_PATH,
 
     schemaDefinition,

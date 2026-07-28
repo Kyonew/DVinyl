@@ -28,6 +28,7 @@ import { loadPlugins } from './core/loadPlugins.js';
 import { syncCustomPluginsOnBoot } from './core/customPluginSync.js';
 import { mountPluginRoutes, pluginDispatcher } from './core/pluginRuntime.js';
 import { applyPluginCustomization } from './core/pluginCustomization.js';
+import { getCardLines } from './core/cardFields.js';
 
 // Routes imports
 import setupRoutes from './routes/setupRoutes.js';
@@ -72,6 +73,8 @@ i18next
 // Basic configuration
 app.set('view engine', 'ejs');
 app.set('views', [path.join(__dirname, 'views'), path.join(__dirname, 'core/views')]);
+// Card bodies are resolved from the plugin declarations, not inlined per grid
+app.locals.getCardLines = getCardLines;
 app.set('io', io); // Expose io to routes
 
 // Global middlewares

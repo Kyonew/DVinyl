@@ -71,6 +71,8 @@ export const booksPlugin: PluginDefinition = {
     { id: 'publisher', label: 'stats.top_publisher_label', icon: 'fa-book-open', color: 'bg-orange-100 dark:bg-orange-500/20', kind: 'top' }
   ],
 
+  defaultCardFields: ['author'],
+
   schemaDefinition: {
     author: { type: String, required: true },
     hardcover_slug: { type: String, default: '' },

@@ -998,6 +998,8 @@
     "customize": "Customize",
     "customize_hint": "Icon and badge colors, applied to this collection only.",
     "format_colors": "Badge colors",
+    "card_fields": "Card fields",
+    "card_fields_hint": "Shown under the cover in every grid, in the order the plugin declares them. Up to {{count}}.",
     "default_color": "Default color",
     "reset": "Reset",
     "customized": "Customized"

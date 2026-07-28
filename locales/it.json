@@ -998,6 +998,8 @@
     "customize": "Personalizza",
     "customize_hint": "Icona e colori dei badge, applicati solo a questa collezione.",
     "format_colors": "Colori dei badge",
+    "card_fields": "Campi della scheda",
+    "card_fields_hint": "Mostrati sotto la copertina in tutte le griglie, nell'ordine dichiarato dal plugin. Massimo {{count}}.",
     "default_color": "Colore predefinito",
     "reset": "Reimposta",
     "customized": "Personalizzato"

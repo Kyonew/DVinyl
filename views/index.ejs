@@ -93,12 +93,7 @@
                             <% } %>                         
                         </div>
 
-                        <div class="p-3 md:p-4">
-                            <h3 class="font-bold truncate text-sm md:text-base leading-tight"><%= album.title %></h3>
-                            <p class="text-xs opacity-60 truncate">
-                                <%= (itemPlugin ? album[itemPlugin.creatorField] : album.artist) || album.author || album.director || album.developer || '' %>
-                            </p>
-                        </div>
+                        <%- include('partials/item-card-body', { item: album, plugin: itemPlugin, size: 'home' }) %>
                     </a>
                 <% }) %>
             </div>
@@ -146,19 +141,7 @@
                             <% } %>                         
                         </div>
 
-                        <div class="p-3 md:p-4">
-                            <h3 class="font-bold truncate text-sm md:text-base leading-tight"><%= album.title %></h3>
-                            <p class="text-xs opacity-60 truncate mb-1">
-                                <%= (itemPlugin ? album[itemPlugin.creatorField] : album.artist) || album.author || album.director || album.developer || 'Inconnu' %>
-                            </p>
-                            
-                            <div class="flex items-center gap-1 h-4"> 
-                                <% if(album.variant_color) { %>
-                                    <span class="w-2 h-2 rounded-full bg-primary-theme inline-block flex-shrink-0"></span>
-                                    <span class="text-[9px] md:text-[10px] opacity-60 truncate"><%= album.variant_color %></span>
-                                <% } %>
-                            </div>
-                        </div>
+                        <%- include('partials/item-card-body', { item: album, plugin: itemPlugin, size: 'home', reserveExtraRow: true }) %>
                     </a>
                 <% }) %>
             </div>

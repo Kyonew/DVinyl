@@ -74,6 +74,8 @@ export const dvdPlugin: PluginDefinition = {
     { id: 'studio', label: 'stats.top_studio_label', icon: 'fa-video', color: 'bg-rose-100 dark:bg-rose-500/20', kind: 'top' }
   ],
 
+  defaultCardFields: ['director'],
+
   schemaDefinition: {
     director: { type: String, required: true },
     studio: String,

@@ -47,6 +47,17 @@ export interface PluginDefinition {
   // If absent, the core derives label+color from `formats` and the item's format.
   cardBadge?(item: any, settings?: any): { label: string; colorClass: string };
 
+  // Fields shown under the cover on cards, in this order (see cardFields.ts).
+  // Defaults to the creator field alone. Capped at MAX_CARD_LINES.
+  defaultCardFields?: string[];
+
+  // Per-field presentation on cards; 'text' (default) is a plain line.
+  cardFieldStyles?: Record<string, 'text' | 'pill' | 'dot'>;
+
+  // Rewrites a field's card value (e.g. trimming redundant words). Returning null or
+  // undefined leaves the generic reading in place.
+  cardFieldValue?(name: string, item: any): string | null | undefined;
+
   schemaDefinition: mongoose.SchemaDefinition;
 
   formFields: FieldDefinition[];

@@ -1,0 +1,60 @@
+<%#
+  Card body shared by every grid (collection, wishlist, dashboard).
+  Params: item, plugin, size ('collection' | 'wishlist' | 'home'),
+          reserveExtraRow (keeps the decorated row's height even when empty, so a grid
+          whose items rarely carry one stays aligned).
+
+  Which lines to show is resolved by core/cardFields.ts from what the plugin declares.
+  Only the typography stays per context, since the three grids are not the same size.
+%>
+<%
+  const cardSizes = {
+    collection: {
+      wrap: 'p-3',
+      title: 'font-bold text-sm truncate',
+      lead: 'text-xs opacity-60 truncate mb-2'
+    },
+    wishlist: {
+      wrap: 'p-3',
+      title: 'font-bold text-xs md:text-sm truncate leading-tight mb-0.5',
+      lead: 'text-[10px] md:text-xs opacity-60 truncate mb-2'
+    },
+    home: {
+      wrap: 'p-3 md:p-4',
+      title: 'font-bold truncate text-sm md:text-base leading-tight',
+      lead: 'text-xs opacity-60 truncate'
+    }
+  };
+  const cs = cardSizes[locals.size] || cardSizes.collection;
+
+  const cardLines = getCardLines(plugin, item);
+  const plainLines = cardLines.filter(l => l.style === 'text');
+  const markedLines = cardLines.filter(l => l.style !== 'text');
+  const lineText = l => (l.showLabel ? t(l.label, { defaultValue: l.label }) + ' : ' : '') + l.value;
+%>
+<div class="<%= cs.wrap %>">
+    <h3 class="<%= cs.title %>" title="<%= item.title %>"><%= item.title %></h3>
+
+    <% plainLines.forEach((line, i) => { %>
+        <p class="<%= i === 0 ? cs.lead : 'text-[10px] md:text-xs opacity-60 truncate' %>" title="<%= lineText(line) %>">
+            <% if (line.showLabel) { %><span class="opacity-70"><%= t(line.label, { defaultValue: line.label }) %> :</span> <% } %><%= line.value %>
+        </p>
+    <% }) %>
+
+    <% if (markedLines.length > 0 || locals.reserveExtraRow) { %>
+        <div class="flex items-center gap-1.5 mt-1 min-w-0 overflow-hidden <%= locals.reserveExtraRow ? 'h-4' : '' %>">
+            <% markedLines.forEach(line => { %>
+                <% if (line.style === 'pill') { %>
+                    <span class="text-[9px] md:text-[10px] opacity-60 bg-black/5 dark:bg-white/10 px-1.5 py-0.5 rounded border border-transparent truncate max-w-[50%] font-medium transition-colors" title="<%= lineText(line) %>">
+                        <%= line.value %>
+                    </span>
+                <% } else { %>
+                    <div class="flex items-center gap-1 min-w-0 truncate" title="<%= lineText(line) %>">
+                        <span class="w-1.5 h-1.5 rounded-full bg-primary-theme inline-block flex-shrink-0"></span>
+                        <span class="text-[9px] md:text-[10px] opacity-60 truncate"><%= line.value %></span>
+                    </div>
+                <% } %>
+            <% }) %>
+        </div>
+    <% } %>
+</div>

@@ -88,26 +88,7 @@
                                                 <% } %>
                                     </div>
 
-                                    <div class="p-3">
-                                        <h3 class="font-bold text-xs md:text-sm truncate leading-tight mb-0.5"
-                                            title="<%= album.title %>">
-                                            <%= album.title %>
-                                        </h3>
-                                        <p class="text-[10px] md:text-xs opacity-60 truncate mb-2">
-                                            <%= album.author || album.artist || album.director || album.artists_sort
-                                                || 'Unknow' %>
-                                        </p>
-
-                                        <% if(album.variant_color) { %>
-                                            <div class="flex items-center gap-1 mb-1">
-                                                <span
-                                                    class="w-2 h-2 rounded-full bg-primary-theme inline-block flex-shrink-0"></span>
-                                                <span class="text-[9px] md:text-[10px] opacity-60 truncate max-w-full">
-                                                    <%= album.variant_color %>
-                                                </span>
-                                            </div>
-                                            <% } %>
-                                    </div>
+                                    <%- include('partials/item-card-body', { item: album, plugin: itemPlugin, size: 'wishlist' }) %>
                                 </a>
 
                                 <% if (locals.canEditCollection) { %>
