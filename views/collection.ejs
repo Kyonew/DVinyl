@@ -131,6 +131,9 @@
                     </datalist>
                 </div>
 
+                <%# Each control below is dropped when the selected type has nothing to
+                    offer for it, rather than showing an empty or foreign list %>
+                <% if (locals.hasYear) { %>
                 <div class="w-full lg:w-36 relative">
                     <button onclick="toggleDecadeMenu(event)" id="decadeSelectorBtn"
                         class="block w-full p-2.5 text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme outline-none transition-all flex justify-between items-center group">
@@ -163,8 +166,10 @@
                         </div>
                     </div>
                 </div>
+                <% } %>
 
                 <% if (currentType !=='all' ) { %>
+                    <% if (genres.length > 0) { %>
                     <div class="w-full lg:w-48 relative">
                         <button onclick="toggleGenreMenu(event)" id="genreSelectorBtn"
                             class="block w-full p-2.5 text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme outline-none transition-all flex justify-between items-center group">
@@ -206,9 +211,10 @@
                             </div>
                         </div>
                     </div>
+                    <% } %>
 
                     <% const stylesPlugin = registry.getAll().find(p => p.collectionType === currentType); %>
-                    <% if (stylesPlugin && stylesPlugin.schemaDefinition && stylesPlugin.schemaDefinition.styles) { %>
+                    <% if (stylesPlugin && stylesPlugin.schemaDefinition && stylesPlugin.schemaDefinition.styles && styles.length > 0) { %>
                         <div class="w-full lg:w-48 relative">
                             <button onclick="toggleStyleMenu(event)" id="styleSelectorBtn"
                                 class="block w-full p-2.5 text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme outline-none transition-all flex justify-between items-center group">
@@ -251,7 +257,7 @@
                         </div>
                     <% } %>
 
-                    <% if (stylesPlugin && stylesPlugin.schemaDefinition && stylesPlugin.schemaDefinition.platform) { %>
+                    <% if (stylesPlugin && stylesPlugin.schemaDefinition && stylesPlugin.schemaDefinition.platform && platforms.length > 0) { %>
                         <div class="w-full lg:w-48 relative">
                             <button onclick="togglePlatformMenu(event)" id="platformSelectorBtn"
                                 class="block w-full p-2.5 text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme outline-none transition-all flex justify-between items-center group">
@@ -297,7 +303,8 @@
 
                 <div class="w-full lg:w-44 relative">
                     <div class="relative">
-                        <input type="text" id="artistInput" placeholder="<%= t('collection.artist_filter') %>"
+                        <%# The selected type names its own creator field ("Fabricant", "Réalisateur"...) %>
+                        <input type="text" id="artistInput" placeholder="<%= locals.creatorFilterLabel || t('collection.artist_filter') %>"
                             value="<%= locals.queryArtist || '' %>" autocomplete="off"
                             class="filter-input-textbox block w-full p-2.5 <%= locals.queryArtist ? 'pr-8' : '' %> text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme outline-none placeholder-opacity-50">
                         <% if (locals.queryArtist) { %>
@@ -352,7 +359,7 @@
                                                 class="w-full flex items-center justify-between gap-2 p-2.5 text-sm rounded-lg transition-all cursor-pointer
                                             <%= artistActive ? 'bg-primary-theme/10 text-primary-theme font-semibold' : 'hover:bg-black/5 dark:hover:bg-white/5 opacity-70 hover:opacity-100' %>">
                                                 <span>
-                                                    <%= t('collection.sort_artist') %>
+                                                    <%= locals.creatorFilterLabel || t('collection.sort_artist') %>
                                                 </span>
                                                 <% if (artistActive) { %>
                                                     <i
@@ -447,7 +454,7 @@
                 const activePills = [];
                 if (locals.querySearch) activePills.push({ key: 'search', label: t('collection.filter_placeholder') + ': "' + locals.querySearch + '"' });
                 if (locals.queryLocation) activePills.push({ key: 'location', label: t('common.location') + ': "' + locals.queryLocation + '"' });
-                if (locals.queryArtist) activePills.push({ key: 'artist', label: t('collection.artist_filter') + ': "' + locals.queryArtist + '"' });
+                if (locals.queryArtist) activePills.push({ key: 'artist', label: (locals.creatorFilterLabel || t('collection.artist_filter')) + ': "' + locals.queryArtist + '"' });
                 
                 if (locals.queryDecade) {
                     activePills.push({ key: 'decade', label: t('collection.decade_filter') + ': ' + locals.queryDecade.split(',').map(d => d + 's').join(', ') });

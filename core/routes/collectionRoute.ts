@@ -199,6 +199,16 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
     const extraDefs = selectedPlugin ? getExtraFields(settings, selectedPlugin.id) : [];
     conditions.push(...buildExtraFieldConditions(extraDefs, req.query));
 
+    // Scope shared by every "values actually in use" lookup feeding the filter controls.
+    // Without a selected type the page spans them all, so the lookup stays unscoped.
+    const typeScope = (): any => {
+      const base: any = { collection: activeCollectionId };
+      if (!selectedPlugin) return base;
+      return selectedPlugin.matchesLegacyItems
+        ? { ...base, $or: [{ kind: selectedPlugin.kind }, { kind: { $exists: false } }] }
+        : { ...base, kind: selectedPlugin.kind };
+    };
+
     const filterMode = (req.query.filterMode as string) || 'show';
     // 'hide' negates the criteria as a block ("everything except what matches"), then
     // the scope is re-applied on top so the exclusion stays inside the selected type.
@@ -283,17 +293,31 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
 
     const locations = await Item.distinct('location', { collection: activeCollectionId, location: { $nin: ['', null] } });
 
+    // Scoped to the selected type, so a type never offers another type's values (and the
+    // view drops a control entirely once its list comes back empty).
     const genresList = await Promise.all([
-      Item.distinct('genres', { collection: activeCollectionId, genres: { $nin: ['', null] } }),
-      Item.distinct('genre', { collection: activeCollectionId, genre: { $nin: ['', null] } })
+      Item.distinct('genres', { ...typeScope(), genres: { $nin: ['', null] } }),
+      Item.distinct('genre', { ...typeScope(), genre: { $nin: ['', null] } })
     ]);
     const genres = [...new Set(genresList.flat())].filter(Boolean).sort();
 
-    const styles = await Item.distinct('styles', { collection: activeCollectionId, styles: { $nin: ['', null] } });
+    const styles = await Item.distinct('styles', { ...typeScope(), styles: { $nin: ['', null] } });
     styles.sort();
 
-    const platforms = await Item.distinct('platform', { collection: activeCollectionId, platform: { $nin: ['', null, 'other'] } });
+    const platforms = await Item.distinct('platform', { ...typeScope(), platform: { $nin: ['', null, 'other'] } });
     platforms.sort();
+
+    // The decade filter only makes sense where something actually carries a year
+    const hasYear = !!(await Item.exists({ ...typeScope(), year: { $nin: ['', null] } }));
+
+    // Filter and sort labels follow the selected type's own wording ("Fabricant",
+    // "Réalisateur"...) instead of the music-flavoured default.
+    const creatorDef = selectedPlugin
+      ? selectedPlugin.formFields.find(f => f.name === selectedPlugin.creatorField)
+      : undefined;
+    const creatorFilterLabel = creatorDef
+      ? req.t(creatorDef.label, { defaultValue: creatorDef.label })
+      : '';
 
     // Filter controls for the selected type's user-defined fields. Picker filters offer
     // the values actually stored (a select uses its declared options instead, so an
@@ -318,11 +342,8 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
         if (field.type === 'select') {
           control.choices = (field.options || []).map(o => ({ value: o.value, label: o.label }));
         } else if (isPickerFilter(field)) {
-          const typeQuery = selectedPlugin!.matchesLegacyItems
-            ? { collection: activeCollectionId, $or: [{ kind: selectedPlugin!.kind }, { kind: { $exists: false } }] }
-            : { collection: activeCollectionId, kind: selectedPlugin!.kind };
           const values = await Item.distinct(`extra.${field.name}`, {
-            ...typeQuery,
+            ...typeScope(),
             [`extra.${field.name}`]: { $nin: ['', null] }
           });
           control.choices = values
@@ -361,6 +382,8 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
       genres,
       styles,
       platforms,
+      hasYear,
+      creatorFilterLabel,
       extraFilters,
       extraAny: EXTRA_ANY,
       extraNone: EXTRA_NONE,

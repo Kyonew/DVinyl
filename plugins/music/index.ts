@@ -107,6 +107,12 @@ export const musicPlugin: PluginDefinition = {
     sleeve_condition: { type: String, default: '' },
     discogs_id: Number,
     country: { type: String, default: '' },
+    // Base Item paths, redeclared like the other native plugins do: the collection page
+    // reads schemaDefinition to know which taxonomies a type actually uses, and Discogs
+    // fills all three.
+    genre: { type: String, default: '' },
+    genres: { type: [String], default: [] },
+    styles: { type: [String], default: [] },
     tracklist: [{
       position: String,
       title: String,
