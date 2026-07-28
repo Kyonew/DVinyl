@@ -32,7 +32,8 @@
     "already_in_collection_title": "Cet élément semble déjà présent dans votre collection",
     "already_in_collection_desc": "Cet élément figure déjà dans votre collection (Quantité actuelle : {{qty}}). Si vous le confirmez, sa quantité sera augmentée.",
     "btn_add_anyway": "Ajouter quand même",
-    "forbidden": "Accès interdit"
+    "forbidden": "Accès interdit",
+    "no_format": "Aucun format"
   },
   "settings": {
     "page_title": "Paramètres du compte",
@@ -952,6 +953,8 @@
     "formats_desc": "Optionnel : les déclinaisons de vos éléments (ex: Neuf / Occasion, Standard / Collector). Chaque format a son badge coloré et son filtre.",
     "format_name_ph": "Ex: Édition collector",
     "add_format": "Ajouter un format",
+    "default_format_label": "Format présélectionné",
+    "default_format_desc": "Valeur déjà choisie à l'ajout d'un élément. Laissez sur « Aucun format » pour que le choix soit toujours explicite.",
     "section_fields": "Champs personnalisés",
     "fields_desc": "Ajoutez vos propres champs : texte, nombre, liste déroulante, case à cocher...",
     "field_label_ph": "Ex: Échelle, Matière, Numéro...",

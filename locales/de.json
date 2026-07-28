@@ -361,7 +361,8 @@
     "already_in_collection_title": "Dieser Artikel befindet sich bereits in Ihrer Sammlung",
     "already_in_collection_desc": "Dieser Artikel befindet sich bereits in Ihrer Sammlung (Aktuelle Menge: {{qty}}). Wenn Sie bestätigen, wird die Menge erhöht.",
     "btn_add_anyway": "Trotzdem hinzufügen",
-    "forbidden": "Zugriff verboten"
+    "forbidden": "Zugriff verboten",
+    "no_format": "Kein Format"
   },
   "confirm_book": {
     "btn_collection": "Zur Bibliothek hinzufügen",
@@ -952,6 +953,8 @@
     "formats_desc": "Optional: die Varianten deiner Elemente (z. B. Neu / Gebraucht, Standard / Collector). Jedes Format bekommt sein farbiges Badge und seinen Filter.",
     "format_name_ph": "Z. B. Sammleredition",
     "add_format": "Format hinzufügen",
+    "default_format_label": "Vorausgewähltes Format",
+    "default_format_desc": "Beim Hinzufügen bereits gewählter Wert. Auf \"Kein Format\" lassen, damit die Wahl immer bewusst erfolgt.",
     "section_fields": "Eigene Felder",
     "fields_desc": "Füge eigene Felder hinzu: Text, Zahl, Auswahlliste, Kontrollkästchen...",
     "field_label_ph": "Z. B. Maßstab, Material, Nummer...",

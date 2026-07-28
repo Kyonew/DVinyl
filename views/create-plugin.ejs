@@ -269,6 +269,12 @@
                     class="w-full py-2.5 text-xs font-bold opacity-30 hover:opacity-70 border-2 border-dashed border-current rounded-xl transition-all flex items-center justify-center gap-2">
                     <i class="fa-solid fa-plus"></i> <%= t('create_plugin.add_format') %>
                 </button>
+
+                <div id="defaultFormatWrap" class="hidden pt-4 border-t border-black/5 dark:border-white/5">
+                    <label class="block mb-1 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('create_plugin.default_format_label') %></label>
+                    <p class="text-[11px] opacity-50 mb-3"><%= t('create_plugin.default_format_desc') %></p>
+                    <select id="defaultFormat" class="w-full sm:w-64"></select>
+                </div>
             </section>
 
             <!-- Custom fields -->
@@ -428,7 +434,8 @@
         pvFormat: t('confirm_vinyl.field_format'),
         pvQuantity: t('confirm_vinyl.field_quantity'),
         pvTitleField: t('confirm_vinyl.field_title'),
-        coverTooBig: t('create_plugin.default_cover_too_big')
+        coverTooBig: t('create_plugin.default_cover_too_big'),
+        noFormat: t('common.no_format')
     };
     %>
     const i18n = <%- JSON.stringify(builderI18n).replace(/</g, '\\u003c') %>;
@@ -440,7 +447,9 @@
         shape: 'poster',
         // null: untouched, the stored image is kept. '' resets to the generic logo.
         // Anything else is the new image, as a data URI or a remote URL.
-        defaultCover: null
+        defaultCover: null,
+        // Format preselected on a new item; '' leaves the picker blank
+        defaultFormat: ''
     };
 
     function slugify(s) {
@@ -575,6 +584,47 @@
         state.defaultCover = '';
         $('dcUrl').value = '';
         setCoverPreview('');
+    });
+
+    // ---- Preselected format ------------------------------------------------------
+    // Mirrors the server-side slug rule so a row typed just now already has the value
+    // it will be saved under.
+    function formatValueOf(f) {
+        return f.value || slugify(f.label).replace(/-/g, '_');
+    }
+
+    let defaultFormatSig = '';
+
+    function syncDefaultFormat(formats) {
+        const sel = $('defaultFormat');
+        $('defaultFormatWrap').classList.toggle('hidden', formats.length === 0);
+
+        const values = formats.map(formatValueOf);
+        // A format that was renamed or removed cannot stay preselected
+        if (state.defaultFormat && !values.includes(state.defaultFormat)) state.defaultFormat = '';
+
+        // Rebuilt only when the formats themselves changed, so typing elsewhere never
+        // reshuffles the dropdown under the pointer
+        const sig = JSON.stringify(formats.map((f, i) => [values[i], f.label]));
+        if (sig !== defaultFormatSig) {
+            defaultFormatSig = sig;
+            sel.className = SELECT_CLASSES + ' w-full sm:w-64';
+            sel.innerHTML = '';
+            const none = document.createElement('option');
+            none.value = ''; none.textContent = i18n.noFormat; none.className = OPTION_CLASSES;
+            sel.appendChild(none);
+            formats.forEach((f, i) => {
+                const o = document.createElement('option');
+                o.value = values[i]; o.textContent = f.label; o.className = OPTION_CLASSES;
+                sel.appendChild(o);
+            });
+        }
+        sel.value = state.defaultFormat;
+    }
+
+    $('defaultFormat').addEventListener('change', e => {
+        state.defaultFormat = e.target.value;
+        renderPreview();
     });
 
     // ---- Dynamic rows: formats -------------------------------------------------
@@ -724,6 +774,7 @@
             imageShape: state.shape,
             secondaryImage: $('secondaryImage').checked,
             creatorLabel: $('creatorLabel').value.trim(),
+            defaultFormat: state.defaultFormat,
             features, formats, fields
         };
         // Sent only when the admin actually picked or removed an image, so editing a
@@ -774,10 +825,15 @@
         $('pvCreator').textContent = cfg.creatorLabel ? (cfg.creatorLabel + ' : ' + i18n.pvCreator) : i18n.pvCreator;
         $('pvYear').classList.toggle('hidden', !cfg.features.year);
 
+        syncDefaultFormat(cfg.formats);
+
+        // The badge illustrates the preselected format when there is one, the first
+        // declared format otherwise
         const badge = $('pvBadge');
-        if (cfg.formats.length > 0) {
-            badge.textContent = cfg.formats[0].label;
-            badge.className = 'absolute top-2 left-2 text-white text-[10px] font-black uppercase px-2 py-1 rounded-md shadow bg-' + (cfg.formats[0].color || cfg.color) + '-600/90';
+        const badgeFmt = cfg.formats.find(f => formatValueOf(f) === state.defaultFormat) || cfg.formats[0];
+        if (badgeFmt) {
+            badge.textContent = badgeFmt.label;
+            badge.className = 'absolute top-2 left-2 text-white text-[10px] font-black uppercase px-2 py-1 rounded-md shadow bg-' + (badgeFmt.color || cfg.color) + '-600/90';
         } else {
             badge.className = 'hidden';
         }
@@ -1067,6 +1123,7 @@
         document.querySelectorAll('.feature-toggle').forEach(cb => { cb.checked = features[cb.dataset.feature] === true; });
         (editConfig.formats || []).forEach(addFormatRow);
         (editConfig.fields || []).forEach(addFieldRow);
+        state.defaultFormat = editConfig.defaultFormat || '';
         if (editPlaceholder) {
             // state.defaultCover stays null: previewing the stored image is not editing it
             if (/^https?:\/\//i.test(editPlaceholder)) {

@@ -35,6 +35,9 @@ export interface CustomPluginConfig {
   };
   fields?: CustomFieldConfig[];
   formats?: CustomFormatConfig[];
+  // Format preselected on a new item. Empty (or absent) leaves the picker blank so the
+  // format is a conscious choice instead of whichever one happens to be declared first.
+  defaultFormat?: string;
 }
 
 export interface CustomFieldConfig {
@@ -84,11 +87,16 @@ export function createCustomPlugin(config: CustomPluginConfig): PluginDefinition
   const schemaDefinition: Record<string, any> = {
     creator: { type: String, required: true }
   };
+  // Only a declared format value counts; anything else (including a format later removed
+  // from the config) falls back to "no format".
+  const defaultFormat = formats.some(f => f.value === config.defaultFormat) ? config.defaultFormat! : '';
+
   if (formats.length > 0) {
     schemaDefinition.format = {
       type: String,
-      enum: formats.map(f => f.value),
-      default: formats[0]!.value
+      // '' is a legitimate stored value: an item can be owned without its edition known
+      enum: ['', ...formats.map(f => f.value)],
+      default: defaultFormat
     };
   }
   if (features.rating) {
@@ -122,7 +130,12 @@ export function createCustomPlugin(config: CustomPluginConfig): PluginDefinition
       type: 'select',
       showIn: showForm,
       group: 'main',
-      options: formats.map(f => ({ value: f.value, label: f.label }))
+      // The blank entry is always offered: without it a <select> silently selects its
+      // first option, which is exactly the accidental value this avoids.
+      options: [
+        { value: '', label: 'common.no_format' },
+        ...formats.map(f => ({ value: f.value, label: f.label }))
+      ]
     });
   }
 
@@ -201,7 +214,7 @@ export function createCustomPlugin(config: CustomPluginConfig): PluginDefinition
     cover_image: '',
     user_image: ''
   };
-  if (formats.length > 0) manualDefaults.format = formats[0]!.value;
+  if (formats.length > 0) manualDefaults.format = defaultFormat;
   if (features.year) manualDefaults.year = '';
   if (features.barcode) manualDefaults.barcode = '';
   if (features.genre) manualDefaults.genres = [];

@@ -180,6 +180,11 @@ export function buildConfigFromSubmission(body: any, existing?: CustomPluginConf
     formats.push(fmt);
   }
 
+  // Preselected format: only a value that survived the format validation above, so
+  // renaming or removing a format never leaves a dangling preselection behind.
+  const rawDefaultFormat = slugify(cleanText(body.defaultFormat, 30)).replace(/-/g, '_');
+  const defaultFormat = seenFormats.has(rawDefaultFormat) ? rawDefaultFormat : '';
+
   if (errors.length > 0) return { errors };
 
   const config: CustomPluginConfig = {
@@ -201,6 +206,8 @@ export function buildConfigFromSubmission(body: any, existing?: CustomPluginConf
   };
   // Omitted rather than stored empty: an absent key means "use the generic logo"
   if (defaultCover) config.defaultCover = defaultCover;
+  // Same idea: absent means "no preselected format"
+  if (defaultFormat) config.defaultFormat = defaultFormat;
 
   return { config, errors: [] };
 }

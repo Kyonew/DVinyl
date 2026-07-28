@@ -361,7 +361,8 @@
     "already_in_collection_title": "Questo articolo sembra essere già nella tua collezione",
     "already_in_collection_desc": "Questo articolo è già presente nella tua collezione (Quantità attuale: {{qty}}). Se confermi, la quantità verrà aumentata.",
     "btn_add_anyway": "Aggiungi comunque",
-    "forbidden": "Accesso vietato"
+    "forbidden": "Accesso vietato",
+    "no_format": "Nessun formato"
   },
   "confirm_book": {
     "btn_collection": "Aggiungi alla libreria",
@@ -952,6 +953,8 @@
     "formats_desc": "Opzionale: le varianti dei tuoi elementi (es: Nuovo / Usato, Standard / Collector). Ogni formato ha il suo badge colorato e il suo filtro.",
     "format_name_ph": "Es: Edizione da collezione",
     "add_format": "Aggiungi un formato",
+    "default_format_label": "Formato preselezionato",
+    "default_format_desc": "Valore già scelto all'aggiunta di un elemento. Lascia su \"Nessun formato\" perché la scelta sia sempre esplicita.",
     "section_fields": "Campi personalizzati",
     "fields_desc": "Aggiungi i tuoi campi: testo, numero, menu a tendina, casella...",
     "field_label_ph": "Es: Scala, Materiale, Numero...",
