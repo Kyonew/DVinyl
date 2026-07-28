@@ -316,6 +316,12 @@
                             </button>
                         <% } %>
                     </div>
+                    <% if (!item.in_wishlist) { %>
+                        <button onclick="moveToWishlist('<%= item._id %>')" class="opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
+                            <i class="fa-solid fa-heart-circle-minus mr-2"></i>
+                            <%= t('detail.move_to_wishlist_btn') %>
+                        </button>
+                    <% } %>
                     <a href="<%= baseUrl %><%= plugin.routePrefix %>/edit/<%= item._id %>" class="opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
                         <i class="fa-solid fa-pen-to-square mr-2"></i>
                         <%= t('common.edit') %>
@@ -340,6 +346,7 @@
         official_cover: t('detail.official_cover'),
         additional_image: t('detail.additional_image'),
         confirm_delete: t('detail.confirm_delete'),
+        confirm_move_to_wishlist: t('detail.move_to_wishlist_confirm'),
         market_price: t('detail.market_price'),
         historical_estimate: t('detail.historical_estimate'),
         shipping_hint: t('detail.shipping_hint'),
@@ -372,6 +379,25 @@
                 btn.classList.add('border-primary-theme', 'opacity-100', 'ring-2', 'ring-primary-theme/50');
             }
         });
+    }
+
+    async function moveToWishlist(id) {
+        if (!confirm(translations.confirm_move_to_wishlist)) return;
+        try {
+            const response = await fetch(`<%= baseUrl %>/api<%= plugin.routePrefix %>/${id}/move-to-wishlist`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await response.json();
+            if (data.success) {
+                window.location.href = '<%= baseUrl %>/wishlist';
+            } else {
+                alert(`${translations.error_server}: ${data.error}`);
+            }
+        } catch (err) {
+            console.error(err);
+            alert(translations.error_server);
+        }
     }
 
     async function confirmDelete(id) {

@@ -472,6 +472,8 @@
     "back_to_wishlist": "Zurück zur Wunschliste",
     "calculate_btn": "Berechnen",
     "confirm_delete": "Möchten Sie dieses Album wirklich aus Ihrer Sammlung löschen? \nDiese Aktion ist irreversibel.",
+    "move_to_wishlist_btn": "Zurück zur Wunschliste",
+    "move_to_wishlist_confirm": "Diesen Eintrag zurück auf die Wunschliste setzen? Er verlässt damit deine Sammlung.",
     "duration_label": "Dauer",
     "estimation_title": "Schätzung (Discogs)",
     "for_sale": "zum Verkauf",

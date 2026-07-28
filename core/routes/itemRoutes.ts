@@ -495,5 +495,22 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
     }
   });
 
+  // POST /api/{prefix}/:id/move-to-wishlist -> send an owned item back to the wishlist
+  // (sold, broken, added by mistake). Mirror of the route above, added_at included: both
+  // lists sort on it, so the item lands where the move just happened rather than buried
+  // at its old acquisition date.
+  router.post(`/api${plugin.routePrefix}/:id/move-to-wishlist`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
+    try {
+      await Item.findOneAndUpdate(
+        { _id: req.params.id, collection: res.locals.activeCollectionId },
+        { in_wishlist: true, added_at: new Date() }
+      );
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error(`Move to wishlist error for ${plugin.id}:`, err.message);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   return router;
 }
