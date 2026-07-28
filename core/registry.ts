@@ -1,8 +1,10 @@
 import mongoose from 'mongoose';
 import { PluginDefinition } from './types';
+import { DEFAULT_PLACEHOLDER_IMAGE } from './placeholderImage';
 import Item from '../models/Item';
 
 const FLATTENS_EXTRA = Symbol('flattensExtra');
+const RESOLVES_PLACEHOLDER = Symbol('resolvesPlaceholder');
 
 /**
  * Wraps formatForView so the user-defined values stored in item.extra are also
@@ -27,11 +29,34 @@ function flattenExtraValues(plugin: PluginDefinition): void {
   (plugin as any)[FLATTENS_EXTRA] = true;
 }
 
+/**
+ * Wraps formatForView so items with no cover of their own render the plugin's default
+ * image. Resolved here rather than stored on the item, so changing a plugin's default
+ * cover applies to everything already saved instead of only to the next additions.
+ *
+ * Items added before this existed hold the generic logo path verbatim in cover_image
+ * (it used to be a manual-add default), so that value counts as "no cover" too.
+ */
+function resolvePlaceholderCover(plugin: PluginDefinition): void {
+  if ((plugin as any)[RESOLVES_PLACEHOLDER]) return;
+  const original = plugin.formatForView.bind(plugin);
+  plugin.formatForView = function (item: any): any {
+    const view = original(item);
+    if (!view || typeof view !== 'object') return view;
+    if (!view.cover_image || view.cover_image === DEFAULT_PLACEHOLDER_IMAGE) {
+      view.cover_image = plugin.placeholderImage || DEFAULT_PLACEHOLDER_IMAGE;
+    }
+    return view;
+  };
+  (plugin as any)[RESOLVES_PLACEHOLDER] = true;
+}
+
 class PluginRegistry {
   private plugins: Map<string, PluginDefinition> = new Map();
 
   register(plugin: PluginDefinition): void {
     flattenExtraValues(plugin);
+    resolvePlaceholderCover(plugin);
     this.plugins.set(plugin.id, plugin);
 
     try {

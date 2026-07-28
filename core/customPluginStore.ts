@@ -3,6 +3,7 @@ import path from 'path';
 import { PLUGINS_DIR } from './loadPlugins';
 import { registry } from './registry';
 import { CustomPluginConfig, CustomFieldConfig, CustomFormatConfig } from './customPlugin';
+import { materializePlaceholder, sanitizePlaceholder } from './placeholderImage';
 import { PluginDefinition } from './types';
 
 /** Tailwind color names offered by the builder. The literal classes derived from
@@ -32,6 +33,7 @@ const RESERVED_IDS = new Set([
   'collection', 'wishlist', 'manual-add', 'import', 'api', 'add', 'save', 'confirm',
   'search', 'estimate', 'create-plugin', 'personnalisation', 'no-collection',
   'ressources', 'styles', 'socket.io', 'manifest.json', 'sw.js', 'core', 'plugins',
+  'plugin-assets',
   'home', 'index', 'detail', 'edit', 'user', 'users'
 ]);
 
@@ -114,6 +116,16 @@ export function buildConfigFromSubmission(body: any, existing?: CustomPluginConf
   const creatorLabel = cleanText(body.creatorLabel, 30);
   if (!creatorLabel) errors.push('create_plugin.err_creator_required');
 
+  // An absent key means "keep the stored image": the builder only posts this one when
+  // the admin picks or removes an image, so the base64 never travels on every save.
+  // Rejected rather than dropped when present but unusable, so an oversized upload or a
+  // bad URL is reported instead of silently falling back to the generic logo.
+  const rawDefaultCover = body.defaultCover === undefined
+    ? (existing?.defaultCover || '')
+    : (typeof body.defaultCover === 'string' ? body.defaultCover.trim() : '');
+  const defaultCover = sanitizePlaceholder(rawDefaultCover);
+  if (rawDefaultCover && !defaultCover) errors.push('create_plugin.err_bad_default_cover');
+
   const rawFeatures = body.features || {};
   const features: CustomPluginConfig['features'] = {};
   for (const key of ['year', 'barcode', 'rating', 'comments', 'location', 'genre', 'tracklist'] as const) {
@@ -187,6 +199,8 @@ export function buildConfigFromSubmission(body: any, existing?: CustomPluginConf
     fields,
     formats
   };
+  // Omitted rather than stored empty: an absent key means "use the generic logo"
+  if (defaultCover) config.defaultCover = defaultCover;
 
   return { config, errors: [] };
 }
@@ -206,6 +220,9 @@ export function writeCustomPluginDir(config: CustomPluginConfig): void {
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, 'plugin.json'), JSON.stringify(config, null, 2) + '\n');
   fs.writeFileSync(path.join(dir, 'index.ts'), GENERATED_INDEX);
+  // An uploaded default cover lives in the config; the file is only a serving cache,
+  // rebuilt here so it also comes back on a boot/restore materialization.
+  materializePlaceholder(dir, config.defaultCover);
 }
 
 export function deleteCustomPluginDir(id: string): void {

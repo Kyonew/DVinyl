@@ -13,6 +13,7 @@ import {
   CUSTOM_PLUGIN_ICONS
 } from '../core/customPluginStore';
 import { sanitizeExtraFields, getExtraFields } from '../core/pluginExtraFields';
+import { placeholderUrl } from '../core/placeholderImage';
 import { registerPluginDirAtRuntime, unregisterPluginAtRuntime } from '../core/pluginRuntime';
 import { saveCustomPluginToDB, deleteCustomPluginFromDB } from '../core/customPluginSync';
 
@@ -44,9 +45,19 @@ router.get('/', async (req: any, res: any) => {
   try {
     const customPlugins = await listCustomPlugins();
     const editId = typeof req.query.edit === 'string' ? req.query.edit : '';
-    const editConfig = editId
+    const edited = editId
       ? (customPlugins.find(c => c.config.id === editId)?.config || null)
       : null;
+
+    // An uploaded default cover is a few hundred kB of base64 and the config is inlined
+    // in the page: the builder only gets a URL to preview it, and the stored value is
+    // kept server-side unless the form actually posts a new one.
+    const editPlaceholder = edited ? placeholderUrl(edited.id, edited.defaultCover) : '';
+    let editConfig: any = null;
+    if (edited) {
+      const { defaultCover, ...rest } = edited;
+      editConfig = rest;
+    }
 
     const settings = res.locals.settings;
     const customization = settings?.pluginCustomization || {};
@@ -68,6 +79,7 @@ router.get('/', async (req: any, res: any) => {
       customPlugins,
       customizablePlugins,
       editConfig,
+      editPlaceholder,
       palette: CUSTOM_PLUGIN_PALETTE,
       iconChoices: CUSTOM_PLUGIN_ICONS
     });

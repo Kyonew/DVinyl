@@ -180,6 +180,50 @@
                         <p class="text-[11px] opacity-50"><%= t('create_plugin.secondary_desc') %></p>
                     </div>
                 </label>
+
+                <div class="pt-2 border-t border-black/5 dark:border-white/5">
+                    <label class="block mb-1 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('create_plugin.default_cover_label') %></label>
+                    <p class="text-[11px] opacity-50 mb-4"><%= t('create_plugin.default_cover_desc') %></p>
+
+                    <div class="flex items-start gap-4">
+                        <div id="dcPreviewBox" class="w-24 shrink-0 aspect-[2/3] rounded-xl overflow-hidden bg-black/5 dark:bg-white/5 flex items-center justify-center transition-all">
+                            <img id="dcPreview" src="" alt="" class="hidden w-full h-full object-cover">
+                            <i id="dcPreviewIcon" class="fa-solid fa-image text-2xl opacity-20"></i>
+                        </div>
+
+                        <div class="flex-1 min-w-0 space-y-3">
+                            <div class="flex gap-1 p-1 bg-black/5 dark:bg-white/5 rounded-xl">
+                                <button type="button" onclick="setCoverTab('local')" id="tab-dc-local"
+                                    class="flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all bg-primary-theme text-white">
+                                    <i class="fa-solid fa-upload mr-1"></i> <%= t('image_source.local') %>
+                                </button>
+                                <button type="button" onclick="setCoverTab('url')" id="tab-dc-url"
+                                    class="flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all opacity-50">
+                                    <i class="fa-solid fa-link mr-1"></i> <%= t('image_source.url') %>
+                                </button>
+                            </div>
+
+                            <div id="pane-dc-local">
+                                <label class="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-black/10 dark:border-white/10 rounded-2xl cursor-pointer hover:bg-black/5 transition-all">
+                                    <i class="fa-solid fa-cloud-arrow-up text-xl opacity-20 mb-1"></i>
+                                    <p class="text-[11px] font-bold opacity-50 italic"><%= t('image_source.hint') %></p>
+                                    <input type="file" id="dcFile" class="hidden" accept="image/png,image/jpeg,image/webp">
+                                </label>
+                            </div>
+
+                            <div id="pane-dc-url" class="hidden">
+                                <input type="url" id="dcUrl" placeholder="https://site.com/image.png"
+                                    class="w-full bg-black/5 dark:bg-white/5 border border-transparent rounded-lg p-3 text-sm outline-none focus:ring-1 focus:ring-primary-theme">
+                                <p class="text-[10px] mt-2 opacity-50 italic"><%= t('image_source.url_hint') %></p>
+                            </div>
+
+                            <button type="button" id="dcClear"
+                                class="hidden text-[11px] font-bold opacity-50 hover:opacity-100 hover:text-red-500 transition-all">
+                                <i class="fa-solid fa-rotate-left mr-1"></i> <%= t('create_plugin.default_cover_reset') %>
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </section>
 
             <!-- Built-in features -->
@@ -262,6 +306,7 @@
                 <div class="max-w-[220px] mx-auto">
                     <div class="group relative rounded-2xl overflow-hidden shadow-lg">
                         <div id="pvCover" class="aspect-[2/3] bg-gradient-to-br from-black/20 to-black/50 dark:from-white/10 dark:to-black/60 flex items-center justify-center transition-all">
+                            <img id="pvCoverImg" src="" alt="" class="hidden w-full h-full object-cover">
                             <i id="pvCoverIcon" class="fa-solid fa-box text-5xl opacity-30"></i>
                         </div>
                         <span id="pvBadge" class="hidden absolute top-2 left-2 text-white text-[10px] font-black uppercase px-2 py-1 rounded-md shadow"></span>
@@ -349,6 +394,7 @@
     // labels cannot break out of the script block, and translated strings keep
     // their quotes instead of being HTML-entity encoded.
     const editConfig = <%- editConfig ? JSON.stringify(editConfig).replace(/</g, '\\u003c') : 'null' %>;
+    const editPlaceholder = <%- JSON.stringify(locals.editPlaceholder || '') %>;
     const palette = <%- JSON.stringify(palette) %>;
 
     <%
@@ -381,7 +427,8 @@
         pvTracklist: t('create_plugin.feature_tracklist'),
         pvFormat: t('confirm_vinyl.field_format'),
         pvQuantity: t('confirm_vinyl.field_quantity'),
-        pvTitleField: t('confirm_vinyl.field_title')
+        pvTitleField: t('confirm_vinyl.field_title'),
+        coverTooBig: t('create_plugin.default_cover_too_big')
     };
     %>
     const i18n = <%- JSON.stringify(builderI18n).replace(/</g, '\\u003c') %>;
@@ -390,7 +437,10 @@
     const state = {
         icon: 'fa-box',
         color: 'teal',
-        shape: 'poster'
+        shape: 'poster',
+        // null: untouched, the stored image is kept. '' resets to the generic logo.
+        // Anything else is the new image, as a data URI or a remote URL.
+        defaultCover: null
     };
 
     function slugify(s) {
@@ -431,6 +481,93 @@
             b.classList.toggle('border-primary-theme', b.dataset.shape === state.shape);
         });
     }
+
+    // ---- Default cover ----------------------------------------------------------
+    // Downscaled before upload: the image is stored in the plugin config, so it travels
+    // in the database and in every instance backup. 512 px is plenty for a placeholder.
+    const COVER_MAX_SIDE = 512;
+    const COVER_MAX_BYTES = 512 * 1024;
+
+    // Src currently shown in both previews, whatever its origin (stored image, upload, URL)
+    let coverPreviewSrc = '';
+
+    window.setCoverTab = function (type) {
+        ['local', 'url'].forEach(t => {
+            const btn = $('tab-dc-' + t);
+            const pane = $('pane-dc-' + t);
+            btn.className = 'flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ' +
+                (t === type ? 'bg-primary-theme text-white' : 'opacity-50');
+            pane.classList.toggle('hidden', t !== type);
+        });
+    };
+
+    function setCoverPreview(src) {
+        coverPreviewSrc = src || '';
+        const img = $('dcPreview');
+        if (coverPreviewSrc) img.src = coverPreviewSrc;
+        img.classList.toggle('hidden', !coverPreviewSrc);
+        $('dcPreviewIcon').classList.toggle('hidden', !!coverPreviewSrc);
+        $('dcClear').classList.toggle('hidden', !coverPreviewSrc);
+        renderPreview();
+    }
+
+    function compressCover(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onerror = () => reject(new Error(i18n.coverTooBig));
+            reader.onload = e => {
+                const img = new Image();
+                img.onerror = () => reject(new Error(i18n.coverTooBig));
+                img.onload = () => {
+                    const scale = Math.min(1, COVER_MAX_SIDE / Math.max(img.width, img.height));
+                    const canvas = document.createElement('canvas');
+                    canvas.width = Math.round(img.width * scale);
+                    canvas.height = Math.round(img.height * scale);
+                    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                    // PNG sources keep their transparency, which a logo usually relies on
+                    resolve(file.type === 'image/png'
+                        ? canvas.toDataURL('image/png')
+                        : canvas.toDataURL('image/jpeg', 0.82));
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    $('dcFile').addEventListener('change', async e => {
+        const file = e.target.files[0];
+        e.target.value = '';
+        if (!file) return;
+        try {
+            const dataUri = await compressCover(file);
+            // Base64 inflates by 4/3, and the server caps the decoded size
+            if ((dataUri.length * 3) / 4 > COVER_MAX_BYTES) throw new Error(i18n.coverTooBig);
+            state.defaultCover = dataUri;
+            $('dcUrl').value = '';
+            setCoverPreview(dataUri);
+        } catch (err) {
+            alert(err.message);
+        }
+    });
+
+    $('dcUrl').addEventListener('input', e => {
+        const val = e.target.value.trim();
+        // A half-typed URL is left alone; emptying the field is a reset
+        if (/^https?:\/\/\S+$/i.test(val)) {
+            state.defaultCover = val;
+            setCoverPreview(val);
+        } else if (!val) {
+            state.defaultCover = '';
+            setCoverPreview('');
+        }
+    });
+
+    $('dcClear').addEventListener('click', () => {
+        state.defaultCover = '';
+        $('dcUrl').value = '';
+        setCoverPreview('');
+    });
 
     // ---- Dynamic rows: formats -------------------------------------------------
     function addFormatRow(data) {
@@ -567,7 +704,7 @@
             options: r.querySelector('.fld-options').value.split(',').map(s => s.trim()).filter(Boolean)
         })).filter(f => f.label);
 
-        return {
+        const payload = {
             editId: editConfig ? editConfig.id : '',
             label: $('pluginLabel').value.trim(),
             id: editConfig ? editConfig.id : slugify($('pluginLabel').value),
@@ -578,6 +715,10 @@
             creatorLabel: $('creatorLabel').value.trim(),
             features, formats, fields
         };
+        // Sent only when the admin actually picked or removed an image, so editing a
+        // plugin never re-uploads the stored one (see buildConfigFromSubmission)
+        if (state.defaultCover !== null) payload.defaultCover = state.defaultCover;
+        return payload;
     }
 
     // ---- Live preview -----------------------------------------------------------
@@ -608,6 +749,16 @@
         $('pvCover').className = (cfg.imageShape === 'square' ? 'aspect-square' : 'aspect-[2/3]') +
             ' bg-gradient-to-br from-black/20 to-black/50 dark:from-white/10 dark:to-black/60 flex items-center justify-center transition-all';
         $('pvCoverIcon').className = 'fa-solid ' + cfg.icon + ' text-5xl opacity-30';
+
+        $('dcPreviewBox').className = 'w-24 shrink-0 ' + (cfg.imageShape === 'square' ? 'aspect-square' : 'aspect-[2/3]') +
+            ' rounded-xl overflow-hidden bg-black/5 dark:bg-white/5 flex items-center justify-center transition-all';
+
+        // The card shows the default cover when there is one, exactly like a coverless item
+        const pvImg = $('pvCoverImg');
+        if (coverPreviewSrc) pvImg.src = coverPreviewSrc;
+        pvImg.classList.toggle('hidden', !coverPreviewSrc);
+        $('pvCoverIcon').classList.toggle('hidden', !!coverPreviewSrc);
+
         $('pvTitle').textContent = i18n.pvTitle;
         $('pvCreator').textContent = cfg.creatorLabel ? (cfg.creatorLabel + ' : ' + i18n.pvCreator) : i18n.pvCreator;
         $('pvYear').classList.toggle('hidden', !cfg.features.year);
@@ -900,6 +1051,14 @@
         document.querySelectorAll('.feature-toggle').forEach(cb => { cb.checked = features[cb.dataset.feature] === true; });
         (editConfig.formats || []).forEach(addFormatRow);
         (editConfig.fields || []).forEach(addFieldRow);
+        if (editPlaceholder) {
+            // state.defaultCover stays null: previewing the stored image is not editing it
+            if (/^https?:\/\//i.test(editPlaceholder)) {
+                $('dcUrl').value = editPlaceholder;
+                setCoverTab('url');
+            }
+            setCoverPreview(editPlaceholder);
+        }
     }
 
     syncPickers();

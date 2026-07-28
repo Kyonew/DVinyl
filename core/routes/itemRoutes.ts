@@ -5,6 +5,7 @@ import Item from '../../models/Item';
 import User from '../../models/User';
 import { requireAuth, requireCollectionRole } from '../../middleware/authMiddleware';
 import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle } from '../helpers';
+import { DEFAULT_PLACEHOLDER_IMAGE } from '../placeholderImage';
 import { getExtraFields, toFieldDefinitions } from '../pluginExtraFields';
 
 export function createItemRoutes(plugin: PluginDefinition): Router {
@@ -206,11 +207,19 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
 
       const { genres: parsedGenres, styles: parsedStyles } = parseGenresAndStyles(genres, styles);
 
+      // A cover left untouched posts back whatever the form displayed, i.e. the resolved
+      // placeholder. Storing it would freeze a copy of the plugin's default image on the
+      // item; kept empty instead, so the item follows that default if it ever changes.
+      const placeholder = plugin.placeholderImage || DEFAULT_PLACEHOLDER_IMAGE;
+      const coverImage = (cover_image === placeholder || cover_image === DEFAULT_PLACEHOLDER_IMAGE)
+        ? ''
+        : cover_image;
+
       // Build updateData generic object
       const updateData: any = {
         title,
         year,
-        cover_image,
+        cover_image: coverImage,
         user_image,
         in_wishlist: isWishlist,
         comments: comments || '',

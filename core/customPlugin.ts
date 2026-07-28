@@ -1,5 +1,6 @@
 import { PluginDefinition, FieldDefinition, FormatOption, StatWidget, NavbarShortcut } from './types';
 import { escapeRegExp } from './helpers';
+import { DEFAULT_PLACEHOLDER_IMAGE, placeholderUrl } from './placeholderImage';
 import Item from '../models/Item';
 
 /**
@@ -19,6 +20,9 @@ export interface CustomPluginConfig {
   order?: number; // display order, defaults to 200 (after the built-in plugins)
   imageShape?: 'poster' | 'square';
   secondaryImage?: boolean; // show the secondary (user) image editor
+  // Image used for items with no cover: either an http(s) URL or an uploaded
+  // base64 data URI (see placeholderImage.ts). Absent means the generic logo.
+  defaultCover?: string;
   creatorLabel: string; // plain-text label of the creator field ("Artiste", "Fabricant"...)
   features?: {
     year?: boolean;
@@ -67,6 +71,7 @@ export function createCustomPlugin(config: CustomPluginConfig): PluginDefinition
   const bareIcon = faIcon.slice(3);
   const features = config.features || {};
   const customFields = config.fields || [];
+  const placeholder = placeholderUrl(config.id, config.defaultCover) || DEFAULT_PLACEHOLDER_IMAGE;
   const formats: FormatOption[] = (config.formats || []).map(f => ({
     value: f.value,
     label: f.label,
@@ -187,11 +192,13 @@ export function createCustomPlugin(config: CustomPluginConfig): PluginDefinition
   ];
 
   // ---- Defaults ---------------------------------------------------------------
+  // cover_image stays empty: the placeholder is resolved at render time, so an item
+  // added without a cover follows the plugin's default image if it changes later.
   const manualDefaults: Record<string, any> = {
     title: '',
     creator: '',
     quantity: 1,
-    cover_image: '/ressources/logo.png',
+    cover_image: '',
     user_image: ''
   };
   if (formats.length > 0) manualDefaults.format = formats[0]!.value;
@@ -236,6 +243,7 @@ export function createCustomPlugin(config: CustomPluginConfig): PluginDefinition
     collectionType: config.id,
     creatorField: 'creator',
     supportsUserImage: config.secondaryImage === true,
+    placeholderImage: placeholder,
     partialsPath: CUSTOM_PARTIALS_PATH,
 
     schemaDefinition,
@@ -283,7 +291,7 @@ export function createCustomPlugin(config: CustomPluginConfig): PluginDefinition
         ...manualDefaults,
         ...obj,
         creator: obj.creator || 'Unknown',
-        cover_image: obj.cover_image || '/ressources/logo.png',
+        cover_image: obj.cover_image || DEFAULT_PLACEHOLDER_IMAGE,
         quantity: obj.quantity || 1
       };
     },

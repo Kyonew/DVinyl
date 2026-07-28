@@ -76,6 +76,11 @@ export interface PluginDefinition {
   // CSS aspect-ratio class for the preview (e.g. 'aspect-square' for music), default 'aspect-[2/3]'
   aspectRatioClass?: string;
 
+  // Image shown for items with no cover of their own. Resolved at render time (see
+  // registry.ts), so changing it updates every coverless item at once.
+  // Defaults to DEFAULT_PLACEHOLDER_IMAGE when absent.
+  placeholderImage?: string;
+
   // Shows the secondary image editor (user_image) in confirm/manual/edit
   supportsUserImage?: boolean;
 

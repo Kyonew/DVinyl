@@ -32,6 +32,7 @@ import { applyPluginCustomization } from './core/pluginCustomization.js';
 // Routes imports
 import setupRoutes from './routes/setupRoutes.js';
 import pluginBuilderRoutes from './routes/pluginBuilderRoutes.js';
+import pluginAssetRoutes from './routes/pluginAssetRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
@@ -75,6 +76,8 @@ app.set('io', io); // Expose io to routes
 
 // Global middlewares
 app.use(BASE_URL, express.static(path.join(__dirname, 'public')));
+// Mounted with the static assets: no session, no settings, no collection lookup needed
+app.use(BASE_URL + '/plugin-assets', pluginAssetRoutes);
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cookieParser());
