@@ -456,6 +456,14 @@
     const SELECT_CLASSES = 'bg-black/5 dark:bg-white/5 border border-transparent text-gray-900 dark:text-white rounded-lg text-sm p-2.5 outline-none cursor-pointer';
     const OPTION_CLASSES = 'bg-white dark:bg-[#1a1a1a]';
 
+    // Native <option> backgrounds are not stylable across browsers, so the picked color
+    // is shown on a swatch next to the dropdown rather than on the list itself.
+    const SWATCH_CLASSES = 'w-9 h-9 rounded-lg shrink-0 border border-black/10 dark:border-white/10 transition-colors';
+
+    function paintSwatch(el, color) {
+        el.className = SWATCH_CLASSES + (color ? ' bg-' + color + '-500' : ' bg-black/10 dark:bg-white/10');
+    }
+
     // ---- Icon / color / shape pickers -----------------------------------------
     document.querySelectorAll('.icon-choice').forEach(btn => {
         btn.addEventListener('click', () => { state.icon = btn.dataset.icon; syncPickers(); renderPreview(); });
@@ -583,6 +591,8 @@
         input.className = 'fmt-label flex-1 bg-black/5 dark:bg-white/5 rounded-lg text-sm p-2.5 outline-none focus:ring-1 focus:ring-primary-theme';
         input.addEventListener('input', renderPreview);
 
+        const swatch = document.createElement('span');
+
         const colorSel = document.createElement('select');
         colorSel.className = 'fmt-color ' + SELECT_CLASSES;
         palette.forEach(c => {
@@ -592,7 +602,8 @@
             if ((data.color || state.color) === c) o.selected = true;
             colorSel.appendChild(o);
         });
-        colorSel.addEventListener('change', renderPreview);
+        paintSwatch(swatch, colorSel.value);
+        colorSel.addEventListener('change', () => { paintSwatch(swatch, colorSel.value); renderPreview(); });
 
         const del = document.createElement('button');
         del.type = 'button';
@@ -600,7 +611,7 @@
         del.innerHTML = '<i class="fa-solid fa-xmark"></i>';
         del.addEventListener('click', () => { row.remove(); renderPreview(); });
 
-        row.append(input, colorSel, del);
+        row.append(input, swatch, colorSel, del);
         $('formatRows').appendChild(row);
     }
 
@@ -953,6 +964,8 @@
             lab.className = 'flex-1 text-sm font-medium truncate';
             lab.textContent = f.label;
 
+            const swatch = document.createElement('span');
+
             const sel = document.createElement('select');
             sel.className = 'cz-color ' + SELECT_CLASSES;
             sel.dataset.format = f.value;
@@ -967,8 +980,11 @@
                 if ((data.current.formatColors || {})[f.value] === c) o.selected = true;
                 sel.appendChild(o);
             });
+            // Empty value means "keep the plugin's own color", shown as a neutral swatch
+            paintSwatch(swatch, sel.value);
+            sel.addEventListener('change', () => paintSwatch(swatch, sel.value));
 
-            row.append(lab, sel);
+            row.append(lab, swatch, sel);
             wrap.appendChild(row);
         });
 
