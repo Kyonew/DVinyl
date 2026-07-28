@@ -177,7 +177,8 @@
                         <%- include('../../' + plugin.partialsPath + '/' + field.partial, { field, item }) %>
                     <% }) %>
 
-                    <%- include('partials/item-images', { plugin, item }) %>
+                    <%# This view also serves /add-<id>/manual, where the item has no cover yet %>
+                    <%- include('partials/item-images', { plugin, item, coverOpen: isManual === true }) %>
 
                     <hr class="border-black/10 dark:border-white/10 my-6 transition-colors">
 
