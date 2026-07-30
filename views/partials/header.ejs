@@ -106,6 +106,14 @@
 
     .text-primary-theme { color: var(--highlight) !important; }
     .bg-primary-theme { background-color: var(--highlight) !important; color: #fff; }
+
+    /* Tailwind's file: variant only composes utilities it generates itself, so the
+       browse button of a file input cannot reuse .bg-primary-theme and needs its own
+       rule. Without it the label stays white on the browser's default light button. */
+    .file-primary-theme::file-selector-button {
+        background-color: var(--highlight) !important;
+        color: #fff !important;
+    }
     
     .card-theme {
         background-color: var(--bg-card) !important;

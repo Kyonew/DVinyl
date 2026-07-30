@@ -181,7 +181,9 @@
         "subtitle": "Actualizar códigos de barras por lotes. \nFormato: ID_DISCOGS:BARCODE (uno por línea). \nLos artículos se bloquearán automáticamente.",
         "success": "¡{{count}} códigos de barras actualizados!",
         "title": "Importación de códigos de barras por lotes"
-      }
+      },
+      "import_updated": "elementos enriquecidos",
+      "import_failed": "líneas omitidas por un error"
     },
     "modules": "Módulos",
     "modules_description": "Activar o desactivar los módulos de DVinyl",
@@ -282,6 +284,34 @@
       "title": "Copia de la colección",
       "subtitle": "Exportar esta colección (elementos + ajustes) o reemplazar su contenido con una copia.",
       "confirm_import": "La importación REEMPLAZARÁ todos los elementos de esta colección. ¿Continuar?"
+    },
+    "libib": {
+      "title_books": "Libib - Libros",
+      "title_music": "Libib - Música",
+      "title_movies": "Libib - Películas",
+      "title_games": "Libib - Videojuegos",
+      "subtitle_books": "Importa los libros de tu exportación de Libib",
+      "subtitle_music": "Importa la música de tu exportación de Libib",
+      "subtitle_movies": "Importa las películas de tu exportación de Libib",
+      "subtitle_games": "Importa los videojuegos de tu exportación de Libib",
+      "file_label": "Archivo CSV de Libib",
+      "default_format": "Formato predeterminado",
+      "default_format_hint": "Libib no exporta ningún formato: este se aplica a todos los elementos importados.",
+      "default_platform": "Plataforma predeterminada",
+      "default_platform_hint": "Se usa cuando la plataforma no se puede detectar en el título.",
+      "mode_label": "Modo",
+      "mode_fast": "Rápido (solo CSV)",
+      "mode_enriched": "Enriquecido (carátulas y metadatos)",
+      "mode_hint": "El modo enriquecido busca cada elemento para completar las carátulas y los metadatos que Libib no exporta (más lento).",
+      "btn_import": "Iniciar la importación",
+      "step1": "Inicia sesión en libib.com y abre tu biblioteca",
+      "step2": "Ve a Manage → Export y descarga el archivo CSV",
+      "step3": "Sube ese mismo archivo en cada importación de abajo: solo se lee el tipo de medio correspondiente",
+      "note_price": "Precio",
+      "note_description": "Descripción",
+      "note_cast": "Reparto",
+      "note_aspect_ratio": "Relación de aspecto",
+      "note_age_rating": "Clasificación por edad"
     }
   },
   "auth": {

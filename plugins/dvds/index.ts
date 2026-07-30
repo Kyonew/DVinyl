@@ -1,5 +1,6 @@
 import { PluginDefinition } from '../../core/types';
 import { TMDBProvider } from './tmdb';
+import { dvdImporters } from './importers';
 import { escapeRegExp, fetchJson } from '../../core/helpers';
 import Item from '../../models/Item';
 import { TMDB_LANG_MAP } from './constants';
@@ -27,6 +28,7 @@ export const dvdPlugin: PluginDefinition = {
   imageSearchType: 'movie',
   requiredEnvKeys: ['TMDB_API_KEY'],
   duplicateCheckFields: ['format', 'zone'],
+  importers: dvdImporters,
   partialsPath: 'plugins/dvds/partials',
   detailZones: [
     { id: 'badge', partial: 'dvd-status.ejs' },

@@ -307,6 +307,11 @@ Once the basics work, these let your plugin do more, all still without touching 
 - **Importers** (`importers[]`): bulk import from a file or another service, mounted at
   `POST /import/{id}`. Provide a declarative `ui` and the admin renders the button, modal and
   progress bar for you. See [`plugins/music/importers.ts`](../plugins/music/importers.ts).
+  For a CSV, `runCsvImport()` ([`core/csvImport.ts`](../core/csvImport.ts)) does the plumbing
+  (parsing, duplicate check, progress events, optional enrichment through your `searchProvider`)
+  and only asks you for a `mapRow(row)`. A source that mixes several media types in one file, like
+  the Libib export, declares one importer per plugin, each filtering the rows it owns (see the
+  `libib-*` importers).
 - **API routes** (`apiRoutes[]`): arbitrary endpoints for your plugin (for example music's price
   estimate). Note they mount from the **root**, so `path` is used verbatim, not under `routePrefix`.
 - **Collection actions** (`collectionActions[]`): buttons in the collection header. Two behaviors

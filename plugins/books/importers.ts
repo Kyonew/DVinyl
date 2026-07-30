@@ -1,6 +1,13 @@
 import mongoose from 'mongoose';
 import { PluginImporter } from '../../core/types';
 import { fetchJson, fetchText } from '../../core/helpers';
+import { CsvImportContext, CsvRow, runCsvImport } from '../../core/csvImport';
+import { registry } from '../../core/registry';
+import {
+  LIBIB_HELP_STEPS, LIBIB_REQUIRED_COLUMNS, LIBIB_TYPE_BOOK, libibAddedAt, libibBarcode,
+  libibComments, libibCreator, libibImportFields, libibPrice, libibProgress, libibQuantity,
+  libibRating, libibTags, libibTypeFilter, libibYear
+} from '../../utils/libib';
 import Item from '../../models/Item';
 
 function parseRssXml(xmlText: string): any[] {
@@ -189,6 +196,51 @@ async function importGoodreads(req: any, res: any) {
   }
 }
 
+// LIBIB CSV IMPORT (books rows of the export)
+async function importLibibBooks(req: any, res: any) {
+  // Read from the registry rather than importing index.ts, which imports this file.
+  const plugin = registry.get('books')!;
+
+  return runCsvImport(req, res, {
+    plugin,
+    requiredColumns: LIBIB_REQUIRED_COLUMNS,
+    accepts: libibTypeFilter(LIBIB_TYPE_BOOK),
+    searchQuery: (_row: CsvRow, data: Record<string, any>) => [data.title, data.author].filter(Boolean).join(' '),
+    mapRow(row: CsvRow, ctx: CsvImportContext) {
+      const title = (row['title'] || '').trim();
+      if (!title) return null;
+
+      // Libib exports the ISBN-13 in ean_isbn13, so the barcode and the ISBN are the
+      // same value here (books keep both in sync, see normalizeForSave).
+      const isbn = libibBarcode(row);
+      const progress = libibProgress(row);
+      const { genre, genres } = libibTags(row);
+      const pages = parseInt(row['length'] || '', 10) || 0;
+
+      return {
+        title,
+        author: libibCreator(row) || 'Unknown',
+        publisher: (row['publisher'] || '').trim(),
+        isbn,
+        barcode: isbn,
+        year: libibYear(row),
+        pages,
+        format: ctx.body.default_format || 'paperback',
+        rating: libibRating(row),
+        readingStatus: progress === 'done' ? 'read' : (progress === 'started' ? 'reading' : 'to_read'),
+        description: (row['description'] || '').trim(),
+        genre,
+        genres,
+        comments: libibComments(row, [
+          { label: ctx.req.t('admin.libib.note_price'), value: libibPrice(row) }
+        ]),
+        added_at: libibAddedAt(row),
+        quantity: libibQuantity(row)
+      };
+    }
+  });
+}
+
 export const booksImporters: PluginImporter[] = [
   {
     id: 'goodreads',
@@ -213,6 +265,29 @@ export const booksImporters: PluginImporter[] = [
         { name: 'rss_url', label: 'admin.goodreads.rss_url_label', type: 'url', placeholder: 'https://www.goodreads.com/review/list_rss/...', required: true, hint: 'admin.goodreads.rss_url_hint' }
       ],
       submitLabel: 'admin.goodreads.btn_import'
+    }
+  },
+  {
+    id: 'libib-books',
+    requireAdmin: true,
+    handler: importLibibBooks,
+    ui: {
+      label: 'admin.libib.title_books',
+      icon: 'fa-file-csv',
+      description: 'admin.libib.subtitle_books',
+      color: 'amber',
+      help: LIBIB_HELP_STEPS,
+      fields: libibImportFields({
+        name: 'default_format', label: 'admin.libib.default_format', type: 'select', default: 'paperback', hint: 'admin.libib.default_format_hint', options: [
+          { value: 'paperback', label: 'format.paperback' },
+          { value: 'hardcover', label: 'format.hardcover' },
+          { value: 'manga', label: 'format.manga' },
+          { value: 'comic', label: 'format.comic' },
+          { value: 'graphic_novel', label: 'format.graphic_novel' },
+          { value: 'digital', label: 'format.digital' }
+        ]
+      }),
+      submitLabel: 'admin.libib.btn_import'
     }
   }
 ];

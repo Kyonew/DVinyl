@@ -181,7 +181,9 @@
         "subtitle": "Aktualisieren Sie Barcodes im Stapel. \nFormat: ID_DISCOGS:BARCODE (einer pro Zeile). \nGegenstände werden automatisch gesperrt.",
         "success": "{{count}} Barcodes aktualisiert!",
         "title": "Batch-Barcode-Import"
-      }
+      },
+      "import_updated": "Einträge ergänzt",
+      "import_failed": "Zeilen wegen eines Fehlers übersprungen"
     },
     "modules": "Module",
     "modules_description": "Aktivieren oder deaktivieren Sie die Module von DVinyl",
@@ -282,6 +284,34 @@
       "title": "Sammlungs-Backup",
       "subtitle": "Diese Sammlung exportieren (Elemente + Einstellungen) oder ihren Inhalt durch ein Backup ersetzen.",
       "confirm_import": "Der Import ERSETZT alle Elemente dieser Sammlung. Fortfahren?"
+    },
+    "libib": {
+      "title_books": "Libib - Bücher",
+      "title_music": "Libib - Musik",
+      "title_movies": "Libib - Filme",
+      "title_games": "Libib - Videospiele",
+      "subtitle_books": "Die Bücher aus Ihrem Libib-Export importieren",
+      "subtitle_music": "Die Musik aus Ihrem Libib-Export importieren",
+      "subtitle_movies": "Die Filme aus Ihrem Libib-Export importieren",
+      "subtitle_games": "Die Videospiele aus Ihrem Libib-Export importieren",
+      "file_label": "Libib-CSV-Datei",
+      "default_format": "Standardformat",
+      "default_format_hint": "Libib exportiert kein Format: dieses wird auf alle importierten Einträge angewendet.",
+      "default_platform": "Standardplattform",
+      "default_platform_hint": "Wird verwendet, wenn die Plattform nicht aus dem Titel erkennbar ist.",
+      "mode_label": "Modus",
+      "mode_fast": "Schnell (nur CSV)",
+      "mode_enriched": "Angereichert (Cover und Metadaten)",
+      "mode_hint": "Der angereicherte Modus sucht jeden Eintrag, um von Libib nicht exportierte Cover und Metadaten zu ergänzen (langsamer).",
+      "btn_import": "Import starten",
+      "step1": "Melden Sie sich auf libib.com an und öffnen Sie Ihre Bibliothek",
+      "step2": "Gehen Sie zu Manage → Export und laden Sie die CSV-Datei herunter",
+      "step3": "Laden Sie dieselbe Datei in jeden Import unten: nur der passende Medientyp wird gelesen",
+      "note_price": "Preis",
+      "note_description": "Beschreibung",
+      "note_cast": "Besetzung",
+      "note_aspect_ratio": "Bildformat",
+      "note_age_rating": "Altersfreigabe"
     }
   },
   "auth": {

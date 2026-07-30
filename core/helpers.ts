@@ -77,3 +77,68 @@ export function isBarcodeQuery(query: string): boolean {
 export function escapeRegExp(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
+
+/**
+ * Parses RFC-4180-ish CSV text into a matrix (quoted fields, doubled quotes, embedded
+ * newlines and CRLF handled). Shared by every CSV importer: exports from Libib,
+ * Musik-Sammler & co. all ship multi-line quoted descriptions.
+ */
+export function parseCsv(text: string): string[][] {
+  const lines: string[][] = [];
+  let row = [""];
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i]!;
+    const next = text[i + 1];
+    if (c === '"') {
+      if (inQuotes && next === '"') {
+        row[row.length - 1] = (row[row.length - 1] ?? '') + '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (c === ',' && !inQuotes) {
+      row.push('');
+    } else if ((c === '\r' || c === '\n') && !inQuotes) {
+      if (c === '\r' && next === '\n') {
+        i++;
+      }
+      lines.push(row);
+      row = [''];
+    } else {
+      row[row.length - 1] = (row[row.length - 1] ?? '') + c;
+    }
+  }
+  if (row.length > 1 || row[0] !== '') {
+    lines.push(row);
+  }
+  return lines;
+}
+
+/**
+ * Parses CSV text into header-keyed records (BOM stripped, headers trimmed, values
+ * trimmed). Rows shorter than the header keep the missing columns as empty strings,
+ * so callers can read any column without index juggling.
+ */
+export function parseCsvRecords(text: string): Record<string, string>[] {
+  const rows = parseCsv(text);
+  const headerRow = rows[0];
+  if (!headerRow) return [];
+
+  const headers = headerRow.map(h => h.replace(/^\uFEFF/, '').trim());
+
+  const records: Record<string, string>[] = [];
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r]!;
+    // Trailing newline of the file: a single empty cell is not a record.
+    if (row.length === 1 && !row[0]) continue;
+
+    const record: Record<string, string> = {};
+    headers.forEach((header, i) => {
+      if (header) record[header] = (row[i] ?? '').trim();
+    });
+    records.push(record);
+  }
+  return records;
+}

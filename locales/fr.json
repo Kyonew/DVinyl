@@ -311,7 +311,9 @@
         "placeholder": "123456:9990001\n789012:9990002",
         "btn": "Mettre à jour les codes-barres",
         "success": "{{count}} codes-barres mis à jour !"
-      }
+      },
+      "import_updated": "éléments enrichis",
+      "import_failed": "lignes ignorées suite à une erreur"
     },
     "backup": {
       "export_btn": "Exporter la base de données",
@@ -482,6 +484,34 @@
       "title": "Sauvegarde de la collection",
       "subtitle": "Exporter cette collection (items + réglages) ou remplacer son contenu par une sauvegarde.",
       "confirm_import": "L'import va REMPLACER tous les items de cette collection. Continuer ?"
+    },
+    "libib": {
+      "title_books": "Libib - Livres",
+      "title_music": "Libib - Musique",
+      "title_movies": "Libib - Films",
+      "title_games": "Libib - Jeux vidéo",
+      "subtitle_books": "Importer les livres de votre export Libib",
+      "subtitle_music": "Importer la musique de votre export Libib",
+      "subtitle_movies": "Importer les films de votre export Libib",
+      "subtitle_games": "Importer les jeux vidéo de votre export Libib",
+      "file_label": "Fichier CSV Libib",
+      "default_format": "Format par défaut",
+      "default_format_hint": "Libib n'exporte aucun format : celui-ci est appliqué à tous les éléments importés.",
+      "default_platform": "Plateforme par défaut",
+      "default_platform_hint": "Utilisée quand la plateforme n'est pas détectable dans le titre.",
+      "mode_label": "Mode",
+      "mode_fast": "Rapide (CSV seul)",
+      "mode_enriched": "Enrichi (jaquettes et métadonnées)",
+      "mode_hint": "Le mode enrichi recherche chaque élément pour compléter les jaquettes et métadonnées absentes de Libib (plus lent).",
+      "btn_import": "Lancer l'importation",
+      "step1": "Connectez-vous sur libib.com et ouvrez votre bibliothèque",
+      "step2": "Allez dans Manage → Export et téléchargez le fichier CSV",
+      "step3": "Déposez ce même fichier dans chaque import ci-dessous : seul le type de média correspondant est lu",
+      "note_price": "Prix",
+      "note_description": "Description",
+      "note_cast": "Casting",
+      "note_aspect_ratio": "Format d'image",
+      "note_age_rating": "Classification"
     }
   },
   "collection": {

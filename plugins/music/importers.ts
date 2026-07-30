@@ -1,5 +1,12 @@
 import { PluginImporter } from '../../core/types';
-import { fetchJson, escapeRegExp } from '../../core/helpers';
+import { fetchJson, escapeRegExp, parseCsv } from '../../core/helpers';
+import { CsvImportContext, CsvRow, runCsvImport } from '../../core/csvImport';
+import { registry } from '../../core/registry';
+import {
+  LIBIB_HELP_STEPS, LIBIB_REQUIRED_COLUMNS, LIBIB_TYPE_MUSIC, libibAddedAt, libibBarcode,
+  libibComments, libibCreator, libibImportFields, libibPrice, libibQuantity, libibTags,
+  libibTypeFilter, libibYear
+} from '../../utils/libib';
 import Item from '../../models/Item';
 import User from '../../models/User';
 import { STANDARD_FORMAT_TERMS } from './constants';
@@ -53,7 +60,14 @@ async function importDiscogs(req: any, res: any) {
 
       for (const item of listItems) {
         const info = item.basic_information;
-        const existing = await Item.findOne({ discogs_id: info.id, collection: activeCollectionId }) as any;
+        // Scoped to the list being imported: a release owned in the collection must not
+        // cancel its wantlist entry, exactly as Discogs keeps the two lists apart.
+        // Items predating the in_wishlist field count as owned.
+        const existing = await Item.findOne({
+          discogs_id: info.id,
+          collection: activeCollectionId,
+          in_wishlist: isWishlist ? true : { $ne: true }
+        }) as any;
 
         if (existing) {
           if (full === true && (!existing.tracklist || existing.tracklist.length === 0)) {
@@ -175,7 +189,7 @@ async function importMusikSammler(req: any, res: any) {
   res.status(202).json({ success: true, message: "Import started" });
 
   try {
-    const rows = parseCSV(csv);
+    const rows = parseCsv(csv);
     if (rows.length < 2) {
       req.io.emit('import_error', { message: "CSV file is empty or invalid" });
       return;
@@ -232,9 +246,13 @@ async function importMusikSammler(req: any, res: any) {
         continue;
       }
 
-      // Check if duplicate (case-insensitive, like the pre-refactor import)
+      // Check if duplicate (case-insensitive, like the pre-refactor import), within the
+      // list being targeted: the wishlist and the collection are two separate lists, so
+      // an album already owned must not cancel its wishlist entry (and vice versa).
+      // Items predating the in_wishlist field count as owned.
       const existing = await Item.findOne({
         collection: activeCollectionId,
+        in_wishlist: isWishlist ? true : { $ne: true },
         title: new RegExp(`^${escapeRegExp(title)}$`, 'i'),
         artist: new RegExp(`^${escapeRegExp(artist)}$`, 'i')
       }) as any;
@@ -352,39 +370,56 @@ async function importMusikSammler(req: any, res: any) {
   }
 }
 
-function parseCSV(text: string): string[][] {
-  const lines: string[][] = [];
-  let row = [""];
-  let inQuotes = false;
+// LIBIB CSV IMPORT (music rows of the export)
+async function importLibibMusic(req: any, res: any) {
+  // Read from the registry rather than importing index.ts, which imports this file.
+  const plugin = registry.get('music')!;
 
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i]!;
-    const next = text[i + 1];
-    if (c === '"') {
-      if (inQuotes && next === '"') {
-        row[row.length - 1] = (row[row.length - 1] ?? '') + '"';
-        i++;
-      } else {
-        inQuotes = !inQuotes;
-      }
-    } else if (c === ',' && !inQuotes) {
-      row.push('');
-    } else if ((c === '\r' || c === '\n') && !inQuotes) {
-      if (c === '\r' && next === '\n') {
-        i++;
-      }
-      lines.push(row);
-      row = [''];
-    } else {
-      row[row.length - 1] = (row[row.length - 1] ?? '') + c;
+  const FORMAT_LABELS: Record<string, string> = {
+    vinyl: 'Vinyl', cd: 'CD', cassette: 'Cassette', digital: 'Digital'
+  };
+
+  return runCsvImport(req, res, {
+    plugin,
+    requiredColumns: LIBIB_REQUIRED_COLUMNS,
+    accepts: libibTypeFilter(LIBIB_TYPE_MUSIC),
+    searchQuery: (_row: CsvRow, data: Record<string, any>) => [data.artist, data.title].filter(Boolean).join(' '),
+    // Discogs filters its search by support and falls back to vinyl: without this, a
+    // CD or cassette library would be looked up among vinyl releases only.
+    searchOptions: (_row: CsvRow, data: Record<string, any>) => ({ type: data.media_type }),
+    mapRow(row: CsvRow, ctx: CsvImportContext) {
+      const title = (row['title'] || '').trim();
+      if (!title) return null;
+
+      // Libib exports no support at all, so the whole file lands on the format the
+      // admin picked in the modal.
+      const mediaType = ctx.body.default_format || 'vinyl';
+      const discs = parseInt(row['number_of_discs'] || '', 10) || 1;
+      const formatLabel = FORMAT_LABELS[mediaType] || 'Vinyl';
+      const { genre, genres } = libibTags(row);
+
+      return {
+        title,
+        artist: libibCreator(row) || 'Unknown',
+        label: (row['publisher'] || '').trim() || 'Unknown',
+        year: libibYear(row),
+        barcode: libibBarcode(row),
+        media_type: mediaType,
+        format_type: discs > 1 ? `${discs}x${formatLabel}` : formatLabel,
+        genre,
+        genres,
+        // Music has no description path: the Libib blurb is kept in the comments
+        // rather than dropped.
+        comments: libibComments(row, [
+          { label: ctx.req.t('admin.libib.note_price'), value: libibPrice(row) },
+          { label: ctx.req.t('admin.libib.note_description'), value: (row['description'] || '').trim() }
+        ]),
+        added_at: libibAddedAt(row),
+        quantity: libibQuantity(row)
+      };
     }
-  }
-  if (row.length > 1 || row[0] !== '') {
-    lines.push(row);
-  }
-  return lines;
+  });
 }
-
 
 export const musicImporters: PluginImporter[] = [
   {
@@ -426,6 +461,27 @@ export const musicImporters: PluginImporter[] = [
         ] }
       ],
       submitLabel: 'admin.musiksammler.btn_import'
+    }
+  },
+  {
+    id: 'libib-music',
+    requireAdmin: true,
+    handler: importLibibMusic,
+    ui: {
+      label: 'admin.libib.title_music',
+      icon: 'fa-file-csv',
+      description: 'admin.libib.subtitle_music',
+      color: 'emerald',
+      help: LIBIB_HELP_STEPS,
+      fields: libibImportFields({
+        name: 'default_format', label: 'admin.libib.default_format', type: 'select', default: 'vinyl', hint: 'admin.libib.default_format_hint', options: [
+          { value: 'vinyl', label: 'media.vinyl' },
+          { value: 'cd', label: 'media.cd' },
+          { value: 'cassette', label: 'media.cassette' },
+          { value: 'digital', label: 'media.digital' }
+        ]
+      }),
+      submitLabel: 'admin.libib.btn_import'
     }
   }
 ];

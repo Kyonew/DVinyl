@@ -326,7 +326,9 @@
         "placeholder": "123456:9990001\n789012:9990002",
         "btn": "Update Barcodes",
         "success": "{{count}} barcodes updated!"
-      }
+      },
+      "import_updated": "items enriched",
+      "import_failed": "lines skipped on error"
     },
     "backup": {
       "export_btn": "Export Database",
@@ -482,6 +484,34 @@
       "title": "Collection backup",
       "subtitle": "Export this collection (items + settings) or replace its content with a backup file.",
       "confirm_import": "Importing will REPLACE every item of this collection. Continue?"
+    },
+    "libib": {
+      "title_books": "Libib - Books",
+      "title_music": "Libib - Music",
+      "title_movies": "Libib - Movies",
+      "title_games": "Libib - Video games",
+      "subtitle_books": "Import the books of your Libib export",
+      "subtitle_music": "Import the music of your Libib export",
+      "subtitle_movies": "Import the movies of your Libib export",
+      "subtitle_games": "Import the video games of your Libib export",
+      "file_label": "Libib CSV file",
+      "default_format": "Default format",
+      "default_format_hint": "Libib exports no format: this one is applied to every imported item.",
+      "default_platform": "Default platform",
+      "default_platform_hint": "Used when the platform cannot be detected from the title.",
+      "mode_label": "Mode",
+      "mode_fast": "Fast (CSV only)",
+      "mode_enriched": "Enriched (covers and metadata)",
+      "mode_hint": "The enriched mode looks every item up to fill in the covers and metadata Libib does not export (slower).",
+      "btn_import": "Start the import",
+      "step1": "Sign in on libib.com and open your library",
+      "step2": "Go to Manage → Export and download the CSV file",
+      "step3": "Drop that same file in each import below: only the matching media type is read",
+      "note_price": "Price",
+      "note_description": "Description",
+      "note_cast": "Cast",
+      "note_aspect_ratio": "Aspect ratio",
+      "note_age_rating": "Age rating"
     }
   },
   "collection": {

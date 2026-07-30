@@ -68,7 +68,7 @@
                                 class="bg-black/5 dark:bg-white/5 border border-transparent text-sm rounded-lg focus:ring-primary-theme block w-full p-3 outline-none font-mono"></textarea>
                         <% } else if (f.type === 'file') { %>
                             <input type="file" data-import-field="<%= f.name %>" <%= f.fileEncoding ? ('data-encoding="' + f.fileEncoding + '"') : '' %> accept="<%= f.accept || '' %>" <%= f.required ? 'required' : '' %>
-                                class="block w-full text-sm text-neutral-500 file:mr-3 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-primary-theme file:text-white hover:file:brightness-110 cursor-pointer">
+                                class="file-primary-theme block w-full text-sm text-neutral-500 file:mr-3 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold hover:file:brightness-110 cursor-pointer">
                         <% } else { %>
                             <input type="<%= f.type %>" data-import-field="<%= f.name %>" <%= f.required ? 'required' : '' %>
                                 value="<%= f.default || '' %>" placeholder="<%= f.placeholder || '' %>"
@@ -103,9 +103,52 @@
         const importTranslations = {
             loading: '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> <%= t("admin.modal.import_loading") %>',
             started: '<i class="fa-solid fa-spinner fa-spin mr-2"></i> <%= t("admin.modal.import_started") %>',
-            done: '<%= t("admin.modal.import_done") %>'
+            done: '<%= t("admin.modal.import_done") %>',
+            updated: '<%= t("admin.modal.import_updated") %>',
+            failed: '<%= t("admin.modal.import_failed") %>'
         };
         let activeImport = null; // { id, btn, original }
+        let importSocket = null;
+
+        /**
+         * Opens the progress socket on first use. Lazy on purpose: this partial can be
+         * included anywhere in a page, and without the events the import silently runs
+         * to completion with the button stuck on "started" forever.
+         */
+        function ensureImportSocket() {
+            if (importSocket) return importSocket;
+            if (typeof io === 'undefined') {
+                console.error('[import] socket.io client missing: no progress will be reported.');
+                return null;
+            }
+            importSocket = io({ path: '<%= baseUrl %>/socket.io' });
+
+            importSocket.on('import_progress', (data) => {
+                if (!activeImport) return;
+                const suffix = data.total ? (data.current + ' / ' + data.total) : ('' + data.current);
+                activeImport.btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> ' + suffix;
+            });
+            importSocket.on('import_finished', (data) => {
+                if (!activeImport) return;
+                // An enriched re-run of an already imported file adds nothing but completes
+                // what is there, so that count has to be reported too.
+                let message = data.count + ' ' + importTranslations.done;
+                if (data.updated) message += '\n' + data.updated + ' ' + importTranslations.updated;
+                if (data.failed) message += '\n' + data.failed + ' ' + importTranslations.failed;
+                alert(message);
+                window.location.reload();
+            });
+            importSocket.on('import_error', (data) => {
+                if (!activeImport) return;
+                const errBox = document.getElementById('importErr_' + activeImport.id);
+                if (errBox) { errBox.querySelector('[data-err-text]').innerText = data.message; errBox.classList.remove('hidden'); }
+                activeImport.btn.disabled = false;
+                activeImport.btn.innerHTML = activeImport.original;
+                activeImport = null;
+            });
+
+            return importSocket;
+        }
 
         window.toggleImportModal = function (id) {
             const m = document.getElementById('importModal_' + id);
@@ -136,6 +179,16 @@
             btn.innerHTML = importTranslations.loading;
             activeImport = { id: importerId, btn, original };
 
+            // Wait for the socket to be up before starting: a short import can finish
+            // before a connection opened at click time is ready to receive its events.
+            const socket = ensureImportSocket();
+            if (socket && !socket.connected) {
+                await new Promise(resolve => {
+                    socket.once('connect', resolve);
+                    setTimeout(resolve, 3000);
+                });
+            }
+
             try {
                 const res = await fetch('<%= baseUrl %>/import/' + importerId, {
                     method: 'POST',
@@ -153,25 +206,9 @@
             }
         };
 
-        const importSocket = io({ path: '<%= baseUrl %>/socket.io' });
-        importSocket.on('import_progress', (data) => {
-            if (!activeImport) return;
-            const suffix = data.total ? (data.current + ' / ' + data.total) : ('' + data.current);
-            activeImport.btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> ' + suffix;
-        });
-        importSocket.on('import_finished', (data) => {
-            if (!activeImport) return;
-            alert(data.count + ' ' + importTranslations.done);
-            window.location.reload();
-        });
-        importSocket.on('import_error', (data) => {
-            if (!activeImport) return;
-            const errBox = document.getElementById('importErr_' + activeImport.id);
-            if (errBox) { errBox.querySelector('[data-err-text]').innerText = data.message; errBox.classList.remove('hidden'); }
-            activeImport.btn.disabled = false;
-            activeImport.btn.innerHTML = activeImport.original;
-            activeImport = null;
-        });
+        // Connect right away when the page already provides socket.io, so the events of a
+        // very fast import cannot be missed.
+        ensureImportSocket();
     })();
 </script>
 <% } %>
