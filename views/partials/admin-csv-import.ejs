@@ -1,0 +1,490 @@
+<%
+    // Every enabled module is a possible destination, with the fields it exposes for
+    // the active collection (its own + the user-defined ones).
+    const csvModules = registry.getEnabled(settings).map(p => ({
+        id: p.id,
+        label: t(p.label),
+        icon: 'fa-' + p.icon,
+        canEnrich: !!p.searchProvider,
+        fields: importableFields(p, settings, t)
+    }));
+%>
+
+<% if (csvModules.length > 0) { %>
+<div class="card-theme rounded-3xl p-6 md:p-8 shadow-sm transition-colors mb-6">
+    <div class="flex flex-col md:flex-row md:items-center gap-4">
+        <div class="w-10 h-10 rounded-xl bg-black/5 dark:bg-white/5 flex items-center justify-center shrink-0">
+            <i class="fa-solid fa-table-columns text-primary-theme"></i>
+        </div>
+        <div class="flex-1">
+            <h3 class="font-bold"><%= t('admin.csv_import.title') %></h3>
+            <p class="text-xs opacity-50"><%= t('admin.csv_import.subtitle') %></p>
+        </div>
+        <button type="button" onclick="toggleCsvImportModal()"
+            class="bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-5 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 shrink-0">
+            <i class="fa-solid fa-file-csv"></i> <%= t('admin.csv_import.btn_open') %>
+        </button>
+    </div>
+</div>
+
+<div id="csvImportModal" class="fixed inset-0 z-[120] hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="absolute inset-0" onclick="toggleCsvImportModal()"></div>
+    <div class="relative card-theme w-full max-w-3xl rounded-3xl p-6 md:p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <button type="button" onclick="toggleCsvImportModal()" class="absolute top-5 right-5 opacity-40 hover:opacity-100 transition-opacity">
+            <i class="fa-solid fa-xmark text-xl"></i>
+        </button>
+
+        <h3 class="text-xl font-bold flex items-center gap-2 mb-1">
+            <i class="fa-solid fa-table-columns text-primary-theme"></i> <%= t('admin.csv_import.title') %>
+        </h3>
+        <p class="text-sm opacity-60 mb-5"><%= t('admin.csv_import.subtitle') %></p>
+
+        <!-- STEP 1: the file and where it goes -->
+        <div id="csvStep1" class="space-y-4">
+            <div>
+                <label class="block text-[10px] font-black uppercase tracking-widest opacity-50 mb-1.5"><%= t('admin.csv_import.module_label') %></label>
+                <select id="csvModule" class="bg-black/5 dark:bg-white/5 border border-transparent text-sm rounded-lg focus:ring-primary-theme block w-full p-3 outline-none cursor-pointer">
+                    <% csvModules.forEach(m => { %>
+                        <option value="<%= m.id %>" class="bg-white dark:bg-[#1a1a1a]"><%= m.label %></option>
+                    <% }) %>
+                </select>
+                <p class="text-[10px] opacity-40 mt-1.5"><%= t('admin.csv_import.module_hint') %></p>
+            </div>
+
+            <div>
+                <span class="block text-[10px] font-black uppercase tracking-widest opacity-50 mb-1.5"><%= t('admin.csv_import.file_label') %></span>
+                <!-- The native file input renders its own button in the language of the
+                     browser, not of the page, so it is driven from a label of our own. -->
+                <div class="flex items-center gap-3">
+                    <label for="csvFile" class="bg-primary-theme text-white text-xs font-bold px-4 py-2.5 rounded-lg cursor-pointer hover:brightness-110 transition-all shrink-0 flex items-center gap-2">
+                        <i class="fa-solid fa-folder-open"></i> <%= t('admin.modal.choose_file') %>
+                    </label>
+                    <span id="csvFileName" class="text-xs opacity-50 truncate"><%= t('admin.modal.no_file_chosen') %></span>
+                </div>
+                <input type="file" id="csvFile" accept=".csv,text/csv" class="hidden">
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-[10px] font-black uppercase tracking-widest opacity-50 mb-1.5"><%= t('admin.csv_import.delimiter_label') %></label>
+                    <select id="csvDelimiter" class="bg-black/5 dark:bg-white/5 border border-transparent text-sm rounded-lg focus:ring-primary-theme block w-full p-3 outline-none cursor-pointer">
+                        <option value="auto" class="bg-white dark:bg-[#1a1a1a]"><%= t('admin.csv_import.delimiter_auto') %></option>
+                        <option value="," class="bg-white dark:bg-[#1a1a1a]"><%= t('admin.csv_import.delimiter_comma') %></option>
+                        <option value=";" class="bg-white dark:bg-[#1a1a1a]"><%= t('admin.csv_import.delimiter_semicolon') %></option>
+                        <option value="&#9;" class="bg-white dark:bg-[#1a1a1a]"><%= t('admin.csv_import.delimiter_tab') %></option>
+                        <option value="|" class="bg-white dark:bg-[#1a1a1a]"><%= t('admin.csv_import.delimiter_pipe') %></option>
+                    </select>
+                    <p class="text-[10px] opacity-40 mt-1.5"><%= t('admin.csv_import.delimiter_hint') %></p>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black uppercase tracking-widest opacity-50 mb-1.5"><%= t('admin.csv_import.target_label') %></label>
+                    <select id="csvTarget" class="bg-black/5 dark:bg-white/5 border border-transparent text-sm rounded-lg focus:ring-primary-theme block w-full p-3 outline-none cursor-pointer">
+                        <option value="collection" class="bg-white dark:bg-[#1a1a1a]"><%= t('admin.csv_import.target_collection') %></option>
+                        <option value="wishlist" class="bg-white dark:bg-[#1a1a1a]"><%= t('admin.csv_import.target_wishlist') %></option>
+                    </select>
+                </div>
+            </div>
+
+            <label id="csvEnrichRow" class="hidden items-center gap-3 bg-black/5 dark:bg-white/5 rounded-2xl p-4 cursor-pointer">
+                <input type="checkbox" id="csvEnrich" class="w-4 h-4 accent-current text-primary-theme">
+                <span class="text-xs">
+                    <span class="font-bold block"><%= t('admin.csv_import.enrich_label') %></span>
+                    <span class="opacity-50"><%= t('admin.csv_import.enrich_hint') %></span>
+                </span>
+            </label>
+
+            <button type="button" id="csvAnalyzeBtn" onclick="csvAnalyze()"
+                class="w-full mt-2 bg-primary-theme text-white font-bold px-6 py-3.5 rounded-2xl hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2">
+                <i class="fa-solid fa-magnifying-glass-chart"></i> <%= t('admin.csv_import.btn_analyze') %>
+            </button>
+        </div>
+
+        <!-- STEP 2: column to field mapping -->
+        <div id="csvStep2" class="hidden">
+            <div class="flex items-center justify-between gap-3 bg-black/5 dark:bg-white/5 rounded-2xl p-4 mb-5">
+                <p id="csvSummary" class="text-xs opacity-70"></p>
+                <button type="button" onclick="csvBackToStep1()" class="text-xs font-bold opacity-60 hover:opacity-100 transition-opacity shrink-0">
+                    <i class="fa-solid fa-arrow-left mr-1"></i> <%= t('admin.csv_import.btn_back') %>
+                </button>
+            </div>
+
+            <div id="csvUnmapped" class="hidden mb-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[11px] text-amber-600 dark:text-amber-400 flex items-start gap-2">
+                <i class="fa-solid fa-circle-info mt-0.5"></i>
+                <span data-unmapped-text></span>
+            </div>
+
+            <div id="csvMapping" class="space-y-5"></div>
+        </div>
+
+        <div id="importErr_csv" class="hidden mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-500">
+            <span data-err-text></span>
+        </div>
+
+        <button type="button" id="csvImportBtn" onclick="csvRunImport()"
+            class="hidden w-full mt-6 bg-primary-theme text-white font-bold px-6 py-3.5 rounded-2xl hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2">
+            <i class="fa-solid fa-cloud-arrow-down"></i> <%= t('admin.csv_import.btn_import') %>
+        </button>
+    </div>
+</div>
+
+<script>
+    (function () {
+        const modules = <%- JSON.stringify(csvModules) %>;
+        const T = {
+            loading: '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> <%= t("admin.modal.import_loading") %>',
+            started: '<i class="fa-solid fa-spinner fa-spin mr-2"></i> <%= t("admin.modal.import_started") %>',
+            done: <%- JSON.stringify(t('admin.modal.import_done')) %>,
+            updated: <%- JSON.stringify(t('admin.modal.import_updated')) %>,
+            failed: <%- JSON.stringify(t('admin.modal.import_failed')) %>,
+            ignore: <%- JSON.stringify(t('admin.csv_import.ignore')) %>,
+            constant: <%- JSON.stringify(t('admin.csv_import.constant')) %>,
+            constantPlaceholder: <%- JSON.stringify(t('admin.csv_import.constant_placeholder')) %>,
+            noFile: <%- JSON.stringify(t('admin.csv_import.err_no_file')) %>,
+            noFileChosen: <%- JSON.stringify(t('admin.modal.no_file_chosen')) %>,
+            // Translated once with a placeholder the interpolation leaves alone, so the
+            // list of fields can be filled in client-side.
+            missingRequired: <%- JSON.stringify(t('admin.csv_import.err_missing_required', { fields: '%FIELDS%' })) %>,
+            summary: <%- JSON.stringify(t('admin.csv_import.summary')) %>,
+            duplicateColumns: <%- JSON.stringify(t('admin.csv_import.warn_duplicate_columns')) %>,
+            unmapped: <%- JSON.stringify(t('admin.csv_import.warn_unmapped')) %>,
+            importCount: <%- JSON.stringify(t('admin.csv_import.btn_import_count')) %>,
+            groups: {
+                base: <%- JSON.stringify(t('admin.csv_import.group_base')) %>,
+                plugin: <%- JSON.stringify(t('admin.csv_import.group_plugin')) %>,
+                extra: <%- JSON.stringify(t('admin.csv_import.group_extra')) %>
+            },
+            yes: <%- JSON.stringify(t('common.yes')) %>,
+            no: <%- JSON.stringify(t('common.no')) %>
+        };
+        const DELIMITER_LABELS = { ',': ',', ';': ';', '\t': '\\t', '|': '|' };
+
+        // Everything the mapping screen and the import need, kept in the page: the file
+        // is never uploaded twice and never parked on the server between the two steps.
+        let csv = null; // { text, delimiter, columns, samples, total, module }
+        let running = false;
+        let socket = null;
+
+        const el = (id) => document.getElementById(id);
+        const errBox = () => el('importErr_csv');
+
+        function showError(message) {
+            const box = errBox();
+            box.querySelector('[data-err-text]').innerText = message;
+            box.classList.remove('hidden');
+        }
+        function clearError() { errBox().classList.add('hidden'); }
+
+        function escapeHtml(value) {
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        /** Same normalization as the server, so both ends agree on what "matches". */
+        function normalizeKey(value) {
+            return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase().replace(/[^a-z0-9]+/g, '');
+        }
+
+        /** Pre-fills the mapping with the columns whose name matches a field. */
+        function suggestMapping(columns, fields) {
+            const byKey = new Map();
+            for (const column of columns) {
+                const key = normalizeKey(column);
+                if (key && !byKey.has(key)) byKey.set(key, column);
+            }
+            const mapping = {};
+            const used = new Set();
+            for (const field of fields) {
+                for (const candidate of [field.name, field.label]) {
+                    const column = byKey.get(normalizeKey(candidate));
+                    if (column && !used.has(column)) {
+                        mapping[field.name] = column;
+                        used.add(column);
+                        break;
+                    }
+                }
+            }
+            return mapping;
+        }
+
+        window.toggleCsvImportModal = function () {
+            el('csvImportModal').classList.toggle('hidden');
+        };
+
+        function currentModule() {
+            return modules.find(m => m.id === el('csvModule').value) || modules[0];
+        }
+
+        function refreshEnrichRow() {
+            const row = el('csvEnrichRow');
+            const canEnrich = currentModule().canEnrich;
+            row.classList.toggle('hidden', !canEnrich);
+            row.classList.toggle('flex', canEnrich);
+            if (!canEnrich) el('csvEnrich').checked = false;
+        }
+
+        el('csvModule').addEventListener('change', refreshEnrichRow);
+        refreshEnrichRow();
+
+        // The name of the picked file, which the hidden input can no longer show itself
+        el('csvFile').addEventListener('change', () => {
+            const file = el('csvFile').files && el('csvFile').files[0];
+            el('csvFileName').innerText = file ? file.name : T.noFileChosen;
+        });
+
+        window.csvBackToStep1 = function () {
+            el('csvStep1').classList.remove('hidden');
+            el('csvStep2').classList.add('hidden');
+            el('csvImportBtn').classList.add('hidden');
+            clearError();
+        };
+
+        window.csvAnalyze = async function () {
+            const input = el('csvFile');
+            const file = input.files && input.files[0];
+            if (!file) { showError(T.noFile); return; }
+
+            const btn = el('csvAnalyzeBtn');
+            const original = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = T.loading;
+            clearError();
+
+            try {
+                const text = await file.text();
+                const res = await fetch('<%= baseUrl %>/import/csv/preview', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ csv: text, delimiter: el('csvDelimiter').value })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.error || 'Error');
+
+                csv = { text, module: currentModule(), ...data };
+                // Reflect what the server actually used, so the picker is never lying
+                // about the file on screen.
+                el('csvDelimiter').value = data.delimiter;
+                renderMapping();
+
+                el('csvStep1').classList.add('hidden');
+                el('csvStep2').classList.remove('hidden');
+                el('csvImportBtn').classList.remove('hidden');
+            } catch (err) {
+                showError(err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = original;
+            }
+        };
+
+        /** Sample values of a column, to show what a mapping choice actually carries. */
+        function sampleOf(column) {
+            const values = (csv.samples || []).map(row => row[column]).filter(v => v !== undefined && v !== '');
+            if (values.length === 0) return '';
+            const joined = values.slice(0, 2).join(' · ');
+            return joined.length > 70 ? joined.slice(0, 70) + '…' : joined;
+        }
+
+        function constInputHtml(field) {
+            if (field.options && field.options.length > 0) {
+                const options = field.options
+                    .map(o => '<option value="' + escapeHtml(o.value) + '" class="bg-white dark:bg-[#1a1a1a]">' + escapeHtml(o.label) + '</option>')
+                    .join('');
+                return '<select data-csv-const="' + escapeHtml(field.name) + '" class="hidden bg-black/5 dark:bg-white/5 border border-transparent text-xs rounded-lg block w-full p-2.5 outline-none cursor-pointer">' + options + '</select>';
+            }
+            if (field.type === 'boolean') {
+                return '<select data-csv-const="' + escapeHtml(field.name) + '" class="hidden bg-black/5 dark:bg-white/5 border border-transparent text-xs rounded-lg block w-full p-2.5 outline-none cursor-pointer">'
+                    + '<option value="true" class="bg-white dark:bg-[#1a1a1a]">' + escapeHtml(T.yes) + '</option>'
+                    + '<option value="false" class="bg-white dark:bg-[#1a1a1a]">' + escapeHtml(T.no) + '</option></select>';
+            }
+            const type = field.type === 'date' ? 'date' : (field.type === 'number' || field.type === 'rating' ? 'number' : 'text');
+            return '<input type="' + type + '" data-csv-const="' + escapeHtml(field.name) + '" placeholder="' + escapeHtml(T.constantPlaceholder) + '"'
+                + ' class="hidden bg-black/5 dark:bg-white/5 border border-transparent text-xs rounded-lg block w-full p-2.5 outline-none">';
+        }
+
+        function rowHtml(field, suggested) {
+            const options = ['<option value="">' + escapeHtml(T.ignore) + '</option>']
+                .concat(csv.columns.map(c => '<option value="' + escapeHtml(c) + '"'
+                    + (suggested === c ? ' selected' : '') + ' class="bg-white dark:bg-[#1a1a1a]">' + escapeHtml(c) + '</option>'))
+                .concat(['<option value="__const__" class="bg-white dark:bg-[#1a1a1a]">' + escapeHtml(T.constant) + '</option>'])
+                .join('');
+
+            return '<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 items-start py-2 border-b border-black/5 dark:border-white/5 last:border-0">'
+                + '<div class="min-w-0">'
+                +   '<p class="text-xs font-bold truncate">' + escapeHtml(field.label)
+                +     (field.required ? ' <span class="text-red-500">*</span>' : '') + '</p>'
+                +   '<p class="text-[10px] opacity-40 font-mono">' + escapeHtml(field.name) + ' · ' + escapeHtml(field.type) + '</p>'
+                + '</div>'
+                + '<div class="space-y-1.5">'
+                +   '<select data-csv-field="' + escapeHtml(field.name) + '" class="bg-black/5 dark:bg-white/5 border border-transparent text-xs rounded-lg block w-full p-2.5 outline-none cursor-pointer">' + options + '</select>'
+                +   constInputHtml(field)
+                +   '<p data-csv-sample="' + escapeHtml(field.name) + '" class="text-[10px] opacity-40 truncate"></p>'
+                + '</div>'
+                + '</div>';
+        }
+
+        function renderMapping() {
+            const fields = csv.module.fields;
+            const suggested = suggestMapping(csv.columns, fields);
+            const container = el('csvMapping');
+
+            const groups = [
+                { id: 'base', fields: fields.filter(f => f.group === 'base') },
+                { id: 'plugin', fields: fields.filter(f => f.group === 'plugin') },
+                { id: 'extra', fields: fields.filter(f => f.group === 'extra') }
+            ].filter(g => g.fields.length > 0);
+
+            container.innerHTML = groups.map(group =>
+                '<div>'
+                + '<p class="text-[10px] font-black uppercase tracking-widest opacity-50 mb-1">' + escapeHtml(T.groups[group.id]) + '</p>'
+                + group.fields.map(f => rowHtml(f, suggested[f.name])).join('')
+                + '</div>'
+            ).join('');
+
+            for (const select of container.querySelectorAll('[data-csv-field]')) {
+                select.addEventListener('change', () => onFieldSourceChange(select));
+                onFieldSourceChange(select);
+            }
+
+            const mappedCount = Object.keys(suggested).length;
+            el('csvSummary').innerText = T.summary
+                .replace('{{count}}', csv.total)
+                .replace('{{columns}}', csv.columns.length)
+                .replace('{{delimiter}}', DELIMITER_LABELS[csv.delimiter] || csv.delimiter)
+                .replace('{{module}}', csv.module.label);
+
+            const warnings = [];
+            if (csv.duplicateColumns) warnings.push(T.duplicateColumns);
+            const unmapped = csv.columns.filter(c => !Object.values(suggested).includes(c));
+            if (unmapped.length > 0) warnings.push(T.unmapped.replace('{{columns}}', unmapped.join(', ')));
+
+            const warnBox = el('csvUnmapped');
+            warnBox.classList.toggle('hidden', warnings.length === 0);
+            warnBox.querySelector('[data-unmapped-text]').innerText = warnings.join(' ');
+
+            el('csvImportBtn').innerHTML = '<i class="fa-solid fa-cloud-arrow-down"></i> '
+                + escapeHtml(T.importCount.replace('{{count}}', csv.total));
+        }
+
+        /** Swaps the sample line for the constant input, depending on the chosen source. */
+        function onFieldSourceChange(select) {
+            const name = select.getAttribute('data-csv-field');
+            const constInput = el('csvMapping').querySelector('[data-csv-const="' + CSS.escape(name) + '"]');
+            const sample = el('csvMapping').querySelector('[data-csv-sample="' + CSS.escape(name) + '"]');
+            const isConst = select.value === '__const__';
+
+            constInput.classList.toggle('hidden', !isConst);
+            sample.innerText = (!isConst && select.value) ? sampleOf(select.value) : '';
+        }
+
+        function collectMapping() {
+            const mapping = {};
+            for (const select of el('csvMapping').querySelectorAll('[data-csv-field]')) {
+                const name = select.getAttribute('data-csv-field');
+                if (!select.value) continue;
+                if (select.value === '__const__') {
+                    const input = el('csvMapping').querySelector('[data-csv-const="' + CSS.escape(name) + '"]');
+                    if (input && String(input.value).trim()) mapping[name] = { source: 'const', value: input.value };
+                } else {
+                    mapping[name] = { source: 'column', column: select.value };
+                }
+            }
+            return mapping;
+        }
+
+        /**
+         * Opens the progress socket on first use. The events are broadcast to every
+         * connected client, so the handlers stay silent unless this modal is the one
+         * that started an import.
+         */
+        function ensureSocket() {
+            if (socket) return socket;
+            if (typeof io === 'undefined') {
+                console.error('[csv-import] socket.io client missing: no progress will be reported.');
+                return null;
+            }
+            socket = io({ path: '<%= baseUrl %>/socket.io' });
+
+            socket.on('import_progress', (data) => {
+                if (!running) return;
+                const suffix = data.total ? (data.current + ' / ' + data.total) : ('' + data.current);
+                el('csvImportBtn').innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> ' + suffix;
+            });
+            socket.on('import_finished', (data) => {
+                if (!running) return;
+                let message = data.count + ' ' + T.done;
+                if (data.updated) message += '\n' + data.updated + ' ' + T.updated;
+                if (data.failed) message += '\n' + data.failed + ' ' + T.failed;
+                alert(message);
+                window.location.reload();
+            });
+            socket.on('import_error', (data) => {
+                if (!running) return;
+                showError(data.message);
+                running = false;
+                resetImportButton();
+            });
+
+            return socket;
+        }
+
+        function resetImportButton() {
+            const btn = el('csvImportBtn');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-down"></i> ' + escapeHtml(T.importCount.replace('{{count}}', csv ? csv.total : ''));
+        }
+
+        window.csvRunImport = async function () {
+            if (!csv || running) return;
+            const mapping = collectMapping();
+
+            // Same rule as the server: a required destination left unfed would have
+            // every single row rejected by the schema.
+            const missing = csv.module.fields.filter(f => f.required && !mapping[f.name]).map(f => f.label);
+            if (missing.length > 0) { showError(T.missingRequired.replace('%FIELDS%', missing.join(', '))); return; }
+
+            clearError();
+            const btn = el('csvImportBtn');
+            btn.disabled = true;
+            btn.innerHTML = T.loading;
+            running = true;
+
+            // Wait for the socket to be up before starting: a short import can finish
+            // before a connection opened at click time is ready to receive its events.
+            const sock = ensureSocket();
+            if (sock && !sock.connected) {
+                await new Promise(resolve => {
+                    sock.once('connect', resolve);
+                    setTimeout(resolve, 3000);
+                });
+            }
+
+            try {
+                const res = await fetch('<%= baseUrl %>/import/csv', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        csv: csv.text,
+                        delimiter: csv.delimiter,
+                        plugin: csv.module.id,
+                        type: el('csvTarget').value,
+                        enrich: el('csvEnrich').checked,
+                        mapping
+                    })
+                });
+                if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Error'); }
+                btn.innerHTML = T.started;
+            } catch (err) {
+                showError(err.message);
+                running = false;
+                resetImportButton();
+            }
+        };
+
+        // Connect right away when the page already provides socket.io, so the events of a
+        // very fast import cannot be missed.
+        ensureSocket();
+    })();
+</script>
+<% } %>

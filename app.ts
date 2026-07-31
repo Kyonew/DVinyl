@@ -29,6 +29,7 @@ import { syncCustomPluginsOnBoot } from './core/customPluginSync.js';
 import { mountPluginRoutes, pluginDispatcher } from './core/pluginRuntime.js';
 import { applyPluginCustomization } from './core/pluginCustomization.js';
 import { getCardLines } from './core/cardFields.js';
+import { importableFields } from './core/csvMapping.js';
 
 // Routes imports
 import setupRoutes from './routes/setupRoutes.js';
@@ -43,6 +44,7 @@ import oidcRoutes from './routes/oidcRoutes.js';
 import dashboardRoute from './core/routes/dashboardRoute.js';
 import collectionRoute from './core/routes/collectionRoute.js';
 import manualAddRoute from './core/routes/manualAddRoute.js';
+import csvImportRoute from './core/routes/csvImportRoute.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -75,6 +77,8 @@ app.set('view engine', 'ejs');
 app.set('views', [path.join(__dirname, 'views'), path.join(__dirname, 'core/views')]);
 // Card bodies are resolved from the plugin declarations, not inlined per grid
 app.locals.getCardLines = getCardLines;
+// The CSV mapping screen lists the destinations of every enabled module
+app.locals.importableFields = importableFields;
 app.set('io', io); // Expose io to routes
 
 // Global middlewares
@@ -229,6 +233,8 @@ if (isOidcEnabled()) {
 app.use(BASE_URL, dashboardRoute);
 app.use(BASE_URL, collectionRoute);
 app.use(BASE_URL, manualAddRoute);
+// Before the plugin dispatcher, which also serves /import/:id routes
+app.use(BASE_URL, csvImportRoute);
 
 // Plugin routers live behind a runtime dispatcher (not mounted directly on `app`)
 // so custom plugins created via /create-plugin are reachable without a restart.

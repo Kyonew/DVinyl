@@ -66,9 +66,18 @@
                             <textarea data-import-field="<%= f.name %>" <%= f.required ? 'required' : '' %> rows="4"
                                 placeholder="<%= f.placeholder || '' %>"
                                 class="bg-black/5 dark:bg-white/5 border border-transparent text-sm rounded-lg focus:ring-primary-theme block w-full p-3 outline-none font-mono"></textarea>
-                        <% } else if (f.type === 'file') { %>
-                            <input type="file" data-import-field="<%= f.name %>" <%= f.fileEncoding ? ('data-encoding="' + f.fileEncoding + '"') : '' %> accept="<%= f.accept || '' %>" <%= f.required ? 'required' : '' %>
-                                class="file-primary-theme block w-full text-sm text-neutral-500 file:mr-3 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold hover:file:brightness-110 cursor-pointer">
+                        <% } else if (f.type === 'file') { const fileId = 'importFile_' + imp.id + '_' + f.name; %>
+                            <!-- The native file input renders its own button in the language
+                                 of the browser, not of the page, so it is driven from a label
+                                 of our own. -->
+                            <div class="flex items-center gap-3">
+                                <label for="<%= fileId %>" class="bg-primary-theme text-white text-xs font-bold px-4 py-2.5 rounded-lg cursor-pointer hover:brightness-110 transition-all shrink-0 flex items-center gap-2">
+                                    <i class="fa-solid fa-folder-open"></i> <%= t('admin.modal.choose_file') %>
+                                </label>
+                                <span data-file-name-for="<%= fileId %>" class="text-xs opacity-50 truncate"><%= t('admin.modal.no_file_chosen') %></span>
+                            </div>
+                            <input type="file" id="<%= fileId %>" data-import-field="<%= f.name %>" <%= f.fileEncoding ? ('data-encoding="' + f.fileEncoding + '"') : '' %> accept="<%= f.accept || '' %>" <%= f.required ? 'required' : '' %>
+                                class="hidden">
                         <% } else { %>
                             <input type="<%= f.type %>" data-import-field="<%= f.name %>" <%= f.required ? 'required' : '' %>
                                 value="<%= f.default || '' %>" placeholder="<%= f.placeholder || '' %>"
@@ -105,7 +114,9 @@
             started: '<i class="fa-solid fa-spinner fa-spin mr-2"></i> <%= t("admin.modal.import_started") %>',
             done: '<%= t("admin.modal.import_done") %>',
             updated: '<%= t("admin.modal.import_updated") %>',
-            failed: '<%= t("admin.modal.import_failed") %>'
+            failed: '<%= t("admin.modal.import_failed") %>',
+            noFile: <%- JSON.stringify(t('admin.modal.err_no_file')) %>,
+            noFileChosen: <%- JSON.stringify(t('admin.modal.no_file_chosen')) %>
         };
         let activeImport = null; // { id, btn, original }
         let importSocket = null;
@@ -164,7 +175,15 @@
                 const name = el.getAttribute('data-import-field');
                 if (el.type === 'file') {
                     const file = el.files && el.files[0];
-                    if (!file) { if (el.required) { el.focus(); return; } continue; }
+                    // The input is hidden behind its own label, so a missing file is
+                    // reported in the error box rather than by focusing something
+                    // nobody can see.
+                    if (!file) {
+                        if (!el.required) continue;
+                        errBox.querySelector('[data-err-text]').innerText = importTranslations.noFile;
+                        errBox.classList.remove('hidden');
+                        return;
+                    }
                     body[name] = await file.text();
                 } else {
                     if (el.required && !String(el.value).trim()) { el.focus(); return; }
@@ -205,6 +224,16 @@
                 activeImport = null;
             }
         };
+
+        // The name of the picked file, which the hidden inputs can no longer show themselves
+        for (const input of document.querySelectorAll('input[type="file"][data-import-field]')) {
+            input.addEventListener('change', () => {
+                const label = document.querySelector('[data-file-name-for="' + input.id + '"]');
+                if (!label) return;
+                const file = input.files && input.files[0];
+                label.innerText = file ? file.name : importTranslations.noFileChosen;
+            });
+        }
 
         // Connect right away when the page already provides socket.io, so the events of a
         // very fast import cannot be missed.

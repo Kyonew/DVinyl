@@ -78,12 +78,47 @@ export function escapeRegExp(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+/** Separators a CSV export in the wild may use, in detection order. */
+export const CSV_DELIMITERS = [',', ';', '\t', '|'] as const;
+
+export type CsvDelimiter = typeof CSV_DELIMITERS[number];
+
+/**
+ * Guesses the separator of a CSV text from its header line: the one splitting it into
+ * the most columns wins. Comma stays the tie-breaker, so a single-column file (no
+ * separator at all) keeps the historical behavior.
+ *
+ * Quoted headers may legitimately contain any of the candidates ("Author, first name"),
+ * hence counting outside quotes only.
+ */
+export function detectCsvDelimiter(text: string): CsvDelimiter {
+  let best: CsvDelimiter = ',';
+  let bestCount = 0;
+
+  for (const delimiter of CSV_DELIMITERS) {
+    let count = 0;
+    let inQuotes = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i]!;
+      if (c === '"') inQuotes = !inQuotes;
+      else if (!inQuotes && (c === '\n' || c === '\r')) break;
+      else if (!inQuotes && c === delimiter) count++;
+    }
+    if (count > bestCount) {
+      best = delimiter;
+      bestCount = count;
+    }
+  }
+
+  return best;
+}
+
 /**
  * Parses RFC-4180-ish CSV text into a matrix (quoted fields, doubled quotes, embedded
  * newlines and CRLF handled). Shared by every CSV importer: exports from Libib,
  * Musik-Sammler & co. all ship multi-line quoted descriptions.
  */
-export function parseCsv(text: string): string[][] {
+export function parseCsv(text: string, delimiter: string = ','): string[][] {
   const lines: string[][] = [];
   let row = [""];
   let inQuotes = false;
@@ -98,7 +133,7 @@ export function parseCsv(text: string): string[][] {
       } else {
         inQuotes = !inQuotes;
       }
-    } else if (c === ',' && !inQuotes) {
+    } else if (c === delimiter && !inQuotes) {
       row.push('');
     } else if ((c === '\r' || c === '\n') && !inQuotes) {
       if (c === '\r' && next === '\n') {
@@ -121,8 +156,8 @@ export function parseCsv(text: string): string[][] {
  * trimmed). Rows shorter than the header keep the missing columns as empty strings,
  * so callers can read any column without index juggling.
  */
-export function parseCsvRecords(text: string): Record<string, string>[] {
-  const rows = parseCsv(text);
+export function parseCsvRecords(text: string, delimiter: string = ','): Record<string, string>[] {
+  const rows = parseCsv(text, delimiter);
   const headerRow = rows[0];
   if (!headerRow) return [];
 

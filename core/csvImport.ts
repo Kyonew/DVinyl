@@ -34,6 +34,9 @@ export interface CsvImportSpec {
   /** Columns the file must expose, else the whole import is rejected upfront. */
   requiredColumns?: string[];
 
+  /** Separator of the file. Plugin importers know theirs; the generic one is told. */
+  delimiter?: string;
+
   /**
    * Query sent to the plugin's search provider when enrichment is on. Returning an
    * empty string skips enrichment for that item. Defaults to the item title.
@@ -171,7 +174,7 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
   res.status(202).json({ success: true, message: 'Import started' });
 
   try {
-    const records = parseCsvRecords(csv);
+    const records = parseCsvRecords(csv, spec.delimiter || ',');
     if (records.length === 0) {
       req.io.emit('import_error', { message: 'CSV file is empty or invalid' });
       return;
