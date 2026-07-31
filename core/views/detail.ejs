@@ -25,11 +25,16 @@
         <!-- Left Column: Cover and user image -->
         <div class="lg:col-span-6 flex flex-col items-center">
             <div class="relative w-full max-w-lg aspect-square card-theme rounded-2xl shadow-xl overflow-hidden flex items-center justify-center group transition-colors">
-                <img id="mainImage" src="<%= item.user_image || item.cover_image %>" class="w-full h-full object-contain transition-transform duration-300 group-hover:scale-[1.02]" alt="Visual">
-                
+                <img id="mainImage" src="<%= item.user_image || item.cover_image %>" class="w-full h-full object-contain transition-transform duration-300 group-hover:scale-[1.02] cursor-zoom-in" alt="<%= item.title %>" onclick="openLightbox()">
+
                 <span id="imageBadge" class="absolute top-4 right-4 bg-white/90 dark:bg-black/60 backdrop-blur-md text-neutral-900 dark:text-white text-xs px-3 py-1 rounded-full border border-black/5 dark:border-white/10 shadow-sm transition-colors">
                     <%= item.user_image ? t('detail.additional_image') : t('detail.official_cover') %>
                 </span>
+
+                <button type="button" onclick="openLightbox()" title="<%= t('detail.view_fullscreen') %>" aria-label="<%= t('detail.view_fullscreen') %>"
+                    class="absolute bottom-4 right-4 w-10 h-10 rounded-full bg-white/90 dark:bg-black/60 backdrop-blur-md text-neutral-900 dark:text-white border border-black/5 dark:border-white/10 shadow-sm flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 focus:outline-none transition-opacity">
+                    <i class="fa-solid fa-expand text-sm"></i>
+                </button>
             </div>
 
             <div class="flex gap-4 mt-6 overflow-x-auto pb-2 w-full max-w-lg justify-center">
@@ -341,6 +346,19 @@
 
 </div>
 
+<!-- Fullscreen preview of the visual currently shown in the main frame -->
+<div id="imageLightbox" class="fixed inset-0 z-[200] hidden flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 md:p-10 cursor-zoom-out"
+    onclick="closeLightbox()" role="dialog" aria-modal="true" aria-label="<%= item.title %>">
+
+    <button type="button" onclick="closeLightbox()" title="<%= t('detail.close_preview') %>" aria-label="<%= t('detail.close_preview') %>"
+        class="absolute top-4 right-4 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors focus:outline-none">
+        <i class="fa-solid fa-xmark text-xl"></i>
+    </button>
+
+    <img id="lightboxImage" alt="<%= item.title %>" onclick="event.stopPropagation()"
+        class="max-w-full max-h-full object-contain rounded-lg shadow-2xl cursor-default">
+</div>
+
 <script>
     const translations = <%- JSON.stringify({
         official_cover: t('detail.official_cover'),
@@ -380,6 +398,28 @@
             }
         });
     }
+
+    const lightbox = document.getElementById('imageLightbox');
+    const lightboxImage = document.getElementById('lightboxImage');
+
+    function openLightbox() {
+        const mainImg = document.getElementById('mainImage');
+        if (!mainImg || !mainImg.src) return;
+
+        lightboxImage.src = mainImg.src;
+        lightbox.classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+    }
+
+    function closeLightbox() {
+        lightbox.classList.add('hidden');
+        lightboxImage.removeAttribute('src');
+        document.body.classList.remove('overflow-hidden');
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !lightbox.classList.contains('hidden')) closeLightbox();
+    });
 
     async function moveToWishlist(id) {
         if (!confirm(translations.confirm_move_to_wishlist)) return;

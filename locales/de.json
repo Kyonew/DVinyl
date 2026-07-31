@@ -558,6 +558,8 @@
   "detail": {
     "added_at": "Hinzugefügt bei",
     "additional_image": "Zusätzliches Bild",
+    "view_fullscreen": "Vollbild anzeigen",
+    "close_preview": "Vorschau schließen",
     "back_to_collection": "Zurück zur Sammlung",
     "back_to_wishlist": "Zurück zur Wunschliste",
     "calculate_btn": "Berechnen",
