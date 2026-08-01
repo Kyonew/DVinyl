@@ -13,7 +13,7 @@ import i18nMiddleware from 'i18next-http-middleware';
 import settingsMiddleware from './middleware/settingsMiddleware.js';
 import collectionMiddleware from './middleware/collectionMiddleware.js';
 import themesConfig from './config/themes.js';
-import { BASE_URL } from './config/constants.js';
+import { BASE_URL, SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE, normalizeLanguage } from './config/constants.js';
 import { isOidcEnabled, getOidcButtonLabel } from './config/oidc.js';
 import { connectDB } from './config/db.js';
 import { migrateDatabase } from './utils/migrate.js';
@@ -56,8 +56,13 @@ const io = new Server(server, {
 i18next
   .use(i18nMiddleware.LanguageDetector) // Detect language via query/cookie/header
   .init({
-    fallbackLng: 'fr',
-    preload: ['fr', 'en', 'es', 'it', 'de'],
+    fallbackLng: DEFAULT_LANGUAGE,
+    // Without these two, req.language keeps the regional tag the browser sends
+    // ('fr-FR'). It is stored on the user and used as a lookup key (TMDB), both of
+    // which only know the short codes, so the language is resolved to one of them here.
+    supportedLngs: [...SUPPORTED_LANGUAGES],
+    nonExplicitSupportedLngs: true,
+    preload: [...SUPPORTED_LANGUAGES],
     resources: {
       en: { translation: require('./locales/en.json') },
       fr: { translation: require('./locales/fr.json') },
@@ -127,9 +132,14 @@ app.use((req, res, next) => {
 app.use(checkUser);
 
 app.use(async (req: any, res, next) => {
-  // If the user is authenticated and has a language preference, enforce it
-  if (req.user && req.user.language) {
-    await req.i18n.changeLanguage(req.user.language);
+  // The preference of an authenticated user wins, otherwise the detected language.
+  // Detection hands back the tag the browser sent, region included ('fr-FR'), and
+  // changeLanguage is what rewrites req.language, so it runs on every request: the
+  // value travels into the User schema (enum) and into provider lookups keyed by the
+  // short code, neither of which knows a regional tag.
+  const language = normalizeLanguage(req.user?.language || req.language);
+  if (language !== req.language) {
+    await req.i18n.changeLanguage(language);
   }
 
   // Make translation helper and current language available to all EJS views

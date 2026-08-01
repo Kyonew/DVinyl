@@ -4,6 +4,7 @@ import Collection from '../models/Collection';
 import { generateUniqueSlug } from '../utils/collectionHelpers';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import { normalizeLanguage } from '../config/constants';
 
 const router = express.Router();
 
@@ -40,7 +41,10 @@ router.post('/', async (req, res) => {
             email,
             password: password,
             isAdmin: true,
-            language: language || req.language || 'fr',
+            // The form posts whatever the page was rendered in, and the field is client
+            // side: normalized rather than trusted, or the enum rejects the whole document
+            // and the instance cannot be installed at all.
+            language: normalizeLanguage(language || req.language),
             lastChange: new Date()
         });
 
