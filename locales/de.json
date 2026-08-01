@@ -641,6 +641,17 @@
     "paperback": "Taschenbuch",
     "digital": "Digital"
   },
+  "generic": {
+    "edit_title": "Element bearbeiten",
+    "change_main_image": "Hauptbild ändern",
+    "edit_secondary_image": "Zweitbild bearbeiten",
+    "replace_main_image": "Hauptbild ersetzen",
+    "add_secondary_image": "Zweitbild hinzufügen",
+    "main_image": "Hauptbild",
+    "secondary_image": "Zweitbild",
+    "image_preview": "Bildvorschau",
+    "genre": "Genre"
+  },
   "image_source": {
     "hint": "Klicken Sie hier, um Dateien zu durchsuchen",
     "local": "Lokale Datei",

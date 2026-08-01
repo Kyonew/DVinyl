@@ -23,7 +23,7 @@
         <div class="lg:col-span-8">
             <div class="card-theme rounded-xl p-6 md:p-8 transition-colors shadow-sm">
                 <h1 class="text-2xl font-bold mb-6 flex items-center gap-2">
-                    <i class="fa-solid fa-pen-to-square text-primary-theme"></i> <%= t('edit_' + plugin.i18nKey + '.title', { defaultValue: t('edit_vinyl.title') }) %>
+                    <i class="fa-solid fa-pen-to-square text-primary-theme"></i> <%= t('edit_' + plugin.i18nKey + '.title', { defaultValue: t('generic.edit_title') }) %>
                 </h1>
 
                 <form action="<%= baseUrl %>/save-<%= plugin.id %>" method="POST" class="space-y-6">
@@ -100,7 +100,7 @@
                         <div class="flex items-center">
                             <input id="checkEditCover" type="checkbox" class="w-4 h-4 text-primary-theme bg-black/5 dark:bg-white/10 border-transparent rounded focus:ring-primary-theme focus:ring-2 cursor-pointer transition-colors">
                             <label for="checkEditCover" class="ml-2 text-sm font-bold cursor-pointer opacity-80 hover:opacity-100 transition-opacity">
-                                <%= t('edit_' + plugin.i18nKey + '.change_cover', { defaultValue: t('edit_vinyl.change_cover') }) %>
+                                <%= t('edit_' + plugin.i18nKey + '.change_cover', { defaultValue: t('generic.change_main_image') }) %>
                             </label>
                         </div>
                         <input type="hidden" name="cover_image" id="inputCoverImage" value="<%= item.cover_image %>">
@@ -138,13 +138,13 @@
                         </div>
                     </div>
 
-                    <!-- Secondary Visual (user_image), music only, like the legacy edit-vinyl page -->
+                    <!-- Secondary Visual (user_image), plugins that declare supportsUserImage -->
                     <% if (plugin.supportsUserImage) { %>
                     <div class="mt-8 space-y-4">
                         <div class="flex items-center">
                             <input id="checkEditDisc" type="checkbox" <%= item.user_image ? 'checked' : '' %> class="w-4 h-4 text-primary-theme bg-black/5 dark:bg-white/10 border-transparent rounded focus:ring-primary-theme focus:ring-2 cursor-pointer transition-colors">
                             <label for="checkEditDisc" class="ml-2 text-sm font-bold cursor-pointer opacity-80 hover:opacity-100 transition-opacity">
-                                <%= t('edit_' + plugin.i18nKey + '.edit_secondary_visual', { defaultValue: t('edit_vinyl.edit_secondary_visual') }) %>
+                                <%= t('edit_' + plugin.i18nKey + '.edit_secondary_visual', { defaultValue: t('generic.edit_secondary_image') }) %>
                             </label>
                         </div>
                         <input type="hidden" name="user_image" id="inputUserImage" value="<%= item.user_image %>">
@@ -164,7 +164,7 @@
 
                             <div id="pane-disc-local" class="img-pane-disc">
                                 <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-black/10 dark:border-white/10 rounded-2xl cursor-pointer hover:bg-black/5 transition-all">
-                                    <i class="fa-solid fa-compact-disc text-2xl opacity-20 mb-2"></i>
+                                    <i class="fa-solid <%= plugin.secondaryImageIcon || 'fa-image' %> text-2xl opacity-20 mb-2"></i>
                                     <p class="text-xs font-bold opacity-50 italic"><%= t('confirm_' + plugin.i18nKey + '.browse_files', { defaultValue: t('confirm_vinyl.browse_files') }) %></p>
                                     <input type="file" id="fileInputDisc" class="hidden" accept="image/*">
                                 </label>

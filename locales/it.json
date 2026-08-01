@@ -641,6 +641,17 @@
     "paperback": "Paperback",
     "digital": "Digitale"
   },
+  "generic": {
+    "edit_title": "Modifica l'elemento",
+    "change_main_image": "Cambia l'immagine principale",
+    "edit_secondary_image": "Modifica l'immagine secondaria",
+    "replace_main_image": "Sostituisci l'immagine principale",
+    "add_secondary_image": "Aggiungi un'immagine secondaria",
+    "main_image": "Immagine principale",
+    "secondary_image": "Immagine secondaria",
+    "image_preview": "Anteprima dell'immagine",
+    "genre": "Genere"
+  },
   "image_source": {
     "hint": "Fare clic per sfogliare i file",
     "local": "Archivio locale",

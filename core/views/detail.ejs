@@ -23,12 +23,18 @@
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
 
         <!-- Left Column: Cover and user image -->
+        <%
+            // How this plugin names its two images. Neutral by default: "cover" only makes
+            // sense for the media that actually have one.
+            const mainImageLabel = t(plugin.imageLabels?.main || 'generic.main_image');
+            const secondaryImageLabel = t(plugin.imageLabels?.secondary || 'generic.secondary_image');
+        %>
         <div class="lg:col-span-6 flex flex-col items-center">
             <div class="relative w-full max-w-lg aspect-square card-theme rounded-2xl shadow-xl overflow-hidden flex items-center justify-center group transition-colors">
                 <img id="mainImage" src="<%= item.user_image || item.cover_image %>" class="w-full h-full object-contain transition-transform duration-300 group-hover:scale-[1.02] cursor-zoom-in" alt="<%= item.title %>" onclick="openLightbox()">
 
                 <span id="imageBadge" class="absolute top-4 right-4 bg-white/90 dark:bg-black/60 backdrop-blur-md text-neutral-900 dark:text-white text-xs px-3 py-1 rounded-full border border-black/5 dark:border-white/10 shadow-sm transition-colors">
-                    <%= item.user_image ? t('detail.additional_image') : t('detail.official_cover') %>
+                    <%= item.user_image ? secondaryImageLabel : mainImageLabel %>
                 </span>
 
                 <button type="button" onclick="openLightbox()" title="<%= t('detail.view_fullscreen') %>" aria-label="<%= t('detail.view_fullscreen') %>"
@@ -113,15 +119,20 @@
 
             <!-- Location & Genres/Styles block -->
             <div class="flex flex-col gap-6 ml-2">
-                <div class="flex flex-col">
-                    <span class="text-[10px] uppercase tracking-widest opacity-50 font-bold mb-2">
-                        <%= t('common.location') %>
-                    </span>
-                    <span class="text-sm font-medium">
-                        <i class="fa-solid fa-box-archive mr-2 opacity-50"></i>
-                        <%= item.location || t('common.not_specified') %>
-                    </span>
-                </div>
+                <%# Kept even when empty, as an invitation to fill it in, but only for the
+                    plugins that actually declare the field: a custom plugin created without
+                    the location feature has no such data to show. %>
+                <% if (plugin.formFields.some(f => f.name === 'location')) { %>
+                    <div class="flex flex-col">
+                        <span class="text-[10px] uppercase tracking-widest opacity-50 font-bold mb-2">
+                            <%= t('common.location') %>
+                        </span>
+                        <span class="text-sm font-medium">
+                            <i class="fa-solid fa-box-archive mr-2 opacity-50"></i>
+                            <%= item.location || t('common.not_specified') %>
+                        </span>
+                    </div>
+                <% } %>
 
                 <% if ((item.genres && item.genres.length > 0) || (item.styles && item.styles.length > 0)) { %>
                     <div class="flex flex-col gap-4">
@@ -155,14 +166,17 @@
                             </div>
                         <% } %>
                     </div>
-                <% } else { %>
+                <% } else if (item.genre) { %>
+                    <%# Legacy single-genre path of the base schema, only fed by the CSV import.
+                        Rendered when the item has no genres/styles array, and never as an empty
+                        placeholder: a plugin without the genre feature has nothing to show here. %>
                     <div class="flex flex-col">
                         <span class="text-[10px] uppercase tracking-widest opacity-50 font-bold mb-1">
-                            Genre
+                            <%= t('generic.genre') %>
                         </span>
                         <span class="text-sm font-medium">
-                            <i class="fa-solid fa-compact-disc mr-2 opacity-50"></i>
-                            <%= item.genre || t('common.not_specified') %>
+                            <i class="fa-solid fa-tags mr-2 opacity-50"></i>
+                            <%= item.genre %>
                         </span>
                     </div>
                 <% } %>
@@ -361,8 +375,8 @@
 
 <script>
     const translations = <%- JSON.stringify({
-        official_cover: t('detail.official_cover'),
-        additional_image: t('detail.additional_image'),
+        official_cover: mainImageLabel,
+        additional_image: secondaryImageLabel,
         confirm_delete: t('detail.confirm_delete'),
         confirm_move_to_wishlist: t('detail.move_to_wishlist_confirm'),
         market_price: t('detail.market_price'),

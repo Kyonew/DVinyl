@@ -99,6 +99,15 @@ export interface PluginDefinition {
   // Only relevant if supportsUserImage. Ex: music -> '/api/search-discogs-gallery'
   secondaryImageSearchPath?: string;
 
+  // FontAwesome icon of the secondary image upload zone, default 'fa-image'.
+  // Only relevant if supportsUserImage. Ex: music -> 'fa-compact-disc'
+  secondaryImageIcon?: string;
+
+  // i18n keys naming the two images on the item page badge. Defaults to the neutral
+  // generic.main_image / generic.secondary_image, so a plugin only declares this when
+  // its media has a more precise word (music -> "Official cover" / "Additional image").
+  imageLabels?: { main: string; secondary: string };
+
   getStats(items: any[]): PluginStats;
 
   formatForView(item: any): any;

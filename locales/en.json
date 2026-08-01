@@ -848,6 +848,17 @@
     "playing": "Playing",
     "played": "Completed"
   },
+  "generic": {
+    "edit_title": "Edit item",
+    "change_main_image": "Change the main image",
+    "edit_secondary_image": "Edit the secondary image",
+    "replace_main_image": "Replace the main image",
+    "add_secondary_image": "Add a secondary image",
+    "main_image": "Main image",
+    "secondary_image": "Secondary image",
+    "image_preview": "Image preview",
+    "genre": "Genre"
+  },
   "image_source": {
     "local": "Local file",
     "url": "URL",

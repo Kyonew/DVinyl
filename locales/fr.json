@@ -848,6 +848,17 @@
     "playing": "En cours",
     "played": "Terminé"
   },
+  "generic": {
+    "edit_title": "Modifier l'élément",
+    "change_main_image": "Changer l'image principale",
+    "edit_secondary_image": "Modifier l'image secondaire",
+    "replace_main_image": "Remplacer l'image principale",
+    "add_secondary_image": "Ajouter une image secondaire",
+    "main_image": "Image principale",
+    "secondary_image": "Image secondaire",
+    "image_preview": "Aperçu de l'image",
+    "genre": "Genre"
+  },
   "image_source": {
     "local": "Fichier local",
     "url": "URL",

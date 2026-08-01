@@ -16,7 +16,7 @@
                 <div class="<%= plugin.aspectRatioClass || 'aspect-[2/3]' %> rounded-lg overflow-hidden shadow-lg relative group bg-black/5 dark:bg-white/5">
                     <img id="livePreview" src="<%= item.cover_image || plugin.placeholderImage || '/ressources/logo.png' %>" class="w-full h-full object-cover transition-all duration-500">
                     <div class="absolute inset-0 bg-black/40 hidden group-hover:flex items-center justify-center text-white text-xs font-bold backdrop-blur-sm">
-                        <%= t('confirm_' + plugin.i18nKey + '.cover_preview', { defaultValue: t('confirm_vinyl.cover_preview') }) %>
+                        <%= t('confirm_' + plugin.i18nKey + '.cover_preview', { defaultValue: t('generic.image_preview') }) %>
                     </div>
                 </div>
             </div>

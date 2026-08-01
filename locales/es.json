@@ -641,6 +641,17 @@
     "paperback": "Libro de bolsillo",
     "digital": "Digital"
   },
+  "generic": {
+    "edit_title": "Editar el elemento",
+    "change_main_image": "Cambiar la imagen principal",
+    "edit_secondary_image": "Editar la imagen secundaria",
+    "replace_main_image": "Reemplazar la imagen principal",
+    "add_secondary_image": "Añadir una imagen secundaria",
+    "main_image": "Imagen principal",
+    "secondary_image": "Imagen secundaria",
+    "image_preview": "Vista previa de la imagen",
+    "genre": "Género"
+  },
   "image_source": {
     "hint": "Haga clic para buscar archivos",
     "local": "archivo local",

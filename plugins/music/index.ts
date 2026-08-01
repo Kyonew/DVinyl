@@ -31,6 +31,8 @@ export const musicPlugin: PluginDefinition = {
   aspectRatioClass: 'aspect-square',
   supportsUserImage: true,
   secondaryImageSearchPath: '/api/search-discogs-gallery',
+  secondaryImageIcon: 'fa-compact-disc',
+  imageLabels: { main: 'detail.official_cover', secondary: 'detail.additional_image' },
   duplicateCheckFields: ['media_type', 'variant_color'],
 
   fastAddOptions: [

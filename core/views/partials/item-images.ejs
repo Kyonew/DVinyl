@@ -6,7 +6,7 @@
                         <div class="flex items-center">
                             <input id="checkEditCover" type="checkbox" <%= locals.coverOpen ? 'checked' : '' %> class="w-4 h-4 text-primary-theme bg-black/5 dark:bg-white/10 border-transparent rounded focus:ring-primary-theme focus:ring-2 cursor-pointer transition-colors">
                             <label for="checkEditCover" class="ml-2 text-sm font-bold cursor-pointer opacity-80 hover:opacity-100 transition-opacity">
-                                <%= t('confirm_' + plugin.i18nKey + '.replace_cover', { defaultValue: t('confirm_vinyl.replace_cover') }) %>
+                                <%= t('confirm_' + plugin.i18nKey + '.replace_cover', { defaultValue: t('generic.replace_main_image') }) %>
                             </label>
                         </div>
 
@@ -55,7 +55,7 @@
                             <div class="flex items-center">
                                 <input id="checkEditDisc" type="checkbox" class="w-4 h-4 text-primary-theme bg-black/5 dark:bg-white/10 border-transparent rounded focus:ring-primary-theme focus:ring-2 cursor-pointer transition-colors">
                                 <label for="checkEditDisc" class="ml-2 text-sm font-bold cursor-pointer opacity-80 hover:opacity-100 transition-opacity">
-                                    <%= t('confirm_' + plugin.i18nKey + '.add_secondary_visual', { defaultValue: t('confirm_vinyl.add_secondary_visual') }) %>
+                                    <%= t('confirm_' + plugin.i18nKey + '.add_secondary_visual', { defaultValue: t('generic.add_secondary_image') }) %>
                                 </label>
                             </div>
 
@@ -77,7 +77,7 @@
                                 <div id="pane-disc-local" class="img-pane-disc">
                                     <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-black/10 dark:border-white/10 rounded-2xl cursor-pointer hover:bg-black/5 transition-all">
                                         <div class="flex flex-col items-center justify-center py-4">
-                                            <i class="fa-solid fa-compact-disc text-2xl opacity-20 mb-2"></i>
+                                            <i class="fa-solid <%= plugin.secondaryImageIcon || 'fa-image' %> text-2xl opacity-20 mb-2"></i>
                                             <p class="text-xs font-bold opacity-50 italic"><%= t('image_source.hint') %></p>
                                         </div>
                                         <input type="file" id="fileInputDisc" class="hidden" accept="image/*">
