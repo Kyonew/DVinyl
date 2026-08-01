@@ -33,7 +33,8 @@
     "already_in_collection_desc": "This item is already in your collection (Current quantity: {{qty}}). If you confirm, its quantity will be increased.",
     "btn_add_anyway": "Add anyway",
     "forbidden": "Access Forbidden",
-    "no_format": "No format"
+    "no_format": "No format",
+    "no_value": "No value"
   },
   "settings": {
     "page_title": "Account Settings",

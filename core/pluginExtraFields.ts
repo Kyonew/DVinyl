@@ -55,7 +55,14 @@ export function toFieldDefinitions(defs: ExtraFieldConfig[]): FieldDefinition[] 
       extraField: true
     };
     if (f.placeholder) field.placeholder = f.placeholder;
-    if (f.type === 'select') field.options = f.options || [];
+    if (f.type === 'select') {
+      // An optional dropdown leads with a blank entry, otherwise a <select> selects its
+      // first option on its own and every item saved without touching the field carries
+      // a value nobody chose, with no way left to clear it. A required one keeps its
+      // first option, which is the only reading of "this always has a value".
+      const options = f.options || [];
+      field.options = field.required ? options : [{ value: '', label: 'common.no_value' }, ...options];
+    }
     return field;
   });
 }

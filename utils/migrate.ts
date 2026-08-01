@@ -137,42 +137,52 @@ export const migrateDatabase = async () => {
                 console.log(`[MIGRATION] ${itemsBackfill.modifiedCount} item(s) attached to the default collection.`);
             }
 
-            // A MISSING lastActiveCollectionId is the legacy marker: the field didn't exist
-            // before multi-collections. Users created since then always carry it (the schema
-            // defaults it to null), so this identifies pre-migration accounts exactly.
-            // Captured BEFORE the updateMany below, which is what clears the marker.
-            const legacyUserIds = new Set(
-                (await User.find({ lastActiveCollectionId: { $exists: false } }, '_id').lean())
-                    .map((u: any) => String(u._id))
-            );
+            // Is this run the one-time merge of a pre-multi-collection instance? Decided
+            // from the leftovers of that era, and BEFORE the backfills below erase them.
+            //
+            // The state of a user cannot answer it: `lastActiveCollectionId` is missing
+            // only on documents Mongoose never touched, and a legacy dump is restored
+            // through User.insertMany, which applies the schema default. Every restored
+            // account therefore comes back with the field present (null) and reads as
+            // modern, which used to leave everyone but the seeding admin with no
+            // membership at all after a 2.6.0 restore.
+            const legacyItemCount = await Item.countDocuments({ collection: { $exists: false } });
+            const legacySettingsCount = await Settings.countDocuments({ collection: { $exists: false } });
+            const isLegacyMerge = legacyItemCount > 0 || legacySettingsCount > 0;
 
             const usersBackfill = await User.updateMany(
-                { lastActiveCollectionId: { $exists: false } },
+                // A null is only stale during the legacy merge; outside of it, it is the
+                // honest state of a user an admin has not placed in any collection yet.
+                isLegacyMerge
+                    ? { $or: [{ lastActiveCollectionId: { $exists: false } }, { lastActiveCollectionId: null }] }
+                    : { lastActiveCollectionId: { $exists: false } },
                 { $set: { lastActiveCollectionId: defaultCollection._id } }
             );
             if (usersBackfill.modifiedCount > 0) {
                 console.log(`[MIGRATION] ${usersBackfill.modifiedCount} user(s) given an active collection.`);
             }
 
-            // Make every LEGACY user a member of the default collection (idempotent via $addToSet).
-            // Restricted to legacy accounts on purpose: this loop used to run over every user on
-            // every boot, which silently re-joined accounts an admin had removed, and handed a
-            // viewer seat on the default collection to users meant to only have their own
-            // (self-service creation, OIDC auto-provisioning). Membership is granted explicitly
-            // from the admin pages; migration only heals the pre-multi-collection era.
-            const existingMemberIds = new Set(
-                (defaultCollection.members || []).map((m: any) => String(m.user))
-            );
-            const allUsers = await User.find({}, '_id isAdmin').lean();
+            // Make every user a member of the default collection (idempotent via $addToSet),
+            // but only while merging a pre-multi-collection instance: back then a single
+            // implicit collection held everything and everyone, so joining it restores what
+            // those accounts already had. Outside that merge the loop stays shut, which is
+            // what stops it from silently re-joining accounts an admin had removed and from
+            // handing a viewer seat on the default collection to users meant to only have
+            // their own (self-service creation, OIDC auto-provisioning).
             let addedMembers = 0;
-            for (const u of allUsers) {
-                if (existingMemberIds.has(String(u._id))) continue;
-                if (!legacyUserIds.has(String(u._id))) continue;
-                await Collection.updateOne(
-                    { _id: defaultCollection._id },
-                    { $addToSet: { members: { user: u._id, role: u.isAdmin ? 'admin' : 'viewer' } } }
+            if (isLegacyMerge) {
+                const existingMemberIds = new Set(
+                    (defaultCollection.members || []).map((m: any) => String(m.user))
                 );
-                addedMembers += 1;
+                const allUsers = await User.find({}, '_id isAdmin').lean();
+                for (const u of allUsers) {
+                    if (existingMemberIds.has(String(u._id))) continue;
+                    await Collection.updateOne(
+                        { _id: defaultCollection._id },
+                        { $addToSet: { members: { user: u._id, role: u.isAdmin ? 'admin' : 'viewer' } } }
+                    );
+                    addedMembers += 1;
+                }
             }
             if (addedMembers > 0) {
                 console.log(`[MIGRATION] ${addedMembers} user(s) added as members of the default collection.`);

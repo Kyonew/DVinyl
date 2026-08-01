@@ -1,4 +1,5 @@
 import { PluginDefinition, FieldDefinition } from './types';
+import { dateLocaleFor } from '../config/constants';
 
 /**
  * Content of a card body (collection grid, wishlist, dashboard).
@@ -35,11 +36,14 @@ export function cardFieldCandidates(plugin: PluginDefinition): FieldDefinition[]
   );
 }
 
-function stringifyValue(field: FieldDefinition | undefined, raw: any, locale?: string): string {
+function stringifyValue(field: FieldDefinition | undefined, raw: any, lang?: string): string {
   if (raw === undefined || raw === null || raw === '') return '';
 
   if (Array.isArray(raw)) return raw.filter(Boolean).map(String).join(', ');
-  if (raw instanceof Date) return raw.toLocaleDateString(locale);
+  // Date-only values are stored as UTC midnight, so they are formatted in UTC too:
+  // the local reading of a server east of Greenwich would show the day before.
+  // Same rule as the item page, which is where the user checks the date.
+  if (raw instanceof Date) return raw.toLocaleDateString(dateLocaleFor(lang), { timeZone: 'UTC' });
 
   if (typeof raw === 'boolean') {
     // A true flag shows as its own label ("Signed"); a false one is simply not a line
@@ -61,7 +65,7 @@ function stringifyValue(field: FieldDefinition | undefined, raw: any, locale?: s
 export function getCardLines(
   plugin: PluginDefinition | undefined,
   item: any,
-  options: { locale?: string } = {}
+  options: { lang?: string } = {}
 ): CardLine[] {
   if (!plugin || !item) return [];
 
@@ -81,7 +85,7 @@ export function getCardLines(
     const override = plugin.cardFieldValue?.(name, item);
     const value = override !== undefined && override !== null
       ? override
-      : stringifyValue(field, item[name] ?? item.extra?.[name], options.locale);
+      : stringifyValue(field, item[name] ?? item.extra?.[name], options.lang);
 
     if (!value) continue;
 

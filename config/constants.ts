@@ -21,3 +21,22 @@ export function normalizeLanguage(value: any): SupportedLanguage {
   const base = String(value || '').toLowerCase().split('-')[0] as SupportedLanguage;
   return SUPPORTED_LANGUAGES.includes(base) ? base : DEFAULT_LANGUAGE;
 }
+
+const DATE_LOCALES: Record<SupportedLanguage, string> = {
+  fr: 'fr-FR',
+  en: 'en-US',
+  de: 'de-DE',
+  es: 'es-ES',
+  it: 'it-IT'
+};
+
+/**
+ * Regional tag toLocaleDateString expects, from the interface language.
+ *
+ * Resolved here rather than per view: the same date has to read the same way on a card
+ * and on the item page, and an omitted locale silently falls back to the one of the
+ * host, which is en-US in a container and turns 01/06 into 6/1 for everyone.
+ */
+export function dateLocaleFor(value: any): string {
+  return DATE_LOCALES[normalizeLanguage(value)];
+}

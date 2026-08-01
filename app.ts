@@ -13,7 +13,7 @@ import i18nMiddleware from 'i18next-http-middleware';
 import settingsMiddleware from './middleware/settingsMiddleware.js';
 import collectionMiddleware from './middleware/collectionMiddleware.js';
 import themesConfig from './config/themes.js';
-import { BASE_URL, SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE, normalizeLanguage } from './config/constants.js';
+import { BASE_URL, SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE, normalizeLanguage, dateLocaleFor } from './config/constants.js';
 import { isOidcEnabled, getOidcButtonLabel } from './config/oidc.js';
 import { connectDB } from './config/db.js';
 import { migrateDatabase } from './utils/migrate.js';
@@ -84,6 +84,8 @@ app.set('views', [path.join(__dirname, 'views'), path.join(__dirname, 'core/view
 app.locals.getCardLines = getCardLines;
 // The CSV mapping screen lists the destinations of every enabled module
 app.locals.importableFields = importableFields;
+// Dates read the same way wherever a view prints one
+app.locals.dateLocaleFor = dateLocaleFor;
 app.set('io', io); // Expose io to routes
 
 // Global middlewares

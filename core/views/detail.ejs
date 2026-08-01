@@ -185,7 +185,7 @@
             <!-- Dynamic Metadata Card Grid -->
             <div class="card-theme rounded-xl p-6 grid grid-cols-2 gap-y-6 gap-x-4 transition-colors shadow-sm">
                 <%
-                const dateLocale = { fr: 'fr-FR', de: 'de-DE', es: 'es-ES', it: 'it-IT' }[currentLng] || 'en-US';
+                const dateLocale = dateLocaleFor(currentLng);
                 // Date-only values are stored as UTC midnight; formatting them in UTC keeps
                 // the displayed day identical to the one that was picked in the form.
                 // Falls back to the raw value: a field switched from text to date after the

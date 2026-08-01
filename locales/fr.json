@@ -33,7 +33,8 @@
     "already_in_collection_desc": "Cet élément figure déjà dans votre collection (Quantité actuelle : {{qty}}). Si vous le confirmez, sa quantité sera augmentée.",
     "btn_add_anyway": "Ajouter quand même",
     "forbidden": "Accès interdit",
-    "no_format": "Aucun format"
+    "no_format": "Aucun format",
+    "no_value": "Aucune valeur"
   },
   "settings": {
     "page_title": "Paramètres du compte",

@@ -95,7 +95,11 @@ router.post('/import/csv', ...guards, (req: any, res: any) => {
     // a bare title matches far too many releases on Discogs or TMDB.
     searchQuery: (_row, data) => [data.title, creatorField ? data[creatorField] : '']
       .filter(Boolean)
-      .join(' ')
+      .join(' '),
+    // The support the row landed on, when the mapping fed one. Providers that key their
+    // search on it (Discogs) otherwise default to vinyl and would enrich a CD import
+    // with the wrong pressings; the others ignore the option.
+    searchOptions: (_row, data) => (data.media_type ? { type: data.media_type } : {})
   });
 });
 

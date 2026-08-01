@@ -451,7 +451,8 @@
     "already_in_collection_desc": "Dieser Artikel befindet sich bereits in Ihrer Sammlung (Aktuelle Menge: {{qty}}). Wenn Sie bestätigen, wird die Menge erhöht.",
     "btn_add_anyway": "Trotzdem hinzufügen",
     "forbidden": "Zugriff verboten",
-    "no_format": "Kein Format"
+    "no_format": "Kein Format",
+    "no_value": "Kein Wert"
   },
   "confirm_book": {
     "btn_collection": "Zur Bibliothek hinzufügen",
