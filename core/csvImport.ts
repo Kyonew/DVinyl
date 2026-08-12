@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { PluginDefinition } from './types';
+import { PluginDefinition, SearchResult } from './types';
 import { escapeRegExp, parseCsvRecords } from './helpers';
 
 /**
@@ -78,17 +78,40 @@ function enrichableFields(plugin: PluginDefinition): Set<string> {
 }
 
 /**
+ * Value each path of the plugin falls back to when the import fed it nothing. Computed
+ * defaults (Date.now and friends) are left out: they are stamps, never a stale choice.
+ */
+function schemaDefaults(plugin: PluginDefinition): Map<string, any> {
+  const defaults = new Map<string, any>();
+  const schema = mongoose.model(plugin.kind).schema;
+  for (const name of Object.keys(plugin.schemaDefinition || {})) {
+    const value = (schema.path(name) as any)?.options?.default;
+    if (value !== undefined && typeof value !== 'function' && !isEmptyValue(value)) defaults.set(name, value);
+  }
+  return defaults;
+}
+
+/**
  * Fills the gaps of an item with data fetched from the plugin's provider, and returns
  * what was actually filled. The CSV always wins: an export carries the user's own
  * truth (their rating, their notes, the edition they own), the API only completes what
  * the export never carried (cover, description, external id, genres...).
+ *
+ * `staleDefaults` widens "gap" to the paths still holding the schema default. It is only
+ * passed when this pass is the first to identify the item, where a default is what the
+ * schema chose for lack of a match, not what the user meant.
  */
-function fillEmptyFields(target: Record<string, any>, enriched: Record<string, any>, allowed: Set<string>): Record<string, any> {
+function fillEmptyFields(
+  target: Record<string, any>,
+  enriched: Record<string, any>,
+  allowed: Set<string>,
+  staleDefaults?: Map<string, any>
+): Record<string, any> {
   const filled: Record<string, any> = {};
   for (const [key, value] of Object.entries(enriched)) {
     if (!allowed.has(key)) continue;
     if (isEmptyValue(value)) continue;
-    if (!isEmptyValue(target[key])) continue;
+    if (!isEmptyValue(target[key]) && target[key] !== staleDefaults?.get(key)) continue;
     target[key] = value;
     filled[key] = value;
   }
@@ -132,18 +155,123 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   ]);
 }
 
+/** What the row itself says about the item, used to recognize it among the hits. */
+interface MatchTarget {
+  title: string;
+  year: string;
+  creator: string;
+}
+
+/** Comparable form of a title or a name: case, accents and punctuation dropped. */
+function normalizeForMatch(value: any): string {
+  return String(value ?? '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+/** First four-digit year found in a value, 0 when there is none. */
+function yearOf(value: any): number {
+  const match = String(value ?? '').match(/\d{4}/);
+  return match ? Number(match[0]) : 0;
+}
+
+const sameName = (a: string, b: string): boolean => a.includes(b) || b.includes(a);
+
+/** How well one hit matches what the row already knows. Unknowns simply score nothing. */
+function scoreCandidate(candidate: SearchResult, target: MatchTarget): number {
+  let score = 0;
+
+  const title = normalizeForMatch(candidate.title);
+  const wantedTitle = normalizeForMatch(target.title);
+  if (title && wantedTitle) {
+    if (title === wantedTitle) score += 5;
+    else if (sameName(title, wantedTitle)) score += 1;
+  }
+
+  // A gap of one year is normal: providers date a release, the file often dates the
+  // edition owned. Beyond that it is another work, and the penalty must outweigh a
+  // mere partial title match.
+  const year = yearOf(candidate.year);
+  const wantedYear = yearOf(target.year);
+  if (year && wantedYear) {
+    const gap = Math.abs(year - wantedYear);
+    score += gap === 0 ? 4 : gap === 1 ? 2 : -3;
+  }
+
+  const creator = normalizeForMatch(candidate.creator);
+  const wantedCreator = normalizeForMatch(target.creator);
+  if (creator && wantedCreator) {
+    score += sameName(creator, wantedCreator) ? 4 : -1;
+  }
+
+  return score;
+}
+
+/**
+ * Picks the hit that matches the row rather than whatever the provider ranked first:
+ * searching "Alien" on TMDB returns the 2021 series before the 1979 film.
+ *
+ * The match is reported as sure when the title is exact and nothing the row knows
+ * contradicts it. Anything less deserves a second, narrower lookup.
+ */
+function pickBestMatch(results: SearchResult[], target: MatchTarget): { match: SearchResult | null; sure: boolean } {
+  let match: SearchResult | null = null;
+  let best = -Infinity;
+
+  // Strictly greater keeps the provider's own ranking as the tie-breaker.
+  for (const candidate of results || []) {
+    const score = scoreCandidate(candidate, target);
+    if (score > best) {
+      best = score;
+      match = candidate;
+    }
+  }
+  if (!match) return { match: null, sure: false };
+
+  const year = yearOf(match.year);
+  const wantedYear = yearOf(target.year);
+  const creator = normalizeForMatch(match.creator);
+  const wantedCreator = normalizeForMatch(target.creator);
+
+  const sure =
+    normalizeForMatch(match.title) === normalizeForMatch(target.title) &&
+    (!year || !wantedYear || Math.abs(year - wantedYear) <= 1) &&
+    (!creator || !wantedCreator || sameName(creator, wantedCreator));
+
+  return { match, sure };
+}
+
 /**
  * Looks one item up on the plugin's own search provider and returns its details, or
  * null when nothing matches (a lookup failure never fails the import).
  */
-async function fetchEnrichment(plugin: PluginDefinition, query: string, options: Record<string, any>): Promise<Record<string, any> | null> {
+async function fetchEnrichment(
+  plugin: PluginDefinition,
+  query: string,
+  options: Record<string, any>,
+  target: MatchTarget
+): Promise<Record<string, any> | null> {
   try {
-    const results = await withTimeout(plugin.searchProvider!.search(query, { limit: 1, ...options }), ENRICH_TIMEOUT_MS);
-    const first = results?.[0];
-    if (!first) return null;
+    const search = (q: string) => withTimeout(plugin.searchProvider!.search(q, options), ENRICH_TIMEOUT_MS);
 
-    const details = await withTimeout(plugin.searchProvider!.getDetails(String(first.id), options), ENRICH_TIMEOUT_MS);
-    return { ...first, ...details };
+    let { match, sure } = pickBestMatch(await search(query), target);
+
+    // The bare title is what most providers match on: TMDB returns nothing at all for
+    // "Inception Christopher Nolan". It is ambiguous on a generic title though, so when
+    // the first pass leaves a doubt the creator carried by the row is worth a second,
+    // narrower search. Providers that do not index it return nothing and the first pass
+    // simply stands.
+    if (!sure && target.creator && !normalizeForMatch(query).includes(normalizeForMatch(target.creator))) {
+      const narrowed = pickBestMatch(await search(`${query} ${target.creator}`), target);
+      if (narrowed.match && (narrowed.sure || !match)) match = narrowed.match;
+    }
+    if (!match) return null;
+
+    const details = await withTimeout(plugin.searchProvider!.getDetails(String(match.id), options), ENRICH_TIMEOUT_MS);
+    return { ...match, ...details };
   } catch (err: any) {
     console.error(`[${plugin.id}] Enrichment failed for "${query}":`, err.message);
     return null;
@@ -197,6 +325,7 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
     const canEnrich = enrich && !!plugin.searchProvider;
     const enrichDelayMs = spec.enrichDelayMs ?? 500;
     const allowed = enrichableFields(plugin);
+    const defaults = schemaDefaults(plugin);
 
     let totalImported = 0;
     let totalUpdated = 0;
@@ -211,6 +340,15 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
       const query = spec.searchQuery ? spec.searchQuery(row, data) : data.title;
       const searchOptions = { language: req.language, ...(spec.searchOptions ? spec.searchOptions(row, data) : {}) };
 
+      // What the row claims about the item, so the right hit can be told apart from the
+      // rest. Read off the mapped payload rather than the raw row: the mapping is what
+      // knows which column was the title, the year or the creator.
+      const target: MatchTarget = {
+        title: String(data.title || ''),
+        year: String(data.year ?? ''),
+        creator: String((plugin.creatorField && data[plugin.creatorField]) || '')
+      };
+
       // Duplicate detection is the plugin's own (format/region/zone aware), scoped to
       // the active collection, unless the target is the wishlist: that list has its own
       // contents and is never blocked by an item already owned.
@@ -224,12 +362,21 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
         // and metadata rather than being skipped outright.
         if (!canEnrich || !query) return 'skipped';
 
-        const enriched = await fetchEnrichment(plugin, query, searchOptions);
+        const enriched = await fetchEnrichment(plugin, query, searchOptions, target);
         await new Promise(resolve => setTimeout(resolve, enrichDelayMs));
         if (!enriched) return 'skipped';
 
         const current = existing.toObject ? existing.toObject() : existing;
-        const patch = fillEmptyFields(current, enriched, allowed);
+
+        // An item that never matched anything holds schema defaults, not decisions: a
+        // row the provider could not identify is stored as a movie because that is what
+        // the DVD schema says. When this pass is the first to actually recognize the
+        // item, those defaults have to give way, else a series would keep a movie type
+        // alongside a series id, and TMDB answers that pair with a different work.
+        const idField = plugin.externalIdField;
+        const firstMatch = !!idField && isEmptyValue(current[idField]) && !isEmptyValue(enriched[idField]);
+
+        const patch = fillEmptyFields(current, enriched, allowed, firstMatch ? defaults : undefined);
         if (Object.keys(patch).length === 0) return 'skipped';
 
         await Model.updateOne({ _id: existing._id }, { $set: patch });
@@ -237,7 +384,7 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
       }
 
       if (canEnrich && query) {
-        const enriched = await fetchEnrichment(plugin, query, searchOptions);
+        const enriched = await fetchEnrichment(plugin, query, searchOptions, target);
         if (enriched) fillEmptyFields(data, enriched, allowed);
         await new Promise(resolve => setTimeout(resolve, enrichDelayMs));
       }
