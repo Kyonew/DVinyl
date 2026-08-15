@@ -1,7 +1,7 @@
 import { PluginDefinition } from '../../core/types';
 import { IGDBProvider } from './igdb';
 import { gamesImporters } from './importers';
-import { escapeRegExp, fetchJson } from '../../core/helpers';
+import { escapeRegExp, fetchJson, PermanentRefreshError } from '../../core/helpers';
 import { igdbRequest } from './igdbHelper';
 import Item from '../../models/Item';
 
@@ -424,7 +424,7 @@ export const gamesPlugin: PluginDefinition = {
 
   async refreshItem(item: any): Promise<Record<string, any>> {
     if (!item.igdb_id) {
-      throw new Error('No IGDB ID to refresh');
+      throw new PermanentRefreshError('No IGDB ID to refresh');
     }
 
     const formatted = await igdbProvider.getDetails(String(item.igdb_id), {});

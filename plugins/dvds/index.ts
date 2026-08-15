@@ -1,9 +1,9 @@
 import { PluginDefinition } from '../../core/types';
 import { TMDBProvider } from './tmdb';
 import { dvdImporters } from './importers';
-import { escapeRegExp, fetchJson } from '../../core/helpers';
+import { escapeRegExp, fetchJson, PermanentRefreshError } from '../../core/helpers';
 import Item from '../../models/Item';
-import { TMDB_LANG_MAP } from './constants';
+import { TMDB_LANG_MAP, formatSeasonCount } from './constants';
 
 export const dvdPlugin: PluginDefinition = {
   id: 'dvd',
@@ -431,11 +431,11 @@ export const dvdPlugin: PluginDefinition = {
 
   async refreshItem(item: any, req: any): Promise<Record<string, any>> {
     if (!item.tmdb_id) {
-      throw new Error('No TMDB ID to refresh');
+      throw new PermanentRefreshError('No TMDB ID to refresh');
     }
 
     const tmdbApiKey = process.env.TMDB_API_KEY;
-    if (!tmdbApiKey) throw new Error("TMDB_API_KEY missing");
+    if (!tmdbApiKey) throw new PermanentRefreshError("TMDB_API_KEY missing");
     const lang = req.language || 'fr';
     const tmdbLang = TMDB_LANG_MAP[lang] || "en-US";
 
@@ -460,7 +460,7 @@ export const dvdPlugin: PluginDefinition = {
       : (data.release_date || "").substring(0, 4);
 
     const duration = mediaType === "tv"
-      ? `${data.number_of_seasons} Saison(s)`
+      ? formatSeasonCount(data.number_of_seasons, lang)
       : `${data.runtime || "?"} min`;
 
     const cover = data.poster_path ? `https://image.tmdb.org/t/p/w500${data.poster_path}` : "";

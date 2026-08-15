@@ -177,3 +177,15 @@ export function parseCsvRecords(text: string, delimiter: string = ','): Record<s
   }
   return records;
 }
+
+/**
+ * Thrown by a plugin's refreshItem when no amount of waiting can make the call succeed:
+ * the item carries no external id, or the API key is not configured. The bulk refresh
+ * skips its retries for these, since the next attempt would fail for the same reason.
+ */
+export class PermanentRefreshError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PermanentRefreshError';
+  }
+}

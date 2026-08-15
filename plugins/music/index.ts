@@ -2,7 +2,7 @@ import { PluginDefinition } from '../../core/types';
 import { DiscogsProvider } from './discogs';
 import { musicImporters } from './importers';
 import { musicApiRoutes } from './apiRoutes';
-import { escapeRegExp, fetchJson } from '../../core/helpers';
+import { escapeRegExp, fetchJson, PermanentRefreshError } from '../../core/helpers';
 import Item from '../../models/Item';
 
 export const musicPlugin: PluginDefinition = {
@@ -508,7 +508,7 @@ export const musicPlugin: PluginDefinition = {
   async refreshItem(item: any, req: any): Promise<Record<string, any>> {
     const discogsId = item.discogs_id || req.body.discogsId;
     if (!discogsId) {
-      throw new Error("Discogs ID missing");
+      throw new PermanentRefreshError("Discogs ID missing");
     }
     const token = process.env.DISCOGS_TOKEN;
     const url = `https://api.discogs.com/releases/${discogsId}?token=${token}`;

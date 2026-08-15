@@ -1,7 +1,7 @@
 import { PluginDefinition } from '../../core/types';
 import { HardcoverProvider } from './hardcover';
 import { booksImporters } from './importers';
-import { escapeRegExp, fetchJson } from '../../core/helpers';
+import { escapeRegExp, fetchJson, PermanentRefreshError } from '../../core/helpers';
 import Item from '../../models/Item';
 
 export const booksPlugin: PluginDefinition = {
@@ -414,7 +414,7 @@ export const booksPlugin: PluginDefinition = {
 
   async refreshItem(item: any, req: any): Promise<Record<string, any>> {
     if (!item.hardcover_slug) {
-      throw new Error('No Hardcover Slug to refresh');
+      throw new PermanentRefreshError('No Hardcover Slug to refresh');
     }
 
     const apiKey = process.env.HARDCOVER_API_KEY;

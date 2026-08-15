@@ -1,6 +1,6 @@
 import { SearchProvider, SearchOptions, SearchResult, ConfirmData } from '../../core/types';
 import { fetchJson } from '../../core/helpers';
-import { TMDB_LANG_MAP } from './constants';
+import { TMDB_LANG_MAP, formatSeasonCount } from './constants';
 
 export class TMDBProvider implements SearchProvider {
   name = 'TMDB';
@@ -72,7 +72,7 @@ export class TMDBProvider implements SearchProvider {
       : (data.release_date || "").substring(0, 4);
 
     const duration = mediaType === "tv"
-      ? `${data.number_of_seasons} Saison(s)`
+      ? formatSeasonCount(data.number_of_seasons, lang)
       : `${data.runtime || "?"} min`;
 
     return {

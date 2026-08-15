@@ -1,5 +1,5 @@
 import { PluginDefinition } from '../../core/types';
-import { escapeRegExp } from '../../core/helpers';
+import { escapeRegExp, PermanentRefreshError } from '../../core/helpers';
 import Item from '../../models/Item';
 import { RebrickableProvider } from './rebrickable';
 import { themeBadgeColor } from './constants';
@@ -341,7 +341,7 @@ export const legoPlugin: PluginDefinition = {
 
   async refreshItem(item: any): Promise<Record<string, any>> {
     if (!item.set_num) {
-      throw new Error('No LEGO set number to refresh');
+      throw new PermanentRefreshError('No LEGO set number to refresh');
     }
 
     const details = await rebrickable.getDetails(String(item.set_num), {});

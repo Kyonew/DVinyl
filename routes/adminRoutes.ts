@@ -13,6 +13,7 @@ import PRESETS from "../config/themes";
 import Item from "../models/Item";
 
 import { registry } from "../core/registry.js";
+import { PermanentRefreshError } from "../core/helpers";
 
 const router = express.Router();
 
@@ -1012,6 +1013,9 @@ router.post(
                 `[ERR] Refresh bulk ID for ${plugin.id} (Attempt ${retries}):`,
                 err.message,
               );
+              // Nothing about this item can change between attempts: retrying only
+              // stretches the run by 6 seconds per item for the same failure.
+              if (err instanceof PermanentRefreshError) break;
               await new Promise((r) => setTimeout(r, 2000));
             }
           }
