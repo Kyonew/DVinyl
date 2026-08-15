@@ -30,6 +30,14 @@ export const gamesPlugin: PluginDefinition = {
   imageSearchType: 'game',
   requiredEnvKeys: ['TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET'],
   duplicateCheckFields: ['platform', 'region', 'format'],
+
+  suggestionFields: ['platform'],
+  // On the confirm page IGDB has just told us which platforms this game exists on, so
+  // those come first-hand. Anywhere else the collection's own values are all we have.
+  suggestionsFor(field: string, item: any): string[] {
+    if (field !== 'platform' || !Array.isArray(item?.platforms)) return [];
+    return item.platforms.map((p: any) => (typeof p === 'string' ? p : p?.name)).filter(Boolean);
+  },
   importers: gamesImporters,
   partialsPath: 'plugins/games/partials',
   detailZones: [
@@ -184,17 +192,13 @@ export const gamesPlugin: PluginDefinition = {
     {
       name: 'platform',
       label: 'confirm_game.field_platform',
-      type: 'select',
+      // Free text rather than a select: consoles keep being released, and IGDB knows far
+      // more of them than any list shipped here would. The input suggests the platforms
+      // IGDB lists for this game plus those already used in the collection.
+      type: 'text',
       showIn: ['edit', 'confirm', 'manual'],
       group: 'main',
-      options: [
-        { value: 'PC', label: 'PC' },
-        { value: 'PlayStation 5', label: 'PlayStation 5' },
-        { value: 'PlayStation 4', label: 'PlayStation 4' },
-        { value: 'Xbox Series X/S', label: 'Xbox Series X/S' },
-        { value: 'Nintendo Switch', label: 'Nintendo Switch' },
-        { value: 'other', label: 'other' }
-      ]
+      placeholder: 'confirm_game.field_platform'
     },
     {
       name: 'region',

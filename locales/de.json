@@ -1105,6 +1105,7 @@
     "customize": "Anpassen",
     "customize_hint": "Symbol und Badge-Farben, gelten nur für diese Sammlung.",
     "format_colors": "Badge-Farben",
+    "sort_formats": "Formate alphabetisch sortieren",
     "card_fields": "Felder der Karte",
     "card_fields_hint": "Werden in allen Rastern unter dem Cover angezeigt, in der Reihenfolge des Plugins. Maximal {{count}}.",
     "default_color": "Standardfarbe",

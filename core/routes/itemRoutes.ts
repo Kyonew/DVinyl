@@ -7,6 +7,7 @@ import { requireAuth, requireCollectionRole } from '../../middleware/authMiddlew
 import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle } from '../helpers';
 import { DEFAULT_PLACEHOLDER_IMAGE } from '../placeholderImage';
 import { getExtraFields, toFieldDefinitions } from '../pluginExtraFields';
+import { buildFieldSuggestions } from '../fieldSuggestions';
 
 export function createItemRoutes(plugin: PluginDefinition): Router {
   const router = express.Router();
@@ -101,7 +102,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           details.barcode = String(req.query.barcode);
         }
 
-        const locations = await Item.distinct('location', { collection: activeCollectionId, location: { $ne: "" } });
+        const suggestions = await buildFieldSuggestions(plugin, activeCollectionId, details);
         const genres = await Item.distinct('genre', {
           collection: activeCollectionId,
           genre: { $ne: "" },
@@ -119,7 +120,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         res.render('confirm', {
           item: details,
           user: res.locals.user,
-          locations,
+          suggestions,
           genres,
           currentType: plugin.collectionType,
           existingItems: existingItemsArray,
@@ -167,7 +168,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         const defaults = plugin.getManualDefaults!();
         const activeCollectionId = res.locals.activeCollectionId;
 
-        const locations = await Item.distinct('location', { collection: activeCollectionId, location: { $ne: "" } });
+        const suggestions = await buildFieldSuggestions(plugin, activeCollectionId, defaults);
         const genres = await Item.distinct('genre', {
           collection: activeCollectionId,
           genre: { $ne: "" },
@@ -177,7 +178,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         res.render('confirm', {
           item: defaults,
           user: res.locals.user,
-          locations,
+          suggestions,
           genres,
           currentType: plugin.collectionType,
           existingItems: [],
@@ -395,7 +396,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         return res.status(404).send(req.t('errors.not_found'));
       }
 
-      const locations = await Item.distinct('location', { collection: activeCollectionId, location: { $ne: "" } });
+      const suggestions = await buildFieldSuggestions(plugin, activeCollectionId, item);
       const genres = await Item.distinct('genre', {
         collection: activeCollectionId,
         genre: { $ne: "" },
@@ -405,7 +406,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       res.render('edit', {
         item: plugin.formatForView(item),
         plugin,
-        locations,
+        suggestions,
         genres,
         user: res.locals.user
       });

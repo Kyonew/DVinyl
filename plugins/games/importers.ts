@@ -11,8 +11,8 @@ import {
 /**
  * Libib has no platform column for video games: the console is only ever mentioned in
  * the title ("It Takes Two SWITCH | ... | Nintendo Switch") or dumped in the creators
- * column. Patterns are ordered most-specific first, and only resolve to the values
- * offered by the plugin's platform select so the edit form stays consistent.
+ * column. Patterns are ordered most-specific first, and spell the console the way IGDB
+ * does, so an imported row and a searched one agree on the same wording.
  */
 const PLATFORM_PATTERNS: { pattern: RegExp; platform: string }[] = [
   { pattern: /\b(nintendo switch|switch)\b/i, platform: 'Nintendo Switch' },
@@ -118,14 +118,9 @@ export const gamesImporters: PluginImporter[] = [
         },
         [
           {
-            name: 'default_platform', label: 'admin.libib.default_platform', type: 'select', default: 'other', hint: 'admin.libib.default_platform_hint', options: [
-              { value: 'other', label: 'other' },
-              { value: 'PC', label: 'PC' },
-              { value: 'PlayStation 5', label: 'PlayStation 5' },
-              { value: 'PlayStation 4', label: 'PlayStation 4' },
-              { value: 'Xbox Series X/S', label: 'Xbox Series X/S' },
-              { value: 'Nintendo Switch', label: 'Nintendo Switch' }
-            ]
+            // Free text for the same reason the plugin's own platform field is: a list
+            // shipped here cannot keep up with the consoles that exist.
+            name: 'default_platform', label: 'admin.libib.default_platform', type: 'text', default: 'other', hint: 'admin.libib.default_platform_hint'
           }
         ]
       ),

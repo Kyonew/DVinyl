@@ -2,6 +2,7 @@ import express from 'express';
 import { registry } from '../registry';
 import Item from '../../models/Item';
 import { requireAuth, requireCollectionRole } from '../../middleware/authMiddleware';
+import { buildFieldSuggestions } from '../fieldSuggestions';
 
 const router = express.Router();
 
@@ -25,7 +26,7 @@ router.get('/manual-add', requireAuth, requireCollectionRole('editor'), async (r
     const defaults = selectedPlugin.getManualDefaults!();
     const activeCollectionId = res.locals.activeCollectionId;
 
-    const locations = await Item.distinct('location', { collection: activeCollectionId, location: { $ne: "" } });
+    const suggestions = await buildFieldSuggestions(selectedPlugin, activeCollectionId, defaults);
     const genres = await Item.distinct('genre', {
       collection: activeCollectionId,
       genre: { $ne: "" },
@@ -39,7 +40,7 @@ router.get('/manual-add', requireAuth, requireCollectionRole('editor'), async (r
       defaults,
       item: defaults,
       isManual: true,
-      locations,
+      suggestions,
       genres,
       baseUrl: res.locals.baseUrl || '',
       user: res.locals.user

@@ -20,14 +20,22 @@ export interface PluginCosmetics {
   // Fields shown under the cover on cards; overrides the plugin's defaultCardFields.
   // An empty array is a deliberate "title only", so presence is what matters here.
   cardFields?: string[];
+  // Formats listed alphabetically rather than in the order the plugin declares them.
+  // Off by default: a native plugin's order carries meaning that sorting would lose.
+  sortFormats?: boolean;
 }
 
 export type PluginCustomizationMap = Record<string, PluginCosmetics>;
 
-export function decoratePlugin(plugin: PluginDefinition, map: PluginCustomizationMap, settings?: any): PluginDefinition {
+export function decoratePlugin(
+  plugin: PluginDefinition,
+  map: PluginCustomizationMap,
+  settings?: any,
+  t?: (key: string, opts?: any) => string
+): PluginDefinition {
   const cosmetics = map?.[plugin.id];
   const extraDefs = settings ? getExtraFields(settings, plugin.id) : [];
-  const hasCosmetics = !!cosmetics && (!!cosmetics.icon || !!cosmetics.formatColors || !!cosmetics.cardFields);
+  const hasCosmetics = !!cosmetics && (!!cosmetics.icon || !!cosmetics.formatColors || !!cosmetics.cardFields || !!cosmetics.sortFormats);
   if (!hasCosmetics && extraDefs.length === 0) return plugin;
 
   const clone: any = { ...plugin };
@@ -47,10 +55,26 @@ export function decoratePlugin(plugin: PluginDefinition, map: PluginCustomizatio
   if (cosmetics?.cardFields) {
     clone.defaultCardFields = cosmetics.cardFields;
   }
+  if (cosmetics?.sortFormats) {
+    // Sorted on what the reader sees, not on the raw label: a native plugin's labels are
+    // translation keys, so ordering those would follow the key rather than the language.
+    const shown = (label: string) => (t ? t(label, { defaultValue: label }) : label);
+    const byLabel = (a: any, b: any) => shown(a.label).localeCompare(shown(b.label));
+    clone.formats = [...(clone.formats || [])].sort(byLabel);
+    // The form's own format select, whose options were built from the same list. Its
+    // leading blank entry stays put: it is not a format, it is the absence of one.
+    clone.formFields = (clone.formFields || []).map((f: any) => {
+      if (f.name !== 'format' || !Array.isArray(f.options)) return f;
+      const blanks = f.options.filter((o: any) => o.value === '');
+      const rest = f.options.filter((o: any) => o.value !== '').sort(byLabel);
+      return { ...f, options: [...blanks, ...rest] };
+    });
+  }
   if (extraDefs.length > 0) {
     // Appended, so user-defined fields land at the end of their own group and the
-    // plugin's own field order is untouched.
-    clone.formFields = [...(plugin.formFields || []), ...toFieldDefinitions(extraDefs)];
+    // plugin's own field order is untouched. Reads the clone, not the plugin, so it
+    // keeps whatever the blocks above already rewrote.
+    clone.formFields = [...(clone.formFields || []), ...toFieldDefinitions(extraDefs)];
   }
   return clone as PluginDefinition;
 }
@@ -58,7 +82,8 @@ export function decoratePlugin(plugin: PluginDefinition, map: PluginCustomizatio
 export function applyPluginCustomization(res: any): void {
   const settings = res.locals.settings;
   const map: PluginCustomizationMap = settings?.pluginCustomization || {};
-  const decorate = (p: PluginDefinition | undefined) => (p ? decoratePlugin(p, map, settings) : p);
+  const t = res.locals.t;
+  const decorate = (p: PluginDefinition | undefined) => (p ? decoratePlugin(p, map, settings, t) : p);
 
   res.locals.registry = {
     getAll: () => registry.getAll().map(p => decorate(p)),

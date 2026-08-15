@@ -163,6 +163,12 @@ export interface PluginDefinition {
   // (e.g. books keep `isbn` and `barcode` in sync). Runs for both create and edit.
   normalizeForSave?(data: Record<string, any>): void;
 
+  // Text fields whose input suggests values instead of constraining them. The collection's
+  // existing values are always offered; `suggestionsFor` adds what the plugin knows about
+  // the item at hand. See core/fieldSuggestions.ts.
+  suggestionFields?: string[];
+  suggestionsFor?(field: string, item: any): string[];
+
   partialsPath?: string;
 
   detailZones?: DetailZone[];

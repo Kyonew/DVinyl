@@ -29,7 +29,7 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <% customizablePlugins.filter(p => !p.isCustom).forEach(p => {
                 const displayIcon = p.current.icon || ('fa-' + p.icon);
-                const isCustomized = !!(p.current.icon || p.current.formatColors); %>
+                const isCustomized = !!(p.current.icon || p.current.formatColors || p.current.sortFormats); %>
                 <div class="flex items-center gap-4 bg-black/5 dark:bg-white/5 rounded-2xl p-4 <%= p.enabled ? '' : 'opacity-50' %>">
                     <div class="w-11 h-11 rounded-xl bg-primary-theme/10 text-primary-theme flex items-center justify-center shrink-0">
                         <i class="fa-solid <%= displayIcon %> text-lg"></i>
@@ -364,6 +364,10 @@
         <div id="czFormatsWrap">
             <label class="block mb-2 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('create_plugin.format_colors') %></label>
             <div id="czFormats" class="space-y-2"></div>
+            <label class="flex items-center gap-2 mt-3 text-xs opacity-70 cursor-pointer">
+                <input type="checkbox" id="czSortFormats" class="rounded border-black/20 dark:border-white/20">
+                <%= t('create_plugin.sort_formats') %>
+            </label>
         </div>
 
         <div id="czCardFieldsWrap">
@@ -1062,6 +1066,7 @@
         const wrap = $('czFormats');
         wrap.innerHTML = '';
         $('czFormatsWrap').classList.toggle('hidden', data.formats.length === 0);
+        $('czSortFormats').checked = !!(data.current && data.current.sortFormats);
         data.formats.forEach(f => {
             const row = document.createElement('div');
             row.className = 'flex items-center gap-3';
@@ -1108,12 +1113,13 @@
 
     window.saveCustomize = async function (reset) {
         if (!czPluginId) return;
-        const body = { icon: '', formatColors: {} };
+        const body = { icon: '', formatColors: {}, sortFormats: false };
         if (!reset) {
             body.icon = czIcon;
             document.querySelectorAll('.cz-color').forEach(sel => {
                 if (sel.value) body.formatColors[sel.dataset.format] = sel.value;
             });
+            body.sortFormats = $('czSortFormats').checked;
             // Always sent, so unchecking everything is honoured as "title only" instead
             // of falling back to the plugin's own fields
             body.cardFields = Array.from(document.querySelectorAll('.cz-card-field'))

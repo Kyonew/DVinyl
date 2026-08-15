@@ -1,5 +1,12 @@
 <% const isBarcodeField = field.name === 'barcode'; %>
-<% const withLocationList = field.name === 'location' && typeof locations !== 'undefined' && Array.isArray(locations) && locations.length > 0; %>
+<%
+    // Values already known for this field, offered without constraining the input. The
+    // route builds them per field name, so nothing here knows which fields have any.
+    const fieldSuggestions = (typeof suggestions !== 'undefined' && suggestions && Array.isArray(suggestions[field.name]))
+        ? suggestions[field.name]
+        : [];
+    const listId = `suggest-${field.name}`;
+%>
 <label class="block mb-2 text-sm font-bold uppercase tracking-widest opacity-60 <%= (isBarcodeField && locals.isEdit) ? 'flex items-center gap-2' : '' %>">
     <%= t(field.label) %>
     <% if (isBarcodeField && locals.isEdit) { %>
@@ -10,11 +17,11 @@
         </label>
     <% } %>
 </label>
-<input type="text" name="<%= field.name %>" value="<%= value || '' %>" <%= field.required ? 'required' : '' %> <%- withLocationList ? 'list="locationList"' : '' %> class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme block w-full p-3 outline-none <%= isBarcodeField ? 'font-mono' : '' %>" placeholder="<%= field.placeholder ? t(field.placeholder) : '' %>">
-<% if (withLocationList) { %>
-    <datalist id="locationList">
-        <% locations.forEach(loc => { %>
-            <option value="<%= loc %>">
+<input type="text" name="<%= field.name %>" value="<%= value || '' %>" <%= field.required ? 'required' : '' %> <%- fieldSuggestions.length > 0 ? `list="${listId}"` : '' %> class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme block w-full p-3 outline-none <%= isBarcodeField ? 'font-mono' : '' %>" placeholder="<%= field.placeholder ? t(field.placeholder) : '' %>">
+<% if (fieldSuggestions.length > 0) { %>
+    <datalist id="<%= listId %>">
+        <% fieldSuggestions.forEach(suggestion => { %>
+            <option value="<%= suggestion %>">
         <% }) %>
     </datalist>
 <% } %>

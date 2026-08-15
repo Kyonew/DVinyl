@@ -2,11 +2,8 @@
 <select name="<%= field.name %>" class="w-full bg-black/5 dark:bg-white/5 border border-transparent rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-primary-theme outline-none transition-all cursor-pointer">
   <%
     let finalOptions = field.options || [];
-    if (field.name === 'platform' && typeof item !== 'undefined' && item && Array.isArray(item.platforms)) {
-      finalOptions = item.platforms.map(p => ({ value: p.name || p, label: p.name || p }));
-    }
-    // Preserve a stored value that isn't among the predefined options (e.g. a platform
-    // like "PlayStation 3" coming from an external API) so editing doesn't silently reset it.
+    // Preserve a stored value that isn't among the predefined options (e.g. a value an
+    // external API introduced since) so editing doesn't silently reset it.
     const valStr = (value === undefined || value === null) ? '' : String(value);
     if (valStr && !finalOptions.some(o => String(o.value) === valStr)) {
       finalOptions = [{ value: valStr, label: valStr }, ...finalOptions];

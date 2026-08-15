@@ -1105,6 +1105,7 @@
     "customize": "Personalizar",
     "customize_hint": "Icono y colores de las insignias, aplicados solo a esta colección.",
     "format_colors": "Colores de las insignias",
+    "sort_formats": "Ordenar los formatos alfabéticamente",
     "card_fields": "Campos de la tarjeta",
     "card_fields_hint": "Se muestran bajo la portada en todas las cuadrículas, en el orden que declara el plugin. Máximo {{count}}.",
     "default_color": "Color por defecto",

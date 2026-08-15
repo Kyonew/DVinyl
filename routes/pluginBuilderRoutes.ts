@@ -131,6 +131,8 @@ router.post('/customize/:pluginId', async (req: any, res: any) => {
     }
     if (Object.keys(formatColors).length > 0) cosmetics.formatColors = formatColors;
 
+    if (req.body.sortFormats === true || req.body.sortFormats === 'true') cosmetics.sortFormats = true;
+
     // Card fields. Reordered to the plugin's own field order (the modal is a selection,
     // not a ranking) and capped, so a crafted payload cannot overflow the card.
     if (Array.isArray(req.body.cardFields)) {
@@ -157,7 +159,7 @@ router.post('/customize/:pluginId', async (req: any, res: any) => {
     const cosmeticsPath = `pluginCustomization.${plugin.id}`;
     const $set: any = {};
     const $unset: any = {};
-    if (cosmetics.icon || cosmetics.formatColors || cosmetics.cardFields) $set[cosmeticsPath] = cosmetics;
+    if (cosmetics.icon || cosmetics.formatColors || cosmetics.cardFields || cosmetics.sortFormats) $set[cosmeticsPath] = cosmetics;
     else $unset[cosmeticsPath] = '';
     if (extraUpdate?.set) Object.assign($set, extraUpdate.set);
     if (extraUpdate?.unset) $unset[extraUpdate.unset] = '';
