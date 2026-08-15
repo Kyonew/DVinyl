@@ -688,6 +688,7 @@
     "welcome": "Bentornato",
     "or_divider": "OPPURE",
     "sso_button": "Accedi con SSO",
+    "local_disabled": "Questa istanza accetta solo l'accesso Single Sign-On.",
     "error_oidc_unlinked": "Nessun account è collegato a questa identità SSO. Accedi prima con la tua password, poi collega il tuo account dalle Impostazioni.",
     "error_oidc_forbidden": "Il tuo account non è autorizzato ad accedere a questa istanza.",
     "error_oidc_unavailable": "L'accesso SSO non è al momento disponibile. Riprova oppure usa la tua password."

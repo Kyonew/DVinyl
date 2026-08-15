@@ -688,6 +688,7 @@
     "welcome": "Bienvenido de nuevo",
     "or_divider": "O",
     "sso_button": "Iniciar sesión con SSO",
+    "local_disabled": "Esta instancia solo acepta el inicio de sesión único.",
     "error_oidc_unlinked": "Ninguna cuenta está vinculada a esta identidad SSO. Inicia sesión primero con tu contraseña y luego vincula tu cuenta desde Ajustes.",
     "error_oidc_forbidden": "Tu cuenta no tiene permiso para acceder a esta instancia.",
     "error_oidc_unavailable": "El inicio de sesión SSO no está disponible en este momento. Inténtalo de nuevo o usa tu contraseña."

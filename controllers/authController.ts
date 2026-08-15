@@ -1,6 +1,7 @@
 import User from '../models/User';
 import jwt from 'jsonwebtoken';
 import LoginLog from '../models/LoginLog';
+import { isLocalLoginDisabled } from '../config/oidc';
 
 /**
  * Retrieve the client IP address from request headers or socket details.
@@ -87,9 +88,14 @@ export const handleErrors = (err: any) => {
 
 /**
  * GET /login
- * Render the login page.
+ * Render the login page, or hand the visitor straight to the identity provider
+ * when the instance has no local sign-in. An OIDC error is still shown here, so
+ * a failed SSO round-trip reports what happened instead of bouncing forever.
  */
 export const login_get = (req: any, res: any) => {
+  if (isLocalLoginDisabled() && !req.query.error) {
+    return res.redirect(`${res.locals.baseUrl || ''}/login/oidc`);
+  }
   res.render('login', { oidcError: req.query.error || null });
 };
 
@@ -135,6 +141,11 @@ export const issueSession = async (req: any, res: any, user: any) => {
  * and logs each attempt (success or failure) with geolocation information.
  */
 export const login_post = async (req: any, res: any) => {
+  // Refused server-side too: hiding the form is presentation, this is the rule.
+  if (isLocalLoginDisabled()) {
+    return res.status(403).json({ errors: { login: req.t('login.local_disabled') } });
+  }
+
   const { email, password } = req.body;
   const now = Date.now();
 

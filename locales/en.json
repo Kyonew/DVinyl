@@ -723,6 +723,7 @@
     "submit_btn": "Sign In",
     "or_divider": "OR",
     "sso_button": "Sign in with SSO",
+    "local_disabled": "This instance only accepts single sign-on.",
     "error_oidc_unlinked": "No account is linked to this SSO identity. Sign in with your password first, then link your account from Settings.",
     "error_oidc_forbidden": "Your account is not allowed to access this instance.",
     "error_oidc_unavailable": "SSO sign-in is currently unavailable. Please try again or use your password."

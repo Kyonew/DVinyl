@@ -723,6 +723,7 @@
     "submit_btn": "Se connecter",
     "or_divider": "OU",
     "sso_button": "Se connecter via SSO",
+    "local_disabled": "Cette instance n'accepte que l'authentification unique.",
     "error_oidc_unlinked": "Aucun compte n'est lié à cette identité SSO. Connectez-vous d'abord avec votre mot de passe, puis liez votre compte depuis les paramètres.",
     "error_oidc_forbidden": "Votre compte n'est pas autorisé à accéder à cette instance.",
     "error_oidc_unavailable": "La connexion SSO est momentanément indisponible. Réessayez ou utilisez votre mot de passe."

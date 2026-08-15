@@ -17,6 +17,20 @@ export const getOidcRedirectUri = (): string => {
     return process.env.OIDC_REDIRECT_URI as string;
 };
 
+/**
+ * When enabled, the password form is gone: /login goes straight to the identity
+ * provider and a local sign-in is refused. Meant for instances where SSO is the
+ * only intended way in, and where seeing a password form only makes users try
+ * credentials the instance will never accept.
+ *
+ * Deliberately gated on isOidcEnabled(): a typo in the OIDC_* variables must not
+ * remove the password form and leave the instance with no way in at all. Recovery
+ * from a failing provider is to unset OIDC_DISABLE_LOCAL_LOGIN and restart.
+ */
+export const isLocalLoginDisabled = (): boolean => {
+    return isOidcEnabled() && process.env.OIDC_DISABLE_LOCAL_LOGIN === 'true';
+};
+
 export const getOidcButtonLabel = (): string | undefined => {
     return process.env.OIDC_BUTTON_LABEL;
 };

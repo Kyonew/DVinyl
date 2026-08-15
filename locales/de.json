@@ -688,6 +688,7 @@
     "welcome": "Willkommen zurück",
     "or_divider": "ODER",
     "sso_button": "Mit SSO anmelden",
+    "local_disabled": "Diese Instanz akzeptiert nur Single Sign-On.",
     "error_oidc_unlinked": "Diesem SSO-Konto ist kein Benutzerkonto zugeordnet. Melden Sie sich zunächst mit Ihrem Passwort an und verknüpfen Sie Ihr Konto dann in den Einstellungen.",
     "error_oidc_forbidden": "Ihr Konto ist nicht berechtigt, auf diese Instanz zuzugreifen.",
     "error_oidc_unavailable": "Die SSO-Anmeldung ist derzeit nicht verfügbar. Versuchen Sie es erneut oder verwenden Sie Ihr Passwort."

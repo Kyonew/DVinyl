@@ -45,6 +45,7 @@
           </div>
         <% } %>
 
+        <% if (!locals.localLoginDisabled) { %>
         <form action="<%= baseUrl %>/login" class="space-y-6">
           <div class="grid gap-4">
             <div>
@@ -89,13 +90,16 @@
             <%= t('login.submit_btn') %>
           </button>
         </form>
+        <% } %>
 
         <% if (oidcEnabled) { %>
-          <div class="flex items-center gap-3 my-6">
-            <div class="flex-grow border-t border-gray-700"></div>
-            <span class="text-xs text-gray-400 uppercase"><%= t('login.or_divider') %></span>
-            <div class="flex-grow border-t border-gray-700"></div>
-          </div>
+          <% if (!locals.localLoginDisabled) { %>
+            <div class="flex items-center gap-3 my-6">
+              <div class="flex-grow border-t border-gray-700"></div>
+              <span class="text-xs text-gray-400 uppercase"><%= t('login.or_divider') %></span>
+              <div class="flex-grow border-t border-gray-700"></div>
+            </div>
+          <% } %>
 
           <a
             href="<%= baseUrl %>/login/oidc"
@@ -125,6 +129,9 @@
   </footer>
 
   <script>
+  // Nothing below applies when SSO is the only way in: the page is then a single
+  // provider button, and every element this script reaches for is absent.
+  <% if (!locals.localLoginDisabled) { %>
 
     const form = document.querySelector('form');
     const emailInput = form.email;
@@ -180,6 +187,7 @@
       }
     });
 
+  <% } %>
   </script>
 </body>
 </html>

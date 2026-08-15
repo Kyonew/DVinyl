@@ -14,7 +14,7 @@ import settingsMiddleware from './middleware/settingsMiddleware.js';
 import collectionMiddleware from './middleware/collectionMiddleware.js';
 import themesConfig from './config/themes.js';
 import { BASE_URL, SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE, normalizeLanguage, dateLocaleFor } from './config/constants.js';
-import { isOidcEnabled, getOidcButtonLabel } from './config/oidc.js';
+import { isOidcEnabled, getOidcButtonLabel, isLocalLoginDisabled } from './config/oidc.js';
 import { connectDB } from './config/db.js';
 import { migrateDatabase } from './utils/migrate.js';
 
@@ -151,6 +151,7 @@ app.use(async (req: any, res, next) => {
   res.locals.baseUrl = BASE_URL;
   res.locals.oidcEnabled = isOidcEnabled();
   res.locals.oidcButtonLabel = getOidcButtonLabel();
+  res.locals.localLoginDisabled = isLocalLoginDisabled();
   req.io = io;
   next();
 });
