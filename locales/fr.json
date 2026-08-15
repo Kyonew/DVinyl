@@ -689,7 +689,7 @@
   "wishlist": {
     "title": "Liste de Souhaits",
     "empty_msg": "Ta liste de souhaits est vide.",
-    "search_link": "Chercher un album",
+    "search_link": "Ajouter un premier élément",
     "btn_received": "Je l'ai reçu !",
     "confirm_move": "Super ! Tu veux ajouter cet album à ta collection officielle ?"
   },

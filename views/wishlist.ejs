@@ -9,6 +9,11 @@
                     .filter(a => a.behavior === 'importer-sync' && (!a.requiresUserData || bucket[a.requiresUserData]));
               })
             : [];
+
+        // The wishlist mixes every type, so there is no current module to add to: the add
+        // hub asks. It also carries the fast-add shortcut, so the entry points here behave
+        // exactly like the dashboard one.
+        const canAdd = locals.canEditCollection && registry.getEnabled(settings).length > 0;
     %>
 
     <div class="max-w-screen-xl mx-auto px-1 md:px-0 pb-12">
@@ -29,14 +34,29 @@
                 </span>
             </h1>
 
-            <% wishlistActions.forEach(action => { %>
-                <button type="button" data-action-id="<%= action.id %>"
-                    onclick="runImporterSync('<%= action.importerId %>', '<%= action.id %>')"
-                    class="flex-shrink-0 w-10 h-10 md:w-auto md:h-auto md:p-2.5 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center active:scale-95 group"
-                    title="<%= t(action.tooltip || action.label) %>">
-                    <i class="fa-solid <%= action.icon %> group-hover:rotate-180 transition-transform duration-500"></i>
-                </button>
-                <% }) %>
+            <div class="flex gap-2">
+
+                <% if (canAdd) { %>
+                    <button type="button" onclick="toggleAddModal()"
+                        class="flex-shrink-0 w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center gap-2 group"
+                        title="<%= t('collection.add') %>">
+                        <i class="fa-solid fa-plus group-hover:scale-110 transition-transform"></i>
+                        <span class="hidden md:inline text-xs font-bold uppercase tracking-widest">
+                            <%= t('collection.add') %>
+                        </span>
+                    </button>
+                    <% } %>
+
+                        <% wishlistActions.forEach(action => { %>
+                            <button type="button" data-action-id="<%= action.id %>"
+                                onclick="runImporterSync('<%= action.importerId %>', '<%= action.id %>')"
+                                class="flex-shrink-0 w-10 h-10 md:w-auto md:h-auto md:p-2.5 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center active:scale-95 group"
+                                title="<%= t(action.tooltip || action.label) %>">
+                                <i class="fa-solid <%= action.icon %> group-hover:rotate-180 transition-transform duration-500"></i>
+                            </button>
+                            <% }) %>
+
+            </div>
 
         </div>
 
@@ -47,10 +67,12 @@
                 <p class="opacity-60 px-4">
                     <%= t('wishlist.empty_msg') %>
                 </p>
-                <a href="<%= baseUrl %>/add-music"
-                    class="text-primary-theme hover:underline mt-2 inline-block font-medium transition-colors">
-                    <%= t('wishlist.search_link') %>
-                </a>
+                <% if (canAdd) { %>
+                    <button type="button" onclick="toggleAddModal()"
+                        class="text-primary-theme hover:underline mt-2 inline-block font-medium transition-colors">
+                        <%= t('wishlist.search_link') %>
+                    </button>
+                    <% } %>
             </div>
             <% } else { %>
                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
@@ -184,5 +206,7 @@
             background: rgba(255, 255, 255, 0.1);
         }
     </style>
+
+    <%- include('partials/add-hub') %>
 
     <%- include('partials/footer') %>

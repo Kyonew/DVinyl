@@ -1,0 +1,89 @@
+<%
+    /**
+     * Add hub: the module picker every "add" entry point opens.
+     *
+     * The pages own their trigger's layout and call toggleAddModal(); the rule for where
+     * an add actually goes lives here only. That includes the fast-add shortcut, which
+     * skips the picker when the collection has one configured.
+     *
+     * Include it once per page, next to the trigger. Renders nothing for a member who
+     * cannot edit the collection, or when no module is enabled.
+     */
+    const addHubPlugins = registry.getEnabled(settings);
+    const addHubFastRoutes = {};
+    addHubPlugins.forEach(p => (p.fastAddOptions || []).forEach(o => { addHubFastRoutes[o.value] = o.url; }));
+    const addHubFastUrl = settings.fastAdd ? addHubFastRoutes[settings.fastAdd] : null;
+%>
+<% if (locals.canEditCollection && addHubPlugins.length > 0) { %>
+<div id="addHubModal" class="fixed inset-0 z-[100] hidden bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4">
+    <%
+        let activeCount = addHubPlugins.length;
+
+        let gridCols = 'grid-cols-2'; // Default to 2 columns on mobile
+        if (activeCount === 1) gridCols = 'grid-cols-1';
+
+        let desktopGridCols = (activeCount >= 3) ? 'sm:grid-cols-3' : (activeCount === 2) ? 'sm:grid-cols-2' : 'sm:grid-cols-1';
+        if (activeCount === 4) desktopGridCols = 'sm:grid-cols-2 lg:grid-cols-4';
+
+        let maxWidth = (activeCount === 1) ? 'max-w-md' : (activeCount === 2) ? 'max-w-xl' : (activeCount === 4) ? 'max-w-4xl' : 'max-w-3xl';
+    %>
+
+    <div class="card-theme w-full <%= maxWidth %> rounded-t-[2.5rem] sm:rounded-[2.5rem] p-6 sm:p-10 shadow-2xl relative animate-in slide-in-from-bottom sm:zoom-in duration-300">
+
+        <div class="w-12 h-1.5 bg-black/10 dark:bg-white/10 rounded-full mx-auto mb-6 sm:hidden"></div>
+
+        <button onclick="toggleAddModal()" class="absolute top-6 right-6 opacity-40 hover:opacity-100 transition-opacity hidden sm:block">
+            <i class="fa-solid fa-xmark text-2xl"></i>
+        </button>
+
+        <div class="text-center mb-8 sm:mb-12">
+            <h2 class="text-2xl sm:text-3xl font-black tracking-tight"><%= t('modal.add_hub_title') %></h2>
+            <p class="opacity-50 text-xs sm:text-sm mt-1"><%= t('modal.add_hub_subtitle') %></p>
+        </div>
+
+        <div class="grid <%= gridCols %> <%= desktopGridCols %> gap-3 sm:gap-6">
+
+            <% addHubPlugins.forEach(p => { %>
+                <a href="<%= baseUrl %>/<%= p.searchProvider ? ('add-' + p.id) : ('manual-add?type=' + p.id) %>" class="group flex flex-col items-center justify-center p-5 sm:p-8 rounded-[1.5rem] sm:rounded-[2rem] bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white transition-all duration-300">
+                    <div class="w-12 h-12 sm:w-20 sm:h-20 rounded-full bg-primary-theme/10 group-hover:bg-white/20 flex items-center justify-center mb-3 sm:mb-4">
+                        <i class="fa-solid fa-<%= p.icon %> text-xl sm:text-4xl"></i>
+                    </div>
+                    <span class="font-black text-[10px] sm:text-xs uppercase tracking-widest text-center"><%= t(p.label) %></span>
+                </a>
+            <% }) %>
+
+        </div>
+
+        <button onclick="toggleAddModal()" class="w-full mt-8 py-4 bg-black/5 dark:bg-white/5 rounded-2xl font-bold text-sm sm:hidden opacity-60">
+            <%= t('common.cancel') %>
+        </button>
+    </div>
+</div>
+
+<script>
+    const addHubFastUrl = <%- JSON.stringify(addHubFastUrl ? baseUrl + addHubFastUrl : null) %>;
+
+    function toggleAddModal() {
+        // A configured fast add has already answered the question the picker asks.
+        if (addHubFastUrl) {
+            window.location.href = addHubFastUrl;
+            return;
+        }
+        const modal = document.getElementById('addHubModal');
+        modal.classList.toggle('hidden');
+    }
+
+    document.getElementById('addHubModal').addEventListener('click', function(e) {
+        if (e.target === this) toggleAddModal();
+    });
+
+    // A trigger marked as such shows the shortcut icon, but only once the fast add has
+    // actually resolved: a module disabled after the fact leaves the setting behind.
+    if (addHubFastUrl) {
+        document.querySelectorAll('[data-add-hub-icon]').forEach(function (icon) {
+            icon.classList.remove('fa-plus-circle', 'fa-plus');
+            icon.classList.add('fa-bolt');
+        });
+    }
+</script>
+<% } %>

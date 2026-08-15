@@ -689,7 +689,7 @@
   "wishlist": {
     "title": "My Wishlist",
     "empty_msg": "Your wishlist is empty.",
-    "search_link": "Search for an album",
+    "search_link": "Add your first item",
     "btn_received": "I received it!",
     "confirm_move": "Great! Do you want to move this album to your official collection?"
   },
