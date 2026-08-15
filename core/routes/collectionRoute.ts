@@ -269,9 +269,13 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
       .lean();
 
     // DYNAMIC FILTER MAP FROM REGISTRY
+    // Read off the decorated registry, not the bare one: the collection's own
+    // customization lives there, and the format order it may carry has to reach the
+    // filter bar the same way it reaches the form select.
     const filterMap: Record<string, { id: string; label: string }[]> = {};
     for (const plugin of enabledPlugins) {
-      filterMap[plugin.id] = plugin.formats.map(f => ({
+      const customized = res.locals.registry.get(plugin.id) || plugin;
+      filterMap[plugin.id] = customized.formats.map((f: any) => ({
         id: f.value,
         label: req.t(f.label)
       }));
