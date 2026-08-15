@@ -558,6 +558,7 @@
   },
   "detail": {
     "added_at": "Agregado en",
+    "added_by": "Añadido por",
     "additional_image": "Imagen adicional",
     "view_fullscreen": "Ver en pantalla completa",
     "close_preview": "Cerrar la vista previa",

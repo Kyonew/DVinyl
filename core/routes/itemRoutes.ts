@@ -429,10 +429,18 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       const formatted = plugin.formatForView(item);
       const variants = await plugin.getVariants(formatted);
 
+      // Who put the item there. Read separately rather than populated, so formatForView
+      // keeps receiving the raw document it expects. A member removed since then leaves
+      // a dangling reference, which simply reads as unknown.
+      const addedBy = item.owner
+        ? await User.findById(item.owner).select('username img').lean() as any
+        : null;
+
       res.render('detail', {
         item: formatted,
         plugin,
         variants: variants.map(v => plugin.formatForView(v)),
+        addedBy: addedBy ? { username: addedBy.username, img: addedBy.img || '/ressources/no-pp.jpg' } : null,
         user: res.locals.user
       });
     } catch (err: any) {

@@ -258,6 +258,18 @@
                         <%= new Date(item.added_at).toLocaleDateString(dateLocale) %>
                     </span>
                 </div>
+                <% if (locals.addedBy) { %>
+                    <div>
+                        <span class="block text-xs opacity-50 uppercase font-bold mb-1">
+                            <%= t('detail.added_by') %>
+                        </span>
+                        <span class="flex items-center gap-2 transition-colors">
+                            <img src="<%= baseUrl + addedBy.img %>" alt=""
+                                class="w-6 h-6 rounded-full object-cover flex-shrink-0">
+                            <span class="truncate"><%= addedBy.username %></span>
+                        </span>
+                    </div>
+                <% } %>
                 <!-- External "source" link, declared by the plugin -->
                 <% const extLink = plugin.externalLink ? plugin.externalLink(item) : null; %>
                 <% if (extLink) { %>

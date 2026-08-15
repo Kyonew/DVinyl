@@ -64,7 +64,18 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
     }
 
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
-    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string) || 25));
+    // Remembered per browser like the sort above, rather than stored on the collection:
+    // how many items fit on a screen is a property of who is looking, not of what is
+    // shared between members. Clamped before it is stored, so a crafted value cannot
+    // come back from the cookie on every later request.
+    const clampLimit = (value: any) => Math.min(200, Math.max(1, parseInt(value) || 25));
+    let limit;
+    if (req.query.limit) {
+      limit = clampLimit(req.query.limit);
+      res.cookie('limitPref', String(limit), { maxAge: 365 * 24 * 60 * 60 * 1000 });
+    } else {
+      limit = clampLimit(req.cookies.limitPref);
+    }
 
     let query: any = { collection: activeCollectionId, in_wishlist: false };
     // Two separate buckets. `conditions` holds the user's criteria, which filterMode
