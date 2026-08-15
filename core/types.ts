@@ -55,7 +55,7 @@ export interface PluginDefinition {
   cardFieldStyles?: Record<string, 'text' | 'pill' | 'dot'>;
 
   // Rewrites a field's card value (e.g. trimming redundant words). Returning null or
-  // undefined leaves the generic reading in place.
+  // undefined leaves the generic reading in place; an empty string drops the line.
   cardFieldValue?(name: string, item: any): string | null | undefined;
 
   schemaDefinition: mongoose.SchemaDefinition;

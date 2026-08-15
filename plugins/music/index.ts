@@ -109,7 +109,9 @@ export const musicPlugin: PluginDefinition = {
       .map((s: string) => s.trim())
       .filter((s: string) => !noise.includes(s.toLowerCase()))
       .join(', ');
-    return kept || String(item.format_type);
+    // Nothing left means the value said no more than the badge above it, which is what a
+    // hand-added record with the plain "Vinyl" default looks like. The line is dropped.
+    return kept;
   },
 
   schemaDefinition: {

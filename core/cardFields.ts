@@ -94,8 +94,9 @@ export function getCardLines(
       label: field?.label || name,
       value,
       // The creator reads naturally on its own, and the decorated styles are too
-      // small to carry a label
-      showLabel: style === 'text' && name !== plugin.creatorField,
+      // small to carry a label. A true boolean already renders as its own label,
+      // so keeping it here would print the name twice.
+      showLabel: style === 'text' && name !== plugin.creatorField && field?.type !== 'boolean',
       style
     });
   }
