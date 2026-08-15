@@ -42,8 +42,16 @@ export const RESERVED_FIELD_NAMES = new Set([
   '_id', 'kind', 'owner', 'collection', 'title', 'year', 'cover_image', 'user_image',
   'in_wishlist', 'comments', 'location', 'quantity', 'genre', 'genres', 'styles',
   'barcode', 'barcode_locked', 'added_at', 'updated_at', 'creator', 'format',
-  'tracklist', 'user_rating', 'mongo_id', 'extra'
+  'tracklist', 'user_rating', 'mongo_id', 'extra', 'description'
 ]);
+
+// Upper bounds on what a builder form may declare. Every field becomes a real Mongoose
+// path and the config is written and hot-registered, so an unbounded one is hard to walk
+// back. They are a guard against a malformed request, not a design rule: set far past
+// what a collection can plausibly need, and going over is reported rather than trimmed.
+export const MAX_FIELDS = 50;
+export const MAX_FIELD_OPTIONS = 100;
+export const MAX_FORMATS = 50;
 
 const ID_RE = /^[a-z][a-z0-9-]{1,29}$/;
 export const FIELD_NAME_RE = /^[a-z][a-z0-9_]{0,29}$/;
@@ -134,12 +142,18 @@ export function buildConfigFromSubmission(body: any, existing?: CustomPluginConf
 
   const fields: CustomFieldConfig[] = [];
   const seenNames = new Set<string>();
-  for (const raw of Array.isArray(body.fields) ? body.fields.slice(0, 15) : []) {
+  // A field keeps its original name once created, so a name that became reserved after
+  // the fact stays accepted on the plugin that already carries it. Without this, adding
+  // to the list below would make those plugins impossible to save at all.
+  const grandfathered = new Set((existing?.fields || []).map(f => f.name));
+  const rawFields = Array.isArray(body.fields) ? body.fields : [];
+  if (rawFields.length > MAX_FIELDS) errors.push('create_plugin.err_too_many_fields');
+  for (const raw of rawFields.slice(0, MAX_FIELDS)) {
     const fieldLabel = cleanText(raw?.label, 40);
     if (!fieldLabel) continue; // ignore empty builder rows
     const name = FIELD_NAME_RE.test(cleanText(raw?.name, 30)) ? cleanText(raw.name, 30) : slugify(fieldLabel).replace(/-/g, '_');
     if (!FIELD_NAME_RE.test(name)) { errors.push('create_plugin.err_bad_field_name'); continue; }
-    if (RESERVED_FIELD_NAMES.has(name)) { errors.push('create_plugin.err_reserved_field'); continue; }
+    if (RESERVED_FIELD_NAMES.has(name) && !grandfathered.has(name)) { errors.push('create_plugin.err_reserved_field'); continue; }
     if (seenNames.has(name)) { errors.push('create_plugin.err_duplicate_field'); continue; }
     seenNames.add(name);
 
@@ -154,7 +168,10 @@ export function buildConfigFromSubmission(body: any, existing?: CustomPluginConf
     const placeholder = cleanText(raw?.placeholder, 60);
     if (placeholder) field.placeholder = placeholder;
     if (type === 'select') {
-      const options = (Array.isArray(raw?.options) ? raw.options.slice(0, 20) : [])
+      if (Array.isArray(raw?.options) && raw.options.length > MAX_FIELD_OPTIONS) {
+        errors.push('create_plugin.err_too_many_options');
+      }
+      const options = (Array.isArray(raw?.options) ? raw.options.slice(0, MAX_FIELD_OPTIONS) : [])
         .map((o: any) => {
           const optLabel = cleanText(typeof o === 'string' ? o : o?.label, 40);
           const optValue = slugify(cleanText(typeof o === 'string' ? o : (o?.value || o?.label), 40)).replace(/-/g, '_');
@@ -169,7 +186,9 @@ export function buildConfigFromSubmission(body: any, existing?: CustomPluginConf
 
   const formats: CustomFormatConfig[] = [];
   const seenFormats = new Set<string>();
-  for (const raw of Array.isArray(body.formats) ? body.formats.slice(0, 12) : []) {
+  const rawFormats = Array.isArray(body.formats) ? body.formats : [];
+  if (rawFormats.length > MAX_FORMATS) errors.push('create_plugin.err_too_many_formats');
+  for (const raw of rawFormats.slice(0, MAX_FORMATS)) {
     const fmtLabel = cleanText(raw?.label, 30);
     if (!fmtLabel) continue;
     const value = slugify(cleanText(raw?.value, 30) || fmtLabel).replace(/-/g, '_');

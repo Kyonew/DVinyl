@@ -287,8 +287,10 @@
                 <% } %>
             </div>
 
-            <!-- Synopsis / description (API-sourced: game summary, book/DVD overview) -->
-            <% if (item.description) { %>
+            <!-- Synopsis / description (API-sourced: game summary, book/DVD overview).
+                 A plugin declaring its own description field owns that value and has
+                 already rendered it above, so the block would only repeat it. -->
+            <% if (item.description && !plugin.formFields.some(f => f.name === 'description')) { %>
                 <div class="card-theme rounded-xl p-6 border border-black/10 dark:border-white/10 relative overflow-hidden shadow-sm transition-colors">
                     <h3 class="text-xs uppercase font-bold opacity-50 mb-3 flex items-center gap-2">
                         <i class="fa-solid fa-align-left"></i>
