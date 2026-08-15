@@ -35,6 +35,18 @@
   };
 
   const activeTheme = (THEMES[activePresetKey]) ? THEMES[activePresetKey] : (THEMES['default'] || safeFallback);
+
+  // Accent as separate channels. Tailwind can only honour an opacity modifier
+  // (bg-primary-theme/10) when the colour is written as rgb(... / <alpha-value>);
+  // handed a bare var() it drops the modifier and paints the accent at full
+  // strength, turning every faint tint into a solid block.
+  const rgbChannels = (hex) => {
+      const raw = String(hex || '').trim().replace('#', '');
+      const full = raw.length === 3 ? raw.split('').map(c => c + c).join('') : raw;
+      if (!/^[0-9a-f]{6}$/i.test(full)) return '16 185 129'; // preset default
+      const n = parseInt(full, 16);
+      return `${(n >> 16) & 255} ${(n >> 8) & 255} ${n & 255}`;
+  };
 %>
 
 <html lang="<%= currentLng %>" class="<%= isDark ? 'dark' : '' %>">
@@ -57,7 +69,13 @@
                 text: 'var(--text-main)',
                 subtext: 'var(--text-sub)',
                 highlight: 'var(--highlight)'
-            }
+            },
+            // Same variable as theme.highlight, declared as a colour of its own so
+            // Tailwind generates the whole family: border-, ring-, shadow-, accent-
+            // had no rule at all, and no hover:/focus:/peer-checked: variant existed,
+            // because a class written by hand in the <style> block below is invisible
+            // to the variant machinery.
+            'primary-theme': 'rgb(var(--highlight-rgb) / <alpha-value>)'
           }
         }
       }
@@ -76,6 +94,7 @@
         --text-main: <%= activeTheme.light.text %>;
         --text-sub: <%= activeTheme.light.subtext %>;
         --highlight: <%= activeTheme.light.highlight %>;
+        --highlight-rgb: <%= rgbChannels(activeTheme.light.highlight) %>;
         
         --shadow-color: 0 0 0 rgba(0,0,0,0.05);
         --border-color: rgba(0,0,0,0.1);
@@ -88,6 +107,7 @@
         --text-main: <%= activeTheme.dark.text %>;
         --text-sub: <%= activeTheme.dark.subtext %>;
         --highlight: <%= activeTheme.dark.highlight %>;
+        --highlight-rgb: <%= rgbChannels(activeTheme.dark.highlight) %>;
         
         --shadow-color: 0 0 20px <%= activeTheme.dark.highlight %>20;
         --border-color: rgba(255,255,255,0.1);
@@ -104,17 +124,12 @@
         color: var(--text-main) !important;
     }
 
-    .text-primary-theme { color: var(--highlight) !important; }
-    .bg-primary-theme { background-color: var(--highlight) !important; color: #fff; }
+    /* Tailwind generates the colour itself now, so this only carries what it cannot
+       know: a solid accent background is always paired with white text. No !important,
+       so a hover: variant on the same element can still take over. Tinted backgrounds
+       (bg-primary-theme/10) are a different class and keep their own text colour. */
+    .bg-primary-theme { color: #fff; }
 
-    /* Tailwind's file: variant only composes utilities it generates itself, so the
-       browse button of a file input cannot reuse .bg-primary-theme and needs its own
-       rule. Without it the label stays white on the browser's default light button. */
-    .file-primary-theme::file-selector-button {
-        background-color: var(--highlight) !important;
-        color: #fff !important;
-    }
-    
     .card-theme {
         background-color: var(--bg-card) !important;
         border: 1px solid var(--border-color);
