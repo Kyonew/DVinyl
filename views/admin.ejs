@@ -297,7 +297,7 @@
                                                 <div class="flex justify-end gap-2">
                                                     <% if (!mu.isAdmin) { %>
                                                         <form action="<%= baseUrl %>/admin/members/reset-password" method="POST"
-                                                            onsubmit="return confirm('<%= t('admin.confirm_reset', { name: mu.username }) %>')">
+                                                            onsubmit="return confirm(<%= JSON.stringify(t('admin.confirm_reset', { name: mu.username })) %>)">
                                                             <input type="hidden" name="userId" value="<%= mu._id %>">
                                                             <button type="submit"
                                                                 class="text-yellow-600 bg-yellow-100 dark:bg-yellow-500/10 p-2 rounded-lg transition-colors hover:brightness-110"
@@ -307,7 +307,7 @@
                                                         </form>
                                                     <% } %>
                                                     <form action="<%= baseUrl %>/admin/members/remove" method="POST"
-                                                        onsubmit="return confirm('<%= t('admin.members.confirm_remove', { name: mu.username }) %>')">
+                                                        onsubmit="return confirm(<%= JSON.stringify(t('admin.members.confirm_remove', { name: mu.username })) %>)">
                                                         <input type="hidden" name="userId" value="<%= mu._id %>">
                                                         <button type="submit"
                                                             class="text-red-600 bg-red-100 dark:bg-red-500/10 p-2 rounded-lg transition-colors hover:brightness-110"
@@ -579,7 +579,7 @@
             document.getElementById('collectionBackupInput').onchange = function (e) {
                 const file = e.target.files[0];
                 if (!file) return;
-                if (confirm("<%= t('admin.collection_backup.confirm_import') %>")) {
+                if (confirm(<%- JSON.stringify(t('admin.collection_backup.confirm_import')) %>)) {
                     const reader = new FileReader();
                     reader.onload = async (event) => {
                         try {
@@ -590,13 +590,13 @@
                                 body: JSON.stringify(backupData)
                             });
                             if (response.ok) {
-                                alert("<%= t('admin.backup.import_success') %>");
+                                alert(<%- JSON.stringify(t('admin.backup.import_success')) %>);
                                 window.location.reload();
                             } else {
-                                alert("<%= t('admin.backup.import_error') %>");
+                                alert(<%- JSON.stringify(t('admin.backup.import_error')) %>);
                             }
                         } catch (err) {
-                            alert("<%= t('admin.backup.json_error') %>");
+                            alert(<%- JSON.stringify(t('admin.backup.json_error')) %>);
                         }
                     };
                     reader.readAsText(file);
@@ -646,12 +646,12 @@
                 areyousure: <%- JSON.stringify(t('admin.areyousure')) %>,
                 deleteConfirm: <%- JSON.stringify(t('admin.delete_confirm')) %>,
                 refreshAllConfirm: <%- JSON.stringify(t('admin.maintenance.refresh_all_confirm')) %>,
-                statusStarting: "<%= t('admin.maintenance.status_starting') %>",
-                statusInit: "<%= t('admin.maintenance.status_init') %>",
-                statusProcessing: "<%= t('admin.maintenance.status_processing') %>",
-                statusFinished: "<%= t('admin.maintenance.status_finished') %>",
-                statusError: "<%= t('admin.maintenance.status_error') %>",
-                itemsUpdated: "<%= t('admin.modal.import_done') %>"
+                statusStarting: <%- JSON.stringify(t('admin.maintenance.status_starting')) %>,
+                statusInit: <%- JSON.stringify(t('admin.maintenance.status_init')) %>,
+                statusProcessing: <%- JSON.stringify(t('admin.maintenance.status_processing')) %>,
+                statusFinished: <%- JSON.stringify(t('admin.maintenance.status_finished')) %>,
+                statusError: <%- JSON.stringify(t('admin.maintenance.status_error')) %>,
+                itemsUpdated: <%- JSON.stringify(t('admin.modal.import_done')) %>
             };
 
             let activeRefreshKind = null;
@@ -691,7 +691,7 @@
                     btn.disabled = false;
                     btn.classList.remove('opacity-50', 'cursor-not-allowed');
                     icon.className = 'fa-solid fa-play';
-                    text.innerText = '<%= t("admin.maintenance.refresh_all_btn") %>';
+                    text.innerText = <%- JSON.stringify(t("admin.maintenance.refresh_all_btn")) %>;
                     progressContainer.classList.add('hidden');
                     activeRefreshKind = null;
                 }

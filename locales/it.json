@@ -51,9 +51,9 @@
     "add_user_btn": "Aggiungi utente",
     "advanced_cd": "Abilita formati specifici (SACD, CDr)",
     "advanced_cd_description": "Cerca e visualizza formati SACD e CDr specifici su Discogs",
-    "areyousure": "Eliminare gli ultimi {{count}} elementi di tipo \"{{kindLabel}}\"? \nQuesta azione è irreversibile.",
+    "areyousure": "Eliminare gli ultimi {{count}} elementi di tipo \"{{kindLabel}}\"? Questa azione è irreversibile.",
     "backup": {
-      "confirm_import": "ATTENZIONE: questa operazione eliminerà tutti i tuoi dati correnti (album, utenti, registri) e li sostituirà con il contenuto del file. \nVerrai disconnesso. \nContinuare?",
+      "confirm_import": "ATTENZIONE: questa operazione eliminerà tutti i tuoi dati correnti (album, utenti, registri) e li sostituirà con il contenuto del file. Verrai disconnesso. Continuare?",
       "export_btn": "Esporta banca dati",
       "import_btn": "Importa banca dati",
       "import_error": "Errore durante l'importazione.",
@@ -65,7 +65,7 @@
       "title": "Manutenzione del sistema"
     },
     "blocked_ips_title": "IP bloccati ({{count}})",
-    "confirm_block_ip": "BLOCCARE IP {{ip}}?\n\nNon potranno più accedere al sito.",
+    "confirm_block_ip": "BLOCCARE IP {{ip}}?\nNon potranno più accedere al sito.",
     "confirm_delete_user": "ELIMINARE PERMANENTEMENTE {{nome}}?",
     "confirm_reset": "Reimpostare la password per {{name}}?",
     "delete_confirm": "{{count}} elemento/i eliminato/i.",
@@ -89,7 +89,7 @@
       "default_format": "Formato predefinito",
       "default_format_hint": "Utilizzato se nessuno scaffale GoodReads consente il rilevamento automatico.",
       "default_language": "Lingua predefinita",
-      "default_language_hint": "Utilizzato se Open Library non rileva la lingua. \nEsempio: fr, en, ja, es...",
+      "default_language_hint": "Utilizzato se Open Library non rileva la lingua. Esempio: fr, en, ja, es...",
       "drop_hint": "Trascina il tuo file qui o fai clic per sfogliarlo",
       "file_ready": "File pronto per essere importato",
       "how_to": "Come esportare da GoodReads?",
@@ -142,8 +142,8 @@
       "mode_label": "Modalità di aggiornamento",
       "mode_missing": "Solo elementi con generi/stili mancanti (il più veloce)",
       "refresh_all_btn": "Avvia Aggiorna",
-      "refresh_all_confirm": "Sei sicuro? \nCiò aggiornerà i tuoi elementi musicali in base alla modalità selezionata. \nSovrascriverà eventuali modifiche manuali a generi e stili.",
-      "refresh_all_subtitle": "Ciò aggiornerà generi, stili e tracklist per TUTTA la tua musica utilizzando i dati di Discogs. \n⚠️ Questo processo è lento (circa 1,5 secondi per articolo) per rispettare i limiti di velocità API e sovrascriverà le modifiche manuali a questi campi.",
+      "refresh_all_confirm": "Sei sicuro? Ciò aggiornerà i tuoi elementi musicali in base alla modalità selezionata. Sovrascriverà eventuali modifiche manuali a generi e stili.",
+      "refresh_all_subtitle": "Ciò aggiornerà generi, stili e tracklist per TUTTA la tua musica utilizzando i dati di Discogs. ⚠️ Questo processo è lento (circa 1,5 secondi per articolo) per rispettare i limiti di velocità API e sovrascriverà le modifiche manuali a questi campi.",
       "refresh_all_title": "Aggiorna tutti i metadati (musica)",
       "refresh_books_subtitle": "Riavviare il recupero dei dati (Hardcover/OpenLibrary) per i libri.",
       "refresh_books_title": "Aggiorna tutti i metadati (libri)",
@@ -163,7 +163,7 @@
       "discogs_url": "URL della raccolta",
       "email": "Indirizzo e-mail",
       "import_done": "elementi aggiunti!",
-      "import_error_msg": "Si è verificato un errore durante l'importazione. \nControlla l'URL o il token API.",
+      "import_error_msg": "Si è verificato un errore durante l'importazione. Controlla l'URL o il token API.",
       "import_fast": "Importazione veloce",
       "import_full": "Importazione completa",
       "import_loading": "Importazione...",
@@ -177,8 +177,8 @@
       "username": "Nome utente",
       "batch_barcode": {
         "btn": "Aggiorna codici a barre",
-        "placeholder": "123456:9990001\n\n789012:9990002",
-        "subtitle": "Aggiorna i codici a barre in batch. \nFormato: ID_DISCOGS:BARCODE (uno per riga). \nGli elementi verranno bloccati automaticamente.",
+        "placeholder": "123456:9990001\n789012:9990002",
+        "subtitle": "Aggiorna i codici a barre in batch. Formato: ID_DISCOGS:BARCODE (uno per riga). Gli elementi verranno bloccati automaticamente.",
         "success": "{{count}} codici a barre aggiornati!",
         "title": "Importazione batch di codici a barre"
       },
@@ -386,7 +386,7 @@
   },
   "book_detail": {
     "added_on": "Aggiunto",
-    "delete_warning": "Questa azione è irreversibile. \nIl libro verrà rimosso dalla tua collezione.",
+    "delete_warning": "Questa azione è irreversibile. Il libro verrà rimosso dalla tua collezione.",
     "volume": "Volume"
   },
   "collection": {
@@ -564,7 +564,7 @@
     "back_to_collection": "Ritorno alla raccolta",
     "back_to_wishlist": "Torna alla lista dei desideri",
     "calculate_btn": "Calcolare",
-    "confirm_delete": "Sei sicuro di voler eliminare questo album dalla tua raccolta? \nQuesta azione è irreversibile.",
+    "confirm_delete": "Sei sicuro di voler eliminare questo album dalla tua raccolta? Questa azione è irreversibile.",
     "move_to_wishlist_btn": "Rimetti nella lista dei desideri",
     "move_to_wishlist_confirm": "Rimettere questo elemento nella lista dei desideri? Uscirà dalla tua collezione.",
     "duration_label": "Durata",
@@ -581,7 +581,7 @@
     "personal_notes": "Note personali",
     "refresh_info_error": "Errore durante l'aggiornamento dei metadati.",
     "refresh_info_success": "Metadati aggiornati correttamente!",
-    "shipping_hint": "*Escl. \nspedizione",
+    "shipping_hint": "*Escl. spedizione",
     "source": "Fonte",
     "sleeve_condition": "Condizione della copertina",
     "tracklist_not_found": "Tracklist non trovata su Discogs",
@@ -615,7 +615,7 @@
   },
   "errors": {
     "404_desc": "La pagina che stai cercando sembra essere stata cancellata dalla raccolta oppure il modulo associato è attualmente disabilitato.",
-    "404_title": "Ops! \nScanalatura non trovata.",
+    "404_title": "Ops! Scanalatura non trovata.",
     "api_error": "Impossibile connettersi a Discogs.",
     "current_password_incorrect": "La password attuale non è corretta.",
     "sso_no_local_password": "Questo account usa il single sign-on (SSO) e non ha una password locale da modificare.",
@@ -625,8 +625,8 @@
     "lang_change_error": "Errore durante il cambio della lingua.",
     "save_error": "Errore durante il salvataggio.",
     "setup_error": "Si è verificato un errore di installazione.",
-    "too_many_attempts_blocked": "Troppi tentativi. \nRiprova tra 5 minuti.",
-    "too_many_attempts_timed": "Troppi tentativi. \nRiprova tra {{seconds}} secondi.",
+    "too_many_attempts_blocked": "Troppi tentativi. Riprova tra 5 minuti.",
+    "too_many_attempts_timed": "Troppi tentativi. Riprova tra {{seconds}} secondi.",
     "username_taken": "Questo nome utente è già utilizzato.",
     "not_found": "Elemento non trovato."
   },
@@ -836,7 +836,7 @@
     "widgets_title": "Widget statistici"
   },
   "placeholders": {
-    "location": "per esempio. \nRipiano A - Riquadro 3",
+    "location": "per esempio. Ripiano A - Riquadro 3",
     "year": "Es: 1994",
     "barcode": "Codice a barre...",
     "catalog_number": "Es: COL 12345...",
@@ -849,7 +849,7 @@
   },
   "settings": {
     "avatar_gravatar_btn": "Importa da Gravatar",
-    "avatar_hint": "Massimo 5 MB. \nJPG, PNG, GIF, WEBP.",
+    "avatar_hint": "Massimo 5 MB. JPG, PNG, GIF, WEBP.",
     "avatar_remove_btn": "Rimuovi foto",
     "avatar_remove_confirm": "Rimuovere l'immagine del profilo attuale?",
     "confirm_password_label": "Conferma la nuova password",
@@ -890,7 +890,7 @@
     "email_placeholder": "admin@esempio.com",
     "error_save_file": "Errore: file di backup danneggiato o non valido.",
     "password_label": "Password",
-    "password_placeholder": "minimo \n6 caratteri",
+    "password_placeholder": "minimo 6 caratteri",
     "restore_backup": "Ripristina dal backup",
     "submit_btn": "Installazione completa",
     "subtitle": "Il tuo server musicale personale.",
@@ -932,7 +932,7 @@
   },
   "wishlist": {
     "btn_received": "L'ho ricevuto!",
-    "confirm_move": "Grande! \nVuoi spostare questo album nella tua raccolta ufficiale?",
+    "confirm_move": "Grande! Vuoi spostare questo album nella tua raccolta ufficiale?",
     "empty_msg": "La tua lista dei desideri è vuota.",
     "search_link": "Cerca un album",
     "title": "La mia lista dei desideri"

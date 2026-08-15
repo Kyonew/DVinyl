@@ -326,8 +326,8 @@
   <script>
     document.body.classList.add('js-ready');
     const navTranslations = {
-        themeDark: "<%= t('nav.theme_dark') %>",
-        themeLight: "<%= t('nav.theme_light') %>"
+        themeDark: <%- JSON.stringify(t('nav.theme_dark')) %>,
+        themeLight: <%- JSON.stringify(t('nav.theme_light')) %>
     };
     
     document.addEventListener('DOMContentLoaded', () => {

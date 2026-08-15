@@ -112,9 +112,9 @@
         const importTranslations = {
             loading: '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> <%= t("admin.modal.import_loading") %>',
             started: '<i class="fa-solid fa-spinner fa-spin mr-2"></i> <%= t("admin.modal.import_started") %>',
-            done: '<%= t("admin.modal.import_done") %>',
-            updated: '<%= t("admin.modal.import_updated") %>',
-            failed: '<%= t("admin.modal.import_failed") %>',
+            done: <%- JSON.stringify(t("admin.modal.import_done")) %>,
+            updated: <%- JSON.stringify(t("admin.modal.import_updated")) %>,
+            failed: <%- JSON.stringify(t("admin.modal.import_failed")) %>,
             noFile: <%- JSON.stringify(t('admin.modal.err_no_file')) %>,
             noFileChosen: <%- JSON.stringify(t('admin.modal.no_file_chosen')) %>
         };

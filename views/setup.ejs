@@ -259,7 +259,7 @@
         }
 
         const setupTranslations = {
-            passwordMismatch: "<%= t('messages.password_mismatch') %>"
+            passwordMismatch: <%- JSON.stringify(t('messages.password_mismatch')) %>
         };
 
         function togglePassword(inputId, iconId) {
@@ -328,7 +328,7 @@
                         throw new Error('Import failed');
                     }
                 } catch (err) {
-                    errorText.innerText = "<%= t('setup.error_save_file') %>";
+                    errorText.innerText = <%- JSON.stringify(t('setup.error_save_file')) %>;
                     errorBox.classList.remove('hidden');
                     const btn = document.querySelector('button[type="submit"]');
                     btn.disabled = false;

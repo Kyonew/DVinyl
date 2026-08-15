@@ -109,8 +109,8 @@
     <script src="<%= baseUrl %>/socket.io/socket.io.js"></script>
     <script>
         const wishlistTranslations = {
-            confirmMove: "<%= t('wishlist.confirm_move') %>",
-            serverError: "<%= t('messages.generic_error') %>"
+            confirmMove: <%- JSON.stringify(t('wishlist.confirm_move')) %>,
+            serverError: <%- JSON.stringify(t('messages.generic_error')) %>
         };
 
         async function moveToCollection(id, routePrefix) {

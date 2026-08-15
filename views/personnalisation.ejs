@@ -317,7 +317,7 @@
                 const checkedCount = document.querySelectorAll('input[name="navbarShortcuts"]:checked').length;
                 if (checkedCount > maxAllowed) {
                     cb.checked = false;
-                    alert("<%= t('perso.nav_max') %>");
+                    alert(<%- JSON.stringify(t('perso.nav_max')) %>);
                 }
             });
         });

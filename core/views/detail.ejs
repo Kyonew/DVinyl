@@ -580,7 +580,7 @@
             }
         } catch (err) {
             console.error(err);
-            alert("<%= t('detail.refresh_info_error') %>");
+            alert(<%- JSON.stringify(t('detail.refresh_info_error')) %>);
             btn.disabled = false;
             icon.classList.remove('fa-spin');
         }

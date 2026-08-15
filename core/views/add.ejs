@@ -145,7 +145,7 @@
         init: '<i class="fa-solid fa-spinner fa-spin text-xl"></i> <span><%= t("add_vinyl.scan_init") %></span>',
         stop: '<i class="fa-solid fa-xmark text-xl"></i> <span><%= t("add_vinyl.scan_stop") %></span>',
         found: '<i class="fa-solid fa-check text-xl"></i> <span><%= t("add_vinyl.scan_found") %></span>',
-        error: '<%= t("add_vinyl.scan_error") %>'
+        error: <%- JSON.stringify(t("add_vinyl.scan_error")) %>
     };
 
     const html5QrCode = new Html5Qrcode("reader");

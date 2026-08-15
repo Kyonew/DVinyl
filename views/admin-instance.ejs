@@ -113,7 +113,7 @@
                                         </button>
                                         <% if (!c.isDefault) { %>
                                             <form action="<%= baseUrl %>/admin/collections/<%= c._id %>/delete" method="POST"
-                                                onsubmit="return confirm('<%= t('admin.collections.confirm_delete', { name: c.name }) %>')">
+                                                onsubmit="return confirm(<%= JSON.stringify(t('admin.collections.confirm_delete', { name: c.name })) %>)">
                                                 <button type="submit"
                                                     class="text-red-600 bg-red-100 dark:bg-red-500/10 p-2 rounded-xl transition-colors hover:brightness-110"
                                                     title="<%= t('admin.tooltips.delete') %>">
@@ -281,7 +281,7 @@
                                         <td class="px-6 py-4 text-right flex justify-end gap-2">
                                             <% if (!isOtherAdmin) { %>
                                             <form action="<%= baseUrl %>/admin/reset-password" method="POST"
-                                                onsubmit="return confirm('<%= t('admin.confirm_reset', { name: u.username }) %>')">
+                                                onsubmit="return confirm(<%= JSON.stringify(t('admin.confirm_reset', { name: u.username })) %>)">
                                                 <input type="hidden" name="userId" value="<%= u._id %>">
                                                 <button type="submit"
                                                     class="text-yellow-600 bg-yellow-100 dark:bg-yellow-500/10 p-2 rounded-lg transition-colors hover:brightness-110"
@@ -292,7 +292,7 @@
                                             <% } %>
                                             <% if (u._id.toString() !==user._id.toString() && !u.isAdmin) { %>
                                                 <form action="<%= baseUrl %>/admin/delete-user" method="POST"
-                                                    onsubmit="return confirm('<%= t('admin.confirm_delete_user', { name: u.username }) %>')">
+                                                    onsubmit="return confirm(<%= JSON.stringify(t('admin.confirm_delete_user', { name: u.username })) %>)">
                                                     <input type="hidden" name="userId" value="<%= u._id %>">
                                                     <button type="submit"
                                                         class="text-red-600 bg-red-100 dark:bg-red-500/10 p-2 rounded-lg transition-colors hover:brightness-110"
@@ -339,7 +339,7 @@
                                     <div class="flex gap-2">
                                         <% if (!isOtherAdmin) { %>
                                         <form action="<%= baseUrl %>/admin/reset-password" method="POST"
-                                            onsubmit="return confirm('<%= t('admin.confirm_reset', { name: u.username }) %>')">
+                                            onsubmit="return confirm(<%= JSON.stringify(t('admin.confirm_reset', { name: u.username })) %>)">
                                             <input type="hidden" name="userId" value="<%= u._id %>">
                                             <button type="submit"
                                                 class="text-yellow-600 bg-yellow-50 dark:bg-yellow-500/10 px-4 py-2 rounded-xl border border-yellow-200 dark:border-yellow-500/20 text-sm font-bold">
@@ -349,7 +349,7 @@
                                         <% } %>
                                         <% if (u._id.toString() !==user._id.toString() && !u.isAdmin) { %>
                                             <form action="<%= baseUrl %>/admin/delete-user" method="POST"
-                                                onsubmit="return confirm('<%= t('admin.confirm_delete_user', { name: u.username }) %>')">
+                                                onsubmit="return confirm(<%= JSON.stringify(t('admin.confirm_delete_user', { name: u.username })) %>)">
                                                 <input type="hidden" name="userId" value="<%= u._id %>">
                                                 <button type="submit"
                                                     class="text-red-600 bg-red-50 dark:bg-red-500/10 px-4 py-2 rounded-xl border border-red-200 dark:border-red-500/20 text-sm font-bold">
@@ -544,7 +544,7 @@
                                                 <div class="flex justify-end gap-2 opacity-100 transition-opacity">
                                                     <% if (log.user) { %>
                                                         <form action="<%= baseUrl %>/admin/reset-password" method="POST"
-                                                            onsubmit="return confirm('<%= t('admin.confirm_reset', { name: log.username }) %>')">
+                                                            onsubmit="return confirm(<%= JSON.stringify(t('admin.confirm_reset', { name: log.username })) %>)">
                                                             <input type="hidden" name="userId" value="<%= log.user %>">
                                                             <button type="submit"
                                                                 class="bg-black/5 dark:bg-white/5 hover:bg-yellow-500 hover:text-white p-2 rounded-xl border border-transparent transition-colors"
@@ -554,7 +554,7 @@
                                                         </form>
                                                         <% } %>
                                                             <form action="<%= baseUrl %>/admin/block-ip" method="POST"
-                                                                onsubmit="return confirm('<%= t('admin.confirm_block_ip', { ip: log.ip }) %>')">
+                                                                onsubmit="return confirm(<%= JSON.stringify(t('admin.confirm_block_ip', { ip: log.ip })) %>)">
                                                                 <input type="hidden" name="ipAddress"
                                                                     value="<%= log.ip %>">
                                                                 <button type="submit"
@@ -665,7 +665,7 @@
                                 </select>
                             </form>
                             <form action="<%= baseUrl %>/admin/instance/collections/<%= c._id %>/members/remove" method="POST" class="shrink-0"
-                                onsubmit="return confirm('<%= t('admin.members.confirm_remove', { name: m.user.username }) %>')">
+                                onsubmit="return confirm(<%= JSON.stringify(t('admin.members.confirm_remove', { name: m.user.username })) %>)">
                                 <input type="hidden" name="userId" value="<%= m.user._id %>">
                                 <button type="submit"
                                     class="text-red-600 bg-red-100 dark:bg-red-500/10 p-2 rounded-lg transition-colors hover:brightness-110"
@@ -756,7 +756,7 @@
                 const count = parseInt(document.getElementById('deleteLogsCount')?.value);
                 if (!count || count < 1) return;
 
-                const message = "<%= t('admin.logs_delete_last.confirm') %>".replace('{{count}}', count);
+                const message = <%- JSON.stringify(t('admin.logs_delete_last.confirm')) %>.replace('{{count}}', count);
                 if (!confirm(message)) return;
 
                 try {
@@ -787,7 +787,7 @@
             document.getElementById('backupInput').onchange = function (e) {
                 const file = e.target.files[0];
                 if (!file) return;
-                if (confirm("<%= t('admin.instance.backup_confirm_import') %>")) {
+                if (confirm(<%- JSON.stringify(t('admin.instance.backup_confirm_import')) %>)) {
                     const reader = new FileReader();
                     reader.onload = async (event) => {
                         try {
@@ -799,13 +799,13 @@
                             });
                             if (response.ok) {
                                 const result = await response.json();
-                                alert(result.warning || "<%= t('admin.backup.import_success') %>");
+                                alert(result.warning || <%- JSON.stringify(t('admin.backup.import_success')) %>);
                                 window.location.href = '<%= baseUrl %>/login';
                             } else {
-                                alert("<%= t('admin.backup.import_error') %>");
+                                alert(<%- JSON.stringify(t('admin.backup.import_error')) %>);
                             }
                         } catch (err) {
-                            alert("<%= t('admin.backup.json_error') %>");
+                            alert(<%- JSON.stringify(t('admin.backup.json_error')) %>);
                         }
                     };
                     reader.readAsText(file);

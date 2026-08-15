@@ -346,17 +346,17 @@
         const saveUsernameBtn = document.getElementById('save-username-btn');
 
         const translations = {
-            avatarSuccess: "<%= t('messages.avatar_success') %>",
-            avatarError: "<%= t('messages.avatar_error') %>",
-            gravatarNotFound: "<%= t('messages.gravatar_not_found') %>",
-            confirmRemoveAvatar: "<%= t('settings.avatar_remove_confirm') %>",
-            passwordSuccess: "<%= t('messages.password_success') %>",
-            passwordMismatch: "<%= t('messages.password_mismatch') %>",
-            usernameAvailable: "<%= t('messages.username_available') %>",
-            genericError: "<%= t('messages.generic_error') %>",
-            oidcLinked: "<%= t('messages.oidc_linked') %>",
-            oidcAlreadyLinked: "<%= t('messages.oidc_already_linked') %>",
-            oidcUnlinked: "<%= t('messages.oidc_unlinked') %>"
+            avatarSuccess: <%- JSON.stringify(t('messages.avatar_success')) %>,
+            avatarError: <%- JSON.stringify(t('messages.avatar_error')) %>,
+            gravatarNotFound: <%- JSON.stringify(t('messages.gravatar_not_found')) %>,
+            confirmRemoveAvatar: <%- JSON.stringify(t('settings.avatar_remove_confirm')) %>,
+            passwordSuccess: <%- JSON.stringify(t('messages.password_success')) %>,
+            passwordMismatch: <%- JSON.stringify(t('messages.password_mismatch')) %>,
+            usernameAvailable: <%- JSON.stringify(t('messages.username_available')) %>,
+            genericError: <%- JSON.stringify(t('messages.generic_error')) %>,
+            oidcLinked: <%- JSON.stringify(t('messages.oidc_linked')) %>,
+            oidcAlreadyLinked: <%- JSON.stringify(t('messages.oidc_already_linked')) %>,
+            oidcUnlinked: <%- JSON.stringify(t('messages.oidc_unlinked')) %>
         };
 
         const oidcStatus = new URLSearchParams(location.search).get('oidc');

@@ -222,9 +222,9 @@
 
 <script>
     const translations = {
-        noResults: "<%= t('confirm_' + plugin.i18nKey + '.no_results', { defaultValue: t('confirm_vinyl.no_results') }) %>",
-        networkError: "<%= t('confirm_' + plugin.i18nKey + '.network_error', { defaultValue: t('confirm_vinyl.network_error') }) %>",
-        compressAlert: "<%= t('image_source.compress_alert') %>",
+        noResults: <%- JSON.stringify(t('confirm_' + plugin.i18nKey + '.no_results', { defaultValue: t('confirm_vinyl.no_results') })) %>,
+        networkError: <%- JSON.stringify(t('confirm_' + plugin.i18nKey + '.network_error', { defaultValue: t('confirm_vinyl.network_error') })) %>,
+        compressAlert: <%- JSON.stringify(t('image_source.compress_alert')) %>,
         loadingHtml: '<div class="col-span-full py-8 text-center opacity-50"><i class="fa-solid fa-spinner fa-spin text-xl"></i></div>'
     };
 

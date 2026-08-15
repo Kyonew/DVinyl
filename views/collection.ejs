@@ -1060,7 +1060,7 @@
         const progressBar = document.getElementById('estimateProgress');
         const countSpan = document.getElementById('estimateCount');
         const percentSpan = document.getElementById('estimatePercent');
-        const estimateErrorMsg = "<%= t('messages.estimate_error') %>";
+        const estimateErrorMsg = <%- JSON.stringify(t('messages.estimate_error')) %>;
         const currentLocale = '<%= currentLng === "fr" ? "fr-FR" : "en-US" %>';
         const currentCurrency = '<%= user.currency || "USD" %>';
 
