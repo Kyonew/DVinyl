@@ -1,0 +1,35 @@
+<%
+    /**
+     * Lays a list of form fields out in rows, shared by the edit, confirm and manual add
+     * forms. Callers filter the fields (which form, which group); this only arranges them.
+     *
+     * Two per row, except a long text field, which takes a row to itself: half a column is
+     * not enough to read a synopsis or a set of notes in, and the pairing used to hand it
+     * one purely by position. A lone field on its row is full width already.
+     *
+     * Expects: fields, item. Optional: isEdit, forwarded to the field partials.
+     */
+    const rows = [];
+    let pending = null;
+    for (const field of fields) {
+        if (field.type === 'textarea') {
+            if (pending) { rows.push([pending]); pending = null; }
+            rows.push([field]);
+        } else if (pending) {
+            rows.push([pending, field]);
+            pending = null;
+        } else {
+            pending = field;
+        }
+    }
+    if (pending) rows.push([pending]);
+%>
+<% rows.forEach(row => { %>
+    <div class="grid grid-cols-1 <%= row.length === 2 ? 'md:grid-cols-2' : '' %> gap-6">
+        <% row.forEach(field => { %>
+            <div>
+                <%- include('fields/' + field.type, { field, value: item[field.name], item, isEdit: locals.isEdit === true }) %>
+            </div>
+        <% }) %>
+    </div>
+<% }) %>

@@ -63,27 +63,12 @@
                         </div>
                     <% } %>
 
-                    <!-- Main Fields (grouped by pairs) -->
+                    <!-- Main fields -->
                     <div class="space-y-6">
                         <% 
                         const mainFields = plugin.formFields.filter(f => f.showIn.includes('edit') && f.group === 'main' && f.type !== 'custom');
-                        for (let i = 0; i < mainFields.length; i += 2) { 
-                            const field1 = mainFields[i];
-                            const field2 = mainFields[i+1];
                         %>
-                            <div class="grid grid-cols-1 <%= field2 ? 'md:grid-cols-2' : '' %> gap-6">
-                                <% if (field1) { %>
-                                    <div>
-                                        <%- include('partials/fields/' + field1.type, { field: field1, value: item[field1.name], item, isEdit: true }) %>
-                                    </div>
-                                <% } %>
-                                <% if (field2) { %>
-                                    <div>
-                                        <%- include('partials/fields/' + field2.type, { field: field2, value: item[field2.name], item, isEdit: true }) %>
-                                    </div>
-                                <% } %>
-                            </div>
-                        <% } %>
+                        <%- include('partials/field-grid', { fields: mainFields, item, isEdit: true }) %>
                     </div>
 
                     <!-- Custom inputs from formFields (like tracklist editor), end of the "album info" section -->
@@ -189,23 +174,8 @@
                     <div class="space-y-6">
                         <% 
                         const metaFields = plugin.formFields.filter(f => f.showIn.includes('edit') && f.group === 'metadata' && f.type !== 'custom');
-                        for (let i = 0; i < metaFields.length; i += 2) { 
-                            const field1 = metaFields[i];
-                            const field2 = metaFields[i+1];
                         %>
-                            <div class="grid grid-cols-1 <%= field2 ? 'md:grid-cols-2' : '' %> gap-6">
-                                <% if (field1) { %>
-                                    <div>
-                                        <%- include('partials/fields/' + field1.type, { field: field1, value: item[field1.name], item, isEdit: true }) %>
-                                    </div>
-                                <% } %>
-                                <% if (field2) { %>
-                                    <div>
-                                        <%- include('partials/fields/' + field2.type, { field: field2, value: item[field2.name], item, isEdit: true }) %>
-                                    </div>
-                                <% } %>
-                            </div>
-                        <% } %>
+                        <%- include('partials/field-grid', { fields: metaFields, item, isEdit: true }) %>
                     </div>
 
                     <input type="hidden" name="in_wishlist" value="<%= item.in_wishlist %>">

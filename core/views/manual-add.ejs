@@ -41,27 +41,12 @@
                 <form action="<%= baseUrl %>/save-<%= plugin.id %>" method="POST" class="space-y-6">
                     <input type="hidden" name="mongo_id" value="">
 
-                    <!-- Main Fields (grouped by pairs) -->
+                    <!-- Main fields -->
                     <div class="space-y-6">
                         <%
                         const mainFields = plugin.formFields.filter(f => f.showIn.includes('manual') && f.group === 'main' && f.type !== 'custom');
-                        for (let i = 0; i < mainFields.length; i += 2) {
-                            const field1 = mainFields[i];
-                            const field2 = mainFields[i+1];
                         %>
-                            <div class="grid grid-cols-1 <%= field2 ? 'md:grid-cols-2' : '' %> gap-6">
-                                <% if (field1) { %>
-                                    <div>
-                                        <%- include('partials/fields/' + field1.type, { field: field1, value: item[field1.name], item }) %>
-                                    </div>
-                                <% } %>
-                                <% if (field2) { %>
-                                    <div>
-                                        <%- include('partials/fields/' + field2.type, { field: field2, value: item[field2.name], item }) %>
-                                    </div>
-                                <% } %>
-                            </div>
-                        <% } %>
+                        <%- include('partials/field-grid', { fields: mainFields, item }) %>
                     </div>
 
                     <!-- Custom fields from plugin (like tracklist editor), end of the "album info" section -->
@@ -76,27 +61,12 @@
 
                     <hr class="border-black/10 dark:border-white/10 my-6 transition-colors">
 
-                    <!-- Metadata Fields (grouped by pairs) -->
+                    <!-- Metadata fields -->
                     <div class="space-y-6">
                         <%
                         const metaFields = plugin.formFields.filter(f => f.showIn.includes('manual') && f.group === 'metadata' && f.type !== 'custom');
-                        for (let i = 0; i < metaFields.length; i += 2) {
-                            const field1 = metaFields[i];
-                            const field2 = metaFields[i+1];
                         %>
-                            <div class="grid grid-cols-1 <%= field2 ? 'md:grid-cols-2' : '' %> gap-6">
-                                <% if (field1) { %>
-                                    <div>
-                                        <%- include('partials/fields/' + field1.type, { field: field1, value: item[field1.name], item }) %>
-                                    </div>
-                                <% } %>
-                                <% if (field2) { %>
-                                    <div>
-                                        <%- include('partials/fields/' + field2.type, { field: field2, value: item[field2.name], item }) %>
-                                    </div>
-                                <% } %>
-                            </div>
-                        <% } %>
+                        <%- include('partials/field-grid', { fields: metaFields, item }) %>
                     </div>
 
                     <div class="pt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
