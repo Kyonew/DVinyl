@@ -39,6 +39,7 @@
     "no_results": "Nessun risultato trovato",
     "results_title": "Risultati",
     "scan_error": "Errore della fotocamera (controlla le autorizzazioni)",
+    "barcode_not_found": "Codice a barre non riconosciuto. Prova a cercare per titolo.",
     "scan_found": "Trovato!",
     "scan_init": "Inizializzazione...",
     "scan_stop": "Interrompi la scansione",

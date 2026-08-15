@@ -41,21 +41,47 @@ export function parseGenresAndStyles(genres: any, styles: any): { genres: string
 }
 
 /**
+ * Turns a UPC database entry into something a title search can match.
+ *
+ * What comes back is a retail listing, not the name of a work: "Nightlife [blu-ray] By
+ * Verhoeven, Simon | Dvd | Condition". Handed over as-is it matches nothing, since TMDB
+ * and IGDB index titles. Same cleanup the Libib CSV importer already does on shop titles.
+ */
+export function cleanProductTitle(rawTitle: string, noiseTerms: string[] = []): string {
+  let title = String(rawTitle || '');
+
+  // Listings pile their qualifiers after a pipe; the work is in the first segment.
+  title = title.split('|')[0] || title;
+  // Bracketed groups hold the edition or the seller's condition, never the title.
+  title = title.replace(/[\[(][^\])]*[\])]/g, ' ');
+  // Amazon-style attribution: "<title> By Verhoeven, Simon".
+  title = title.replace(/\s+By\s+.+$/i, ' ');
+
+  // Word boundaries matter: an unanchored 'One' eats the middle of "Gone Home".
+  if (noiseTerms.length > 0) {
+    const pattern = new RegExp(`\\b(?:${noiseTerms.map(escapeRegExp).join('|')})\\b`, 'gi');
+    title = title.replace(pattern, ' ');
+  }
+
+  // Whatever the removals left behind: doubled spaces, and the separator that used to
+  // introduce the part just deleted ("Breath of the Wild -").
+  return title.replace(/\s{2,}/g, ' ').replace(/[\s\-:,;./]+$/, '').trim();
+}
+
+/**
  * Resolves a scanned barcode (EAN-13 / UPC-12) to a product title via UPCitemdb.
  * Returns the cleaned barcode and the title to use as search query (null if not found).
+ *
+ * Note the endpoint is the free trial one, capped at 100 lookups a day per IP: a null
+ * title means "not resolved", which covers an unknown barcode and an exhausted quota
+ * alike. Callers must not fall back to searching the digits, which never matches.
  */
 export async function lookupBarcodeTitle(rawQuery: string, noiseTerms: string[] = []): Promise<{ barcode: string; title: string | null }> {
   const barcode = rawQuery.replace(/[- ]/g, '');
   try {
     const upcData = await fetchJson(`https://api.upcitemdb.com/prod/trial/lookup?upc=${barcode}`);
     if (upcData.items && upcData.items.length > 0) {
-      let title: string = upcData.items[0].title;
-      // Strip plugin-declared noise terms (e.g. 'DVD', 'Blu-ray', 'PS5') to sharpen the search query.
-      if (noiseTerms.length > 0) {
-        const pattern = new RegExp(noiseTerms.map(escapeRegExp).join('|'), 'gi');
-        title = title.replace(pattern, '');
-      }
-      title = title.trim();
+      const title = cleanProductTitle(upcData.items[0].title, noiseTerms);
       return { barcode, title: title || null };
     }
   } catch (upcErr: any) {

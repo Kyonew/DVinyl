@@ -43,7 +43,22 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         if (plugin.supportsBarcodeSearch && isBarcodeQuery(rawQuery)) {
           const { barcode, title } = await lookupBarcodeTitle(rawQuery, plugin.barcodeNoiseTerms);
           scannedBarcode = barcode;
-          if (title) searchQuery = title;
+          if (!title) {
+            // Searching the digits themselves cannot match: these providers index titles,
+            // not barcodes. Say the barcode is unknown rather than show an empty result
+            // list, which reads as "you don't own this" instead of "I couldn't look it up".
+            return res.render('add', {
+              results: [],
+              error: req.t('add_vinyl.barcode_not_found'),
+              searchType: type || plugin.id,
+              searchQuery: rawQuery,
+              scanned_barcode: barcode,
+              user: res.locals.user,
+              currentType: `add-${plugin.id}`,
+              plugin
+            });
+          }
+          searchQuery = title;
         }
 
         const settings = res.locals.settings;

@@ -235,6 +235,7 @@
     "scan_stop": "Stop scanning",
     "scan_found": "Found!",
     "scan_error": "Camera error (Check permissions)",
+    "barcode_not_found": "That barcode wasn't recognised. Try searching by title instead.",
     "results_title": "Results",
     "no_results": "No results found.",
     "advanced_filters": "Advanced Filters",

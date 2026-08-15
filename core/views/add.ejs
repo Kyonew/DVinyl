@@ -69,8 +69,9 @@
 
         <% if (results.length === 0) { %>
             <div class="text-center py-12 card-theme bg-opacity-50 rounded-xl border-dashed opacity-70 transition-colors">
-                <i class="fa-solid fa-ghost text-4xl mb-3 opacity-50"></i>
-                <p><%= t('add_' + plugin.i18nKey + '.no_results', { defaultValue: t('add_vinyl.no_results') }) %></p>
+                <i class="fa-solid <%= locals.error ? 'fa-barcode' : 'fa-ghost' %> text-4xl mb-3 opacity-50"></i>
+                <%# An empty list and a failed lookup read the same to the user unless we say so %>
+                <p><%= locals.error || t('add_' + plugin.i18nKey + '.no_results', { defaultValue: t('add_vinyl.no_results') }) %></p>
             </div>
         <% } else { %>
             <% 

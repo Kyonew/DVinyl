@@ -39,6 +39,7 @@
     "no_results": "No se encontraron resultados.",
     "results_title": "Resultados",
     "scan_error": "Error de cámara (verificar permisos)",
+    "barcode_not_found": "No se ha reconocido este código de barras. Prueba a buscar por título.",
     "scan_found": "¡Encontró!",
     "scan_init": "Inicializando...",
     "scan_stop": "Dejar de escanear",
