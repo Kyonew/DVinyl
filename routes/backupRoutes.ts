@@ -10,6 +10,10 @@ import InstanceSettings from '../models/InstanceSettings';
 import { invalidateInstanceSettingsCache } from '../utils/instanceSettings';
 import { requireAuth, requireAdmin, requireCollectionRole } from '../middleware/authMiddleware';
 import { registry } from '../core/registry';
+
+// Stamped into every dump so a restore log says which build produced the file.
+// Read from package.json rather than copied, which is how it came to say 3.1.0 on 3.1.1.
+const pkg = require('../package.json');
 import { migrateDatabase, normalizeThemePresets } from '../utils/migrate';
 import { applyCustomPluginsFromDB } from '../core/customPluginSync';
 import { collectExtraDateFields, reviveExtraDates } from '../core/pluginExtraFields';
@@ -29,7 +33,7 @@ router.get('/export', requireAuth, requireAdmin, async (req, res) => {
             customPlugins: await CustomPlugin.find({}).lean(),
             instanceSettings: await InstanceSettings.findOne({ key: 'instance' }).lean(),
             metadata: {
-                version: "3.1.0",
+                version: pkg.version,
                 date: new Date()
             }
         };
@@ -237,7 +241,7 @@ router.get('/collection/export', requireAuth, requireCollectionRole('admin'), as
             albums,
             settings: settings || null,
             metadata: {
-                version: "3.1.0",
+                version: pkg.version,
                 type: "collection",
                 date: new Date()
             }
