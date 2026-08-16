@@ -662,6 +662,8 @@
     "close_preview": "Fermer l'aperçu",
     "added_at": "Date d'ajout",
     "added_by": "Ajouté par",
+    "modified_at": "Dernière modification",
+    "last_refresh": "Dernier rafraîchissement :",
     "source": "Source",
     "sleeve_condition": "État de la pochette",
     "estimation_title": "Estimation (Discogs)",

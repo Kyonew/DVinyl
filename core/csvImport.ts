@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import { PluginDefinition, SearchResult } from './types';
-import { escapeRegExp, parseCsvRecords } from './helpers';
+import { escapeRegExp, parseCsvRecords, syncStamp } from './helpers';
 
 /**
  * Generic engine behind the CSV importers declared by plugins (Libib & co.).
@@ -379,7 +379,9 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
         const patch = fillEmptyFields(current, enriched, allowed, firstMatch ? defaults : undefined);
         if (Object.keys(patch).length === 0) return 'skipped';
 
-        await Model.updateOne({ _id: existing._id }, { $set: patch });
+        // A sync, not an edit: this branch only ever writes what the provider returned,
+        // never what the row said. The importer's own rows land through create() below.
+        await Model.updateOne({ _id: existing._id }, { $set: { ...patch, ...syncStamp() } });
         return 'updated';
       }
 

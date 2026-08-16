@@ -61,6 +61,26 @@ export function buildSortTitle(title: string | null | undefined): string {
 }
 
 /**
+ * The two ways an item changes once it exists, kept apart on purpose.
+ *
+ * What gets written decides which one applies, not who triggered it: a hand edit is
+ * someone's decision and records their name, while a provider filling in a cover or a
+ * genre is nobody's doing and records only the moment. Merged into one field, a nightly
+ * refresh would erase the name of the last person who actually touched the item, which is
+ * the only thing anyone wants to read there.
+ *
+ * Spread into the $set of the update that carries the change, so the stamp and what it
+ * describes land in the same write.
+ */
+export function editStamp(userId: any): { modified_at: Date; modified_by: any } {
+  return { modified_at: new Date(), modified_by: userId };
+}
+
+export function syncStamp(): { synced_at: Date } {
+  return { synced_at: new Date() };
+}
+
+/**
  * Turns a UPC database entry into something a title search can match.
  *
  * What comes back is a retail listing, not the name of a work: "Nightlife [blu-ray] By

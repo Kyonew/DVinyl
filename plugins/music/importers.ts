@@ -1,5 +1,5 @@
 import { PluginImporter } from '../../core/types';
-import { fetchJson, escapeRegExp, parseCsv } from '../../core/helpers';
+import { fetchJson, escapeRegExp, parseCsv, syncStamp } from '../../core/helpers';
 import { CsvImportContext, CsvRow, runCsvImport } from '../../core/csvImport';
 import { registry } from '../../core/registry';
 import {
@@ -81,7 +81,7 @@ async function importDiscogs(req: any, res: any) {
               if (fetchedTracklist.length > 0) {
                 await Item.updateOne(
                   { _id: existing._id },
-                  { $set: { tracklist: fetchedTracklist } },
+                  { $set: { tracklist: fetchedTracklist, ...syncStamp() } },
                   { strict: false }
                 );
               }

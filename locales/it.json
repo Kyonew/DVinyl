@@ -560,6 +560,8 @@
   "detail": {
     "added_at": "Aggiunto a",
     "added_by": "Aggiunto da",
+    "modified_at": "Ultima modifica",
+    "last_refresh": "Ultimo aggiornamento:",
     "additional_image": "Immagine aggiuntiva",
     "view_fullscreen": "Visualizza a schermo intero",
     "close_preview": "Chiudi anteprima",

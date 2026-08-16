@@ -560,6 +560,8 @@
   "detail": {
     "added_at": "Hinzugefügt bei",
     "added_by": "Hinzugefügt von",
+    "modified_at": "Zuletzt geändert",
+    "last_refresh": "Letzte Aktualisierung:",
     "additional_image": "Zusätzliches Bild",
     "view_fullscreen": "Vollbild anzeigen",
     "close_preview": "Vorschau schließen",

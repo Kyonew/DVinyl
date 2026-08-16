@@ -270,6 +270,30 @@
                         </span>
                     </div>
                 <% } %>
+                <%
+                    // Who last changed the item by hand. The metadata refresh has a date of
+                    // its own, next to the button that triggers it: a refresh is nobody's
+                    // edit, and a second face in this grid would only blur whose it is.
+                %>
+                <% if (item.modified_at) { %>
+                    <div>
+                        <span class="block text-xs opacity-50 uppercase font-bold mb-1">
+                            <%= t('detail.modified_at') %>
+                        </span>
+                        <span class="flex items-center gap-2 flex-wrap transition-colors">
+                            <% if (locals.modifiedBy) { %>
+                                <img src="<%= baseUrl + modifiedBy.img %>" alt=""
+                                    class="w-6 h-6 rounded-full object-cover flex-shrink-0">
+                                <span class="truncate"><%= modifiedBy.username %></span>
+                                <span class="text-xs opacity-60">
+                                    <%= new Date(item.modified_at).toLocaleDateString(dateLocale) %>
+                                </span>
+                            <% } else { %>
+                                <%= new Date(item.modified_at).toLocaleDateString(dateLocale) %>
+                            <% } %>
+                        </span>
+                    </div>
+                <% } %>
                 <!-- External "source" link, declared by the plugin -->
                 <% const extLink = plugin.externalLink ? plugin.externalLink(item) : null; %>
                 <% if (extLink) { %>
@@ -340,13 +364,28 @@
 
             <!-- Admin Actions Block -->
             <% if (user && locals.canEditCollection) { %>
-                <div class="pt-6 border-t border-black/10 dark:border-white/10 flex justify-end gap-4 transition-colors">
-                    <div class="flex-1 flex gap-2">
+                <%
+                    // Buttons aligned by their top edge, not centered: the refresh date sits
+                    // under its own button, and centering would push that whole column up,
+                    // leaving the refresh button floating above the row it belongs to.
+                %>
+                <div class="pt-6 border-t border-black/10 dark:border-white/10 flex items-start justify-end gap-4 transition-colors">
+                    <%
+                        // The refresh date belongs to the button, not to the metadata grid:
+                        // stacked under it, it reads as a caption of the action rather than
+                        // as one more thing to know about the item.
+                    %>
+                    <div class="flex-1 flex flex-col items-start gap-1">
                         <% if (plugin.refreshItem) { %>
                             <button id="refreshInfoBtn" onclick="refreshMetadata('<%= item._id %>')" class="opacity-60 hover:opacity-100 px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 flex items-center gap-2">
                                 <i class="fa-solid fa-arrows-rotate" id="refreshInfoIcon"></i>
                                 <%= t('collection.refresh_metadata_btn') %>
                             </button>
+                            <% if (item.synced_at) { %>
+                                <span class="text-xs opacity-50 pl-1 transition-colors">
+                                    <%= t('detail.last_refresh') %> <%= new Date(item.synced_at).toLocaleDateString(dateLocale) %>
+                                </span>
+                            <% } %>
                         <% } %>
                     </div>
                     <% if (!item.in_wishlist) { %>

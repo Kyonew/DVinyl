@@ -4,7 +4,7 @@ import { PluginDefinition } from '../types';
 import Item from '../../models/Item';
 import User from '../../models/User';
 import { requireAuth, requireCollectionRole } from '../../middleware/authMiddleware';
-import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle } from '../helpers';
+import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle, editStamp, syncStamp } from '../helpers';
 import { DEFAULT_PLACEHOLDER_IMAGE } from '../placeholderImage';
 import { getExtraFields, toFieldDefinitions } from '../pluginExtraFields';
 import { buildFieldSuggestions } from '../fieldSuggestions';
@@ -377,7 +377,11 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           delete saveObj.extra;
         }
 
-        await Item.updateOne({ _id: existingItem._id }, { $set: saveObj }, { strict: false });
+        await Item.updateOne(
+          { _id: existingItem._id },
+          { $set: { ...saveObj, ...editStamp(adminId) } },
+          { strict: false }
+        );
       } else {
         const Model = mongoose.model(plugin.kind);
         await Model.create({
@@ -448,15 +452,18 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       // Who put the item there. Read separately rather than populated, so formatForView
       // keeps receiving the raw document it expects. A member removed since then leaves
       // a dangling reference, which simply reads as unknown.
-      const addedBy = item.owner
-        ? await User.findById(item.owner).select('username img').lean() as any
-        : null;
+      const toProfile = (u: any) => u ? { username: u.username, img: u.img || '/ressources/no-pp.jpg' } : null;
+      const [addedBy, modifiedBy] = await Promise.all([
+        item.owner ? User.findById(item.owner).select('username img').lean() as any : null,
+        (item as any).modified_by ? User.findById((item as any).modified_by).select('username img').lean() as any : null
+      ]);
 
       res.render('detail', {
         item: formatted,
         plugin,
         variants: variants.map(v => plugin.formatForView(v)),
-        addedBy: addedBy ? { username: addedBy.username, img: addedBy.img || '/ressources/no-pp.jpg' } : null,
+        addedBy: toProfile(addedBy),
+        modifiedBy: toProfile(modifiedBy),
         user: res.locals.user
       });
     } catch (err: any) {
@@ -494,9 +501,12 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         // idempotent). The filter needs `kind` so Mongoose casts against the discriminator
         // schema; without it, plugin-only paths like tracklist are silently stripped by
         // strict mode.
-        if (result && Object.keys(result).length > 0) {
-          await Item.updateOne({ _id: item._id, kind: plugin.kind }, { $set: result });
-        }
+        // Stamped even when the provider returned nothing new: the question the date
+        // answers is when the metadata was last checked, not when it last changed.
+        await Item.updateOne(
+          { _id: item._id, kind: plugin.kind },
+          { $set: { ...(result || {}), ...syncStamp() } }
+        );
         res.json({ success: true, ...result });
       } catch (err: any) {
         console.error(`Refresh item error for ${plugin.id}:`, err.message);
@@ -510,7 +520,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
     try {
       await Item.findOneAndUpdate(
         { _id: req.params.id, collection: res.locals.activeCollectionId },
-        { in_wishlist: false, added_at: new Date() }
+        { in_wishlist: false, added_at: new Date(), ...editStamp(req.user._id) }
       );
       res.json({ success: true });
     } catch (err: any) {
@@ -527,7 +537,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
     try {
       await Item.findOneAndUpdate(
         { _id: req.params.id, collection: res.locals.activeCollectionId },
-        { in_wishlist: true, added_at: new Date() }
+        { in_wishlist: true, added_at: new Date(), ...editStamp(req.user._id) }
       );
       res.json({ success: true });
     } catch (err: any) {

@@ -134,9 +134,12 @@ router.post('/import', async (req, res) => {
                 // Cast the ref/date fields back to their BSON types (they are strings in JSON).
                 if (fixed._id) fixed._id = toId(fixed._id);
                 if (fixed.owner) fixed.owner = toId(fixed.owner);
+                if (fixed.modified_by) fixed.modified_by = toId(fixed.modified_by);
                 if (fixed.collection) fixed.collection = toId(fixed.collection);
                 if (fixed.added_at) fixed.added_at = new Date(fixed.added_at);
                 if (fixed.updated_at) fixed.updated_at = new Date(fixed.updated_at);
+                if (fixed.modified_at) fixed.modified_at = new Date(fixed.modified_at);
+                if (fixed.synced_at) fixed.synced_at = new Date(fixed.synced_at);
                 // Same treatment for the date-typed user-defined fields, which sit in a
                 // Mixed path and would otherwise come back as strings
                 if (fixed.extra) fixed.extra = { ...fixed.extra };

@@ -13,7 +13,7 @@ import PRESETS from "../config/themes";
 import Item from "../models/Item";
 
 import { registry } from "../core/registry.js";
-import { PermanentRefreshError } from "../core/helpers";
+import { PermanentRefreshError, syncStamp } from "../core/helpers";
 
 const router = express.Router();
 
@@ -1001,9 +1001,9 @@ router.post(
                   if (refreshedData[k] !== undefined) dataToApply[k] = refreshedData[k];
                 }
               }
-              if (Object.keys(dataToApply).length > 0) {
-                await Item.updateOne({ _id: item._id }, { $set: dataToApply });
-              }
+              // Written even when the provider changed nothing, so the date says when the
+              // item was last checked rather than when it last happened to differ.
+              await Item.updateOne({ _id: item._id }, { $set: { ...dataToApply, ...syncStamp() } });
 
               success = true;
               await new Promise((r) => setTimeout(r, plugin.bulkRefreshDelayMs ?? 500));

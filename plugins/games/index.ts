@@ -1,7 +1,7 @@
 import { PluginDefinition } from '../../core/types';
 import { IGDBProvider } from './igdb';
 import { gamesImporters } from './importers';
-import { escapeRegExp, fetchJson, PermanentRefreshError } from '../../core/helpers';
+import { escapeRegExp, fetchJson, PermanentRefreshError, syncStamp } from '../../core/helpers';
 import { igdbRequest } from './igdbHelper';
 import Item from '../../models/Item';
 
@@ -445,7 +445,7 @@ export const gamesPlugin: PluginDefinition = {
       description: formatted.description || item.description
     };
 
-    await Item.updateOne({ _id: item._id }, { $set: updateData });
+    await Item.updateOne({ _id: item._id }, { $set: { ...updateData, ...syncStamp() } });
     return updateData;
   },
 

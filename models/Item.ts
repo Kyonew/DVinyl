@@ -25,6 +25,14 @@ const itemSchema = new mongoose.Schema({
   // boot-time migration backfills all pre-existing items before the server serves
   // traffic, so requiring it would only turn a missed write-path stamp into a hard 500.
   collection: { type: mongoose.Schema.Types.ObjectId, ref: 'Collection' },
+  // Who last changed the item by hand, and when. Deliberately not `updated_at`, which the
+  // timestamps option bumps on any write at all: a metadata refresh would then pass for a
+  // modification and bury the name of the last person who really touched the item.
+  modified_at: Date,
+  modified_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  // When a provider last filled this item's metadata in. Its own field for the same
+  // reason, and with no author: nobody decided it.
+  synced_at: Date,
   in_wishlist: { type: Boolean, default: false },
   comments: { type: String, default: '' },
   location: { type: String, default: '' },
