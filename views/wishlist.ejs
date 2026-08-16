@@ -82,9 +82,6 @@
                             const routePrefix = itemPlugin ? itemPlugin.routePrefix : '/album';
                             const detailUrl = routePrefix + '/' + album._id;
                             const isPoster = itemPlugin ? itemPlugin.aspectRatioClass !== 'aspect-square' : true;
-                            const badge = (itemPlugin && itemPlugin.cardBadge)
-                                ? itemPlugin.cardBadge(album, settings)
-                                : (function(){ var fmt=(album.format||album.media_type||'').toLowerCase(); var opt=itemPlugin?(itemPlugin.formats||[]).find(function(f){return f.value===fmt}):null; return { label: opt?opt.label:fmt, colorClass: (opt&&opt.color)||'bg-gray-600/90' }; })();
                         %>
 
                             <div
@@ -102,12 +99,7 @@
                                                     class="relative z-10 w-full h-full <%= isPoster ? 'object-contain p-2 md:p-3' : 'object-cover' %> transition-transform duration-500 group-hover:scale-105"
                                                     loading="lazy">
 
-                                                <% if (badge.label) { %>
-                                                <span
-                                                    class="absolute top-1.5 right-1.5 md:top-2 md:right-2 z-20 text-[10px] font-bold px-1.5 py-0.5 md:px-2 md:py-1 rounded backdrop-blur-md border border-white/10 shadow-sm <%= badge.colorClass %> text-white">
-                                                    <%= t(badge.label, { defaultValue: badge.label }) %>
-                                                </span>
-                                                <% } %>
+                                                <%- include('partials/cover-badge', { item: album, plugin: itemPlugin, settings, size: 'compact' }) %>
                                     </div>
 
                                     <%- include('partials/item-card-body', { item: album, plugin: itemPlugin, size: 'wishlist' }) %>

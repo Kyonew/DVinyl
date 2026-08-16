@@ -1125,6 +1125,9 @@
     "sort_formats": "Ordina i formati in ordine alfabetico",
     "card_fields": "Campi della scheda",
     "card_fields_hint": "Mostrati sotto la copertina in tutte le griglie, nell'ordine dichiarato dal plugin. Massimo {{count}}.",
+    "corner_field": "Angolo della copertina",
+    "corner_field_hint": "Mostrato nell’angolo in basso a sinistra di ogni copertina, di fronte al badge del formato. Il valore memorizzato è usato così com’è, per restare breve.",
+    "corner_field_none": "Niente",
     "default_color": "Colore predefinito",
     "reset": "Reimposta",
     "customized": "Personalizzato"

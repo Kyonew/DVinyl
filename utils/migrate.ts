@@ -237,6 +237,48 @@ export const migrateDatabase = async () => {
             console.log(`[MIGRATION] sort_title computed for ${staleTitles.length} item(s).`);
         }
 
+        // Until 3.1.2 an edit went through the base Item model with strict mode off. The
+        // form posts every value as a string and the base schema knows nothing of
+        // `tmdb_id` or `discogs_id`, so one save was enough to store "1396" instead of
+        // 1396. Nothing looked broken: the item still displayed, but every lookup
+        // comparing the id as a number missed it, starting with duplicate detection, and
+        // the same record could be added a second time. The write path is fixed; this
+        // repairs what it left behind.
+        //
+        // Only fields a plugin declares as `Number` are touched. `hardcover_slug` (books)
+        // and `set_num` (LEGO) are external ids too and are legitimately strings.
+        for (const plugin of registry.getAll()) {
+            const field = plugin.externalIdField;
+            if (!field) continue;
+
+            const declared: any = (plugin.schemaDefinition || {})[field];
+            const isNumeric = declared === Number || declared?.type === Number;
+            if (!isNumeric) continue;
+
+            const broken = await Item.collection
+                .find({ kind: plugin.kind, [field]: { $type: 'string' } }, { projection: { [field]: 1 } })
+                .toArray();
+
+            // A value that is not a number at all is left alone rather than turned into
+            // NaN: it would be no more findable, and the original would be gone.
+            const ops = broken
+                .filter((doc: any) => /^\d+$/.test(String(doc[field]).trim()))
+                .map((doc: any) => ({
+                    updateOne: {
+                        filter: { _id: doc._id },
+                        update: { $set: { [field]: parseInt(String(doc[field]), 10) } }
+                    }
+                }));
+
+            if (ops.length > 0) {
+                await Item.collection.bulkWrite(ops);
+                console.log(`[MIGRATION] ${ops.length} ${plugin.kind} item(s) had their ${field} stored as text, now numeric.`);
+            }
+            if (broken.length > ops.length) {
+                console.warn(`[MIGRATION] ${broken.length - ops.length} ${plugin.kind} item(s) hold a non-numeric ${field}; left untouched.`);
+            }
+        }
+
     } catch (error) {
         console.error('[MIGRATION] ERROR :', error);
     }

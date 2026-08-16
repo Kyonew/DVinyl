@@ -1125,6 +1125,9 @@
     "sort_formats": "Trier les formats par ordre alphabétique",
     "card_fields": "Champs de la carte",
     "card_fields_hint": "Affichés sous la pochette dans toutes les grilles, dans l'ordre déclaré par le plugin. {{count}} maximum.",
+    "corner_field": "Coin de la pochette",
+    "corner_field_hint": "Affiché dans le coin bas-gauche de chaque pochette, à l’opposé du badge de format. La valeur stockée est utilisée telle quelle, pour rester courte.",
+    "corner_field_none": "Rien",
     "default_color": "Couleur par défaut",
     "reset": "Réinitialiser",
     "customized": "Personnalisé"

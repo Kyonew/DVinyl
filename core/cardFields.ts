@@ -62,6 +62,40 @@ function stringifyValue(field: FieldDefinition | undefined, raw: any, lang?: str
  * Lines to render under the cover, title excluded (the views own it).
  * Capped at MAX_CARD_LINES, empty values dropped.
  */
+/**
+ * What to put in the free corner of a cover, or '' when there is nothing to put there.
+ * The field is chosen per module and per collection in the Customize panel.
+ *
+ * Deliberately not routed through stringifyValue: a select resolves to its full option
+ * label there, and the corner is a few characters wide. A sleeve condition stored as "VG+"
+ * has to read "VG+" from across a grid, not "Very Good Plus (VG+)". Everything else keeps
+ * the shared rules, dates and lists included, and a boolean still returns its field label
+ * since a bare "true" would say nothing.
+ *
+ * The result may be a translation key (that is what a boolean's label is), so views render
+ * it through t() with the value itself as the fallback.
+ */
+export function getCornerBadge(
+  plugin: PluginDefinition | undefined,
+  item: any,
+  options: { lang?: string } = {}
+): string {
+  const name = (plugin as any)?.cornerField;
+  if (!plugin || !item || !name) return '';
+
+  const raw = item[name] ?? item.extra?.[name];
+  if (raw === undefined || raw === null || raw === '') return '';
+
+  if (Array.isArray(raw)) return raw.filter(Boolean).map(String).join(', ');
+  if (raw instanceof Date) return raw.toLocaleDateString(dateLocaleFor(options.lang), { timeZone: 'UTC' });
+  if (typeof raw === 'boolean') {
+    const field = (plugin.formFields || []).find(f => f.name === name);
+    return raw && field ? field.label : '';
+  }
+
+  return String(raw);
+}
+
 export function getCardLines(
   plugin: PluginDefinition | undefined,
   item: any,

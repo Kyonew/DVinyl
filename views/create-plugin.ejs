@@ -378,6 +378,13 @@
             <div id="czCardFields" class="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-52 overflow-y-auto custom-scrollbar pr-1"></div>
         </div>
 
+        <div id="czCornerFieldWrap">
+            <label class="block mb-1 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('create_plugin.corner_field') %></label>
+            <p class="text-xs opacity-50 mb-2"><%= t('create_plugin.corner_field_hint') %></p>
+            <select id="czCornerField"
+                class="w-full bg-black/5 dark:bg-white/5 border border-transparent rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-primary-theme outline-none transition-all cursor-pointer"></select>
+        </div>
+
         <div>
             <label class="block mb-1 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('create_plugin.extra_fields') %></label>
             <p class="text-xs opacity-50 mb-2"><%= t('create_plugin.extra_fields_hint') %></p>
@@ -1021,6 +1028,31 @@
         });
     }
 
+    // Same candidates as the card fields, plus an empty choice: a clean corner is the
+    // default and has to remain reachable once something has been put there.
+    function czRenderCornerField(data) {
+        const select = $('czCornerField');
+        const choices = data.cardFieldChoices || [];
+        $('czCornerFieldWrap').classList.toggle('hidden', choices.length === 0);
+
+        select.innerHTML = '';
+        const none = document.createElement('option');
+        none.value = '';
+        none.className = 'bg-white dark:bg-[#1a1a1a]';
+        none.textContent = <%- JSON.stringify(t('create_plugin.corner_field_none')) %>;
+        select.append(none);
+
+        choices.forEach(choice => {
+            const option = document.createElement('option');
+            option.value = choice.name;
+            option.className = 'bg-white dark:bg-[#1a1a1a]';
+            option.textContent = choice.label;
+            select.append(option);
+        });
+
+        select.value = (data.current && data.current.cornerField) || '';
+    }
+
     function czRenderCardFields(data) {
         const wrap = $('czCardFields');
         wrap.innerHTML = '';
@@ -1062,6 +1094,7 @@
         (data.extraFields || []).forEach(f => czAddFieldRow(f));
 
         czRenderCardFields(data);
+        czRenderCornerField(data);
 
         const wrap = $('czFormats');
         wrap.innerHTML = '';
@@ -1113,13 +1146,14 @@
 
     window.saveCustomize = async function (reset) {
         if (!czPluginId) return;
-        const body = { icon: '', formatColors: {}, sortFormats: false };
+        const body = { icon: '', formatColors: {}, sortFormats: false, cornerField: '' };
         if (!reset) {
             body.icon = czIcon;
             document.querySelectorAll('.cz-color').forEach(sel => {
                 if (sel.value) body.formatColors[sel.dataset.format] = sel.value;
             });
             body.sortFormats = $('czSortFormats').checked;
+            body.cornerField = $('czCornerField').value;
             // Always sent, so unchecking everything is honoured as "title only" instead
             // of falling back to the plugin's own fields
             body.cardFields = Array.from(document.querySelectorAll('.cz-card-field'))

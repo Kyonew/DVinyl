@@ -1125,6 +1125,9 @@
     "sort_formats": "Sort formats alphabetically",
     "card_fields": "Card fields",
     "card_fields_hint": "Shown under the cover in every grid, in the order the plugin declares them. Up to {{count}}.",
+    "corner_field": "Corner of the cover",
+    "corner_field_hint": "Shown in the bottom-left corner of every cover, opposite the format badge. The stored value is used as is, so it stays short.",
+    "corner_field_none": "Nothing",
     "default_color": "Default color",
     "reset": "Reset",
     "customized": "Customized"

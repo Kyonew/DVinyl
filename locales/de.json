@@ -1125,6 +1125,9 @@
     "sort_formats": "Formate alphabetisch sortieren",
     "card_fields": "Felder der Karte",
     "card_fields_hint": "Werden in allen Rastern unter dem Cover angezeigt, in der Reihenfolge des Plugins. Maximal {{count}}.",
+    "corner_field": "Ecke des Covers",
+    "corner_field_hint": "Wird unten links auf jedem Cover angezeigt, gegenüber dem Format-Badge. Der gespeicherte Wert wird unverändert übernommen, damit er kurz bleibt.",
+    "corner_field_none": "Nichts",
     "default_color": "Standardfarbe",
     "reset": "Zurücksetzen",
     "customized": "Angepasst"

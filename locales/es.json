@@ -1125,6 +1125,9 @@
     "sort_formats": "Ordenar los formatos alfabéticamente",
     "card_fields": "Campos de la tarjeta",
     "card_fields_hint": "Se muestran bajo la portada en todas las cuadrículas, en el orden que declara el plugin. Máximo {{count}}.",
+    "corner_field": "Esquina de la portada",
+    "corner_field_hint": "Se muestra en la esquina inferior izquierda de cada portada, frente a la insignia de formato. Se usa el valor almacenado tal cual, para que sea breve.",
+    "corner_field_none": "Nada",
     "default_color": "Color por defecto",
     "reset": "Restablecer",
     "customized": "Personalizado"

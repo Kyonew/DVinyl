@@ -133,6 +133,15 @@ router.post('/customize/:pluginId', async (req: any, res: any) => {
 
     if (req.body.sortFormats === true || req.body.sortFormats === 'true') cosmetics.sortFormats = true;
 
+    // Corner field. Checked against what the plugin actually offers, so a crafted payload
+    // cannot put an arbitrary path on every cover; an empty submission clears it.
+    if (typeof req.body.cornerField === 'string' && req.body.cornerField) {
+      const decorated = res.locals.registry.get(plugin.id) || plugin;
+      if (cardFieldCandidates(decorated).some(f => f.name === req.body.cornerField)) {
+        cosmetics.cornerField = req.body.cornerField;
+      }
+    }
+
     // Card fields. Reordered to the plugin's own field order (the modal is a selection,
     // not a ranking) and capped, so a crafted payload cannot overflow the card.
     if (Array.isArray(req.body.cardFields)) {
@@ -159,7 +168,7 @@ router.post('/customize/:pluginId', async (req: any, res: any) => {
     const cosmeticsPath = `pluginCustomization.${plugin.id}`;
     const $set: any = {};
     const $unset: any = {};
-    if (cosmetics.icon || cosmetics.formatColors || cosmetics.cardFields || cosmetics.sortFormats) $set[cosmeticsPath] = cosmetics;
+    if (cosmetics.icon || cosmetics.formatColors || cosmetics.cardFields || cosmetics.sortFormats || cosmetics.cornerField) $set[cosmeticsPath] = cosmetics;
     else $unset[cosmeticsPath] = '';
     if (extraUpdate?.set) Object.assign($set, extraUpdate.set);
     if (extraUpdate?.unset) $unset[extraUpdate.unset] = '';
