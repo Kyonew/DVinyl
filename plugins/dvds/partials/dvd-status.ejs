@@ -5,11 +5,35 @@
     </span>
 <% } %>
 
-<% if (item.duration) { %>
-    <span class="px-3 py-1 bg-black/5 dark:bg-white/10 border border-transparent rounded-full text-xs opacity-80 flex items-center gap-1">
-        <i class="fa-solid fa-clock text-[10px] opacity-55"></i>
-        <%= item.duration %>
+<%
+    // What is owned of a show, worded by the plugin so the card and this page say the same
+    // thing. The seasons themselves are listed further down, so the pill is not a link.
+    const ownedLabel = locals.containsLabel ? t(containsLabel.key, containsLabel.params) : '';
+%>
+<% if (ownedLabel) { %>
+    <span class="px-3 py-1 bg-primary-theme/10 border border-primary-theme/20 text-primary-theme rounded-full text-xs flex items-center gap-1">
+        <i class="fa-solid fa-layer-group text-[10px]"></i>
+        <%= ownedLabel %>
     </span>
+<% } %>
+
+<% if (item.duration && !ownedLabel) { %>
+    <%# On a show TMDB knows, the duration doubles as the way into the episode list: it is
+        already the thing that says "5 seasons" or "13 episodes", so it is where someone
+        looks when wondering what is in them. Anything else keeps the plain pill. %>
+    <% if (item.media_type === 'tv' && item.tmdb_id) { %>
+        <a href="<%= baseUrl %>/dvd/<%= item._id %>/episodes" title="<%= t('dvd_detail.episodes_title') %>"
+            class="px-3 py-1 bg-black/5 dark:bg-white/10 border border-transparent hover:border-primary-theme hover:text-primary-theme rounded-full text-xs opacity-80 hover:opacity-100 flex items-center gap-1 transition-colors">
+            <i class="fa-solid fa-clock text-[10px] opacity-55"></i>
+            <%= item.duration %>
+            <i class="fa-solid fa-chevron-right text-[8px] opacity-55"></i>
+        </a>
+    <% } else { %>
+        <span class="px-3 py-1 bg-black/5 dark:bg-white/10 border border-transparent rounded-full text-xs opacity-80 flex items-center gap-1">
+            <i class="fa-solid fa-clock text-[10px] opacity-55"></i>
+            <%= item.duration %>
+        </span>
+    <% } %>
 <% } %>
 
 <% if (item.zone) { %>

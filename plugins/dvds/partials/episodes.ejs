@@ -1,0 +1,193 @@
+<%- include('../../../views/partials/header') %>
+
+<%
+    // Editable only on a season that carries its own episodes: a series read live from
+    // TMDB has nothing to write a note onto, and a viewer without edit rights has nothing
+    // to write with.
+    const canEdit = locals.canEditCollection === true && typeof item.season === 'number' && episodes.length > 0;
+%>
+
+<div class="max-w-screen-lg mx-auto px-4 pb-20">
+
+    <nav class="flex py-6 text-sm opacity-60 transition-colors">
+        <a href="<%= baseUrl %>/dvd/<%= item._id %>" class="hover:opacity-100 hover:text-primary-theme transition-colors flex items-center gap-2">
+            <i class="fa-solid fa-arrow-left"></i>
+            <%= item.title %>
+        </a>
+    </nav>
+
+    <div class="card-theme rounded-xl p-6 shadow-sm transition-colors">
+
+        <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+            <div>
+                <h1 class="text-2xl font-bold"><%= item.title %></h1>
+                <p class="text-sm opacity-50 mt-1"><%= t('dvd_detail.episodes_title') %></p>
+            </div>
+
+            <%# One season at a time, and the others a click away. Only for a series read
+                live: the seasons of a show held as items have pages of their own. %>
+            <% if (seasons.length > 1) { %>
+                <select id="episodeSeasonPicker"
+                    class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-primary-theme outline-none transition-all cursor-pointer">
+                    <% seasons.forEach(season => { %>
+                        <option value="<%= season.number %>" class="bg-white dark:bg-[#1a1a1a]" <%= season.number === currentSeason ? 'selected' : '' %>>
+                            <%= season.name %>
+                        </option>
+                    <% }) %>
+                </select>
+            <% } %>
+        </div>
+
+        <% if (episodes.length === 0) { %>
+            <p class="text-sm opacity-50 py-8 text-center"><%= t('dvd_detail.episodes_empty') %></p>
+        <% } else { %>
+            <div class="divide-y divide-black/5 dark:divide-white/10 transition-colors">
+                <% episodes.forEach(episode => { %>
+                    <div class="py-3" data-episode="<%= episode.number %>">
+                        <div class="flex items-start gap-4">
+                            <% if (canEdit) { %>
+                                <button type="button" class="js-watched w-8 flex-shrink-0 pt-0.5 text-right opacity-60 hover:opacity-100 transition-opacity"
+                                    aria-pressed="<%= episode.watched ? 'true' : 'false' %>"
+                                    title="<%= t('dvd_detail.episode_watched') %>">
+                                    <i class="fa-<%= episode.watched ? 'solid' : 'regular' %> fa-circle-check <%= episode.watched ? 'text-primary-theme' : '' %>"></i>
+                                </button>
+                            <% } else { %>
+                                <span class="text-xs font-bold opacity-40 w-8 flex-shrink-0 pt-0.5 text-right"><%= episode.number %></span>
+                            <% } %>
+
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-medium">
+                                    <% if (canEdit) { %><span class="opacity-40 mr-1"><%= episode.number %>.</span><% } %><%= episode.name %>
+                                </p>
+                                <% if (episode.overview) { %>
+                                    <p class="text-xs opacity-50 mt-1 line-clamp-2"><%= episode.overview %></p>
+                                <% } %>
+                                <% if (episode.notes) { %>
+                                    <p class="js-notes-preview text-xs text-primary-theme mt-1 truncate"><%= episode.notes %></p>
+                                <% } else { %>
+                                    <p class="js-notes-preview text-xs text-primary-theme mt-1 truncate hidden"></p>
+                                <% } %>
+                            </div>
+
+                            <div class="flex items-center gap-3 flex-shrink-0 pt-0.5">
+                                <% if (canEdit) { %>
+                                    <span class="js-stars text-xs whitespace-nowrap" data-rating="<%= episode.rating || 0 %>">
+                                        <% for (let star = 1; star <= 5; star++) { %>
+                                            <button type="button" class="js-star opacity-70 hover:opacity-100 transition-opacity" data-star="<%= star %>">
+                                                <i class="fa-<%= (episode.rating || 0) >= star ? 'solid' : 'regular' %> fa-star <%= (episode.rating || 0) >= star ? 'text-amber-500' : 'opacity-40' %>"></i>
+                                            </button>
+                                        <% } %>
+                                    </span>
+                                    <button type="button" class="js-note-btn text-xs opacity-40 hover:opacity-100 hover:text-primary-theme transition-colors"
+                                        title="<%= t('dvd_detail.episode_notes') %>">
+                                        <i class="fa-solid fa-pen"></i>
+                                    </button>
+                                <% } %>
+                                <span class="text-xs opacity-40 tabular-nums">
+                                    <% if (episode.runtime) { %><%= episode.runtime %> min<% } %>
+                                </span>
+                            </div>
+                        </div>
+
+                        <% if (canEdit) { %>
+                            <div class="js-note-editor hidden pl-12 pr-2 mt-2">
+                                <textarea rows="2" maxlength="2000"
+                                    placeholder="<%= t('dvd_detail.episode_notes_placeholder') %>"
+                                    class="js-note-input w-full bg-black/5 dark:bg-white/5 border border-transparent rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-theme outline-none transition-all"><%= episode.notes || '' %></textarea>
+                            </div>
+                        <% } %>
+                    </div>
+                <% }) %>
+            </div>
+        <% } %>
+    </div>
+</div>
+
+<script>
+    (function () {
+        const picker = document.getElementById('episodeSeasonPicker');
+        if (picker) {
+            picker.addEventListener('change', function () {
+                const url = new URL(window.location.href);
+                url.searchParams.set('season', this.value);
+                window.location.href = url.toString();
+            });
+        }
+
+        <% if (canEdit) { %>
+        const endpoint = <%- JSON.stringify(baseUrl + '/api/dvd/' + item._id + '/episode/') %>;
+
+        // Each control writes only what it changed, so two people editing different
+        // episodes, or the same one from two tabs, never overwrite each other's fields.
+        async function save(number, payload) {
+            try {
+                const response = await fetch(endpoint + number + '/meta', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                return response.ok;
+            } catch (err) {
+                console.error(err);
+                return false;
+            }
+        }
+
+        function paintStars(row, rating) {
+            row.querySelectorAll('.js-star i').forEach(function (icon, index) {
+                const lit = index < rating;
+                icon.className = 'fa-' + (lit ? 'solid' : 'regular') + ' fa-star ' + (lit ? 'text-amber-500' : 'opacity-40');
+            });
+            row.querySelector('.js-stars').dataset.rating = String(rating);
+        }
+
+        document.querySelectorAll('[data-episode]').forEach(function (row) {
+            const number = row.dataset.episode;
+
+            const watched = row.querySelector('.js-watched');
+            if (watched) {
+                watched.addEventListener('click', async function () {
+                    const next = watched.getAttribute('aria-pressed') !== 'true';
+                    if (!await save(number, { watched: next })) return;
+                    watched.setAttribute('aria-pressed', next ? 'true' : 'false');
+                    watched.querySelector('i').className =
+                        'fa-' + (next ? 'solid' : 'regular') + ' fa-circle-check' + (next ? ' text-primary-theme' : '');
+                });
+            }
+
+            row.querySelectorAll('.js-star').forEach(function (star) {
+                star.addEventListener('click', async function () {
+                    const clicked = Number(star.dataset.star);
+                    // Clicking the star that is already the rating clears it.
+                    const current = Number(row.querySelector('.js-stars').dataset.rating || 0);
+                    const next = clicked === current ? 0 : clicked;
+                    if (!await save(number, { rating: next })) return;
+                    paintStars(row, next);
+                });
+            });
+
+            const noteBtn = row.querySelector('.js-note-btn');
+            const editor = row.querySelector('.js-note-editor');
+            const input = row.querySelector('.js-note-input');
+            const preview = row.querySelector('.js-notes-preview');
+            if (noteBtn && editor && input) {
+                noteBtn.addEventListener('click', function () {
+                    editor.classList.toggle('hidden');
+                    if (!editor.classList.contains('hidden')) input.focus();
+                });
+                // Saved on leaving the field: nobody wants a request per keystroke, and
+                // nobody wants to hunt for a save button either.
+                input.addEventListener('blur', async function () {
+                    const value = input.value.trim();
+                    if (!await save(number, { notes: value })) return;
+                    preview.textContent = value;
+                    preview.classList.toggle('hidden', value === '');
+                    editor.classList.add('hidden');
+                });
+            }
+        });
+        <% } %>
+    })();
+</script>
+
+<%- include('../../../views/partials/footer') %>

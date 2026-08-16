@@ -163,6 +163,28 @@ export interface PluginDefinition {
   // (e.g. books keep `isbn` and `barcode` in sync). Runs for both create and edit.
   normalizeForSave?(data: Record<string, any>): void;
 
+  // Takes over the creation of a new item when one submission is not one document: adding a
+  // TV show creates the show and each of its seasons, which are items in their own right.
+  // Return false to let the standard single-item creation run, which is what every plugin
+  // that does not implement this does.
+  //
+  // Ownership of the whole step, not a post-processing hook: the plugin decides what
+  // already exists, what to attach to what, and what merging means for its own shapes,
+  // none of which the core can express without learning the plugin's vocabulary. Only
+  // reached on a create, never on an edit.
+  // How to word, in one short line, what an item holds: a show says which seasons are
+  // owned. Returns a translation key and its parameters, since a plugin cannot translate,
+  // or null when the contents need no mention. Shown on the collection card and on the
+  // item page, so someone reads it off the shelf without opening anything.
+  cardContains?(item: any, contains: any[]): { key: string; params: Record<string, any> } | null;
+
+  handleCreate?(data: Record<string, any>, ctx: {
+    body: Record<string, any>;
+    ownerId: any;
+    collectionId: any;
+    language?: string;
+  }): Promise<boolean>;
+
   // Text fields whose input suggests values instead of constraining them. The collection's
   // existing values are always offered; `suggestionsFor` adds what the plugin knows about
   // the item at hand. See core/fieldSuggestions.ts.

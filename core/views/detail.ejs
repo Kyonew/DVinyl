@@ -7,7 +7,15 @@
 <div class="max-w-screen-xl mx-auto px-4 pb-20">
 
     <nav class="flex py-6 text-sm opacity-60 transition-colors">
-        <% if (item.in_wishlist) { %>
+        <%# A contained item is reachable from its holder alone, so that is where back
+            leads: sending it to a collection it deliberately never appears in would be a
+            dead end. %>
+        <% if (locals.holder) { %>
+            <a href="<%= baseUrl %><%= plugin.routePrefix %>/<%= holder._id %>" class="hover:opacity-100 hover:text-primary-theme transition-colors flex items-center gap-2">
+                <i class="fa-solid fa-arrow-left"></i>
+                <%= holder.title %>
+            </a>
+        <% } else if (item.in_wishlist) { %>
             <a href="<%= baseUrl %>/wishlist" class="hover:opacity-100 hover:text-primary-theme transition-colors flex items-center gap-2">
                 <i class="fa-solid fa-arrow-left"></i>
                 <%= t('detail.back_to_wishlist') %>
@@ -61,7 +69,7 @@
                 <% const sidebarZones = plugin.detailZones.filter(z => z.id === 'sidebar') %>
                 <% for (const zone of sidebarZones) { %>
                     <div class="w-full max-w-lg">
-                        <%- include('../../' + plugin.partialsPath + '/' + zone.partial, { item }) %>
+                        <%- include('../../' + plugin.partialsPath + '/' + zone.partial, { item, contains: locals.contains || [], containsLabel: locals.containsLabel || null }) %>
                     </div>
                 <% } %>
             <% } %>
@@ -111,7 +119,7 @@
                     <% if (plugin.partialsPath && plugin.detailZones) { %>
                         <% const badgeZones = plugin.detailZones.filter(z => z.id === 'badge') %>
                         <% for (const zone of badgeZones) { %>
-                            <%- include('../../' + plugin.partialsPath + '/' + zone.partial, { item }) %>
+                            <%- include('../../' + plugin.partialsPath + '/' + zone.partial, { item, contains: locals.contains || [], containsLabel: locals.containsLabel || null }) %>
                         <% } %>
                     <% } %>
                 </div>
@@ -358,7 +366,7 @@
             <% if (plugin.partialsPath && plugin.detailZones) { %>
                 <% const contentZones = plugin.detailZones.filter(z => z.id === 'content') %>
                 <% for (const zone of contentZones) { %>
-                    <%- include('../../' + plugin.partialsPath + '/' + zone.partial, { item }) %>
+                    <%- include('../../' + plugin.partialsPath + '/' + zone.partial, { item, contains: locals.contains || [], containsLabel: locals.containsLabel || null }) %>
                 <% } %>
             <% } %>
 

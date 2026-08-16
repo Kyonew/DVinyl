@@ -5,9 +5,10 @@ import Item from '../../models/Item';
 import Collection from '../../models/Collection';
 import User from '../../models/User';
 import { requireAuth } from '../../middleware/authMiddleware';
-import { applyVisibilityFilter, applyEnabledModulesFilter } from '../../utils/visibilityHelper';
+import { applyVisibilityFilter, applyEnabledModulesFilter, applyContainedFilter } from '../../utils/visibilityHelper';
 import { escapeRegExp } from '../helpers';
 import { generateUniqueSlug } from '../../utils/collectionHelpers';
+import { resolveShelfItems } from '../../utils/itemHelpers';
 import { checkCollectionCreation } from '../../utils/instanceSettings';
 import {
   getExtraFields, buildExtraFieldConditions, parseExtraSort, extraSortKey,
@@ -29,7 +30,9 @@ router.get('/wishlist', requireAuth, async (req: any, res: any) => {
 
     applyEnabledModulesFilter(query, res.locals.settings);
 
-    const items = await Item.find(query).sort({ added_at: -1 }).lean();
+    applyContainedFilter(query);
+
+    const items = await resolveShelfItems(await Item.find(query).sort({ added_at: -1 }).lean());
 
     res.render('wishlist', {
       albums: items.map(item => {
@@ -233,6 +236,7 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
 
     applyVisibilityFilter(query, res.locals.isCollectionAdmin, settings);
     applyEnabledModulesFilter(query, settings);
+    applyContainedFilter(query);
 
     const totalItems = await Item.countDocuments(query);
 
@@ -266,11 +270,16 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
       return sortMap[sort || ''] || { added_at: -1 };
     };
 
-    const albums = await Item.find(query)
+    const found = await Item.find(query)
       .sort(buildSortObj())
       .skip((page - 1) * limit)
       .limit(limit)
       .lean();
+
+    // A holder stands in for what it holds: several seasons and the show says so on its
+    // card, a single one and that season takes the place outright. Applied after the
+    // query, so a show still sorts and paginates on its own title.
+    const albums = await resolveShelfItems(found);
 
     // DYNAMIC FILTER MAP FROM REGISTRY
     // Read off the decorated registry, not the bare one: the collection's own

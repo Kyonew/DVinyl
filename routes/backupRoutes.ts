@@ -135,6 +135,9 @@ router.post('/import', async (req, res) => {
                 if (fixed._id) fixed._id = toId(fixed._id);
                 if (fixed.owner) fixed.owner = toId(fixed.owner);
                 if (fixed.modified_by) fixed.modified_by = toId(fixed.modified_by);
+                // Ids are preserved on a whole-instance restore, so a containment link only
+                // needs its BSON type back.
+                if (fixed.parent) fixed.parent = toId(fixed.parent);
                 if (fixed.collection) fixed.collection = toId(fixed.collection);
                 if (fixed.added_at) fixed.added_at = new Date(fixed.added_at);
                 if (fixed.updated_at) fixed.updated_at = new Date(fixed.updated_at);
@@ -295,6 +298,15 @@ router.post('/collection/import', requireAuth, requireCollectionRole('admin'), a
             const extraDateFields = collectExtraDateFields(
                 Array.isArray(data.settings) ? data.settings : (data.settings ? [data.settings] : [])
             );
+            // Ids are reassigned here (the same dump may be restored twice into different
+            // collections), which would leave every "contained in" pointing at an item that
+            // no longer exists. So the new ids are drawn up front and the links rewritten
+            // against them, keeping a show and its seasons together through the restore.
+            const idMap = new Map<string, mongoose.Types.ObjectId>();
+            for (const album of data.albums) {
+                if (album._id) idMap.set(String(album._id), new mongoose.Types.ObjectId());
+            }
+
             const cleanAlbums = data.albums.map((album: any) => {
                 const { _id, __v, ...rest } = album;
                 const fixed: any = {
@@ -303,6 +315,11 @@ router.post('/collection/import', requireAuth, requireCollectionRole('admin'), a
                     owner: req.user._id,
                     collection: activeCollectionId
                 };
+                if (_id && idMap.has(String(_id))) fixed._id = idMap.get(String(_id));
+                // A holder left outside the dump would strand the item in no listing at all,
+                // so it becomes standalone rather than invisible.
+                fixed.parent = rest.parent ? idMap.get(String(rest.parent)) : undefined;
+                if (!fixed.parent) delete fixed.parent;
                 if (fixed.extra) fixed.extra = { ...fixed.extra };
                 reviveExtraDates(fixed, extraDateFields);
                 return fixed;

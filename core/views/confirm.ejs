@@ -159,7 +159,7 @@
                     });
                     customFields.forEach(field => {
                     %>
-                        <%- include('../../' + plugin.partialsPath + '/' + field.partial, { field, item }) %>
+                        <%- include('../../' + plugin.partialsPath + '/' + field.partial, { field, item, existingItems: locals.existingItems || [] }) %>
                     <% }) %>
 
                     <%# This view also serves /add-<id>/manual, where the item has no cover yet %>

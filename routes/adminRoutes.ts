@@ -14,6 +14,7 @@ import Item from "../models/Item";
 
 import { registry } from "../core/registry.js";
 import { PermanentRefreshError, syncStamp } from "../core/helpers";
+import { deleteItemsAndContents } from "../utils/itemHelpers";
 
 const router = express.Router();
 
@@ -54,7 +55,9 @@ interface InstanceAdminData {
 async function loadCollectionAdminData(activeCollectionId: any): Promise<CollectionAdminData> {
   // Get distinct genres grouped by kind (scoped to the active collection)
   const pipeline = [
-    { $match: { collection: activeCollectionId } },
+    // Contained items carry their holder's genres, so counting them here would just
+    // repeat what the holder already contributed.
+    { $match: { collection: activeCollectionId, parent: { $exists: false } } },
     {
       $project: {
         kind: 1,
@@ -111,7 +114,10 @@ async function loadInstanceAdminData(): Promise<InstanceAdminData> {
     .populate("members.user", "username email img isAdmin")
     .lean();
 
+  // Counted like the grid shows: a show with five seasons is one line and counts as one,
+  // so the number here always matches what a member can count on screen.
   const counts = await Item.aggregate([
+    { $match: { parent: { $exists: false } } },
     { $group: { _id: "$collection", n: { $sum: 1 } } },
   ]);
   const countByCollection: Record<string, number> = {};
@@ -913,15 +919,20 @@ router.post(
       return res.status(400).json({ error: "Invalid kind" });
 
     try {
-      const items = await Item.find({ collection: res.locals.activeCollectionId, kind })
+      // Counted the way the grid counts: "the last 3 items" means the last 3 lines someone
+      // can see, and a show leaves with its seasons rather than counting as several.
+      const items = await Item.find({
+        collection: res.locals.activeCollectionId,
+        kind,
+        parent: { $exists: false }
+      })
         .sort({ added_at: -1, _id: -1 })
         .limit(n)
         .select("_id");
 
-      const ids = items.map((i) => i._id);
-      const result = await Item.deleteMany({ _id: { $in: ids } });
+      const deleted = await deleteItemsAndContents(items.map((i) => i._id));
 
-      res.json({ deleted: result.deletedCount });
+      res.json({ deleted });
     } catch (err: any) {
       console.error("[ERR] delete-last-items:", err.message);
       res.status(500).json({ error: err.message });

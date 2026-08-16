@@ -5,6 +5,22 @@ import { registry } from '../core/registry';
  * Disabled-module items stay in the DB but disappear from every collection/dashboard/wishlist view.
  * Legacy music items (no `kind` field) are included only when the music module is enabled.
  */
+/**
+ * Keeps contained items out of a listing.
+ *
+ * An item can hold others: a TV show holds its seasons, each of which is a real item with
+ * its own cover, year and episodes. Only the holder belongs on a shelf, the seasons are
+ * reached from it, so every query that lists or counts what someone owns goes through
+ * here. The item pages, the search by id and the exports deliberately do not: a contained
+ * item is hidden from the grid, not from the app.
+ *
+ * Counting follows the same rule as showing, so the totals always match what is on screen:
+ * a show with five seasons is one line and counts as one.
+ */
+export function applyContainedFilter(query: any): void {
+    query.parent = { $exists: false };
+}
+
 export function applyEnabledModulesFilter(query: any, settings: any): void {
     const all = registry.getAll();
     const enabled = registry.getEnabled(settings);

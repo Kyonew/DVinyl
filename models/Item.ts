@@ -21,6 +21,11 @@ const itemSchema = new mongoose.Schema({
   cover_image: String,
   user_image: String,
   owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  // The item holding this one, when it is contained rather than standalone: a season of a
+  // show points at the show. A contained item is a full item, with its own cover, year and
+  // metadata; it is simply reached from its holder instead of from the grid. Absent on
+  // everything else, which is what makes the filter a plain $exists.
+  parent: { type: mongoose.Schema.Types.ObjectId, ref: 'Item' },
   // Which collection (shared library) this item belongs to. Not required: the
   // boot-time migration backfills all pre-existing items before the server serves
   // traffic, so requiring it would only turn a missed write-path stamp into a hard 500.

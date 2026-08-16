@@ -35,6 +35,14 @@
 <div class="<%= cs.wrap %>">
     <h3 class="<%= cs.title %>" title="<%= item.title %>"><%= item.title %></h3>
 
+    <%# What this item holds, when it holds anything: a show says which seasons are owned,
+        which is the only thing telling two lines of the same shelf apart from here. %>
+    <% if (locals.item.containsLabel) { %>
+        <p class="text-[10px] md:text-xs font-bold text-primary-theme truncate transition-colors">
+            <%= t(item.containsLabel.key, item.containsLabel.params) %>
+        </p>
+    <% } %>
+
     <% plainLines.forEach((line, i) => { %>
         <p class="<%= i === 0 ? cs.lead : 'text-[10px] md:text-xs opacity-60 truncate' %>" title="<%= lineText(line) %>">
             <% if (line.showLabel) { %><span class="opacity-70"><%= t(line.label, { defaultValue: line.label }) %> :</span> <% } %><%= line.value %>

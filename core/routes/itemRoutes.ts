@@ -8,6 +8,7 @@ import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle, editStamp, sy
 import { DEFAULT_PLACEHOLDER_IMAGE } from '../placeholderImage';
 import { getExtraFields, toFieldDefinitions } from '../pluginExtraFields';
 import { buildFieldSuggestions } from '../fieldSuggestions';
+import { deleteItemsAndContents } from '../../utils/itemHelpers';
 
 export function createItemRoutes(plugin: PluginDefinition): Router {
   const router = express.Router();
@@ -103,7 +104,14 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       const searchTypeHint = req.query.type as string | undefined;
 
       try {
-        const details = await plugin.searchProvider!.getDetails(externalId, { type: searchTypeHint, language: req.language });
+        // The query string is forwarded whole rather than key by key: what a provider needs
+        // to narrow a result down is its own business (TMDB asks which season), and the core
+        // has no reason to learn the vocabulary of each one.
+        const details = await plugin.searchProvider!.getDetails(externalId, {
+          ...req.query,
+          type: searchTypeHint,
+          language: req.language
+        });
         const activeCollectionId = res.locals.activeCollectionId;
 
         // Providers return the creator under a generic `creator` key; make sure
@@ -319,6 +327,21 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         plugin.normalizeForSave(updateData);
       }
 
+      // Asked before the duplicate lookup below, which assumes one submission is one
+      // document: a show being added with its seasons has to decide for itself what is
+      // already there and what attaches to what.
+      if (!mongo_id && typeof plugin.handleCreate === 'function') {
+        const handled = await plugin.handleCreate(updateData, {
+          body: req.body,
+          ownerId: adminId,
+          collectionId: activeCollectionId,
+          language: req.language
+        });
+        if (handled) {
+          return res.redirect(isWishlist ? '/wishlist' : `/collection?type=${plugin.collectionType}`);
+        }
+      }
+
       let existingItem: any;
       let isEdit = false;
 
@@ -377,7 +400,13 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           delete saveObj.extra;
         }
 
-        await Item.updateOne(
+        // Through the discriminator model, not the base one. The form posts every value as
+        // a string, and the base schema knows nothing of `tmdb_id` or `discogs_id`, so with
+        // strict off they were written raw: one edit was enough to turn a numeric external
+        // id into "1396", which then matched nothing that looked it up as a number.
+        // `strict: false` still lets the user-defined `extra.*` keys through.
+        const EditModel = mongoose.model(plugin.kind);
+        await EditModel.updateOne(
           { _id: existingItem._id },
           { $set: { ...saveObj, ...editStamp(adminId) } },
           { strict: false }
@@ -452,6 +481,18 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       // Who put the item there. Read separately rather than populated, so formatForView
       // keeps receiving the raw document it expects. A member removed since then leaves
       // a dangling reference, which simply reads as unknown.
+      // What this item holds, if anything: the seasons of a show. Kept out of every
+      // listing, so this page is the only way to them, which is also why deleting the
+      // holder takes them along.
+      const contained = await Item.find({ parent: item._id }).lean();
+
+      // And what holds this one, if anything: a season is absent from every listing, so
+      // "back to the collection" would send its page nowhere useful. The show it belongs
+      // to is the place to go back to.
+      const holder: any = (item as any).parent
+        ? await Item.findById((item as any).parent).select('title').lean()
+        : null;
+
       const toProfile = (u: any) => u ? { username: u.username, img: u.img || '/ressources/no-pp.jpg' } : null;
       const [addedBy, modifiedBy] = await Promise.all([
         item.owner ? User.findById(item.owner).select('username img').lean() as any : null,
@@ -464,6 +505,9 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         variants: variants.map(v => plugin.formatForView(v)),
         addedBy: toProfile(addedBy),
         modifiedBy: toProfile(modifiedBy),
+        contains: contained.map(c => plugin.formatForView(c)),
+        holder: holder ? { _id: holder._id, title: holder.title } : null,
+        containsLabel: plugin.cardContains ? plugin.cardContains(item, contained) : null,
         user: res.locals.user
       });
     } catch (err: any) {
@@ -479,8 +523,9 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       if (!item) {
         return res.status(404).json({ success: false, error: req.t('errors.not_found') });
       }
-      await Item.deleteOne({ _id: req.params.id });
-      res.json({ success: true });
+      // Takes the seasons of a show with it: they are only reachable from here.
+      const deleted = await deleteItemsAndContents([item._id]);
+      res.json({ success: true, deleted });
     } catch (err: any) {
       console.error(`Delete error for ${plugin.id}:`, err.message);
       res.status(500).json({ success: false, error: err.message });
