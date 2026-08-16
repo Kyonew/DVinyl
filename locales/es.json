@@ -1128,6 +1128,11 @@
     "corner_field": "Esquina de la portada",
     "corner_field_hint": "Se muestra en la esquina inferior izquierda de cada portada, frente a la insignia de formato. Se usa el valor almacenado tal cual, para que sea breve.",
     "corner_field_none": "Nada",
+    "corner_position": "Qué esquina",
+    "corner_top_left": "Arriba a la izquierda",
+    "corner_bottom_left": "Abajo a la izquierda",
+    "corner_bottom_right": "Abajo a la derecha",
+    "corner_taken": "La esquina superior derecha la ocupa la insignia de formato.",
     "default_color": "Color por defecto",
     "reset": "Restablecer",
     "customized": "Personalizado"

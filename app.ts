@@ -28,7 +28,7 @@ import { loadPlugins } from './core/loadPlugins.js';
 import { syncCustomPluginsOnBoot } from './core/customPluginSync.js';
 import { mountPluginRoutes, pluginDispatcher } from './core/pluginRuntime.js';
 import { applyPluginCustomization } from './core/pluginCustomization.js';
-import { getCardLines, getCornerBadge } from './core/cardFields.js';
+import { getCardLines, getCornerBadge, CORNER_POSITIONS, DEFAULT_CORNER_POSITION } from './core/cardFields.js';
 import { importableFields } from './core/csvMapping.js';
 
 // Routes imports
@@ -83,6 +83,8 @@ app.set('views', [path.join(__dirname, 'views'), path.join(__dirname, 'core/view
 // Card bodies are resolved from the plugin declarations, not inlined per grid
 app.locals.getCardLines = getCardLines;
 app.locals.getCornerBadge = getCornerBadge;
+app.locals.CORNER_POSITIONS = CORNER_POSITIONS;
+app.locals.DEFAULT_CORNER_POSITION = DEFAULT_CORNER_POSITION;
 // The CSV mapping screen lists the destinations of every enabled module
 app.locals.importableFields = importableFields;
 // Dates read the same way wherever a view prints one

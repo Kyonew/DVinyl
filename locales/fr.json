@@ -1128,6 +1128,11 @@
     "corner_field": "Coin de la pochette",
     "corner_field_hint": "Affiché dans le coin bas-gauche de chaque pochette, à l’opposé du badge de format. La valeur stockée est utilisée telle quelle, pour rester courte.",
     "corner_field_none": "Rien",
+    "corner_position": "Quel coin",
+    "corner_top_left": "En haut à gauche",
+    "corner_bottom_left": "En bas à gauche",
+    "corner_bottom_right": "En bas à droite",
+    "corner_taken": "Le coin haut-droite est occupé par le badge de format.",
     "default_color": "Couleur par défaut",
     "reset": "Réinitialiser",
     "customized": "Personnalisé"

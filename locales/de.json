@@ -1128,6 +1128,11 @@
     "corner_field": "Ecke des Covers",
     "corner_field_hint": "Wird unten links auf jedem Cover angezeigt, gegenüber dem Format-Badge. Der gespeicherte Wert wird unverändert übernommen, damit er kurz bleibt.",
     "corner_field_none": "Nichts",
+    "corner_position": "Welche Ecke",
+    "corner_top_left": "Oben links",
+    "corner_bottom_left": "Unten links",
+    "corner_bottom_right": "Unten rechts",
+    "corner_taken": "Die Ecke oben rechts ist vom Format-Badge belegt.",
     "default_color": "Standardfarbe",
     "reset": "Zurücksetzen",
     "customized": "Angepasst"

@@ -1128,6 +1128,11 @@
     "corner_field": "Angolo della copertina",
     "corner_field_hint": "Mostrato nell’angolo in basso a sinistra di ogni copertina, di fronte al badge del formato. Il valore memorizzato è usato così com’è, per restare breve.",
     "corner_field_none": "Niente",
+    "corner_position": "Quale angolo",
+    "corner_top_left": "In alto a sinistra",
+    "corner_bottom_left": "In basso a sinistra",
+    "corner_bottom_right": "In basso a destra",
+    "corner_taken": "L’angolo in alto a destra è occupato dal badge del formato.",
     "default_color": "Colore predefinito",
     "reset": "Reimposta",
     "customized": "Personalizzato"

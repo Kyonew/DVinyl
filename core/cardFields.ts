@@ -63,6 +63,31 @@ function stringifyValue(field: FieldDefinition | undefined, raw: any, lang?: str
  * Capped at MAX_CARD_LINES, empty values dropped.
  */
 /**
+ * Where the chosen field may sit on a cover. Top-right is absent on purpose: the format
+ * badge lives there in every grid, and two pills in one corner would overlap.
+ *
+ * Which corner is the free one depends on the artwork, not on us. A film poster carries
+ * its title at the bottom, a square sleeve often has a logo top-left, so the choice
+ * belongs to whoever is looking at their own shelf.
+ */
+export const CORNER_POSITIONS: Record<string, { normal: string; compact: string }> = {
+  'bottom-left': {
+    normal: 'bottom-2 left-2',
+    compact: 'bottom-1.5 left-1.5 md:bottom-2 md:left-2'
+  },
+  'bottom-right': {
+    normal: 'bottom-2 right-2',
+    compact: 'bottom-1.5 right-1.5 md:bottom-2 md:right-2'
+  },
+  'top-left': {
+    normal: 'top-2 left-2',
+    compact: 'top-1.5 left-1.5 md:top-2 md:left-2'
+  }
+};
+
+export const DEFAULT_CORNER_POSITION = 'bottom-left';
+
+/**
  * What to put in the free corner of a cover, or '' when there is nothing to put there.
  * The field is chosen per module and per collection in the Customize panel.
  *

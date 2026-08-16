@@ -1128,6 +1128,11 @@
     "corner_field": "Corner of the cover",
     "corner_field_hint": "Shown in the bottom-left corner of every cover, opposite the format badge. The stored value is used as is, so it stays short.",
     "corner_field_none": "Nothing",
+    "corner_position": "Which corner",
+    "corner_top_left": "Top left",
+    "corner_bottom_left": "Bottom left",
+    "corner_bottom_right": "Bottom right",
+    "corner_taken": "The top-right corner is taken by the format badge.",
     "default_color": "Default color",
     "reset": "Reset",
     "customized": "Customized"

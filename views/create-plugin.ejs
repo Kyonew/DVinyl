@@ -383,6 +383,34 @@
             <p class="text-xs opacity-50 mb-2"><%= t('create_plugin.corner_field_hint') %></p>
             <select id="czCornerField"
                 class="w-full bg-black/5 dark:bg-white/5 border border-transparent rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-primary-theme outline-none transition-all cursor-pointer"></select>
+
+            <%# Which corner, shown rather than named: a square standing for the cover, its
+                four quadrants clickable except the top-right one, where the format badge
+                already sits. Hidden until a field is chosen, since it decides nothing on
+                its own. %>
+            <div id="czCornerPosWrap" class="hidden mt-4">
+                <label class="block mb-2 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('create_plugin.corner_position') %></label>
+                <div class="w-32 h-32 rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 grid grid-cols-2 grid-rows-2 gap-1 p-1">
+                    <% [
+                        { pos: 'top-left', label: 'create_plugin.corner_top_left' },
+                        { pos: '', label: '' },
+                        { pos: 'bottom-left', label: 'create_plugin.corner_bottom_left' },
+                        { pos: 'bottom-right', label: 'create_plugin.corner_bottom_right' }
+                    ].forEach(cell => { %>
+                        <% if (cell.pos) { %>
+                            <button type="button" class="cz-corner-pos rounded-lg border-2 border-transparent hover:border-primary-theme/50 flex items-center justify-center transition-all"
+                                data-pos="<%= cell.pos %>" title="<%= t(cell.label) %>">
+                                <span class="w-6 h-2.5 rounded-sm bg-black/25 dark:bg-white/25"></span>
+                            </button>
+                        <% } else { %>
+                            <div class="rounded-lg flex items-center justify-center opacity-60 cursor-not-allowed" title="<%= t('create_plugin.corner_taken') %>">
+                                <span class="w-6 h-2.5 rounded-sm bg-primary-theme"></span>
+                            </div>
+                        <% } %>
+                    <% }) %>
+                </div>
+                <p class="text-xs opacity-50 mt-2"><%= t('create_plugin.corner_taken') %></p>
+            </div>
         </div>
 
         <div>
@@ -1051,7 +1079,31 @@
         });
 
         select.value = (data.current && data.current.cornerField) || '';
+
+        czCornerPos = (data.current && data.current.cornerPosition) || <%- JSON.stringify(DEFAULT_CORNER_POSITION) %>;
+        czPaintCornerPos();
+        select.onchange = czPaintCornerPos;
     }
+
+    let czCornerPos = <%- JSON.stringify(DEFAULT_CORNER_POSITION) %>;
+
+    function czPaintCornerPos() {
+        // The picker only means something once there is something to place.
+        $('czCornerPosWrap').classList.toggle('hidden', !$('czCornerField').value);
+        document.querySelectorAll('.cz-corner-pos').forEach(cell => {
+            const active = cell.dataset.pos === czCornerPos;
+            cell.classList.toggle('border-primary-theme', active);
+            cell.classList.toggle('bg-primary-theme/10', active);
+            cell.querySelector('span').classList.toggle('bg-primary-theme', active);
+        });
+    }
+
+    document.addEventListener('click', function (event) {
+        const cell = event.target.closest('.cz-corner-pos');
+        if (!cell) return;
+        czCornerPos = cell.dataset.pos;
+        czPaintCornerPos();
+    });
 
     function czRenderCardFields(data) {
         const wrap = $('czCardFields');
@@ -1146,7 +1198,7 @@
 
     window.saveCustomize = async function (reset) {
         if (!czPluginId) return;
-        const body = { icon: '', formatColors: {}, sortFormats: false, cornerField: '' };
+        const body = { icon: '', formatColors: {}, sortFormats: false, cornerField: '', cornerPosition: '' };
         if (!reset) {
             body.icon = czIcon;
             document.querySelectorAll('.cz-color').forEach(sel => {
@@ -1154,6 +1206,7 @@
             });
             body.sortFormats = $('czSortFormats').checked;
             body.cornerField = $('czCornerField').value;
+            body.cornerPosition = czCornerPos;
             // Always sent, so unchecking everything is honoured as "title only" instead
             // of falling back to the plugin's own fields
             body.cardFields = Array.from(document.querySelectorAll('.cz-card-field'))
