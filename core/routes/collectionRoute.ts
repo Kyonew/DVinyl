@@ -244,15 +244,19 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
       const sortMap: Record<string, any> = {
         'added_desc': { added_at: -1 },
         'added_asc': { added_at: 1 },
-        'title_asc': { title: 1 },
-        'title_desc': { title: -1 },
+        // `title` stays as a tie-breaker: two items whose sort keys are equal ("The Wall"
+        // and "Wall") would otherwise come back in whatever order Mongo felt like.
+        'title_asc': { sort_title: 1, title: 1 },
+        'title_desc': { sort_title: -1, title: -1 },
         'year_desc': { year: -1 },
         'year_asc': { year: 1 },
       };
 
       if (sort && sort.startsWith('artist')) {
         const dir = sort === 'artist_asc' ? 1 : -1;
-        if (!type || type === 'all') return { title: dir };
+        // No single creator field spans every type, so "all" falls back to the title, and
+        // it sorts on the same normalized key as the title options above.
+        if (!type || type === 'all') return { sort_title: dir, title: dir };
 
         const plugin = enabledPlugins.find(p => p.id === type);
         const field = plugin ? plugin.creatorField : 'title';

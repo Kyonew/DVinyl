@@ -41,6 +41,26 @@ export function parseGenresAndStyles(genres: any, styles: any): { genres: string
 }
 
 /**
+ * Builds the key a title is sorted on: lowercased, accent folded, and without a leading
+ * article. "The Wall" files under W and "Ámbar" next to "Amber", the way a record shop
+ * shelves them.
+ *
+ * Stored on the document rather than applied to the rendered results, because Mongo sorts
+ * before it paginates: normalizing in JS would only reorder the 25 items of the current
+ * page. English articles only for now.
+ */
+export function buildSortTitle(title: string | null | undefined): string {
+  const base = String(title || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+  if (!base) return '';
+  // A title made of nothing but an article keeps it, otherwise it would sort as empty.
+  return base.replace(/^(?:a|an|the)\s+/, '') || base;
+}
+
+/**
  * Turns a UPC database entry into something a title search can match.
  *
  * What comes back is a retail listing, not the name of a work: "Nightlife [blu-ray] By

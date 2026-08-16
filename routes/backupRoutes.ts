@@ -10,6 +10,7 @@ import InstanceSettings from '../models/InstanceSettings';
 import { invalidateInstanceSettingsCache } from '../utils/instanceSettings';
 import { requireAuth, requireAdmin, requireCollectionRole } from '../middleware/authMiddleware';
 import { registry } from '../core/registry';
+import { buildSortTitle } from '../core/helpers';
 
 // Stamped into every dump so a restore log says which build produced the file.
 // Read from package.json rather than copied, which is how it came to say 3.1.0 on 3.1.1.
@@ -140,6 +141,9 @@ router.post('/import', async (req, res) => {
                 // Mixed path and would otherwise come back as strings
                 if (fixed.extra) fixed.extra = { ...fixed.extra };
                 reviveExtraDates(fixed, extraDateFields);
+                // The native insert below skips the schema middleware that normally derives
+                // this, and a dump older than the field carries none at all.
+                fixed.sort_title = buildSortTitle(fixed.title);
                 return fixed;
             });
             // Insert with the native driver, bypassing Mongoose validation. A backup is

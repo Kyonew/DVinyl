@@ -3,6 +3,7 @@ import Settings from '../models/Settings';
 import User from '../models/User';
 import Collection from '../models/Collection';
 import { registry } from '../core/registry';
+import { buildSortTitle } from '../core/helpers';
 import { findOrCreateDefaultCollection } from './collectionHelpers';
 
 /**
@@ -211,6 +212,29 @@ export const migrateDatabase = async () => {
                 );
                 console.log(`[MIGRATION] historical settings attached to the default collection (theme/modules preserved).`);
             }
+        }
+
+        // `sort_title` is derived at write time, so every item that predates the field has
+        // none and would sort as an empty string, ahead of the whole collection. Computed
+        // here through the native driver, like the `kind` backfill above: a Mongoose
+        // updateMany cannot give each document a different value anyway. Idempotent, it
+        // only looks at documents where the field is missing.
+        const staleTitles = await Item.collection
+            .find({ sort_title: { $exists: false } }, { projection: { title: 1 } })
+            .toArray();
+        if (staleTitles.length > 0) {
+            // Chunked so a large collection does not build one giant bulk payload.
+            for (let i = 0; i < staleTitles.length; i += 500) {
+                await Item.collection.bulkWrite(
+                    staleTitles.slice(i, i + 500).map((doc: any) => ({
+                        updateOne: {
+                            filter: { _id: doc._id },
+                            update: { $set: { sort_title: buildSortTitle(doc.title) } }
+                        }
+                    }))
+                );
+            }
+            console.log(`[MIGRATION] sort_title computed for ${staleTitles.length} item(s).`);
         }
 
     } catch (error) {
