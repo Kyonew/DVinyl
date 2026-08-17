@@ -27,6 +27,10 @@
                 </h1>
 
                 <form action="<%= baseUrl %>/save-<%= plugin.id %>" method="POST" class="space-y-6">
+                    <%# Where to land once saved, handed over by the item page. %>
+                    <% if (locals.backUrl) { %>
+                        <input type="hidden" name="return_to" value="<%= backUrl %>">
+                    <% } %>
                     <%
                     // Preserve every schema field not covered by a visible input so an edit-save
                     // doesn't wipe it: genres/styles and external ids (tmdb_id/igdb_id/hardcover_slug...).

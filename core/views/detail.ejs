@@ -10,20 +10,25 @@
         <%# A contained item is reachable from its holder alone, so that is where back
             leads: sending it to a collection it deliberately never appears in would be a
             dead end. %>
+        <%
+            // Back to the exact listing this page was opened from, page and filters kept,
+            // rather than to the head of the collection. Absent when the page was reached
+            // some other way (a link, a reload), and then the old destination stands.
+            const cameFromWishlist = locals.backUrl
+                ? backUrl.includes('/wishlist')
+                : item.in_wishlist;
+            const listingUrl = locals.backUrl
+                || (item.in_wishlist ? baseUrl + '/wishlist' : baseUrl + '/collection?type=' + plugin.id);
+        %>
         <% if (locals.holder) { %>
             <a href="<%= baseUrl %><%= plugin.routePrefix %>/<%= holder._id %>" class="hover:opacity-100 hover:text-primary-theme transition-colors flex items-center gap-2">
                 <i class="fa-solid fa-arrow-left"></i>
                 <%= holder.title %>
             </a>
-        <% } else if (item.in_wishlist) { %>
-            <a href="<%= baseUrl %>/wishlist" class="hover:opacity-100 hover:text-primary-theme transition-colors flex items-center gap-2">
-                <i class="fa-solid fa-arrow-left"></i>
-                <%= t('detail.back_to_wishlist') %>
-            </a>
         <% } else { %>
-            <a href="<%= baseUrl %>/collection?type=<%= plugin.id %>" class="hover:opacity-100 hover:text-primary-theme transition-colors flex items-center gap-2">
+            <a href="<%= listingUrl %>" class="hover:opacity-100 hover:text-primary-theme transition-colors flex items-center gap-2">
                 <i class="fa-solid fa-arrow-left"></i>
-                <%= t('detail.back_to_collection') %>
+                <%= cameFromWishlist ? t('detail.back_to_wishlist') : t('detail.back_to_collection') %>
             </a>
         <% } %>
     </nav>
@@ -402,7 +407,9 @@
                             <%= t('detail.move_to_wishlist_btn') %>
                         </button>
                     <% } %>
-                    <a href="<%= baseUrl %><%= plugin.routePrefix %>/edit/<%= item._id %>" class="opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
+                    <%# The origin travels on the link, since the Referer of the edit page
+                        is this page and not the listing anyone wants to come back to. %>
+                    <a href="<%= baseUrl %><%= plugin.routePrefix %>/edit/<%= item._id %><%= locals.backUrl ? '?from=' + encodeURIComponent(backUrl) : '' %>" class="opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
                         <i class="fa-solid fa-pen-to-square mr-2"></i>
                         <%= t('common.edit') %>
                     </a>
@@ -526,11 +533,9 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    <% if (item.in_wishlist) { %>
-                        window.location.href = '<%= baseUrl %>/wishlist';
-                    <% } else { %>
-                        window.location.href = '<%= baseUrl %>/collection?type=<%= plugin.collectionType %>';
-                    <% } %>
+                    // Same destination as the back arrow: a deleted item should leave you
+                    // where you were looking, not at the head of the collection.
+                    window.location.href = <%- JSON.stringify(listingUrl) %>;
                 } else {
                     alert(`${translations.error_server}: ${data.error}`);
                 }

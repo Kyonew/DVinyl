@@ -4,7 +4,7 @@ import { PluginDefinition } from '../types';
 import Item from '../../models/Item';
 import User from '../../models/User';
 import { requireAuth, requireCollectionRole } from '../../middleware/authMiddleware';
-import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle, editStamp, syncStamp } from '../helpers';
+import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle, editStamp, syncStamp, safeReturnPath } from '../helpers';
 import { DEFAULT_PLACEHOLDER_IMAGE } from '../placeholderImage';
 import { getExtraFields, toFieldDefinitions } from '../pluginExtraFields';
 import { buildFieldSuggestions } from '../fieldSuggestions';
@@ -420,7 +420,15 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         });
       }
 
-      if (isWishlist) {
+      // An edit lands back on the item, where the change can be seen; the page it was
+      // started from travels along, so the item's own back arrow still returns there with
+      // its filters and page number. Adding is different and keeps going to the list,
+      // which is where someone looks for what they just added.
+      const returnTo = safeReturnPath(req.body.return_to, req.get('host'));
+      if (isEdit && existingItem) {
+        const origin = returnTo ? `?from=${encodeURIComponent(returnTo)}` : '';
+        res.redirect(`${plugin.routePrefix}/${existingItem._id}${origin}`);
+      } else if (isWishlist) {
         res.redirect('/wishlist');
       } else {
         res.redirect(`/collection?type=${plugin.collectionType}`);
@@ -456,6 +464,9 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         plugin,
         suggestions,
         genres,
+        // Handed over by the item page and posted back with the form: the Referer here is
+        // the item page, which is not where anyone wants to land after saving.
+        backUrl: safeReturnPath(req.query.from, req.get('host')),
         user: res.locals.user
       });
     } catch (err: any) {
@@ -484,6 +495,13 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       // What this item holds, if anything: the seasons of a show. Kept out of every
       // listing, so this page is the only way to them, which is also why deleting the
       // holder takes them along.
+      // Where this page was opened from, so leaving it, editing or deleting comes back to
+      // the very page someone was on rather than the first one. The explicit parameter
+      // wins: after saving an edit the header points at the form, while the parameter
+      // still carries the listing that started the whole thing.
+      const backUrl = safeReturnPath(req.query.from, req.get('host'))
+        || safeReturnPath(req.get('Referer'), req.get('host'));
+
       const contained = await Item.find({ parent: item._id }).lean();
 
       // And what holds this one, if anything: a season is absent from every listing, so
@@ -507,6 +525,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         modifiedBy: toProfile(modifiedBy),
         contains: contained.map(c => plugin.formatForView(c)),
         holder: holder ? { _id: holder._id, title: holder.title } : null,
+        backUrl,
         containsLabel: plugin.cardContains ? plugin.cardContains(item, contained) : null,
         user: res.locals.user
       });

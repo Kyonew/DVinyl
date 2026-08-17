@@ -1,3 +1,5 @@
+import { BASE_URL } from '../config/constants';
+
 /**
  * Fetches JSON data from a URL.
  */
@@ -38,6 +40,48 @@ export function parseGenresAndStyles(genres: any, styles: any): { genres: string
     genres: parse(genres),
     styles: parse(styles)
   };
+}
+
+// Paths that are not pages one can be sent back to: a JSON endpoint, and the two forms
+// that lead here in the first place. Landing on the form you just submitted is the one
+// destination nobody means, and everything else internal is fair game.
+const NON_RETURNABLE = ['/api/', '/edit/', '/save-'];
+
+/**
+ * The page to return to once an item has been edited or deleted, or '' when there is
+ * nothing worth trusting.
+ *
+ * Any page of this instance qualifies, since someone reaches an item from the dashboard,
+ * a search, a show's season list or a collection alike, and all of them are somewhere they
+ * would want to come back to.
+ *
+ * The candidate comes from a Referer header or from a query string, both of which the
+ * caller controls. Following one unchecked would bounce a signed-in user onto another site
+ * the moment they saved their work, so what is refused is what does not belong to this
+ * instance. `//evil.example` looks like a path and is not one, hence the second test.
+ */
+export function safeReturnPath(candidate: any, host?: string): string {
+  const raw = typeof candidate === 'string' ? candidate.trim() : '';
+  if (!raw) return '';
+
+  let path: string;
+  // A second slash, forward or back, makes this an address and not a path: browsers read
+  // `/\evil.example` the way they read `//evil.example` and leave the site.
+  if (raw.startsWith('/') && !/^\/[\\/]/.test(raw)) {
+    path = raw;
+  } else {
+    // A Referer is a whole URL; it is kept only when it points back here.
+    try {
+      const url = new URL(raw);
+      if (!host || url.host !== host) return '';
+      path = url.pathname + url.search;
+    } catch {
+      return '';
+    }
+  }
+
+  const route = BASE_URL && path.startsWith(BASE_URL) ? path.slice(BASE_URL.length) : path;
+  return NON_RETURNABLE.some(p => route.includes(p)) ? '' : path;
 }
 
 /**
