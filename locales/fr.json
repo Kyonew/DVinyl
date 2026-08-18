@@ -316,6 +316,7 @@
       },
       "import_updated": "éléments enrichis",
       "import_failed": "lignes ignorées suite à une erreur",
+      "import_unenriched": "items sont arrivés sans jaquette ni métadonnées : relancez le même fichier avec « Compléter via l’API » coché pour les remplir.",
       "choose_file": "Choisir un fichier",
       "no_file_chosen": "Aucun fichier choisi",
       "err_no_file": "Choisissez un fichier."

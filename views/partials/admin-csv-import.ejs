@@ -136,6 +136,7 @@
             done: <%- JSON.stringify(t('admin.modal.import_done')) %>,
             updated: <%- JSON.stringify(t('admin.modal.import_updated')) %>,
             failed: <%- JSON.stringify(t('admin.modal.import_failed')) %>,
+            unenriched: <%- JSON.stringify(t('admin.modal.import_unenriched')) %>,
             ignore: <%- JSON.stringify(t('admin.csv_import.ignore')) %>,
             constant: <%- JSON.stringify(t('admin.csv_import.constant')) %>,
             constantPlaceholder: <%- JSON.stringify(t('admin.csv_import.constant_placeholder')) %>,
@@ -416,6 +417,9 @@
                 let message = data.count + ' ' + T.done;
                 if (data.updated) message += '\n' + data.updated + ' ' + T.updated;
                 if (data.failed) message += '\n' + data.failed + ' ' + T.failed;
+                // Said out loud: these look imported but have no cover and no metadata,
+                // and the refresh tools cannot fill them in afterwards.
+                if (data.unenriched) message += '\n' + data.unenriched + ' ' + T.unenriched;
                 alert(message);
                 window.location.reload();
             });

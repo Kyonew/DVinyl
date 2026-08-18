@@ -244,17 +244,88 @@ function pickBestMatch(results: SearchResult[], target: MatchTarget): { match: S
   return { match, sure };
 }
 
+/** How long to hold off after a provider says "too many requests", per attempt. */
+const RATE_LIMIT_BACKOFF_MS = [3000, 8000, 20000];
+
+const sleep = (ms: number): Promise<void> => new Promise(resolve => { setTimeout(resolve, ms); });
+
+/**
+ * Pace of the whole import, in milliseconds between two items.
+ *
+ * It only ever slows down. Discogs allows a request a second and each item costs two or
+ * three of them, so a file of any size will eventually be told off; when that happens the
+ * pace loosens for the rest of the run rather than resetting each time. A small import
+ * against a quiet provider stays as quick as it was, which a fixed conservative delay
+ * would have cost everybody.
+ */
+class ImportPace {
+  private delayMs: number;
+  private readonly ceiling: number;
+  rateLimitHits = 0;
+
+  constructor(startMs: number) {
+    this.delayMs = startMs;
+    this.ceiling = Math.max(startMs, 5000);
+  }
+
+  get current(): number {
+    return this.delayMs;
+  }
+
+  slowDown(): void {
+    this.rateLimitHits++;
+    this.delayMs = Math.min(Math.round(this.delayMs * 1.5) + 250, this.ceiling);
+  }
+
+  wait(): Promise<void> {
+    return sleep(this.delayMs);
+  }
+}
+
 /**
  * Looks one item up on the plugin's own search provider and returns its details, or
  * null when nothing matches (a lookup failure never fails the import).
+ *
+ * A "too many requests" answer is waited out and tried again rather than counted as a
+ * miss: giving up there is what left most of an imported collection without a cover, since
+ * the refresh tools cannot rescue an item that was never linked to the provider.
  */
 async function fetchEnrichment(
   plugin: PluginDefinition,
   query: string,
   options: Record<string, any>,
+  target: MatchTarget,
+  pace?: ImportPace
+): Promise<Record<string, any> | null> {
+  for (let attempt = 0; attempt <= RATE_LIMIT_BACKOFF_MS.length; attempt++) {
+    try {
+      return await enrichOnce(plugin, query, options, target);
+    } catch (err: any) {
+      const wait = err?.status === 429
+        ? (err.retryAfterMs || RATE_LIMIT_BACKOFF_MS[attempt])
+        : null;
+      if (!wait) {
+        console.error(`[${plugin.id}] Enrichment failed for "${query}":`, err.message);
+        return null;
+      }
+      // Every hit widens the gap between items too, so the rest of the file stops
+      // running into the same wall.
+      pace?.slowDown();
+      console.warn(`[${plugin.id}] Rate limited on "${query}", waiting ${Math.ceil(wait / 1000)}s (attempt ${attempt + 1}).`);
+      await sleep(wait);
+    }
+  }
+  console.error(`[${plugin.id}] Enrichment failed for "${query}": still rate limited after ${RATE_LIMIT_BACKOFF_MS.length + 1} attempts.`);
+  return null;
+}
+
+async function enrichOnce(
+  plugin: PluginDefinition,
+  query: string,
+  options: Record<string, any>,
   target: MatchTarget
 ): Promise<Record<string, any> | null> {
-  try {
+  {
     const search = (q: string) => withTimeout(plugin.searchProvider!.search(q, options), ENRICH_TIMEOUT_MS);
 
     let { match, sure } = pickBestMatch(await search(query), target);
@@ -272,9 +343,6 @@ async function fetchEnrichment(
 
     const details = await withTimeout(plugin.searchProvider!.getDetails(String(match.id), options), ENRICH_TIMEOUT_MS);
     return { ...match, ...details };
-  } catch (err: any) {
-    console.error(`[${plugin.id}] Enrichment failed for "${query}":`, err.message);
-    return null;
   }
 }
 
@@ -323,7 +391,7 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
 
     const Model = mongoose.model(plugin.kind);
     const canEnrich = enrich && !!plugin.searchProvider;
-    const enrichDelayMs = spec.enrichDelayMs ?? 500;
+    const pace = new ImportPace(spec.enrichDelayMs ?? 500);
     const allowed = enrichableFields(plugin);
     const defaults = schemaDefaults(plugin);
 
@@ -331,6 +399,10 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
     let totalUpdated = 0;
     let totalFailed = 0;
     let totalProcessed = 0;
+    // Rows the provider was asked about and answered nothing useful for. Reported at the
+    // end because an import that quietly leaves half a collection without a cover looks
+    // like it worked, and the refresh tools cannot repair those afterwards.
+    let totalUnenriched = 0;
 
     /** Imports one row; returns what it did so the caller can keep the tallies. */
     const importRow = async (row: CsvRow): Promise<'created' | 'updated' | 'skipped'> => {
@@ -362,9 +434,12 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
         // and metadata rather than being skipped outright.
         if (!canEnrich || !query) return 'skipped';
 
-        const enriched = await fetchEnrichment(plugin, query, searchOptions, target);
-        await new Promise(resolve => setTimeout(resolve, enrichDelayMs));
-        if (!enriched) return 'skipped';
+        const enriched = await fetchEnrichment(plugin, query, searchOptions, target, pace);
+        await pace.wait();
+        if (!enriched) {
+          totalUnenriched++;
+          return 'skipped';
+        }
 
         const current = existing.toObject ? existing.toObject() : existing;
 
@@ -386,9 +461,10 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
       }
 
       if (canEnrich && query) {
-        const enriched = await fetchEnrichment(plugin, query, searchOptions, target);
+        const enriched = await fetchEnrichment(plugin, query, searchOptions, target, pace);
         if (enriched) fillEmptyFields(data, enriched, allowed);
-        await new Promise(resolve => setTimeout(resolve, enrichDelayMs));
+        else totalUnenriched++;
+        await pace.wait();
       }
 
       // Same normalization hook the manual and edit forms go through, so an imported
@@ -426,7 +502,18 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
     }
 
     if (totalFailed > 0) console.error(`[${plugin.id}] CSV import: ${totalFailed} row(s) skipped on error.`);
-    req.io.emit('import_finished', { count: totalImported, updated: totalUpdated, failed: totalFailed });
+    if (totalUnenriched > 0) {
+      console.warn(
+        `[${plugin.id}] CSV import: ${totalUnenriched} item(s) came in without provider data` +
+        (pace.rateLimitHits > 0 ? `, after ${pace.rateLimitHits} rate limit(s); pace ended at ${pace.current}ms.` : '.')
+      );
+    }
+    req.io.emit('import_finished', {
+      count: totalImported,
+      updated: totalUpdated,
+      failed: totalFailed,
+      unenriched: totalUnenriched
+    });
   } catch (err: any) {
     console.error(`[${plugin.id}] CSV import error:`, err);
     req.io.emit('import_error', { message: err.message });

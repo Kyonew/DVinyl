@@ -185,6 +185,7 @@
       },
       "import_updated": "elementi arricchiti",
       "import_failed": "righe ignorate a causa di un errore",
+      "import_unenriched": "elementi sono arrivati senza copertina né metadati: riesegui lo stesso file con «Completa tramite API» selezionato per riempirli.",
       "choose_file": "Scegli un file",
       "no_file_chosen": "Nessun file selezionato",
       "err_no_file": "Scegli un file."

@@ -185,6 +185,7 @@
       },
       "import_updated": "Einträge ergänzt",
       "import_failed": "Zeilen wegen eines Fehlers übersprungen",
+      "import_unenriched": "Einträge kamen ohne Cover und Metadaten an: Führen Sie dieselbe Datei erneut aus, mit aktiviertem „Über die API vervollständigen“.",
       "choose_file": "Datei auswählen",
       "no_file_chosen": "Keine Datei ausgewählt",
       "err_no_file": "Wähle eine Datei."

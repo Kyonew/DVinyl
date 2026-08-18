@@ -331,6 +331,7 @@
       },
       "import_updated": "items enriched",
       "import_failed": "lines skipped on error",
+      "import_unenriched": "items came in without cover or metadata: re-run the same file with \"Complete from the API\" ticked to fill them in.",
       "choose_file": "Choose a file",
       "no_file_chosen": "No file chosen",
       "err_no_file": "Pick a file."

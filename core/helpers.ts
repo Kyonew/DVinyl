@@ -6,7 +6,15 @@ import { BASE_URL } from '../config/constants';
 export async function fetchJson(url: string, options?: RequestInit): Promise<any> {
   const response = await fetch(url, options);
   if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
+    // The status rides on the error so callers can tell "slow down" from "broken". The
+    // message is left word for word: it is what shows up in the logs people paste into
+    // bug reports, and it is matched elsewhere.
+    const error: any = new Error(`HTTP error! status: ${response.status}`);
+    error.status = response.status;
+    // Providers that answer 429 usually say when to come back, in seconds.
+    const retryAfter = parseInt(response.headers.get('retry-after') || '', 10);
+    if (Number.isFinite(retryAfter) && retryAfter > 0) error.retryAfterMs = retryAfter * 1000;
+    throw error;
   }
   return response.json();
 }
