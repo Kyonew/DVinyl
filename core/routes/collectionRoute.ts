@@ -4,8 +4,8 @@ import { registry } from '../registry';
 import Item from '../../models/Item';
 import Collection from '../../models/Collection';
 import User from '../../models/User';
-import { requireAuth } from '../../middleware/authMiddleware';
-import { applyVisibilityFilter, applyEnabledModulesFilter, applyContainedFilter } from '../../utils/visibilityHelper';
+import { requireAuth, requireAuthOrShareView } from '../../middleware/authMiddleware';
+import { applyVisibilityFilter, applyEnabledModulesFilter, applyContainedFilter, applyShareScopeFilter } from '../../utils/visibilityHelper';
 import { escapeRegExp } from '../helpers';
 import { generateUniqueSlug } from '../../utils/collectionHelpers';
 import { resolveShelfItems } from '../../utils/itemHelpers';
@@ -47,7 +47,7 @@ router.get('/wishlist', requireAuth, async (req: any, res: any) => {
   }
 });
 
-router.get('/collection', requireAuth, async (req: any, res: any) => {
+router.get('/collection', requireAuthOrShareView, async (req: any, res: any) => {
   try {
     const activeCollectionId = res.locals.activeCollectionId;
     if (!activeCollectionId) {
@@ -88,7 +88,16 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
     let conditions: any[] = [];
     let scopeConditions: any[] = [];
 
-    const enabledPlugins = registry.getEnabled(settings);
+    // A scoped share link only ever browses the types it allowlists - narrow the
+    // plugin list up front so search fields, the type/format filters and the
+    // artist/genre/style lookups below all follow suit automatically.
+    const shareScope = res.locals.isShareView ? (res.locals.shareScope || []) : [];
+    const shareScopedPluginIds = shareScope.length > 0
+      ? new Set(shareScope.map((s: any) => s.pluginId))
+      : null;
+    const enabledPlugins = shareScopedPluginIds
+      ? registry.getEnabled(settings).filter(p => shareScopedPluginIds.has(p.id))
+      : registry.getEnabled(settings);
 
     // SEARCH QUERY
     if (trimmedSearch) {
@@ -237,6 +246,9 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
     applyVisibilityFilter(query, res.locals.isCollectionAdmin, settings);
     applyEnabledModulesFilter(query, settings);
     applyContainedFilter(query);
+    if (res.locals.isShareView) {
+      applyShareScopeFilter(query, shareScope);
+    }
 
     const totalItems = await Item.countDocuments(query);
 
@@ -288,10 +300,16 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
     const filterMap: Record<string, { id: string; label: string }[]> = {};
     for (const plugin of enabledPlugins) {
       const customized = res.locals.registry.get(plugin.id) || plugin;
-      filterMap[plugin.id] = customized.formats.map((f: any) => ({
-        id: f.value,
-        label: req.t(f.label)
-      }));
+      const scopedFormats: string[] | null = shareScopedPluginIds
+        ? (shareScope.find((s: any) => s.pluginId === plugin.id)?.formats || [])
+        : null;
+      const allowedFormats = scopedFormats && scopedFormats.length > 0 ? new Set(scopedFormats) : null;
+      filterMap[plugin.id] = customized.formats
+        .filter((f: any) => !allowedFormats || allowedFormats.has(f.value))
+        .map((f: any) => ({
+          id: f.value,
+          label: req.t(f.label)
+        }));
     }
 
     // DYNAMIC ARTIST LIST

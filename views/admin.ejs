@@ -377,6 +377,111 @@
                                 </label>
                             </div>
                         </div>
+
+                        <div class="border-t border-black/5 dark:border-white/5 pt-6">
+                            <h3 class="text-lg font-bold flex items-center gap-2 mb-1">
+                                <i class="fa-solid fa-qrcode text-primary-theme"></i>
+                                <%= t('admin.sharing.title') %>
+                            </h3>
+                            <p class="text-xs opacity-60 max-w-md mb-4">
+                                <%= t('admin.sharing.subtitle') %>
+                            </p>
+
+                            <%
+                                const shareLinks = (locals.collectionDoc && collectionDoc.shareLinks) || [];
+                                const sharePlugins = registry.getAll().filter(p => settings.modules && settings.modules[p.collectionType] === true);
+                            %>
+
+                            <div class="space-y-4">
+                                <% shareLinks.forEach((link, idx) => { %>
+                                    <%
+                                        const scopeByType = {};
+                                        (link.scope || []).forEach((s) => { scopeByType[s.pluginId] = s.formats || []; });
+                                        const idPrefix = 'link' + idx;
+                                    %>
+                                    <div class="rounded-2xl bg-black/5 dark:bg-white/5 p-4 space-y-4">
+                                        <div class="flex flex-wrap items-center justify-between gap-3">
+                                            <div class="flex items-center gap-2 min-w-0">
+                                                <span class="w-2 h-2 rounded-full <%= link.enabled ? 'bg-green-500' : 'bg-gray-400' %> shrink-0"></span>
+                                                <span class="text-sm font-bold truncate"><%= link.label || t('admin.sharing.untitled_link') %></span>
+                                            </div>
+                                            <div class="flex flex-wrap gap-2">
+                                                <form action="<%= baseUrl %>/admin/share/<%= link.token %>/toggle" method="POST">
+                                                    <button type="submit"
+                                                        class="bg-black/5 dark:bg-white/10 hover:bg-<%= link.enabled ? 'red' : 'green' %>-500 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all">
+                                                        <%= link.enabled ? t('admin.sharing.disable_btn') : t('admin.sharing.enable_btn') %>
+                                                    </button>
+                                                </form>
+                                                <form action="<%= baseUrl %>/admin/share/<%= link.token %>/regenerate" method="POST"
+                                                    onsubmit="return confirm(<%= JSON.stringify(t('admin.sharing.confirm_regenerate')) %>)">
+                                                    <button type="submit" title="<%= t('admin.sharing.regenerate_btn') %>"
+                                                        class="bg-black/5 dark:bg-white/10 hover:bg-amber-500 hover:text-white w-8 h-8 rounded-lg text-xs transition-all">
+                                                        <i class="fa-solid fa-rotate"></i>
+                                                    </button>
+                                                </form>
+                                                <form action="<%= baseUrl %>/admin/share/<%= link.token %>/delete" method="POST"
+                                                    onsubmit="return confirm(<%= JSON.stringify(t('admin.sharing.confirm_delete')) %>)">
+                                                    <button type="submit" title="<%= t('admin.sharing.delete_btn') %>"
+                                                        class="bg-black/5 dark:bg-white/10 hover:bg-red-600 hover:text-white w-8 h-8 rounded-lg text-xs transition-all">
+                                                        <i class="fa-solid fa-trash"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+
+                                        <% if (link.enabled) { %>
+                                            <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                                                <img src="<%= baseUrl %>/admin/share/<%= link.token %>/qr.png" alt="QR code"
+                                                    class="w-24 h-24 rounded-xl border border-black/10 dark:border-white/10 bg-white p-2 shrink-0">
+                                                <div class="flex-1 min-w-0 flex items-center gap-2">
+                                                    <input type="text" readonly id="shareLinkInput_<%= idPrefix %>"
+                                                        value="<%= locals.siteOrigin || '' %><%= baseUrl %>/share/<%= link.token %>"
+                                                        class="flex-1 min-w-0 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl px-3 py-2 text-xs font-mono outline-none">
+                                                    <button type="button"
+                                                        onclick="navigator.clipboard.writeText(document.getElementById('shareLinkInput_<%= idPrefix %>').value)"
+                                                        class="shrink-0 bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white w-9 h-9 rounded-xl text-xs transition-all">
+                                                        <i class="fa-solid fa-copy"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        <% } %>
+
+                                        <form action="<%= baseUrl %>/admin/share/<%= link.token %>/scope" method="POST"
+                                            class="space-y-3 pt-3 border-t border-black/5 dark:border-white/10">
+                                            <input type="text" name="label" maxlength="60" value="<%= link.label || '' %>"
+                                                placeholder="<%= t('admin.sharing.label_placeholder') %>"
+                                                class="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl px-3 py-2 text-xs outline-none focus:border-primary-theme">
+                                            <%- include('partials/share-scope-picker', { sharePlugins, scopeByType, idPrefix }) %>
+                                            <button type="submit"
+                                                class="bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-4 py-2 rounded-xl text-xs font-black transition-all">
+                                                <%= t('admin.sharing.scope_save_btn') %>
+                                            </button>
+                                        </form>
+                                    </div>
+                                <% }) %>
+                            </div>
+
+                            <div class="mt-4">
+                                <button type="button" data-toggle-new-share-link
+                                    class="bg-primary-theme hover:brightness-110 text-white px-5 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2">
+                                    <i class="fa-solid fa-plus"></i>
+                                    <%= t('admin.sharing.new_link_btn') %>
+                                </button>
+
+                                <div id="newShareLinkForm" class="hidden mt-4 rounded-2xl bg-black/5 dark:bg-white/5 p-4">
+                                    <form action="<%= baseUrl %>/admin/share/create" method="POST" class="space-y-3">
+                                        <input type="text" name="label" maxlength="60"
+                                            placeholder="<%= t('admin.sharing.label_placeholder') %>"
+                                            class="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl px-3 py-2 text-xs outline-none focus:border-primary-theme">
+                                        <%- include('partials/share-scope-picker', { sharePlugins, scopeByType: {}, idPrefix: 'new' }) %>
+                                        <button type="submit"
+                                            class="bg-primary-theme hover:brightness-110 text-white px-5 py-2.5 rounded-xl text-xs font-black transition-all">
+                                            <%= t('admin.sharing.create_btn') %>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </section>
 
@@ -574,6 +679,26 @@
                 const modal = document.getElementById(id);
                 modal.classList.toggle('hidden');
                 document.body.style.overflow = modal.classList.contains('hidden') ? 'auto' : 'hidden';
+            }
+
+            // Share scope pickers: checking a format under a type also checks that
+            // type's own box - a format checked alone has nowhere to be saved (the
+            // server only reads formats for a type it was told is in scope).
+            document.addEventListener('change', (e) => {
+                const target = e.target;
+                if (target.matches('input[type="checkbox"][data-share-format-for]') && target.checked) {
+                    const typeCheckbox = document.querySelector(
+                        `input[data-share-type="${target.getAttribute('data-share-format-for')}"]`
+                    );
+                    if (typeCheckbox) typeCheckbox.checked = true;
+                }
+            });
+
+            const newShareLinkToggle = document.querySelector('[data-toggle-new-share-link]');
+            if (newShareLinkToggle) {
+                newShareLinkToggle.addEventListener('click', () => {
+                    document.getElementById('newShareLinkForm').classList.toggle('hidden');
+                });
             }
 
             document.getElementById('collectionBackupInput').onchange = function (e) {

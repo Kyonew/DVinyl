@@ -1,0 +1,33 @@
+<%
+  // Expected locals: sharePlugins (enabled plugins for this collection), scopeByType
+  // (map pluginId -> already-selected formats[]), idPrefix (unique per form on the
+  // page, so the type<->format auto-check script in admin.ejs can pair them up).
+%>
+<div class="space-y-3">
+    <% sharePlugins.forEach((p) => { %>
+        <div class="rounded-2xl bg-black/5 dark:bg-white/5 p-3">
+            <label class="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" name="scopeTypes" value="<%= p.id %>"
+                    data-share-type="<%= idPrefix %>_<%= p.id %>"
+                    <%= scopeByType.hasOwnProperty(p.id) ? 'checked' : '' %>
+                    class="w-4 h-4 rounded accent-primary-theme">
+                <i class="fa-solid fa-<%= p.icon %> text-primary-theme text-sm"></i>
+                <span class="text-sm font-bold"><%= t(p.label) %></span>
+            </label>
+            <% if ((p.formats || []).length > 0) { %>
+                <div class="mt-2 ml-7 flex flex-wrap gap-3">
+                    <% p.formats.forEach((f) => { %>
+                        <label class="flex items-center gap-1.5 text-xs cursor-pointer opacity-80">
+                            <input type="checkbox" name="scopeFormats_<%= p.id %>" value="<%= f.value %>"
+                                data-share-format-for="<%= idPrefix %>_<%= p.id %>"
+                                <%= (scopeByType[p.id] || []).includes(f.value) ? 'checked' : '' %>
+                                class="w-3.5 h-3.5 rounded accent-primary-theme">
+                            <%= t(f.label) %>
+                        </label>
+                    <% }) %>
+                </div>
+            <% } %>
+        </div>
+    <% }) %>
+    <p class="text-[11px] opacity-50"><%= t('admin.sharing.scope_empty_hint') %></p>
+</div>

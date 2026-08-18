@@ -60,6 +60,8 @@ read-only preview of a finished instance.
 - **SSO login (OIDC).** Optional single sign-on with providers like Authentik, Keycloak, Authelia
   or pocketID, with optional automatic account creation from an identity provider group.
 - **Private or shared.** Keep your collection to yourself or open it up for others to browse.
+- **Public share links.** Generate a read-only link or QR code so anyone can browse a collection
+  (or just part of it, e.g. only Vinyls) without an account.
 
 ## Built-in plugins
 
@@ -114,6 +116,7 @@ No Docker? No worries. Have a look at the other ways to install and run DVinyl i
 | [Docker deployment](./docs/docker.md) | Deploy with Docker Compose (recommended) |
 | [API keys](./docs/api-keys.md) | Get your Discogs, Hardcover, TMDB, IGDB and Rebrickable keys |
 | [Plugin development](./docs/plugin-development.md) | Build your own media type as a code plugin |
+| [Public share links](./docs/sharing.md) | Let anyone browse a collection (or part of it) read-only, no account needed |
 | [Wiki](https://github.com/Kyonew/DVinyl/wiki) | User guides and no-code tutorials |
 
 ## Tech stack

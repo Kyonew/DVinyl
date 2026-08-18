@@ -131,7 +131,14 @@
     "delete_admin_error": "Impossible de supprimer un autre administrateur d'instance.",
     "reset_admin_error": "Impossible de réinitialiser le mot de passe d'un autre administrateur d'instance.",
     "error_collection_quota": "Vous avez atteint le nombre maximum de collections autorisé.",
-    "error_collection_forbidden": "La création de collection n'est pas autorisée sur cette instance."
+    "error_collection_forbidden": "La création de collection n'est pas autorisée sur cette instance.",
+    "share_enabled": "Partage activé.",
+    "share_disabled": "Partage désactivé.",
+    "share_regenerated": "Lien de partage régénéré - l'ancien lien ne fonctionne plus.",
+    "share_scope_updated": "Contenu partagé mis à jour.",
+    "share_link_created": "Lien de partage créé.",
+    "share_link_deleted": "Lien de partage supprimé.",
+    "error_share": "Impossible de mettre à jour le partage."
   },
   "media": {
     "vinyl": "Vinyle",
@@ -491,6 +498,24 @@
       "subtitle": "Exporter cette collection (items + réglages) ou remplacer son contenu par une sauvegarde.",
       "confirm_import": "L'import va REMPLACER tous les items de cette collection. Continuer ?"
     },
+    "sharing": {
+      "title": "Liens de partage publics",
+      "subtitle": "Laissez n'importe qui parcourir cette collection en lecture seule via un lien ou un QR code - aucun compte requis. Modification, suppression et toute autre page restent inaccessibles. Créez plusieurs liens pour partager séparément différentes parties de la collection, par ex. un pour les Vinyles et un pour les CDs.",
+      "untitled_link": "Lien sans nom",
+      "label_placeholder": "Nommer ce lien (optionnel) - ex. \"Vinyles uniquement\"",
+      "enable_btn": "Activer",
+      "disable_btn": "Désactiver",
+      "regenerate_btn": "Régénérer",
+      "delete_btn": "Supprimer",
+      "confirm_regenerate": "Ceci invalide le lien et le QR code actuels - toute personne utilisant l'ancien perdra l'accès. Continuer ?",
+      "confirm_delete": "Supprimer ce lien de partage ? Toute personne l'utilisant perdra l'accès immédiatement.",
+      "new_link_btn": "Nouveau lien de partage",
+      "create_btn": "Créer le lien",
+      "scope_title": "Contenu partagé",
+      "scope_hint": "Choisissez des types (et, au sein d'un type, des formats) précis pour limiter ce que montre ce lien - par ex. seulement les CDs, ou CDs et Vinyles. Ne rien cocher partage toute la collection.",
+      "scope_empty_hint": "Rien de coché = toute la collection est partagée.",
+      "scope_save_btn": "Enregistrer les modifications"
+    },
     "libib": {
       "title_books": "Libib - Livres",
       "title_music": "Libib - Musique",
@@ -578,6 +603,7 @@
   },
   "collection": {
     "title": "Ma Collection",
+    "share_view_banner": "Vous consultez une collection partagée - lecture seule.",
     "filter_placeholder": "Filtrer...",
     "refresh_tooltip": "Rafraîchir depuis Discogs",
     "refresh": "Rafraîchir",
@@ -711,7 +737,8 @@
     "collections": "Collections",
     "instance": "Instance",
     "administration": "Administration",
-    "new_collection": "Nouvelle collection"
+    "new_collection": "Nouvelle collection",
+    "share_view": "Collection partagée · lecture seule"
   },
   "footer": {
     "made_with": "Développé avec",
@@ -1040,6 +1067,10 @@
     "message": "Vous n'avez accès à aucune collection pour le moment. Demandez à un administrateur de vous ajouter à l'une d'elles - votre accès apparaîtra ici automatiquement.",
     "message_can_create": "Vous n'avez encore aucune collection. Créez la vôtre pour commencer à ajouter vos items - vous en serez l'administrateur.",
     "create_btn": "Créer ma collection"
+  },
+  "share_invalid": {
+    "title": "Lien indisponible",
+    "message": "Ce lien de partage est invalide ou n'est plus disponible. Demandez un nouveau lien au propriétaire de la collection."
   },
   "create_plugin": {
     "title": "Éditeur de plugins",
