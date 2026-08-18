@@ -253,6 +253,13 @@ export interface PluginApiRoute {
   path: string; // full path (e.g. '/api/estimate/:discogsId')
   requireAdmin?: boolean;
   requireEditor?: boolean;
+  // Opens the route to a collection's public share links, on top of its members. Only for
+  // a read-only page that belongs to an item someone can already see: the episode list of
+  // a season is part of what the item is, and a link that shows the item without it leads
+  // its visitor to a login screen. The core still decides which item is in reach, so the
+  // path must carry it as `:id`; a route that names its item some other way is refused to
+  // share visitors rather than served unchecked.
+  allowShareView?: boolean;
   handler(req: any, res: any): Promise<any> | any;
 }
 

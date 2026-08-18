@@ -1,3 +1,4 @@
+import Item from '../models/Item';
 import { registry } from '../core/registry';
 
 /**
@@ -89,6 +90,42 @@ export function applyShareScopeFilter(query: any, shareScope: ShareScopeEntry[] 
         query.$and = [];
     }
     query.$and.push(condition);
+}
+
+/**
+ * Same rule as applyShareScopeFilter, asked about one item instead of a query: may the
+ * current visitor see this one? Every page that serves a single item by its id goes
+ * through here, otherwise a scoped link would give away what it excludes to anyone
+ * willing to guess an id.
+ *
+ * A contained item is judged by what holds it. A season is only ever reached from its
+ * show, and carries its own format: a link scoped to DVDs would turn the Blu-ray season
+ * of a DVD box set into a dead end, on a page that links to it. What the link lets
+ * through, it lets through whole.
+ *
+ * Always true outside a share view, and for a link that carries no scope: both mean
+ * "the whole collection", which the collection membership check has already settled.
+ */
+export async function isWithinShareScope(res: any, item: any): Promise<boolean> {
+    if (!res.locals.isShareView) return true;
+
+    const shareScope: ShareScopeEntry[] = res.locals.shareScope || [];
+    if (shareScope.length === 0) return true;
+    if (!item) return false;
+
+    const judged = item.parent ? await Item.findById(item.parent).lean() as any : item;
+    if (!judged) return false;
+
+    const plugin = registry.getByKind(judged.kind);
+    if (!plugin) return false;
+
+    const entry = shareScope.find(s => s.pluginId === plugin.id);
+    if (!entry) return false;
+    if (!entry.formats || entry.formats.length === 0) return true;
+
+    // Same legacy convention as the query filter above: music stores its format under
+    // `media_type`, every other plugin under `format`.
+    return entry.formats.includes(judged.format ?? judged.media_type);
 }
 
 interface VisibilitySettings {

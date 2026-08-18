@@ -115,6 +115,10 @@ export const dvdPlugin: PluginDefinition = {
       // twenty episodes with their synopses, which would bury everything else.
       method: 'get',
       path: '/dvd/:id/episodes',
+      // What a season holds is part of what it is, so a public link that shows the season
+      // shows its episodes too. Read-only either way: the annotations below need edit
+      // rights on the collection, which a share visitor never has.
+      allowShareView: true,
       async handler(req: any, res: any): Promise<any> {
         try {
           const item: any = await Item.findOne({

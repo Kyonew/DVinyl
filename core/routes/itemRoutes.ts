@@ -9,6 +9,7 @@ import { DEFAULT_PLACEHOLDER_IMAGE } from '../placeholderImage';
 import { getExtraFields, toFieldDefinitions } from '../pluginExtraFields';
 import { buildFieldSuggestions } from '../fieldSuggestions';
 import { deleteItemsAndContents, moveContentsToWishlist } from '../../utils/itemHelpers';
+import { isWithinShareScope } from '../../utils/visibilityHelper';
 
 export function createItemRoutes(plugin: PluginDefinition): Router {
   const router = express.Router();
@@ -174,13 +175,38 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
     router.post(`/import/${importer.id}`, ...middlewares, (req: any, res: any) => importer.handler(req, res));
   }
 
+  /**
+   * Guards a route a share link is allowed to reach (`allowShareView`). The handler is
+   * the plugin's, so the core checks what it is about to be asked for rather than what
+   * it hands back: the item named by `:id`, against the link's scope and the collection
+   * it belongs to. A route without that parameter tells the core nothing it can check,
+   * so a share visitor is turned away instead of trusted.
+   *
+   * Members go straight through; this costs a query to nobody but a share visitor.
+   */
+  const shareScopeGuard = async (req: any, res: any, next: any) => {
+    if (!res.locals.isShareView) return next();
+
+    const id = req.params.id;
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(404).send(req.t('errors.not_found'));
+    }
+    const item = await Item.findOne({ _id: id, collection: res.locals.activeCollectionId }).lean();
+    if (!item || !await isWithinShareScope(res, item)) {
+      return res.status(404).send(req.t('errors.not_found'));
+    }
+    next();
+  };
+
   // PLUGIN API ROUTES (e.g. Discogs estimate for music)
   for (const apiRouteDef of plugin.apiRoutes || []) {
     const middlewares = apiRouteDef.requireAdmin
       ? [requireAuth, requireCollectionRole('admin')]
       : apiRouteDef.requireEditor
         ? [requireAuth, requireCollectionRole('editor')]
-        : [requireAuth];
+        : apiRouteDef.allowShareView
+          ? [requireAuthOrShareView, shareScopeGuard]
+          : [requireAuth];
     (router as any)[apiRouteDef.method](apiRouteDef.path, ...middlewares, (req: any, res: any) => apiRouteDef.handler(req, res));
   }
 
@@ -488,18 +514,8 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
 
       // A scoped share link must not leak an out-of-scope item by URL-guessing its id,
       // even though the collection listing itself already excludes it from the query.
-      // The format value lives under `format` for most plugins but under `media_type`
-      // for music (legacy field name) - see utils/visibilityHelper.ts's same convention.
-      if (res.locals.isShareView) {
-        const scope = res.locals.shareScope || [];
-        if (scope.length > 0) {
-          const entry = scope.find((s: any) => s.pluginId === plugin.id);
-          const itemFormat = (item as any).format ?? (item as any).media_type;
-          const allowed = !!entry && (!entry.formats?.length || entry.formats.includes(itemFormat));
-          if (!allowed) {
-            return res.status(404).send(req.t('errors.not_found'));
-          }
-        }
+      if (!await isWithinShareScope(res, item)) {
+        return res.status(404).send(req.t('errors.not_found'));
       }
 
       const formatted = plugin.formatForView(item);
@@ -527,8 +543,11 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         ? await Item.findById((item as any).parent).select('title').lean()
         : null;
 
+      // Who put the item there and who last touched it, for the people who share the
+      // collection. A public link says nothing about them: it was opened to show a shelf,
+      // not to name the household behind it, so the lookups do not even run.
       const toProfile = (u: any) => u ? { username: u.username, img: u.img || '/ressources/no-pp.jpg' } : null;
-      const [addedBy, modifiedBy] = await Promise.all([
+      const [addedBy, modifiedBy] = res.locals.isShareView ? [null, null] : await Promise.all([
         item.owner ? User.findById(item.owner).select('username img').lean() as any : null,
         (item as any).modified_by ? User.findById((item as any).modified_by).select('username img').lean() as any : null
       ]);
