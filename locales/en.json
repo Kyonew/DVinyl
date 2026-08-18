@@ -618,8 +618,8 @@
     "sort_year": "Year",
     "artist_filter": "Artist",
     "decade_filter": "Decade",
-    "filter_mode_show": "Show",
-    "filter_mode_hide": "Hide",
+    "filter_mode_show": "Show matches",
+    "filter_mode_hide": "Hide matches",
     "styles_filter": "Styles",
     "platform_filter": "Console",
     "xf_from": "From",
@@ -798,7 +798,7 @@
     "lego_set_num": "e.g. 42115"
   },
   "perso": {
-    "title": "Personnalisation",
+    "title": "Personalization",
     "subtitle": "Customize the appearance of your DVinyl interface.",
     "backHome": "Back to home",
     "save": "Save Preferences",
