@@ -33,9 +33,13 @@
             <% item.seasons.forEach(season => { %>
                 <% const isOwned = owned.has(season.number); %>
                 <label class="flex items-center gap-2 px-3 py-2 rounded-lg border border-black/10 dark:border-white/10 text-sm transition-colors <%= isOwned ? 'opacity-50' : 'cursor-pointer hover:border-primary-theme' %>">
+                    <%# Ticking a season the collection lacks attaches it to the show already
+                        owned, so the confirm page must stop announcing a quantity bump. Only
+                        the seasons that can still be ticked say that: the locked ones are the
+                        duplicate the warning is about. %>
                     <input type="checkbox" name="seasons" value="<%= season.number %>"
                         class="js-season accent-primary-theme"
-                        <%= isOwned ? 'checked disabled' : '' %>>
+                        <%= isOwned ? 'checked disabled' : 'data-duplicate-exempt' %>>
                     <span class="truncate">
                         <%= season.name %>
                         <% if (season.episode_count) { %>
@@ -60,7 +64,11 @@
                 // One button for both directions: it ticks what is left, and unticks
                 // everything once nothing is left to tick.
                 const target = boxes.some(box => !box.checked);
-                boxes.forEach(box => { box.checked = target; });
+                boxes.forEach(box => {
+                    box.checked = target;
+                    // Setting `checked` fires nothing, and the confirm page listens for it.
+                    box.dispatchEvent(new Event('change', { bubbles: true }));
+                });
             });
         })();
     </script>

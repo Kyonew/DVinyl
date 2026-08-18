@@ -36,6 +36,19 @@ export async function resolveShelfItems(items: any[]): Promise<any[]> {
 }
 
 /**
+ * Moves whatever an item contains along with it, between the collection and the wishlist.
+ *
+ * A show and its seasons are one thing to own: receiving the show and leaving its seasons
+ * behind would keep them wanted forever, and unreachably so, since a contained item is
+ * absent from the wishlist like it is from every other listing. Only the holder is
+ * re-dated, because that is what the two lists sort on; a season keeps the day it was
+ * actually added.
+ */
+export async function moveContentsToWishlist(holderId: any, inWishlist: boolean, stamp: Record<string, any>): Promise<void> {
+    await Item.updateMany({ parent: holderId }, { in_wishlist: inWishlist, ...stamp });
+}
+
+/**
  * Deletes items along with whatever they contain.
  *
  * A holder is a way in, not an object of its own: deleting a show and leaving its seasons

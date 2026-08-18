@@ -8,7 +8,7 @@ import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle, editStamp, sy
 import { DEFAULT_PLACEHOLDER_IMAGE } from '../placeholderImage';
 import { getExtraFields, toFieldDefinitions } from '../pluginExtraFields';
 import { buildFieldSuggestions } from '../fieldSuggestions';
-import { deleteItemsAndContents } from '../../utils/itemHelpers';
+import { deleteItemsAndContents, moveContentsToWishlist } from '../../utils/itemHelpers';
 
 export function createItemRoutes(plugin: PluginDefinition): Router {
   const router = express.Router();
@@ -582,10 +582,12 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   // POST /api/{prefix}/:id/move-to-collection -> move from wishlist to collection
   router.post(`/api${plugin.routePrefix}/:id/move-to-collection`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
     try {
-      await Item.findOneAndUpdate(
+      const stamp = editStamp(req.user._id);
+      const moved = await Item.findOneAndUpdate(
         { _id: req.params.id, collection: res.locals.activeCollectionId },
-        { in_wishlist: false, added_at: new Date(), ...editStamp(req.user._id) }
+        { in_wishlist: false, added_at: new Date(), ...stamp }
       );
+      if (moved) await moveContentsToWishlist(moved._id, false, stamp);
       res.json({ success: true });
     } catch (err: any) {
       console.error(`Move to collection error for ${plugin.id}:`, err.message);
@@ -599,10 +601,12 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   // at its old acquisition date.
   router.post(`/api${plugin.routePrefix}/:id/move-to-wishlist`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
     try {
-      await Item.findOneAndUpdate(
+      const stamp = editStamp(req.user._id);
+      const moved = await Item.findOneAndUpdate(
         { _id: req.params.id, collection: res.locals.activeCollectionId },
-        { in_wishlist: true, added_at: new Date(), ...editStamp(req.user._id) }
+        { in_wishlist: true, added_at: new Date(), ...stamp }
       );
+      if (moved) await moveContentsToWishlist(moved._id, true, stamp);
       res.json({ success: true });
     } catch (err: any) {
       console.error(`Move to wishlist error for ${plugin.id}:`, err.message);

@@ -240,9 +240,12 @@ router.get('/collection/export', requireAuth, requireCollectionRole('admin'), as
         }
 
         const albums = (await Item.find({ collection: activeCollectionId }).lean()).map((a: any) => {
-            // Ids/refs are re-created at import time (imports may target another
-            // collection or instance), so strip everything instance-specific.
-            const { _id, __v, owner, collection, ...rest } = a;
+            // Owner and collection are re-stamped at import time (a dump may be restored
+            // into another collection, or another instance), so they go. The id stays: a
+            // season points at the show that holds it, and the import can only rebuild
+            // that link if it can tell which item was which. It is never restored as is,
+            // the import draws a new one and rewrites the links against it.
+            const { __v, owner, collection, ...rest } = a;
             return rest;
         });
 

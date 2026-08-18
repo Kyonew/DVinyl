@@ -34,10 +34,18 @@
             return el ? el.value : '';
         }
 
+        // A plugin can mark a control as meaning "this is not the same item again": ticking
+        // a season the collection lacks attaches it to the show already owned instead of
+        // bumping its quantity, so the warning and the "add anyway" wording would describe
+        // something that is not about to happen.
+        function addsSomethingNew() {
+            return document.querySelector('[data-duplicate-exempt]:checked') !== null;
+        }
+
         function checkDuplicate() {
             if (!banner || existingItems.length === 0) return;
 
-            const match = existingItems.find(item =>
+            const match = addsSomethingNew() ? null : existingItems.find(item =>
                 dupFields.every(f => norm(item[f]) === norm(fieldValue(f)))
             );
 
@@ -63,6 +71,10 @@
                     el.addEventListener('change', checkDuplicate);
                     el.addEventListener('input', checkDuplicate);
                 });
+            });
+
+            document.querySelectorAll('[data-duplicate-exempt]').forEach(el => {
+                el.addEventListener('change', checkDuplicate);
             });
 
             checkDuplicate();
