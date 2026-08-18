@@ -174,7 +174,9 @@
     "digital": "Digital",
     "book": "Livre",
     "lego": "LEGO",
-    "legos": "Sets LEGO"
+    "legos": "Sets LEGO",
+    "boardgames": "Jeux de société",
+    "boardgame": "Jeu de société"
   },
   "index": {
     "welcome": "Salut",
@@ -212,7 +214,9 @@
     "lego_pieces_label": "Total de pièces",
     "lego_minifigs_label": "Total minifigurines",
     "lego_sealed_label": "Sets scellés",
-    "top_theme_label": "Thème le plus présent"
+    "top_theme_label": "Thème le plus présent",
+    "boardgames_total_label": "Total jeux de société",
+    "top_designer_label": "Créateur Favori"
   },
   "modal": {
     "estimate_title": "Estimation en cours...",
@@ -842,6 +846,9 @@
     "graphic_novel": "Roman Graphique",
     "manga": "Manga",
     "comic": "Comic",
+    "boxed": "Boîte",
+    "expansion": "Extension",
+    "promo": "Promo",
     "digital": "Digital"
   },
   "status": {
@@ -1158,5 +1165,48 @@
     "set_num_label": "Numéro de set",
     "theme_label": "Thème",
     "delete_confirm": "Voulez-vous vraiment supprimer ce set de votre collection ?"
+  },
+  "add_boardgames": {
+    "title": "Ajouter un jeu de société",
+    "desc": "Recherchez un titre via BoardGameGeek.",
+    "search_placeholder": "Titre du jeu...",
+    "results_title": "Résultats",
+    "no_results": "Aucun jeu trouvé.",
+    "manual_entry": "Saisie manuelle",
+    "btn_scan": "Scanner"
+  },
+  "confirm_boardgame": {
+    "title": "Confirmer l'ajout",
+    "desc": "Vérifiez les informations et complétez les détails de votre jeu.",
+    "config_title": "Vérifier et compléter",
+    "field_title": "Titre",
+    "field_designer": "Créateur",
+    "field_publisher": "Éditeur",
+    "field_year": "Année",
+    "field_players": "Joueurs",
+    "field_playtime": "Durée (min)",
+    "field_min_age": "Âge minimum",
+    "field_format": "Format",
+    "field_barcode": "Code-barres",
+    "field_quantity": "Quantité",
+    "field_rating": "Note (sur 5)",
+    "field_comments": "Notes / Commentaires",
+    "comments_placeholder": "Ex: Il manque quelques jetons...",
+    "designer_label": "Créateur",
+    "year_label": "Année",
+    "barcode_label": "Code-barres",
+    "btn_collection": "Ajouter à la collection",
+    "btn_wishlist": "Ajouter à la Wishlist"
+  },
+  "edit_boardgame": {
+    "title": "Modifier le jeu de société"
+  },
+  "boardgame_detail": {
+    "players_label": "joueurs",
+    "playtime_label": "min",
+    "designer_label": "Créateur",
+    "publisher_label": "Éditeur",
+    "rating_label": "Note BGG",
+    "delete_confirm": "Voulez-vous vraiment supprimer ce jeu de votre collection ?"
   }
 }

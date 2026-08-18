@@ -1,6 +1,6 @@
 # 🧩 Plugin development guide
 
-Everything you collect in DVinyl (music, books, movies, games, LEGO) is a **plugin**. The core knows
+Everything you collect in DVinyl (music, books, movies, games, LEGO, board games) is a **plugin**. The core knows
 nothing about any specific media type. That means you can add a brand new type, with its own fields,
 its own external API and its own stats, just by dropping a folder into `plugins/`. No changes to the
 core are needed.

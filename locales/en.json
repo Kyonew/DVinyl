@@ -174,7 +174,9 @@
     "steelbook": "Steelbook",
     "digital": "Digital",
     "lego": "LEGO",
-    "legos": "LEGO Sets"
+    "legos": "LEGO Sets",
+    "boardgames": "Board games",
+    "boardgame": "Board Game"
   },
   "index": {
     "welcome": "Hello",
@@ -212,7 +214,9 @@
     "lego_pieces_label": "Total pieces",
     "lego_minifigs_label": "Total minifigures",
     "lego_sealed_label": "Sealed sets",
-    "top_theme_label": "Top theme"
+    "top_theme_label": "Top theme",
+    "boardgames_total_label": "Total board games",
+    "top_designer_label": "Top Designer"
   },
   "modal": {
     "estimate_title": "Estimating...",
@@ -842,7 +846,10 @@
     "graphic_novel": "Graphic Novel",
     "manga": "Manga",
     "comic": "Comic",
-    "digital": "Digital"
+    "digital": "Digital",
+    "boxed": "Boxed",
+    "expansion": "Expansion",
+    "promo": "Promo"
   },
   "status": {
     "to_read": "To read",
@@ -1158,5 +1165,48 @@
     "set_num_label": "Set number",
     "theme_label": "Theme",
     "delete_confirm": "Do you really want to remove this set from your collection?"
+  },
+  "add_boardgames": {
+    "title": "Add a board game",
+    "desc": "Search a title via BoardGameGeek.",
+    "search_placeholder": "Game title...",
+    "results_title": "Results",
+    "no_results": "No game found.",
+    "manual_entry": "Manual entry",
+    "btn_scan": "Scan"
+  },
+  "confirm_boardgame": {
+    "title": "Confirm addition",
+    "desc": "Check the information and complete your game's details.",
+    "config_title": "Review and complete",
+    "field_title": "Title",
+    "field_designer": "Designer",
+    "field_publisher": "Publisher",
+    "field_year": "Year",
+    "field_players": "Players",
+    "field_playtime": "Playtime (min)",
+    "field_min_age": "Minimum age",
+    "field_format": "Format",
+    "field_barcode": "Barcode",
+    "field_quantity": "Quantity",
+    "field_rating": "Rating (out of 5)",
+    "field_comments": "Notes / Comments",
+    "comments_placeholder": "e.g. Missing a few tokens...",
+    "designer_label": "Designer",
+    "year_label": "Year",
+    "barcode_label": "Barcode",
+    "btn_collection": "Add to collection",
+    "btn_wishlist": "Add to Wishlist"
+  },
+  "edit_boardgame": {
+    "title": "Edit board game"
+  },
+  "boardgame_detail": {
+    "players_label": "players",
+    "playtime_label": "min",
+    "designer_label": "Designer",
+    "publisher_label": "Publisher",
+    "rating_label": "BGG Rating",
+    "delete_confirm": "Do you really want to remove this game from your collection?"
   }
 }

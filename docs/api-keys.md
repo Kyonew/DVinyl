@@ -10,6 +10,7 @@ need the keys for the media types you actually plan to use, and **every key is f
 | Movies | TMDB | `TMDB_API_KEY` | Blu-ray, 4K, DVD, VHS |
 | Games | IGDB (Twitch) | `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET` | Video games |
 | LEGO | Rebrickable | `REBRICKABLE_API_KEY` | LEGO sets |
+| Board games | BoardGameGeek | `BGG_API_KEY` | Board games |
 
 Add the keys you need to your `.env` file. Any media type whose key is missing simply stays disabled
 in the admin panel until you provide it.
@@ -62,6 +63,17 @@ Used for LEGO set metadata, themes, piece counts and covers.
 2. Open the [API settings page](https://rebrickable.com/api/) and copy your **API key** (generate
    one if you do not have it yet).
 3. Paste it into your `.env` as `REBRICKABLE_API_KEY`.
+
+## 🎲 BoardGameGeek (Board games)
+
+Used for board game metadata, designers, publishers and covers. Since July 2025 BGG requires a
+registered application token for every XML API request (unauthenticated calls now fail with 401).
+
+1. Read [Using the XML API](https://boardgamegeek.com/using_the_xml_api) and the
+   [registration thread](https://boardgamegeek.com/thread/3525319/registration-to-use-the-xml-api-and-obtain-soon-to)
+   for BGG's current registration process.
+2. Register your application and obtain an application token.
+3. Paste it into your `.env` as `BGG_API_KEY`.
 
 ---
 

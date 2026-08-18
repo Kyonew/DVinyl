@@ -38,7 +38,7 @@ read-only preview of a finished instance.
 
 ### 📦 Your whole shelf, in one place
 - **Many formats.** Music (vinyls, CDs, cassettes), books (manga, comics, hardcover), movies
-  (Blu-ray, 4K, DVD, VHS, LaserDisc), video games and LEGO sets.
+  (Blu-ray, 4K, DVD, VHS, LaserDisc), video games, LEGO sets and board games.
 - **Multiple collections.** Keep separate libraries (yours, the family's, a specific room) and
   switch between them whenever you like.
 - **Smart import.** Add an item by ID or barcode, or bulk import a whole existing collection
@@ -70,6 +70,7 @@ read-only preview of a finished instance.
 | Movies | Blu-ray, 4K, DVD, VHS  | TMDB |
 | Games  | Video games            | IGDB |
 | LEGO   | LEGO sets              | Rebrickable |
+| Board games | Board games       | BoardGameGeek |
 
 Every plugin can be turned on or off per collection from the admin panel.
 
