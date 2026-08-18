@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 import { PluginDefinition } from '../types';
 import Item from '../../models/Item';
 import User from '../../models/User';
-import { requireAuth, requireCollectionRole } from '../../middleware/authMiddleware';
+import { requireAuth, requireAuthOrShareView, requireCollectionRole } from '../../middleware/authMiddleware';
 import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle } from '../helpers';
 import { DEFAULT_PLACEHOLDER_IMAGE } from '../placeholderImage';
 import { getExtraFields, toFieldDefinitions } from '../pluginExtraFields';
@@ -432,7 +432,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   });
 
   // GET /{prefix}/:id -> details view
-  router.get(`${plugin.routePrefix}/:id`, requireAuth, async (req: any, res: any) => {
+  router.get(`${plugin.routePrefix}/:id`, requireAuthOrShareView, async (req: any, res: any) => {
     try {
       if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
         return res.status(404).send(req.t('errors.not_found'));
@@ -440,6 +440,22 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       const item = await Item.findOne({ _id: req.params.id, collection: res.locals.activeCollectionId });
       if (!item) {
         return res.status(404).send(req.t('errors.not_found'));
+      }
+
+      // A scoped share link must not leak an out-of-scope item by URL-guessing its id,
+      // even though the collection listing itself already excludes it from the query.
+      // The format value lives under `format` for most plugins but under `media_type`
+      // for music (legacy field name) - see utils/visibilityHelper.ts's same convention.
+      if (res.locals.isShareView) {
+        const scope = res.locals.shareScope || [];
+        if (scope.length > 0) {
+          const entry = scope.find((s: any) => s.pluginId === plugin.id);
+          const itemFormat = (item as any).format ?? (item as any).media_type;
+          const allowed = !!entry && (!entry.formats?.length || entry.formats.includes(itemFormat));
+          if (!allowed) {
+            return res.status(404).send(req.t('errors.not_found'));
+          }
+        }
       }
 
       const formatted = plugin.formatForView(item);

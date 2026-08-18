@@ -33,6 +33,19 @@ export const requireAuth = async (req: Record<string, any>, res: any, next: any)
 };
 
 
+/**
+ * Gates a read-only route reachable either by a signed-in member or by a valid
+ * collection share link (res.locals.isShareView, set by collectionMiddleware).
+ * Only ever use this on side-effect-free GET handlers - it does not enforce role,
+ * requireCollectionRole does that everywhere else, and a share visitor's
+ * collectionRole is always forced to 'viewer'.
+ */
+export const requireAuthOrShareView = (req: any, res: any, next: any) => {
+  if (req.user) return next();
+  if (res.locals.isShareView) return next();
+  return res.redirect('/login');
+};
+
 export const checkUser = (req: Record<string, any>, res: any, next: any) => {
 
   const token = req.cookies.jwt;

@@ -7,3 +7,5 @@ docker-compose.override.yml
 .vscode/
 .claude/
 dist/
+CLAUDE.MD
+/graphify-out

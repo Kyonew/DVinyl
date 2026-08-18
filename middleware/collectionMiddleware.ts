@@ -14,9 +14,16 @@ import { canUserCreateCollection } from '../utils/instanceSettings';
  *   - res.locals.canCreateCollection: instance admin, or the instance allows it and the
  *                                     user is under their quota (drives the "new collection" UI)
  *   - req.activeCollectionId        : same id, for route handlers
+ *   - res.locals.isShareView        : true when access comes from one of a collection's
+ *                                     public share links (see routes/shareRoutes.ts)
+ *                                     rather than a real signed-in member
+ *   - res.locals.shareScope         : that link's scope (see models/Collection.ts
+ *                                     `shareLinks`) - empty array means the whole
+ *                                     collection; only meaningful when isShareView
  *
  * Self-heals: if the persisted lastActiveCollectionId is stale/missing, it resolves a
- * valid one and persists it back. No-ops for anonymous requests.
+ * valid one and persists it back. For anonymous requests, falls back to a share-link
+ * cookie if present; otherwise no-ops.
  */
 async function collectionMiddleware(req: any, res: any, next: any) {
     res.locals.activeCollectionId = null;
@@ -26,8 +33,34 @@ async function collectionMiddleware(req: any, res: any, next: any) {
     res.locals.isCollectionAdmin = false;
     res.locals.canEditCollection = false;
     res.locals.canCreateCollection = false;
+    res.locals.isShareView = false;
+    res.locals.shareScope = [];
 
     if (!req.user) {
+        // No session at all: the only other way in is one of a collection's public
+        // share links. Skip the lookup entirely when the cookie is absent, so ordinary
+        // anonymous traffic (the login page, static-ish routes) costs no extra query.
+        const shareToken = req.cookies?.dv_share;
+        if (shareToken) {
+            try {
+                const shared = await Collection.findOne({
+                    shareLinks: { $elemMatch: { token: shareToken, enabled: true } }
+                });
+                const link = shared?.shareLinks.find((l: any) => l.token === shareToken);
+                if (shared && link) {
+                    res.locals.activeCollectionId = shared._id;
+                    res.locals.activeCollection = shared;
+                    res.locals.collectionRole = 'viewer';
+                    res.locals.isCollectionAdmin = false;
+                    res.locals.canEditCollection = false;
+                    res.locals.isShareView = true;
+                    res.locals.shareScope = link.scope || [];
+                    req.activeCollectionId = shared._id;
+                }
+            } catch (err) {
+                console.error('[ERR] CollectionMiddleware (share):', err);
+            }
+        }
         return next();
     }
 

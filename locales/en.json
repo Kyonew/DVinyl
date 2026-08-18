@@ -131,7 +131,14 @@
     "delete_admin_error": "You cannot delete another instance administrator.",
     "reset_admin_error": "You cannot reset another instance administrator's password.",
     "error_collection_quota": "You have reached the maximum number of collections allowed.",
-    "error_collection_forbidden": "Creating a collection is not allowed on this instance."
+    "error_collection_forbidden": "Creating a collection is not allowed on this instance.",
+    "share_enabled": "Sharing enabled.",
+    "share_disabled": "Sharing disabled.",
+    "share_regenerated": "Share link regenerated - the old link no longer works.",
+    "share_scope_updated": "Shared content updated.",
+    "share_link_created": "Share link created.",
+    "share_link_deleted": "Share link deleted.",
+    "error_share": "Could not update sharing."
   },
   "media": {
     "vinyl": "Vinyl",
@@ -490,6 +497,24 @@
       "subtitle": "Export this collection (items + settings) or replace its content with a backup file.",
       "confirm_import": "Importing will REPLACE every item of this collection. Continue?"
     },
+    "sharing": {
+      "title": "Public share links",
+      "subtitle": "Let anyone browse this collection read-only with a link or QR code - no account needed. Editing, deleting and every other page stay off-limits. Create several links to share different parts of the collection separately, e.g. one for Vinyls and one for CDs.",
+      "untitled_link": "Untitled link",
+      "label_placeholder": "Name this link (optional) - e.g. \"Vinyls only\"",
+      "enable_btn": "Enable",
+      "disable_btn": "Disable",
+      "regenerate_btn": "Regenerate",
+      "delete_btn": "Delete",
+      "confirm_regenerate": "This invalidates the current link and QR code - anyone using the old one loses access. Continue?",
+      "confirm_delete": "Delete this share link? Anyone using it loses access immediately.",
+      "new_link_btn": "New share link",
+      "create_btn": "Create link",
+      "scope_title": "What's shared",
+      "scope_hint": "Pick specific types (and, within a type, specific formats) to limit what this link shows - e.g. only CDs, or CDs and Vinyls. Leave everything unchecked to share the whole collection.",
+      "scope_empty_hint": "Nothing checked = the whole collection is shared.",
+      "scope_save_btn": "Save changes"
+    },
     "libib": {
       "title_books": "Libib - Books",
       "title_music": "Libib - Music",
@@ -577,6 +602,7 @@
   },
   "collection": {
     "title": "My Collection",
+    "share_view_banner": "You're viewing a shared collection - read-only.",
     "filter_placeholder": "Filter...",
     "refresh_tooltip": "Refresh from Discogs",
     "refresh": "Refresh",
@@ -708,7 +734,8 @@
     "collections": "Collections",
     "instance": "Instance",
     "administration": "Administration",
-    "new_collection": "New collection"
+    "new_collection": "New collection",
+    "share_view": "Shared collection · read-only"
   },
   "footer": {
     "made_with": "Made with",
@@ -1024,6 +1051,10 @@
     "message": "You are not a member of any collection yet. Ask an administrator to add you to one - your access will appear here automatically.",
     "message_can_create": "You don't have a collection yet. Create your own to start adding items - you'll be its administrator.",
     "create_btn": "Create my collection"
+  },
+  "share_invalid": {
+    "title": "Link unavailable",
+    "message": "This share link is invalid or is no longer available. Ask the collection owner for a new one."
   },
   "create_plugin": {
     "title": "Plugin editor",

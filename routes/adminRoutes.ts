@@ -1,13 +1,15 @@
 import express from "express";
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
+import QRCode from "qrcode";
 import User from "../models/User";
 import BlockedIP from "../models/blockedIP";
 import LoginLog from "../models/LoginLog";
 import Settings from "../models/Settings";
 import Collection from "../models/Collection";
 import { requireAuth, requireAdmin, requireCollectionRole } from "../middleware/authMiddleware";
-import { generateUniqueSlug } from "../utils/collectionHelpers";
+import { generateUniqueSlug, generateShareToken } from "../utils/collectionHelpers";
+import { BASE_URL } from "../config/constants";
 import { getInstanceSettings, saveInstanceSettings, InstanceSettingsData } from "../utils/instanceSettings";
 import PRESETS from "../config/themes";
 import Item from "../models/Item";
@@ -149,6 +151,9 @@ router.get("/", requireAuth, requireCollectionRole("admin"), async (req: any, re
       user: res.locals.user,
       successMessage: msgKey ? req.t(`messages.${msgKey}`) : null,
       newPassword: null,
+      // Share links must show a full, absolute URL (scheme + host) - a bare
+      // baseUrl-relative path is not something you can scan/paste elsewhere.
+      siteOrigin: `${req.protocol}://${req.get("host")}`,
     });
   } catch (err) {
     console.error(err);
@@ -580,6 +585,152 @@ router.post("/members/reset-password", requireAuth, requireCollectionRole("admin
   } catch (err) {
     console.error("Member reset error:", err);
     res.redirect("/admin?msg=error_member");
+  }
+});
+
+// ============ COLLECTION SHARING (collection-admin scope) ============
+// Public, account-free read-only browsing via routes/shareRoutes.ts. A collection can
+// have several independent links at once (e.g. one scoped to Vinyls, one to CDs) -
+// each with its own token, so disabling/regenerating/deleting one never touches
+// the others.
+
+/**
+ * Builds a shareLinks[].scope array from a create/edit submission. Checking no type
+ * boxes at all means "whole collection" - there is no separate on/off toggle for
+ * scope itself. A format checked without its type box (e.g. JS failed to auto-check
+ * it - see the checkbox script in views/admin.ejs) still counts: the type is implied
+ * by having any format selected under it, so a submission is never silently dropped.
+ */
+function parseShareScope(body: any): { pluginId: string; formats: string[] }[] {
+  const rawTypes = body.scopeTypes;
+  const checkedTypes: string[] = Array.isArray(rawTypes) ? rawTypes : rawTypes ? [rawTypes] : [];
+
+  const impliedTypes = Object.keys(body)
+    .filter((k) => k.startsWith("scopeFormats_"))
+    .filter((k) => (Array.isArray(body[k]) ? body[k].length > 0 : !!body[k]))
+    .map((k) => k.slice("scopeFormats_".length));
+
+  const selectedTypes = [...new Set([...checkedTypes, ...impliedTypes])];
+
+  return selectedTypes
+    .map((id: string) => {
+      const plugin = registry.get(id);
+      if (!plugin) return null;
+
+      const rawFormats = body[`scopeFormats_${id}`];
+      const submitted: string[] = Array.isArray(rawFormats) ? rawFormats : rawFormats ? [rawFormats] : [];
+      const validFormats = new Set((plugin.formats || []).map((f: any) => f.value));
+      const formats = submitted.filter((f: string) => validFormats.has(f));
+
+      return { pluginId: id, formats };
+    })
+    .filter((entry): entry is { pluginId: string; formats: string[] } => !!entry);
+}
+
+// Create a new share link with the submitted scope (and optional label).
+router.post("/share/create", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
+  try {
+    const label = String(req.body.label || "").trim().slice(0, 60);
+    const scope = parseShareScope(req.body);
+
+    await Collection.updateOne(
+      { _id: res.locals.activeCollectionId },
+      { $push: { shareLinks: { token: generateShareToken(), label, enabled: true, scope } } },
+    );
+    res.redirect("/admin?msg=share_link_created");
+  } catch (err) {
+    console.error("Share create error:", err);
+    res.redirect("/admin?msg=error_share");
+  }
+});
+
+// Flip one link's enabled state (disabling keeps its token - re-enabling reuses the
+// same link/QR code instead of forcing a reprint).
+router.post("/share/:token/toggle", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
+  try {
+    const coll: any = await Collection.findOne(
+      { _id: res.locals.activeCollectionId, "shareLinks.token": req.params.token },
+      { "shareLinks.$": 1 },
+    );
+    const link = coll?.shareLinks?.[0];
+    if (!link) return res.redirect("/admin?msg=error_share");
+
+    await Collection.updateOne(
+      { _id: res.locals.activeCollectionId, "shareLinks.token": req.params.token },
+      { $set: { "shareLinks.$.enabled": !link.enabled } },
+    );
+    res.redirect(`/admin?msg=${link.enabled ? "share_disabled" : "share_enabled"}`);
+  } catch (err) {
+    console.error("Share toggle error:", err);
+    res.redirect("/admin?msg=error_share");
+  }
+});
+
+// Update an existing link's scope and/or label in place.
+router.post("/share/:token/scope", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
+  try {
+    const label = String(req.body.label || "").trim().slice(0, 60);
+    const scope = parseShareScope(req.body);
+
+    const result = await Collection.updateOne(
+      { _id: res.locals.activeCollectionId, "shareLinks.token": req.params.token },
+      { $set: { "shareLinks.$.scope": scope, "shareLinks.$.label": label } },
+    );
+    if (result.matchedCount === 0) return res.redirect("/admin?msg=error_share");
+    res.redirect("/admin?msg=share_scope_updated");
+  } catch (err) {
+    console.error("Share scope error:", err);
+    res.redirect("/admin?msg=error_share");
+  }
+});
+
+// Rotate a link's token - instantly invalidates whatever URL/QR code is already out
+// there, without touching this collection's other links.
+router.post("/share/:token/regenerate", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
+  try {
+    const result = await Collection.updateOne(
+      { _id: res.locals.activeCollectionId, "shareLinks.token": req.params.token },
+      { $set: { "shareLinks.$.token": generateShareToken(), "shareLinks.$.enabled": true } },
+    );
+    if (result.matchedCount === 0) return res.redirect("/admin?msg=error_share");
+    res.redirect("/admin?msg=share_regenerated");
+  } catch (err) {
+    console.error("Share regenerate error:", err);
+    res.redirect("/admin?msg=error_share");
+  }
+});
+
+// Remove a link entirely.
+router.post("/share/:token/delete", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
+  try {
+    await Collection.updateOne(
+      { _id: res.locals.activeCollectionId },
+      { $pull: { shareLinks: { token: req.params.token } } },
+    );
+    res.redirect("/admin?msg=share_link_deleted");
+  } catch (err) {
+    console.error("Share delete error:", err);
+    res.redirect("/admin?msg=error_share");
+  }
+});
+
+// Server-rendered QR PNG so a link's token never has to be handed to a
+// third-party QR-image API - it stays entirely within this instance.
+router.get("/share/:token/qr.png", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
+  try {
+    const coll = await Collection.findOne(
+      { _id: res.locals.activeCollectionId, "shareLinks.token": req.params.token, "shareLinks.enabled": true },
+      { _id: 1 },
+    );
+    if (!coll) return res.status(404).send(req.t("errors.not_found"));
+
+    const url = `${req.protocol}://${req.get("host")}${BASE_URL}/share/${req.params.token}`;
+    const png = await QRCode.toBuffer(url, { type: "png", width: 320, margin: 1 });
+    res.set("Content-Type", "image/png");
+    res.send(png);
+  } catch (err) {
+    console.error("Share QR error:", err);
+    res.status(500).send(req.t("errors.generic_server_error"));
   }
 });
 

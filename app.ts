@@ -36,6 +36,7 @@ import setupRoutes from './routes/setupRoutes.js';
 import pluginBuilderRoutes from './routes/pluginBuilderRoutes.js';
 import pluginAssetRoutes from './routes/pluginAssetRoutes.js';
 import authRoutes from './routes/authRoutes.js';
+import shareRoutes from './routes/shareRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
 import backupRoutes from './routes/backupRoutes.js';
@@ -235,6 +236,7 @@ loadPlugins();
 // Route mounting
 app.use(BASE_URL + '/setup', setupRoutes);
 app.use(BASE_URL, authRoutes);
+app.use(BASE_URL, shareRoutes);
 app.use(BASE_URL + '/admin', adminRoutes);
 app.use(BASE_URL + '/settings', settingsRoutes);
 app.use(BASE_URL + '/create-plugin', pluginBuilderRoutes);
