@@ -7,7 +7,6 @@ export interface PluginDefinition {
   icon: string;
   routePrefix: string;
   collectionType: string;
-
   // Suffix for the legacy i18n key families (add_vinyl, edit_book, confirm_game...)
   i18nKey: string;
 
@@ -85,7 +84,7 @@ export interface PluginDefinition {
   barcodeNoiseTerms?: string[];
 
   // CSS aspect-ratio class for the preview (e.g. 'aspect-square' for music), default 'aspect-[2/3]'
-  aspectRatioClass?: string;
+  aspectRatioClass: string;
 
   // Image shown for items with no cover of their own. Resolved at render time (see
   // registry.ts), so changing it updates every coverless item at once.

@@ -886,8 +886,10 @@ router.post(
         homePreset,
         navbarShortcuts,
         statsWidgets,
+        aspectRatioClass
       } = req.body;
 
+  
       const shortcuts = Array.isArray(navbarShortcuts)
         ? navbarShortcuts
         : navbarShortcuts
@@ -908,6 +910,7 @@ router.post(
 
       const update: Record<string, any> = {
         "theme.home.preset": homePreset,
+        aspectRatioClass: aspectRatioClass,
         navbarShortcuts: shortcuts,
         statsWidgets: stats,
         fastAdd: fastAdd,
@@ -922,6 +925,7 @@ router.post(
       { $set: update },
       { upsert: true },
     );
+        console.log({body: req.body, update})
 
       res.redirect("/admin/personnalisation?msg=saved");
     } catch (err) {

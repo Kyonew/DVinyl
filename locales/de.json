@@ -861,6 +861,7 @@
     "fastAdd_desc": "Wenn aktiviert, leitet die Schaltfläche „Element hinzufügen“ direkt zum ausgewählten Formular weiter und umgeht das Auswahlmenü.",
     "fastAdd_disabled": "Deaktiviert (modal)",
     "fastAdd_title": "Schnell hinzufügen",
+    "card_aspect_ratio": "Seitenverhältnis der Karte",
     "modules": {
       "books": "Bücher",
       "dvd": "DVDs",
@@ -1092,6 +1093,7 @@
     "section_image": "Bild",
     "shape_poster": "Poster (2/3)",
     "shape_square": "Quadratisch (Hülle)",
+    "shape_screen": "Bildschirm (16/9)",
     "secondary_label": "Zweitbild",
     "secondary_desc": "Fügt ein zweites bearbeitbares Bild hinzu (wie die Disc bei Musik).",
     "default_cover_label": "Standardbild",

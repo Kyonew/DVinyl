@@ -30,6 +30,7 @@ async function settingsMiddleware(req: any, res: any, next: any) {
             navbarShortcuts: registry.getDefaultNavbarShortcuts(),
             statsWidgets: registry.getDefaultStatsWidgets(),
             theme: registry.getDefaultThemes(),
+            aspectRatioClass: 'aspect-square',
             pluginSettings: registry.getDefaultPluginSettings()
         };
 

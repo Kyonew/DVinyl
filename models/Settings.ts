@@ -13,6 +13,7 @@ const settingsSchema = new mongoose.Schema({
     // pre-multi-collection installs; created lazily by settingsMiddleware for new collections.
     collection: { type: mongoose.Schema.Types.ObjectId, ref: 'Collection' },
     siteName: { type: String, default: 'DVinyl' },
+    aspectRatioClass: { type: String, default: 'aspect-square' },
     modules: {
         type: Map,
         of: Boolean,

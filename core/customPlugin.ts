@@ -18,7 +18,7 @@ export interface CustomPluginConfig {
   icon: string; // FontAwesome icon (fa-xxx)
   color?: string; // Tailwind color name (e.g. 'teal') driving badges/widgets accents
   order?: number; // display order, defaults to 200 (after the built-in plugins)
-  imageShape?: 'poster' | 'square';
+  aspectRatioClass: string;
   secondaryImage?: boolean; // show the secondary (user) image editor
   // Image used for items with no cover: either an http(s) URL or an uploaded
   // base64 data URI (see placeholderImage.ts). Absent means the generic logo.
@@ -259,7 +259,7 @@ export function createCustomPlugin(config: CustomPluginConfig): PluginDefinition
     placeholderImage: placeholder,
     defaultCardFields: ['creator'],
     partialsPath: CUSTOM_PARTIALS_PATH,
-
+    aspectRatioClass: config.aspectRatioClass,
     schemaDefinition,
     formFields,
     formats,
@@ -347,7 +347,6 @@ export function createCustomPlugin(config: CustomPluginConfig): PluginDefinition
     }
   };
 
-  if (config.imageShape === 'square') plugin.aspectRatioClass = 'aspect-square';
   if (formats.length > 0) plugin.duplicateCheckFields = ['format'];
   if (features.tracklist) plugin.detailZones = [{ id: 'content', partial: 'tracklist-view' }];
 

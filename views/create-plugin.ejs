@@ -157,7 +157,7 @@
                     <%= t('create_plugin.section_image') %>
                 </h2>
 
-                <div class="grid grid-cols-2 gap-4 max-w-md">
+                <div class="grid grid-cols-3 gap-4 max-w-lg">
                     <button type="button" data-shape="poster" class="shape-choice group rounded-2xl border-2 border-black/10 dark:border-white/10 p-4 flex flex-col items-center gap-3 transition-all">
                         <div class="w-14 aspect-[2/3] rounded-lg bg-black/10 dark:bg-white/10 flex items-center justify-center">
                             <i class="fa-solid fa-image opacity-40"></i>
@@ -169,6 +169,12 @@
                             <i class="fa-solid fa-image opacity-40"></i>
                         </div>
                         <span class="text-xs font-bold"><%= t('create_plugin.shape_square') %></span>
+                    </button>
+                    <button type="button" data-shape="screen" class="shape-choice group rounded-2xl border-2 border-black/10 dark:border-white/10 p-4 flex flex-col items-center gap-3 transition-all">
+                        <div class="w-14 aspect-[16/9] rounded-lg bg-black/10 dark:bg-white/10 flex items-center justify-center self-center my-auto">
+                            <i class="fa-solid fa-image opacity-40"></i>
+                        </div>
+                        <span class="text-xs font-bold"><%= t('create_plugin.shape_screen') %></span>
                     </button>
                 </div>
 
@@ -809,16 +815,19 @@
             type: r.querySelector('.fld-type').value,
             group: r.querySelector('.fld-group').value,
             required: r.querySelector('.fld-required').checked,
-            options: r.querySelector('.fld-options').value.split(',').map(s => s.trim()).filter(Boolean)
+            options: r.querySelector('.fld-options').value.split(',').map(s => s.trim()).filter(Boolean),
         })).filter(f => f.label);
 
+        let aspect = 'aspect-[2/3]';
+        if(state.shape === 'square') aspect = 'aspect-square';
+        else if(state.shape === 'screen') aspect = 'aspect-[16/9]';
         const payload = {
             editId: editConfig ? editConfig.id : '',
             label: $('pluginLabel').value.trim(),
             id: editConfig ? editConfig.id : slugify($('pluginLabel').value),
             icon: state.icon,
             color: state.color,
-            imageShape: state.shape,
+            aspectRatioClass: aspect,
             secondaryImage: $('secondaryImage').checked,
             creatorLabel: $('creatorLabel').value.trim(),
             defaultFormat: state.defaultFormat,
@@ -855,11 +864,15 @@
         $('slugPreview').textContent = cfg.id || '…';
 
         // Card
-        $('pvCover').className = (cfg.imageShape === 'square' ? 'aspect-square' : 'aspect-[2/3]') +
+        let aspect = 'aspect-[2/3]';
+        if(cfg.imageShape === 'square') aspect = 'aspect-square';
+        else if(cfg.imageShape === 'screen') aspect = 'aspect-[16/9]';
+
+        $('pvCover').className = (aspect) +
             ' bg-gradient-to-br from-black/20 to-black/50 dark:from-white/10 dark:to-black/60 flex items-center justify-center transition-all';
         $('pvCoverIcon').className = 'fa-solid ' + cfg.icon + ' text-5xl opacity-30';
 
-        $('dcPreviewBox').className = 'w-24 shrink-0 ' + (cfg.imageShape === 'square' ? 'aspect-square' : 'aspect-[2/3]') +
+        $('dcPreviewBox').className = 'w-24 shrink-0 ' + (aspect) +
             ' rounded-xl overflow-hidden bg-black/5 dark:bg-white/5 flex items-center justify-center transition-all';
 
         // The card shows the default cover when there is one, exactly like a coverless item
@@ -1260,11 +1273,15 @@
 
     // ---- Init ---------------------------------------------------------------------------
     if (editConfig) {
+        let aspect = 'aspect-[2/3]';
+        if(state.shape === 'square') aspect = 'aspect-square';
+        else if(state.shape === 'screen') aspect = 'aspect-[16/9]';
+
         $('pluginLabel').value = editConfig.label || '';
         $('creatorLabel').value = editConfig.creatorLabel || '';
         state.icon = editConfig.icon || 'fa-box';
         state.color = editConfig.color || 'teal';
-        state.shape = editConfig.imageShape === 'square' ? 'square' : 'poster';
+        state.aspectRatioClass = aspect;
         $('secondaryImage').checked = editConfig.secondaryImage === true;
         const features = editConfig.features || {};
         document.querySelectorAll('.feature-toggle').forEach(cb => { cb.checked = features[cb.dataset.feature] === true; });

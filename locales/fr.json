@@ -812,6 +812,7 @@
     "fastAdd_title": "Ajout rapide",
     "fastAdd_desc": "Si activé, le bouton \"Ajouter un élément\" redirige directement vers le formulaire choisi, sans passer par le menu de sélection.",
     "fastAdd_disabled": "Désactivé (modal)",
+    "card_aspect_ratio": "Rapport hauteur/largeur de la carte",
     "modules": {
       "title": "Modules Actifs",
       "music": "Musique",
@@ -1092,6 +1093,7 @@
     "section_image": "Image",
     "shape_poster": "Affiche (2/3)",
     "shape_square": "Carré (pochette)",
+    "shape_screen": "Écran (16/9)",
     "secondary_label": "Image secondaire",
     "secondary_desc": "Ajoute un second visuel modifiable (comme le disque pour la musique).",
     "default_cover_label": "Image par défaut",

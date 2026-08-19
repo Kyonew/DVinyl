@@ -30,6 +30,7 @@ export const gamesPlugin: PluginDefinition = {
   imageSearchType: 'game',
   requiredEnvKeys: ['TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET'],
   duplicateCheckFields: ['platform', 'region', 'format'],
+  aspectRatioClass: 'aspect-[2/3]',
 
   suggestionFields: ['platform'],
   // On the confirm page IGDB has just told us which platforms this game exists on, so

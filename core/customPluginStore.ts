@@ -123,6 +123,7 @@ export function buildConfigFromSubmission(body: any, existing?: CustomPluginConf
 
   const creatorLabel = cleanText(body.creatorLabel, 30);
   if (!creatorLabel) errors.push('create_plugin.err_creator_required');
+  const aspectRatioClass = body.aspectRatioClass || 'aspect-[2/3]'
 
   // An absent key means "keep the stored image": the builder only posts this one when
   // the admin picks or removes an image, so the base64 never travels on every save.
@@ -216,7 +217,7 @@ export function buildConfigFromSubmission(body: any, existing?: CustomPluginConf
     icon,
     color,
     order: existing?.order ?? 200,
-    imageShape: body.imageShape === 'square' ? 'square' : 'poster',
+    aspectRatioClass,
     secondaryImage: body.secondaryImage === true || body.secondaryImage === 'true',
     creatorLabel,
     features,
