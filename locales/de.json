@@ -806,7 +806,15 @@
     "collections": "Sammlungen",
     "instance": "Instanz",
     "administration": "Verwaltung",
-    "new_collection": "Neue Sammlung"
+    "new_collection": "Neue Sammlung",
+    "search": "Suche"
+  },
+  "search": {
+    "title": "Suche",
+    "placeholder": "Titel oder Künstler in allen Sammlungen suchen...",
+    "empty_prompt": "Mindestens 2 Zeichen eingeben, um alle Sammlungen zu durchsuchen.",
+    "no_results": "Keine Ergebnisse gefunden.",
+    "results_count": "{{count}} Ergebnisse"
   },
   "perso": {
     "backHome": "Zurück nach Hause",

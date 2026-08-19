@@ -806,7 +806,15 @@
     "collections": "Collezioni",
     "instance": "Istanza",
     "administration": "Amministrazione",
-    "new_collection": "Nuova collezione"
+    "new_collection": "Nuova collezione",
+    "search": "Cerca"
+  },
+  "search": {
+    "title": "Cerca",
+    "placeholder": "Cerca titolo o artista in tutte le tue collezioni...",
+    "empty_prompt": "Digita almeno 2 caratteri per cercare in tutte le tue collezioni.",
+    "no_results": "Nessun risultato trovato.",
+    "results_count": "{{count}} risultati"
   },
   "perso": {
     "backHome": "Ritorno a casa",

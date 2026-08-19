@@ -308,6 +308,13 @@
                 }
               });
           } %>
+          <% if (locals.user) { %>
+          <li>
+            <a href="<%= baseUrl %>/search" class="block py-2 px-3 md:p-0 text-[var(--text-sub)] hover:text-primary-theme transition-colors">
+              <%= t('nav.search') %>
+            </a>
+          </li>
+          <% } %>
         </ul>
       </div>
     </div>

@@ -8,7 +8,7 @@ Feature ideas to work through one at a time, each on its own branch off `main`.
 | todo | Duplicate detection/merge tool | `feature/duplicate-merge` | Surface likely dupes for review, beyond the add-time exact match |
 | todo | Loan tracking | `feature/loan-tracking` | Mark an item lent out, to whom, since when |
 | todo | Audit log per collection | `feature/collection-audit-log` | Who added/edited/deleted what, useful for multi-member collections |
-| todo | Cross-collection search | `feature/cross-collection-search` | For users with access to several collections |
+| in-progress | Cross-collection search | `feature/cross-collection-search` | For users with access to several collections |
 | todo | Saved filter presets | `feature/saved-filters` | e.g. "My want-to-buy vinyl", "Sealed only" |
 | todo | Full-text search | `feature/fulltext-search` | Search across comments/tracklist, not just title/artist |
 | todo | Printable QR/barcode labels | `feature/qr-labels` | Per item or shelf location, linking to the detail page. `qrcode` npm package already a dependency, currently unused |

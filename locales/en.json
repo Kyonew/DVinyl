@@ -708,7 +708,15 @@
     "collections": "Collections",
     "instance": "Instance",
     "administration": "Administration",
-    "new_collection": "New collection"
+    "new_collection": "New collection",
+    "search": "Search"
+  },
+  "search": {
+    "title": "Search",
+    "placeholder": "Search title or artist across your collections...",
+    "empty_prompt": "Type at least 2 characters to search across all your collections.",
+    "no_results": "No matches found.",
+    "results_count": "{{count}} results"
   },
   "footer": {
     "made_with": "Made with",
