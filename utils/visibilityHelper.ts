@@ -113,10 +113,20 @@ export async function isWithinShareScope(res: any, item: any): Promise<boolean> 
     if (shareScope.length === 0) return true;
     if (!item) return false;
 
-    const judged = item.parent ? await Item.findById(item.parent).lean() as any : item;
-    if (!judged) return false;
+    const source = item.parent ? await Item.findById(item.parent).lean() as any : item;
+    if (!source) return false;
 
-    const plugin = registry.getByKind(judged.kind);
+    // Through toObject(), because a document with no `kind` is hydrated against the base
+    // schema, which declares neither `format` nor `media_type`: the getters come back empty
+    // while the values are sat right there in the document. A lean read is already plain.
+    const judged: any = typeof source.toObject === 'function' ? source.toObject() : source;
+
+    // A pre-plugins item carries no `kind` at all. applyShareScopeFilter above lets it
+    // through under the plugin that claims legacy items, so this has to agree: judged
+    // otherwise, the grid would offer an item whose page then refuses to open.
+    const plugin = judged.kind
+        ? registry.getByKind(judged.kind)
+        : registry.getAll().find(p => p.matchesLegacyItems);
     if (!plugin) return false;
 
     const entry = shareScope.find(s => s.pluginId === plugin.id);

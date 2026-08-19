@@ -301,13 +301,15 @@ async function fetchEnrichment(
     try {
       return await enrichOnce(plugin, query, options, target);
     } catch (err: any) {
-      const wait = err?.status === 429
-        ? (err.retryAfterMs || RATE_LIMIT_BACKOFF_MS[attempt])
-        : null;
-      if (!wait) {
+      if (err?.status !== 429) {
         console.error(`[${plugin.id}] Enrichment failed for "${query}":`, err.message);
         return null;
       }
+      // The backoff list has one entry fewer than there are attempts: the last one has
+      // nothing left to wait for, and falls through to the message below rather than
+      // being reported as a provider that simply broke.
+      const wait = err.retryAfterMs || RATE_LIMIT_BACKOFF_MS[attempt];
+      if (!wait) break;
       // Every hit widens the gap between items too, so the rest of the file stops
       // running into the same wall.
       pace?.slowDown();

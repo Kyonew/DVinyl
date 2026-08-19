@@ -585,7 +585,12 @@ router.post("/members/reset-password", requireAuth, requireCollectionRole("admin
     res.render("admin", {
       ...data,
       user: res.locals.user,
-      successMessage: req.t("messages.password_reset_success", { name: target.username }),
+      // A name is a value, not markup: the view escapes it on the way out, and letting
+      // i18next escape it first would print the entities instead of the apostrophe.
+      successMessage: req.t("messages.password_reset_success", {
+        name: target.username,
+        interpolation: { escapeValue: false },
+      }),
       newPassword: password,
     });
   } catch (err) {
@@ -709,10 +714,15 @@ router.post("/share/:token/regenerate", requireAuth, requireCollectionRole("admi
 // Remove a link entirely.
 router.post("/share/:token/delete", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
   try {
-    await Collection.updateOne(
-      { _id: res.locals.activeCollectionId },
+    // The token is named in the filter as well as in the $pull, the way the routes above
+    // do it: a token belonging to another collection would otherwise pull nothing while
+    // still reporting a success, since the schema's timestamps count every update as a
+    // modification whether or not anything came out of the array.
+    const result = await Collection.updateOne(
+      { _id: res.locals.activeCollectionId, "shareLinks.token": req.params.token },
       { $pull: { shareLinks: { token: req.params.token } } },
     );
+    if (result.matchedCount === 0) return res.redirect("/admin?msg=error_share");
     res.redirect("/admin?msg=share_link_deleted");
   } catch (err) {
     console.error("Share delete error:", err);
@@ -782,6 +792,7 @@ router.post("/reset-password", requireAuth, requireAdmin, async (req: any, res: 
         user: res.locals.user,
         successMessage: req.t("messages.password_reset_success", {
           name: userToUpdate.username,
+          interpolation: { escapeValue: false },
         }),
         newPassword: password,
         apiKeyStatus: registry.getApiKeyStatus(),
