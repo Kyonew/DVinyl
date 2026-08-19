@@ -6,12 +6,21 @@ browse what is there on their own phone.
 
 ## What a share link can and cannot do
 
-A share link is **read-only**. Whoever opens it can browse the collection, search, filter and open
-an item's detail page - exactly like a `viewer` member would. It can never:
+A share link is **read-only**. Whoever opens it can browse the collection, search, filter, open an
+item's detail page and, for a TV show, follow it to a season and its episode list. It can never:
 
-- Add, edit, delete or refresh an item
-- See the admin panel, settings, backups or any other collection
+- Add, edit, delete or refresh an item, or annotate an episode
+- See the wishlist, the dashboard, the admin panel, settings, backups or any other collection
 - Create an account or otherwise leave a trace
+
+Two things a `viewer` member sees are kept from a share link, because a public link reaches further
+than a member ever does:
+
+- **Where items are kept.** The Location field disappears from the item page and from the filters,
+  its values are never listed, and it is dropped from the cards even when the collection chose to
+  display it there. Handing out a link should not tell anyone which room, shelf or safe holds what.
+- **Who is behind the collection.** "Added by" and "Last modified" are not shown, so a link says
+  what is on the shelf without naming the household around it.
 
 A collection can have **several share links at once**, each independent. Disabling, regenerating
 or deleting one never touches the others.
@@ -61,8 +70,14 @@ Each link's card shows its QR code, its URL (with a copy button) and its scope, 
 ## Interaction with hidden items
 
 If the collection already hides specific items, genres or types from non-admin viewers (the
-**Visibility** settings), those stay hidden from share links too - a share link never sees more
-than a real `viewer` member would.
+**Visibility** settings), those stay hidden from share links too.
+
+## Shows held as seasons
+
+A TV show stored as a show plus one item per season is shared as a whole. The shelf shows the show,
+its page lists the seasons someone owns, and each season opens on its own page with its episodes -
+including a season whose format sits outside a scoped link, since the link already shows the show
+that holds it. A link that excludes the show excludes its seasons with it.
 
 ---
 
