@@ -28,7 +28,7 @@ import { loadPlugins } from './core/loadPlugins.js';
 import { syncCustomPluginsOnBoot } from './core/customPluginSync.js';
 import { mountPluginRoutes, pluginDispatcher } from './core/pluginRuntime.js';
 import { applyPluginCustomization } from './core/pluginCustomization.js';
-import { getCardLines, getCornerBadge, CORNER_POSITIONS, DEFAULT_CORNER_POSITION } from './core/cardFields.js';
+import { getCardLines, getCornerBadge, CORNER_POSITIONS, DEFAULT_CORNER_POSITION, SHARE_HIDDEN_FIELDS } from './core/cardFields.js';
 import { importableFields } from './core/csvMapping.js';
 
 // Routes imports
@@ -86,6 +86,9 @@ app.locals.getCardLines = getCardLines;
 app.locals.getCornerBadge = getCornerBadge;
 app.locals.CORNER_POSITIONS = CORNER_POSITIONS;
 app.locals.DEFAULT_CORNER_POSITION = DEFAULT_CORNER_POSITION;
+// A share visitor is shown the collection, not the home around it: the item page reads
+// the same list the cards do, so a field kept from one is kept from the other
+app.locals.SHARE_HIDDEN_FIELDS = SHARE_HIDDEN_FIELDS;
 // The CSV mapping screen lists the destinations of every enabled module
 app.locals.importableFields = importableFields;
 // Dates read the same way wherever a view prints one

@@ -215,10 +215,15 @@
                 // grid without excluding every field sharing their type.
                 const renderedElsewhere = ['comments', 'genres', 'styles'];
 
+                // The block above hides where the item is kept from a share link; this grid
+                // draws the plugin's own fields and would have printed it again right under.
+                // Same list the cards go through, so a field is kept from a visitor
+                // everywhere or nowhere.
                 const detailFields = plugin.formFields.filter(f =>
                     f.showIn.includes('detail') &&
                     !['title', plugin.creatorField].includes(f.name) &&
                     !renderedElsewhere.includes(f.name) &&
+                    !(locals.isShareView && SHARE_HIDDEN_FIELDS.has(f.name)) &&
                     f.type !== 'custom'
                 );
                 detailFields.forEach(field => {
