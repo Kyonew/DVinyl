@@ -224,8 +224,14 @@ router.get('/collection', requireAuthOrShareView, async (req: any, res: any) => 
 
     // Scope shared by every "values actually in use" lookup feeding the filter controls.
     // Without a selected type the page spans them all, so the lookup stays unscoped.
+    //
+    // A share link narrows it the same way it narrows the grid. The values offered by a
+    // filter come from items, and a lookup left wide open would name what the link keeps
+    // from its visitor: asking for a type the link excludes lands here with no selected
+    // plugin, which used to mean "every type" and now means "every type this link shows".
     const typeScope = (): any => {
       const base: any = { collection: activeCollectionId };
+      applyShareScopeFilter(base, shareScope);
       if (!selectedPlugin) return base;
       return selectedPlugin.matchesLegacyItems
         ? { ...base, $or: [{ kind: selectedPlugin.kind }, { kind: { $exists: false } }] }
@@ -315,6 +321,10 @@ router.get('/collection', requireAuthOrShareView, async (req: any, res: any) => 
     // DYNAMIC ARTIST LIST
     const artistList = await (async () => {
       const baseQuery: any = { collection: activeCollectionId, in_wishlist: false };
+      // Per-plugin below, which a link scoped to a whole type already covers; this is for
+      // the one scoped to some of its formats, where the kind alone would still offer the
+      // names behind the formats it left out.
+      applyShareScopeFilter(baseQuery, shareScope);
       if (!type || type === 'all') {
         const promises = enabledPlugins.map(plugin => 
           Item.distinct(plugin.creatorField, { ...baseQuery, [plugin.creatorField]: { $nin: ['', null] } })
@@ -337,7 +347,12 @@ router.get('/collection', requireAuthOrShareView, async (req: any, res: any) => 
       return plugin ? plugin.formatForView(item) : item;
     });
 
-    const locations = await Item.distinct('location', { collection: activeCollectionId, location: { $nin: ['', null] } });
+    // Where things are kept spans every type, so this one is not scoped by the selected
+    // type; a share link still bounds it, a shelf name being as much of a giveaway as a
+    // title.
+    const locationQuery: any = { collection: activeCollectionId, location: { $nin: ['', null] } };
+    applyShareScopeFilter(locationQuery, shareScope);
+    const locations = await Item.distinct('location', locationQuery);
 
     // Scoped to the selected type, so a type never offers another type's values (and the
     // view drops a control entirely once its list comes back empty).
