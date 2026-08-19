@@ -9,7 +9,7 @@ import { DEFAULT_PLACEHOLDER_IMAGE } from '../placeholderImage';
 import { getExtraFields, toFieldDefinitions } from '../pluginExtraFields';
 import { buildFieldSuggestions } from '../fieldSuggestions';
 import { deleteItemsAndContents, moveContentsToWishlist } from '../../utils/itemHelpers';
-import { applyVisibilityFilter, isWithinShareScope } from '../../utils/visibilityHelper';
+import { applyVisibilityFilter, applyShareScopeFilter, isWithinShareScope } from '../../utils/visibilityHelper';
 
 export function createItemRoutes(plugin: PluginDefinition): Router {
   const router = express.Router();
@@ -176,14 +176,19 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   }
 
   /**
-   * Keeps out of a list whatever the collection hides from the person looking, judged by
-   * the same rule the listings use. Costs one query, and none at all on an empty list.
+   * Keeps out of a list whatever the person looking is not meant to see: what the
+   * collection hides from its viewers, and what a share link's scope leaves out. Both,
+   * because a list built by a plugin knows neither. Costs one query, and none at all on
+   * an empty list.
    */
   const filterVisible = async (items: any[], res: any): Promise<any[]> => {
     if (!items || items.length === 0) return items || [];
 
     const query: any = { _id: { $in: items.map((i: any) => i._id) } };
     applyVisibilityFilter(query, res.locals.isCollectionAdmin, res.locals.settings);
+    if (res.locals.isShareView) {
+      applyShareScopeFilter(query, res.locals.shareScope);
+    }
 
     const allowed = new Set(
       (await Item.find(query).select('_id').lean()).map((i: any) => String(i._id))
@@ -207,7 +212,9 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
     if (!id || !mongoose.Types.ObjectId.isValid(id)) {
       return res.status(404).send(req.t('errors.not_found'));
     }
-    const guardQuery: any = { _id: id, collection: res.locals.activeCollectionId };
+    // Reached only by a share visitor, for whom the wishlist does not exist: the listing
+    // that would show it is behind a login, and its page has to say the same.
+    const guardQuery: any = { _id: id, collection: res.locals.activeCollectionId, in_wishlist: false };
     applyVisibilityFilter(guardQuery, res.locals.isCollectionAdmin, res.locals.settings);
     const item = await Item.findOne(guardQuery).lean();
     if (!item || !await isWithinShareScope(res, item)) {
@@ -530,6 +537,9 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       // hands it to whoever wants to try one.
       const detailQuery: any = { _id: req.params.id, collection: res.locals.activeCollectionId };
       applyVisibilityFilter(detailQuery, res.locals.isCollectionAdmin, res.locals.settings);
+      // What someone merely wants is not part of what a public link was opened to show,
+      // and every listing a share visitor can reach already says so.
+      if (res.locals.isShareView) detailQuery.in_wishlist = false;
 
       const item = await Item.findOne(detailQuery);
       if (!item) {

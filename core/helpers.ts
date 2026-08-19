@@ -67,10 +67,18 @@ const NON_RETURNABLE = ['/api/', '/edit/', '/save-'];
  * caller controls. Following one unchecked would bounce a signed-in user onto another site
  * the moment they saved their work, so what is refused is what does not belong to this
  * instance. `//evil.example` looks like a path and is not one, hence the second test.
+ *
+ * What comes out of here is a value, and every caller escapes it for wherever it lands.
+ * The angle brackets are refused all the same: a real path percent-encodes them, so
+ * nothing legitimate carries one, and a path that cannot hold `</script>` cannot end a
+ * script block whatever a future caller does with it. Quotes are left alone, since a
+ * search term is entitled to an apostrophe and the escaping at each sink covers them.
  */
+const UNSAFE_IN_PATH = /[<>\u0000-\u001f\u007f]/;
+
 export function safeReturnPath(candidate: any, host?: string): string {
   const raw = typeof candidate === 'string' ? candidate.trim() : '';
-  if (!raw) return '';
+  if (!raw || UNSAFE_IN_PATH.test(raw)) return '';
 
   let path: string;
   // A second slash, forward or back, makes this an address and not a path: browsers read

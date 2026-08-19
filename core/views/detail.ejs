@@ -542,7 +542,12 @@
                 if (data.success) {
                     // Same destination as the back arrow: a deleted item should leave you
                     // where you were looking, not at the head of the collection.
-                    window.location.href = <%- JSON.stringify(listingUrl) %>;
+                    //
+                    // Written out unescaped, so the `<` is spelled as an escape: JSON
+                    // leaves it as it is, and the browser ends the script block at the
+                    // first `</script>` it reads, wherever that sits. The string still
+                    // evaluates to the same URL.
+                    window.location.href = <%- JSON.stringify(listingUrl).replace(/</g, '\\u003c') %>;
                 } else {
                     alert(`${translations.error_server}: ${data.error}`);
                 }
