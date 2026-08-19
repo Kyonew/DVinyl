@@ -724,8 +724,14 @@ router.post("/share/:token/delete", requireAuth, requireCollectionRole("admin"),
 // third-party QR-image API - it stays entirely within this instance.
 router.get("/share/:token/qr.png", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
   try {
+    // $elemMatch, because a collection holds several links: named separately, the two
+    // conditions can be met by two different ones, and the QR of a link someone just
+    // disabled would keep being served as long as any other link is still on.
     const coll = await Collection.findOne(
-      { _id: res.locals.activeCollectionId, "shareLinks.token": req.params.token, "shareLinks.enabled": true },
+      {
+        _id: res.locals.activeCollectionId,
+        shareLinks: { $elemMatch: { token: req.params.token, enabled: true } },
+      },
       { _id: 1 },
     );
     if (!coll) return res.status(404).send(req.t("errors.not_found"));
