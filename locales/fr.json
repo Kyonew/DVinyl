@@ -731,6 +731,7 @@
     "settings": "Paramètres",
     "admin": "Panel Admin",
     "logout": "Se déconnecter",
+    "login": "Se connecter",
     "theme_dark": "Mode Sombre",
     "theme_light": "Mode Clair",
     "home": "Accueil",

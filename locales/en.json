@@ -731,6 +731,7 @@
     "settings": "Settings",
     "admin": "Admin Panel",
     "logout": "Logout",
+    "login": "Login",
     "theme_dark": "Dark Mode",
     "theme_light": "Light Mode",
     "home": "Home",
