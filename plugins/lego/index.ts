@@ -28,7 +28,7 @@ export const legoPlugin: PluginDefinition = {
   imageSearchType: 'lego',
   requiredEnvKeys: ['REBRICKABLE_API_KEY'],
   duplicateCheckFields: ['format'],
-  aspectRatioClass: 'aspect-[16/9]',
+  aspectRatioClass: 'aspect-square',
   partialsPath: 'plugins/lego/partials',
   detailZones: [
     { id: 'badge', partial: 'lego-status.ejs' },

@@ -11,40 +11,37 @@ if(!(['all', 'home'].includes(currentType)) && albums.length > 0) aspect =  regi
                 : (function(){ var fmt=(album.format||album.media_type||'').toLowerCase(); var opt=itemPlugin?(itemPlugin.formats||[]).find(function(f){return f.value===fmt}):null; return { label: opt?opt.label:fmt, colorClass: (opt&&opt.color)||'bg-gray-600/90' }; })();
             const isDifferentAspectRatio = itemPlugin.aspectRatioClass !== aspect;
         %>
-            <div class="album-card group relative card-theme rounded-xl overflow-hidden hover:border-primary-theme transition-all duration-300 hover:shadow-lg hover:-translate-y-1 flex flex-col justify-between"
-                data-location="<%= locals.isShareView ? '' : (album.location || '') %>"
-                data-format="<%= album.format || album.media_type || '' %>">
-                <a href="<%= baseUrl + detailUrl %>" class="block">
-                    <div
-                        class="<%= aspect%> w-full h-auto relative overflow-hidden bg-black/5 flex items-center justify-center">
-
-                        <% if (isDifferentAspectRatio) { %>
+        <div class="album-card group relative card-theme rounded-xl overflow-hidden hover:border-primary-theme transition-all duration-300 hover:shadow-lg hover:-translate-y-1 flex flex-col justify-between"
+            data-location="<%= locals.isShareView ? '' : (album.location || '') %>"
+            data-format="<%= album.format || album.media_type || '' %>">
+            <a href="<%= baseUrl + detailUrl %>" class="block">
+                <div
+                    class="<%= aspect%> w-full h-auto relative overflow-hidden bg-black/5 flex items-center justify-center">
+                    <% if (isDifferentAspectRatio) { %>
+                        <img src="<%= album.cover_image %>"
+                            class="absolute inset-0 w-full h-full object-cover blur-md opacity-50 scale-110 pointer-events-none">
+                        <% } %>
                             <img src="<%= album.cover_image %>"
-                                class="absolute inset-0 w-full h-full object-cover blur-md opacity-50 scale-110 pointer-events-none">
-                            <% } %>
-
-                                <img src="<%= album.cover_image %>"
-                                    class="relative z-10 w-full h-full <%= isDifferentAspectRatio ? 'object-contain p-2' : 'object-cover' %> transition-transform duration-500 group-hover:scale-105"
-                                    loading="lazy">
-                                <%- include('partials/cover-badge', { item: album, plugin: itemPlugin, settings }) %>   
-                    </div>
-
-                            <%- include('item-card-body', { item: album, plugin: itemPlugin, size: 'collection' }) %>
-                        </a>
-                        <% if (locals.wishlist === true && locals.canEditCollection ) { 
-                            const routePrefix = itemPlugin ? itemPlugin.routePrefix : '/album';
-                            %>
-                            <button onclick="moveToCollection('<%= album._id %>', '<%= routePrefix %>')"
-                                class="w-full py-2.5 md:py-2 bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white text-primary-theme text-[10px] md:text-xs font-bold uppercase transition-colors flex items-center justify-center gap-1.5 border-t border-black/10 dark:border-white/10 active:brightness-90 mt-auto">
-                                <i class="fa-solid fa-check"></i>
-                                <span>
-                                    <%= t('wishlist.btn_received') %>
-                                </span>
-                            </button>
-                            <% } %>
-                    </div>
-                    <% }) %>
+                                class="relative z-10 w-full h-full <%= isDifferentAspectRatio ? 'object-contain p-2' : 'object-cover' %> transition-transform duration-500 group-hover:scale-105"
+                                loading="lazy">
+                            <%- include('cover-badge', { item: album, plugin: itemPlugin, settings }) %>   
+                </div>
+                <%- include('item-card-body', { item: album, plugin: itemPlugin, size: 'collection' }) %>
+            </a>
+            <% if (locals.wishlist === true && locals.canEditCollection ) { 
+                const routePrefix = itemPlugin ? itemPlugin.routePrefix : '/album';
+                %>
+                <button onclick="moveToCollection('<%= album._id %>', '<%= routePrefix %>')"
+                    class="w-full py-2.5 md:py-2 bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white text-primary-theme text-[10px] md:text-xs font-bold uppercase transition-colors flex items-center justify-center gap-1.5 border-t border-black/10 dark:border-white/10 active:brightness-90 mt-auto">
+                    <i class="fa-solid fa-check"></i>
+                    <span>
+                        <%= t('wishlist.btn_received') %>
+                    </span>
+                </button>
+                <% } %>
         </div>
+        <% }) %>
+    </div>
 
  <script src="<%= baseUrl %>/socket.io/socket.io.js"></script>
     <script>
