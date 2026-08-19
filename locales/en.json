@@ -514,7 +514,9 @@
       "scope_title": "What's shared",
       "scope_hint": "Pick specific types (and, within a type, specific formats) to limit what this link shows - e.g. only CDs, or CDs and Vinyls. Leave everything unchecked to share the whole collection.",
       "scope_empty_hint": "Nothing checked = the whole collection is shared.",
-      "scope_save_btn": "Save changes"
+      "scope_save_btn": "Save changes",
+      "copy_btn": "Copy the link",
+      "copied": "Copied"
     },
     "libib": {
       "title_books": "Libib - Books",

@@ -306,7 +306,9 @@
       "scope_title": "Freigegebener Inhalt",
       "scope_hint": "Wähle bestimmte Typen (und innerhalb eines Typs bestimmte Formate), um einzuschränken, was dieser Link zeigt - z. B. nur CDs, oder CDs und Schallplatten. Nichts anzukreuzen teilt die ganze Sammlung.",
       "scope_empty_hint": "Nichts angekreuzt = die ganze Sammlung wird geteilt.",
-      "scope_save_btn": "Änderungen speichern"
+      "scope_save_btn": "Änderungen speichern",
+      "copy_btn": "Link kopieren",
+      "copied": "Kopiert"
     },
     "libib": {
       "title_books": "Libib - Bücher",

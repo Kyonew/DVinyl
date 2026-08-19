@@ -37,7 +37,7 @@
     // purpose: the coloured badge above carries the format, and a second colour next to it
     // would compete with a meaning it does not have. May come back a translation key when
     // the chosen field is a boolean, hence the same t() with a fallback.
-    const corner = getCornerBadge(badgePlugin, item, { lang: currentLng });
+    const corner = getCornerBadge(badgePlugin, item, { lang: currentLng, isShareView: locals.isShareView === true });
     const cornerAt = CORNER_POSITIONS[badgePlugin && badgePlugin.cornerPosition] || CORNER_POSITIONS[DEFAULT_CORNER_POSITION];
     const cornerPlacement = locals.size === 'compact'
         ? cornerAt.compact + ' px-1.5 py-0.5 md:px-2 md:py-1'

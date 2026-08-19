@@ -148,7 +148,10 @@ router.get('/collection', requireAuthOrShareView, async (req: any, res: any) => 
     }
 
     // LOCATION FILTER
-    if (location) {
+    // Never for a share link: where things are kept is not part of what is being shown
+    // (see SHARE_HIDDEN_FIELDS), and a filter left open would let a visitor confirm a
+    // shelf name by trying it, which is the same disclosure the hidden control avoids.
+    if (location && !res.locals.isShareView) {
       conditions.push({ location: new RegExp(escapeRegExp(location), 'i') });
     }
 
@@ -348,11 +351,10 @@ router.get('/collection', requireAuthOrShareView, async (req: any, res: any) => 
     });
 
     // Where things are kept spans every type, so this one is not scoped by the selected
-    // type; a share link still bounds it, a shelf name being as much of a giveaway as a
-    // title.
+    // type. A share link gets none of it: the control is not drawn for a visitor, and the
+    // values that would fill it are not read either.
     const locationQuery: any = { collection: activeCollectionId, location: { $nin: ['', null] } };
-    applyShareScopeFilter(locationQuery, shareScope);
-    const locations = await Item.distinct('location', locationQuery);
+    const locations = res.locals.isShareView ? [] : await Item.distinct('location', locationQuery);
 
     // Scoped to the selected type, so a type never offers another type's values (and the
     // view drops a control entirely once its list comes back empty).
@@ -428,7 +430,7 @@ router.get('/collection', requireAuthOrShareView, async (req: any, res: any) => 
       currentType: type || 'all',
       currentFormat: format || 'all',
       querySearch: trimmedSearch,
-      queryLocation: location || '',
+      queryLocation: res.locals.isShareView ? '' : (location || ''),
       queryGenre: genre || '',
       queryStyle: style || '',
       queryPlatform: platform || '',

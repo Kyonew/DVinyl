@@ -378,7 +378,7 @@
                             </div>
                         </div>
 
-                        <div class="border-t border-black/5 dark:border-white/5 pt-6">
+                        <div id="shareLinks" class="border-t border-black/5 dark:border-white/5 pt-6 scroll-mt-6">
                             <h3 class="text-lg font-bold flex items-center gap-2 mb-1">
                                 <i class="fa-solid fa-qrcode text-primary-theme"></i>
                                 <%= t('admin.sharing.title') %>
@@ -437,9 +437,9 @@
                                                     <input type="text" readonly id="shareLinkInput_<%= idPrefix %>"
                                                         value="<%= locals.siteOrigin || '' %><%= baseUrl %>/share/<%= link.token %>"
                                                         class="flex-1 min-w-0 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl px-3 py-2 text-xs font-mono outline-none">
-                                                    <button type="button"
-                                                        onclick="navigator.clipboard.writeText(document.getElementById('shareLinkInput_<%= idPrefix %>').value)"
-                                                        class="shrink-0 bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white w-9 h-9 rounded-xl text-xs transition-all">
+                                                    <button type="button" data-copy-target="shareLinkInput_<%= idPrefix %>"
+                                                        title="<%= t('admin.sharing.copy_btn') %>"
+                                                        class="js-copy-share shrink-0 bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white w-9 h-9 rounded-xl text-xs transition-all">
                                                         <i class="fa-solid fa-copy"></i>
                                                     </button>
                                                 </div>
@@ -697,9 +697,62 @@
             const newShareLinkToggle = document.querySelector('[data-toggle-new-share-link]');
             if (newShareLinkToggle) {
                 newShareLinkToggle.addEventListener('click', () => {
-                    document.getElementById('newShareLinkForm').classList.toggle('hidden');
+                    const form = document.getElementById('newShareLinkForm');
+                    form.classList.toggle('hidden');
+                    // The panel sits at the bottom of a long page: opening the form off
+                    // screen looks like the button did nothing.
+                    if (!form.classList.contains('hidden')) {
+                        form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
                 });
             }
+
+            // Every share action reloads the whole admin page, which lands back at the top
+            // while the link that was just created is far below. Come back to the panel.
+            const adminMsg = new URLSearchParams(window.location.search).get('msg') || '';
+            if (adminMsg.startsWith('share') || adminMsg === 'error_share') {
+                document.getElementById('shareLinks')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+
+            // Copying is what the panel is for, so the button says when it worked.
+            // navigator.clipboard does not exist outside a secure context, which an
+            // instance reached over http at its LAN address is not: the selection fallback
+            // is what stands between "copied" and a button that silently does nothing.
+            const copiedLabel = <%- JSON.stringify(t('admin.sharing.copied')) %>;
+            document.querySelectorAll('.js-copy-share').forEach(button => {
+                const input = document.getElementById(button.dataset.copyTarget);
+                if (!input) return;
+
+                button.addEventListener('click', async () => {
+                    let copied = false;
+                    try {
+                        if (navigator.clipboard && window.isSecureContext) {
+                            await navigator.clipboard.writeText(input.value);
+                            copied = true;
+                        }
+                    } catch (err) {
+                        copied = false;
+                    }
+                    if (!copied) {
+                        input.select();
+                        input.setSelectionRange(0, input.value.length);
+                        try { copied = document.execCommand('copy'); } catch (err) { copied = false; }
+                    }
+                    if (!copied) return; // the link stays selected, ready for a manual copy
+
+                    const icon = button.querySelector('i');
+                    const iconClass = icon.className;
+                    const label = button.getAttribute('title');
+                    icon.className = 'fa-solid fa-check';
+                    button.classList.add('bg-primary-theme', 'text-white');
+                    button.setAttribute('title', copiedLabel);
+                    setTimeout(() => {
+                        icon.className = iconClass;
+                        button.classList.remove('bg-primary-theme', 'text-white');
+                        button.setAttribute('title', label);
+                    }, 1600);
+                });
+            });
 
             document.getElementById('collectionBackupInput').onchange = function (e) {
                 const file = e.target.files[0];

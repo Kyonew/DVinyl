@@ -134,8 +134,10 @@
             <div class="flex flex-col gap-6 ml-2">
                 <%# Kept even when empty, as an invitation to fill it in, but only for the
                     plugins that actually declare the field: a custom plugin created without
-                    the location feature has no such data to show. %>
-                <% if (plugin.formFields.some(f => f.name === 'location')) { %>
+                    the location feature has no such data to show. Never for a share link,
+                    which is shown a collection and not the home around it (see
+                    SHARE_HIDDEN_FIELDS in core/cardFields.ts). %>
+                <% if (plugin.formFields.some(f => f.name === 'location') && !locals.isShareView) { %>
                     <div class="flex flex-col">
                         <span class="text-[10px] uppercase tracking-widest opacity-50 font-bold mb-2">
                             <%= t('common.location') %>

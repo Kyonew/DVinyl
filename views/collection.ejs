@@ -123,6 +123,8 @@
                     <% } %>
                 </div>
 
+                <%# Not for a share link: see SHARE_HIDDEN_FIELDS in core/cardFields.ts. %>
+                <% if (!locals.isShareView) { %>
                 <div class="w-full lg:w-44 relative">
                     <input type="text" id="locationInput" list="locations-list"
                         placeholder="<%= t('common.location') %>" value="<%= locals.queryLocation || '' %>"
@@ -137,6 +139,7 @@
                             <% }) %>
                     </datalist>
                 </div>
+                <% } %>
 
                 <%# Each control below is dropped when the selected type has nothing to
                     offer for it, rather than showing an empty or foreign list %>
@@ -514,7 +517,7 @@
                 %>
 
                     <div class="album-card group relative card-theme rounded-xl overflow-hidden hover:border-primary-theme transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
-                        data-location="<%= album.location || '' %>"
+                        data-location="<%= locals.isShareView ? '' : (album.location || '') %>"
                         data-format="<%= album.format || album.media_type || '' %>">
                         <a href="<%= baseUrl + detailUrl %>" class="block">
                             <div

@@ -27,7 +27,7 @@
   };
   const cs = cardSizes[locals.size] || cardSizes.collection;
 
-  const cardLines = getCardLines(plugin, item, { lang: currentLng });
+  const cardLines = getCardLines(plugin, item, { lang: currentLng, isShareView: locals.isShareView === true });
   const plainLines = cardLines.filter(l => l.style === 'text');
   const markedLines = cardLines.filter(l => l.style !== 'text');
   const lineText = l => (l.showLabel ? t(l.label, { defaultValue: l.label }) + ' : ' : '') + l.value;

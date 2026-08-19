@@ -306,7 +306,9 @@
       "scope_title": "Contenido compartido",
       "scope_hint": "Elige tipos concretos (y, dentro de un tipo, formatos concretos) para limitar lo que muestra este enlace: por ejemplo solo los CD, o los CD y los vinilos. Si no marcas nada, se comparte toda la colección.",
       "scope_empty_hint": "Nada marcado = se comparte toda la colección.",
-      "scope_save_btn": "Guardar los cambios"
+      "scope_save_btn": "Guardar los cambios",
+      "copy_btn": "Copiar el enlace",
+      "copied": "Copiado"
     },
     "libib": {
       "title_books": "Libib - Libros",

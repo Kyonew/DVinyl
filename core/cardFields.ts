@@ -29,6 +29,16 @@ export interface CardLine {
   style: 'text' | 'pill' | 'dot';
 }
 
+/**
+ * Fields a public share link never shows, whatever the collection chose to display.
+ *
+ * Where something is kept says nothing about the collection and everything about the home
+ * around it: a link handed to strangers, or printed as a QR code on a shelf, has no
+ * business naming the room, the cupboard or the safe. The choice stays available to the
+ * members, who are the ones it was written for.
+ */
+export const SHARE_HIDDEN_FIELDS = new Set(['location']);
+
 /** Fields a collection may pick from when choosing what its cards show. */
 export function cardFieldCandidates(plugin: PluginDefinition): FieldDefinition[] {
   return (plugin.formFields || []).filter(f =>
@@ -103,10 +113,11 @@ export const DEFAULT_CORNER_POSITION = 'bottom-left';
 export function getCornerBadge(
   plugin: PluginDefinition | undefined,
   item: any,
-  options: { lang?: string } = {}
+  options: { lang?: string; isShareView?: boolean } = {}
 ): string {
   const name = (plugin as any)?.cornerField;
   if (!plugin || !item || !name) return '';
+  if (options.isShareView && SHARE_HIDDEN_FIELDS.has(name)) return '';
 
   const raw = item[name] ?? item.extra?.[name];
   if (raw === undefined || raw === null || raw === '') return '';
@@ -124,7 +135,7 @@ export function getCornerBadge(
 export function getCardLines(
   plugin: PluginDefinition | undefined,
   item: any,
-  options: { lang?: string } = {}
+  options: { lang?: string; isShareView?: boolean } = {}
 ): CardLine[] {
   if (!plugin || !item) return [];
 
@@ -135,6 +146,7 @@ export function getCardLines(
   const lines: CardLine[] = [];
   for (const name of names) {
     if (lines.length >= MAX_CARD_LINES) break;
+    if (options.isShareView && SHARE_HIDDEN_FIELDS.has(name)) continue;
 
     const field = (plugin.formFields || []).find(f => f.name === name);
     const style = plugin.cardFieldStyles?.[name] || 'text';
