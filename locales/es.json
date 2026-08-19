@@ -535,6 +535,7 @@
     "media_type_tv": "programa de televisión",
     "season_label": "¿Qué temporadas tienes?",
     "season_hint_owned": "Las temporadas que ya están en tu colección aparecen marcadas y bloqueadas. Marca las que acabas de conseguir.",
+    "season_absorb_warning": "«{{title}}» ya está en la colección. Las temporadas marcadas se le adjuntarán: esta ficha pasará a ser la de la serie, y las temporadas se consultarán desde ella.",
     "season_select_all": "Seleccionar todo",
     "season_hint": "Cada temporada se convierte en su propio elemento, con su póster, su año y sus episodios. No marcar nada añade la serie como un solo elemento.",
     "field_is_boxset": "es una caja",

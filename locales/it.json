@@ -535,6 +535,7 @@
     "media_type_tv": "Programma televisivo",
     "season_label": "Quali stagioni possiedi?",
     "season_hint_owned": "Le stagioni già nella tua collezione sono selezionate e bloccate. Seleziona quelle che hai appena preso.",
+    "season_absorb_warning": "«{{title}}» è già nella collezione. Le stagioni selezionate verranno collegate a essa: questa scheda diventerà quella della serie, e le stagioni si consulteranno da lì.",
     "season_select_all": "Seleziona tutto",
     "season_hint": "Ogni stagione diventa un elemento a sé, con la sua locandina, il suo anno e i suoi episodi. Non selezionare nulla aggiunge la serie come un solo elemento.",
     "field_is_boxset": "È un cofanetto",

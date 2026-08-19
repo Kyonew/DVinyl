@@ -535,6 +535,7 @@
     "media_type_tv": "TV-Show",
     "season_label": "Welche Staffeln besitzen Sie?",
     "season_hint_owned": "Die Staffeln in Ihrer Sammlung sind angekreuzt und gesperrt. Kreuzen Sie die neu erworbenen an.",
+    "season_absorb_warning": "„{{title}}“ ist bereits in der Sammlung. Die angehakten Staffeln werden ihm zugeordnet: Dieser Eintrag wird zum Eintrag der Serie, und die Staffeln werden über ihn aufgerufen.",
     "season_select_all": "Alle auswählen",
     "season_hint": "Jede Staffel wird ein eigener Eintrag, mit eigenem Poster, Jahr und Folgen. Nichts anzukreuzen fügt die Serie als einen Eintrag hinzu.",
     "field_is_boxset": "Ist ein Boxset",

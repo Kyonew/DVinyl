@@ -955,6 +955,7 @@
     "media_type_tv": "TV Show",
     "season_label": "Which seasons do you own?",
     "season_hint_owned": "The seasons already in your collection are ticked and locked. Tick the ones you have just got.",
+    "season_absorb_warning": "\"{{title}}\" is already in the collection. The seasons you tick will be attached to it: it becomes the show's entry, and the seasons are reached from it.",
     "season_select_all": "Select all",
     "season_hint": "Each season becomes its own item, with its own poster, year and episodes. Leave everything unticked to add the show as a single item.",
     "field_is_boxset": "Is a Boxset",

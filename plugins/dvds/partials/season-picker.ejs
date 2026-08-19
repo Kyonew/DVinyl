@@ -15,6 +15,18 @@
                 .map(existing => existing.season)
                 .filter(season => typeof season === 'number')
         );
+
+        // Someone can already hold this show as a single item, a box set bought before any
+        // of it was recorded season by season. Ticking a season attaches it to that item,
+        // which then stands for the show and is reached through it rather than from the
+        // shelf. Nothing is lost, but nobody would guess it from a list of checkboxes, so
+        // it is said here before anything is ticked.
+        //
+        // Only when no season is held yet: past that point the item is already the show's
+        // entry and everyone has seen it happen.
+        const absorbed = owned.size === 0
+            ? (existingItems || []).find(existing => typeof existing.season !== 'number')
+            : null;
     %>
     <div>
         <div class="flex items-center justify-between gap-4 mb-3">
@@ -28,6 +40,16 @@
                 </button>
             <% } %>
         </div>
+
+        <% if (absorbed) { %>
+            <p class="bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/20 text-orange-600 dark:text-orange-400 p-3 rounded-lg text-xs mb-3 transition-colors">
+                <i class="fa-solid fa-triangle-exclamation mr-1"></i>
+                <%# The title is a value, not markup: i18next escapes it, and EJS escapes the
+                    whole line right after, which would print the entities instead of the
+                    apostrophes. Escaped once, here, by the tag that writes it out. %>
+                <%= t('confirm_dvd.season_absorb_warning', { title: absorbed.title, interpolation: { escapeValue: false } }) %>
+            </p>
+        <% } %>
 
         <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
             <% item.seasons.forEach(season => { %>

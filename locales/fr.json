@@ -955,6 +955,7 @@
     "media_type_tv": "Série",
     "season_label": "Quelles saisons possédez-vous ?",
     "season_hint_owned": "Les saisons déjà dans votre collection sont cochées et verrouillées. Cochez celles que vous venez d’acquérir.",
+    "season_absorb_warning": "« {{title}} » est déjà dans la collection. Les saisons cochées y seront rattachées : cette fiche deviendra celle de la série, et les saisons se consulteront depuis elle.",
     "season_select_all": "Tout sélectionner",
     "season_hint": "Chaque saison devient un item, avec son affiche, son année et ses épisodes. Ne rien cocher ajoute la série en un seul item.",
     "field_is_boxset": "C'est un coffret (Boxset)",
