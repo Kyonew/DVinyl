@@ -568,6 +568,7 @@
                     </button>
 
                     <div class="flex items-center gap-1">
+                        <% let jumpRendered = false; %>
                         <% for(let i=1; i <=totalPages; i++) { if (i===1 || i===totalPages || (i>= currentPage - 1 && i
                             <= currentPage + 1)) { %>
                                 <button onclick="changePage(<%= i %>)"
@@ -575,7 +576,15 @@
                                     <%= i %>
                                 </button>
                                 <% } else if (i===currentPage - 2 || i===currentPage + 2) { %>
-                                    <span class="px-1 opacity-30">...</span>
+                                    <% if (!jumpRendered) { jumpRendered = true; %>
+                                        <input type="number" id="pageJumpInput" min="1" max="<%= totalPages %>"
+                                            onkeydown="if (event.key === 'Enter') jumpToPage();"
+                                            placeholder="#"
+                                            title="<%= t('collection.page_jump_title') %>"
+                                            class="no-spinner w-10 h-10 text-sm text-center font-bold card-theme rounded-xl border focus:ring-1 focus:ring-primary-theme outline-none">
+                                    <% } else { %>
+                                        <span class="px-1 opacity-30">...</span>
+                                    <% } %>
                                     <% } } %>
                     </div>
 
@@ -753,6 +762,15 @@
             const url = new URL(window.location.href);
             url.searchParams.set('page', page);
             window.location.href = url.toString();
+        }
+
+        function jumpToPage() {
+            const input = document.getElementById('pageJumpInput');
+            if (!input) return;
+            const page = parseInt(input.value, 10);
+            const maxPage = parseInt(input.max, 10);
+            if (!page || page < 1 || page > maxPage) return;
+            changePage(page);
         }
 
         document.querySelectorAll('.filter-input-textbox').forEach(element => {
@@ -1181,6 +1199,19 @@
 
 
     </script>
+
+    <style>
+        .no-spinner::-webkit-outer-spin-button,
+        .no-spinner::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .no-spinner {
+            -moz-appearance: textfield;
+        }
+    </style>
+
     <%- include('partials/footer') %>
 </body>
 </html>

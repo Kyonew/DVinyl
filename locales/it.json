@@ -438,7 +438,8 @@
     "search_genre_placeholder": "Cerca generi...",
     "search_style_placeholder": "Cerca stili...",
     "search_platform_placeholder": "Cerca console...",
-    "active_filters": "Filtri attivi:"
+    "active_filters": "Filtri attivi:",
+    "page_jump_title": "Vai alla pagina"
   },
   "common": {
     "all": "Tutto",
