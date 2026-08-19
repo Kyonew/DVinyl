@@ -1,0 +1,119 @@
+<%- include('partials/header') %>
+
+<div class="max-w-screen-xl mx-auto px-1 md:px-0 pb-12">
+
+    <div class="pt-6 mb-6">
+        <h1 class="text-3xl font-bold transition-colors"><%= t('search.title') %></h1>
+    </div>
+
+    <form onsubmit="event.preventDefault(); runSearch();" class="mb-8">
+        <div class="relative max-w-xl">
+            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                <i class="fa-solid fa-magnifying-glass opacity-40"></i>
+            </div>
+            <input type="text" id="searchInput" value="<%= query %>" minlength="2" autofocus
+                class="block w-full p-3 pl-10 text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme placeholder-opacity-50 transition-shadow"
+                placeholder="<%= t('search.placeholder') %>">
+        </div>
+    </form>
+
+    <% if (query.length < 2) { %>
+        <div class="text-center py-20 opacity-50">
+            <i class="fa-solid fa-magnifying-glass text-3xl mb-4"></i>
+            <p class="text-sm"><%= t('search.empty_prompt') %></p>
+        </div>
+    <% } else if (results.length === 0) { %>
+        <div class="text-center py-20 opacity-50">
+            <i class="fa-solid fa-box-open text-3xl mb-4"></i>
+            <p class="text-sm"><%= t('search.no_results') %></p>
+        </div>
+    <% } else { %>
+        <p class="text-xs opacity-50 mb-4"><%= t('search.results_count', { count: totalItems }) %></p>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+            <% results.forEach(result => { %>
+                <%
+                    const item = result.item;
+                    const itemPlugin = result.plugin;
+                    const isPoster = itemPlugin ? itemPlugin.aspectRatioClass !== 'aspect-square' : true;
+                    const detailPath = (itemPlugin ? itemPlugin.routePrefix : '/album') + '/' + item._id;
+                    const badge = (itemPlugin && itemPlugin.cardBadge)
+                        ? itemPlugin.cardBadge(item, null)
+                        : (function(){ var fmt=(item.format||item.media_type||'').toLowerCase(); var opt=itemPlugin?(itemPlugin.formats||[]).find(function(f){return f.value===fmt}):null; return { label: opt?opt.label:fmt, colorClass: (opt&&opt.color)||'bg-gray-600/90' }; })();
+                %>
+                <div class="album-card group relative card-theme rounded-xl overflow-hidden hover:border-primary-theme transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+                    <form method="POST" action="<%= baseUrl %>/collection/switch">
+                        <input type="hidden" name="collectionId" value="<%= result.collectionId %>">
+                        <input type="hidden" name="redirectTo" value="<%= baseUrl + detailPath %>">
+                        <button type="submit" class="block w-full text-left">
+                            <div class="aspect-square w-full relative overflow-hidden bg-black/5 flex items-center justify-center">
+                                <% if (isPoster) { %>
+                                    <img src="<%= item.cover_image %>"
+                                        class="absolute inset-0 w-full h-full object-cover blur-xl opacity-30 scale-110 pointer-events-none">
+                                <% } %>
+                                <img src="<%= item.cover_image %>"
+                                    class="relative z-10 w-full h-full <%= isPoster ? 'object-contain p-2' : 'object-cover' %> transition-transform duration-500 group-hover:scale-105"
+                                    loading="lazy">
+
+                                <span class="absolute top-2 left-2 z-20 text-white text-[9px] font-bold px-2 py-1 rounded backdrop-blur-md border border-white/10 shadow-sm bg-black/60">
+                                    <i class="fa-solid fa-layer-group mr-1"></i><%= result.collectionName %>
+                                </span>
+
+                                <% if (badge.label) { %>
+                                <span class="absolute bottom-2 left-2 z-20 text-white text-[10px] font-bold px-2 py-1 rounded backdrop-blur-md border border-white/10 shadow-sm <%= badge.colorClass %>">
+                                    <%= t(badge.label, { defaultValue: badge.label }) %>
+                                </span>
+                                <% } %>
+                            </div>
+
+                            <%- include('partials/item-card-body', { item, plugin: itemPlugin, size: 'collection' }) %>
+                        </button>
+                    </form>
+                </div>
+            <% }) %>
+        </div>
+
+        <% if (totalPages > 1) { %>
+            <nav class="mt-12 flex items-center justify-center gap-2 border-t border-black/5 dark:border-white/10 pt-8">
+                <button onclick="changePage(<%= currentPage - 1 %>)" <%= currentPage <= 1 ? 'disabled' : '' %>
+                    class="w-10 h-10 flex items-center justify-center rounded-xl card-theme border-none hover:bg-primary-theme hover:text-white transition-all disabled:opacity-20 disabled:pointer-events-none">
+                    <i class="fa-solid fa-chevron-left text-xs"></i>
+                </button>
+
+                <div class="flex items-center gap-1">
+                    <% for (let i = 1; i <= totalPages; i++) { if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) { %>
+                        <button onclick="changePage(<%= i %>)"
+                            class="w-10 h-10 flex items-center justify-center rounded-xl font-bold text-sm transition-all <%= currentPage === i ? 'bg-primary-theme text-white shadow-lg scale-110' : 'card-theme hover:bg-black/5 dark:hover:bg-white/5' %>">
+                            <%= i %>
+                        </button>
+                    <% } else if (i === currentPage - 2 || i === currentPage + 2) { %>
+                        <span class="px-1 opacity-30">...</span>
+                    <% } } %>
+                </div>
+
+                <button onclick="changePage(<%= currentPage + 1 %>)" <%= currentPage >= totalPages ? 'disabled' : '' %>
+                    class="w-10 h-10 flex items-center justify-center rounded-xl card-theme border-none hover:bg-primary-theme hover:text-white transition-all disabled:opacity-20 disabled:pointer-events-none">
+                    <i class="fa-solid fa-chevron-right text-xs"></i>
+                </button>
+            </nav>
+        <% } %>
+    <% } %>
+</div>
+
+<script>
+    function runSearch() {
+        const value = document.getElementById('searchInput').value.trim();
+        const url = new URL(window.location.origin + window.location.pathname);
+        if (value) url.searchParams.set('q', value);
+        url.searchParams.set('page', 1);
+        window.location.href = url.toString();
+    }
+
+    function changePage(page) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('page', page);
+        window.location.href = url.toString();
+    }
+</script>
+
+<%- include('partials/footer') %>
