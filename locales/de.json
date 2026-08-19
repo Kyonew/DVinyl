@@ -416,7 +416,8 @@
     "search_genre_placeholder": "Genres suchen...",
     "search_style_placeholder": "Styles suchen...",
     "search_platform_placeholder": "Konsolen suchen...",
-    "active_filters": "Aktive Filter:"
+    "active_filters": "Aktive Filter:",
+    "page_jump_title": "Zu Seite springen"
   },
   "common": {
     "all": "Alle",
