@@ -290,6 +290,24 @@
       "subtitle": "Esporta questa collezione (elementi + impostazioni) o sostituisci il suo contenuto con un backup.",
       "confirm_import": "L'importazione SOSTITUIRÀ tutti gli elementi di questa collezione. Continuare?"
     },
+    "sharing": {
+      "title": "Link di condivisione pubblici",
+      "subtitle": "Permetti a chiunque di sfogliare questa collezione in sola lettura con un link o un codice QR, senza alcun account. Modifica, eliminazione e ogni altra pagina restano off-limits. Crea più link per condividere separatamente parti diverse della collezione, ad es. uno per i vinili e uno per i CD.",
+      "untitled_link": "Link senza nome",
+      "label_placeholder": "Dai un nome a questo link (facoltativo) - es. \"Solo vinili\"",
+      "enable_btn": "Attiva",
+      "disable_btn": "Disattiva",
+      "regenerate_btn": "Rigenera",
+      "delete_btn": "Elimina",
+      "confirm_regenerate": "Questo invalida il link e il codice QR attuali: chi usa il precedente perderà l'accesso. Continuare?",
+      "confirm_delete": "Eliminare questo link di condivisione? Chi lo sta usando perderà subito l'accesso.",
+      "new_link_btn": "Nuovo link di condivisione",
+      "create_btn": "Crea il link",
+      "scope_title": "Contenuto condiviso",
+      "scope_hint": "Scegli tipi specifici (e, all'interno di un tipo, formati specifici) per limitare ciò che questo link mostra: ad es. solo i CD, oppure CD e vinili. Non selezionare nulla condivide l'intera collezione.",
+      "scope_empty_hint": "Niente selezionato = viene condivisa l'intera collezione.",
+      "scope_save_btn": "Salva le modifiche"
+    },
     "libib": {
       "title_books": "Libib - Libri",
       "title_music": "Libib - Musica",
@@ -393,6 +411,7 @@
   },
   "collection": {
     "add": "Aggiungere",
+    "share_view_banner": "Stai consultando una collezione condivisa - sola lettura.",
     "filter_placeholder": "Filtro...",
     "refresh": "Aggiorna",
     "refresh_metadata_btn": "Aggiorna informazioni",
@@ -796,7 +815,14 @@
     "delete_admin_error": "Non puoi eliminare un altro amministratore dell'istanza.",
     "reset_admin_error": "Non puoi reimpostare la password di un altro amministratore dell'istanza.",
     "error_collection_quota": "Hai raggiunto il numero massimo di collezioni consentito.",
-    "error_collection_forbidden": "La creazione di collezioni non è consentita su questa istanza."
+    "error_collection_forbidden": "La creazione di collezioni non è consentita su questa istanza.",
+    "share_enabled": "Condivisione attivata.",
+    "share_disabled": "Condivisione disattivata.",
+    "share_regenerated": "Link di condivisione rigenerato - il link precedente non funziona più.",
+    "share_scope_updated": "Contenuto condiviso aggiornato.",
+    "share_link_created": "Link di condivisione creato.",
+    "share_link_deleted": "Link di condivisione eliminato.",
+    "error_share": "Impossibile aggiornare la condivisione."
   },
   "modal": {
     "add_hub_subtitle": "Seleziona il tipo di media da aggiungere alla tua raccolta",
@@ -822,7 +848,8 @@
     "collections": "Collezioni",
     "instance": "Istanza",
     "administration": "Amministrazione",
-    "new_collection": "Nuova collezione"
+    "new_collection": "Nuova collezione",
+    "share_view": "Collezione condivisa · sola lettura"
   },
   "perso": {
     "backHome": "Ritorno a casa",
@@ -1040,6 +1067,10 @@
     "message": "Non sei ancora membro di nessuna collezione. Chiedi a un amministratore di aggiungerti - il tuo accesso apparirà qui automaticamente.",
     "message_can_create": "Non hai ancora nessuna collezione. Crea la tua per iniziare ad aggiungere elementi: ne sarai l'amministratore.",
     "create_btn": "Crea la mia collezione"
+  },
+  "share_invalid": {
+    "title": "Link non disponibile",
+    "message": "Questo link di condivisione non è valido o non è più disponibile. Chiedine uno nuovo a chi possiede la collezione."
   },
   "create_plugin": {
     "title": "Editor di plugin",

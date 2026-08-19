@@ -290,6 +290,24 @@
       "subtitle": "Exportar esta colección (elementos + ajustes) o reemplazar su contenido con una copia.",
       "confirm_import": "La importación REEMPLAZARÁ todos los elementos de esta colección. ¿Continuar?"
     },
+    "sharing": {
+      "title": "Enlaces públicos para compartir",
+      "subtitle": "Deja que cualquiera explore esta colección en modo solo lectura con un enlace o un código QR, sin necesidad de cuenta. Editar, eliminar y el resto de páginas siguen fuera de alcance. Crea varios enlaces para compartir por separado distintas partes de la colección, por ejemplo uno para los vinilos y otro para los CD.",
+      "untitled_link": "Enlace sin nombre",
+      "label_placeholder": "Nombra este enlace (opcional) - p. ej. \"Solo vinilos\"",
+      "enable_btn": "Activar",
+      "disable_btn": "Desactivar",
+      "regenerate_btn": "Regenerar",
+      "delete_btn": "Eliminar",
+      "confirm_regenerate": "Esto invalida el enlace y el código QR actuales: quien use el anterior perderá el acceso. ¿Continuar?",
+      "confirm_delete": "¿Eliminar este enlace para compartir? Quien lo esté usando perderá el acceso de inmediato.",
+      "new_link_btn": "Nuevo enlace para compartir",
+      "create_btn": "Crear el enlace",
+      "scope_title": "Contenido compartido",
+      "scope_hint": "Elige tipos concretos (y, dentro de un tipo, formatos concretos) para limitar lo que muestra este enlace: por ejemplo solo los CD, o los CD y los vinilos. Si no marcas nada, se comparte toda la colección.",
+      "scope_empty_hint": "Nada marcado = se comparte toda la colección.",
+      "scope_save_btn": "Guardar los cambios"
+    },
     "libib": {
       "title_books": "Libib - Libros",
       "title_music": "Libib - Música",
@@ -393,6 +411,7 @@
   },
   "collection": {
     "add": "Agregar",
+    "share_view_banner": "Estás viendo una colección compartida - solo lectura.",
     "filter_placeholder": "Filtrar...",
     "refresh": "Refrescar",
     "refresh_metadata_btn": "Actualizar información",
@@ -796,7 +815,14 @@
     "delete_admin_error": "No puedes eliminar a otro administrador de instancia.",
     "reset_admin_error": "No puedes restablecer la contraseña de otro administrador de instancia.",
     "error_collection_quota": "Has alcanzado el número máximo de colecciones permitido.",
-    "error_collection_forbidden": "La creación de colecciones no está permitida en esta instancia."
+    "error_collection_forbidden": "La creación de colecciones no está permitida en esta instancia.",
+    "share_enabled": "Uso compartido activado.",
+    "share_disabled": "Uso compartido desactivado.",
+    "share_regenerated": "Enlace para compartir regenerado - el enlace anterior ya no funciona.",
+    "share_scope_updated": "Contenido compartido actualizado.",
+    "share_link_created": "Enlace para compartir creado.",
+    "share_link_deleted": "Enlace para compartir eliminado.",
+    "error_share": "No se ha podido actualizar el uso compartido."
   },
   "modal": {
     "add_hub_subtitle": "Seleccione el tipo de medios para agregar a su colección",
@@ -822,7 +848,8 @@
     "collections": "Colecciones",
     "instance": "Instancia",
     "administration": "Administración",
-    "new_collection": "Nueva colección"
+    "new_collection": "Nueva colección",
+    "share_view": "Colección compartida · solo lectura"
   },
   "perso": {
     "backHome": "De vuelta a casa",
@@ -1040,6 +1067,10 @@
     "message": "Todavía no eres miembro de ninguna colección. Pide a un administrador que te añada a una - tu acceso aparecerá aquí automáticamente.",
     "message_can_create": "Aún no tienes ninguna colección. Crea la tuya para empezar a añadir elementos: serás su administrador.",
     "create_btn": "Crear mi colección"
+  },
+  "share_invalid": {
+    "title": "Enlace no disponible",
+    "message": "Este enlace para compartir no es válido o ya no está disponible. Pide uno nuevo a quien sea propietario de la colección."
   },
   "create_plugin": {
     "title": "Editor de plugins",

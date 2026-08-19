@@ -290,6 +290,24 @@
       "subtitle": "Diese Sammlung exportieren (Elemente + Einstellungen) oder ihren Inhalt durch ein Backup ersetzen.",
       "confirm_import": "Der Import ERSETZT alle Elemente dieser Sammlung. Fortfahren?"
     },
+    "sharing": {
+      "title": "Öffentliche Freigabelinks",
+      "subtitle": "Lass beliebige Personen diese Sammlung mit einem Link oder QR-Code schreibgeschützt durchstöbern - ganz ohne Konto. Bearbeiten, Löschen und alle anderen Seiten bleiben gesperrt. Erstelle mehrere Links, um verschiedene Teile der Sammlung getrennt zu teilen, z. B. einen für Schallplatten und einen für CDs.",
+      "untitled_link": "Link ohne Namen",
+      "label_placeholder": "Diesen Link benennen (optional) - z. B. \"Nur Schallplatten\"",
+      "enable_btn": "Aktivieren",
+      "disable_btn": "Deaktivieren",
+      "regenerate_btn": "Neu erzeugen",
+      "delete_btn": "Löschen",
+      "confirm_regenerate": "Damit werden der aktuelle Link und QR-Code ungültig - wer den alten nutzt, verliert den Zugriff. Fortfahren?",
+      "confirm_delete": "Diesen Freigabelink löschen? Wer ihn nutzt, verliert sofort den Zugriff.",
+      "new_link_btn": "Neuer Freigabelink",
+      "create_btn": "Link erstellen",
+      "scope_title": "Freigegebener Inhalt",
+      "scope_hint": "Wähle bestimmte Typen (und innerhalb eines Typs bestimmte Formate), um einzuschränken, was dieser Link zeigt - z. B. nur CDs, oder CDs und Schallplatten. Nichts anzukreuzen teilt die ganze Sammlung.",
+      "scope_empty_hint": "Nichts angekreuzt = die ganze Sammlung wird geteilt.",
+      "scope_save_btn": "Änderungen speichern"
+    },
     "libib": {
       "title_books": "Libib - Bücher",
       "title_music": "Libib - Musik",
@@ -393,6 +411,7 @@
   },
   "collection": {
     "add": "Hinzufügen",
+    "share_view_banner": "Du siehst eine geteilte Sammlung - schreibgeschützt.",
     "filter_placeholder": "Filter...",
     "refresh": "Aktualisieren",
     "refresh_metadata_btn": "Informationen aktualisieren",
@@ -796,7 +815,14 @@
     "delete_admin_error": "Sie können keinen anderen Instanz-Administrator löschen.",
     "reset_admin_error": "Sie können das Passwort eines anderen Instanz-Administrators nicht zurücksetzen.",
     "error_collection_quota": "Du hast die maximal zulässige Anzahl an Sammlungen erreicht.",
-    "error_collection_forbidden": "Das Erstellen von Sammlungen ist auf dieser Instanz nicht erlaubt."
+    "error_collection_forbidden": "Das Erstellen von Sammlungen ist auf dieser Instanz nicht erlaubt.",
+    "share_enabled": "Freigabe aktiviert.",
+    "share_disabled": "Freigabe deaktiviert.",
+    "share_regenerated": "Freigabelink neu erzeugt - der alte Link funktioniert nicht mehr.",
+    "share_scope_updated": "Freigegebene Inhalte aktualisiert.",
+    "share_link_created": "Freigabelink erstellt.",
+    "share_link_deleted": "Freigabelink gelöscht.",
+    "error_share": "Die Freigabe konnte nicht aktualisiert werden."
   },
   "modal": {
     "add_hub_subtitle": "Wählen Sie den Medientyp aus, den Sie Ihrer Sammlung hinzufügen möchten",
@@ -822,7 +848,8 @@
     "collections": "Sammlungen",
     "instance": "Instanz",
     "administration": "Verwaltung",
-    "new_collection": "Neue Sammlung"
+    "new_collection": "Neue Sammlung",
+    "share_view": "Geteilte Sammlung · schreibgeschützt"
   },
   "perso": {
     "backHome": "Zurück nach Hause",
@@ -1040,6 +1067,10 @@
     "message": "Sie sind noch kein Mitglied einer Sammlung. Bitten Sie einen Administrator, Sie hinzuzufügen - Ihr Zugriff erscheint hier automatisch.",
     "message_can_create": "Du hast noch keine Sammlung. Erstelle deine eigene, um Einträge hinzuzufügen - du wirst ihr Administrator.",
     "create_btn": "Meine Sammlung erstellen"
+  },
+  "share_invalid": {
+    "title": "Link nicht verfügbar",
+    "message": "Dieser Freigabelink ist ungültig oder nicht mehr verfügbar. Frag die Person, der die Sammlung gehört, nach einem neuen."
   },
   "create_plugin": {
     "title": "Plugin-Editor",
