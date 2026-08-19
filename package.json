@@ -1,6 +1,6 @@
 {
   "name": "dvinyl",
-  "version": "3.1.2",
+  "version": "3.1.3",
   "description": "",
   "main": "app.ts",
   "scripts": {
