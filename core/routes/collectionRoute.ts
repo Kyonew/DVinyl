@@ -392,6 +392,7 @@ router.get('/collection', requireAuthOrShareView, async (req: any, res: any) => 
     );
 
     res.render('collection', {
+      returnUrl: req.originalUrl,
       albums: albumsFormatted,
       totalItems,
       totalPages: Math.ceil(totalItems / limit),

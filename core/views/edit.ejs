@@ -2,7 +2,7 @@
 
 <div class="max-w-screen-xl mx-auto pb-20 px-4 md:px-0">
     <nav class="flex mb-6 text-sm opacity-60 transition-colors">
-        <a href="<%= baseUrl %><%= plugin.routePrefix %>/<%= item._id %>" class="hover:opacity-100 transition-opacity flex items-center py-2">
+        <a href="<%= baseUrl %><%= plugin.routePrefix %>/<%= item._id %><%= locals.returnTo ? '?from=' + encodeURIComponent(returnTo) : '' %>" class="hover:opacity-100 transition-opacity flex items-center py-2">
             <i class="fa-solid fa-arrow-left mr-2"></i> <%= t('common.cancel_back') %>
         </a>
     </nav>
@@ -180,6 +180,9 @@
 
                     <input type="hidden" name="in_wishlist" value="<%= item.in_wishlist %>">
                     <input type="hidden" name="mongo_id" value="<%= item._id %>">
+                    <% if (locals.returnTo) { %>
+                        <input type="hidden" name="returnTo" value="<%= returnTo %>">
+                    <% } %>
 
                     <button type="submit" class="w-full text-white bg-primary-theme hover:brightness-110 font-bold rounded-xl text-lg px-5 py-4 transition-transform hover:scale-[1.01] flex items-center justify-center gap-2 shadow-lg shadow-primary-theme/20">
                         <i class="fa-solid fa-save"></i> <%= t('common.save_changes') %>

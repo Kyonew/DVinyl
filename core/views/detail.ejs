@@ -13,7 +13,7 @@
                 <%= t('detail.back_to_wishlist') %>
             </a>
         <% } else { %>
-            <a href="<%= baseUrl %>/collection?type=<%= plugin.id %>" class="hover:opacity-100 hover:text-primary-theme transition-colors flex items-center gap-2">
+            <a href="<%= baseUrl %><%= locals.returnTo || ('/collection?type=' + plugin.id) %>" class="hover:opacity-100 hover:text-primary-theme transition-colors flex items-center gap-2">
                 <i class="fa-solid fa-arrow-left"></i>
                 <%= t('detail.back_to_collection') %>
             </a>
@@ -355,7 +355,7 @@
                             <%= t('detail.move_to_wishlist_btn') %>
                         </button>
                     <% } %>
-                    <a href="<%= baseUrl %><%= plugin.routePrefix %>/edit/<%= item._id %>" class="opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
+                    <a href="<%= baseUrl %><%= plugin.routePrefix %>/edit/<%= item._id %><%= locals.returnTo ? '?from=' + encodeURIComponent(returnTo) : '' %>" class="opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
                         <i class="fa-solid fa-pen-to-square mr-2"></i>
                         <%= t('common.edit') %>
                     </a>

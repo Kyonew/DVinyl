@@ -9,6 +9,14 @@ import { DEFAULT_PLACEHOLDER_IMAGE } from '../placeholderImage';
 import { getExtraFields, toFieldDefinitions } from '../pluginExtraFields';
 import { buildFieldSuggestions } from '../fieldSuggestions';
 
+// Only follow a same-site relative path: a leading "/" but not "//" (browsers treat
+// "//host" as protocol-relative, i.e. an external redirect).
+function safeReturnPath(value: unknown): string | undefined {
+  return typeof value === 'string' && value.startsWith('/') && !value.startsWith('//')
+    ? value
+    : undefined;
+}
+
 export function createItemRoutes(plugin: PluginDefinition): Router {
   const router = express.Router();
 
@@ -387,7 +395,10 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         });
       }
 
-      if (isWishlist) {
+      const returnTo = safeReturnPath(req.body.returnTo);
+      if (returnTo) {
+        res.redirect(returnTo);
+      } else if (isWishlist) {
         res.redirect('/wishlist');
       } else {
         res.redirect(`/collection?type=${plugin.collectionType}`);
@@ -423,6 +434,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         plugin,
         suggestions,
         genres,
+        returnTo: safeReturnPath(req.query.from),
         user: res.locals.user
       });
     } catch (err: any) {
@@ -473,6 +485,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         plugin,
         variants: variants.map(v => plugin.formatForView(v)),
         addedBy: addedBy ? { username: addedBy.username, img: addedBy.img || '/ressources/no-pp.jpg' } : null,
+        returnTo: safeReturnPath(req.query.from),
         user: res.locals.user
       });
     } catch (err: any) {

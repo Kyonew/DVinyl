@@ -627,7 +627,8 @@
     "search_genre_placeholder": "Search genres...",
     "search_style_placeholder": "Search styles...",
     "search_platform_placeholder": "Search consoles...",
-    "active_filters": "Active filters:"
+    "active_filters": "Active filters:",
+    "page_jump_title": "Jump to page"
   },
   "confirm_vinyl": {
     "cover_preview": "Cover Preview",
