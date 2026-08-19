@@ -1,5 +1,6 @@
 import Item from '../models/Item';
 import { registry } from '../core/registry';
+import { applyVisibilityFilter } from './visibilityHelper';
 
 /**
  * Resolves, for a page of items, what each one should actually show on the shelf.
@@ -11,12 +12,19 @@ import { registry } from '../core/registry';
  * reappears on its own the day a second season arrives, which is why this is a display
  * rule and not a second way of storing things.
  *
+ * What the collection hides from its viewers never comes back this way: a hidden item is
+ * out of the listing, and standing in for its holder would put it right back on the shelf.
+ * The line saying what is owned counts the same set, so it never mentions what it hides.
+ *
  * Mutates nothing: returns the array to render. Costs one query for the whole page.
  */
-export async function resolveShelfItems(items: any[]): Promise<any[]> {
+export async function resolveShelfItems(items: any[], res: any): Promise<any[]> {
     if (!items || items.length === 0) return items || [];
 
-    const contained = await Item.find({ parent: { $in: items.map(i => i._id) } }).lean();
+    const query: any = { parent: { $in: items.map(i => i._id) } };
+    applyVisibilityFilter(query, res.locals.isCollectionAdmin, res.locals.settings);
+
+    const contained = await Item.find(query).lean();
     if (contained.length === 0) return items;
 
     const byHolder = new Map<string, any[]>();

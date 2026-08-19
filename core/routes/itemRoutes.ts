@@ -9,7 +9,7 @@ import { DEFAULT_PLACEHOLDER_IMAGE } from '../placeholderImage';
 import { getExtraFields, toFieldDefinitions } from '../pluginExtraFields';
 import { buildFieldSuggestions } from '../fieldSuggestions';
 import { deleteItemsAndContents, moveContentsToWishlist } from '../../utils/itemHelpers';
-import { isWithinShareScope } from '../../utils/visibilityHelper';
+import { applyVisibilityFilter, isWithinShareScope } from '../../utils/visibilityHelper';
 
 export function createItemRoutes(plugin: PluginDefinition): Router {
   const router = express.Router();
@@ -176,6 +176,22 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   }
 
   /**
+   * Keeps out of a list whatever the collection hides from the person looking, judged by
+   * the same rule the listings use. Costs one query, and none at all on an empty list.
+   */
+  const filterVisible = async (items: any[], res: any): Promise<any[]> => {
+    if (!items || items.length === 0) return items || [];
+
+    const query: any = { _id: { $in: items.map((i: any) => i._id) } };
+    applyVisibilityFilter(query, res.locals.isCollectionAdmin, res.locals.settings);
+
+    const allowed = new Set(
+      (await Item.find(query).select('_id').lean()).map((i: any) => String(i._id))
+    );
+    return items.filter((i: any) => allowed.has(String(i._id)));
+  };
+
+  /**
    * Guards a route a share link is allowed to reach (`allowShareView`). The handler is
    * the plugin's, so the core checks what it is about to be asked for rather than what
    * it hands back: the item named by `:id`, against the link's scope and the collection
@@ -191,7 +207,9 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
     if (!id || !mongoose.Types.ObjectId.isValid(id)) {
       return res.status(404).send(req.t('errors.not_found'));
     }
-    const item = await Item.findOne({ _id: id, collection: res.locals.activeCollectionId }).lean();
+    const guardQuery: any = { _id: id, collection: res.locals.activeCollectionId };
+    applyVisibilityFilter(guardQuery, res.locals.isCollectionAdmin, res.locals.settings);
+    const item = await Item.findOne(guardQuery).lean();
     if (!item || !await isWithinShareScope(res, item)) {
       return res.status(404).send(req.t('errors.not_found'));
     }
@@ -507,7 +525,13 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
         return res.status(404).send(req.t('errors.not_found'));
       }
-      const item = await Item.findOne({ _id: req.params.id, collection: res.locals.activeCollectionId });
+      // An item the collection hides from its viewers is hidden from its page too, not just
+      // from the grid: the id is the only thing standing between the two, and a share link
+      // hands it to whoever wants to try one.
+      const detailQuery: any = { _id: req.params.id, collection: res.locals.activeCollectionId };
+      applyVisibilityFilter(detailQuery, res.locals.isCollectionAdmin, res.locals.settings);
+
+      const item = await Item.findOne(detailQuery);
       if (!item) {
         return res.status(404).send(req.t('errors.not_found'));
       }
@@ -519,7 +543,12 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       }
 
       const formatted = plugin.formatForView(item);
-      const variants = await plugin.getVariants(formatted);
+
+      // A plugin looks its other editions up by what they are (same title and artist, same
+      // set number), which it can do without knowing who is asking. Whether one of them is
+      // hidden is the collection's business, not the plugin's, so it is settled here rather
+      // than by handing every plugin a viewer to reason about.
+      const variants = await filterVisible(await plugin.getVariants(formatted), res);
 
       // Who put the item there. Read separately rather than populated, so formatForView
       // keeps receiving the raw document it expects. A member removed since then leaves
@@ -534,13 +563,17 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       const backUrl = safeReturnPath(req.query.from, req.get('host'))
         || safeReturnPath(req.get('Referer'), req.get('host'));
 
-      const contained = await Item.find({ parent: item._id }).lean();
+      const containedQuery: any = { parent: item._id };
+      applyVisibilityFilter(containedQuery, res.locals.isCollectionAdmin, res.locals.settings);
+      const contained = await Item.find(containedQuery).lean();
 
       // And what holds this one, if anything: a season is absent from every listing, so
       // "back to the collection" would send its page nowhere useful. The show it belongs
       // to is the place to go back to.
+      const holderQuery: any = { _id: (item as any).parent };
+      applyVisibilityFilter(holderQuery, res.locals.isCollectionAdmin, res.locals.settings);
       const holder: any = (item as any).parent
-        ? await Item.findById((item as any).parent).select('title').lean()
+        ? await Item.findOne(holderQuery).select('title').lean()
         : null;
 
       // Who put the item there and who last touched it, for the people who share the

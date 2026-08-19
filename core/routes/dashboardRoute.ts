@@ -40,7 +40,7 @@ router.get('/', requireAuth, async (req: any, res: any) => {
     applyVisibilityFilter(latestQuery, res.locals.isCollectionAdmin, settings);
     applyEnabledModulesFilter(latestQuery, settings);
     applyContainedFilter(latestQuery);
-    const latestItems = await resolveShelfItems(await Item.find(latestQuery).sort({ added_at: -1 }).limit(4).lean()) as any[];
+    const latestItems = await resolveShelfItems(await Item.find(latestQuery).sort({ added_at: -1 }).limit(4).lean(), res) as any[];
 
     const latestCollection = latestItems.map(item => {
       const plugin = registry.getByKind(item.kind as any);
@@ -52,7 +52,7 @@ router.get('/', requireAuth, async (req: any, res: any) => {
     applyVisibilityFilter(wishlistQuery, res.locals.isCollectionAdmin, settings);
     applyEnabledModulesFilter(wishlistQuery, settings);
     applyContainedFilter(wishlistQuery);
-    const wishlistItems = await resolveShelfItems(await Item.find(wishlistQuery).sort({ added_at: -1 }).limit(4).lean()) as any[];
+    const wishlistItems = await resolveShelfItems(await Item.find(wishlistQuery).sort({ added_at: -1 }).limit(4).lean(), res) as any[];
 
     const latestWishlist = wishlistItems.map(item => {
       const plugin = registry.getByKind(item.kind as any);

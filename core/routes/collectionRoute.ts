@@ -32,7 +32,7 @@ router.get('/wishlist', requireAuth, async (req: any, res: any) => {
 
     applyContainedFilter(query);
 
-    const items = await resolveShelfItems(await Item.find(query).sort({ added_at: -1 }).lean());
+    const items = await resolveShelfItems(await Item.find(query).sort({ added_at: -1 }).lean(), res);
 
     res.render('wishlist', {
       albums: items.map(item => {
@@ -300,7 +300,7 @@ router.get('/collection', requireAuthOrShareView, async (req: any, res: any) => 
     // A holder stands in for what it holds: several seasons and the show says so on its
     // card, a single one and that season takes the place outright. Applied after the
     // query, so a show still sorts and paginates on its own title.
-    const albums = await resolveShelfItems(found);
+    const albums = await resolveShelfItems(found, res);
 
     // DYNAMIC FILTER MAP FROM REGISTRY
     // Read off the decorated registry, not the bare one: the collection's own
