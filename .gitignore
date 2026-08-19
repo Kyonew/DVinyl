@@ -9,3 +9,4 @@ docker-compose.override.yml
 dist/
 CLAUDE.md
 /graphify-out
+/docs/roadmap.md
