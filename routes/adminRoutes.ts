@@ -19,6 +19,14 @@ import { CARD_ASPECT_RATIOS } from "../core/customPlugin";
 import { PermanentRefreshError, syncStamp } from "../core/helpers";
 import { deleteItemsAndContents } from "../utils/itemHelpers";
 
+// PROD=true is the operator's own declaration that the instance is served over HTTPS
+// (see docs/getting-started.md). Trust that over req.protocol, which depends on the
+// reverse proxy correctly forwarding X-Forwarded-Proto - a single misconfigured proxy
+// hop otherwise silently downgrades every generated share link/QR code to http.
+function getPublicProtocol(req: any): string {
+  return process.env.PROD === "true" ? "https" : req.protocol;
+}
+
 const router = express.Router();
 
 const createPassword = (length = 12): string => {
@@ -160,7 +168,7 @@ router.get("/", requireAuth, requireCollectionRole("admin"), async (req: any, re
       newPassword: null,
       // Share links must show a full, absolute URL (scheme + host) - a bare
       // baseUrl-relative path is not something you can scan/paste elsewhere.
-      siteOrigin: `${req.protocol}://${req.get("host")}`,
+      siteOrigin: `${getPublicProtocol(req)}://${req.get("host")}`,
     });
   } catch (err) {
     console.error(err);
@@ -747,7 +755,7 @@ router.get("/share/:token/qr.png", requireAuth, requireCollectionRole("admin"), 
     );
     if (!coll) return res.status(404).send(req.t("errors.not_found"));
 
-    const url = `${req.protocol}://${req.get("host")}${BASE_URL}/share/${req.params.token}`;
+    const url = `${getPublicProtocol(req)}://${req.get("host")}${BASE_URL}/share/${req.params.token}`;
     const png = await QRCode.toBuffer(url, { type: "png", width: 320, margin: 1 });
     res.set("Content-Type", "image/png");
     res.send(png);
