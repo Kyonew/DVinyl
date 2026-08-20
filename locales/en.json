@@ -243,6 +243,7 @@
     "scan_found": "Found!",
     "scan_error": "Camera error (Check permissions)",
     "barcode_not_found": "That barcode wasn't recognised. Try searching by title instead.",
+    "barcode_no_match": "No match for this barcode. Here is the product name it returned: adjust it and search again, the barcode stays attached.",
     "results_title": "Results",
     "no_results": "No results found.",
     "advanced_filters": "Advanced Filters",

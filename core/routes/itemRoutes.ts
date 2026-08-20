@@ -4,7 +4,7 @@ import { PluginDefinition } from '../types';
 import Item from '../../models/Item';
 import User from '../../models/User';
 import { requireAuth, requireAuthOrShareView, requireCollectionRole } from '../../middleware/authMiddleware';
-import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle, editStamp, syncStamp, safeReturnPath } from '../helpers';
+import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback, editStamp, syncStamp, safeReturnPath } from '../helpers';
 import { DEFAULT_PLACEHOLDER_IMAGE } from '../placeholderImage';
 import { getExtraFields, toFieldDefinitions } from '../pluginExtraFields';
 import { buildFieldSuggestions } from '../fieldSuggestions';
@@ -38,7 +38,13 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       const { query, type, year, country, genre_filter, label_filter } = req.body;
       const rawQuery = typeof query === 'string' ? query.trim() : '';
       let searchQuery = rawQuery;
-      let scannedBarcode = '';
+      // A search run after a scan posts the code back (hidden field in add.ejs), so
+      // correcting the product name by hand no longer detaches it from the saved item.
+      const postedBarcode = String(req.body.scanned_barcode || '');
+      let scannedBarcode = isBarcodeQuery(postedBarcode) ? postedBarcode.replace(/[- ]/g, '') : '';
+      // Set only when this request resolved a barcode: the fallback below rewrites a
+      // seller's product name, never what the user typed themselves.
+      let resolvedTitle = '';
 
       try {
         // Scanned barcode: resolve to a product title via UPC lookup first
@@ -61,10 +67,11 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
             });
           }
           searchQuery = title;
+          resolvedTitle = title;
         }
 
         const settings = res.locals.settings;
-        const results = await plugin.searchProvider!.search(searchQuery, {
+        const runSearch = (q: string) => plugin.searchProvider!.search(q, {
           type: type || plugin.id,
           year,
           country,
@@ -75,10 +82,29 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           pluginSettings: settings?.pluginSettings?.[plugin.id] || {}
         });
 
+        let results;
+        if (resolvedTitle) {
+          const attempt = await searchWithTitleFallback(resolvedTitle, runSearch);
+          results = attempt.results;
+          searchQuery = attempt.query;
+        } else {
+          results = await runSearch(searchQuery);
+        }
+
+        // What the search box shows on the way back. After a scan the digits are useless
+        // there: on a hit it is the query that actually matched, and on a miss the whole
+        // product name, which is the thing the user has to correct.
+        const boxQuery = resolvedTitle
+          ? (results.length > 0 ? searchQuery : resolvedTitle)
+          : rawQuery;
+
         res.render('add', {
           results,
+          // Nothing matched a product name the user never got to see: show it instead of
+          // the digits so it can be corrected, the barcode rides along with the form.
+          error: resolvedTitle && results.length === 0 ? req.t('add_vinyl.barcode_no_match') : undefined,
           searchType: type || plugin.id,
-          searchQuery: rawQuery,
+          searchQuery: boxQuery,
           scanned_barcode: scannedBarcode,
           user: res.locals.user,
           currentType: `add-${plugin.id}`,

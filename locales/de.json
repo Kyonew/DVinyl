@@ -40,6 +40,7 @@
     "results_title": "Ergebnisse",
     "scan_error": "Kamerafehler (Berechtigungen prüfen)",
     "barcode_not_found": "Dieser Barcode wurde nicht erkannt. Versuchen Sie stattdessen die Suche nach Titel.",
+    "barcode_no_match": "Kein Treffer für diesen Barcode. Hier ist der gefundene Produktname: passe ihn an und suche erneut, der Barcode bleibt erhalten.",
     "scan_found": "Gefunden!",
     "scan_init": "Initialisierung...",
     "scan_stop": "Stoppen Sie den Scanvorgang",

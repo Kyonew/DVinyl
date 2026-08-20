@@ -243,6 +243,7 @@
     "scan_found": "Trouvé !",
     "scan_error": "Erreur caméra (Permissions ?)",
     "barcode_not_found": "Ce code-barres n'a pas été reconnu. Essaie plutôt une recherche par titre.",
+    "barcode_no_match": "Aucune correspondance pour ce code-barres. Voici le nom du produit trouvé : ajuste-le et relance la recherche, le code-barres reste attaché.",
     "results_title": "Résultats",
     "no_results": "Aucun résultat trouvé.",
     "advanced_filters": "Filtres avancés",

@@ -40,6 +40,7 @@
     "results_title": "Risultati",
     "scan_error": "Errore della fotocamera (controlla le autorizzazioni)",
     "barcode_not_found": "Codice a barre non riconosciuto. Prova a cercare per titolo.",
+    "barcode_no_match": "Nessuna corrispondenza per questo codice a barre. Ecco il nome del prodotto trovato: modificalo e cerca di nuovo, il codice a barre resta associato.",
     "scan_found": "Trovato!",
     "scan_init": "Inizializzazione...",
     "scan_stop": "Interrompi la scansione",
