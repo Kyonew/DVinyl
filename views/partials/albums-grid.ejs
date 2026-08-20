@@ -1,104 +1,55 @@
-<% let aspect = locals.settings.aspectRatioClass || 'aspect-square';
-if(!(['all', 'home'].includes(currentType)) && albums.length > 0) aspect =  registry.getByKind(albums[0].kind).aspectRatioClass ;
+<%# Item grid shared by the home, collection and wishlist pages.
+    Params: albums, and optionally
+      size            typography of the card body ('collection' | 'wishlist' | 'home')
+      gridClass       column classes, defaults to the collection grid
+      gridId          id set on the grid element
+      wishlist        adds the "received it" button under each card
+      badgeSize       forwarded to cover-badge ('compact' for the tighter cards)
+      reserveExtraRow keeps the decorated row's height so cards stay aligned
+
+    The tile ratio is the collection-wide setting: the grid stays uniform whatever
+    it holds, and a plugin's own ratio only shows on its detail page and forms.
+    A cover whose plugin declares another ratio is contained over a blurred copy
+    of itself rather than cropped. %>
+<%
+    const gridAspect = (locals.settings && settings.aspectRatioClass) || 'aspect-square';
+    const gridClass = locals.gridClass || 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5';
+    const cardSize = locals.size || 'collection';
+    const showReceived = locals.wishlist === true && locals.canEditCollection;
 %>
-<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6" id="albumGrid">
-    <% albums.forEach(album=> { %>
+<div class="grid <%= gridClass %> gap-4 md:gap-6" <% if (locals.gridId) { %>id="<%= locals.gridId %>"<% } %>>
+    <% albums.forEach(album => { %>
         <%
             const itemPlugin = registry.getByKind(album.kind);
-            const detailUrl = (itemPlugin ? itemPlugin.routePrefix : '/album') + '/' + album._id;
-            const badge = (itemPlugin && itemPlugin.cardBadge)
-                ? itemPlugin.cardBadge(album, settings)
-                : (function(){ var fmt=(album.format||album.media_type||'').toLowerCase(); var opt=itemPlugin?(itemPlugin.formats||[]).find(function(f){return f.value===fmt}):null; return { label: opt?opt.label:fmt, colorClass: (opt&&opt.color)||'bg-gray-600/90' }; })();
-            const isDifferentAspectRatio = itemPlugin.aspectRatioClass !== aspect;
+            const routePrefix = itemPlugin ? itemPlugin.routePrefix : '/album';
+            // No plugin (module turned off, custom plugin deleted) means no declared
+            // ratio either: treat the cover as a poster, the safe non-cropping case.
+            const itemAspect = (itemPlugin && itemPlugin.aspectRatioClass) || 'aspect-[2/3]';
+            const fitsGrid = itemAspect === gridAspect;
         %>
         <div class="album-card group relative card-theme rounded-xl overflow-hidden hover:border-primary-theme transition-all duration-300 hover:shadow-lg hover:-translate-y-1 flex flex-col justify-between"
             data-location="<%= locals.isShareView ? '' : (album.location || '') %>"
             data-format="<%= album.format || album.media_type || '' %>">
-            <a href="<%= baseUrl + detailUrl %>" class="block">
-                <div
-                    class="<%= aspect%> w-full h-auto relative overflow-hidden bg-black/5 flex items-center justify-center">
-                    <% if (isDifferentAspectRatio) { %>
+            <a href="<%= baseUrl + routePrefix %>/<%= album._id %>" class="block flex-grow">
+                <div class="<%= gridAspect %> w-full relative overflow-hidden bg-black/5 dark:bg-white/5 flex items-center justify-center">
+                    <% if (!fitsGrid) { %>
                         <img src="<%= album.cover_image %>"
-                            class="absolute inset-0 w-full h-full object-cover blur-md opacity-50 scale-110 pointer-events-none">
-                        <% } %>
-                            <img src="<%= album.cover_image %>"
-                                class="relative z-10 w-full h-full <%= isDifferentAspectRatio ? 'object-contain p-2' : 'object-cover' %> transition-transform duration-500 group-hover:scale-105"
-                                loading="lazy">
-                            <%- include('cover-badge', { item: album, plugin: itemPlugin, settings }) %>   
+                            class="absolute inset-0 w-full h-full object-cover blur-xl opacity-30 scale-110 pointer-events-none">
+                    <% } %>
+                    <img src="<%= album.cover_image %>"
+                        class="relative z-10 w-full h-full <%= fitsGrid ? 'object-cover' : 'object-contain p-2' %> transition-transform duration-500 group-hover:scale-105"
+                        loading="lazy">
+                    <%- include('cover-badge', { item: album, plugin: itemPlugin, settings, size: locals.badgeSize || '' }) %>
                 </div>
-                <%- include('item-card-body', { item: album, plugin: itemPlugin, size: 'collection' }) %>
+                <%- include('item-card-body', { item: album, plugin: itemPlugin, size: cardSize, reserveExtraRow: locals.reserveExtraRow === true }) %>
             </a>
-            <% if (locals.wishlist === true && locals.canEditCollection ) { 
-                const routePrefix = itemPlugin ? itemPlugin.routePrefix : '/album';
-                %>
+            <% if (showReceived) { %>
                 <button onclick="moveToCollection('<%= album._id %>', '<%= routePrefix %>')"
                     class="w-full py-2.5 md:py-2 bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white text-primary-theme text-[10px] md:text-xs font-bold uppercase transition-colors flex items-center justify-center gap-1.5 border-t border-black/10 dark:border-white/10 active:brightness-90 mt-auto">
                     <i class="fa-solid fa-check"></i>
-                    <span>
-                        <%= t('wishlist.btn_received') %>
-                    </span>
+                    <span><%= t('wishlist.btn_received') %></span>
                 </button>
-                <% } %>
+            <% } %>
         </div>
-        <% }) %>
-    </div>
-
- <script src="<%= baseUrl %>/socket.io/socket.io.js"></script>
-    <script>
-        const wishlistTranslations = {
-            confirmMove: <%- JSON.stringify(t('wishlist.confirm_move')) %>,
-            serverError: <%- JSON.stringify(t('messages.generic_error')) %>
-        };
-
-            async function moveToCollection(id, routePrefix) {
-            if (confirm(wishlistTranslations.confirmMove)) {
-                try {
-                    const res = await fetch(`<%= baseUrl %>/api${routePrefix || '/album'}/${id}/move-to-collection`, { method: 'POST' });
-                    const data = await res.json();
-                    if (data.success) {
-                        window.location.reload();
-                    }
-                } catch (e) {
-                    alert(wishlistTranslations.serverError);
-                }
-            }
-        }
-
-    <% if (locals.canEditCollection) { %>
-        const jsBaseUrl = '<%= baseUrl %>';
-        const socket = io({ path: jsBaseUrl + '/socket.io' });
-
-        // Behavior 'importer-sync': trigger an importer (e.g. Discogs wantlist sync) via socket.
-        // The importer resolves the stored username server-side; no URL needed from the client.
-        function runImporterSync(importerId, actionId) {
-            const btn = document.querySelector(`[data-action-id="${actionId}"]`);
-            const icon = btn ? btn.querySelector('i') : null;
-            if (icon) icon.classList.add('fa-spin');
-            if (btn) btn.disabled = true;
-
-            socket.once('import_finished', () => window.location.reload());
-            socket.once('import_error', (data) => {
-                alert("import error: " + data.message);
-                if (icon) icon.classList.remove('fa-spin');
-                if (btn) btn.disabled = false;
-            });
-
-            const isWishlist = window.location.pathname.includes('wishlist');
-            fetch(`${jsBaseUrl}/import/${importerId}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ full: false, type: isWishlist ? 'wishlist' : 'collection' })
-            }).then(res => {
-                if (!res.ok) {
-                    socket.off('import_finished');
-                    socket.off('import_error');
-                    if (icon) icon.classList.remove('fa-spin');
-                    if (btn) btn.disabled = false;
-                }
-            }).catch(() => {
-                if (icon) icon.classList.remove('fa-spin');
-                if (btn) btn.disabled = false;
-            });
-        }
-    <% } %>
-    </script>
+    <% }) %>
+</div>

@@ -813,6 +813,7 @@
     "fastAdd_desc": "If enabled, the \"Add an item\" button redirects directly to the chosen form, bypassing the selection menu.",
     "fastAdd_disabled": "Disabled (modal)",
     "card_aspect_ratio": "Card aspect ratio",
+    "card_aspect_ratio_desc": "Shape of the tiles in the collection, home and wishlist grids. Each plugin keeps its own ratio on its item pages.",
     "modules": {
       "title": "Active Modules",
       "music": "Music",
@@ -1094,6 +1095,7 @@
     "shape_poster": "Poster (2/3)",
     "shape_square": "Square (sleeve)",
     "shape_screen": "Screen (16/9)",
+    "shape_hint": "Applies to this plugin's own pages and forms. The item grids use the card ratio set in Personalization.",
     "secondary_label": "Secondary image",
     "secondary_desc": "Adds a second editable visual (like the disc for music).",
     "default_cover_label": "Default image",

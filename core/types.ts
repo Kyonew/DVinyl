@@ -7,6 +7,7 @@ export interface PluginDefinition {
   icon: string;
   routePrefix: string;
   collectionType: string;
+
   // Suffix for the legacy i18n key families (add_vinyl, edit_book, confirm_game...)
   i18nKey: string;
 
@@ -83,8 +84,10 @@ export interface PluginDefinition {
   // to sharpen the external search query. Plugin-specific (keeps the core agnostic).
   barcodeNoiseTerms?: string[];
 
-  // CSS aspect-ratio class for the preview (e.g. 'aspect-square' for music), default 'aspect-[2/3]'
-  aspectRatioClass: string;
+  // CSS aspect-ratio class for the plugin's own pages (detail, add/edit forms),
+  // e.g. 'aspect-square' for music. Default 'aspect-[2/3]'. The item grids follow
+  // the collection-wide setting instead, see views/partials/albums-grid.ejs.
+  aspectRatioClass?: string;
 
   // Image shown for items with no cover of their own. Resolved at render time (see
   // registry.ts), so changing it updates every coverless item at once.

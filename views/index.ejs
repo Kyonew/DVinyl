@@ -50,9 +50,9 @@
                 <%= t('index.view_everything') %> <i class="fa-solid fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
             </a>
         </div>
-        
+
         <% if (latestCollection.length > 0) { %>
-            <%- include('partials/albums-grid', {albums: latestCollection}) %>
+            <%- include('partials/albums-grid', { albums: latestCollection, size: 'home', gridClass: 'grid-cols-2 md:grid-cols-4' }) %>
         <% } else { %>
             <div class="text-center py-10 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl opacity-60"><%= t('index.empty_collection') %></div>
         <% } %>
@@ -69,7 +69,11 @@
             </a>
         </div>
         <% if (latestWishlist.length > 0) { %>
-            <%- include('partials/albums-grid', {albums: latestWishlist, wishlist: true}) %>
+            <%- include('partials/albums-grid', { albums: latestWishlist, size: 'home',
+                gridClass: 'grid-cols-2 md:grid-cols-4 items-end', wishlist: true, reserveExtraRow: true }) %>
+            <% if (locals.canEditCollection) { %>
+                <%- include('partials/wishlist-move-script') %>
+            <% } %>
         <% } else { %>
             <div class="text-center py-10 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl opacity-60"><%= t('index.empty_wishlist') %></div>
         <% } %>

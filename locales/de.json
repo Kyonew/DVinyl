@@ -862,6 +862,7 @@
     "fastAdd_disabled": "Deaktiviert (modal)",
     "fastAdd_title": "Schnell hinzufügen",
     "card_aspect_ratio": "Seitenverhältnis der Karte",
+    "card_aspect_ratio_desc": "Form der Kacheln in den Rastern von Sammlung, Startseite und Wunschliste. Jedes Plugin behält auf seinen Detailseiten sein eigenes Verhältnis.",
     "modules": {
       "books": "Bücher",
       "dvd": "DVDs",
@@ -1094,6 +1095,7 @@
     "shape_poster": "Poster (2/3)",
     "shape_square": "Quadratisch (Hülle)",
     "shape_screen": "Bildschirm (16/9)",
+    "shape_hint": "Gilt für die Seiten und Formulare dieses Plugins. Die Raster verwenden das in der Personalisierung festgelegte Kartenverhältnis.",
     "secondary_label": "Zweitbild",
     "secondary_desc": "Fügt ein zweites bearbeitbares Bild hinzu (wie die Disc bei Musik).",
     "default_cover_label": "Standardbild",

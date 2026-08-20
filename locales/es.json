@@ -862,6 +862,7 @@
     "fastAdd_disabled": "Deshabilitado (modal)",
     "fastAdd_title": "Agregar rápido",
     "card_aspect_ratio": "Relación de aspecto de la tarjeta",
+    "card_aspect_ratio_desc": "Forma de las miniaturas en las cuadrículas de colección, inicio y lista de deseos. Cada plugin conserva su propia relación en sus fichas.",
     "modules": {
       "books": "Libros",
       "dvd": "DVD",
@@ -1094,6 +1095,7 @@
     "shape_poster": "Póster (2/3)",
     "shape_square": "Cuadrado (funda)",
     "shape_screen": "Pantalla (16/9)",
+    "shape_hint": "Se aplica a las páginas y formularios de este plugin. Las cuadrículas usan la relación de aspecto definida en Personalización.",
     "secondary_label": "Imagen secundaria",
     "secondary_desc": "Añade un segundo visual editable (como el disco para la música).",
     "default_cover_label": "Imagen por defecto",

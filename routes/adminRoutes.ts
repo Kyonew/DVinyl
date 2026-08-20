@@ -15,6 +15,7 @@ import PRESETS from "../config/themes";
 import Item from "../models/Item";
 
 import { registry } from "../core/registry.js";
+import { CARD_ASPECT_RATIOS } from "../core/customPlugin";
 import { PermanentRefreshError, syncStamp } from "../core/helpers";
 import { deleteItemsAndContents } from "../utils/itemHelpers";
 
@@ -886,10 +887,9 @@ router.post(
         homePreset,
         navbarShortcuts,
         statsWidgets,
-        aspectRatioClass
+        aspectRatioClass,
       } = req.body;
 
-  
       const shortcuts = Array.isArray(navbarShortcuts)
         ? navbarShortcuts
         : navbarShortcuts
@@ -908,9 +908,14 @@ router.post(
         ? req.body.fastAdd
         : "";
 
+      // Ends up in a class attribute on every card, so only the offered frames pass.
+      const cardAspect = (CARD_ASPECT_RATIOS as readonly string[]).includes(aspectRatioClass)
+        ? aspectRatioClass
+        : "aspect-square";
+
       const update: Record<string, any> = {
         "theme.home.preset": homePreset,
-        aspectRatioClass: aspectRatioClass,
+        aspectRatioClass: cardAspect,
         navbarShortcuts: shortcuts,
         statsWidgets: stats,
         fastAdd: fastAdd,
@@ -925,7 +930,6 @@ router.post(
       { $set: update },
       { upsert: true },
     );
-        console.log({body: req.body, update})
 
       res.redirect("/admin/personnalisation?msg=saved");
     } catch (err) {

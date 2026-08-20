@@ -2,7 +2,10 @@ import fs from 'fs';
 import path from 'path';
 import { PLUGINS_DIR } from './loadPlugins';
 import { registry } from './registry';
-import { CustomPluginConfig, CustomFieldConfig, CustomFormatConfig } from './customPlugin';
+import {
+  CustomPluginConfig, CustomFieldConfig, CustomFormatConfig,
+  CARD_ASPECT_RATIOS, DEFAULT_ASPECT_RATIO, resolveAspectRatioClass
+} from './customPlugin';
 import { materializePlaceholder, sanitizePlaceholder } from './placeholderImage';
 import { PluginDefinition } from './types';
 
@@ -123,7 +126,11 @@ export function buildConfigFromSubmission(body: any, existing?: CustomPluginConf
 
   const creatorLabel = cleanText(body.creatorLabel, 30);
   if (!creatorLabel) errors.push('create_plugin.err_creator_required');
-  const aspectRatioClass = body.aspectRatioClass || 'aspect-[2/3]'
+  // Falls back to what the plugin already had, so a save that posts nothing (older
+  // builder page, legacy imageShape config) keeps its frame instead of resetting.
+  const aspectRatioClass = (CARD_ASPECT_RATIOS as readonly string[]).includes(body.aspectRatioClass)
+    ? body.aspectRatioClass
+    : (existing ? resolveAspectRatioClass(existing) : DEFAULT_ASPECT_RATIO);
 
   // An absent key means "keep the stored image": the builder only posts this one when
   // the admin picks or removes an image, so the base64 never travels on every save.

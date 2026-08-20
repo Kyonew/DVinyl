@@ -75,9 +75,53 @@
                     <% } %>
             </div>
             <% } else { %>
-                    <%- include('partials/albums-grid', {albums, wishlist:true}) %>
+                <%- include('partials/albums-grid', { albums, size: 'wishlist', wishlist: true, badgeSize: 'compact' }) %>
                 <% } %>
     </div>
+
+    <%- include('partials/wishlist-move-script') %>
+
+    <script src="<%= baseUrl %>/socket.io/socket.io.js"></script>
+    <script>
+    <% if (locals.canEditCollection) { %>
+        const jsBaseUrl = '<%= baseUrl %>';
+        const socket = io({ path: jsBaseUrl + '/socket.io' });
+
+        // Behavior 'importer-sync': trigger an importer (e.g. Discogs wantlist sync) via socket.
+        // The importer resolves the stored username server-side; no URL needed from the client.
+        function runImporterSync(importerId, actionId) {
+            const btn = document.querySelector(`[data-action-id="${actionId}"]`);
+            const icon = btn ? btn.querySelector('i') : null;
+            if (icon) icon.classList.add('fa-spin');
+            if (btn) btn.disabled = true;
+
+            socket.once('import_finished', () => window.location.reload());
+            socket.once('import_error', (data) => {
+                alert("import error: " + data.message);
+                if (icon) icon.classList.remove('fa-spin');
+                if (btn) btn.disabled = false;
+            });
+
+            const isWishlist = window.location.pathname.includes('wishlist');
+            fetch(`${jsBaseUrl}/import/${importerId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ full: false, type: isWishlist ? 'wishlist' : 'collection' })
+            }).then(res => {
+                if (!res.ok) {
+                    socket.off('import_finished');
+                    socket.off('import_error');
+                    if (icon) icon.classList.remove('fa-spin');
+                    if (btn) btn.disabled = false;
+                }
+            }).catch(() => {
+                if (icon) icon.classList.remove('fa-spin');
+                if (btn) btn.disabled = false;
+            });
+        }
+    <% } %>
+    </script>
+
 
     <style>
         .custom-scrollbar::-webkit-scrollbar {

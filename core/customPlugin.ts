@@ -18,7 +18,12 @@ export interface CustomPluginConfig {
   icon: string; // FontAwesome icon (fa-xxx)
   color?: string; // Tailwind color name (e.g. 'teal') driving badges/widgets accents
   order?: number; // display order, defaults to 200 (after the built-in plugins)
-  aspectRatioClass: string;
+  // Frame the plugin uses on its detail page and forms. The grids follow the
+  // collection-wide setting instead, so this only shows inside the plugin.
+  aspectRatioClass?: string;
+  // Legacy shape of the pre-aspectRatioClass builder, still read from configs
+  // written before it (see resolveAspectRatioClass).
+  imageShape?: 'poster' | 'square';
   secondaryImage?: boolean; // show the secondary (user) image editor
   // Image used for items with no cover: either an http(s) URL or an uploaded
   // base64 data URI (see placeholderImage.ts). Absent means the generic logo.
@@ -58,6 +63,19 @@ export interface CustomFormatConfig {
 }
 
 const DEFAULT_COLOR = 'teal';
+
+/** Frames offered by the builder and by the collection-wide card setting. Kept to a
+ *  fixed list: the value is written straight into a class attribute. */
+export const CARD_ASPECT_RATIOS = ['aspect-[2/3]', 'aspect-square', 'aspect-[16/9]'] as const;
+export const DEFAULT_ASPECT_RATIO = 'aspect-[2/3]';
+
+/** Configs written before the builder offered free ratios only carry imageShape. */
+export function resolveAspectRatioClass(config: CustomPluginConfig): string {
+  if (config.aspectRatioClass && (CARD_ASPECT_RATIOS as readonly string[]).includes(config.aspectRatioClass)) {
+    return config.aspectRatioClass;
+  }
+  return config.imageShape === 'square' ? 'aspect-square' : DEFAULT_ASPECT_RATIO;
+}
 
 // Shared partials for every custom plugin (generic tracklist editor/view)
 const CUSTOM_PARTIALS_PATH = 'core/views/partials/custom';
@@ -259,7 +277,7 @@ export function createCustomPlugin(config: CustomPluginConfig): PluginDefinition
     placeholderImage: placeholder,
     defaultCardFields: ['creator'],
     partialsPath: CUSTOM_PARTIALS_PATH,
-    aspectRatioClass: config.aspectRatioClass,
+    aspectRatioClass: resolveAspectRatioClass(config),
     schemaDefinition,
     formFields,
     formats,

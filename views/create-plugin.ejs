@@ -177,6 +177,7 @@
                         <span class="text-xs font-bold"><%= t('create_plugin.shape_screen') %></span>
                     </button>
                 </div>
+                <p class="text-[11px] opacity-50 -mt-3 max-w-lg"><%= t('create_plugin.shape_hint') %></p>
 
                 <label class="flex items-center gap-3 cursor-pointer w-fit">
                     <input id="secondaryImage" type="checkbox" class="sr-only peer">
@@ -505,6 +506,19 @@
         defaultFormat: ''
     };
 
+    // The picker works with shape names, the config stores the Tailwind class.
+    // Configs written before that carry imageShape instead.
+    const SHAPE_ASPECTS = { poster: 'aspect-[2/3]', square: 'aspect-square', screen: 'aspect-[16/9]' };
+
+    function aspectClassForShape(shape) {
+        return SHAPE_ASPECTS[shape] || SHAPE_ASPECTS.poster;
+    }
+
+    function shapeFromConfig(cfg) {
+        const stored = cfg.aspectRatioClass || (cfg.imageShape === 'square' ? 'aspect-square' : '');
+        return Object.keys(SHAPE_ASPECTS).find(name => SHAPE_ASPECTS[name] === stored) || 'poster';
+    }
+
     function slugify(s) {
         return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
             .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30);
@@ -818,16 +832,13 @@
             options: r.querySelector('.fld-options').value.split(',').map(s => s.trim()).filter(Boolean),
         })).filter(f => f.label);
 
-        let aspect = 'aspect-[2/3]';
-        if(state.shape === 'square') aspect = 'aspect-square';
-        else if(state.shape === 'screen') aspect = 'aspect-[16/9]';
         const payload = {
             editId: editConfig ? editConfig.id : '',
             label: $('pluginLabel').value.trim(),
             id: editConfig ? editConfig.id : slugify($('pluginLabel').value),
             icon: state.icon,
             color: state.color,
-            aspectRatioClass: aspect,
+            aspectRatioClass: aspectClassForShape(state.shape),
             secondaryImage: $('secondaryImage').checked,
             creatorLabel: $('creatorLabel').value.trim(),
             defaultFormat: state.defaultFormat,
@@ -864,15 +875,13 @@
         $('slugPreview').textContent = cfg.id || '…';
 
         // Card
-        let aspect = 'aspect-[2/3]';
-        if(cfg.imageShape === 'square') aspect = 'aspect-square';
-        else if(cfg.imageShape === 'screen') aspect = 'aspect-[16/9]';
+        const aspect = cfg.aspectRatioClass;
 
-        $('pvCover').className = (aspect) +
+        $('pvCover').className = aspect +
             ' bg-gradient-to-br from-black/20 to-black/50 dark:from-white/10 dark:to-black/60 flex items-center justify-center transition-all';
         $('pvCoverIcon').className = 'fa-solid ' + cfg.icon + ' text-5xl opacity-30';
 
-        $('dcPreviewBox').className = 'w-24 shrink-0 ' + (aspect) +
+        $('dcPreviewBox').className = 'w-24 shrink-0 ' + aspect +
             ' rounded-xl overflow-hidden bg-black/5 dark:bg-white/5 flex items-center justify-center transition-all';
 
         // The card shows the default cover when there is one, exactly like a coverless item
@@ -1273,15 +1282,11 @@
 
     // ---- Init ---------------------------------------------------------------------------
     if (editConfig) {
-        let aspect = 'aspect-[2/3]';
-        if(state.shape === 'square') aspect = 'aspect-square';
-        else if(state.shape === 'screen') aspect = 'aspect-[16/9]';
-
         $('pluginLabel').value = editConfig.label || '';
         $('creatorLabel').value = editConfig.creatorLabel || '';
         state.icon = editConfig.icon || 'fa-box';
         state.color = editConfig.color || 'teal';
-        state.aspectRatioClass = aspect;
+        state.shape = shapeFromConfig(editConfig);
         $('secondaryImage').checked = editConfig.secondaryImage === true;
         const features = editConfig.features || {};
         document.querySelectorAll('.feature-toggle').forEach(cb => { cb.checked = features[cb.dataset.feature] === true; });

@@ -862,6 +862,7 @@
     "fastAdd_disabled": "Disabilitato (modale)",
     "fastAdd_title": "Aggiunta rapida",
     "card_aspect_ratio": "Rapporto d'aspetto della scheda",
+    "card_aspect_ratio_desc": "Forma delle miniature nelle griglie di collezione, home e lista dei desideri. Ogni plugin mantiene il proprio rapporto nelle sue schede.",
     "modules": {
       "books": "Libri",
       "dvd": "DVD",
@@ -1094,6 +1095,7 @@
     "shape_poster": "Locandina (2/3)",
     "shape_square": "Quadrata (copertina)",
     "shape_screen": "Schermo (16/9)",
+    "shape_hint": "Si applica alle pagine e ai moduli di questo plugin. Le griglie usano il rapporto impostato in Personalizzazione.",
     "secondary_label": "Immagine secondaria",
     "secondary_desc": "Aggiunge una seconda immagine modificabile (come il disco per la musica).",
     "default_cover_label": "Immagine predefinita",

@@ -507,7 +507,7 @@
                 </div>
             <% } %>
         </div>
-            <%- include('partials/albums-grid', {albums}) %>
+        <%- include('partials/albums-grid', { albums, size: 'collection', gridId: 'albumGrid' }) %>
         <div
             class="mt-12 flex flex-col md:flex-row items-center justify-between gap-6 border-t border-black/5 dark:border-white/10 pt-8">
 
@@ -629,6 +629,7 @@
     </div>
     <% } %>
 
+    <script src="<%= baseUrl %>/socket.io/socket.io.js"></script>
     <script>
         let currentType = '<%= currentType %>';
         let currentFormat = '<%= currentFormat %>';
@@ -1003,6 +1004,8 @@
     <% if (locals.canEditCollection) { %>
         // Collection-level actions declared by the active plugin (see CollectionAction).
         const COLLECTION_ACTIONS = <%- JSON.stringify(collectionActions) %>;
+        const jsBaseUrl = '<%= baseUrl %>';
+        const socket = io({ path: jsBaseUrl + '/socket.io' });
 
         function runCollectionAction(id) {
             const action = COLLECTION_ACTIONS.find(a => a.id === id);

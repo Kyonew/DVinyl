@@ -813,6 +813,7 @@
     "fastAdd_desc": "Si activé, le bouton \"Ajouter un élément\" redirige directement vers le formulaire choisi, sans passer par le menu de sélection.",
     "fastAdd_disabled": "Désactivé (modal)",
     "card_aspect_ratio": "Rapport hauteur/largeur de la carte",
+    "card_aspect_ratio_desc": "Forme des vignettes dans les grilles collection, accueil et wishlist. Chaque plugin garde son propre rapport sur ses fiches.",
     "modules": {
       "title": "Modules Actifs",
       "music": "Musique",
@@ -1094,6 +1095,7 @@
     "shape_poster": "Affiche (2/3)",
     "shape_square": "Carré (pochette)",
     "shape_screen": "Écran (16/9)",
+    "shape_hint": "S'applique aux fiches et formulaires de ce plugin. Les grilles utilisent le rapport défini dans Personnalisation.",
     "secondary_label": "Image secondaire",
     "secondary_desc": "Ajoute un second visuel modifiable (comme le disque pour la musique).",
     "default_cover_label": "Image par défaut",
