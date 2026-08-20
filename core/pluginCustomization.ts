@@ -23,6 +23,12 @@ export interface PluginCosmetics {
   // Formats listed alphabetically rather than in the order the plugin declares them.
   // Off by default: a native plugin's order carries meaning that sorting would lose.
   sortFormats?: boolean;
+  // Field shown in a free corner of a cover. Empty by default: the corner stays clean
+  // unless a collection asks for something there.
+  cornerField?: string;
+  // Which corner it sits in, among those the format badge does not occupy. See
+  // CORNER_POSITIONS in core/cardFields.ts.
+  cornerPosition?: string;
 }
 
 export type PluginCustomizationMap = Record<string, PluginCosmetics>;
@@ -35,10 +41,15 @@ export function decoratePlugin(
 ): PluginDefinition {
   const cosmetics = map?.[plugin.id];
   const extraDefs = settings ? getExtraFields(settings, plugin.id) : [];
-  const hasCosmetics = !!cosmetics && (!!cosmetics.icon || !!cosmetics.formatColors || !!cosmetics.cardFields || !!cosmetics.sortFormats);
+  const hasCosmetics = !!cosmetics && (!!cosmetics.icon || !!cosmetics.formatColors || !!cosmetics.cardFields || !!cosmetics.sortFormats || !!cosmetics.cornerField);
   if (!hasCosmetics && extraDefs.length === 0) return plugin;
 
   const clone: any = { ...plugin };
+  // Read straight off the decorated plugin by getCornerBadge(), the way cardFields is.
+  if (cosmetics?.cornerField) {
+    clone.cornerField = cosmetics.cornerField;
+    clone.cornerPosition = cosmetics.cornerPosition;
+  }
   if (cosmetics?.icon) {
     // PluginDefinition.icon is stored without the 'fa-' prefix (views prepend it)
     clone.icon = cosmetics.icon.replace(/^fa-/, '');

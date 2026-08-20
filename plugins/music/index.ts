@@ -2,7 +2,7 @@ import { PluginDefinition } from '../../core/types';
 import { DiscogsProvider } from './discogs';
 import { musicImporters } from './importers';
 import { musicApiRoutes } from './apiRoutes';
-import { escapeRegExp, fetchJson, PermanentRefreshError } from '../../core/helpers';
+import { escapeRegExp, fetchJson, PermanentRefreshError, syncStamp } from '../../core/helpers';
 import Item from '../../models/Item';
 
 export const musicPlugin: PluginDefinition = {
@@ -565,7 +565,7 @@ export const musicPlugin: PluginDefinition = {
     // `kind` in the filter makes Mongoose cast against the Music discriminator
     // schema; without it, strict mode silently strips `tracklist` (not a base
     // Item path) and the refresh looks successful while persisting nothing.
-    await Item.updateOne({ _id: item._id, kind: 'Music' }, { $set: updateData });
+    await Item.updateOne({ _id: item._id, kind: 'Music' }, { $set: { ...updateData, ...syncStamp() } });
     return updateData;
   }
 };

@@ -131,7 +131,14 @@
     "delete_admin_error": "Impossible de supprimer un autre administrateur d'instance.",
     "reset_admin_error": "Impossible de réinitialiser le mot de passe d'un autre administrateur d'instance.",
     "error_collection_quota": "Vous avez atteint le nombre maximum de collections autorisé.",
-    "error_collection_forbidden": "La création de collection n'est pas autorisée sur cette instance."
+    "error_collection_forbidden": "La création de collection n'est pas autorisée sur cette instance.",
+    "share_enabled": "Partage activé.",
+    "share_disabled": "Partage désactivé.",
+    "share_regenerated": "Lien de partage régénéré - l'ancien lien ne fonctionne plus.",
+    "share_scope_updated": "Contenu partagé mis à jour.",
+    "share_link_created": "Lien de partage créé.",
+    "share_link_deleted": "Lien de partage supprimé.",
+    "error_share": "Impossible de mettre à jour le partage."
   },
   "media": {
     "vinyl": "Vinyle",
@@ -236,6 +243,7 @@
     "scan_found": "Trouvé !",
     "scan_error": "Erreur caméra (Permissions ?)",
     "barcode_not_found": "Ce code-barres n'a pas été reconnu. Essaie plutôt une recherche par titre.",
+    "barcode_no_match": "Aucune correspondance pour ce code-barres. Voici le nom du produit trouvé : ajuste-le et relance la recherche, le code-barres reste attaché.",
     "results_title": "Résultats",
     "no_results": "Aucun résultat trouvé.",
     "advanced_filters": "Filtres avancés",
@@ -316,6 +324,7 @@
       },
       "import_updated": "éléments enrichis",
       "import_failed": "lignes ignorées suite à une erreur",
+      "import_unenriched": "items sont arrivés sans jaquette ni métadonnées : relancez le même fichier avec « Compléter via l’API » coché pour les remplir.",
       "choose_file": "Choisir un fichier",
       "no_file_chosen": "Aucun fichier choisi",
       "err_no_file": "Choisissez un fichier."
@@ -490,6 +499,26 @@
       "subtitle": "Exporter cette collection (items + réglages) ou remplacer son contenu par une sauvegarde.",
       "confirm_import": "L'import va REMPLACER tous les items de cette collection. Continuer ?"
     },
+    "sharing": {
+      "title": "Liens de partage publics",
+      "subtitle": "Laissez n'importe qui parcourir cette collection en lecture seule via un lien ou un QR code - aucun compte requis. Modification, suppression et toute autre page restent inaccessibles. Créez plusieurs liens pour partager séparément différentes parties de la collection, par ex. un pour les Vinyles et un pour les CDs.",
+      "untitled_link": "Lien sans nom",
+      "label_placeholder": "Nommer ce lien (optionnel) - ex. \"Vinyles uniquement\"",
+      "enable_btn": "Activer",
+      "disable_btn": "Désactiver",
+      "regenerate_btn": "Régénérer",
+      "delete_btn": "Supprimer",
+      "confirm_regenerate": "Ceci invalide le lien et le QR code actuels - toute personne utilisant l'ancien perdra l'accès. Continuer ?",
+      "confirm_delete": "Supprimer ce lien de partage ? Toute personne l'utilisant perdra l'accès immédiatement.",
+      "new_link_btn": "Nouveau lien de partage",
+      "create_btn": "Créer le lien",
+      "scope_title": "Contenu partagé",
+      "scope_hint": "Choisissez des types (et, au sein d'un type, des formats) précis pour limiter ce que montre ce lien - par ex. seulement les CDs, ou CDs et Vinyles. Ne rien cocher partage toute la collection.",
+      "scope_empty_hint": "Rien de coché = toute la collection est partagée.",
+      "scope_save_btn": "Enregistrer les modifications",
+      "copy_btn": "Copier le lien",
+      "copied": "Copié"
+    },
     "libib": {
       "title_books": "Libib - Livres",
       "title_music": "Libib - Musique",
@@ -577,6 +606,7 @@
   },
   "collection": {
     "title": "Ma Collection",
+    "share_view_banner": "Vous consultez une collection partagée - lecture seule.",
     "filter_placeholder": "Filtrer...",
     "refresh_tooltip": "Rafraîchir depuis Discogs",
     "refresh": "Rafraîchir",
@@ -589,8 +619,8 @@
     "sort_title": "Titre",
     "sort_year": "Année",
     "decade_filter": "Décennie",
-    "filter_mode_show": "Afficher",
-    "filter_mode_hide": "Masquer",
+    "filter_mode_show": "Afficher les correspondances",
+    "filter_mode_hide": "Masquer les correspondances",
     "styles_filter": "Styles",
     "platform_filter": "Console",
     "xf_from": "À partir du",
@@ -601,7 +631,8 @@
     "search_genre_placeholder": "Rechercher des genres...",
     "search_style_placeholder": "Rechercher des styles...",
     "search_platform_placeholder": "Rechercher des consoles...",
-    "active_filters": "Filtres actifs :"
+    "active_filters": "Filtres actifs :",
+    "page_jump_title": "Aller à la page"
   },
   "confirm_vinyl": {
     "cover_preview": "Aperçu Pochette",
@@ -662,6 +693,8 @@
     "close_preview": "Fermer l'aperçu",
     "added_at": "Date d'ajout",
     "added_by": "Ajouté par",
+    "modified_at": "Dernière modification",
+    "last_refresh": "Dernier rafraîchissement :",
     "source": "Source",
     "sleeve_condition": "État de la pochette",
     "estimation_title": "Estimation (Discogs)",
@@ -700,6 +733,7 @@
     "settings": "Paramètres",
     "admin": "Panel Admin",
     "logout": "Se déconnecter",
+    "login": "Se connecter",
     "theme_dark": "Mode Sombre",
     "theme_light": "Mode Clair",
     "home": "Accueil",
@@ -709,7 +743,8 @@
     "instance": "Instance",
     "administration": "Administration",
     "new_collection": "Nouvelle collection",
-    "search": "Recherche"
+    "search": "Recherche",
+    "share_view": "Collection partagée · lecture seule"
   },
   "search": {
     "title": "Recherche",
@@ -786,6 +821,8 @@
     "fastAdd_title": "Ajout rapide",
     "fastAdd_desc": "Si activé, le bouton \"Ajouter un élément\" redirige directement vers le formulaire choisi, sans passer par le menu de sélection.",
     "fastAdd_disabled": "Désactivé (modal)",
+    "card_aspect_ratio": "Rapport hauteur/largeur de la carte",
+    "card_aspect_ratio_desc": "Forme des vignettes dans les grilles collection, accueil et wishlist. Chaque plugin garde son propre rapport sur ses fiches.",
     "modules": {
       "title": "Modules Actifs",
       "music": "Musique",
@@ -928,6 +965,11 @@
     "comments_placeholder": "Ex: Pressage original de 1986, acheté aux Puces...",
     "media_type_movie": "Film",
     "media_type_tv": "Série",
+    "season_label": "Quelles saisons possédez-vous ?",
+    "season_hint_owned": "Les saisons déjà dans votre collection sont cochées et verrouillées. Cochez celles que vous venez d’acquérir.",
+    "season_absorb_warning": "« {{title}} » est déjà dans la collection. Les saisons cochées y seront rattachées : cette fiche deviendra celle de la série, et les saisons se consulteront depuis elle.",
+    "season_select_all": "Tout sélectionner",
+    "season_hint": "Chaque saison devient un item, avec son affiche, son année et ses épisodes. Ne rien cocher ajoute la série en un seul item.",
     "field_is_boxset": "C'est un coffret (Boxset)",
     "field_watch_status": "Statut"
   },
@@ -938,6 +980,15 @@
     "tech_specs": "Détails Techniques",
     "delete_confirm": "Voulez-vous vraiment supprimer cet exemplaire de votre collection ?",
     "boxset": "Coffret",
+    "episodes_title": "Épisodes",
+    "season_number": "Saison {{number}}",
+    "seasons_range": "Saisons {{from}} à {{to}}",
+    "seasons_list": "Saisons {{list}}",
+    "seasons_owned": "{{count}} saisons possédées",
+    "episodes_empty": "TMDB n’a pas de liste d’épisodes pour cette saison.",
+    "episode_watched": "Vu",
+    "episode_notes": "Vos notes",
+    "episode_notes_placeholder": "Ce que vous voulez retenir de cet épisode",
     "movie": "Film",
     "series": "Série",
     "duration_label": "Durée",
@@ -1033,6 +1084,10 @@
     "message_can_create": "Vous n'avez encore aucune collection. Créez la vôtre pour commencer à ajouter vos items - vous en serez l'administrateur.",
     "create_btn": "Créer ma collection"
   },
+  "share_invalid": {
+    "title": "Lien indisponible",
+    "message": "Ce lien de partage est invalide ou n'est plus disponible. Demandez un nouveau lien au propriétaire de la collection."
+  },
   "create_plugin": {
     "title": "Éditeur de plugins",
     "subtitle": "Créez votre propre type de collection (figurines, cartes, BD...) sans écrire de code. Le plugin est généré dans le dossier plugins/ et devient utilisable immédiatement, comme les modules natifs. Les plugins créés ici fonctionnent en saisie manuelle (pas d'API externe).",
@@ -1048,6 +1103,8 @@
     "section_image": "Image",
     "shape_poster": "Affiche (2/3)",
     "shape_square": "Carré (pochette)",
+    "shape_screen": "Écran (16/9)",
+    "shape_hint": "S'applique aux fiches et formulaires de ce plugin. Les grilles utilisent le rapport défini dans Personnalisation.",
     "secondary_label": "Image secondaire",
     "secondary_desc": "Ajoute un second visuel modifiable (comme le disque pour la musique).",
     "default_cover_label": "Image par défaut",
@@ -1118,6 +1175,14 @@
     "sort_formats": "Trier les formats par ordre alphabétique",
     "card_fields": "Champs de la carte",
     "card_fields_hint": "Affichés sous la pochette dans toutes les grilles, dans l'ordre déclaré par le plugin. {{count}} maximum.",
+    "corner_field": "Coin de la pochette",
+    "corner_field_hint": "Affiché dans le coin bas-gauche de chaque pochette, à l’opposé du badge de format. La valeur stockée est utilisée telle quelle, pour rester courte.",
+    "corner_field_none": "Rien",
+    "corner_position": "Quel coin",
+    "corner_top_left": "En haut à gauche",
+    "corner_bottom_left": "En bas à gauche",
+    "corner_bottom_right": "En bas à droite",
+    "corner_taken": "Le coin haut-droite est occupé par le badge de format.",
     "default_color": "Couleur par défaut",
     "reset": "Réinitialiser",
     "customized": "Personnalisé"

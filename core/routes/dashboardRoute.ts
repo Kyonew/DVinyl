@@ -2,7 +2,8 @@ import express from 'express';
 import { registry } from '../registry';
 import Item from '../../models/Item';
 import { requireAuth } from '../../middleware/authMiddleware';
-import { applyVisibilityFilter, applyEnabledModulesFilter } from '../../utils/visibilityHelper';
+import { applyVisibilityFilter, applyEnabledModulesFilter, applyContainedFilter } from '../../utils/visibilityHelper';
+import { resolveShelfItems } from '../../utils/itemHelpers';
 
 const router = express.Router();
 
@@ -18,6 +19,7 @@ router.get('/', requireAuth, async (req: any, res: any) => {
     let queryAll: any = { collection: activeCollectionId, in_wishlist: false };
     applyVisibilityFilter(queryAll, res.locals.isCollectionAdmin, settings);
     applyEnabledModulesFilter(queryAll, settings);
+    applyContainedFilter(queryAll);
     const allItems = await Item.find(queryAll).lean() as any[];
 
     // Calculate total collection items count
@@ -37,7 +39,8 @@ router.get('/', requireAuth, async (req: any, res: any) => {
     let latestQuery: any = { collection: activeCollectionId, in_wishlist: false };
     applyVisibilityFilter(latestQuery, res.locals.isCollectionAdmin, settings);
     applyEnabledModulesFilter(latestQuery, settings);
-    const latestItems = await Item.find(latestQuery).sort({ added_at: -1 }).limit(4).lean() as any[];
+    applyContainedFilter(latestQuery);
+    const latestItems = await resolveShelfItems(await Item.find(latestQuery).sort({ added_at: -1 }).limit(4).lean(), res) as any[];
 
     const latestCollection = latestItems.map(item => {
       const plugin = registry.getByKind(item.kind as any);
@@ -48,7 +51,8 @@ router.get('/', requireAuth, async (req: any, res: any) => {
     let wishlistQuery: any = { collection: activeCollectionId, in_wishlist: true };
     applyVisibilityFilter(wishlistQuery, res.locals.isCollectionAdmin, settings);
     applyEnabledModulesFilter(wishlistQuery, settings);
-    const wishlistItems = await Item.find(wishlistQuery).sort({ added_at: -1 }).limit(4).lean() as any[];
+    applyContainedFilter(wishlistQuery);
+    const wishlistItems = await resolveShelfItems(await Item.find(wishlistQuery).sort({ added_at: -1 }).limit(4).lean(), res) as any[];
 
     const latestWishlist = wishlistItems.map(item => {
       const plugin = registry.getByKind(item.kind as any);

@@ -5,16 +5,19 @@ import Collection from '../../models/Collection';
 import Settings from '../../models/Settings';
 import { requireAuth } from '../../middleware/authMiddleware';
 import { escapeRegExp } from '../helpers';
-import { applyVisibilityFilter, applyEnabledModulesFilter } from '../../utils/visibilityHelper';
+import { applyVisibilityFilter, applyEnabledModulesFilter, applyContainedFilter } from '../../utils/visibilityHelper';
 
 const router = express.Router();
 
 const PAGE_SIZE = 25;
 const MIN_QUERY_LENGTH = 2;
+// The query becomes a regex run against every item of every collection the user belongs
+// to, so its cost is bounded here rather than by what fits in the address bar.
+const MAX_QUERY_LENGTH = 100;
 
 router.get('/search', requireAuth, async (req: any, res: any) => {
   try {
-    const rawQuery = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    const rawQuery = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, MAX_QUERY_LENGTH) : '';
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
 
     const emptyResult = {
@@ -30,7 +33,12 @@ router.get('/search', requireAuth, async (req: any, res: any) => {
       return res.render('search', emptyResult);
     }
 
-    const memberships = await Collection.find({ 'members.user': req.user._id });
+    // Names and roles only: a whole Collection document also carries its share link
+    // tokens, which have no business being read for a search page.
+    const memberships = await Collection.find(
+      { 'members.user': req.user._id },
+      { name: 1, members: 1 }
+    ).lean();
     if (memberships.length === 0) {
       return res.render('search', emptyResult);
     }
@@ -66,6 +74,9 @@ router.get('/search', requireAuth, async (req: any, res: any) => {
 
       const subFilter: any = {
         collection: id,
+        // Same shelf every other listing shows: what is owned, holders only. A wishlist
+        // entry is not in the collection yet, and a season belongs to its show.
+        in_wishlist: false,
         $or: [
           { title: regex },
           ...Array.from(creatorFields).map(f => ({ [f]: regex }))
@@ -75,6 +86,7 @@ router.get('/search', requireAuth, async (req: any, res: any) => {
       const isAdminHere = roleById.get(idStr) === 'admin';
       applyVisibilityFilter(subFilter, isAdminHere, settings);
       applyEnabledModulesFilter(subFilter, settings);
+      applyContainedFilter(subFilter);
 
       return subFilter;
     });
@@ -99,7 +111,10 @@ router.get('/search', requireAuth, async (req: any, res: any) => {
         item: formatted,
         plugin,
         collectionId: collectionIdStr,
-        collectionName: nameById.get(collectionIdStr) || ''
+        collectionName: nameById.get(collectionIdStr) || '',
+        // A card badge is a property of the collection the item lives in, not of the one
+        // the user happens to have open (music reads its advanced CD option from there).
+        collectionSettings: settingsById.get(collectionIdStr) || null
       };
     });
 

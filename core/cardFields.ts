@@ -29,6 +29,16 @@ export interface CardLine {
   style: 'text' | 'pill' | 'dot';
 }
 
+/**
+ * Fields a public share link never shows, whatever the collection chose to display.
+ *
+ * Where something is kept says nothing about the collection and everything about the home
+ * around it: a link handed to strangers, or printed as a QR code on a shelf, has no
+ * business naming the room, the cupboard or the safe. The choice stays available to the
+ * members, who are the ones it was written for.
+ */
+export const SHARE_HIDDEN_FIELDS = new Set(['location']);
+
 /** Fields a collection may pick from when choosing what its cards show. */
 export function cardFieldCandidates(plugin: PluginDefinition): FieldDefinition[] {
   return (plugin.formFields || []).filter(f =>
@@ -62,10 +72,70 @@ function stringifyValue(field: FieldDefinition | undefined, raw: any, lang?: str
  * Lines to render under the cover, title excluded (the views own it).
  * Capped at MAX_CARD_LINES, empty values dropped.
  */
+/**
+ * Where the chosen field may sit on a cover. Top-right is absent on purpose: the format
+ * badge lives there in every grid, and two pills in one corner would overlap.
+ *
+ * Which corner is the free one depends on the artwork, not on us. A film poster carries
+ * its title at the bottom, a square sleeve often has a logo top-left, so the choice
+ * belongs to whoever is looking at their own shelf.
+ */
+export const CORNER_POSITIONS: Record<string, { normal: string; compact: string }> = {
+  'bottom-left': {
+    normal: 'bottom-2 left-2',
+    compact: 'bottom-1.5 left-1.5 md:bottom-2 md:left-2'
+  },
+  'bottom-right': {
+    normal: 'bottom-2 right-2',
+    compact: 'bottom-1.5 right-1.5 md:bottom-2 md:right-2'
+  },
+  'top-left': {
+    normal: 'top-2 left-2',
+    compact: 'top-1.5 left-1.5 md:top-2 md:left-2'
+  }
+};
+
+export const DEFAULT_CORNER_POSITION = 'bottom-left';
+
+/**
+ * What to put in the free corner of a cover, or '' when there is nothing to put there.
+ * The field is chosen per module and per collection in the Customize panel.
+ *
+ * Deliberately not routed through stringifyValue: a select resolves to its full option
+ * label there, and the corner is a few characters wide. A sleeve condition stored as "VG+"
+ * has to read "VG+" from across a grid, not "Very Good Plus (VG+)". Everything else keeps
+ * the shared rules, dates and lists included, and a boolean still returns its field label
+ * since a bare "true" would say nothing.
+ *
+ * The result may be a translation key (that is what a boolean's label is), so views render
+ * it through t() with the value itself as the fallback.
+ */
+export function getCornerBadge(
+  plugin: PluginDefinition | undefined,
+  item: any,
+  options: { lang?: string; isShareView?: boolean } = {}
+): string {
+  const name = (plugin as any)?.cornerField;
+  if (!plugin || !item || !name) return '';
+  if (options.isShareView && SHARE_HIDDEN_FIELDS.has(name)) return '';
+
+  const raw = item[name] ?? item.extra?.[name];
+  if (raw === undefined || raw === null || raw === '') return '';
+
+  if (Array.isArray(raw)) return raw.filter(Boolean).map(String).join(', ');
+  if (raw instanceof Date) return raw.toLocaleDateString(dateLocaleFor(options.lang), { timeZone: 'UTC' });
+  if (typeof raw === 'boolean') {
+    const field = (plugin.formFields || []).find(f => f.name === name);
+    return raw && field ? field.label : '';
+  }
+
+  return String(raw);
+}
+
 export function getCardLines(
   plugin: PluginDefinition | undefined,
   item: any,
-  options: { lang?: string } = {}
+  options: { lang?: string; isShareView?: boolean } = {}
 ): CardLine[] {
   if (!plugin || !item) return [];
 
@@ -76,6 +146,7 @@ export function getCardLines(
   const lines: CardLine[] = [];
   for (const name of names) {
     if (lines.length >= MAX_CARD_LINES) break;
+    if (options.isShareView && SHARE_HIDDEN_FIELDS.has(name)) continue;
 
     const field = (plugin.formFields || []).find(f => f.name === name);
     const style = plugin.cardFieldStyles?.[name] || 'text';

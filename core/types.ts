@@ -84,7 +84,9 @@ export interface PluginDefinition {
   // to sharpen the external search query. Plugin-specific (keeps the core agnostic).
   barcodeNoiseTerms?: string[];
 
-  // CSS aspect-ratio class for the preview (e.g. 'aspect-square' for music), default 'aspect-[2/3]'
+  // CSS aspect-ratio class for the plugin's own pages (detail, add/edit forms),
+  // e.g. 'aspect-square' for music. Default 'aspect-[2/3]'. The item grids follow
+  // the collection-wide setting instead, see views/partials/albums-grid.ejs.
   aspectRatioClass?: string;
 
   // Image shown for items with no cover of their own. Resolved at render time (see
@@ -163,6 +165,28 @@ export interface PluginDefinition {
   // (e.g. books keep `isbn` and `barcode` in sync). Runs for both create and edit.
   normalizeForSave?(data: Record<string, any>): void;
 
+  // How to word, in one short line, what an item holds: a show says which seasons are
+  // owned. Returns a translation key and its parameters, since a plugin cannot translate,
+  // or null when the contents need no mention. Shown on the collection card and on the
+  // item page, so someone reads it off the shelf without opening anything.
+  cardContains?(item: any, contains: any[]): { key: string; params: Record<string, any> } | null;
+
+  // Takes over the creation of a new item when one submission is not one document: adding a
+  // TV show creates the show and each of its seasons, which are items in their own right.
+  // Return false to let the standard single-item creation run, which is what every plugin
+  // that does not implement this does.
+  //
+  // Ownership of the whole step, not a post-processing hook: the plugin decides what
+  // already exists, what to attach to what, and what merging means for its own shapes,
+  // none of which the core can express without learning the plugin's vocabulary. Only
+  // reached on a create, never on an edit.
+  handleCreate?(data: Record<string, any>, ctx: {
+    body: Record<string, any>;
+    ownerId: any;
+    collectionId: any;
+    language?: string;
+  }): Promise<boolean>;
+
   // Text fields whose input suggests values instead of constraining them. The collection's
   // existing values are always offered; `suggestionsFor` adds what the plugin knows about
   // the item at hand. See core/fieldSuggestions.ts.
@@ -231,6 +255,13 @@ export interface PluginApiRoute {
   path: string; // full path (e.g. '/api/estimate/:discogsId')
   requireAdmin?: boolean;
   requireEditor?: boolean;
+  // Opens the route to a collection's public share links, on top of its members. Only for
+  // a read-only page that belongs to an item someone can already see: the episode list of
+  // a season is part of what the item is, and a link that shows the item without it leads
+  // its visitor to a login screen. The core still decides which item is in reach, so the
+  // path must carry it as `:id`; a route that names its item some other way is refused to
+  // share visitors rather than served unchecked.
+  allowShareView?: boolean;
   handler(req: any, res: any): Promise<any> | any;
 }
 

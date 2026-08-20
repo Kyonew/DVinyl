@@ -157,7 +157,7 @@
                     <%= t('create_plugin.section_image') %>
                 </h2>
 
-                <div class="grid grid-cols-2 gap-4 max-w-md">
+                <div class="grid grid-cols-3 gap-4 max-w-lg">
                     <button type="button" data-shape="poster" class="shape-choice group rounded-2xl border-2 border-black/10 dark:border-white/10 p-4 flex flex-col items-center gap-3 transition-all">
                         <div class="w-14 aspect-[2/3] rounded-lg bg-black/10 dark:bg-white/10 flex items-center justify-center">
                             <i class="fa-solid fa-image opacity-40"></i>
@@ -170,7 +170,14 @@
                         </div>
                         <span class="text-xs font-bold"><%= t('create_plugin.shape_square') %></span>
                     </button>
+                    <button type="button" data-shape="screen" class="shape-choice group rounded-2xl border-2 border-black/10 dark:border-white/10 p-4 flex flex-col items-center gap-3 transition-all">
+                        <div class="w-14 aspect-[16/9] rounded-lg bg-black/10 dark:bg-white/10 flex items-center justify-center self-center my-auto">
+                            <i class="fa-solid fa-image opacity-40"></i>
+                        </div>
+                        <span class="text-xs font-bold"><%= t('create_plugin.shape_screen') %></span>
+                    </button>
                 </div>
+                <p class="text-[11px] opacity-50 -mt-3 max-w-lg"><%= t('create_plugin.shape_hint') %></p>
 
                 <label class="flex items-center gap-3 cursor-pointer w-fit">
                     <input id="secondaryImage" type="checkbox" class="sr-only peer">
@@ -378,6 +385,41 @@
             <div id="czCardFields" class="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-52 overflow-y-auto custom-scrollbar pr-1"></div>
         </div>
 
+        <div id="czCornerFieldWrap">
+            <label class="block mb-1 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('create_plugin.corner_field') %></label>
+            <p class="text-xs opacity-50 mb-2"><%= t('create_plugin.corner_field_hint') %></p>
+            <select id="czCornerField"
+                class="w-full bg-black/5 dark:bg-white/5 border border-transparent rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-primary-theme outline-none transition-all cursor-pointer"></select>
+
+            <%# Which corner, shown rather than named: a square standing for the cover, its
+                four quadrants clickable except the top-right one, where the format badge
+                already sits. Hidden until a field is chosen, since it decides nothing on
+                its own. %>
+            <div id="czCornerPosWrap" class="hidden mt-4">
+                <label class="block mb-2 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('create_plugin.corner_position') %></label>
+                <div class="w-32 h-32 rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 grid grid-cols-2 grid-rows-2 gap-1 p-1">
+                    <% [
+                        { pos: 'top-left', label: 'create_plugin.corner_top_left' },
+                        { pos: '', label: '' },
+                        { pos: 'bottom-left', label: 'create_plugin.corner_bottom_left' },
+                        { pos: 'bottom-right', label: 'create_plugin.corner_bottom_right' }
+                    ].forEach(cell => { %>
+                        <% if (cell.pos) { %>
+                            <button type="button" class="cz-corner-pos rounded-lg border-2 border-transparent hover:border-primary-theme/50 flex items-center justify-center transition-all"
+                                data-pos="<%= cell.pos %>" title="<%= t(cell.label) %>">
+                                <span class="w-6 h-2.5 rounded-sm bg-black/25 dark:bg-white/25"></span>
+                            </button>
+                        <% } else { %>
+                            <div class="rounded-lg flex items-center justify-center opacity-60 cursor-not-allowed" title="<%= t('create_plugin.corner_taken') %>">
+                                <span class="w-6 h-2.5 rounded-sm bg-primary-theme"></span>
+                            </div>
+                        <% } %>
+                    <% }) %>
+                </div>
+                <p class="text-xs opacity-50 mt-2"><%= t('create_plugin.corner_taken') %></p>
+            </div>
+        </div>
+
         <div>
             <label class="block mb-1 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('create_plugin.extra_fields') %></label>
             <p class="text-xs opacity-50 mb-2"><%= t('create_plugin.extra_fields_hint') %></p>
@@ -463,6 +505,19 @@
         // Format preselected on a new item; '' leaves the picker blank
         defaultFormat: ''
     };
+
+    // The picker works with shape names, the config stores the Tailwind class.
+    // Configs written before that carry imageShape instead.
+    const SHAPE_ASPECTS = { poster: 'aspect-[2/3]', square: 'aspect-square', screen: 'aspect-[16/9]' };
+
+    function aspectClassForShape(shape) {
+        return SHAPE_ASPECTS[shape] || SHAPE_ASPECTS.poster;
+    }
+
+    function shapeFromConfig(cfg) {
+        const stored = cfg.aspectRatioClass || (cfg.imageShape === 'square' ? 'aspect-square' : '');
+        return Object.keys(SHAPE_ASPECTS).find(name => SHAPE_ASPECTS[name] === stored) || 'poster';
+    }
 
     function slugify(s) {
         return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -774,7 +829,7 @@
             type: r.querySelector('.fld-type').value,
             group: r.querySelector('.fld-group').value,
             required: r.querySelector('.fld-required').checked,
-            options: r.querySelector('.fld-options').value.split(',').map(s => s.trim()).filter(Boolean)
+            options: r.querySelector('.fld-options').value.split(',').map(s => s.trim()).filter(Boolean),
         })).filter(f => f.label);
 
         const payload = {
@@ -783,7 +838,7 @@
             id: editConfig ? editConfig.id : slugify($('pluginLabel').value),
             icon: state.icon,
             color: state.color,
-            imageShape: state.shape,
+            aspectRatioClass: aspectClassForShape(state.shape),
             secondaryImage: $('secondaryImage').checked,
             creatorLabel: $('creatorLabel').value.trim(),
             defaultFormat: state.defaultFormat,
@@ -820,11 +875,13 @@
         $('slugPreview').textContent = cfg.id || '…';
 
         // Card
-        $('pvCover').className = (cfg.imageShape === 'square' ? 'aspect-square' : 'aspect-[2/3]') +
+        const aspect = cfg.aspectRatioClass;
+
+        $('pvCover').className = aspect +
             ' bg-gradient-to-br from-black/20 to-black/50 dark:from-white/10 dark:to-black/60 flex items-center justify-center transition-all';
         $('pvCoverIcon').className = 'fa-solid ' + cfg.icon + ' text-5xl opacity-30';
 
-        $('dcPreviewBox').className = 'w-24 shrink-0 ' + (cfg.imageShape === 'square' ? 'aspect-square' : 'aspect-[2/3]') +
+        $('dcPreviewBox').className = 'w-24 shrink-0 ' + aspect +
             ' rounded-xl overflow-hidden bg-black/5 dark:bg-white/5 flex items-center justify-center transition-all';
 
         // The card shows the default cover when there is one, exactly like a coverless item
@@ -1021,6 +1078,55 @@
         });
     }
 
+    // Same candidates as the card fields, plus an empty choice: a clean corner is the
+    // default and has to remain reachable once something has been put there.
+    function czRenderCornerField(data) {
+        const select = $('czCornerField');
+        const choices = data.cardFieldChoices || [];
+        $('czCornerFieldWrap').classList.toggle('hidden', choices.length === 0);
+
+        select.innerHTML = '';
+        const none = document.createElement('option');
+        none.value = '';
+        none.className = 'bg-white dark:bg-[#1a1a1a]';
+        none.textContent = <%- JSON.stringify(t('create_plugin.corner_field_none')) %>;
+        select.append(none);
+
+        choices.forEach(choice => {
+            const option = document.createElement('option');
+            option.value = choice.name;
+            option.className = 'bg-white dark:bg-[#1a1a1a]';
+            option.textContent = choice.label;
+            select.append(option);
+        });
+
+        select.value = (data.current && data.current.cornerField) || '';
+
+        czCornerPos = (data.current && data.current.cornerPosition) || <%- JSON.stringify(DEFAULT_CORNER_POSITION) %>;
+        czPaintCornerPos();
+        select.onchange = czPaintCornerPos;
+    }
+
+    let czCornerPos = <%- JSON.stringify(DEFAULT_CORNER_POSITION) %>;
+
+    function czPaintCornerPos() {
+        // The picker only means something once there is something to place.
+        $('czCornerPosWrap').classList.toggle('hidden', !$('czCornerField').value);
+        document.querySelectorAll('.cz-corner-pos').forEach(cell => {
+            const active = cell.dataset.pos === czCornerPos;
+            cell.classList.toggle('border-primary-theme', active);
+            cell.classList.toggle('bg-primary-theme/10', active);
+            cell.querySelector('span').classList.toggle('bg-primary-theme', active);
+        });
+    }
+
+    document.addEventListener('click', function (event) {
+        const cell = event.target.closest('.cz-corner-pos');
+        if (!cell) return;
+        czCornerPos = cell.dataset.pos;
+        czPaintCornerPos();
+    });
+
     function czRenderCardFields(data) {
         const wrap = $('czCardFields');
         wrap.innerHTML = '';
@@ -1062,6 +1168,7 @@
         (data.extraFields || []).forEach(f => czAddFieldRow(f));
 
         czRenderCardFields(data);
+        czRenderCornerField(data);
 
         const wrap = $('czFormats');
         wrap.innerHTML = '';
@@ -1113,13 +1220,15 @@
 
     window.saveCustomize = async function (reset) {
         if (!czPluginId) return;
-        const body = { icon: '', formatColors: {}, sortFormats: false };
+        const body = { icon: '', formatColors: {}, sortFormats: false, cornerField: '', cornerPosition: '' };
         if (!reset) {
             body.icon = czIcon;
             document.querySelectorAll('.cz-color').forEach(sel => {
                 if (sel.value) body.formatColors[sel.dataset.format] = sel.value;
             });
             body.sortFormats = $('czSortFormats').checked;
+            body.cornerField = $('czCornerField').value;
+            body.cornerPosition = czCornerPos;
             // Always sent, so unchecking everything is honoured as "title only" instead
             // of falling back to the plugin's own fields
             body.cardFields = Array.from(document.querySelectorAll('.cz-card-field'))
@@ -1177,7 +1286,7 @@
         $('creatorLabel').value = editConfig.creatorLabel || '';
         state.icon = editConfig.icon || 'fa-box';
         state.color = editConfig.color || 'teal';
-        state.shape = editConfig.imageShape === 'square' ? 'square' : 'poster';
+        state.shape = shapeFromConfig(editConfig);
         $('secondaryImage').checked = editConfig.secondaryImage === true;
         const features = editConfig.features || {};
         document.querySelectorAll('.feature-toggle').forEach(cb => { cb.checked = features[cb.dataset.feature] === true; });

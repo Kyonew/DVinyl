@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import Collection from '../models/Collection';
 import User from '../models/User';
 
@@ -15,6 +16,14 @@ export function slugify(text: string): string {
         .trim()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '');
+}
+
+/**
+ * Random, unguessable token for a collection's public share link
+ * (see routes/shareRoutes.ts). 160 bits, hex-encoded so it's plain URL-safe text.
+ */
+export function generateShareToken(): string {
+    return crypto.randomBytes(20).toString('hex');
 }
 
 /**

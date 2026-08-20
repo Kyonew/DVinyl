@@ -1,0 +1,29 @@
+<%# Cover tile of a card: the ratio box, the cover itself and its badge.
+    Params: item, plugin (may be null), gridAspect, settings, and optionally
+      badgeSize   forwarded to cover-badge ('compact' for the tighter cards)
+      cornerLabel small label over the top left corner, e.g. where the item comes from
+
+    gridAspect is the collection-wide setting, so a grid stays uniform whatever it
+    holds. A cover whose plugin declares another ratio is contained over a blurred
+    copy of itself rather than cropped. %>
+<%
+    // No plugin (module turned off, custom plugin deleted) means no declared ratio
+    // either: treat the cover as a poster, the safe non-cropping case.
+    const coverAspect = (locals.plugin && plugin.aspectRatioClass) || 'aspect-[2/3]';
+    const fitsGrid = coverAspect === gridAspect;
+%>
+<div class="<%= gridAspect %> w-full relative overflow-hidden bg-black/5 dark:bg-white/5 flex items-center justify-center">
+    <% if (!fitsGrid) { %>
+        <img src="<%= item.cover_image %>"
+            class="absolute inset-0 w-full h-full object-cover blur-xl opacity-30 scale-110 pointer-events-none">
+    <% } %>
+    <img src="<%= item.cover_image %>"
+        class="relative z-10 w-full h-full <%= fitsGrid ? 'object-cover' : 'object-contain p-2' %> transition-transform duration-500 group-hover:scale-105"
+        loading="lazy">
+    <% if (locals.cornerLabel) { %>
+        <span class="absolute top-2 left-2 z-20 text-white text-[9px] font-bold px-2 py-1 rounded backdrop-blur-md border border-white/10 shadow-sm bg-black/60">
+            <i class="fa-solid fa-layer-group mr-1"></i><%= cornerLabel %>
+        </span>
+    <% } %>
+    <%- include('cover-badge', { item, plugin, settings: locals.settings, size: locals.badgeSize || '' }) %>
+</div>

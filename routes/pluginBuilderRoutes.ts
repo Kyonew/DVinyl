@@ -14,7 +14,7 @@ import {
 } from '../core/customPluginStore';
 import { sanitizeExtraFields, getExtraFields } from '../core/pluginExtraFields';
 import { placeholderUrl } from '../core/placeholderImage';
-import { cardFieldCandidates, getCardLines, MAX_CARD_LINES } from '../core/cardFields';
+import { cardFieldCandidates, getCardLines, MAX_CARD_LINES, CORNER_POSITIONS, DEFAULT_CORNER_POSITION } from '../core/cardFields';
 import { registerPluginDirAtRuntime, unregisterPluginAtRuntime } from '../core/pluginRuntime';
 import { saveCustomPluginToDB, deleteCustomPluginFromDB } from '../core/customPluginSync';
 
@@ -133,6 +133,20 @@ router.post('/customize/:pluginId', async (req: any, res: any) => {
 
     if (req.body.sortFormats === true || req.body.sortFormats === 'true') cosmetics.sortFormats = true;
 
+    // Corner field. Checked against what the plugin actually offers, so a crafted payload
+    // cannot put an arbitrary path on every cover; an empty submission clears it.
+    if (typeof req.body.cornerField === 'string' && req.body.cornerField) {
+      const decorated = res.locals.registry.get(plugin.id) || plugin;
+      if (cardFieldCandidates(decorated).some(f => f.name === req.body.cornerField)) {
+        cosmetics.cornerField = req.body.cornerField;
+        // Only ever one of the free corners; anything else falls back to the default
+        // rather than being written and rendered as a broken class string.
+        cosmetics.cornerPosition = Object.prototype.hasOwnProperty.call(CORNER_POSITIONS, req.body.cornerPosition)
+          ? req.body.cornerPosition
+          : DEFAULT_CORNER_POSITION;
+      }
+    }
+
     // Card fields. Reordered to the plugin's own field order (the modal is a selection,
     // not a ranking) and capped, so a crafted payload cannot overflow the card.
     if (Array.isArray(req.body.cardFields)) {
@@ -159,7 +173,7 @@ router.post('/customize/:pluginId', async (req: any, res: any) => {
     const cosmeticsPath = `pluginCustomization.${plugin.id}`;
     const $set: any = {};
     const $unset: any = {};
-    if (cosmetics.icon || cosmetics.formatColors || cosmetics.cardFields || cosmetics.sortFormats) $set[cosmeticsPath] = cosmetics;
+    if (cosmetics.icon || cosmetics.formatColors || cosmetics.cardFields || cosmetics.sortFormats || cosmetics.cornerField) $set[cosmeticsPath] = cosmetics;
     else $unset[cosmeticsPath] = '';
     if (extraUpdate?.set) Object.assign($set, extraUpdate.set);
     if (extraUpdate?.unset) $unset[extraUpdate.unset] = '';

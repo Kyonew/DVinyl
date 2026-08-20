@@ -40,6 +40,7 @@
     "results_title": "Resultados",
     "scan_error": "Error de cámara (verificar permisos)",
     "barcode_not_found": "No se ha reconocido este código de barras. Prueba a buscar por título.",
+    "barcode_no_match": "Sin coincidencias para este código de barras. Este es el nombre de producto encontrado: ajústalo y busca de nuevo, el código de barras se mantiene.",
     "scan_found": "¡Encontró!",
     "scan_init": "Inicializando...",
     "scan_stop": "Dejar de escanear",
@@ -185,6 +186,7 @@
       },
       "import_updated": "elementos enriquecidos",
       "import_failed": "líneas omitidas por un error",
+      "import_unenriched": "elementos llegaron sin portada ni metadatos: vuelve a ejecutar el mismo archivo con «Completar desde la API» marcado para rellenarlos.",
       "choose_file": "Elegir un archivo",
       "no_file_chosen": "Ningún archivo seleccionado",
       "err_no_file": "Elige un archivo."
@@ -289,6 +291,26 @@
       "subtitle": "Exportar esta colección (elementos + ajustes) o reemplazar su contenido con una copia.",
       "confirm_import": "La importación REEMPLAZARÁ todos los elementos de esta colección. ¿Continuar?"
     },
+    "sharing": {
+      "title": "Enlaces públicos para compartir",
+      "subtitle": "Deja que cualquiera explore esta colección en modo solo lectura con un enlace o un código QR, sin necesidad de cuenta. Editar, eliminar y el resto de páginas siguen fuera de alcance. Crea varios enlaces para compartir por separado distintas partes de la colección, por ejemplo uno para los vinilos y otro para los CD.",
+      "untitled_link": "Enlace sin nombre",
+      "label_placeholder": "Nombra este enlace (opcional) - p. ej. \"Solo vinilos\"",
+      "enable_btn": "Activar",
+      "disable_btn": "Desactivar",
+      "regenerate_btn": "Regenerar",
+      "delete_btn": "Eliminar",
+      "confirm_regenerate": "Esto invalida el enlace y el código QR actuales: quien use el anterior perderá el acceso. ¿Continuar?",
+      "confirm_delete": "¿Eliminar este enlace para compartir? Quien lo esté usando perderá el acceso de inmediato.",
+      "new_link_btn": "Nuevo enlace para compartir",
+      "create_btn": "Crear el enlace",
+      "scope_title": "Contenido compartido",
+      "scope_hint": "Elige tipos concretos (y, dentro de un tipo, formatos concretos) para limitar lo que muestra este enlace: por ejemplo solo los CD, o los CD y los vinilos. Si no marcas nada, se comparte toda la colección.",
+      "scope_empty_hint": "Nada marcado = se comparte toda la colección.",
+      "scope_save_btn": "Guardar los cambios",
+      "copy_btn": "Copiar el enlace",
+      "copied": "Copiado"
+    },
     "libib": {
       "title_books": "Libib - Libros",
       "title_music": "Libib - Música",
@@ -392,6 +414,7 @@
   },
   "collection": {
     "add": "Agregar",
+    "share_view_banner": "Estás viendo una colección compartida - solo lectura.",
     "filter_placeholder": "Filtrar...",
     "refresh": "Refrescar",
     "refresh_metadata_btn": "Actualizar información",
@@ -404,8 +427,8 @@
     "sort_title": "Título",
     "sort_year": "Año",
     "decade_filter": "Década",
-    "filter_mode_hide": "Esconder",
-    "filter_mode_show": "Espectáculo",
+    "filter_mode_hide": "Ocultar coincidencias",
+    "filter_mode_show": "Mostrar coincidencias",
     "styles_filter": "Estilos",
     "platform_filter": "Consola",
     "xf_from": "Desde",
@@ -416,7 +439,8 @@
     "search_genre_placeholder": "Buscar géneros...",
     "search_style_placeholder": "Buscar estilos...",
     "search_platform_placeholder": "Buscar consolas...",
-    "active_filters": "Filtros activos:"
+    "active_filters": "Filtros activos:",
+    "page_jump_title": "Ir a la página"
   },
   "common": {
     "all": "Todo",
@@ -443,7 +467,7 @@
     "save_changes": "Guardar cambios",
     "search": "Buscar",
     "searching": "Búsqueda...",
-    "show": "Espectáculo",
+    "show": "Mostrar",
     "unknown": "Desconocido",
     "update": "Actualizar",
     "validate": "Validar",
@@ -511,6 +535,11 @@
     "comments_placeholder": "Ej: Edición original de 1986, comprada en el mercadillo...",
     "media_type_movie": "Película",
     "media_type_tv": "programa de televisión",
+    "season_label": "¿Qué temporadas tienes?",
+    "season_hint_owned": "Las temporadas que ya están en tu colección aparecen marcadas y bloqueadas. Marca las que acabas de conseguir.",
+    "season_absorb_warning": "«{{title}}» ya está en la colección. Las temporadas marcadas se le adjuntarán: esta ficha pasará a ser la de la serie, y las temporadas se consultarán desde ella.",
+    "season_select_all": "Seleccionar todo",
+    "season_hint": "Cada temporada se convierte en su propio elemento, con su póster, su año y sus episodios. No marcar nada añade la serie como un solo elemento.",
     "field_is_boxset": "es una caja",
     "field_watch_status": "Estado"
   },
@@ -560,6 +589,8 @@
   "detail": {
     "added_at": "Agregado en",
     "added_by": "Añadido por",
+    "modified_at": "Última modificación",
+    "last_refresh": "Última actualización:",
     "additional_image": "Imagen adicional",
     "view_fullscreen": "Ver en pantalla completa",
     "close_preview": "Cerrar la vista previa",
@@ -595,6 +626,15 @@
   "dvd_detail": {
     "barcode_label": "Código de barras",
     "boxset": "caja",
+    "episodes_title": "Episodios",
+    "season_number": "Temporada {{number}}",
+    "seasons_range": "Temporadas {{from}} a {{to}}",
+    "seasons_list": "Temporadas {{list}}",
+    "seasons_owned": "{{count}} temporadas en propiedad",
+    "episodes_empty": "TMDB no tiene lista de episodios para esta temporada.",
+    "episode_watched": "Visto",
+    "episode_notes": "Tus notas",
+    "episode_notes_placeholder": "Lo que quieras recordar de este episodio",
     "delete_confirm": "¿Estás seguro de que deseas eliminar este elemento de tu colección?",
     "duration_label": "Duración",
     "movie": "Película",
@@ -640,7 +680,7 @@
     "comic": "Cómic",
     "graphic_novel": "Novela gráfica",
     "hardcover": "De tapa dura",
-    "manga": "manga",
+    "manga": "Manga",
     "paperback": "Libro de bolsillo",
     "digital": "Digital"
   },
@@ -701,7 +741,7 @@
     "blurays": "Blu-ray",
     "books": "Libros",
     "cassette": "Casete",
-    "cassettes": "casetes",
+    "cassettes": "Casetes",
     "cd": "CD",
     "cdr": "CDr",
     "cds": "CD",
@@ -716,14 +756,14 @@
     "hardcover_pl": "Tapas duras",
     "laserdisc": "Disco láser",
     "laserdiscs": "Discos láser",
-    "manga": "manga",
-    "mangas": "mangas",
+    "manga": "Manga",
+    "mangas": "Mangas",
     "music": "Música",
     "paperback": "Libro de bolsillo",
     "paperback_pl": "Libros de bolsillo",
     "sacd": "SACD",
     "vhs": "VHS",
-    "vhss": "cintas vhs",
+    "vhss": "Cintas VHS",
     "vinyl": "Vinilo",
     "vinyls": "Vinilos",
     "games": "Videojuegos",
@@ -780,7 +820,14 @@
     "delete_admin_error": "No puedes eliminar a otro administrador de instancia.",
     "reset_admin_error": "No puedes restablecer la contraseña de otro administrador de instancia.",
     "error_collection_quota": "Has alcanzado el número máximo de colecciones permitido.",
-    "error_collection_forbidden": "La creación de colecciones no está permitida en esta instancia."
+    "error_collection_forbidden": "La creación de colecciones no está permitida en esta instancia.",
+    "share_enabled": "Uso compartido activado.",
+    "share_disabled": "Uso compartido desactivado.",
+    "share_regenerated": "Enlace para compartir regenerado - el enlace anterior ya no funciona.",
+    "share_scope_updated": "Contenido compartido actualizado.",
+    "share_link_created": "Enlace para compartir creado.",
+    "share_link_deleted": "Enlace para compartir eliminado.",
+    "error_share": "No se ha podido actualizar el uso compartido."
   },
   "modal": {
     "add_hub_subtitle": "Seleccione el tipo de medios para agregar a su colección",
@@ -796,9 +843,10 @@
   "nav": {
     "admin": "Panel de administración",
     "collection": "Recopilación",
-    "home": "Hogar",
+    "home": "Inicio",
     "loading": "Cargando...",
     "logout": "Cerrar sesión",
+    "login": "Iniciar sesión",
     "settings": "Ajustes",
     "theme_dark": "Modo oscuro",
     "theme_light": "Modo de luz",
@@ -807,7 +855,8 @@
     "instance": "Instancia",
     "administration": "Administración",
     "new_collection": "Nueva colección",
-    "search": "Buscar"
+    "search": "Buscar",
+    "share_view": "Colección compartida · solo lectura"
   },
   "search": {
     "title": "Buscar",
@@ -817,10 +866,12 @@
     "results_count": "{{count}} resultados"
   },
   "perso": {
-    "backHome": "De vuelta a casa",
+    "backHome": "Volver al inicio",
     "fastAdd_desc": "Si está habilitado, el botón \"Agregar un elemento\" redirige directamente al formulario elegido, sin pasar por el menú de selección.",
     "fastAdd_disabled": "Deshabilitado (modal)",
     "fastAdd_title": "Agregar rápido",
+    "card_aspect_ratio": "Relación de aspecto de la tarjeta",
+    "card_aspect_ratio_desc": "Forma de las miniaturas en las cuadrículas de colección, inicio y lista de deseos. Cada plugin conserva su propia relación en sus fichas.",
     "modules": {
       "books": "Libros",
       "dvd": "DVD",
@@ -1033,6 +1084,10 @@
     "message_can_create": "Aún no tienes ninguna colección. Crea la tuya para empezar a añadir elementos: serás su administrador.",
     "create_btn": "Crear mi colección"
   },
+  "share_invalid": {
+    "title": "Enlace no disponible",
+    "message": "Este enlace para compartir no es válido o ya no está disponible. Pide uno nuevo a quien sea propietario de la colección."
+  },
   "create_plugin": {
     "title": "Editor de plugins",
     "subtitle": "Crea tu propio tipo de colección (figuras, cartas, cómics...) sin escribir código. El plugin se genera en la carpeta plugins/ y se puede usar de inmediato, como los módulos nativos. Los plugins creados aquí funcionan solo con entrada manual (sin API externa).",
@@ -1048,6 +1103,8 @@
     "section_image": "Imagen",
     "shape_poster": "Póster (2/3)",
     "shape_square": "Cuadrado (funda)",
+    "shape_screen": "Pantalla (16/9)",
+    "shape_hint": "Se aplica a las páginas y formularios de este plugin. Las cuadrículas usan la relación de aspecto definida en Personalización.",
     "secondary_label": "Imagen secundaria",
     "secondary_desc": "Añade un segundo visual editable (como el disco para la música).",
     "default_cover_label": "Imagen por defecto",
@@ -1118,6 +1175,14 @@
     "sort_formats": "Ordenar los formatos alfabéticamente",
     "card_fields": "Campos de la tarjeta",
     "card_fields_hint": "Se muestran bajo la portada en todas las cuadrículas, en el orden que declara el plugin. Máximo {{count}}.",
+    "corner_field": "Esquina de la portada",
+    "corner_field_hint": "Se muestra en la esquina inferior izquierda de cada portada, frente a la insignia de formato. Se usa el valor almacenado tal cual, para que sea breve.",
+    "corner_field_none": "Nada",
+    "corner_position": "Qué esquina",
+    "corner_top_left": "Arriba a la izquierda",
+    "corner_bottom_left": "Abajo a la izquierda",
+    "corner_bottom_right": "Abajo a la derecha",
+    "corner_taken": "La esquina superior derecha la ocupa la insignia de formato.",
     "default_color": "Color por defecto",
     "reset": "Restablecer",
     "customized": "Personalizado"

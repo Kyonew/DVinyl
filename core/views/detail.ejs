@@ -7,15 +7,28 @@
 <div class="max-w-screen-xl mx-auto px-4 pb-20">
 
     <nav class="flex py-6 text-sm opacity-60 transition-colors">
-        <% if (item.in_wishlist) { %>
-            <a href="<%= baseUrl %>/wishlist" class="hover:opacity-100 hover:text-primary-theme transition-colors flex items-center gap-2">
+        <%# A contained item is reachable from its holder alone, so that is where back
+            leads: sending it to a collection it deliberately never appears in would be a
+            dead end. %>
+        <%
+            // Back to the exact listing this page was opened from, page and filters kept,
+            // rather than to the head of the collection. Absent when the page was reached
+            // some other way (a link, a reload), and then the old destination stands.
+            const cameFromWishlist = locals.backUrl
+                ? backUrl.includes('/wishlist')
+                : item.in_wishlist;
+            const listingUrl = locals.backUrl
+                || (item.in_wishlist ? baseUrl + '/wishlist' : baseUrl + '/collection?type=' + plugin.id);
+        %>
+        <% if (locals.holder) { %>
+            <a href="<%= baseUrl %><%= plugin.routePrefix %>/<%= holder._id %>" class="hover:opacity-100 hover:text-primary-theme transition-colors flex items-center gap-2">
                 <i class="fa-solid fa-arrow-left"></i>
-                <%= t('detail.back_to_wishlist') %>
+                <%= holder.title %>
             </a>
         <% } else { %>
-            <a href="<%= baseUrl %>/collection?type=<%= plugin.id %>" class="hover:opacity-100 hover:text-primary-theme transition-colors flex items-center gap-2">
+            <a href="<%= listingUrl %>" class="hover:opacity-100 hover:text-primary-theme transition-colors flex items-center gap-2">
                 <i class="fa-solid fa-arrow-left"></i>
-                <%= t('detail.back_to_collection') %>
+                <%= cameFromWishlist ? t('detail.back_to_wishlist') : t('detail.back_to_collection') %>
             </a>
         <% } %>
     </nav>
@@ -28,9 +41,14 @@
             // sense for the media that actually have one.
             const mainImageLabel = t(plugin.imageLabels?.main || 'generic.main_image');
             const secondaryImageLabel = t(plugin.imageLabels?.secondary || 'generic.secondary_image');
+            // The grids stay on the collection-wide ratio, so the plugin's own ratio is
+            // what the frame uses here. A portrait frame at the full width would push the
+            // rest of the page below the fold, hence the narrower cap for it.
+            const coverAspect = plugin.aspectRatioClass || 'aspect-square';
+            const coverMaxWidth = coverAspect === 'aspect-[2/3]' ? 'max-w-sm' : 'max-w-lg';
         %>
         <div class="lg:col-span-6 flex flex-col items-center">
-            <div class="relative w-full max-w-lg aspect-square card-theme rounded-2xl shadow-xl overflow-hidden flex items-center justify-center group transition-colors">
+            <div class="relative w-full <%= coverMaxWidth %> <%= coverAspect %> card-theme rounded-2xl shadow-xl overflow-hidden flex items-center justify-center group transition-colors">
                 <img id="mainImage" src="<%= item.user_image || item.cover_image %>" class="w-full h-full object-contain transition-transform duration-300 group-hover:scale-[1.02] cursor-zoom-in" alt="<%= item.title %>" onclick="openLightbox()">
 
                 <span id="imageBadge" class="absolute top-4 right-4 bg-white/90 dark:bg-black/60 backdrop-blur-md text-neutral-900 dark:text-white text-xs px-3 py-1 rounded-full border border-black/5 dark:border-white/10 shadow-sm transition-colors">
@@ -61,7 +79,7 @@
                 <% const sidebarZones = plugin.detailZones.filter(z => z.id === 'sidebar') %>
                 <% for (const zone of sidebarZones) { %>
                     <div class="w-full max-w-lg">
-                        <%- include('../../' + plugin.partialsPath + '/' + zone.partial, { item }) %>
+                        <%- include('../../' + plugin.partialsPath + '/' + zone.partial, { item, contains: locals.contains || [], containsLabel: locals.containsLabel || null }) %>
                     </div>
                 <% } %>
             <% } %>
@@ -111,7 +129,7 @@
                     <% if (plugin.partialsPath && plugin.detailZones) { %>
                         <% const badgeZones = plugin.detailZones.filter(z => z.id === 'badge') %>
                         <% for (const zone of badgeZones) { %>
-                            <%- include('../../' + plugin.partialsPath + '/' + zone.partial, { item }) %>
+                            <%- include('../../' + plugin.partialsPath + '/' + zone.partial, { item, contains: locals.contains || [], containsLabel: locals.containsLabel || null }) %>
                         <% } %>
                     <% } %>
                 </div>
@@ -121,8 +139,10 @@
             <div class="flex flex-col gap-6 ml-2">
                 <%# Kept even when empty, as an invitation to fill it in, but only for the
                     plugins that actually declare the field: a custom plugin created without
-                    the location feature has no such data to show. %>
-                <% if (plugin.formFields.some(f => f.name === 'location')) { %>
+                    the location feature has no such data to show. Never for a share link,
+                    which is shown a collection and not the home around it (see
+                    SHARE_HIDDEN_FIELDS in core/cardFields.ts). %>
+                <% if (plugin.formFields.some(f => f.name === 'location') && !locals.isShareView) { %>
                     <div class="flex flex-col">
                         <span class="text-[10px] uppercase tracking-widest opacity-50 font-bold mb-2">
                             <%= t('common.location') %>
@@ -200,10 +220,15 @@
                 // grid without excluding every field sharing their type.
                 const renderedElsewhere = ['comments', 'genres', 'styles'];
 
+                // The block above hides where the item is kept from a share link; this grid
+                // draws the plugin's own fields and would have printed it again right under.
+                // Same list the cards go through, so a field is kept from a visitor
+                // everywhere or nowhere.
                 const detailFields = plugin.formFields.filter(f =>
                     f.showIn.includes('detail') &&
                     !['title', plugin.creatorField].includes(f.name) &&
                     !renderedElsewhere.includes(f.name) &&
+                    !(locals.isShareView && SHARE_HIDDEN_FIELDS.has(f.name)) &&
                     f.type !== 'custom'
                 );
                 detailFields.forEach(field => {
@@ -267,6 +292,30 @@
                             <img src="<%= baseUrl + addedBy.img %>" alt=""
                                 class="w-6 h-6 rounded-full object-cover flex-shrink-0">
                             <span class="truncate"><%= addedBy.username %></span>
+                        </span>
+                    </div>
+                <% } %>
+                <%
+                    // Who last changed the item by hand. The metadata refresh has a date of
+                    // its own, next to the button that triggers it: a refresh is nobody's
+                    // edit, and a second face in this grid would only blur whose it is.
+                %>
+                <% if (item.modified_at) { %>
+                    <div>
+                        <span class="block text-xs opacity-50 uppercase font-bold mb-1">
+                            <%= t('detail.modified_at') %>
+                        </span>
+                        <span class="flex items-center gap-2 flex-wrap transition-colors">
+                            <% if (locals.modifiedBy) { %>
+                                <img src="<%= baseUrl + modifiedBy.img %>" alt=""
+                                    class="w-6 h-6 rounded-full object-cover flex-shrink-0">
+                                <span class="truncate"><%= modifiedBy.username %></span>
+                                <span class="text-xs opacity-60">
+                                    <%= new Date(item.modified_at).toLocaleDateString(dateLocale) %>
+                                </span>
+                            <% } else { %>
+                                <%= new Date(item.modified_at).toLocaleDateString(dateLocale) %>
+                            <% } %>
                         </span>
                     </div>
                 <% } %>
@@ -334,19 +383,34 @@
             <% if (plugin.partialsPath && plugin.detailZones) { %>
                 <% const contentZones = plugin.detailZones.filter(z => z.id === 'content') %>
                 <% for (const zone of contentZones) { %>
-                    <%- include('../../' + plugin.partialsPath + '/' + zone.partial, { item }) %>
+                    <%- include('../../' + plugin.partialsPath + '/' + zone.partial, { item, contains: locals.contains || [], containsLabel: locals.containsLabel || null }) %>
                 <% } %>
             <% } %>
 
             <!-- Admin Actions Block -->
             <% if (user && locals.canEditCollection) { %>
-                <div class="pt-6 border-t border-black/10 dark:border-white/10 flex justify-end gap-4 transition-colors">
-                    <div class="flex-1 flex gap-2">
+                <%
+                    // Buttons aligned by their top edge, not centered: the refresh date sits
+                    // under its own button, and centering would push that whole column up,
+                    // leaving the refresh button floating above the row it belongs to.
+                %>
+                <div class="pt-6 border-t border-black/10 dark:border-white/10 flex items-start justify-end gap-4 transition-colors">
+                    <%
+                        // The refresh date belongs to the button, not to the metadata grid:
+                        // stacked under it, it reads as a caption of the action rather than
+                        // as one more thing to know about the item.
+                    %>
+                    <div class="flex-1 flex flex-col items-start gap-1">
                         <% if (plugin.refreshItem) { %>
                             <button id="refreshInfoBtn" onclick="refreshMetadata('<%= item._id %>')" class="opacity-60 hover:opacity-100 px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 flex items-center gap-2">
                                 <i class="fa-solid fa-arrows-rotate" id="refreshInfoIcon"></i>
                                 <%= t('collection.refresh_metadata_btn') %>
                             </button>
+                            <% if (item.synced_at) { %>
+                                <span class="text-xs opacity-50 pl-1 transition-colors">
+                                    <%= t('detail.last_refresh') %> <%= new Date(item.synced_at).toLocaleDateString(dateLocale) %>
+                                </span>
+                            <% } %>
                         <% } %>
                     </div>
                     <% if (!item.in_wishlist) { %>
@@ -355,7 +419,9 @@
                             <%= t('detail.move_to_wishlist_btn') %>
                         </button>
                     <% } %>
-                    <a href="<%= baseUrl %><%= plugin.routePrefix %>/edit/<%= item._id %>" class="opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
+                    <%# The origin travels on the link, since the Referer of the edit page
+                        is this page and not the listing anyone wants to come back to. %>
+                    <a href="<%= baseUrl %><%= plugin.routePrefix %>/edit/<%= item._id %><%= locals.backUrl ? '?from=' + encodeURIComponent(backUrl) : '' %>" class="opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
                         <i class="fa-solid fa-pen-to-square mr-2"></i>
                         <%= t('common.edit') %>
                     </a>
@@ -479,11 +545,15 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    <% if (item.in_wishlist) { %>
-                        window.location.href = '<%= baseUrl %>/wishlist';
-                    <% } else { %>
-                        window.location.href = '<%= baseUrl %>/collection?type=<%= plugin.collectionType %>';
-                    <% } %>
+                    // Same destination as the back arrow: a deleted item should leave you
+                    // where you were looking, not at the head of the collection.
+                    //
+                    // The `<` is written as an escape: JSON leaves it as it is, and a
+                    // closing script tag sitting in this string would end the block right
+                    // here, whatever it means to the JavaScript around it. The string still
+                    // evaluates to the same URL. Which is why the tag is described here
+                    // rather than written out: a comment ends the block just as well.
+                    window.location.href = <%- JSON.stringify(listingUrl).replace(/</g, '\\u003c') %>;
                 } else {
                     alert(`${translations.error_server}: ${data.error}`);
                 }

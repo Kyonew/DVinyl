@@ -1,6 +1,22 @@
 import { SearchProvider, SearchOptions, SearchResult, ConfirmData } from '../../core/types';
 import { fetchJson } from '../../core/helpers';
-import { TMDB_LANG_MAP, formatSeasonCount } from './constants';
+import { TMDB_LANG_MAP, formatSeasonCount, formatEpisodeCount } from './constants';
+
+/**
+ * The episodes of a TMDB season payload, in the shape the item stores.
+ *
+ * Runtime is left out when TMDB has none rather than written as zero: a season nobody has
+ * documented would otherwise claim every episode lasts no time at all.
+ */
+function toEpisodes(seasonData: any): { number: number; name: string; runtime: number | null; air_date: string; overview: string }[] {
+  return (seasonData.episodes || []).map((e: any) => ({
+    number: e.episode_number,
+    name: e.name || '',
+    runtime: typeof e.runtime === 'number' && e.runtime > 0 ? e.runtime : null,
+    air_date: e.air_date || '',
+    overview: e.overview || ''
+  }));
+}
 
 export class TMDBProvider implements SearchProvider {
   name = 'TMDB';
@@ -75,7 +91,7 @@ export class TMDBProvider implements SearchProvider {
       ? formatSeasonCount(data.number_of_seasons, lang)
       : `${data.runtime || "?"} min`;
 
-    return {
+    const show: ConfirmData = {
       title: mediaType === "tv" ? data.name : data.title,
       creator: director,
       director,
@@ -88,5 +104,85 @@ export class TMDBProvider implements SearchProvider {
       tmdb_id: data.id,
       media_type: mediaType
     };
+
+    if (mediaType !== "tv") return show;
+
+    // What the confirm page offers to choose from. Season 0 is TMDB's bin for specials
+    // and pilots, which is not what anyone means by owning a season of a show.
+    show.seasons = (data.seasons || [])
+      .filter((s: any) => s.season_number > 0)
+      .map((s: any) => ({
+        number: s.season_number,
+        name: s.name || `${s.season_number}`,
+        episode_count: s.episode_count || 0
+      }));
+
+    // No season asked for, or one this show does not have: the whole series, which is
+    // what every existing item holds and what the page defaults to.
+    const wanted = parseInt(String(options.season ?? ''), 10);
+    if (!Number.isInteger(wanted) || !show.seasons.some((s: any) => s.number === wanted)) {
+      return show;
+    }
+
+    const seasonUrl = `https://api.themoviedb.org/3/tv/${tmdbId}/season/${wanted}?api_key=${tmdbApiKey}&language=${tmdbLang}`;
+    const seasonData = await fetchJson(seasonUrl);
+    const listed = show.seasons.find((s: any) => s.number === wanted);
+
+    // The season's own poster, air date and synopsis where it has them, the show's where
+    // it does not: an obscure season with no artwork is better off wearing the show's than
+    // a blank frame. The name comes from TMDB in the language the rest was fetched in, so
+    // the title reads "Breaking Bad - Season 2" or "- Saison 2" to match.
+    return {
+      ...show,
+      season: wanted,
+      title: `${show.title} - ${seasonData.name || listed.name}`,
+      year: (seasonData.air_date || '').substring(0, 4) || show.year,
+      duration: formatEpisodeCount(
+        Array.isArray(seasonData.episodes) && seasonData.episodes.length > 0
+          ? seasonData.episodes.length
+          : listed.episode_count,
+        lang
+      ),
+      description: seasonData.overview || show.description,
+      cover_image: seasonData.poster_path
+        ? `https://image.tmdb.org/t/p/w500${seasonData.poster_path}`
+        : (show.cover_image || ''),
+      episodes: toEpisodes(seasonData)
+    };
+  }
+
+  /**
+   * The episodes of one season, with the show's season list alongside so the page can
+   * offer the others.
+   *
+   * Used where nothing is stored to read from: a series held as one box set, and an item
+   * that predates the episodes being kept on the season itself.
+   */
+  async getSeasonEpisodes(tmdbId: number | string, seasonNumber: number | null, lang?: string): Promise<{
+    seasons: { number: number; name: string; episode_count: number }[];
+    season: number | null;
+    episodes: { number: number; name: string; runtime: number | null; air_date: string; overview: string }[];
+  }> {
+    const tmdbApiKey = process.env.TMDB_API_KEY;
+    if (!tmdbApiKey) throw new Error("TMDB_API_KEY missing");
+    const tmdbLang = TMDB_LANG_MAP[lang || ''] || "en-US";
+
+    const show = await fetchJson(`https://api.themoviedb.org/3/tv/${tmdbId}?api_key=${tmdbApiKey}&language=${tmdbLang}`);
+    const seasons = (show.seasons || [])
+      .filter((s: any) => s.season_number > 0)
+      .map((s: any) => ({
+        number: s.season_number,
+        name: s.name || `${s.season_number}`,
+        episode_count: s.episode_count || 0
+      }));
+
+    // Whatever was asked for if the show has it, else its first season: landing on an
+    // empty page because an item carries a season TMDB has since renumbered helps nobody.
+    const asked = Number(seasonNumber);
+    const season = seasons.some((s: any) => s.number === asked) ? asked : (seasons[0]?.number ?? null);
+    if (season === null) return { seasons, season: null, episodes: [] };
+
+    const data = await fetchJson(`https://api.themoviedb.org/3/tv/${tmdbId}/season/${season}?api_key=${tmdbApiKey}&language=${tmdbLang}`);
+    return { seasons, season, episodes: toEpisodes(data) };
   }
 }

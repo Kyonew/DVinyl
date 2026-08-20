@@ -150,7 +150,7 @@
   <link rel="apple-touch-icon" href="<%= baseUrl %>/ressources/icone-192.png">
 </head>
 
-<body class="font-sans transition-colors duration-300">
+<body class="font-sans transition-colors duration-300 min-h-screen flex flex-col">
     
   <div id="page-loader" class="fixed inset-0 z-[9999] flex flex-col items-center justify-center transition-opacity duration-500">
     <div class="relative">
@@ -240,7 +240,7 @@
               </li>
               <li>
                 <a href="<%= baseUrl %>/admin/personnalisation" class="block px-4 py-2 text-sm text-[var(--text-main)] hover:bg-black/5 dark:hover:bg-white/10 mx-2 rounded transition flex items-center gap-3">
-                  <i class="fa-solid fa-wand-magic-sparkles w-5 text-center opacity-70"></i> <span>Personnalisation</span>
+                  <i class="fa-solid fa-wand-magic-sparkles w-5 text-center opacity-70"></i> <span><%= t('perso.title') %></span>
                 </a>
               </li>
               <% } %>
@@ -266,6 +266,11 @@
             </ul>
           </div>
         </div>
+        <% } else if (locals.isShareView) { %>
+          <span class="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-primary-theme">
+            <i class="fa-solid fa-eye"></i>
+            <%= t('nav.share_view') %>
+          </span>
         <% } else { %>
           <a href="<%= baseUrl %>/login" class="text-sm font-bold text-primary-theme hover:underline"><%= t('nav.login') %></a>
         <% } %>
@@ -287,17 +292,39 @@
             if (typeof registry !== 'undefined' && registry) {
                 registry.getAll().forEach(p => {
                     (p.navbarShortcuts || []).forEach(s => {
-                        shortcutConfig[s.id] = { label: t(s.label), url: s.url, module: p.collectionType };
+                        shortcutConfig[s.id] = { label: t(s.label), url: s.url, module: p.collectionType, pluginId: p.id };
                     });
                 });
+            }
+
+            // A scoped share link only ever browses its allowlisted types/formats -
+            // drop shortcuts that would otherwise land a guest on an empty/blocked
+            // page, and drop account-only shortcuts (home, wishlist) that just
+            // bounce them to /login.
+            const shareScopeList = locals.isShareView ? (locals.shareScope || []) : null;
+            const shareScopeMap = shareScopeList && shareScopeList.length > 0
+                ? new Map(shareScopeList.map(s => [s.pluginId, s.formats || []]))
+                : null;
+
+            function shortcutAllowed(id, item) {
+                if (locals.isShareView && (id === 'global_home' || id === 'global_wishlist')) return false;
+                if (!shareScopeMap) return true;
+                if (!item.pluginId) return true;
+                if (!shareScopeMap.has(item.pluginId)) return false;
+                const allowedFormats = shareScopeMap.get(item.pluginId);
+                if (allowedFormats.length === 0) return true;
+                const qIndex = item.url.indexOf('?');
+                const params = new URLSearchParams(qIndex >= 0 ? item.url.slice(qIndex + 1) : '');
+                const fmt = params.get('format');
+                return !fmt || allowedFormats.includes(fmt);
             }
 
             if (settings && settings.navbarShortcuts) {
               settings.navbarShortcuts.forEach(id => {
                 const item = shortcutConfig[id];
-                if (item) {
+                if (item && shortcutAllowed(id, item)) {
                   const isModuleActive = item.module ? settings.modules[item.module] : true;
-                  
+
                   if (isModuleActive) { %>
                     <li>
                       <a href="<%= baseUrl + item.url %>" class="block py-2 px-3 md:p-0 text-[var(--text-sub)] hover:text-primary-theme transition-colors">
@@ -418,4 +445,4 @@
     });
   </script>
 
-  <main class="p-6">
+  <main class="p-6 flex-1">

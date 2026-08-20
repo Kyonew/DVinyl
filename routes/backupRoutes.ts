@@ -10,6 +10,7 @@ import InstanceSettings from '../models/InstanceSettings';
 import { invalidateInstanceSettingsCache } from '../utils/instanceSettings';
 import { requireAuth, requireAdmin, requireCollectionRole } from '../middleware/authMiddleware';
 import { registry } from '../core/registry';
+import { buildSortTitle } from '../core/helpers';
 
 // Stamped into every dump so a restore log says which build produced the file.
 // Read from package.json rather than copied, which is how it came to say 3.1.0 on 3.1.1.
@@ -133,13 +134,22 @@ router.post('/import', async (req, res) => {
                 // Cast the ref/date fields back to their BSON types (they are strings in JSON).
                 if (fixed._id) fixed._id = toId(fixed._id);
                 if (fixed.owner) fixed.owner = toId(fixed.owner);
+                if (fixed.modified_by) fixed.modified_by = toId(fixed.modified_by);
+                // Ids are preserved on a whole-instance restore, so a containment link only
+                // needs its BSON type back.
+                if (fixed.parent) fixed.parent = toId(fixed.parent);
                 if (fixed.collection) fixed.collection = toId(fixed.collection);
                 if (fixed.added_at) fixed.added_at = new Date(fixed.added_at);
                 if (fixed.updated_at) fixed.updated_at = new Date(fixed.updated_at);
+                if (fixed.modified_at) fixed.modified_at = new Date(fixed.modified_at);
+                if (fixed.synced_at) fixed.synced_at = new Date(fixed.synced_at);
                 // Same treatment for the date-typed user-defined fields, which sit in a
                 // Mixed path and would otherwise come back as strings
                 if (fixed.extra) fixed.extra = { ...fixed.extra };
                 reviveExtraDates(fixed, extraDateFields);
+                // The native insert below skips the schema middleware that normally derives
+                // this, and a dump older than the field carries none at all.
+                fixed.sort_title = buildSortTitle(fixed.title);
                 return fixed;
             });
             // Insert with the native driver, bypassing Mongoose validation. A backup is
@@ -230,9 +240,12 @@ router.get('/collection/export', requireAuth, requireCollectionRole('admin'), as
         }
 
         const albums = (await Item.find({ collection: activeCollectionId }).lean()).map((a: any) => {
-            // Ids/refs are re-created at import time (imports may target another
-            // collection or instance), so strip everything instance-specific.
-            const { _id, __v, owner, collection, ...rest } = a;
+            // Owner and collection are re-stamped at import time (a dump may be restored
+            // into another collection, or another instance), so they go. The id stays: a
+            // season points at the show that holds it, and the import can only rebuild
+            // that link if it can tell which item was which. It is never restored as is,
+            // the import draws a new one and rewrites the links against it.
+            const { __v, owner, collection, ...rest } = a;
             return rest;
         });
 
@@ -288,6 +301,15 @@ router.post('/collection/import', requireAuth, requireCollectionRole('admin'), a
             const extraDateFields = collectExtraDateFields(
                 Array.isArray(data.settings) ? data.settings : (data.settings ? [data.settings] : [])
             );
+            // Ids are reassigned here (the same dump may be restored twice into different
+            // collections), which would leave every "contained in" pointing at an item that
+            // no longer exists. So the new ids are drawn up front and the links rewritten
+            // against them, keeping a show and its seasons together through the restore.
+            const idMap = new Map<string, mongoose.Types.ObjectId>();
+            for (const album of data.albums) {
+                if (album._id) idMap.set(String(album._id), new mongoose.Types.ObjectId());
+            }
+
             const cleanAlbums = data.albums.map((album: any) => {
                 const { _id, __v, ...rest } = album;
                 const fixed: any = {
@@ -296,6 +318,11 @@ router.post('/collection/import', requireAuth, requireCollectionRole('admin'), a
                     owner: req.user._id,
                     collection: activeCollectionId
                 };
+                if (_id && idMap.has(String(_id))) fixed._id = idMap.get(String(_id));
+                // A holder left outside the dump would strand the item in no listing at all,
+                // so it becomes standalone rather than invisible.
+                fixed.parent = rest.parent ? idMap.get(String(rest.parent)) : undefined;
+                if (!fixed.parent) delete fixed.parent;
                 if (fixed.extra) fixed.extra = { ...fixed.extra };
                 reviveExtraDates(fixed, extraDateFields);
                 return fixed;
