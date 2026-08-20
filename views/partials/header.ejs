@@ -167,8 +167,15 @@
       </a>
 
       <div class="flex items-center md:order-2 gap-4">
-        
+
         <% if (locals.user) { %>
+        <%# Search spans every collection, so it belongs next to the account rather than
+            among the shortcuts, which are per collection and chosen by the user. %>
+        <a href="<%= baseUrl %>/search" title="<%= t('nav.search') %>" aria-label="<%= t('nav.search') %>"
+          class="w-8 h-8 flex items-center justify-center rounded-full bg-black/5 dark:bg-white/10 text-[var(--text-sub)] hover:text-primary-theme hover:bg-black/10 dark:hover:bg-white/20 transition-colors">
+          <i class="fa-solid fa-magnifying-glass text-sm"></i>
+        </a>
+
         <button type="button" class="flex text-sm bg-black/5 dark:bg-white/10 rounded-full focus:ring-4 focus:ring-gray-300 dark:focus:ring-gray-600" id="user-menu-button" data-dropdown-toggle="user-dropdown">
           <img class="w-8 h-8 rounded-full object-cover" src="<%= baseUrl + user.img %>" alt="user photo">
         </button>
@@ -335,13 +342,6 @@
                 }
               });
           } %>
-          <% if (locals.user) { %>
-          <li>
-            <a href="<%= baseUrl %>/search" class="block py-2 px-3 md:p-0 text-[var(--text-sub)] hover:text-primary-theme transition-colors">
-              <%= t('nav.search') %>
-            </a>
-          </li>
-          <% } %>
         </ul>
       </div>
     </div>
