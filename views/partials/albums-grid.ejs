@@ -9,8 +9,7 @@
 
     The tile ratio is the collection-wide setting: the grid stays uniform whatever
     it holds, and a plugin's own ratio only shows on its detail page and forms.
-    A cover whose plugin declares another ratio is contained over a blurred copy
-    of itself rather than cropped. %>
+    The tile itself lives in item-cover, shared with the cross-collection search. %>
 <%
     const gridAspect = (locals.settings && settings.aspectRatioClass) || 'aspect-square';
     const gridClass = locals.gridClass || 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5';
@@ -22,25 +21,12 @@
         <%
             const itemPlugin = registry.getByKind(album.kind);
             const routePrefix = itemPlugin ? itemPlugin.routePrefix : '/album';
-            // No plugin (module turned off, custom plugin deleted) means no declared
-            // ratio either: treat the cover as a poster, the safe non-cropping case.
-            const itemAspect = (itemPlugin && itemPlugin.aspectRatioClass) || 'aspect-[2/3]';
-            const fitsGrid = itemAspect === gridAspect;
         %>
         <div class="album-card group relative card-theme rounded-xl overflow-hidden hover:border-primary-theme transition-all duration-300 hover:shadow-lg hover:-translate-y-1 flex flex-col justify-between"
             data-location="<%= locals.isShareView ? '' : (album.location || '') %>"
             data-format="<%= album.format || album.media_type || '' %>">
             <a href="<%= baseUrl + routePrefix %>/<%= album._id %>" class="block flex-grow">
-                <div class="<%= gridAspect %> w-full relative overflow-hidden bg-black/5 dark:bg-white/5 flex items-center justify-center">
-                    <% if (!fitsGrid) { %>
-                        <img src="<%= album.cover_image %>"
-                            class="absolute inset-0 w-full h-full object-cover blur-xl opacity-30 scale-110 pointer-events-none">
-                    <% } %>
-                    <img src="<%= album.cover_image %>"
-                        class="relative z-10 w-full h-full <%= fitsGrid ? 'object-cover' : 'object-contain p-2' %> transition-transform duration-500 group-hover:scale-105"
-                        loading="lazy">
-                    <%- include('cover-badge', { item: album, plugin: itemPlugin, settings, size: locals.badgeSize || '' }) %>
-                </div>
+                <%- include('item-cover', { item: album, plugin: itemPlugin, gridAspect, settings, badgeSize: locals.badgeSize || '' }) %>
                 <%- include('item-card-body', { item: album, plugin: itemPlugin, size: cardSize, reserveExtraRow: locals.reserveExtraRow === true }) %>
             </a>
             <% if (showReceived) { %>
