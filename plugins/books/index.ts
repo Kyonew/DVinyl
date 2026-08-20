@@ -29,6 +29,7 @@ export const booksPlugin: PluginDefinition = {
   duplicateCheckFields: ['format'],
   backfillFields: ['isbn'],
   partialsPath: 'plugins/books/partials',
+  aspectRatioClass: 'aspect-[2/3]',
   detailZones: [
     { id: 'badge', partial: 'reading-status.ejs' },
     { id: 'sidebar', partial: 'status-blocks.ejs' }

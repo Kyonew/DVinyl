@@ -75,72 +75,14 @@
                     <% } %>
             </div>
             <% } else { %>
-                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
-                    <% albums.forEach(album=> { %>
-                        <%
-                            const itemPlugin = registry.getByKind(album.kind);
-                            const routePrefix = itemPlugin ? itemPlugin.routePrefix : '/album';
-                            const detailUrl = routePrefix + '/' + album._id;
-                            const isPoster = itemPlugin ? itemPlugin.aspectRatioClass !== 'aspect-square' : true;
-                        %>
-
-                            <div
-                                class="group relative card-theme rounded-xl hover:border-primary-theme transition-all duration-300 hover:shadow-lg hover:-translate-y-1 flex flex-col justify-between overflow-hidden">
-                                <a href="<%= baseUrl + detailUrl %>" class="block flex-grow">
-                                    <div
-                                        class="aspect-square w-full relative overflow-hidden bg-black/5 dark:bg-white/5 flex items-center justify-center">
-
-                                        <% if (isPoster) { %>
-                                            <img src="<%= album.cover_image %>"
-                                                class="absolute inset-0 w-full h-full object-cover blur-xl opacity-30 scale-110 pointer-events-none">
-                                            <% } %>
-
-                                                <img src="<%= album.cover_image %>"
-                                                    class="relative z-10 w-full h-full <%= isPoster ? 'object-contain p-2 md:p-3' : 'object-cover' %> transition-transform duration-500 group-hover:scale-105"
-                                                    loading="lazy">
-
-                                                <%- include('partials/cover-badge', { item: album, plugin: itemPlugin, settings, size: 'compact' }) %>
-                                    </div>
-
-                                    <%- include('partials/item-card-body', { item: album, plugin: itemPlugin, size: 'wishlist' }) %>
-                                </a>
-
-                                <% if (locals.canEditCollection) { %>
-                                    <button onclick="moveToCollection('<%= album._id %>', '<%= routePrefix %>')"
-                                        class="w-full py-2.5 md:py-2 bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white text-primary-theme text-[10px] md:text-xs font-bold uppercase transition-colors flex items-center justify-center gap-1.5 border-t border-black/10 dark:border-white/10 active:brightness-90">
-                                        <i class="fa-solid fa-check"></i>
-                                        <span>
-                                            <%= t('wishlist.btn_received') %>
-                                        </span>
-                                    </button>
-                                    <% } %>
-                            </div>
-                            <% }) %>
-                </div>
+                <%- include('partials/albums-grid', { albums, size: 'wishlist', wishlist: true, badgeSize: 'compact' }) %>
                 <% } %>
     </div>
 
+    <%- include('partials/wishlist-move-script') %>
+
     <script src="<%= baseUrl %>/socket.io/socket.io.js"></script>
     <script>
-        const wishlistTranslations = {
-            confirmMove: <%- JSON.stringify(t('wishlist.confirm_move')) %>,
-            serverError: <%- JSON.stringify(t('messages.generic_error')) %>
-        };
-
-        async function moveToCollection(id, routePrefix) {
-            if (confirm(wishlistTranslations.confirmMove)) {
-                try {
-                    const res = await fetch(`<%= baseUrl %>/api${routePrefix || '/album'}/${id}/move-to-collection`, { method: 'POST' });
-                    const data = await res.json();
-                    if (data.success) {
-                        window.location.reload();
-                    }
-                } catch (e) {
-                    alert(wishlistTranslations.serverError);
-                }
-            }
-        }
-
     <% if (locals.canEditCollection) { %>
         const jsBaseUrl = '<%= baseUrl %>';
         const socket = io({ path: jsBaseUrl + '/socket.io' });
@@ -179,6 +121,7 @@
         }
     <% } %>
     </script>
+
 
     <style>
         .custom-scrollbar::-webkit-scrollbar {

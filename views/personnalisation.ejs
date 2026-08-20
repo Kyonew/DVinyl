@@ -75,6 +75,42 @@
                 <h2 class="text-xl font-bold mb-2 flex items-center gap-3">
                     <div
                         class="w-10 h-10 rounded-full bg-primary-theme/10 text-primary-theme flex items-center justify-center">
+                        <i class="fa-solid fa-percent"></i>
+                    </div>
+                    <%= t('perso.card_aspect_ratio') %>
+                </h2>
+                <p class="text-sm opacity-60 mb-4"><%= t('perso.card_aspect_ratio_desc') %></p>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <%
+                    // Values must stay in sync with CARD_ASPECT_RATIOS (core/customPlugin.ts),
+                    // which is what the save route accepts.
+                    const aspectRatioOptions = [
+                        { value: 'aspect-[2/3]', label: t('create_plugin.shape_poster'), icon: 'fa-file' },
+                        { value: 'aspect-square', label: t('create_plugin.shape_square'), icon: 'fa-square' },
+                        { value: 'aspect-[16/9]', label: t('create_plugin.shape_screen'), icon: 'fa-desktop' }
+                    ];
+                    const currentAspect = settings.aspectRatioClass || 'aspect-square';
+                    %>
+                    <% aspectRatioOptions.forEach(opt=> { %>
+                        <label class="cursor-pointer relative group">
+                            <input type="radio" name="aspectRatioClass" value="<%= opt.value %>" class="peer sr-only"
+                                <%= currentAspect === opt.value ? 'checked' : '' %>>
+                            <div
+                                class="flex items-center gap-3 p-3 rounded-xl border border-black/5 dark:border-white/5 bg-black/5 dark:bg-white/5 transition-all peer-checked:text-white opacity-60 peer-checked:opacity-100 peer-checked:shadow-md peer-checked:bg-primary-theme">
+                                <i class="fa-solid <%= opt.icon %> text-base w-4 text-center"></i>
+                                <span class="text-sm font-medium">
+                                    <%= opt.label %>
+                                </span>
+                            </div>
+                        </label>
+                        <% }) %>
+                </div>
+            </div>
+
+            <div class="card-theme rounded-3xl p-6 shadow-xl transition-colors mt-8">
+                <h2 class="text-xl font-bold mb-2 flex items-center gap-3">
+                    <div
+                        class="w-10 h-10 rounded-full bg-primary-theme/10 text-primary-theme flex items-center justify-center">
                         <i class="fa-solid fa-list-check"></i>
                     </div>
                     <%= t('perso.nav_title') %>
@@ -188,7 +224,6 @@
                             <% }) %>
                 </div>
             </div>
-
 
             <div class="card-theme rounded-3xl p-6 shadow-xl transition-colors mt-8">
                 <h2 class="text-xl font-bold mb-2 flex items-center gap-3">

@@ -52,31 +52,7 @@
         </div>
 
         <% if (latestCollection.length > 0) { %>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-                <% latestCollection.forEach(album => { %>
-                    <%
-                        const itemPlugin = registry.getByKind(album.kind);
-                        const detailUrl = (itemPlugin ? itemPlugin.routePrefix : '/album') + '/' + album._id;
-                        const isPoster = itemPlugin ? itemPlugin.aspectRatioClass !== 'aspect-square' : true;
-                    %>
-                    <a href="<%= baseUrl + detailUrl %>" class="group relative card-theme rounded-xl overflow-hidden hover:border-primary-theme transition-all hover:shadow-lg hover:-translate-y-1">
-                        
-                        <div class="aspect-square relative overflow-hidden bg-black/5 dark:bg-white/5 flex items-center justify-center">
-                            
-                            <% if (isPoster) { %>
-                                <img src="<%= album.cover_image %>" class="absolute inset-0 w-full h-full object-cover blur-xl opacity-30 scale-110 pointer-events-none">
-                            <% } %>
-
-                            <img src="<%= album.cover_image %>" 
-                                class="relative z-10 w-full h-full <%= isPoster ? 'object-contain p-3' : 'object-cover' %> transition-transform duration-700 group-hover:scale-105">
-                            
-                            <%- include('partials/cover-badge', { item: album, plugin: itemPlugin, settings }) %>                         
-                        </div>
-
-                        <%- include('partials/item-card-body', { item: album, plugin: itemPlugin, size: 'home' }) %>
-                    </a>
-                <% }) %>
-            </div>
+            <%- include('partials/albums-grid', { albums: latestCollection, size: 'home', gridClass: 'grid-cols-2 md:grid-cols-4' }) %>
         <% } else { %>
             <div class="text-center py-10 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl opacity-60"><%= t('index.empty_collection') %></div>
         <% } %>
@@ -93,31 +69,11 @@
             </a>
         </div>
         <% if (latestWishlist.length > 0) { %>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 items-end">
-                <% latestWishlist.forEach(album => { %>
-                    <%
-                        const itemPlugin = registry.getByKind(album.kind);
-                        const detailUrl = (itemPlugin ? itemPlugin.routePrefix : '/album') + '/' + album._id;
-                        const isPoster = itemPlugin ? itemPlugin.aspectRatioClass !== 'aspect-square' : true;
-                    %>
-                    <a href="<%= baseUrl + detailUrl %>" class="group relative card-theme rounded-xl overflow-hidden hover:border-pink-500 transition-all hover:shadow-lg hover:-translate-y-1">
-                        
-                        <div class="aspect-square relative overflow-hidden bg-black/5 dark:bg-white/5 flex items-center justify-center">
-                            
-                            <% if (isPoster) { %>
-                                <img src="<%= album.cover_image %>" class="absolute inset-0 w-full h-full object-cover blur-xl opacity-30 scale-110 pointer-events-none">
-                            <% } %>
-
-                            <img src="<%= album.cover_image %>" 
-                                class="relative z-10 w-full h-full <%= isPoster ? 'object-contain p-3' : 'object-cover' %> transition-transform duration-700 group-hover:scale-105">
-                            
-                            <%- include('partials/cover-badge', { item: album, plugin: itemPlugin, settings }) %>                         
-                        </div>
-
-                        <%- include('partials/item-card-body', { item: album, plugin: itemPlugin, size: 'home', reserveExtraRow: true }) %>
-                    </a>
-                <% }) %>
-            </div>
+            <%- include('partials/albums-grid', { albums: latestWishlist, size: 'home',
+                gridClass: 'grid-cols-2 md:grid-cols-4 items-end', wishlist: true, reserveExtraRow: true }) %>
+            <% if (locals.canEditCollection) { %>
+                <%- include('partials/wishlist-move-script') %>
+            <% } %>
         <% } else { %>
             <div class="text-center py-10 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl opacity-60"><%= t('index.empty_wishlist') %></div>
         <% } %>

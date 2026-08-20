@@ -30,6 +30,7 @@ export const dvdPlugin: PluginDefinition = {
   imageSearchType: 'movie',
   requiredEnvKeys: ['TMDB_API_KEY'],
   duplicateCheckFields: ['format', 'zone'],
+  aspectRatioClass: 'aspect-[2/3]',
   importers: dvdImporters,
   partialsPath: 'plugins/dvds/partials',
   detailZones: [
