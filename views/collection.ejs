@@ -568,6 +568,12 @@
     </div>
 
     <% if (hasEstimateAction) { %>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"
+        integrity="sha384-vsrfeLOOY6KuIYKDlmVH5UiBmgIdB1oEf7p01YgWHuqmOHfZr374+odEv96n9tNC"
+        crossorigin="anonymous"></script>
+    <% } %>
+
+    <% if (hasEstimateAction) { %>
     <div id="estimateModal"
         class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="card-theme rounded-2xl w-full max-w-lg p-6 md:p-8 shadow-2xl relative">
@@ -616,6 +622,15 @@
                         </span>
                         <span id="maxPrice" class="font-bold text-lg">--</span>
                     </div>
+                </div>
+                <div class="mt-2">
+                    <p class="opacity-60 text-xs uppercase font-bold tracking-wider mb-2 text-left">
+                        <%= t('modal.history_title') %>
+                    </p>
+                    <canvas id="historyChart" height="120"></canvas>
+                    <p id="historyEmpty" class="hidden text-xs opacity-50 text-center py-4">
+                        <%= t('modal.history_empty') %>
+                    </p>
                 </div>
             </div>
 
@@ -1155,6 +1170,70 @@
                 const histData = await histRes.json();
                 if (histData.success) renderHistoryChart(histData.snapshots);
             } catch (e) { /* chart is a bonus, don't block the result on it */ }
+        }
+
+        let historyChartInstance = null;
+
+        function renderHistoryChart(snapshots) {
+            const canvas = document.getElementById('historyChart');
+            const emptyMsg = document.getElementById('historyEmpty');
+
+            if (!snapshots || snapshots.length < 2) {
+                canvas.classList.add('hidden');
+                emptyMsg.classList.remove('hidden');
+                return;
+            }
+
+            canvas.classList.remove('hidden');
+            emptyMsg.classList.add('hidden');
+
+            const labels = snapshots.map(s => new Date(s.capturedAt).toLocaleDateString(currentLocale));
+            const values = snapshots.map(s => s.value);
+            const mins = snapshots.map(s => s.minValue);
+            const maxs = snapshots.map(s => s.maxValue);
+
+            if (historyChartInstance) historyChartInstance.destroy();
+
+            historyChartInstance = new Chart(canvas, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: 'Max',
+                            data: maxs,
+                            borderWidth: 0,
+                            pointRadius: 0,
+                            backgroundColor: 'rgba(var(--highlight-rgb), 0.12)',
+                            fill: '+1'
+                        },
+                        {
+                            label: 'Min',
+                            data: mins,
+                            borderWidth: 0,
+                            pointRadius: 0,
+                            backgroundColor: 'rgba(var(--highlight-rgb), 0.12)',
+                            fill: false
+                        },
+                        {
+                            label: 'Value',
+                            data: values,
+                            borderColor: 'rgb(var(--highlight-rgb))',
+                            backgroundColor: 'rgb(var(--highlight-rgb))',
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: false }
+                    }
+                }
+            });
         }
     <% } %>
         function toggleDecadeMenu(e) {

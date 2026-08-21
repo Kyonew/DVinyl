@@ -836,6 +836,8 @@
     "condition_hint": "Basierend auf dem Zustand „Sehr gut“.",
     "estimate_desc": "Wir befragen den Discogs-Markt für jede Platte.",
     "estimate_title": "Schätzung...",
+    "history_empty": "Führen Sie diese Schätzung mindestens zweimal aus, um einen Trend zu sehen.",
+    "history_title": "Wertverlauf",
     "max_label": "Maximum (Neuwertig)",
     "min_label": "Minimum (G)",
     "start_btn": "Analyse starten"

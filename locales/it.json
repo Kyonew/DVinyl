@@ -836,6 +836,8 @@
     "condition_hint": "Basato su condizioni \"molto buone\".",
     "estimate_desc": "Stiamo interrogando il mercato Discogs per ogni record.",
     "estimate_title": "Stima...",
+    "history_empty": "Esegui questa stima almeno due volte per vedere una tendenza.",
+    "history_title": "Cronologia del valore",
     "max_label": "Massimo (nuovo)",
     "min_label": "Minimo (G)",
     "start_btn": "Avvia analisi"
