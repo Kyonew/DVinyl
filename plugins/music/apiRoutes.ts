@@ -357,7 +357,7 @@ export const musicApiRoutes: PluginApiRoute[] = [
   { method: 'get', path: '/api/album/:id/track/:trackId/lyrics', handler: getTrackLyrics },
   { method: 'get', path: '/api/estimate/history', handler: getEstimateHistory },
   { method: 'get', path: '/api/estimate/:discogsId', handler: getEstimate },
-  { method: 'post', path: '/api/estimate/snapshot', handler: saveEstimateSnapshot },
+  { method: 'post', path: '/api/estimate/snapshot', requireEditor: true, handler: saveEstimateSnapshot },
   { method: 'get', path: '/api/search-discogs-gallery', requireAdmin: true, handler: searchDiscogsGallery },
   { method: 'post', path: '/api/batch-update-barcodes', requireAdmin: true, handler: batchUpdateBarcodes }
 ];

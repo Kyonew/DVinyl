@@ -1072,6 +1072,10 @@
         let totalPriceVG = 0;
         let totalPriceMin = 0;
         let totalPriceMax = 0;
+        // Albums that actually returned a usable price (as opposed to merely attempted):
+        // used to decide whether the resulting total is representative enough to persist
+        // as a history snapshot. See showResults().
+        let pricedCount = 0;
 
         function openEstimateModal(action) {
             if (action && action.estimate) activeEstimate = action.estimate;
@@ -1097,6 +1101,7 @@
                 totalPriceVG = 0;
                 totalPriceMin = 0;
                 totalPriceMax = 0;
+                pricedCount = 0;
 
                 countSpan.innerText = `0 / ${totalAlbums}`;
 
@@ -1112,7 +1117,7 @@
 
                     await new Promise(r => setTimeout(r, 500));
                 }
-                showResults();
+                await showResults();
             } catch (err) {
                 alert(`${estimateErrorMsg} : ${err.message}`);
                 startBtn.classList.remove('hidden');
@@ -1128,6 +1133,7 @@
                     totalPriceVG += val;
                     totalPriceMin += val;
                     totalPriceMax += (val * (activeEstimate.maxMultiplier || 1.3));
+                    pricedCount++;
                 }
             } catch (e) { }
         }
@@ -1151,25 +1157,52 @@
             document.getElementById('progressContainer').classList.add('hidden');
             resultDiv.classList.remove('hidden');
 
-            try {
-                await fetch('<%= baseUrl %>/api/estimate/snapshot', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        value: totalPriceVG,
-                        minValue: totalPriceMin,
-                        maxValue: totalPriceMax,
-                        currency: currentCurrency,
-                        itemCount: totalAlbums
-                    })
-                });
-            } catch (e) { /* history is a bonus, don't block the result on it */ }
+            // A run where most albums failed to price (Discogs rate-limiting, a missing/expired
+            // token, or a zero-item collection) produces a total that isn't representative of the
+            // collection's real value. Persisting that as a permanent history point would read as
+            // "the collection dropped in value" when really the estimate just mostly failed. Only
+            // write a snapshot when at least half the attempted albums actually returned a price.
+            // The on-screen result above still reflects whatever was priced, unconditionally.
+            const shouldPersistSnapshot = pricedCount > 0 && pricedCount >= totalAlbums / 2;
 
+            if (shouldPersistSnapshot) {
+                try {
+                    await fetch('<%= baseUrl %>/api/estimate/snapshot', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            value: totalPriceVG,
+                            minValue: totalPriceMin,
+                            maxValue: totalPriceMax,
+                            currency: currentCurrency,
+                            itemCount: totalAlbums
+                        })
+                    });
+                } catch (e) { /* history is a bonus, don't block the result on it */ }
+            }
+
+            const canvas = document.getElementById('historyChart');
+            const emptyMsg = document.getElementById('historyEmpty');
             try {
                 const histRes = await fetch('<%= baseUrl %>/api/estimate/history');
                 const histData = await histRes.json();
-                if (histData.success) renderHistoryChart(histData.snapshots);
-            } catch (e) { /* chart is a bonus, don't block the result on it */ }
+                if (histData.success) {
+                    // Snapshots are scoped per-collection but currency is a per-user setting:
+                    // members with different currency preferences could have written mixed-currency
+                    // points into the same series. Only show this user's own currency so values are
+                    // never silently mixed without conversion.
+                    const ownCurrencySnapshots = (histData.snapshots || []).filter(s => s.currency === currentCurrency);
+                    renderHistoryChart(ownCurrencySnapshots);
+                } else {
+                    canvas.classList.add('hidden');
+                    emptyMsg.classList.remove('hidden');
+                }
+            } catch (e) {
+                // The fetch itself failed (network error, etc.): show the same empty state as a
+                // genuinely empty history rather than leaving a blank canvas under the heading.
+                canvas.classList.add('hidden');
+                emptyMsg.classList.remove('hidden');
+            }
         }
 
         let historyChartInstance = null;
@@ -1191,6 +1224,28 @@
             const values = snapshots.map(s => s.value);
             const mins = snapshots.map(s => s.minValue);
             const maxs = snapshots.map(s => s.maxValue);
+            // Caller already filtered to a single currency, so any snapshot's currency stands
+            // in for the whole series; fall back to the viewer's own currency if it's somehow absent.
+            const seriesCurrency = (snapshots[0] && snapshots[0].currency) || currentCurrency;
+            const fmtCurrency = (val) => {
+                try {
+                    return new Intl.NumberFormat(currentLocale, { style: 'currency', currency: seriesCurrency }).format(val);
+                } catch (e) {
+                    return val.toFixed(2) + ' ' + seriesCurrency;
+                }
+            };
+
+            // Canvas 2D has no CSS cascade: Chart.js hands these strings straight to
+            // ctx.strokeStyle/ctx.fillStyle, which silently ignores unresolved var(...) calls.
+            // Resolve the custom property to its actual value here instead. --highlight-rgb is
+            // stored as space-separated channels (e.g. "16 185 129", Tailwind-v3-style for use
+            // inside rgb(... / <alpha-value>)), so it plugs directly into rgb()'s space/slash syntax.
+            const highlightRgb = getComputedStyle(document.documentElement)
+                .getPropertyValue('--highlight-rgb').trim() || '16 185 129';
+            const accentColor = `rgb(${highlightRgb})`;
+            const bandColor = `rgb(${highlightRgb} / 0.12)`;
+            const tickColor = getComputedStyle(document.documentElement)
+                .getPropertyValue('--text-sub').trim() || '#888888';
 
             if (historyChartInstance) historyChartInstance.destroy();
 
@@ -1204,7 +1259,7 @@
                             data: maxs,
                             borderWidth: 0,
                             pointRadius: 0,
-                            backgroundColor: 'rgba(var(--highlight-rgb), 0.12)',
+                            backgroundColor: bandColor,
                             fill: '+1'
                         },
                         {
@@ -1212,14 +1267,14 @@
                             data: mins,
                             borderWidth: 0,
                             pointRadius: 0,
-                            backgroundColor: 'rgba(var(--highlight-rgb), 0.12)',
+                            backgroundColor: bandColor,
                             fill: false
                         },
                         {
                             label: 'Value',
                             data: values,
-                            borderColor: 'rgb(var(--highlight-rgb))',
-                            backgroundColor: 'rgb(var(--highlight-rgb))',
+                            borderColor: accentColor,
+                            backgroundColor: accentColor,
                             borderWidth: 2,
                             pointRadius: 3,
                             fill: false
@@ -1228,9 +1283,27 @@
                 },
                 options: {
                     responsive: true,
-                    plugins: { legend: { display: false } },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => `${ctx.dataset.label}: ${fmtCurrency(ctx.parsed.y)}`
+                            }
+                        }
+                    },
                     scales: {
-                        y: { beginAtZero: false }
+                        x: {
+                            ticks: { color: tickColor },
+                            grid: { color: tickColor }
+                        },
+                        y: {
+                            beginAtZero: false,
+                            ticks: {
+                                color: tickColor,
+                                callback: (val) => fmtCurrency(val)
+                            },
+                            grid: { color: tickColor }
+                        }
                     }
                 }
             });
