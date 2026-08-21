@@ -243,6 +243,7 @@
     "scan_found": "Trouvé !",
     "scan_error": "Erreur caméra (Permissions ?)",
     "barcode_not_found": "Ce code-barres n'a pas été reconnu. Essaie plutôt une recherche par titre.",
+    "barcode_no_match": "Aucune correspondance pour ce code-barres. Voici le nom du produit trouvé : ajuste-le et relance la recherche, le code-barres reste attaché.",
     "results_title": "Résultats",
     "no_results": "Aucun résultat trouvé.",
     "advanced_filters": "Filtres avancés",
@@ -330,7 +331,12 @@
     },
     "backup": {
       "export_btn": "Exporter la base de données",
+      "export_csv_btn": "Exporter en CSV",
       "import_btn": "Importer la base de données",
+      "csv": {
+        "type_column": "Type",
+        "wishlist_column": "Liste de souhaits"
+      },
       "import_success": "Base de données importée avec succès.",
       "import_error": "Erreur lors de l'importation.",
       "json_error": "Fichier JSON invalide.",
@@ -742,7 +748,15 @@
     "instance": "Instance",
     "administration": "Administration",
     "new_collection": "Nouvelle collection",
+    "search": "Recherche",
     "share_view": "Collection partagée · lecture seule"
+  },
+  "search": {
+    "title": "Recherche",
+    "placeholder": "Rechercher un titre ou un artiste dans toutes vos collections...",
+    "empty_prompt": "Tapez au moins 2 caractères pour rechercher dans toutes vos collections.",
+    "no_results": "Aucun résultat trouvé.",
+    "results_count": "{{count}} résultats"
   },
   "footer": {
     "made_with": "Développé avec",
@@ -812,6 +826,8 @@
     "fastAdd_title": "Ajout rapide",
     "fastAdd_desc": "Si activé, le bouton \"Ajouter un élément\" redirige directement vers le formulaire choisi, sans passer par le menu de sélection.",
     "fastAdd_disabled": "Désactivé (modal)",
+    "card_aspect_ratio": "Rapport hauteur/largeur de la carte",
+    "card_aspect_ratio_desc": "Forme des vignettes dans les grilles collection, accueil et wishlist. Chaque plugin garde son propre rapport sur ses fiches.",
     "modules": {
       "title": "Modules Actifs",
       "music": "Musique",
@@ -1092,6 +1108,8 @@
     "section_image": "Image",
     "shape_poster": "Affiche (2/3)",
     "shape_square": "Carré (pochette)",
+    "shape_screen": "Écran (16/9)",
+    "shape_hint": "S'applique aux fiches et formulaires de ce plugin. Les grilles utilisent le rapport défini dans Personnalisation.",
     "secondary_label": "Image secondaire",
     "secondary_desc": "Ajoute un second visuel modifiable (comme le disque pour la musique).",
     "default_cover_label": "Image par défaut",

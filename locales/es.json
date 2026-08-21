@@ -40,6 +40,7 @@
     "results_title": "Resultados",
     "scan_error": "Error de cámara (verificar permisos)",
     "barcode_not_found": "No se ha reconocido este código de barras. Prueba a buscar por título.",
+    "barcode_no_match": "Sin coincidencias para este código de barras. Este es el nombre de producto encontrado: ajústalo y busca de nuevo, el código de barras se mantiene.",
     "scan_found": "¡Encontró!",
     "scan_init": "Inicializando...",
     "scan_stop": "Dejar de escanear",
@@ -56,7 +57,12 @@
     "backup": {
       "confirm_import": "ADVERTENCIA: Esto eliminará todos sus datos actuales (álbumes, usuarios, registros) y los reemplazará con el contenido del archivo. Se cerrará tu sesión. ¿Continuar?",
       "export_btn": "Exportar base de datos",
+      "export_csv_btn": "Exportar CSV",
       "import_btn": "Importar base de datos",
+      "csv": {
+        "type_column": "Tipo",
+        "wishlist_column": "Lista de deseos"
+      },
       "import_error": "Error durante la importación.",
       "import_success": "Base de datos importada exitosamente.",
       "json_error": "Archivo JSON no válido.",
@@ -854,13 +860,23 @@
     "instance": "Instancia",
     "administration": "Administración",
     "new_collection": "Nueva colección",
+    "search": "Buscar",
     "share_view": "Colección compartida · solo lectura"
+  },
+  "search": {
+    "title": "Buscar",
+    "placeholder": "Buscar título o artista en todas tus colecciones...",
+    "empty_prompt": "Escribe al menos 2 caracteres para buscar en todas tus colecciones.",
+    "no_results": "No se encontraron resultados.",
+    "results_count": "{{count}} resultados"
   },
   "perso": {
     "backHome": "Volver al inicio",
     "fastAdd_desc": "Si está habilitado, el botón \"Agregar un elemento\" redirige directamente al formulario elegido, sin pasar por el menú de selección.",
     "fastAdd_disabled": "Deshabilitado (modal)",
     "fastAdd_title": "Agregar rápido",
+    "card_aspect_ratio": "Relación de aspecto de la tarjeta",
+    "card_aspect_ratio_desc": "Forma de las miniaturas en las cuadrículas de colección, inicio y lista de deseos. Cada plugin conserva su propia relación en sus fichas.",
     "modules": {
       "books": "Libros",
       "dvd": "DVD",
@@ -1092,6 +1108,8 @@
     "section_image": "Imagen",
     "shape_poster": "Póster (2/3)",
     "shape_square": "Cuadrado (funda)",
+    "shape_screen": "Pantalla (16/9)",
+    "shape_hint": "Se aplica a las páginas y formularios de este plugin. Las cuadrículas usan la relación de aspecto definida en Personalización.",
     "secondary_label": "Imagen secundaria",
     "secondary_desc": "Añade un segundo visual editable (como el disco para la música).",
     "default_cover_label": "Imagen por defecto",

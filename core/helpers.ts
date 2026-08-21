@@ -156,6 +156,9 @@ export function cleanProductTitle(rawTitle: string, noiseTerms: string[] = []): 
   title = title.replace(/[\[(][^\])]*[\])]/g, ' ');
   // Amazon-style attribution: "<title> By Verhoeven, Simon".
   title = title.replace(/\s+By\s+.+$/i, ' ');
+  // Sellers quote the product name inside a longer listing. The quotes carry no meaning
+  // for a provider, and some of them read them as a phrase operator.
+  title = title.replace(/["\u201c\u201d\u00ab\u00bb]/g, ' ');
 
   // Word boundaries matter: an unanchored 'One' eats the middle of "Gone Home".
   if (noiseTerms.length > 0) {
@@ -188,6 +191,42 @@ export async function lookupBarcodeTitle(rawQuery: string, noiseTerms: string[] 
     console.error('[ERR] UPC Lookup:', upcErr.message);
   }
   return { barcode, title: null };
+}
+
+/** Attempts before giving up, the untouched title included. */
+const TITLE_FALLBACK_ATTEMPTS = 6;
+/** Under that, what is left matches anything and the results are noise. */
+const TITLE_FALLBACK_MIN_WORDS = 3;
+
+/**
+ * Runs a search on a resolved product title, dropping trailing words until something
+ * comes back. Seller titles carry a marketing tail the noise list cannot enumerate
+ * ("... Disney N 17 Blister Pack"), and providers match on the title alone, so the full
+ * string finds nothing while its first words find the work.
+ *
+ * Only for a title that came from a barcode lookup: silently truncating what a user
+ * typed themselves would answer a question they did not ask.
+ *
+ * Returns the query that produced the results, so the page can show what was actually
+ * searched instead of the string nobody matched.
+ */
+export async function searchWithTitleFallback<T>(
+  title: string,
+  search: (query: string) => Promise<T[]>
+): Promise<{ results: T[]; query: string }> {
+  const words = title.split(/\s+/).filter(Boolean);
+
+  let query = title;
+  let results = await search(query);
+
+  for (let dropped = 1; dropped < TITLE_FALLBACK_ATTEMPTS && results.length === 0; dropped++) {
+    const kept = words.length - dropped;
+    if (kept < TITLE_FALLBACK_MIN_WORDS) break;
+    query = words.slice(0, kept).join(' ');
+    results = await search(query);
+  }
+
+  return { results, query };
 }
 
 /**
@@ -302,6 +341,24 @@ export function parseCsvRecords(text: string, delimiter: string = ','): Record<s
     records.push(record);
   }
   return records;
+}
+
+/**
+ * Serializes a matrix of cells into RFC-4180 CSV text (CRLF rows, quoting only where a
+ * cell actually needs it). The counterpart to parseCsv(), for the spreadsheet export.
+ *
+ * A cell opening with =, +, -, @, tab or CR is neutralized with a leading apostrophe:
+ * spreadsheet apps read such a cell as a formula, and an item title or comment is a
+ * value the user typed, not something they meant Excel to execute.
+ */
+export function stringifyCsv(rows: string[][]): string {
+  const FORMULA_PREFIX = /^[=+\-@\t\r]/;
+  const escapeCell = (cell: string): string => {
+    let value = cell ?? '';
+    if (FORMULA_PREFIX.test(value)) value = "'" + value;
+    return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+  };
+  return rows.map(row => row.map(escapeCell).join(',')).join('\r\n');
 }
 
 /**

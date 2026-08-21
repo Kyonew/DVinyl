@@ -243,6 +243,7 @@
     "scan_found": "Found!",
     "scan_error": "Camera error (Check permissions)",
     "barcode_not_found": "That barcode wasn't recognised. Try searching by title instead.",
+    "barcode_no_match": "No match for this barcode. Here is the product name it returned: adjust it and search again, the barcode stays attached.",
     "results_title": "Results",
     "no_results": "No results found.",
     "advanced_filters": "Advanced Filters",
@@ -345,7 +346,12 @@
     },
     "backup": {
       "export_btn": "Export Database",
+      "export_csv_btn": "Export CSV",
       "import_btn": "Import Database",
+      "csv": {
+        "type_column": "Type",
+        "wishlist_column": "Wishlist"
+      },
       "import_success": "Database imported successfully.",
       "import_error": "Error during import.",
       "json_error": "Invalid JSON file.",
@@ -742,7 +748,15 @@
     "instance": "Instance",
     "administration": "Administration",
     "new_collection": "New collection",
+    "search": "Search",
     "share_view": "Shared collection · read-only"
+  },
+  "search": {
+    "title": "Search",
+    "placeholder": "Search title or artist across your collections...",
+    "empty_prompt": "Type at least 2 characters to search across all your collections.",
+    "no_results": "No matches found.",
+    "results_count": "{{count}} results"
   },
   "footer": {
     "made_with": "Made with",
@@ -812,6 +826,8 @@
     "fastAdd_title": "Quick add",
     "fastAdd_desc": "If enabled, the \"Add an item\" button redirects directly to the chosen form, bypassing the selection menu.",
     "fastAdd_disabled": "Disabled (modal)",
+    "card_aspect_ratio": "Card aspect ratio",
+    "card_aspect_ratio_desc": "Shape of the tiles in the collection, home and wishlist grids. Each plugin keeps its own ratio on its item pages.",
     "modules": {
       "title": "Active Modules",
       "music": "Music",
@@ -1092,6 +1108,8 @@
     "section_image": "Image",
     "shape_poster": "Poster (2/3)",
     "shape_square": "Square (sleeve)",
+    "shape_screen": "Screen (16/9)",
+    "shape_hint": "Applies to this plugin's own pages and forms. The item grids use the card ratio set in Personalization.",
     "secondary_label": "Secondary image",
     "secondary_desc": "Adds a second editable visual (like the disc for music).",
     "default_cover_label": "Default image",

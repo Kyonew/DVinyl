@@ -321,6 +321,38 @@ export function coerceValue(raw: string, field: ImportTargetField, booleans?: { 
 }
 
 /**
+ * Reads one destination field off an item for a spreadsheet export - the inverse of
+ * coerceValue(). Options resolve to their (already-translated) label rather than the
+ * stored value, so an exported sheet reads like the interface; coerceValue's own
+ * matchOption() still accepts either on the way back in.
+ */
+export function fieldValue(item: Record<string, any>, field: ImportTargetField): string {
+  const raw = field.extraField ? item.extra?.[field.name] : item[field.name];
+  if (raw === undefined || raw === null || raw === '') return '';
+
+  switch (field.type) {
+    case 'tags':
+      return Array.isArray(raw) ? raw.join('; ') : String(raw);
+    case 'date': {
+      const date = raw instanceof Date ? raw : new Date(raw);
+      return isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10);
+    }
+    case 'boolean':
+      return raw ? 'true' : 'false';
+    case 'number':
+    case 'rating':
+      return String(raw);
+    default: {
+      if (field.options && field.options.length > 0) {
+        const hit = field.options.find(o => o.value === raw);
+        if (hit) return hit.label;
+      }
+      return String(raw);
+    }
+  }
+}
+
+/**
  * Drops what a mapping submission cannot honour (unknown fields, columns absent from
  * the file, empty constants) and reports the required destinations left unfed, which
  * are the ones without which the import can only produce rejected rows.

@@ -30,6 +30,7 @@ async function settingsMiddleware(req: any, res: any, next: any) {
             navbarShortcuts: registry.getDefaultNavbarShortcuts(),
             statsWidgets: registry.getDefaultStatsWidgets(),
             theme: registry.getDefaultThemes(),
+            aspectRatioClass: 'aspect-square',
             pluginSettings: registry.getDefaultPluginSettings()
         };
 
@@ -53,12 +54,28 @@ async function settingsMiddleware(req: any, res: any, next: any) {
 
         const queryType = req.query.type;
 
+        // Matched segment by segment, never as a bare substring of the whole URL: ids that
+        // travel in a path are hex (share tokens, ObjectIds), so about one in seven of them
+        // contains "cd" and used to be read as the music module (pathAliases). The request
+        // then 404'd whenever that module was off, which made a share link's QR code and
+        // its delete button fail, and a collection impossible to delete.
+        // Route shapes to keep matching: /album/:id, /add-music, /save-books,
+        // /confirm-dvd/:id, /import/discogs. Hence "segment equals it" or "one of its
+        // hyphen-separated parts is it".
+        const segments: string[] = path.split('/').filter(Boolean);
+        const pathHasSegment = (needle: string) => {
+            const target = needle.replace(/^\//, '').toLowerCase();
+            return target !== '' && segments.some(seg =>
+                seg === target || seg.split('-').includes(target)
+            );
+        };
+
         let detectedType = 'home';
         const foundPlugin = registry.getAll().find(p =>
-            path.includes(p.routePrefix.toLowerCase()) ||
-            path.includes(p.id.toLowerCase()) ||
-            path.includes(p.collectionType.toLowerCase()) ||
-            (p.pathAliases || []).some(alias => path.includes(alias.toLowerCase()))
+            pathHasSegment(p.routePrefix) ||
+            pathHasSegment(p.id) ||
+            pathHasSegment(p.collectionType) ||
+            (p.pathAliases || []).some(alias => pathHasSegment(alias))
         );
         if (foundPlugin) {
             // Use collectionType: it keys settings.modules and matches the ?type= query param,

@@ -40,6 +40,7 @@
     "results_title": "Risultati",
     "scan_error": "Errore della fotocamera (controlla le autorizzazioni)",
     "barcode_not_found": "Codice a barre non riconosciuto. Prova a cercare per titolo.",
+    "barcode_no_match": "Nessuna corrispondenza per questo codice a barre. Ecco il nome del prodotto trovato: modificalo e cerca di nuovo, il codice a barre resta associato.",
     "scan_found": "Trovato!",
     "scan_init": "Inizializzazione...",
     "scan_stop": "Interrompi la scansione",
@@ -56,7 +57,12 @@
     "backup": {
       "confirm_import": "ATTENZIONE: questa operazione eliminerà tutti i tuoi dati correnti (album, utenti, registri) e li sostituirà con il contenuto del file. Verrai disconnesso. Continuare?",
       "export_btn": "Esporta banca dati",
+      "export_csv_btn": "Esporta CSV",
       "import_btn": "Importa banca dati",
+      "csv": {
+        "type_column": "Tipo",
+        "wishlist_column": "Lista dei desideri"
+      },
       "import_error": "Errore durante l'importazione.",
       "import_success": "Database importato correttamente.",
       "json_error": "File JSON non valido.",
@@ -854,13 +860,23 @@
     "instance": "Istanza",
     "administration": "Amministrazione",
     "new_collection": "Nuova collezione",
+    "search": "Cerca",
     "share_view": "Collezione condivisa · sola lettura"
+  },
+  "search": {
+    "title": "Cerca",
+    "placeholder": "Cerca titolo o artista in tutte le tue collezioni...",
+    "empty_prompt": "Digita almeno 2 caratteri per cercare in tutte le tue collezioni.",
+    "no_results": "Nessun risultato trovato.",
+    "results_count": "{{count}} risultati"
   },
   "perso": {
     "backHome": "Ritorno a casa",
     "fastAdd_desc": "Se abilitato, il pulsante \"Aggiungi un articolo\" reindirizza direttamente al modulo prescelto, bypassando il menu di selezione.",
     "fastAdd_disabled": "Disabilitato (modale)",
     "fastAdd_title": "Aggiunta rapida",
+    "card_aspect_ratio": "Rapporto d'aspetto della scheda",
+    "card_aspect_ratio_desc": "Forma delle miniature nelle griglie di collezione, home e lista dei desideri. Ogni plugin mantiene il proprio rapporto nelle sue schede.",
     "modules": {
       "books": "Libri",
       "dvd": "DVD",
@@ -1092,6 +1108,8 @@
     "section_image": "Immagine",
     "shape_poster": "Locandina (2/3)",
     "shape_square": "Quadrata (copertina)",
+    "shape_screen": "Schermo (16/9)",
+    "shape_hint": "Si applica alle pagine e ai moduli di questo plugin. Le griglie usano il rapporto impostato in Personalizzazione.",
     "secondary_label": "Immagine secondaria",
     "secondary_desc": "Aggiunge una seconda immagine modificabile (come il disco per la musica).",
     "default_cover_label": "Immagine predefinita",

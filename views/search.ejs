@@ -1,0 +1,116 @@
+<%- include('partials/header') %>
+
+<div class="max-w-screen-xl mx-auto px-1 md:px-0 pb-12">
+
+    <%# Nothing searched yet: the bar is the page, like the home hero. Once there are
+        results it shrinks to a line so the covers start as high as possible. %>
+    <% const searching = query.length >= 2; %>
+
+    <% if (!searching) { %>
+        <div class="py-20 md:py-28 text-center">
+            <h1 class="text-3xl md:text-4xl font-bold mb-8 transition-colors"><%= t('search.title') %></h1>
+
+            <form action="<%= baseUrl %>/search" method="GET" class="w-full max-w-xl mx-auto">
+                <div class="relative group">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none z-10">
+                        <i class="fa-solid fa-magnifying-glass opacity-50 group-focus-within:text-primary-theme transition-colors"></i>
+                    </div>
+                    <input type="text" name="q" value="<%= query %>" autofocus
+                        class="block w-full p-4 pl-12 text-base bg-black/5 dark:bg-black/20 border border-transparent focus:border-primary-theme rounded-full focus:ring-2 focus:ring-primary-theme/50 placeholder-opacity-50 transition-all shadow-inner"
+                        placeholder="<%= t('search.placeholder') %>">
+                    <button type="submit" class="absolute right-2 top-2 bottom-2 bg-gray-200 dark:bg-white/10 hover:bg-primary-theme hover:text-white font-medium rounded-full text-sm px-4 transition-colors z-10"><%= t('common.go') %></button>
+                </div>
+            </form>
+
+            <p class="text-sm opacity-50 mt-6"><%= t('search.empty_prompt') %></p>
+        </div>
+    <% } else { %>
+        <div class="pt-6 mb-8 flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
+            <form action="<%= baseUrl %>/search" method="GET" class="w-full sm:max-w-md">
+                <div class="relative group">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                        <i class="fa-solid fa-magnifying-glass opacity-40 group-focus-within:text-primary-theme transition-colors"></i>
+                    </div>
+                    <input type="text" name="q" value="<%= query %>" autofocus
+                        class="block w-full p-3 pl-10 text-sm card-theme rounded-xl border border-transparent focus:border-primary-theme focus:ring-1 focus:ring-primary-theme placeholder-opacity-50 transition-all"
+                        placeholder="<%= t('search.placeholder') %>">
+                </div>
+            </form>
+            <% if (results.length > 0) { %>
+                <p class="text-xs opacity-50 whitespace-nowrap"><%= t('search.results_count', { count: totalItems }) %></p>
+            <% } %>
+        </div>
+
+        <% if (results.length === 0) { %>
+            <div class="text-center py-20 opacity-50">
+                <i class="fa-solid fa-box-open text-3xl mb-4"></i>
+                <p class="text-sm"><%= t('search.no_results') %></p>
+            </div>
+        <% } else { %>
+        <%# Same tiles as every other grid, so the collection-wide card ratio applies here
+            too. The wrapper differs: an item may live in a collection that is not the
+            active one, so opening it switches first, and that is a POST. %>
+        <% const gridAspect = (locals.settings && settings.aspectRatioClass) || 'aspect-square'; %>
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+            <% results.forEach(result => { %>
+                <%
+                    const itemPlugin = result.plugin;
+                    const detailPath = (itemPlugin ? itemPlugin.routePrefix : '/album') + '/' + result.item._id;
+                %>
+                <div class="album-card group relative card-theme rounded-xl overflow-hidden hover:border-primary-theme transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+                    <form method="POST" action="<%= baseUrl %>/collection/switch">
+                        <input type="hidden" name="collectionId" value="<%= result.collectionId %>">
+                        <input type="hidden" name="redirectTo" value="<%= baseUrl + detailPath %>">
+                        <button type="submit" class="block w-full text-left">
+                            <%- include('partials/item-cover', {
+                                item: result.item,
+                                plugin: itemPlugin,
+                                gridAspect,
+                                settings: result.collectionSettings,
+                                cornerLabel: result.collectionName
+                            }) %>
+                            <%- include('partials/item-card-body', { item: result.item, plugin: itemPlugin, size: 'collection' }) %>
+                        </button>
+                    </form>
+                </div>
+            <% }) %>
+        </div>
+
+        <% if (totalPages > 1) { %>
+            <nav class="mt-12 flex items-center justify-center gap-2 border-t border-black/5 dark:border-white/10 pt-8">
+                <button onclick="changePage(<%= currentPage - 1 %>)" <%= currentPage <= 1 ? 'disabled' : '' %>
+                    class="w-10 h-10 flex items-center justify-center rounded-xl card-theme border-none hover:bg-primary-theme hover:text-white transition-all disabled:opacity-20 disabled:pointer-events-none">
+                    <i class="fa-solid fa-chevron-left text-xs"></i>
+                </button>
+
+                <div class="flex items-center gap-1">
+                    <% for (let i = 1; i <= totalPages; i++) { if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) { %>
+                        <button onclick="changePage(<%= i %>)"
+                            class="w-10 h-10 flex items-center justify-center rounded-xl font-bold text-sm transition-all <%= currentPage === i ? 'bg-primary-theme text-white shadow-lg scale-110' : 'card-theme hover:bg-black/5 dark:hover:bg-white/5' %>">
+                            <%= i %>
+                        </button>
+                    <% } else if (i === currentPage - 2 || i === currentPage + 2) { %>
+                        <span class="px-1 opacity-30">...</span>
+                    <% } } %>
+                </div>
+
+                <button onclick="changePage(<%= currentPage + 1 %>)" <%= currentPage >= totalPages ? 'disabled' : '' %>
+                    class="w-10 h-10 flex items-center justify-center rounded-xl card-theme border-none hover:bg-primary-theme hover:text-white transition-all disabled:opacity-20 disabled:pointer-events-none">
+                    <i class="fa-solid fa-chevron-right text-xs"></i>
+                </button>
+            </nav>
+            <% } %>
+        <% } %>
+    <% } %>
+</div>
+
+<script>
+    // Keeps the query and only moves the page cursor.
+    function changePage(page) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('page', page);
+        window.location.href = url.toString();
+    }
+</script>
+
+<%- include('partials/footer') %>

@@ -40,6 +40,7 @@
     "results_title": "Ergebnisse",
     "scan_error": "Kamerafehler (Berechtigungen prüfen)",
     "barcode_not_found": "Dieser Barcode wurde nicht erkannt. Versuchen Sie stattdessen die Suche nach Titel.",
+    "barcode_no_match": "Kein Treffer für diesen Barcode. Hier ist der gefundene Produktname: passe ihn an und suche erneut, der Barcode bleibt erhalten.",
     "scan_found": "Gefunden!",
     "scan_init": "Initialisierung...",
     "scan_stop": "Stoppen Sie den Scanvorgang",
@@ -56,7 +57,12 @@
     "backup": {
       "confirm_import": "ACHTUNG: Dadurch werden alle Ihre aktuellen Daten (Alben, Benutzer, Protokolle) gelöscht und durch den Inhalt der Datei ersetzt. Sie werden abgemeldet. Weitermachen?",
       "export_btn": "Datenbank exportieren",
+      "export_csv_btn": "CSV exportieren",
       "import_btn": "Datenbank importieren",
+      "csv": {
+        "type_column": "Typ",
+        "wishlist_column": "Wunschliste"
+      },
       "import_error": "Fehler beim Import.",
       "import_success": "Datenbank erfolgreich importiert.",
       "json_error": "Ungültige JSON-Datei.",
@@ -854,13 +860,23 @@
     "instance": "Instanz",
     "administration": "Verwaltung",
     "new_collection": "Neue Sammlung",
+    "search": "Suche",
     "share_view": "Geteilte Sammlung · schreibgeschützt"
+  },
+  "search": {
+    "title": "Suche",
+    "placeholder": "Titel oder Künstler in allen Sammlungen suchen...",
+    "empty_prompt": "Mindestens 2 Zeichen eingeben, um alle Sammlungen zu durchsuchen.",
+    "no_results": "Keine Ergebnisse gefunden.",
+    "results_count": "{{count}} Ergebnisse"
   },
   "perso": {
     "backHome": "Zurück nach Hause",
     "fastAdd_desc": "Wenn aktiviert, leitet die Schaltfläche „Element hinzufügen“ direkt zum ausgewählten Formular weiter und umgeht das Auswahlmenü.",
     "fastAdd_disabled": "Deaktiviert (modal)",
     "fastAdd_title": "Schnell hinzufügen",
+    "card_aspect_ratio": "Seitenverhältnis der Karte",
+    "card_aspect_ratio_desc": "Form der Kacheln in den Rastern von Sammlung, Startseite und Wunschliste. Jedes Plugin behält auf seinen Detailseiten sein eigenes Verhältnis.",
     "modules": {
       "books": "Bücher",
       "dvd": "DVDs",
@@ -1092,6 +1108,8 @@
     "section_image": "Bild",
     "shape_poster": "Poster (2/3)",
     "shape_square": "Quadratisch (Hülle)",
+    "shape_screen": "Bildschirm (16/9)",
+    "shape_hint": "Gilt für die Seiten und Formulare dieses Plugins. Die Raster verwenden das in der Personalisierung festgelegte Kartenverhältnis.",
     "secondary_label": "Zweitbild",
     "secondary_desc": "Fügt ein zweites bearbeitbares Bild hinzu (wie die Disc bei Musik).",
     "default_cover_label": "Standardbild",

@@ -18,6 +18,10 @@
         <% } else if (locals.searchType) { %>
             <input type="hidden" name="type" value="<%= searchType %>">
         <% } %>
+        <% if (locals.scanned_barcode) { %>
+            <%# Keeps the scanned code on the item when its product name has to be fixed by hand %>
+            <input type="hidden" name="scanned_barcode" value="<%= scanned_barcode %>">
+        <% } %>
         <div class="flex flex-col sm:flex-row gap-3">
             <div class="flex-grow relative group">
                 <div class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none z-10">

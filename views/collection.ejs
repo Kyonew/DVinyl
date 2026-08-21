@@ -507,40 +507,7 @@
                 </div>
             <% } %>
         </div>
-
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6" id="albumGrid">
-            <% albums.forEach(album=> { %>
-                <%
-                    const itemPlugin = registry.getByKind(album.kind);
-                    const isPoster = itemPlugin ? itemPlugin.aspectRatioClass !== 'aspect-square' : true;
-                    const detailUrl = (itemPlugin ? itemPlugin.routePrefix : '/album') + '/' + album._id;
-                %>
-
-                    <div class="album-card group relative card-theme rounded-xl overflow-hidden hover:border-primary-theme transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
-                        data-location="<%= locals.isShareView ? '' : (album.location || '') %>"
-                        data-format="<%= album.format || album.media_type || '' %>">
-                        <a href="<%= baseUrl + detailUrl %>" class="block">
-                            <div
-                                class="aspect-square w-full relative overflow-hidden bg-black/5 flex items-center justify-center">
-
-                                <% if (isPoster) { %>
-                                    <img src="<%= album.cover_image %>"
-                                        class="absolute inset-0 w-full h-full object-cover blur-xl opacity-30 scale-110 pointer-events-none">
-                                    <% } %>
-
-                                        <img src="<%= album.cover_image %>"
-                                            class="relative z-10 w-full h-full <%= isPoster ? 'object-contain p-2' : 'object-cover' %> transition-transform duration-500 group-hover:scale-105"
-                                            loading="lazy">
-
-                                        <%- include('partials/cover-badge', { item: album, plugin: itemPlugin, settings }) %>
-                            </div>
-
-                            <%- include('partials/item-card-body', { item: album, plugin: itemPlugin, size: 'collection' }) %>
-                        </a>
-                    </div>
-                    <% }) %>
-        </div>
-
+        <%- include('partials/albums-grid', { albums, size: 'collection', gridId: 'albumGrid' }) %>
         <div
             class="mt-12 flex flex-col md:flex-row items-center justify-between gap-6 border-t border-black/5 dark:border-white/10 pt-8">
 
