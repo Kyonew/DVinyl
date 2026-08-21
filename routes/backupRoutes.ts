@@ -10,7 +10,8 @@ import InstanceSettings from '../models/InstanceSettings';
 import { invalidateInstanceSettingsCache } from '../utils/instanceSettings';
 import { requireAuth, requireAdmin, requireCollectionRole } from '../middleware/authMiddleware';
 import { registry } from '../core/registry';
-import { buildSortTitle } from '../core/helpers';
+import { buildSortTitle, stringifyCsv } from '../core/helpers';
+import { importableFields, fieldValue, ImportTargetField } from '../core/csvMapping';
 
 // Stamped into every dump so a restore log says which build produced the file.
 // Read from package.json rather than copied, which is how it came to say 3.1.0 on 3.1.1.
@@ -267,6 +268,61 @@ router.get('/collection/export', requireAuth, requireCollectionRole('admin'), as
         res.send(JSON.stringify(data, null, 2));
     } catch (err) {
         console.error("[ERR] Collection export:", err);
+        res.status(500).send("Export failed");
+    }
+});
+
+/**
+ * GET /collection/export-csv - the same collection, as a flat spreadsheet instead of a
+ * restorable dump. One row per item; columns are the union of the importable fields
+ * (base + plugin + user-defined) of every kind actually present, so a single-type
+ * collection reads as a clean sheet and a mixed one simply carries more (sparse)
+ * columns. Read-only: unlike the JSON export this never round-trips through /import.
+ */
+router.get('/collection/export-csv', requireAuth, requireCollectionRole('admin'), async (req: any, res: any) => {
+    try {
+        const activeCollectionId = res.locals.activeCollectionId;
+        const collection = res.locals.activeCollection;
+        const settings = res.locals.settings;
+
+        const albums = await Item.find({ collection: activeCollectionId }).lean();
+
+        const kinds = Array.from(new Set(albums.map((a: any) => a.kind)));
+        const columns: ImportTargetField[] = [];
+        const seen = new Set<string>();
+
+        for (const kind of kinds) {
+            const plugin = registry.getByKind(kind);
+            if (!plugin) continue; // A kind whose plugin was since removed/disabled: skip its columns, keep its rows under "Type".
+            for (const field of importableFields(plugin, settings, req.t)) {
+                if (seen.has(field.name)) continue;
+                seen.add(field.name);
+                columns.push(field);
+            }
+        }
+
+        const typeLabel = req.t('admin.backup.csv.type_column');
+        const wishlistLabel = req.t('admin.backup.csv.wishlist_column');
+        const header = [typeLabel, ...columns.map(f => f.label), wishlistLabel];
+
+        const rows: string[][] = [header];
+        for (const album of albums) {
+            const plugin = registry.getByKind((album as any).kind);
+            const typeName = plugin ? req.t(plugin.label, { defaultValue: plugin.id }) : String((album as any).kind || '');
+            const cells = columns.map(field => fieldValue(album, field));
+            rows.push([typeName, ...cells, (album as any).in_wishlist ? 'true' : 'false']);
+        }
+
+        // Leading BOM so Excel (which guesses ANSI otherwise) opens accented labels
+        // and titles as UTF-8 instead of mojibake.
+        const csv = '﻿' + stringifyCsv(rows);
+        const slug = collection?.slug || 'collection';
+        const fileName = `dvinyl_collection-${slug}_${new Date().toISOString().split('T')[0]}.csv`;
+        res.setHeader('Content-disposition', 'attachment; filename=' + fileName);
+        res.setHeader('Content-type', 'text/csv; charset=utf-8');
+        res.send(csv);
+    } catch (err) {
+        console.error("[ERR] Collection CSV export:", err);
         res.status(500).send("Export failed");
     }
 });

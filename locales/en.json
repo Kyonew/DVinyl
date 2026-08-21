@@ -346,7 +346,12 @@
     },
     "backup": {
       "export_btn": "Export Database",
+      "export_csv_btn": "Export CSV",
       "import_btn": "Import Database",
+      "csv": {
+        "type_column": "Type",
+        "wishlist_column": "Wishlist"
+      },
       "import_success": "Database imported successfully.",
       "import_error": "Error during import.",
       "json_error": "Invalid JSON file.",

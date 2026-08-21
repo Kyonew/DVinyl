@@ -57,7 +57,12 @@
     "backup": {
       "confirm_import": "ACHTUNG: Dadurch werden alle Ihre aktuellen Daten (Alben, Benutzer, Protokolle) gelöscht und durch den Inhalt der Datei ersetzt. Sie werden abgemeldet. Weitermachen?",
       "export_btn": "Datenbank exportieren",
+      "export_csv_btn": "CSV exportieren",
       "import_btn": "Datenbank importieren",
+      "csv": {
+        "type_column": "Typ",
+        "wishlist_column": "Wunschliste"
+      },
       "import_error": "Fehler beim Import.",
       "import_success": "Datenbank erfolgreich importiert.",
       "json_error": "Ungültige JSON-Datei.",
