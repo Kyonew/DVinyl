@@ -1117,7 +1117,7 @@
             } catch (e) { }
         }
 
-        function showResults() {
+        async function showResults() {
             const fmt = (val) => {
                 try {
                     return new Intl.NumberFormat(currentLocale, {
@@ -1135,6 +1135,26 @@
 
             document.getElementById('progressContainer').classList.add('hidden');
             resultDiv.classList.remove('hidden');
+
+            try {
+                await fetch('<%= baseUrl %>/api/estimate/snapshot', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        value: totalPriceVG,
+                        minValue: totalPriceMin,
+                        maxValue: totalPriceMax,
+                        currency: currentCurrency,
+                        itemCount: totalAlbums
+                    })
+                });
+            } catch (e) { /* history is a bonus, don't block the result on it */ }
+
+            try {
+                const histRes = await fetch('<%= baseUrl %>/api/estimate/history');
+                const histData = await histRes.json();
+                if (histData.success) renderHistoryChart(histData.snapshots);
+            } catch (e) { /* chart is a bonus, don't block the result on it */ }
         }
     <% } %>
         function toggleDecadeMenu(e) {
