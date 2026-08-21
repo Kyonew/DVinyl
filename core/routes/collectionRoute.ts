@@ -18,36 +18,14 @@ import {
 const router = express.Router();
 
 router.get('/wishlist', requireAuth, async (req: any, res: any) => {
-  try {
-    if (!res.locals.activeCollectionId) {
-      return res.render('no-collection', { user: res.locals.user, msgKey: req.query.msg });
-    }
-    let query: any = {
-      collection: res.locals.activeCollectionId,
-      in_wishlist: true
-    };
-    applyVisibilityFilter(query, res.locals.isCollectionAdmin, res.locals.settings);
-
-    applyEnabledModulesFilter(query, res.locals.settings);
-
-    applyContainedFilter(query);
-
-    const items = await resolveShelfItems(await Item.find(query).sort({ added_at: -1 }).lean(), res);
-
-    res.render('wishlist', {
-      albums: items.map(item => {
-        const plugin = registry.getByKind(item.kind as any);
-        return plugin ? plugin.formatForView(item) : item;
-      }),
-      user: res.locals.user
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).send(req.t('errors.generic_server_error'));
-  }
+  res.render('wishlist', await getAlbums(req, res, true))
 });
 
 router.get('/collection', requireAuthOrShareView, async (req: any, res: any) => {
+  res.render('collection', await getAlbums(req, res, false))
+});
+
+async function getAlbums(req: any, res: any, in_wishlist: boolean) {
   try {
     const activeCollectionId = res.locals.activeCollectionId;
     if (!activeCollectionId) {
@@ -80,7 +58,7 @@ router.get('/collection', requireAuthOrShareView, async (req: any, res: any) => 
       limit = clampLimit(req.cookies.limitPref);
     }
 
-    let query: any = { collection: activeCollectionId, in_wishlist: false };
+    let query: any = { collection: activeCollectionId, in_wishlist };
     // Two separate buckets. `conditions` holds the user's criteria, which filterMode
     // 'hide' inverts. `scopeConditions` holds what defines *which items the page is
     // about at all* (the selected type): inverting that would widen the page to other
@@ -323,13 +301,13 @@ router.get('/collection', requireAuthOrShareView, async (req: any, res: any) => 
 
     // DYNAMIC ARTIST LIST
     const artistList = await (async () => {
-      const baseQuery: any = { collection: activeCollectionId, in_wishlist: false };
+      const baseQuery: any = { collection: activeCollectionId, in_wishlist };
       // Per-plugin below, which a link scoped to a whole type already covers; this is for
       // the one scoped to some of its formats, where the kind alone would still offer the
       // names behind the formats it left out.
       applyShareScopeFilter(baseQuery, shareScope);
       if (!type || type === 'all') {
-        const promises = enabledPlugins.map(plugin => 
+        const promises = enabledPlugins.map(plugin =>
           Item.distinct(plugin.creatorField, { ...baseQuery, [plugin.creatorField]: { $nin: ['', null] } })
         );
         const results = await Promise.all(promises);
@@ -421,7 +399,7 @@ router.get('/collection', requireAuthOrShareView, async (req: any, res: any) => 
       })
     );
 
-    res.render('collection', {
+    return {
       albums: albumsFormatted,
       totalItems,
       totalPages: Math.ceil(totalItems / limit),
@@ -452,12 +430,12 @@ router.get('/collection', requireAuthOrShareView, async (req: any, res: any) => 
       extraNone: EXTRA_NONE,
       user: res.locals.user,
       settings
-    });
+    };
   } catch (err: any) {
     console.error("Collection page loading error:", err.message);
     res.status(500).send(req.t('errors.generic_server_error'));
   }
-});
+}
 
 // Create a collection as an ordinary member. Gated on the instance-wide toggle and
 // per-user quota (utils/instanceSettings.ts); instance admins bypass both and also

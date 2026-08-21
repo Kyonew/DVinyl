@@ -75,7 +75,9 @@
                     <% } %>
             </div>
             <% } else { %>
+                <%- include('partials/albums-filters') %>
                 <%- include('partials/albums-grid', { albums, size: 'wishlist', wishlist: true, badgeSize: 'compact' }) %>
+                <%- include('partials/albums-page-changer') %>
                 <% } %>
     </div>
 

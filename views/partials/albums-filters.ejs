@@ -1,0 +1,793 @@
+<div class="space-y-6 mb-8">
+
+    <div class="flex flex-wrap items-center justify-between gap-4">
+        <div class="flex flex-wrap gap-2" id="formatFilters">
+            <% const mainTypes = [{ id: 'all', label: t('common.all') },
+                ...registry.getEnabled(settings).map(p => ({ id: p.collectionType, label: t(p.label) }))]; %>
+
+                <% if (currentType==='all' ) { %>
+                    <% mainTypes.forEach(type=> { %>
+                        <button onclick="currentType = '<%= type.id %>'; currentFormat = 'all'; reloadPage();"
+                            class="px-4 py-2 rounded-full text-xs font-bold transition-all active:scale-95 <%= currentType === type.id ? 'bg-primary-theme text-white shadow-lg' : 'bg-black/5 dark:bg-white/10 opacity-60' %>">
+                            <%= type.label %>
+                        </button>
+                        <% }) %>
+                            <% } else { %>
+                                <button onclick="currentType = 'all'; currentFormat = 'all'; reloadPage();"
+                                    class="px-4 py-2 rounded-full text-xs font-bold transition-all active:scale-95 bg-black/5 dark:bg-white/10 opacity-60">
+                                    <i class="fa-solid fa-arrow-left mr-2"></i>
+                                    <%= t('common.all') %>
+                                </button>
+                                <% const activeFilters = currentType !== 'all' ? (filterMap[currentType] || []) : []; %>
+                                <% activeFilters.forEach(filter=> { %>
+                                    <button onclick="currentFormat = '<%= filter.id %>'; reloadPage();"
+                                        class="px-4 py-2 rounded-full text-xs font-bold transition-all active:scale-95 <%= (currentFormat === filter.id) ? 'bg-primary-theme text-white shadow-lg' : 'bg-black/5 dark:bg-white/10 opacity-60' %>">
+                                        <%= filter.label %>
+                                    </button>
+                                    <% }) %>
+                                <% } %>
+        </div>
+
+        <button onclick="toggleMobileFilters()"
+            class="sm:hidden flex items-center gap-2 px-4 py-2 rounded-lg card-theme border text-sm font-bold opacity-70 hover:opacity-100 transition-all">
+            <i class="fa-solid fa-filter"></i>
+            <%= t('common.filters') %>
+        </button>
+    </div>
+
+    <div id="filterContainer"
+        class="hidden sm:grid lg:flex grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:flex-row gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
+        <div class="relative sm:col-span-2 md:col-span-3 lg:flex-grow">
+            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                <i class="fa-solid fa-search opacity-40"></i>
+            </div>
+            <input type="text" id="filterInput"
+                class="filter-input-textbox block w-full p-2.5 pl-10 <%= locals.querySearch ? 'pr-8' : '' %> text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme placeholder-opacity-50 transition-shadow"
+                value="<%= locals.querySearch || '' %>" placeholder="<%= t('collection.filter_placeholder') %>">
+            <% if (locals.querySearch) { %>
+                <button onclick="clearFilterParam('search')" class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-red-500 transition-colors">
+                    <i class="fa-solid fa-circle-xmark"></i>
+                </button>
+            <% } %>
+        </div>
+
+        <%# Not for a share link: see SHARE_HIDDEN_FIELDS in core/cardFields.ts. %>
+        <% if (!locals.isShareView) { %>
+        <div class="w-full lg:w-44 relative">
+            <input type="text" id="locationInput" list="locations-list"
+                placeholder="<%= t('common.location') %>" value="<%= locals.queryLocation || '' %>"
+                class="filter-input-textbox block w-full p-2.5 <%= locals.queryLocation ? 'pr-8' : '' %> text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme outline-none placeholder-opacity-50">
+            <% if (locals.queryLocation) { %>
+                <button onclick="clearFilterParam('location')" class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-red-500 transition-colors">
+                    <i class="fa-solid fa-circle-xmark"></i>
+                </button>
+            <% } %>
+            <datalist id="locations-list">
+                <% locations.forEach(loc=> { %> <option value="<%= loc %>"></option>
+                    <% }) %>
+            </datalist>
+        </div>
+        <% } %>
+
+        <%# Each control below is dropped when the selected type has nothing to
+            offer for it, rather than showing an empty or foreign list %>
+        <% if (locals.hasYear) { %>
+        <div class="w-full lg:w-36 relative">
+            <button onclick="toggleDecadeMenu(event)" id="decadeSelectorBtn"
+                class="block w-full p-2.5 text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme outline-none transition-all flex justify-between items-center group">
+                <span class="truncate transition-opacity <%= locals.queryDecade ? '' : 'opacity-50 group-hover:opacity-100' %>">
+                    <% const currentDecadeArr = locals.queryDecade ? locals.queryDecade.split(',') : []; %>
+                    <%= currentDecadeArr.length > 0 ? (currentDecadeArr.length === 1 ? currentDecadeArr[0] + 's' : currentDecadeArr.length + ' ' + t('collection.decade_filter')) : t('collection.decade_filter') %>
+                </span>
+                <i class="fa-solid fa-chevron-down text-[10px] opacity-20 group-hover:opacity-60 transition-all"></i>
+            </button>
+            <div id="decade-menu" class="hidden absolute left-0 right-0 top-full z-50 mt-2 card-theme rounded-xl p-3 shadow-2xl border border-black/5 dark:border-white/10 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div class="max-h-[40vh] overflow-y-auto custom-scrollbar space-y-1">
+                    <% const currentYear = new Date().getFullYear(); 
+                        for (let y = Math.floor(currentYear/10)*10; y >= 1950; y -= 10) { 
+                            const isActive = currentDecadeArr.includes(y.toString());
+                    %>
+                        <label class="flex items-center gap-3 p-2 text-sm rounded-lg hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer transition-colors group">
+                            <input type="checkbox" class="decade-checkbox accent-primary-theme w-4 h-4 rounded border-gray-300 transition-all cursor-pointer" 
+                                    value="<%= y %>" <%= isActive ? 'checked' : '' %>>
+                            <span class="group-hover:translate-x-0.5 transition-transform"><%= y %>s</span>
+                        </label>
+                    <% } %>
+                </div>
+                <div class="mt-3 pt-3 border-t border-black/5 dark:border-white/5 flex gap-2">
+                    <button onclick="clearDecadeCheckboxes()" title="<%= t('common.delete') %>" class="flex-1 py-2 bg-black/5 dark:bg-white/10 rounded-lg hover:brightness-110 transition-all flex items-center justify-center">
+                        <i class="fa-solid fa-trash-can text-xs opacity-75"></i>
+                    </button>
+                    <button onclick="reloadPage()" title="<%= t('common.apply') %>" class="flex-1 py-2 bg-primary-theme text-white rounded-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center">
+                        <i class="fa-solid fa-check text-xs"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <% } %>
+
+        <% if (currentType !=='all' ) { %>
+            <% if (genres.length > 0) { %>
+            <div class="w-full lg:w-48 relative">
+                <button onclick="toggleGenreMenu(event)" id="genreSelectorBtn"
+                    class="block w-full p-2.5 text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme outline-none transition-all flex justify-between items-center group">
+                    <span class="truncate opacity-50 group-hover:opacity-100 transition-opacity">
+                        <%= locals.queryGenre ? (locals.queryGenre.split(',').length + ' ' +
+                            t('confirm_vinyl.field_genres')) : t('confirm_vinyl.field_genres') %>
+                    </span>
+                    <i class="fa-solid fa-chevron-down text-[10px] opacity-20 group-hover:opacity-60 transition-all"></i>
+                </button>
+                <div id="genre-multi-select"
+                    class="hidden absolute left-0 right-0 top-full z-50 mt-2 card-theme rounded-xl p-3 shadow-2xl border border-black/5 dark:border-white/10 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div class="mb-2 pb-2 border-b border-black/5 dark:border-white/5">
+                        <input type="text" placeholder="<%= t('collection.search_genre_placeholder') %>"
+                                oninput="filterDropdownList(this, 'genre-checkbox-list')"
+                                class="w-full p-2 text-xs rounded-lg border card-theme outline-none focus:ring-1 focus:ring-primary-theme placeholder-opacity-50">
+                    </div>
+                    <div id="genre-checkbox-list" class="space-y-1 max-h-[45vh] overflow-y-auto custom-scrollbar">
+                        <% const currentGenreArr=locals.queryGenre ? locals.queryGenre.split(',') : [];
+                            genres.forEach(gen=> { %>
+                            <label
+                                class="flex items-center gap-3 p-2 text-sm rounded-lg hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer transition-colors group">
+                                <input type="checkbox"
+                                    class="genre-checkbox accent-primary-theme w-4 h-4 rounded border-gray-300 transition-all cursor-pointer"
+                                    value="<%= gen %>" <%=currentGenreArr.includes(gen) ? 'checked' : '' %>>
+                                <span class="group-hover:translate-x-0.5 transition-transform">
+                                    <%= gen %>
+                                </span>
+                            </label>
+                            <% }); %>
+                    </div>
+                    <div class="mt-3 pt-3 border-t border-black/5 dark:border-white/5 flex gap-2">
+                        <button onclick="clearGenreCheckboxes()" title="<%= t('common.delete') %>" class="flex-1 py-2 bg-black/5 dark:bg-white/10 rounded-lg hover:brightness-110 transition-all flex items-center justify-center">
+                            <i class="fa-solid fa-trash-can text-xs opacity-75"></i>
+                        </button>
+                        <button onclick="reloadPage()" title="<%= t('common.apply') %>"
+                            class="flex-1 py-2 bg-primary-theme text-white rounded-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center">
+                            <i class="fa-solid fa-check text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <% } %>
+
+            <% const stylesPlugin = registry.getAll().find(p => p.collectionType === currentType); %>
+            <% if (stylesPlugin && stylesPlugin.schemaDefinition && stylesPlugin.schemaDefinition.styles && styles.length > 0) { %>
+                <div class="w-full lg:w-48 relative">
+                    <button onclick="toggleStyleMenu(event)" id="styleSelectorBtn"
+                        class="block w-full p-2.5 text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme outline-none transition-all flex justify-between items-center group">
+                        <span class="truncate opacity-50 group-hover:opacity-100 transition-opacity">
+                            <%= locals.queryStyle ? (locals.queryStyle.split(',').length + ' ' +
+                                t('collection.styles_filter')) : t('collection.styles_filter') %>
+                        </span>
+                        <i class="fa-solid fa-chevron-down text-[10px] opacity-20 group-hover:opacity-60 transition-all"></i>
+                    </button>
+                    <div id="style-multi-select"
+                        class="hidden absolute left-0 right-0 top-full z-50 mt-2 card-theme rounded-xl p-3 shadow-2xl border border-black/5 dark:border-white/10 animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div class="mb-2 pb-2 border-b border-black/5 dark:border-white/5">
+                            <input type="text" placeholder="<%= t('collection.search_style_placeholder') %>"
+                                    oninput="filterDropdownList(this, 'style-checkbox-list')"
+                                    class="w-full p-2 text-xs rounded-lg border card-theme outline-none focus:ring-1 focus:ring-primary-theme placeholder-opacity-50">
+                        </div>
+                        <div id="style-checkbox-list" class="space-y-1 max-h-[45vh] overflow-y-auto custom-scrollbar">
+                            <% const currentStyleArr = locals.queryStyle ? locals.queryStyle.split(',') : [];
+                                styles.forEach(sty => { %>
+                                <label class="flex items-center gap-3 p-2 text-sm rounded-lg hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer transition-colors group">
+                                    <input type="checkbox"
+                                        class="style-checkbox accent-primary-theme w-4 h-4 rounded border-gray-300 transition-all cursor-pointer"
+                                        value="<%= sty %>" <%= currentStyleArr.includes(sty) ? 'checked' : '' %>>
+                                    <span class="group-hover:translate-x-0.5 transition-transform">
+                                        <%= sty %>
+                                    </span>
+                                </label>
+                            <% }); %>
+                        </div>
+                        <div class="mt-3 pt-3 border-t border-black/5 dark:border-white/5 flex gap-2">
+                            <button onclick="clearStyleCheckboxes()" title="<%= t('common.delete') %>" class="flex-1 py-2 bg-black/5 dark:bg-white/10 rounded-lg hover:brightness-110 transition-all flex items-center justify-center">
+                                <i class="fa-solid fa-trash-can text-xs opacity-75"></i>
+                            </button>
+                            <button onclick="reloadPage()" title="<%= t('common.apply') %>"
+                                class="flex-1 py-2 bg-primary-theme text-white rounded-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center">
+                                <i class="fa-solid fa-check text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            <% } %>
+
+            <% if (stylesPlugin && stylesPlugin.schemaDefinition && stylesPlugin.schemaDefinition.platform && platforms.length > 0) { %>
+                <div class="w-full lg:w-48 relative">
+                    <button onclick="togglePlatformMenu(event)" id="platformSelectorBtn"
+                        class="block w-full p-2.5 text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme outline-none transition-all flex justify-between items-center group">
+                        <span class="truncate opacity-50 group-hover:opacity-100 transition-opacity">
+                            <%= locals.queryPlatform ? (locals.queryPlatform.split(',').length + ' ' +
+                                t('collection.platform_filter')) : t('collection.platform_filter') %>
+                        </span>
+                        <i class="fa-solid fa-chevron-down text-[10px] opacity-20 group-hover:opacity-60 transition-all"></i>
+                    </button>
+                    <div id="platform-multi-select"
+                        class="hidden absolute left-0 right-0 top-full z-50 mt-2 card-theme rounded-xl p-3 shadow-2xl border border-black/5 dark:border-white/10 animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div class="mb-2 pb-2 border-b border-black/5 dark:border-white/5">
+                            <input type="text" placeholder="<%= t('collection.search_platform_placeholder') %>"
+                                    oninput="filterDropdownList(this, 'platform-checkbox-list')"
+                                    class="w-full p-2 text-xs rounded-lg border card-theme outline-none focus:ring-1 focus:ring-primary-theme placeholder-opacity-50">
+                        </div>
+                        <div id="platform-checkbox-list" class="space-y-1 max-h-[45vh] overflow-y-auto custom-scrollbar">
+                            <% const currentPlatformArr = locals.queryPlatform ? locals.queryPlatform.split(',') : [];
+                                platforms.forEach(plat => { %>
+                                <label class="flex items-center gap-3 p-2 text-sm rounded-lg hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer transition-colors group">
+                                    <input type="checkbox"
+                                        class="platform-checkbox accent-primary-theme w-4 h-4 rounded border-gray-300 transition-all cursor-pointer"
+                                        value="<%= plat %>" <%= currentPlatformArr.includes(plat) ? 'checked' : '' %>>
+                                    <span class="group-hover:translate-x-0.5 transition-transform">
+                                        <%= plat %>
+                                    </span>
+                                </label>
+                            <% }); %>
+                        </div>
+                        <div class="mt-3 pt-3 border-t border-black/5 dark:border-white/5 flex gap-2">
+                            <button onclick="clearPlatformCheckboxes()" title="<%= t('common.delete') %>" class="flex-1 py-2 bg-black/5 dark:bg-white/10 rounded-lg hover:brightness-110 transition-all flex items-center justify-center">
+                                <i class="fa-solid fa-trash-can text-xs opacity-75"></i>
+                            </button>
+                            <button onclick="reloadPage()" title="<%= t('common.apply') %>"
+                                class="flex-1 py-2 bg-primary-theme text-white rounded-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center">
+                                <i class="fa-solid fa-check text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            <% } %>
+        <% } %>
+
+        <div class="w-full lg:w-44 relative">
+            <div class="relative">
+                <%# The selected type names its own creator field ("Fabricant", "Réalisateur"...) %>
+                <input type="text" id="artistInput" placeholder="<%= locals.creatorFilterLabel || t('collection.artist_filter') %>"
+                    value="<%= locals.queryArtist || '' %>" autocomplete="off"
+                    class="filter-input-textbox block w-full p-2.5 <%= locals.queryArtist ? 'pr-8' : '' %> text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme outline-none placeholder-opacity-50">
+                <% if (locals.queryArtist) { %>
+                    <button onclick="clearFilterParam('artist')" class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-red-500 transition-colors">
+                        <i class="fa-solid fa-circle-xmark"></i>
+                    </button>
+                <% } %>
+                <div id="artistAutocomplete"
+                    class="hidden absolute left-0 right-0 top-full z-50 mt-1 card-theme rounded-xl shadow-2xl border border-black/5 dark:border-white/10 max-h-[40vh] overflow-y-auto custom-scrollbar">
+                </div>
+            </div>
+        </div>
+
+        <div class="w-full lg:w-48 relative">
+            <button onclick="toggleSortMenu(event)" id="sortSelectorBtn"
+                class="block w-full p-2.5 text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme outline-none transition-all flex justify-between items-center group">
+                <span class="truncate opacity-50 group-hover:opacity-100 transition-opacity"
+                    id="sortLabel">
+                    <%= t('collection.sort_label') %>
+                </span>
+                <i
+                    class="fa-solid fa-arrow-down-short-wide text-[12px] opacity-20 group-hover:opacity-60 transition-all"></i>
+            </button>
+            <div id="sort-menu"
+                class="hidden absolute left-0 right-0 top-full z-50 mt-2 card-theme rounded-xl p-2 shadow-2xl border border-black/5 dark:border-white/10 animate-in fade-in slide-in-from-top-2 duration-200">
+                <% const sortOptions=[ { key: 'added' , label: t('collection.sort_added'), descFirst:
+                    true }, { key: 'title' , label: t('collection.sort_title'), descFirst: false }, {
+                    key: 'year' , label: t('collection.sort_year'), descFirst: true }, ]; %>
+                    <% sortOptions.forEach(opt=> {
+                        const isActive = currentSort.startsWith(opt.key);
+                        const currentDir = isActive ? (currentSort.endsWith('_asc') ? 'asc' :
+                        'desc') : (opt.descFirst ? 'desc' : 'asc');
+                        %>
+                        <button
+                            onclick="handleSort('<%= opt.key %>', '<%= currentDir %>', <%= opt.descFirst %>)"
+                            class="w-full flex items-center justify-between gap-2 p-2.5 text-sm rounded-lg transition-all cursor-pointer
+                                    <%= isActive ? 'bg-primary-theme/10 text-primary-theme font-semibold' : 'hover:bg-black/5 dark:hover:bg-white/5 opacity-70 hover:opacity-100' %>">
+                            <span>
+                                <%= opt.label %>
+                            </span>
+                            <% if (isActive) { %>
+                                <i
+                                    class="fa-solid fa-arrow-<%= currentDir === 'asc' ? 'up' : 'down' %> text-[11px]"></i>
+                                <% } %>
+                        </button>
+                        <% }); %>
+                            <% if (currentType !=='all' ) { %>
+                                <% const artistActive=currentSort.startsWith('artist'); const
+                                    artistDir=artistActive ? (currentSort.endsWith('_asc') ? 'asc'
+                                    : 'desc' ) : 'asc' ; %>
+                                    <button onclick="handleSort('artist', '<%= artistDir %>', false)"
+                                        class="w-full flex items-center justify-between gap-2 p-2.5 text-sm rounded-lg transition-all cursor-pointer
+                                    <%= artistActive ? 'bg-primary-theme/10 text-primary-theme font-semibold' : 'hover:bg-black/5 dark:hover:bg-white/5 opacity-70 hover:opacity-100' %>">
+                                        <span>
+                                            <%= locals.creatorFilterLabel || t('collection.sort_artist') %>
+                                        </span>
+                                        <% if (artistActive) { %>
+                                            <i
+                                                class="fa-solid fa-arrow-<%= artistDir === 'asc' ? 'up' : 'down' %> text-[11px]"></i>
+                                            <% } %>
+                                    </button>
+                                    <% } %>
+                            <% (locals.extraFilters || []).forEach(xf => {
+                                const xfActive = currentSort.startsWith(xf.sortKey + '_');
+                                const xfDir = xfActive ? (currentSort.endsWith('_asc') ? 'asc' : 'desc') : 'asc';
+                            %>
+                                <button onclick="handleSort('<%= xf.sortKey %>', '<%= xfDir %>', false)"
+                                    class="w-full flex items-center justify-between gap-2 p-2.5 text-sm rounded-lg transition-all cursor-pointer
+                                    <%= xfActive ? 'bg-primary-theme/10 text-primary-theme font-semibold' : 'hover:bg-black/5 dark:hover:bg-white/5 opacity-70 hover:opacity-100' %>">
+                                    <span class="truncate"><%= xf.label %></span>
+                                    <% if (xfActive) { %>
+                                        <i class="fa-solid fa-arrow-<%= xfDir === 'asc' ? 'up' : 'down' %> text-[11px]"></i>
+                                    <% } %>
+                                </button>
+                            <% }) %>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2 w-full lg:w-auto">
+            <div class="flex bg-black/5 dark:bg-white/5 p-1 rounded-lg h-10 items-center">
+                <button onclick="setFilterMode('show')" 
+                    title="<%= t('collection.filter_mode_show') %>"
+                    class="w-10 h-8 flex items-center justify-center rounded-md transition-all <%= (locals.queryFilterMode !== 'hide') ? 'bg-white dark:bg-white/20 shadow-sm text-primary-theme' : 'opacity-40 hover:opacity-100' %>">
+                    <i class="fa-solid fa-eye text-xs"></i>
+                </button>
+                <button onclick="setFilterMode('hide')" 
+                    title="<%= t('collection.filter_mode_hide') %>"
+                    class="w-10 h-8 flex items-center justify-center rounded-md transition-all <%= (locals.queryFilterMode === 'hide') ? 'bg-red-500 text-white shadow-sm' : 'opacity-40 hover:opacity-100' %>">
+                    <i class="fa-solid fa-eye-slash text-xs"></i>
+                </button>
+            </div>
+            
+            <div class="w-12">
+                <button onclick="reloadPage()"
+                    class="block w-full h-10 flex items-center justify-center rounded-lg border hover:text-primary-theme hover:border-primary-theme card-theme transition-all bg-primary-theme/5">
+                    <i class="fa-solid fa-magnifying-glass opacity-60"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- User-defined field filters, on their own row: their number depends on what
+            the collection admin declared, so they must not squeeze the main row. -->
+    <% const xFilters = locals.extraFilters || []; %>
+    <% if (xFilters.length > 0) { %>
+        <!-- Wrapping grid rather than a single flex row: the number of controls is
+                whatever the collection admin declared, so the row must reflow instead
+                of squeezing everything onto one line. A range takes two columns, which
+                leaves each of its two inputs about the width of a normal filter. -->
+        <div id="extraFilterContainer" class="hidden sm:grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
+            <% xFilters.forEach(xf => { %>
+                <div class="min-w-0 <%= xf.kind === 'range' ? 'sm:col-span-2' : '' %>">
+                    <label class="block mb-1 text-[10px] font-bold uppercase tracking-widest opacity-40 truncate" title="<%= xf.label %>"><%= xf.label %></label>
+                    <% if (xf.kind === 'range') { %>
+                        <div class="flex items-center gap-1">
+                            <%# min-w-0 defeats the intrinsic minimum width of a date input, which
+                                would otherwise overflow the cell and overlap the next filter %>
+                            <input type="<%= xf.type === 'date' ? 'date' : 'number' %>" class="xf-range block w-full min-w-0 p-2 text-xs card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme outline-none"
+                                data-param="<%= xf.paramFrom %>" value="<%= xf.from %>" title="<%= t('collection.xf_from') %>">
+                            <span class="opacity-30 text-xs shrink-0">→</span>
+                            <input type="<%= xf.type === 'date' ? 'date' : 'number' %>" class="xf-range block w-full min-w-0 p-2 text-xs card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme outline-none"
+                                data-param="<%= xf.paramTo %>" value="<%= xf.to %>" title="<%= t('collection.xf_to') %>">
+                        </div>
+                    <% } else { %>
+                        <select class="xf-select block w-full p-2.5 text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme outline-none cursor-pointer"
+                            data-param="<%= xf.param %>">
+                            <option value="" class="bg-white dark:bg-[#1a1a1a]"><%= t('common.all') %></option>
+                            <% if (xf.kind === 'boolean') { %>
+                                <option value="true" class="bg-white dark:bg-[#1a1a1a]" <%= xf.value === 'true' ? 'selected' : '' %>><%= t('common.yes') %></option>
+                                <option value="false" class="bg-white dark:bg-[#1a1a1a]" <%= xf.value === 'false' ? 'selected' : '' %>><%= t('common.no') %></option>
+                            <% } else { %>
+                                <option value="<%= locals.extraAny %>" class="bg-white dark:bg-[#1a1a1a]" <%= xf.value === locals.extraAny ? 'selected' : '' %>><%= t('collection.xf_any') %></option>
+                                <option value="<%= locals.extraNone %>" class="bg-white dark:bg-[#1a1a1a]" <%= xf.value === locals.extraNone ? 'selected' : '' %>><%= t('collection.xf_none') %></option>
+                                <% xf.choices.forEach(c => { %>
+                                    <option value="<%= c.value %>" class="bg-white dark:bg-[#1a1a1a]" <%= xf.value === c.value ? 'selected' : '' %>><%= t(c.label, { defaultValue: c.label }) %></option>
+                                <% }) %>
+                            <% } %>
+                        </select>
+                    <% } %>
+                </div>
+            <% }) %>
+        </div>
+    <% } %>
+
+    <!-- Active Filter Badges/Pills -->
+    <%
+        const activePills = [];
+        if (locals.querySearch) activePills.push({ key: 'search', label: t('collection.filter_placeholder') + ': "' + locals.querySearch + '"' });
+        if (locals.queryLocation) activePills.push({ key: 'location', label: t('common.location') + ': "' + locals.queryLocation + '"' });
+        if (locals.queryArtist) activePills.push({ key: 'artist', label: (locals.creatorFilterLabel || t('collection.artist_filter')) + ': "' + locals.queryArtist + '"' });
+        
+        if (locals.queryDecade) {
+            activePills.push({ key: 'decade', label: t('collection.decade_filter') + ': ' + locals.queryDecade.split(',').map(d => d + 's').join(', ') });
+        }
+        if (locals.queryGenre) {
+            activePills.push({ key: 'genre', label: t('confirm_vinyl.field_genres') + ': ' + locals.queryGenre.split(',').join(', ') });
+        }
+        if (locals.queryStyle) {
+            activePills.push({ key: 'style', label: t('collection.styles_filter') + ': ' + locals.queryStyle.split(',').join(', ') });
+        }
+        if (locals.queryPlatform) {
+            activePills.push({ key: 'platform', label: t('collection.platform_filter') + ': ' + locals.queryPlatform.split(',').join(', ') });
+        }
+
+        // One pill per active user-defined filter; a range contributes one per bound
+        xFilters.forEach(xf => {
+            const readable = (v) => v === locals.extraAny ? t('collection.xf_any')
+                : v === locals.extraNone ? t('collection.xf_none')
+                : v === 'true' ? t('common.yes')
+                : v === 'false' ? t('common.no')
+                : t(v, { defaultValue: v });
+            if (xf.value) activePills.push({ key: xf.param, label: xf.label + ': ' + readable(xf.value) });
+            if (xf.from) activePills.push({ key: xf.paramFrom, label: xf.label + ' ≥ ' + xf.from });
+            if (xf.to) activePills.push({ key: xf.paramTo, label: xf.label + ' ≤ ' + xf.to });
+        });
+    %>
+
+    <% if (activePills.length > 0) { %>
+        <div class="flex flex-wrap items-center gap-2 mt-4 text-xs animate-in fade-in duration-200">
+            <span class="opacity-60 font-semibold"><%= t('collection.active_filters') %></span>
+            <% activePills.forEach(pill => { %>
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary-theme/10 text-primary-theme font-semibold border border-primary-theme/20 shadow-sm transition-all hover:bg-primary-theme/20">
+                    <%= pill.label %>
+                    <button onclick="clearFilterParam('<%= pill.key %>')" class="hover:text-red-500 font-bold ml-1 text-sm focus:outline-none transition-colors" title="<%= t('common.delete') %>">&times;</button>
+                </span>
+            <% }) %>
+            <button onclick="clearAllFilters()" class="text-xs text-red-500 hover:text-red-600 font-bold ml-2 underline transition-colors cursor-pointer">
+                <%= t('collection.clear_all') %>
+            </button>
+        </div>
+    <% } %>
+</div>
+
+<script>
+
+    let currentType = '<%= currentType %>';
+        let currentFormat = '<%= currentFormat %>';
+        let currentSort = '<%= currentSort %>';
+        const filterInput = document.getElementById('filterInput');
+        const locationInput = document.getElementById('locationInput');
+        const artistInput = document.getElementById('artistInput');
+        let currentLimit = <%= locals.queryLimit %>;
+        let currentDecade = '<%= locals.queryDecade || "" %>';
+        let currentStyle = '<%= locals.queryStyle || "" %>';
+        let currentFilterMode = '<%= locals.queryFilterMode || "show" %>';
+
+        function reloadPage() {
+            const url = new URL(window.location.origin + window.location.pathname);
+
+            validateAndSetUrlSearchParamString('type', currentType);
+            validateAndSetUrlSearchParamString('format', currentFormat);
+            validateAndSetUrlSearchParamString('search', filterInput?.value);
+            validateAndSetUrlSearchParamString('location', locationInput?.value);
+
+            if (currentType !== 'all') {
+                const genreMenu = document.getElementById('genre-multi-select');
+                if (genreMenu) {
+                    const checkedGenres = [...genreMenu.querySelectorAll('.genre-checkbox:checked')].map(cb => cb.value);
+                    if (checkedGenres.length) url.searchParams.set('genre', checkedGenres.join(','));
+                }
+            }
+
+            const styleMenu = document.getElementById('style-multi-select');
+            if (styleMenu) {
+                const checkedStyles = [...styleMenu.querySelectorAll('.style-checkbox:checked')].map(cb => cb.value);
+                if (checkedStyles.length) url.searchParams.set('style', checkedStyles.join(','));
+            }
+
+            const platformMenu = document.getElementById('platform-multi-select');
+            if (platformMenu) {
+                const checkedPlatforms = [...platformMenu.querySelectorAll('.platform-checkbox:checked')].map(cb => cb.value);
+                if (checkedPlatforms.length) url.searchParams.set('platform', checkedPlatforms.join(','));
+            }
+
+            const decadeMenu = document.getElementById('decade-menu');
+            if (decadeMenu) {
+                const checkedDecades = [...decadeMenu.querySelectorAll('.decade-checkbox:checked')].map(cb => cb.value);
+                if (checkedDecades.length) url.searchParams.set('decade', checkedDecades.join(','));
+            }
+
+            // User-defined field filters, declared per plugin: each control carries the
+            // query param it owns, so nothing here needs to know their names.
+            document.querySelectorAll('.xf-select, .xf-range').forEach(el => {
+                validateAndSetUrlSearchParamString(el.dataset.param, el.value);
+            });
+
+            validateAndSetUrlSearchParamString('limit', currentLimit);
+            validateAndSetUrlSearchParamString('sort', currentSort);
+            validateAndSetUrlSearchParamString('artist', artistInput?.value);
+            validateAndSetUrlSearchParamString('filterMode', currentFilterMode);
+
+            url.searchParams.set('page', 1);
+            window.location.href = url.toString();
+
+            function validateAndSetUrlSearchParamString(key, value) {
+                if (value === null || value === undefined || (typeof value === "string" && value.trim() === "")) return;
+                if ((typeof value === "string")) value = value.trim();
+                url.searchParams.set(key, value);
+            }
+        }
+
+        function setFilterMode(mode) {
+            currentFilterMode = mode;
+            reloadPage();
+        }
+
+        function toggleMobileFilters() {
+            const containers = [document.getElementById('filterContainer'), document.getElementById('extraFilterContainer')];
+            const opening = containers[0].classList.contains('hidden');
+            containers.filter(Boolean).forEach(container => {
+                container.classList.toggle('hidden', !opening);
+                if (opening) container.classList.add('grid');
+            });
+        }
+
+        function updateURLParams(key, value) {
+            const url = new URL(window.location.href);
+
+            if (value === 'all' || !value) {
+                url.searchParams.delete(key);
+                if (key === 'type') url.searchParams.delete('format');
+            } else {
+                url.searchParams.set(key, value);
+            }
+
+            url.searchParams.set('page', 1);
+            window.location.href = url.toString();
+        }
+
+        document.querySelectorAll('.filter-input-textbox').forEach(element => {
+            element.addEventListener('keydown', (e) => {
+                if (e.key !== 'Enter') return;
+                reloadPage();
+            });
+        });
+
+        // A date/number input fires 'change' once the value is complete, so applying
+        // right away does not reload half-typed bounds.
+        document.querySelectorAll('.xf-select, .xf-range').forEach(element => {
+            element.addEventListener('change', () => reloadPage());
+        });
+
+        function clearFilterParam(key) {
+            const url = new URL(window.location.href);
+            url.searchParams.delete(key);
+            url.searchParams.set('page', 1);
+            window.location.href = url.toString();
+        }
+
+        function clearAllFilters() {
+            const url = new URL(window.location.origin + window.location.pathname);
+            const type = new URLSearchParams(window.location.search).get('type');
+            const format = new URLSearchParams(window.location.search).get('format');
+            const sort = new URLSearchParams(window.location.search).get('sort');
+            const limit = new URLSearchParams(window.location.search).get('limit');
+            const filterMode = new URLSearchParams(window.location.search).get('filterMode');
+            
+            if (type) url.searchParams.set('type', type);
+            if (format) url.searchParams.set('format', format);
+            if (sort) url.searchParams.set('sort', sort);
+            if (limit) url.searchParams.set('limit', limit);
+            if (filterMode) url.searchParams.set('filterMode', filterMode);
+            
+            url.searchParams.set('page', 1);
+            window.location.href = url.toString();
+        }
+
+        function clearDecadeCheckboxes() {
+            const decadeMenu = document.getElementById('decade-menu');
+            if (decadeMenu) {
+                decadeMenu.querySelectorAll('.decade-checkbox').forEach(cb => cb.checked = false);
+            }
+            reloadPage();
+        }
+
+        function clearGenreCheckboxes() {
+            const genreMenu = document.getElementById('genre-multi-select');
+            if (genreMenu) {
+                genreMenu.querySelectorAll('.genre-checkbox').forEach(cb => cb.checked = false);
+            }
+            reloadPage();
+        }
+
+        function clearStyleCheckboxes() {
+            const styleMenu = document.getElementById('style-multi-select');
+            if (styleMenu) {
+                styleMenu.querySelectorAll('.style-checkbox').forEach(cb => cb.checked = false);
+            }
+            reloadPage();
+        }
+
+        function clearPlatformCheckboxes() {
+            const platformMenu = document.getElementById('platform-multi-select');
+            if (platformMenu) {
+                platformMenu.querySelectorAll('.platform-checkbox').forEach(cb => cb.checked = false);
+            }
+            reloadPage();
+        }
+
+        function filterDropdownList(inputElement, listId) {
+            const filter = inputElement.value.toLowerCase();
+            const container = document.getElementById(listId);
+            if (!container) return;
+            const labels = container.getElementsByTagName('label');
+            for (let i = 0; i < labels.length; i++) {
+                const span = labels[i].querySelector('span');
+                if (span) {
+                    const text = span.textContent || span.innerText;
+                    if (text.toLowerCase().indexOf(filter) > -1) {
+                        labels[i].style.display = "";
+                    } else {
+                        labels[i].style.display = "none";
+                    }
+                }
+            }
+        }
+
+        function toggleGenreMenu(e) {
+            e.stopPropagation();
+            const menu = document.getElementById('genre-multi-select');
+            const btn = document.getElementById('genreSelectorBtn');
+            closeAllMenusExcept('genre');
+
+            const isHidden = menu.classList.contains('hidden');
+            menu.classList.toggle('hidden');
+            if (!isHidden) {
+                btn.classList.remove('ring-1', 'ring-primary-theme', 'border-primary-theme');
+            } else {
+                btn.classList.add('ring-1', 'ring-primary-theme', 'border-primary-theme');
+            }
+        }
+
+        function toggleStyleMenu(e) {
+            e.stopPropagation();
+            const menu = document.getElementById('style-multi-select');
+            const btn = document.getElementById('styleSelectorBtn');
+            closeAllMenusExcept('style');
+
+            const isHidden = menu.classList.contains('hidden');
+            menu.classList.toggle('hidden');
+            if (!isHidden) {
+                btn.classList.remove('ring-1', 'ring-primary-theme', 'border-primary-theme');
+            } else {
+                btn.classList.add('ring-1', 'ring-primary-theme', 'border-primary-theme');
+            }
+        }
+
+        function togglePlatformMenu(e) {
+            e.stopPropagation();
+            const menu = document.getElementById('platform-multi-select');
+            const btn = document.getElementById('platformSelectorBtn');
+            closeAllMenusExcept('platform');
+
+            const isHidden = menu.classList.contains('hidden');
+            menu.classList.toggle('hidden');
+            if (!isHidden) {
+                btn.classList.remove('ring-1', 'ring-primary-theme', 'border-primary-theme');
+            } else {
+                btn.classList.add('ring-1', 'ring-primary-theme', 'border-primary-theme');
+            }
+        }
+
+        function toggleDecadeMenu(e) {
+            e.stopPropagation();
+            const menu = document.getElementById('decade-menu');
+            const btn = document.getElementById('decadeSelectorBtn');
+            closeAllMenusExcept('decade');
+
+            const isHidden = menu.classList.contains('hidden');
+            menu.classList.toggle('hidden');
+            if (!isHidden) {
+                btn.classList.remove('ring-1', 'ring-primary-theme', 'border-primary-theme');
+            } else {
+                btn.classList.add('ring-1', 'ring-primary-theme', 'border-primary-theme');
+            }
+        }
+
+        function toggleSortMenu(e) {
+            e.stopPropagation();
+            const menu = document.getElementById('sort-menu');
+            const btn = document.getElementById('sortSelectorBtn');
+            closeAllMenusExcept('sort');
+
+            const isHidden = menu.classList.contains('hidden');
+            menu.classList.toggle('hidden');
+            if (!isHidden) {
+                btn.classList.remove('ring-1', 'ring-primary-theme', 'border-primary-theme');
+            } else {
+                btn.classList.add('ring-1', 'ring-primary-theme', 'border-primary-theme');
+            }
+        }
+
+        function closeAllMenusExcept(except) {
+            const menus = [
+                { id: 'genre-multi-select', btnId: 'genreSelectorBtn' },
+                { id: 'style-multi-select', btnId: 'styleSelectorBtn' },
+                { id: 'platform-multi-select', btnId: 'platformSelectorBtn' },
+                { id: 'sort-menu', btnId: 'sortSelectorBtn' },
+                { id: 'decade-menu', btnId: 'decadeSelectorBtn' },
+            ];
+            menus.forEach(({ id, btnId }) => {
+                if (id.startsWith(except)) return;
+                const menu = document.getElementById(id);
+                const btn = document.getElementById(btnId);
+                if (menu) menu.classList.add('hidden');
+                if (btn) btn.classList.remove('ring-1', 'ring-primary-theme', 'border-primary-theme');
+            });
+        }
+
+        function handleSort(key, currentDir, descFirst) {
+            const isAlreadyActive = currentSort.startsWith(key);
+            if (isAlreadyActive) {
+                currentSort = key + '_' + (currentDir === 'asc' ? 'desc' : 'asc');
+            } else {
+                currentSort = key + '_' + (descFirst ? 'desc' : 'asc');
+            }
+            reloadPage();
+        }
+        document.addEventListener('click', (e) => {
+            const menuConfigs = [
+                { menuId: 'genre-multi-select', btnId: 'genreSelectorBtn' },
+                { menuId: 'style-multi-select', btnId: 'styleSelectorBtn' },
+                { menuId: 'platform-multi-select', btnId: 'platformSelectorBtn' },
+                { menuId: 'sort-menu', btnId: 'sortSelectorBtn' },
+                { menuId: 'decade-menu', btnId: 'decadeSelectorBtn' },
+            ];
+            menuConfigs.forEach(({ menuId, btnId }) => {
+                const menu = document.getElementById(menuId);
+                const btn = document.getElementById(btnId);
+                if (!menu || menu.classList.contains('hidden')) return;
+                if (!menu.contains(e.target) && !btn.contains(e.target)) {
+                    menu.classList.add('hidden');
+                    if (btn) btn.classList.remove('ring-1', 'ring-primary-theme', 'border-primary-theme');
+                }
+            });
+
+            const acMenu = document.getElementById('artistAutocomplete');
+            const acInput = document.getElementById('artistInput');
+            if (acMenu && !acMenu.contains(e.target) && e.target !== acInput) {
+                acMenu.classList.add('hidden');
+            }
+        });
+
+        ['genre-multi-select', 'style-multi-select', 'platform-multi-select', 'sort-menu', 'decade-menu'].forEach(id => {
+            const menu = document.getElementById(id);
+            if (menu) {
+                menu.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                });
+            }
+        });
+
+        // Artist autocomplete
+        const allArtists = <%- JSON.stringify(artistList || []) %>;
+        const artistAutocompleteEl = document.getElementById('artistAutocomplete');
+
+        if (artistInput && artistAutocompleteEl) {
+            artistInput.addEventListener('input', () => {
+                const val = artistInput.value.trim().toLowerCase();
+                if (val.length < 1) {
+                    artistAutocompleteEl.classList.add('hidden');
+                    return;
+                }
+                const matches = allArtists.filter(a => a.toLowerCase().includes(val)).slice(0, 15);
+                if (matches.length === 0) {
+                    artistAutocompleteEl.classList.add('hidden');
+                    return;
+                }
+                artistAutocompleteEl.innerHTML = matches.map(m =>
+                    `<button type="button" class="w-full text-left px-3 py-2 text-sm hover:bg-primary-theme/10 hover:text-primary-theme transition-colors cursor-pointer truncate"
+                        onclick="selectArtist('${m.replace(/'/g, "\\'")}')">${m}</button>`
+                ).join('');
+                artistAutocompleteEl.classList.remove('hidden');
+            });
+
+            artistInput.addEventListener('focus', () => {
+                if (artistInput.value.trim().length >= 1) {
+                    artistInput.dispatchEvent(new Event('input'));
+                }
+            });
+        }
+
+        function selectArtist(name) {
+            artistInput.value = name;
+            artistAutocompleteEl.classList.add('hidden');
+            reloadPage();
+        }
+</script>
