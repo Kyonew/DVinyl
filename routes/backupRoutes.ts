@@ -277,7 +277,9 @@ router.get('/collection/export', requireAuth, requireCollectionRole('admin'), as
  * restorable dump. One row per item; columns are the union of the importable fields
  * (base + plugin + user-defined) of every kind actually present, so a single-type
  * collection reads as a clean sheet and a mixed one simply carries more (sparse)
- * columns. Read-only: unlike the JSON export this never round-trips through /import.
+ * columns. Fields shared by several plugins share a column only when they are the same
+ * field, see the identity check below. Read-only: unlike the JSON export this never
+ * round-trips through /import.
  */
 router.get('/collection/export-csv', requireAuth, requireCollectionRole('admin'), async (req: any, res: any) => {
     try {
@@ -287,29 +289,71 @@ router.get('/collection/export-csv', requireAuth, requireCollectionRole('admin')
 
         const albums = await Item.find({ collection: activeCollectionId }).lean();
 
-        const kinds = Array.from(new Set(albums.map((a: any) => a.kind)));
-        const columns: ImportTargetField[] = [];
-        const seen = new Set<string>();
+        // Registry order rather than the order Mongo happened to return the items in,
+        // so the same collection always exports its columns in the same order.
+        const present = new Set(albums.map((a: any) => a.kind));
+        const kinds = registry.getAll().map(p => p.kind).filter(kind => present.has(kind));
+
+        // A column is one field of one plugin. Two plugins merge into a single column
+        // only when their field is the same thing under the same name: the base fields
+        // (Title, Year...) do, media_type does not, since it holds vinyl/cd for music
+        // and movie/tv for DVDs. Merging those would print one plugin's labels and the
+        // other's raw values in a column headed with a name that fits half the rows.
+        const identity = (f: ImportTargetField) => JSON.stringify([
+            f.name, f.type, f.label, f.extraField === true,
+            (f.options || []).map(o => [o.value, o.label])
+        ]);
+
+        interface ExportColumn {
+            field: ImportTargetField;
+            label: string;
+            /** Left empty for any other kind, even one owning a field of the same name. */
+            kinds: Set<string>;
+            /** Names the module in the header when two columns end up reading alike. */
+            owner: string;
+        }
+
+        const columns: ExportColumn[] = [];
+        const byIdentity = new Map<string, ExportColumn>();
 
         for (const kind of kinds) {
             const plugin = registry.getByKind(kind);
-            if (!plugin) continue; // A kind whose plugin was since removed/disabled: skip its columns, keep its rows under "Type".
+            if (!plugin) continue; // Cannot happen, kinds come from the registry: narrows the type.
+            const pluginLabel = req.t(plugin.label, { defaultValue: plugin.id });
             for (const field of importableFields(plugin, settings, req.t)) {
-                if (seen.has(field.name)) continue;
-                seen.add(field.name);
-                columns.push(field);
+                const key = identity(field);
+                const known = byIdentity.get(key);
+                if (known) {
+                    known.kinds.add(kind);
+                    continue;
+                }
+                const column: ExportColumn = { field, label: field.label, kinds: new Set([kind]), owner: pluginLabel };
+                byIdentity.set(key, column);
+                columns.push(column);
             }
         }
 
         const typeLabel = req.t('admin.backup.csv.type_column');
         const wishlistLabel = req.t('admin.backup.csv.wishlist_column');
-        const header = [typeLabel, ...columns.map(f => f.label), wishlistLabel];
+
+        // Four modules label a field "Format", each with its own options, and the DVD
+        // plugin calls its own field "Type" like the module column added here: without
+        // this the sheet repeats a header and nobody can tell the columns apart. The two
+        // columns this route adds itself are counted in, and win the bare name.
+        const labelUses = new Map<string, number>([[typeLabel, 1], [wishlistLabel, 1]]);
+        for (const column of columns) labelUses.set(column.label, (labelUses.get(column.label) || 0) + 1);
+        for (const column of columns) {
+            if ((labelUses.get(column.label) || 0) > 1) column.label = `${column.label} (${column.owner})`;
+        }
+
+        const header = [typeLabel, ...columns.map(c => c.label), wishlistLabel];
 
         const rows: string[][] = [header];
         for (const album of albums) {
-            const plugin = registry.getByKind((album as any).kind);
-            const typeName = plugin ? req.t(plugin.label, { defaultValue: plugin.id }) : String((album as any).kind || '');
-            const cells = columns.map(field => fieldValue(album, field));
+            const kind = String((album as any).kind || '');
+            const plugin = registry.getByKind(kind);
+            const typeName = plugin ? req.t(plugin.label, { defaultValue: plugin.id }) : kind;
+            const cells = columns.map(c => (c.kinds.has(kind) ? fieldValue(album, c.field) : ''));
             rows.push([typeName, ...cells, (album as any).in_wishlist ? 'true' : 'false']);
         }
 
