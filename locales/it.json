@@ -57,7 +57,12 @@
     "backup": {
       "confirm_import": "ATTENZIONE: questa operazione eliminerà tutti i tuoi dati correnti (album, utenti, registri) e li sostituirà con il contenuto del file. Verrai disconnesso. Continuare?",
       "export_btn": "Esporta banca dati",
+      "export_csv_btn": "Esporta CSV",
       "import_btn": "Importa banca dati",
+      "csv": {
+        "type_column": "Tipo",
+        "wishlist_column": "Lista dei desideri"
+      },
       "import_error": "Errore durante l'importazione.",
       "import_success": "Database importato correttamente.",
       "json_error": "File JSON non valido.",

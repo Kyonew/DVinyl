@@ -57,7 +57,12 @@
     "backup": {
       "confirm_import": "ADVERTENCIA: Esto eliminará todos sus datos actuales (álbumes, usuarios, registros) y los reemplazará con el contenido del archivo. Se cerrará tu sesión. ¿Continuar?",
       "export_btn": "Exportar base de datos",
+      "export_csv_btn": "Exportar CSV",
       "import_btn": "Importar base de datos",
+      "csv": {
+        "type_column": "Tipo",
+        "wishlist_column": "Lista de deseos"
+      },
       "import_error": "Error durante la importación.",
       "import_success": "Base de datos importada exitosamente.",
       "json_error": "Archivo JSON no válido.",

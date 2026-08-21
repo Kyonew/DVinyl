@@ -10,7 +10,8 @@ import InstanceSettings from '../models/InstanceSettings';
 import { invalidateInstanceSettingsCache } from '../utils/instanceSettings';
 import { requireAuth, requireAdmin, requireCollectionRole } from '../middleware/authMiddleware';
 import { registry } from '../core/registry';
-import { buildSortTitle } from '../core/helpers';
+import { buildSortTitle, stringifyCsv } from '../core/helpers';
+import { importableFields, fieldValue, ImportTargetField } from '../core/csvMapping';
 
 // Stamped into every dump so a restore log says which build produced the file.
 // Read from package.json rather than copied, which is how it came to say 3.1.0 on 3.1.1.
@@ -267,6 +268,105 @@ router.get('/collection/export', requireAuth, requireCollectionRole('admin'), as
         res.send(JSON.stringify(data, null, 2));
     } catch (err) {
         console.error("[ERR] Collection export:", err);
+        res.status(500).send("Export failed");
+    }
+});
+
+/**
+ * GET /collection/export-csv - the same collection, as a flat spreadsheet instead of a
+ * restorable dump. One row per item; columns are the union of the importable fields
+ * (base + plugin + user-defined) of every kind actually present, so a single-type
+ * collection reads as a clean sheet and a mixed one simply carries more (sparse)
+ * columns. Fields shared by several plugins share a column only when they are the same
+ * field, see the identity check below. Read-only: unlike the JSON export this never
+ * round-trips through /import.
+ */
+router.get('/collection/export-csv', requireAuth, requireCollectionRole('admin'), async (req: any, res: any) => {
+    try {
+        const activeCollectionId = res.locals.activeCollectionId;
+        const collection = res.locals.activeCollection;
+        const settings = res.locals.settings;
+
+        const albums = await Item.find({ collection: activeCollectionId }).lean();
+
+        // Registry order rather than the order Mongo happened to return the items in,
+        // so the same collection always exports its columns in the same order.
+        const present = new Set(albums.map((a: any) => a.kind));
+        const kinds = registry.getAll().map(p => p.kind).filter(kind => present.has(kind));
+
+        // A column is one field of one plugin. Two plugins merge into a single column
+        // only when their field is the same thing under the same name: the base fields
+        // (Title, Year...) do, media_type does not, since it holds vinyl/cd for music
+        // and movie/tv for DVDs. Merging those would print one plugin's labels and the
+        // other's raw values in a column headed with a name that fits half the rows.
+        const identity = (f: ImportTargetField) => JSON.stringify([
+            f.name, f.type, f.label, f.extraField === true,
+            (f.options || []).map(o => [o.value, o.label])
+        ]);
+
+        interface ExportColumn {
+            field: ImportTargetField;
+            label: string;
+            /** Left empty for any other kind, even one owning a field of the same name. */
+            kinds: Set<string>;
+            /** Names the module in the header when two columns end up reading alike. */
+            owner: string;
+        }
+
+        const columns: ExportColumn[] = [];
+        const byIdentity = new Map<string, ExportColumn>();
+
+        for (const kind of kinds) {
+            const plugin = registry.getByKind(kind);
+            if (!plugin) continue; // Cannot happen, kinds come from the registry: narrows the type.
+            const pluginLabel = req.t(plugin.label, { defaultValue: plugin.id });
+            for (const field of importableFields(plugin, settings, req.t)) {
+                const key = identity(field);
+                const known = byIdentity.get(key);
+                if (known) {
+                    known.kinds.add(kind);
+                    continue;
+                }
+                const column: ExportColumn = { field, label: field.label, kinds: new Set([kind]), owner: pluginLabel };
+                byIdentity.set(key, column);
+                columns.push(column);
+            }
+        }
+
+        const typeLabel = req.t('admin.backup.csv.type_column');
+        const wishlistLabel = req.t('admin.backup.csv.wishlist_column');
+
+        // Four modules label a field "Format", each with its own options, and the DVD
+        // plugin calls its own field "Type" like the module column added here: without
+        // this the sheet repeats a header and nobody can tell the columns apart. The two
+        // columns this route adds itself are counted in, and win the bare name.
+        const labelUses = new Map<string, number>([[typeLabel, 1], [wishlistLabel, 1]]);
+        for (const column of columns) labelUses.set(column.label, (labelUses.get(column.label) || 0) + 1);
+        for (const column of columns) {
+            if ((labelUses.get(column.label) || 0) > 1) column.label = `${column.label} (${column.owner})`;
+        }
+
+        const header = [typeLabel, ...columns.map(c => c.label), wishlistLabel];
+
+        const rows: string[][] = [header];
+        for (const album of albums) {
+            const kind = String((album as any).kind || '');
+            const plugin = registry.getByKind(kind);
+            const typeName = plugin ? req.t(plugin.label, { defaultValue: plugin.id }) : kind;
+            const cells = columns.map(c => (c.kinds.has(kind) ? fieldValue(album, c.field) : ''));
+            rows.push([typeName, ...cells, (album as any).in_wishlist ? 'true' : 'false']);
+        }
+
+        // Leading BOM so Excel (which guesses ANSI otherwise) opens accented labels
+        // and titles as UTF-8 instead of mojibake.
+        const csv = '﻿' + stringifyCsv(rows);
+        const slug = collection?.slug || 'collection';
+        const fileName = `dvinyl_collection-${slug}_${new Date().toISOString().split('T')[0]}.csv`;
+        res.setHeader('Content-disposition', 'attachment; filename=' + fileName);
+        res.setHeader('Content-type', 'text/csv; charset=utf-8');
+        res.send(csv);
+    } catch (err) {
+        console.error("[ERR] Collection CSV export:", err);
         res.status(500).send("Export failed");
     }
 });
