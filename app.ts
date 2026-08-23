@@ -107,10 +107,28 @@ app.use(cookieParser());
 
 app.use(i18nMiddleware.handle(i18next));
 
-const session_secret = process.env.SESSION_SECRET;
-if (!session_secret) {
-  throw new Error('SESSION_SECRET is not defined');
+const INSECURE_DEFAULTS = new Set([
+  'SomeComplexPassword',
+  'AnotherComplexSecret'
+]);
+
+for (const name of ['PASSJWT', 'SESSION_SECRET'] as const) {
+  const v = process.env[name];
+  if (!v) {
+    throw new Error(`[SECURITY] ${name} is not defined. Please set it in your environment.`);
+  }
+  if (INSECURE_DEFAULTS.has(v)) {
+    throw new Error(
+      `[SECURITY] ${name} is using the default example value ("${v}"). ` +
+      `Please set a unique secret in your .env file (e.g. openssl rand -hex 32).`
+    );
+  }
+  if (v.length < 32) {
+    console.warn(`[SECURITY WARNING] ${name} is shorter than 32 characters. Consider generating a longer random secret.`);
+  }
 }
+
+const session_secret = process.env.SESSION_SECRET!;
 app.use(session({
   secret: session_secret,
   resave: false,
