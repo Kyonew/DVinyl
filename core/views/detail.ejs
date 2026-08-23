@@ -37,22 +37,20 @@
 
         <!-- Left Column: Cover and user image -->
         <%
-            // How this plugin names its two images. Neutral by default: "cover" only makes
-            // sense for the media that actually have one.
+            // Neutral by default: "cover" only makes sense for media that have one.
             const mainImageLabel = t(plugin.imageLabels?.main || 'generic.main_image');
-            const secondaryImageLabel = t(plugin.imageLabels?.secondary || 'generic.secondary_image');
             // The grids stay on the collection-wide ratio, so the plugin's own ratio is
             // what the frame uses here. A portrait frame at the full width would push the
             // rest of the page below the fold, hence the narrower cap for it.
             const coverAspect = plugin.aspectRatioClass || 'aspect-square';
             const coverMaxWidth = coverAspect === 'aspect-[2/3]' ? 'max-w-sm' : 'max-w-lg';
         %>
-        <div class="lg:col-span-6 flex flex-col items-center">
+        <div class="lg:col-span-6 min-w-0 flex flex-col items-center">
             <div class="relative w-full <%= coverMaxWidth %> <%= coverAspect %> card-theme rounded-2xl shadow-xl overflow-hidden flex items-center justify-center group transition-colors">
-                <img id="mainImage" src="<%= item.user_image || item.cover_image %>" class="w-full h-full object-contain transition-transform duration-300 group-hover:scale-[1.02] cursor-zoom-in" alt="<%= item.title %>" onclick="openLightbox()">
+                <img id="mainImage" src="<%= item.images[0] %>" class="w-full h-full object-contain transition-transform duration-300 group-hover:scale-[1.02] cursor-zoom-in" alt="<%= item.title %>" onclick="openLightbox()">
 
                 <span id="imageBadge" class="absolute top-4 right-4 bg-white/90 dark:bg-black/60 backdrop-blur-md text-neutral-900 dark:text-white text-xs px-3 py-1 rounded-full border border-black/5 dark:border-white/10 shadow-sm transition-colors">
-                    <%= item.user_image ? secondaryImageLabel : mainImageLabel %>
+                    <%= mainImageLabel %>
                 </span>
 
                 <button type="button" onclick="openLightbox()" title="<%= t('detail.view_fullscreen') %>" aria-label="<%= t('detail.view_fullscreen') %>"
@@ -61,17 +59,31 @@
                 </button>
             </div>
 
-            <div class="flex gap-4 mt-6 overflow-x-auto pb-2 w-full max-w-lg justify-center">
-                <% if (item.user_image) { %>
-                    <button onclick="switchImage('<%= item.user_image %>', translations.additional_image)" class="thumb-btn w-20 h-20 rounded-lg border-2 border-primary-theme overflow-hidden relative transition-all hover:opacity-100 focus:outline-none shadow-md">
-                        <img src="<%= item.user_image %>" class="w-full h-full object-cover">
-                        <div class="absolute inset-0 bg-black/10 dark:bg-black/20"></div>
+            <div id="imageGallery" class="gallery-wrapper relative w-full max-w-lg mt-6 overflow-hidden">
+                <% if (item.images.length > 1) { %>
+                    <button type="button" id="galleryPrevious" class="gallery-nav absolute z-10 left-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/75 dark:bg-black/55 backdrop-blur-md text-neutral-900 dark:text-white border border-black/10 dark:border-white/10 shadow-md items-center justify-center transition-all hover:bg-white dark:hover:bg-black/80 focus:opacity-100 focus:outline-none"
+                        aria-label="<%= t('image_manager.previous') %>" title="<%= t('image_manager.previous') %>">
+                        <i class="fa-solid fa-chevron-left text-xs"></i>
                     </button>
                 <% } %>
 
-                <button onclick="switchImage('<%= item.cover_image %>', translations.official_cover)" class="thumb-btn w-20 h-20 rounded-lg border-2 border-transparent hover:border-black/20 dark:hover:border-white/20 overflow-hidden relative transition-all opacity-70 hover:opacity-100 focus:outline-none shadow-sm">
-                    <img src="<%= item.cover_image %>" class="w-full h-full object-cover">
-                </button>
+                <div id="galleryStrip" class="gallery-strip w-full overflow-x-auto overscroll-x-contain scroll-smooth">
+                    <div class="flex gap-4 w-max min-w-full justify-center px-2 py-2">
+                        <% item.images.forEach((image, index) => { %>
+                            <button type="button" data-gallery-label="<%= index === 0 ? mainImageLabel : t('image_manager.image_number', { number: index + 1 }) %>"
+                                class="thumb-btn snap-start w-20 h-20 flex-shrink-0 rounded-lg border-2 <%= index === 0 ? 'border-primary-theme opacity-100 ring-2 ring-primary-theme/50' : 'border-transparent opacity-70' %> hover:border-black/20 dark:hover:border-white/20 overflow-hidden relative transition-all hover:opacity-100 focus:outline-none shadow-sm">
+                                <img src="<%= image %>" class="w-full h-full object-cover" alt="">
+                            </button>
+                        <% }) %>
+                    </div>
+                </div>
+
+                <% if (item.images.length > 1) { %>
+                    <button type="button" id="galleryNext" class="gallery-nav absolute z-10 right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/75 dark:bg-black/55 backdrop-blur-md text-neutral-900 dark:text-white border border-black/10 dark:border-white/10 shadow-md items-center justify-center transition-all hover:bg-white dark:hover:bg-black/80 focus:opacity-100 focus:outline-none"
+                        aria-label="<%= t('image_manager.next') %>" title="<%= t('image_manager.next') %>">
+                        <i class="fa-solid fa-chevron-right text-xs"></i>
+                    </button>
+                <% } %>
             </div>
 
             <!-- Sidebar Detail Zones from plugin (status + rating blocks under the cover) -->
@@ -482,14 +494,24 @@
         <i class="fa-solid fa-xmark text-xl"></i>
     </button>
 
-    <img id="lightboxImage" alt="<%= item.title %>" onclick="event.stopPropagation()"
+    <% if (item.images.length > 1) { %>
+        <button type="button" id="lightboxPrevious" title="<%= t('image_manager.previous') %>" aria-label="<%= t('image_manager.previous') %>"
+            class="lightbox-nav absolute z-10 left-2 md:left-6 top-1/2 -translate-y-1/2 w-11 h-11 md:w-12 md:h-12 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md text-white border border-white/10 shadow-lg flex items-center justify-center transition-all focus:outline-none">
+            <i class="fa-solid fa-chevron-left"></i>
+        </button>
+        <button type="button" id="lightboxNext" title="<%= t('image_manager.next') %>" aria-label="<%= t('image_manager.next') %>"
+            class="lightbox-nav absolute z-10 right-2 md:right-6 top-1/2 -translate-y-1/2 w-11 h-11 md:w-12 md:h-12 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md text-white border border-white/10 shadow-lg flex items-center justify-center transition-all focus:outline-none">
+            <i class="fa-solid fa-chevron-right"></i>
+        </button>
+        <span id="lightboxCounter" class="absolute z-10 bottom-4 left-1/2 -translate-x-1/2 bg-black/55 backdrop-blur-md text-white text-xs font-bold px-3 py-1.5 rounded-full border border-white/10 shadow-sm pointer-events-none" aria-live="polite"></span>
+    <% } %>
+
+    <img id="lightboxImage" alt="<%= item.title %>" draggable="false" onclick="event.stopPropagation()"
         class="max-w-full max-h-full object-contain rounded-lg shadow-2xl cursor-default">
 </div>
 
 <script>
     const translations = <%- JSON.stringify({
-        official_cover: mainImageLabel,
-        additional_image: secondaryImageLabel,
         confirm_delete: t('detail.confirm_delete'),
         confirm_move_to_wishlist: t('detail.move_to_wishlist_confirm'),
         market_price: t('detail.market_price'),
@@ -519,6 +541,7 @@
     });
 
     const currentLocale = '<%= currentLng === "fr" ? "fr-FR" : "en-US" %>';
+    let switchImageTimer;
 
     function switchImage(url, text) {
         const mainImg = document.getElementById('mainImage');
@@ -526,7 +549,8 @@
 
         mainImg.style.opacity = '0.5';
 
-        setTimeout(() => {
+        clearTimeout(switchImageTimer);
+        switchImageTimer = setTimeout(() => {
             mainImg.src = url;
             badge.innerText = text;
             mainImg.style.opacity = '1';
@@ -536,21 +560,79 @@
             btn.classList.remove('border-primary-theme', 'opacity-100', 'ring-2', 'ring-primary-theme/50');
             btn.classList.add('border-transparent', 'opacity-70');
 
-            if (btn.querySelector('img').src === url) {
+            if (btn.querySelector('img').src === new URL(url, document.baseURI).href) {
                 btn.classList.remove('border-transparent', 'opacity-70');
                 btn.classList.add('border-primary-theme', 'opacity-100', 'ring-2', 'ring-primary-theme/50');
             }
         });
     }
 
+    const galleryButtons = Array.from(document.querySelectorAll('[data-gallery-label]'));
+    galleryButtons.forEach(button => {
+        button.addEventListener('click', () => switchImage(button.querySelector('img').getAttribute('src'), button.dataset.galleryLabel));
+    });
+
+    const galleryStrip = document.getElementById('galleryStrip');
+    const galleryPrevious = document.getElementById('galleryPrevious');
+    const galleryNext = document.getElementById('galleryNext');
+
+    function updateGalleryNavigation() {
+        if (!galleryStrip || !galleryPrevious || !galleryNext) return;
+        const maxScroll = Math.max(0, galleryStrip.scrollWidth - galleryStrip.clientWidth);
+        const hasOverflow = maxScroll > 2;
+        galleryPrevious.disabled = !hasOverflow || galleryStrip.scrollLeft <= 2;
+        galleryNext.disabled = !hasOverflow || galleryStrip.scrollLeft >= maxScroll - 2;
+    }
+
+    function scrollGallery(direction) {
+        const thumbnail = galleryStrip?.querySelector('.thumb-btn');
+        if (!galleryStrip || !thumbnail) return;
+        galleryStrip.scrollBy({ left: direction * (thumbnail.offsetWidth + 16), behavior: 'smooth' });
+    }
+
+    galleryPrevious?.addEventListener('click', () => scrollGallery(-1));
+    galleryNext?.addEventListener('click', () => scrollGallery(1));
+    galleryStrip?.addEventListener('scroll', updateGalleryNavigation, { passive: true });
+    galleryStrip?.addEventListener('wheel', event => {
+        const maxScroll = galleryStrip.scrollWidth - galleryStrip.clientWidth;
+        if (maxScroll <= 2) return;
+        const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+        const canContinue = delta < 0 ? galleryStrip.scrollLeft > 0 : galleryStrip.scrollLeft < maxScroll;
+        if (!canContinue) return;
+        event.preventDefault();
+        galleryStrip.scrollLeft += delta;
+    }, { passive: false });
+    window.addEventListener('resize', updateGalleryNavigation, { passive: true });
+    requestAnimationFrame(updateGalleryNavigation);
+
     const lightbox = document.getElementById('imageLightbox');
     const lightboxImage = document.getElementById('lightboxImage');
+    const lightboxPrevious = document.getElementById('lightboxPrevious');
+    const lightboxNext = document.getElementById('lightboxNext');
+    const lightboxCounter = document.getElementById('lightboxCounter');
+    let lightboxIndex = 0;
+    let lightboxTouchStart = null;
+
+    function showLightboxImage(index, syncMainImage = false) {
+        if (galleryButtons.length === 0) return;
+        lightboxIndex = (index + galleryButtons.length) % galleryButtons.length;
+        const button = galleryButtons[lightboxIndex];
+        const url = button.querySelector('img').getAttribute('src');
+        lightboxImage.src = url;
+        if (lightboxCounter) lightboxCounter.textContent = `${lightboxIndex + 1} / ${galleryButtons.length}`;
+        if (syncMainImage) switchImage(url, button.dataset.galleryLabel);
+    }
+
+    function navigateLightbox(direction) {
+        showLightboxImage(lightboxIndex + direction, true);
+    }
 
     function openLightbox() {
         const mainImg = document.getElementById('mainImage');
         if (!mainImg || !mainImg.src) return;
 
-        lightboxImage.src = mainImg.src;
+        const activeIndex = galleryButtons.findIndex(button => button.querySelector('img').src === mainImg.src);
+        showLightboxImage(activeIndex >= 0 ? activeIndex : 0);
         lightbox.classList.remove('hidden');
         document.body.classList.add('overflow-hidden');
     }
@@ -561,8 +643,40 @@
         document.body.classList.remove('overflow-hidden');
     }
 
+    lightboxPrevious?.addEventListener('click', event => {
+        event.stopPropagation();
+        navigateLightbox(-1);
+    });
+    lightboxNext?.addEventListener('click', event => {
+        event.stopPropagation();
+        navigateLightbox(1);
+    });
+
+    lightboxImage.addEventListener('touchstart', event => {
+        const touch = event.changedTouches[0];
+        lightboxTouchStart = { x: touch.clientX, y: touch.clientY };
+    }, { passive: true });
+    lightboxImage.addEventListener('touchend', event => {
+        if (!lightboxTouchStart || galleryButtons.length < 2) return;
+        const touch = event.changedTouches[0];
+        const deltaX = touch.clientX - lightboxTouchStart.x;
+        const deltaY = touch.clientY - lightboxTouchStart.y;
+        lightboxTouchStart = null;
+        if (Math.abs(deltaX) < 45 || Math.abs(deltaX) <= Math.abs(deltaY)) return;
+        navigateLightbox(deltaX < 0 ? 1 : -1);
+    }, { passive: true });
+
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && !lightbox.classList.contains('hidden')) closeLightbox();
+        if (lightbox.classList.contains('hidden')) return;
+        if (e.key === 'Escape') closeLightbox();
+        if (e.key === 'ArrowLeft' && galleryButtons.length > 1) {
+            e.preventDefault();
+            navigateLightbox(-1);
+        }
+        if (e.key === 'ArrowRight' && galleryButtons.length > 1) {
+            e.preventDefault();
+            navigateLightbox(1);
+        }
     });
 
     async function moveToWishlist(id) {
@@ -722,6 +836,60 @@
 </script>
 
 <style>
+    .gallery-strip {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .gallery-strip::-webkit-scrollbar {
+        display: none;
+    }
+
+    .gallery-nav {
+        display: flex;
+        opacity: 0;
+    }
+
+    .gallery-wrapper:hover .gallery-nav:not(:disabled),
+    .gallery-nav:focus-visible:not(:disabled) {
+        opacity: 0.82;
+    }
+
+    .gallery-nav:hover:not(:disabled),
+    .gallery-nav:focus-visible:not(:disabled) {
+        opacity: 1;
+    }
+
+    .gallery-nav:disabled {
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .lightbox-nav {
+        opacity: 0.78;
+    }
+
+    .lightbox-nav:hover,
+    .lightbox-nav:focus-visible {
+        opacity: 1;
+    }
+
+    @media (hover: hover) {
+        .lightbox-nav {
+            opacity: 0;
+        }
+
+        #imageLightbox:hover .lightbox-nav,
+        .lightbox-nav:focus-visible {
+            opacity: 0.72;
+        }
+
+        #imageLightbox .lightbox-nav:hover {
+            opacity: 1;
+        }
+    }
+
     .custom-scrollbar::-webkit-scrollbar {
         width: 6px;
     }

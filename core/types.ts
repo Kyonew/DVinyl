@@ -100,21 +100,20 @@ export interface PluginDefinition {
   // Defaults to DEFAULT_PLACEHOLDER_IMAGE when absent.
   placeholderImage?: string;
 
-  // Shows the secondary image editor (user_image) in confirm/manual/edit
+  // Legacy capability flag retained for custom-plugin config compatibility. The core
+  // image gallery is now available to every plugin regardless of this value.
   supportsUserImage?: boolean;
 
-  // Endpoint (relative to baseUrl) feeding the editor's secondary "disc" image gallery.
-  // Only relevant if supportsUserImage. Ex: music -> '/api/search-discogs-gallery'
+  // Optional provider-specific endpoint merged into the generic image search results.
+  // Ex: music -> '/api/search-discogs-gallery'.
   secondaryImageSearchPath?: string;
 
-  // FontAwesome icon of the secondary image upload zone, default 'fa-image'.
-  // Only relevant if supportsUserImage. Ex: music -> 'fa-compact-disc'
+  // Legacy icon setting retained for custom-plugin config compatibility.
   secondaryImageIcon?: string;
 
-  // i18n keys naming the two images on the item page badge. Defaults to the neutral
-  // generic.main_image / generic.secondary_image, so a plugin only declares this when
-  // its media has a more precise word (music -> "Official cover" / "Additional image").
-  imageLabels?: { main: string; secondary: string };
+  // Optional i18n key naming the gallery's main image on the item page. `secondary`
+  // remains accepted so existing third-party plugin definitions keep typechecking.
+  imageLabels?: { main: string; secondary?: string };
 
   getStats(items: any[]): PluginStats;
 
@@ -242,6 +241,7 @@ export interface SearchResult {
   creator: string;
   year?: string;
   cover_image?: string;
+  images?: string[];
   [key: string]: any;
 }
 
@@ -249,6 +249,7 @@ export interface ConfirmData {
   title: string;
   creator: string;
   cover_image?: string;
+  images?: string[];
   [key: string]: any;
 }
 

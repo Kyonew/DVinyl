@@ -1,135 +1,277 @@
 <script>
-    const translations = {
-        compressAlert: <%- JSON.stringify(t('image_source.compress_alert')) %>,
-        noResults: <%- JSON.stringify(t('confirm_' + plugin.i18nKey + '.no_results', { defaultValue: t('confirm_vinyl.no_results') })) %>,
-        networkError: <%- JSON.stringify(t('confirm_' + plugin.i18nKey + '.network_error', { defaultValue: t('confirm_vinyl.network_error') })) %>,
-        loadingHtml: '<div class="col-span-full py-4 text-center opacity-50"><i class="fa-solid fa-spinner fa-spin"></i></div>'
-    };
+(() => {
+    const manager = document.getElementById('itemImageManager');
+    if (!manager) return;
 
-    const nodes = {
-        checkCover: document.getElementById('checkEditCover'),
-        boxCover: document.getElementById('boxEditCover'),
-        checkDisc: document.getElementById('checkEditDisc'),
-        boxDisc: document.getElementById('boxEditDisc'),
-        livePreview: document.getElementById('livePreview')
-    };
+    const translations = <%- JSON.stringify({
+        main: t('image_manager.main'),
+        add: t('image_manager.add'),
+        remove: t('image_manager.remove'),
+        confirmRemove: t('image_manager.confirm_remove'),
+        moveBefore: t('image_manager.move_before'),
+        moveAfter: t('image_manager.move_after'),
+        invalidUrl: t('image_manager.invalid_url'),
+        tooMany: t('image_manager.too_many', { max: MAX_ITEM_IMAGES }),
+        tooLarge: t('image_manager.too_large', { maxMb: Math.floor(MAX_ITEM_IMAGE_BYTES / (1024 * 1024)) }),
+        noResults: t('confirm_' + plugin.i18nKey + '.no_results', { defaultValue: t('confirm_vinyl.no_results') }),
+        networkError: t('confirm_' + plugin.i18nKey + '.network_error', { defaultValue: t('confirm_vinyl.network_error') }),
+        compressAlert: t('image_source.compress_alert')
+    }) %>;
 
-    const toggleBox = (chk, box) => { if (chk && box) box.classList.toggle('hidden', !chk.checked); };
+    const list = document.getElementById('imageList');
+    const empty = document.getElementById('imageListEmpty');
+    const jsonInput = document.getElementById('inputImagesJson');
+    const coverInput = document.getElementById('inputCoverImage');
+    const userInput = document.getElementById('inputUserImage');
+    const livePreview = document.getElementById('livePreview');
+    const placeholderImage = <%- JSON.stringify(plugin.placeholderImage || '/ressources/logo.png') %>;
+    const maxImages = Number(manager.dataset.maxImages);
+    const maxImageBytes = Number(manager.dataset.maxImageBytes);
+    let images = [];
+    let draggedIndex = null;
 
-    if (nodes.checkCover) {
-        toggleBox(nodes.checkCover, nodes.boxCover);
-        nodes.checkCover.addEventListener('change', (e) => toggleBox(e.target, nodes.boxCover));
+    try {
+        const parsed = JSON.parse(jsonInput.value || '[]');
+        if (Array.isArray(parsed)) images = parsed.filter(value => typeof value === 'string' && value.trim());
+    } catch (_) {}
+    images = [...new Set(images)];
+
+    function syncInputs() {
+        jsonInput.value = JSON.stringify(images);
+        coverInput.value = images[0] || '';
+        userInput.value = images[1] || '';
+        if (livePreview) livePreview.src = images[0] || placeholderImage;
     }
-    if (nodes.checkDisc) {
-        toggleBox(nodes.checkDisc, nodes.boxDisc);
-        nodes.checkDisc.addEventListener('change', (e) => toggleBox(e.target, nodes.boxDisc));
+
+    function moveImage(from, to) {
+        if (from === to || from < 0 || to < 0 || from >= images.length || to >= images.length) return;
+        const [moved] = images.splice(from, 1);
+        images.splice(to, 0, moved);
+        render();
     }
 
-    function setImgTab(side, type) {
-        const tabs = ['local', 'url', 'search'];
-        tabs.forEach(t => {
-            const btn = document.getElementById(`tab-${side}-${t}`);
-            const pane = document.getElementById(`pane-${side}-${t}`);
-            if (btn) btn.className = `flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${t === type ? 'bg-primary-theme text-white' : 'opacity-50'}`;
-            if (pane) pane.classList.toggle('hidden', t !== type);
-        });
+    function imageButton(icon, label, className, handler) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = className;
+        button.title = label;
+        button.setAttribute('aria-label', label);
+        button.innerHTML = `<i class="fa-solid ${icon}"></i>`;
+        button.addEventListener('click', handler);
+        return button;
     }
 
-    function selectExternalImage(side, url) {
-        const input = document.getElementById(side === 'cover' ? 'inputCoverImage' : 'inputUserImage');
-        input.value = url;
-        if (side === 'cover' && nodes.livePreview) {
-            nodes.livePreview.src = url;
-        }
-        const container = document.getElementById(`results${side === 'cover' ? 'Cover' : 'Disc'}`);
-        if (container) {
-            Array.from(container.children).forEach(img => {
-                const selected = img.src === url;
-                img.classList.toggle('border-primary-theme', selected);
-                img.classList.toggle('border-transparent', !selected);
-                img.classList.toggle('ring-2', selected);
-                img.classList.toggle('ring-primary-theme', selected);
-                img.classList.toggle('ring-offset-1', selected);
+    function render() {
+        list.replaceChildren();
+        empty.classList.toggle('hidden', images.length > 0);
+        empty.classList.toggle('flex', images.length === 0);
+        list.classList.toggle('hidden', images.length === 0);
+
+        images.forEach((url, index) => {
+            const card = document.createElement('div');
+            card.className = 'relative aspect-square rounded-xl overflow-hidden bg-black/5 dark:bg-white/5 border-2 border-transparent group cursor-grab active:cursor-grabbing';
+            card.draggable = true;
+            card.dataset.index = String(index);
+
+            const image = document.createElement('img');
+            image.src = url;
+            image.alt = index === 0 ? translations.main : '';
+            image.className = 'w-full h-full object-cover pointer-events-none';
+            card.appendChild(image);
+
+            const dragHandle = document.createElement('span');
+            dragHandle.className = 'absolute top-2 left-2 w-8 h-8 rounded-lg bg-black/65 text-white flex items-center justify-center shadow-sm';
+            dragHandle.innerHTML = '<i class="fa-solid fa-grip-vertical text-xs"></i>';
+            card.appendChild(dragHandle);
+
+            const remove = imageButton('fa-trash', translations.remove, 'absolute top-2 right-2 w-8 h-8 rounded-lg text-red-600 dark:text-red-500 hover:text-red-700 dark:hover:text-red-400 bg-red-100 dark:bg-red-500/10 hover:bg-red-200 dark:hover:bg-red-500/20 flex items-center justify-center shadow-sm backdrop-blur-sm transition-colors', () => {
+                if (!confirm(translations.confirmRemove)) return;
+                images.splice(index, 1);
+                render();
             });
-        }
-    }
+            card.appendChild(remove);
 
-    async function runUniversalSearch(side) {
-        const q = document.getElementById(`query${side === 'cover' ? 'Cover' : 'Disc'}`).value;
-        const container = document.getElementById(`results${side === 'cover' ? 'Cover' : 'Disc'}`);
-        container.innerHTML = translations.loadingHtml;
-
-        try {
-            const endpoint = (side === 'disc')
-                ? `<%= baseUrl %><%= plugin.secondaryImageSearchPath %>?q=${encodeURIComponent(q)}`
-                : `<%= baseUrl %>/admin/api/search-image-universal?q=${encodeURIComponent(q)}&type=<%= plugin.imageSearchType || 'music' %>`;
-            const res = await fetch(endpoint);
-            const urls = await res.json();
-
-            container.innerHTML = '';
-            if (Array.isArray(urls) && urls.length > 0) {
-                urls.forEach(url => {
-                    const img = document.createElement('img');
-                    img.src = url;
-                    img.className = "aspect-square object-cover rounded-lg cursor-pointer border-2 border-transparent hover:border-primary-theme transition-all shadow-sm";
-                    img.onclick = () => selectExternalImage(side, url);
-                    container.appendChild(img);
-                });
-            } else {
-                container.innerHTML = `<p class="col-span-full text-xs opacity-50 text-center">${translations.noResults}</p>`;
+            if (index === 0) {
+                const badge = document.createElement('span');
+                badge.className = 'absolute bottom-2 left-2 w-7 h-7 bg-primary-theme text-white rounded-full shadow-sm flex items-center justify-center';
+                badge.title = translations.main;
+                badge.setAttribute('aria-label', translations.main);
+                const star = document.createElement('i');
+                star.className = 'fa-solid fa-star text-[10px]';
+                badge.appendChild(star);
+                card.appendChild(badge);
             }
-        } catch (e) {
-            container.innerHTML = `<p class="col-span-full text-xs text-red-500 text-center">${translations.networkError}</p>`;
-        }
+
+            const controls = document.createElement('div');
+            controls.className = 'absolute bottom-2 right-2 flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity';
+            if (index > 0) controls.appendChild(imageButton('fa-arrow-left', translations.moveBefore, 'w-7 h-7 rounded-md bg-black/65 text-white hover:bg-primary-theme transition-colors', () => moveImage(index, index - 1)));
+            if (index < images.length - 1) controls.appendChild(imageButton('fa-arrow-right', translations.moveAfter, 'w-7 h-7 rounded-md bg-black/65 text-white hover:bg-primary-theme transition-colors', () => moveImage(index, index + 1)));
+            card.appendChild(controls);
+
+            card.addEventListener('dragstart', () => {
+                draggedIndex = index;
+                card.classList.add('opacity-40');
+            });
+            card.addEventListener('dragend', () => {
+                draggedIndex = null;
+                card.classList.remove('opacity-40');
+                document.querySelectorAll('#imageList [data-index]').forEach(node => node.classList.remove('border-primary-theme'));
+            });
+            card.addEventListener('dragover', event => {
+                event.preventDefault();
+                card.classList.add('border-primary-theme');
+            });
+            card.addEventListener('dragleave', () => card.classList.remove('border-primary-theme'));
+            card.addEventListener('drop', event => {
+                event.preventDefault();
+                card.classList.remove('border-primary-theme');
+                if (draggedIndex !== null) moveImage(draggedIndex, index);
+            });
+
+            list.appendChild(card);
+        });
+
+        syncInputs();
     }
 
-    async function compressImage(file) {
-        return new Promise((resolve) => {
+    function addImage(url) {
+        const clean = typeof url === 'string' ? url.trim() : '';
+        if (!clean || images.includes(clean)) return;
+        if (images.length >= maxImages) {
+            alert(translations.tooMany);
+            return;
+        }
+        const storedBytes = [...images, clean].reduce((total, image) => total + new Blob([image]).size, 0);
+        if (storedBytes > maxImageBytes) {
+            alert(translations.tooLarge);
+            return;
+        }
+        images.push(clean);
+        render();
+    }
+
+    document.querySelectorAll('.image-source-tab').forEach(button => {
+        button.addEventListener('click', () => {
+            const selected = button.dataset.imageTab;
+            document.querySelectorAll('.image-source-tab').forEach(tab => {
+                const active = tab.dataset.imageTab === selected;
+                tab.classList.toggle('bg-primary-theme', active);
+                tab.classList.toggle('text-white', active);
+                tab.classList.toggle('opacity-50', !active);
+                tab.setAttribute('aria-selected', String(active));
+            });
+            document.querySelectorAll('[data-image-pane]').forEach(pane => pane.classList.toggle('hidden', pane.dataset.imagePane !== selected));
+        });
+    });
+
+    function compressImage(file) {
+        return new Promise((resolve, reject) => {
             const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = (event) => {
-                const img = new Image();
-                img.src = event.target.result;
-                img.onload = () => {
+            reader.onerror = reject;
+            reader.onload = event => {
+                const image = new Image();
+                image.onerror = reject;
+                image.onload = () => {
+                    const maxSize = 1200;
+                    const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
                     const canvas = document.createElement('canvas');
-                    const MAX_SIZE = 800;
-                    let width = img.width;
-                    let height = img.height;
-                    if (width > height) {
-                        if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
-                    } else {
-                        if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
-                    }
-                    canvas.width = width; canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
-                    resolve(canvas.toDataURL('image/jpeg', 0.8));
+                    canvas.width = Math.max(1, Math.round(image.width * scale));
+                    canvas.height = Math.max(1, Math.round(image.height * scale));
+                    canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+                    resolve(canvas.toDataURL('image/jpeg', 0.82));
                 };
+                image.src = event.target.result;
             };
+            reader.readAsDataURL(file);
         });
     }
 
-    async function handleFileSelect(side, event) {
-        const file = event.target.files[0];
-        if (!file) return;
-        if (file.size > 5 * 1024 * 1024) alert(translations.compressAlert);
+    document.getElementById('fileInputImages').addEventListener('change', async event => {
+        const files = Array.from(event.target.files || []);
+        if (files.some(file => file.size > 5 * 1024 * 1024)) alert(translations.compressAlert);
+        for (const file of files) {
+            try {
+                addImage(await compressImage(file));
+            } catch (_) {
+                alert(translations.compressAlert);
+            }
+        }
+        event.target.value = '';
+    });
+
+    function addUrl() {
+        const input = document.getElementById('urlInputImage');
         try {
-            const base64 = await compressImage(file);
-            selectExternalImage(side, base64);
-        } catch (err) {
-            alert(translations.compressAlert);
+            const url = new URL(input.value.trim());
+            if (!['http:', 'https:'].includes(url.protocol)) throw new Error();
+            addImage(url.href);
+            input.value = '';
+        } catch (_) {
+            alert(translations.invalidUrl);
         }
     }
-
-    document.getElementById('fileInputCover')?.addEventListener('change', (e) => handleFileSelect('cover', e));
-    document.getElementById('fileInputDisc')?.addEventListener('change', (e) => handleFileSelect('disc', e));
-
-    document.getElementById('urlInputCover')?.addEventListener('input', (e) => {
-        const val = e.target.value.trim();
-        if (val.startsWith('http')) selectExternalImage('cover', val);
+    document.getElementById('addImageUrl').addEventListener('click', addUrl);
+    document.getElementById('urlInputImage').addEventListener('keydown', event => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            addUrl();
+        }
     });
-    document.getElementById('urlInputDisc')?.addEventListener('input', (e) => {
-        const val = e.target.value.trim();
-        if (val.startsWith('http')) selectExternalImage('disc', val);
+
+    async function searchImages() {
+        const query = document.getElementById('queryImages').value.trim();
+        const results = document.getElementById('resultsImages');
+        if (!query) return;
+        results.innerHTML = '<div class="col-span-full py-6 text-center opacity-50"><i class="fa-solid fa-spinner fa-spin"></i></div>';
+
+        const endpoints = [
+            `<%= baseUrl %>/admin/api/search-image-universal?q=${encodeURIComponent(query)}&type=<%= plugin.imageSearchType || 'music' %>`
+            <% if (plugin.secondaryImageSearchPath) { %>,
+            `<%= baseUrl %><%= plugin.secondaryImageSearchPath %>?q=${encodeURIComponent(query)}`
+            <% } %>
+        ];
+
+        try {
+            const responses = await Promise.allSettled(endpoints.map(endpoint => fetch(endpoint).then(response => {
+                if (!response.ok) throw new Error(String(response.status));
+                return response.json();
+            })));
+            const urls = [...new Set(responses.flatMap(result => result.status === 'fulfilled' && Array.isArray(result.value) ? result.value : []))];
+            results.replaceChildren();
+            if (urls.length === 0) {
+                results.innerHTML = `<p class="col-span-full text-xs opacity-50 text-center py-4">${translations.noResults}</p>`;
+                return;
+            }
+            urls.forEach(url => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'relative aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-primary-theme focus:border-primary-theme transition-all';
+                button.title = translations.add;
+                const image = document.createElement('img');
+                image.src = url;
+                image.alt = '';
+                image.loading = 'lazy';
+                image.className = 'w-full h-full object-cover';
+                button.appendChild(image);
+                button.addEventListener('click', () => {
+                    addImage(url);
+                    button.classList.add('border-primary-theme', 'opacity-50');
+                    button.disabled = true;
+                });
+                results.appendChild(button);
+            });
+        } catch (_) {
+            results.innerHTML = `<p class="col-span-full text-xs text-red-500 text-center py-4">${translations.networkError}</p>`;
+        }
+    }
+    document.getElementById('searchImagesButton').addEventListener('click', searchImages);
+    document.getElementById('queryImages').addEventListener('keydown', event => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            searchImages();
+        }
     });
+
+    render();
+})();
 </script>

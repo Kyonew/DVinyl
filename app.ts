@@ -30,6 +30,7 @@ import { mountPluginRoutes, pluginDispatcher } from './core/pluginRuntime.js';
 import { applyPluginCustomization } from './core/pluginCustomization.js';
 import { getCardLines, getCornerBadge, isTranslationKey, CORNER_POSITIONS, DEFAULT_CORNER_POSITION, SHARE_HIDDEN_FIELDS } from './core/cardFields.js';
 import { importableFields } from './core/csvMapping.js';
+import { MAX_ITEM_IMAGES, MAX_ITEM_IMAGE_BYTES } from './core/itemImages.js';
 
 // Routes imports
 import setupRoutes from './routes/setupRoutes.js';
@@ -93,6 +94,9 @@ app.locals.DEFAULT_CORNER_POSITION = DEFAULT_CORNER_POSITION;
 app.locals.SHARE_HIDDEN_FIELDS = SHARE_HIDDEN_FIELDS;
 // The CSV mapping screen lists the destinations of every enabled module
 app.locals.importableFields = importableFields;
+// Shared by the image-manager partial so its client-side guard matches the save route.
+app.locals.MAX_ITEM_IMAGES = MAX_ITEM_IMAGES;
+app.locals.MAX_ITEM_IMAGE_BYTES = MAX_ITEM_IMAGE_BYTES;
 // Dates read the same way wherever a view prints one
 app.locals.dateLocaleFor = dateLocaleFor;
 app.set('io', io); // Expose io to routes

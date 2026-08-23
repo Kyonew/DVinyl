@@ -1,0 +1,85 @@
+export const MAX_ITEM_IMAGES = 50;
+
+// Local uploads are stored as data URLs on the item document for now. Keep generous
+// headroom below MongoDB's 16 MiB BSON document limit for the item's metadata and for
+// future schema fields. Remote image URLs barely contribute to this total.
+export const MAX_ITEM_IMAGE_BYTES = 8 * 1024 * 1024;
+
+export type ItemImageValidationCode = 'too_many' | 'too_large';
+
+export class ItemImageValidationError extends Error {
+  constructor(public readonly code: ItemImageValidationCode) {
+    super(code);
+    this.name = 'ItemImageValidationError';
+  }
+}
+
+function cleanImageList(values: unknown[]): string[] {
+  const seen = new Set<string>();
+  const images: string[] = [];
+
+  for (const value of values) {
+    if (typeof value !== 'string') continue;
+    const image = value.trim();
+    if (!image || seen.has(image)) continue;
+    seen.add(image);
+    images.push(image);
+    if (images.length >= MAX_ITEM_IMAGES) break;
+  }
+
+  return images;
+}
+
+function submittedImageList(values: unknown[]): string[] {
+  const images: string[] = [];
+  const seen = new Set<string>();
+  let storedBytes = 0;
+
+  for (const value of values) {
+    if (typeof value !== 'string') continue;
+    const image = value.trim();
+    if (!image || seen.has(image)) continue;
+
+    if (images.length >= MAX_ITEM_IMAGES) {
+      throw new ItemImageValidationError('too_many');
+    }
+
+    storedBytes += Buffer.byteLength(image, 'utf8');
+    if (storedBytes > MAX_ITEM_IMAGE_BYTES) {
+      throw new ItemImageValidationError('too_large');
+    }
+
+    seen.add(image);
+    images.push(image);
+  }
+
+  return images;
+}
+
+/**
+ * Returns the ordered image list for both new and legacy items. `cover_image` remains
+ * the compatibility alias for the first image, so an importer or metadata refresh that
+ * only knows the historical field still updates the image shown first everywhere.
+ */
+export function imagesForItem(item: any): string[] {
+  return cleanImageList([
+    item?.cover_image,
+    ...(Array.isArray(item?.images) ? item.images : []),
+    item?.user_image
+  ]);
+}
+
+/** Parses the ordered list posted by the image manager, falling back to legacy fields. */
+export function imagesFromForm(body: any): string[] {
+  if (Object.prototype.hasOwnProperty.call(body || {}, 'images_json')) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(body.images_json || '[]');
+    } catch {
+      // A stale/custom client can still submit the two historical fields below.
+    }
+    if (Array.isArray(parsed)) return submittedImageList(parsed);
+  }
+
+  return submittedImageList([body?.cover_image, body?.user_image]);
+}

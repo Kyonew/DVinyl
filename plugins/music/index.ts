@@ -31,10 +31,8 @@ export const musicPlugin: PluginDefinition = {
   extraSearchFields: ['tracklist.title', 'tracklist.tags'],
   supportsBarcodeSearch: false,
   aspectRatioClass: 'aspect-square',
-  supportsUserImage: true,
   secondaryImageSearchPath: '/api/search-discogs-gallery',
-  secondaryImageIcon: 'fa-compact-disc',
-  imageLabels: { main: 'detail.official_cover', secondary: 'detail.additional_image' },
+  imageLabels: { main: 'detail.official_cover' },
   duplicateCheckFields: ['media_type', 'variant_color'],
 
   fastAddOptions: [

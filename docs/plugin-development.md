@@ -58,7 +58,7 @@ heavily commented. Below are the parts you actually need.
 Every item already has these base fields (defined in [`models/Item.ts`](../models/Item.ts)), so you
 do **not** redeclare them in your schema:
 
-`title`, `year`, `cover_image`, `user_image`, `owner`, `collection`, `in_wishlist`, `comments`,
+`title`, `year`, `cover_image`, `user_image`, `images`, `owner`, `collection`, `in_wishlist`, `comments`,
 `location`, `quantity`, `genre`, `genres`, `styles`, `barcode`, `added_at`.
 
 Your `schemaDefinition` only adds the fields that are specific to your type.
@@ -276,7 +276,14 @@ Use `fetchJson` / `fetchText` from [`core/helpers.ts`](../core/helpers.ts) for n
 handle JSON parsing and errors for you. Keep your API client, constants and headers in their own
 files inside the plugin folder, so the core stays clean.
 
-**Cover images.** Provide an `imageSearchProvider` so the image editor can suggest covers:
+**Item images.** Every plugin automatically gets the ordered image gallery. `images[0]` is the
+main image; the core mirrors its first two entries to the legacy `cover_image` and `user_image`
+fields whenever an item form is saved. Importers and refresh handlers can therefore keep writing
+`cover_image`, while new code should read the formatted item's `images` array when it needs the
+whole gallery. Local uploads share an 8 MiB stored-data limit per item; linked URLs do not download
+their remote contents into the database.
+
+Provide an `imageSearchProvider` so the image editor can suggest images:
 
 ```ts
 imageSearchType: 'boardgame',
@@ -286,6 +293,9 @@ imageSearchProvider: {
   }
 }
 ```
+
+If a plugin has a second provider or endpoint, declare `secondaryImageSearchPath`; its URL results
+are merged with the universal search rather than assigned to a special image slot.
 
 **Refresh.** Let users re-pull metadata for an existing item with `refreshItem`:
 

@@ -8,6 +8,7 @@ import { BASE_URL } from '../../config/constants';
 import { requireAuth, requireAuthOrShareView, requireCollectionRole } from '../../middleware/authMiddleware';
 import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback, editStamp, syncStamp, safeReturnPath, getPublicProtocol, generateBarcodeDataUrl } from '../helpers';
 import { DEFAULT_PLACEHOLDER_IMAGE } from '../placeholderImage';
+import { imagesFromForm, ItemImageValidationError, MAX_ITEM_IMAGES, MAX_ITEM_IMAGE_BYTES } from '../itemImages';
 import { getExtraFields, toFieldDefinitions } from '../pluginExtraFields';
 import { buildFieldSuggestions } from '../fieldSuggestions';
 import { deleteItemsAndContents, moveContentsToWishlist } from '../../utils/itemHelpers';
@@ -314,16 +315,19 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       // placeholder. Storing it would freeze a copy of the plugin's default image on the
       // item; kept empty instead, so the item follows that default if it ever changes.
       const placeholder = plugin.placeholderImage || DEFAULT_PLACEHOLDER_IMAGE;
-      const coverImage = (cover_image === placeholder || cover_image === DEFAULT_PLACEHOLDER_IMAGE)
-        ? ''
-        : cover_image;
+      const submittedImages = imagesFromForm(req.body).filter(image =>
+        image !== placeholder && image !== DEFAULT_PLACEHOLDER_IMAGE
+      );
+      const coverImage = submittedImages[0] || '';
+      const secondaryImage = submittedImages[1] || '';
 
       // Build updateData generic object
       const updateData: any = {
         title,
         year,
         cover_image: coverImage,
-        user_image,
+        user_image: secondaryImage,
+        images: submittedImages,
         in_wishlist: isWishlist,
         comments: comments || '',
         location: location || '',
@@ -347,7 +351,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       // Handle plugin specific fields
       for (const field of [...plugin.formFields, ...extraFields]) {
         if ([
-          'title', 'year', 'cover_image', 'user_image', 'in_wishlist', 'comments',
+          'title', 'year', 'cover_image', 'user_image', 'images', 'in_wishlist', 'comments',
           'location', 'quantity', 'barcode', 'barcode_locked', 'added_at', 'genres', 'styles', 'genre'
         ].includes(field.name)) {
           continue;
@@ -513,6 +517,13 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         res.redirect(`/collection?type=${plugin.collectionType}`);
       }
     } catch (err: any) {
+      if (err instanceof ItemImageValidationError) {
+        const key = err.code === 'too_many' ? 'image_manager.too_many' : 'image_manager.too_large';
+        return res.status(400).send(req.t(key, {
+          max: MAX_ITEM_IMAGES,
+          maxMb: Math.floor(MAX_ITEM_IMAGE_BYTES / (1024 * 1024))
+        }));
+      }
       console.error(`Save error for ${plugin.id}:`, err);
       res.status(500).send(req.t('errors.generic_server_error'));
     }
