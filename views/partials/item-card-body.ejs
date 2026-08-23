@@ -30,7 +30,8 @@
   const cardLines = getCardLines(plugin, item, { lang: currentLng, isShareView: locals.isShareView === true });
   const plainLines = cardLines.filter(l => l.style === 'text');
   const markedLines = cardLines.filter(l => l.style !== 'text');
-  const lineText = l => (l.showLabel ? t(l.label, { defaultValue: l.label }) + ' : ' : '') + l.value;
+  const valueText = l => l.translateValue ? t(l.value, { defaultValue: l.value }) : l.value;
+  const lineText = l => (l.showLabel ? t(l.label, { defaultValue: l.label }) + ' : ' : '') + valueText(l);
 %>
 <div class="<%= cs.wrap %>">
     <h3 class="<%= cs.title %>" title="<%= item.title %>"><%= item.title %></h3>
@@ -45,7 +46,7 @@
 
     <% plainLines.forEach((line, i) => { %>
         <p class="<%= i === 0 ? cs.lead : 'text-[10px] md:text-xs opacity-60 truncate' %>" title="<%= lineText(line) %>">
-            <% if (line.showLabel) { %><span class="opacity-70"><%= t(line.label, { defaultValue: line.label }) %> :</span> <% } %><%= line.value %>
+            <% if (line.showLabel) { %><span class="opacity-70"><%= t(line.label, { defaultValue: line.label }) %> :</span> <% } %><%= valueText(line) %>
         </p>
     <% }) %>
 
@@ -54,12 +55,12 @@
             <% markedLines.forEach(line => { %>
                 <% if (line.style === 'pill') { %>
                     <span class="text-[9px] md:text-[10px] opacity-60 bg-black/5 dark:bg-white/10 px-1.5 py-0.5 rounded border border-transparent truncate max-w-[50%] font-medium transition-colors" title="<%= lineText(line) %>">
-                        <%= line.value %>
+                        <%= valueText(line) %>
                     </span>
                 <% } else { %>
                     <div class="flex items-center gap-1 min-w-0 truncate" title="<%= lineText(line) %>">
                         <span class="w-1.5 h-1.5 rounded-full bg-primary-theme inline-block flex-shrink-0"></span>
-                        <span class="text-[9px] md:text-[10px] opacity-60 truncate"><%= line.value %></span>
+                        <span class="text-[9px] md:text-[10px] opacity-60 truncate"><%= valueText(line) %></span>
                     </div>
                 <% } %>
             <% }) %>

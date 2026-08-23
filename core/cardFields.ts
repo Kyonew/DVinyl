@@ -25,8 +25,14 @@ export interface CardLine {
   name: string;
   label: string;
   value: string;
+  translateValue: boolean;
   showLabel: boolean;
   style: 'text' | 'pill' | 'dot';
+}
+
+interface StringifiedValue {
+  value: string;
+  translate: boolean;
 }
 
 /**
@@ -46,26 +52,30 @@ export function cardFieldCandidates(plugin: PluginDefinition): FieldDefinition[]
   );
 }
 
-function stringifyValue(field: FieldDefinition | undefined, raw: any, lang?: string): string {
-  if (raw === undefined || raw === null || raw === '') return '';
+function stringifyValue(field: FieldDefinition | undefined, raw: any, lang?: string): StringifiedValue {
+  if (raw === undefined || raw === null || raw === '') return { value: '', translate: false };
 
-  if (Array.isArray(raw)) return raw.filter(Boolean).map(String).join(', ');
+  if (Array.isArray(raw)) return { value: raw.filter(Boolean).map(String).join(', '), translate: false };
   // Date-only values are stored as UTC midnight, so they are formatted in UTC too:
   // the local reading of a server east of Greenwich would show the day before.
   // Same rule as the item page, which is where the user checks the date.
-  if (raw instanceof Date) return raw.toLocaleDateString(dateLocaleFor(lang), { timeZone: 'UTC' });
+  if (raw instanceof Date) {
+    return { value: raw.toLocaleDateString(dateLocaleFor(lang), { timeZone: 'UTC' }), translate: false };
+  }
 
   if (typeof raw === 'boolean') {
     // A true flag shows as its own label ("Signed"); a false one is simply not a line
-    return raw && field ? field.label : '';
+    return { value: raw && field ? field.label : '', translate: raw && !!field };
   }
 
-  if (field?.type === 'select') {
+  if (field?.type === 'select' || field?.type === 'radio-cards') {
     const option = (field.options || []).find(o => String(o.value) === String(raw));
-    return option ? option.label : String(raw);
+    return option
+      ? { value: option.label, translate: true }
+      : { value: String(raw), translate: false };
   }
 
-  return String(raw);
+  return { value: String(raw), translate: false };
 }
 
 /**
@@ -154,16 +164,17 @@ export function getCardLines(
     // A plugin may rewrite its own value for the card (e.g. music trimming the noise
     // words out of format_type); anything else falls back to the generic reading.
     const override = plugin.cardFieldValue?.(name, item);
-    const value = override !== undefined && override !== null
-      ? override
+    const resolved = override !== undefined && override !== null
+      ? { value: override, translate: false }
       : stringifyValue(field, item[name] ?? item.extra?.[name], options.lang);
 
-    if (!value) continue;
+    if (!resolved.value) continue;
 
     lines.push({
       name,
       label: field?.label || name,
-      value,
+      value: resolved.value,
+      translateValue: resolved.translate,
       // The creator reads naturally on its own, and the decorated styles are too
       // small to carry a label. A true boolean already renders as its own label,
       // so keeping it here would print the name twice.
