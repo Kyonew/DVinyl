@@ -362,6 +362,16 @@ export function stringifyCsv(rows: string[][]): string {
 }
 
 /**
+ * True protocol DVinyl is served over. Trusts the operator's own PROD flag over
+ * req.protocol, which depends on the reverse proxy correctly forwarding
+ * X-Forwarded-Proto - a single misconfigured proxy hop otherwise silently downgrades
+ * a generated absolute URL (share link, QR code, item label) to http.
+ */
+export function getPublicProtocol(req: any): string {
+  return process.env.PROD === 'true' ? 'https' : req.protocol;
+}
+
+/**
  * Thrown by a plugin's refreshItem when no amount of waiting can make the call succeed:
  * the item carries no external id, or the API key is not configured. The bulk refresh
  * skips its retries for these, since the next attempt would fail for the same reason.

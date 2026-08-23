@@ -724,7 +724,9 @@
     "no_tracklist": "No tracklist available.",
     "refresh_info_success": "Metadata refreshed successfully!",
     "refresh_info_error": "Error refreshing metadata.",
-    "variants_title": "You also own this item in other versions:"
+    "variants_title": "You also own this item in other versions:",
+    "print_label_btn": "Print label",
+    "label_page_title": "Label"
   },
   "wishlist": {
     "title": "My Wishlist",

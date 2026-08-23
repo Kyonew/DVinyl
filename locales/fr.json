@@ -724,7 +724,9 @@
     "no_tracklist": "Aucune tracklist enregistrée.",
     "refresh_info_success": "Métadonnées actualisées avec succès !",
     "refresh_info_error": "Erreur lors de l'actualisation des métadonnées.",
-    "variants_title": "Vous possédez également cet item dans d'autres versions :"
+    "variants_title": "Vous possédez également cet item dans d'autres versions :",
+    "print_label_btn": "Imprimer l'étiquette",
+    "label_page_title": "Étiquette"
   },
   "wishlist": {
     "title": "Liste de Souhaits",

@@ -1,10 +1,12 @@
 import express, { Router } from 'express';
 import mongoose from 'mongoose';
+import QRCode from 'qrcode';
 import { PluginDefinition } from '../types';
 import Item from '../../models/Item';
 import User from '../../models/User';
+import { BASE_URL } from '../../config/constants';
 import { requireAuth, requireAuthOrShareView, requireCollectionRole } from '../../middleware/authMiddleware';
-import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback, editStamp, syncStamp, safeReturnPath } from '../helpers';
+import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback, editStamp, syncStamp, safeReturnPath, getPublicProtocol } from '../helpers';
 import { DEFAULT_PLACEHOLDER_IMAGE } from '../placeholderImage';
 import { getExtraFields, toFieldDefinitions } from '../pluginExtraFields';
 import { buildFieldSuggestions } from '../fieldSuggestions';
@@ -635,6 +637,36 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       });
     } catch (err: any) {
       console.error(`Detail page error for ${plugin.id}:`, err.message);
+      res.status(500).send(req.t('errors.generic_server_error'));
+    }
+  });
+
+  // GET /{prefix}/:id/label -> printable QR label linking back to the item's detail page
+  router.get(`${plugin.routePrefix}/:id/label`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(404).send(req.t('errors.not_found'));
+      }
+
+      const labelQuery: any = { _id: req.params.id, collection: res.locals.activeCollectionId };
+      applyVisibilityFilter(labelQuery, res.locals.isCollectionAdmin, res.locals.settings);
+
+      const item = await Item.findOne(labelQuery);
+      if (!item) {
+        return res.status(404).send(req.t('errors.not_found'));
+      }
+
+      const url = `${getPublicProtocol(req)}://${req.get('host')}${BASE_URL}${plugin.routePrefix}/${item._id}`;
+      const qrDataUrl = await QRCode.toDataURL(url, { width: 320, margin: 1 });
+
+      res.render('label', {
+        item: plugin.formatForView(item),
+        plugin,
+        qrDataUrl,
+        user: res.locals.user
+      });
+    } catch (err: any) {
+      console.error(`Label error for ${plugin.id}:`, err.message);
       res.status(500).send(req.t('errors.generic_server_error'));
     }
   });

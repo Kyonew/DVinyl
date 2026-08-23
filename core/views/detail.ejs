@@ -419,6 +419,10 @@
                             <%= t('detail.move_to_wishlist_btn') %>
                         </button>
                     <% } %>
+                    <a href="<%= baseUrl %><%= plugin.routePrefix %>/<%= item._id %>/label" target="_blank" rel="noopener" class="opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
+                        <i class="fa-solid fa-qrcode mr-2"></i>
+                        <%= t('detail.print_label_btn') %>
+                    </a>
                     <%# The origin travels on the link, since the Referer of the edit page
                         is this page and not the listing anyone wants to come back to. %>
                     <a href="<%= baseUrl %><%= plugin.routePrefix %>/edit/<%= item._id %><%= locals.backUrl ? '?from=' + encodeURIComponent(backUrl) : '' %>" class="opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">

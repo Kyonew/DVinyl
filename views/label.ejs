@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="<%= locals.currentLng || 'en' %>">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title><%= item.title %> — <%= t('detail.label_page_title') %></title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background: #f4f4f5;
+      color: #111;
+    }
+    .label {
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 16px;
+      width: 260px;
+      text-align: center;
+    }
+    .label img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .label h1 {
+      font-size: 14px;
+      font-weight: 700;
+      margin: 10px 0 2px;
+      line-height: 1.2;
+      word-break: break-word;
+    }
+    .label p {
+      font-size: 12px;
+      opacity: .7;
+      margin: 0;
+      word-break: break-word;
+    }
+    .print-btn {
+      margin-top: 16px;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      background: #2563eb;
+      color: #fff;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    @media print {
+      body { background: #fff; min-height: 0; }
+      .label { border: none; padding: 0; width: 2in; }
+      .print-btn { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="label">
+    <img src="<%= qrDataUrl %>" alt="QR code">
+    <h1><%= item.title %></h1>
+    <% const creatorValue = item[plugin.creatorField]; %>
+    <% if (creatorValue) { %>
+      <p><%= creatorValue %></p>
+    <% } %>
+  </div>
+  <button class="print-btn" onclick="window.print()"><%= t('detail.print_label_btn') %></button>
+</body>
+</html>

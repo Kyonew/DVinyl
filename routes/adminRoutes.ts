@@ -16,16 +16,8 @@ import Item from "../models/Item";
 
 import { registry } from "../core/registry.js";
 import { CARD_ASPECT_RATIOS } from "../core/customPlugin";
-import { PermanentRefreshError, syncStamp } from "../core/helpers";
+import { PermanentRefreshError, syncStamp, getPublicProtocol } from "../core/helpers";
 import { deleteItemsAndContents } from "../utils/itemHelpers";
-
-// PROD=true is the operator's own declaration that the instance is served over HTTPS
-// (see docs/getting-started.md). Trust that over req.protocol, which depends on the
-// reverse proxy correctly forwarding X-Forwarded-Proto - a single misconfigured proxy
-// hop otherwise silently downgrades every generated share link/QR code to http.
-function getPublicProtocol(req: any): string {
-  return process.env.PROD === "true" ? "https" : req.protocol;
-}
 
 const router = express.Router();
 
