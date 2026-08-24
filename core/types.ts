@@ -84,6 +84,12 @@ export interface PluginDefinition {
   // to sharpen the external search query. Plugin-specific (keeps the core agnostic).
   barcodeNoiseTerms?: string[];
 
+  // Hides the "Scan Barcode" affordance on the add page entirely. Unlike supportsBarcodeSearch
+  // (which only controls whether a scan gets resolved through a UPC lookup service before
+  // searching), this is for a provider whose search can't do anything useful with a barcode
+  // at all - e.g. BoardGameGeek, which indexes titles only.
+  noBarcodeScan?: boolean;
+
   // CSS aspect-ratio class for the plugin's own pages (detail, add/edit forms),
   // e.g. 'aspect-square' for music. Default 'aspect-[2/3]'. The item grids follow
   // the collection-wide setting instead, see views/partials/albums-grid.ejs.

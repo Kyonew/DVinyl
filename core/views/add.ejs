@@ -1,6 +1,8 @@
 <%- include('../../views/partials/header') %>
 
+<% if (!plugin.noBarcodeScan) { %>
 <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+<% } %>
 
 <div class="max-w-screen-lg mx-auto pb-20 px-4">
     
@@ -47,11 +49,13 @@
         </div>
 
         <div class="flex flex-col items-center justify-center mt-6 gap-3">
-            <button type="button" id="start-scan"
-                class="bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 active:scale-95">
-                <i class="fa-solid fa-barcode"></i>
-                <%= t('add_' + plugin.i18nKey + '.btn_scan', { defaultValue: t('add_vinyl.btn_scan') }) %>
-            </button>
+            <% if (!plugin.noBarcodeScan) { %>
+                <button type="button" id="start-scan"
+                    class="bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 active:scale-95">
+                    <i class="fa-solid fa-barcode"></i>
+                    <%= t('add_' + plugin.i18nKey + '.btn_scan', { defaultValue: t('add_vinyl.btn_scan') }) %>
+                </button>
+            <% } %>
 
             <% if (plugin.getManualDefaults) { %>
                 <a href="<%= baseUrl %>/add-<%= plugin.id %>/manual"
@@ -62,7 +66,9 @@
             <% } %>
         </div>
 
-        <div id="reader" class="hidden mt-6 rounded-2xl overflow-hidden shadow-lg border border-black/10 dark:border-white/10"></div>
+        <% if (!plugin.noBarcodeScan) { %>
+            <div id="reader" class="hidden mt-6 rounded-2xl overflow-hidden shadow-lg border border-black/10 dark:border-white/10"></div>
+        <% } %>
     </form>
 
     <% if (locals.results) { %>
@@ -144,6 +150,7 @@
     <% } %>
 </div>
 
+<% if (!plugin.noBarcodeScan) { %>
 <script>
     const scanTranslations = {
         btnDefault: '<i class="fa-solid fa-barcode text-primary-theme text-xl"></i> <span><%= t("add_" + plugin.i18nKey + ".btn_scan", { defaultValue: t("add_vinyl.btn_scan") }) %></span>',
@@ -212,5 +219,6 @@
         }
     });
 </script>
+<% } %>
 
 <%- include('../../views/partials/footer') %>

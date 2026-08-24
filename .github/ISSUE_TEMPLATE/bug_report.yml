@@ -66,7 +66,7 @@ body:
     attributes:
       label: Affected media type or plugin
       description: If the bug is tied to a specific collection type, which one?
-      placeholder: Music, Books, Movies, Games, LEGO, a custom plugin, not applicable...
+      placeholder: Music, Books, Movies, Games, LEGO, Board games, a custom plugin, not applicable...
     validations:
       required: false
   - type: input
