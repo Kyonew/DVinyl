@@ -25,8 +25,9 @@
 ## Hey there 👋
 
 DVinyl is a little home for your physical collection. It lives on your own server, pulls in cover
-art and metadata from the big databases (Discogs, Hardcover, TMDB, IGDB, Rebrickable), can even
-estimate what your music is worth, and lays it all out on a dashboard you get to shape yourself.
+art and metadata from the big databases (Discogs, Hardcover, TMDB, IGDB, Rebrickable,
+BoardGameGeek), can even estimate what your music is worth, and lays it all out on a dashboard you
+get to shape yourself.
 
 DVinyl is **plugin based**: every media type is a plugin, so you turn on only what you
 care about, and you can add your own type without touching the core.
@@ -115,7 +116,7 @@ No Docker? No worries. Have a look at the other ways to install and run DVinyl i
 | :---- | :------------- |
 | [Getting started](./docs/getting-started.md) | Manual installation and requirements |
 | [Docker deployment](./docs/docker.md) | Deploy with Docker Compose (recommended) |
-| [API keys](./docs/api-keys.md) | Get your Discogs, Hardcover, TMDB, IGDB and Rebrickable keys |
+| [API keys](./docs/api-keys.md) | Get your Discogs, Hardcover, TMDB, IGDB, Rebrickable and BoardGameGeek keys |
 | [Plugin development](./docs/plugin-development.md) | Build your own media type as a code plugin |
 | [Public share links](./docs/sharing.md) | Let anyone browse a collection (or part of it) read-only, no account needed |
 | [Wiki](https://github.com/Kyonew/DVinyl/wiki) | User guides and no-code tutorials |
@@ -129,7 +130,7 @@ No Docker? No worries. Have a look at the other ways to install and run DVinyl i
 | Frontend | EJS templates |
 | Styling | Tailwind CSS |
 | Localization | i18next |
-| Metadata APIs | Discogs, Hardcover, TMDB, IGDB, Rebrickable |
+| Metadata APIs | Discogs, Hardcover, TMDB, IGDB, Rebrickable, BoardGameGeek |
 
 ## Contributing
 

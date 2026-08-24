@@ -345,7 +345,7 @@ your keys to `en.json` first (and ideally `fr.json`), then to the other language
 
 ```jsonc
 // locales/en.json
-"media": { "boardgames": "Board games" },
+"media": { "boardgames": "Board Games" },
 "confirm_boardgame": {
   "field_title": "Title",
   "field_publisher": "Publisher"
