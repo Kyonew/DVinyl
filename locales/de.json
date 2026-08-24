@@ -842,6 +842,7 @@
     "estimate_desc": "Wir befragen den Discogs-Markt für jede Platte.",
     "estimate_title": "Schätzung...",
     "history_empty": "Führen Sie diese Schätzung mindestens zweimal aus, um einen Trend zu sehen.",
+    "history_other_currency": "Ein Verlauf existiert in {{currencies}}, aber Werte werden nie umgerechnet: Nur Ihre eigene Währung wird angezeigt.",
     "history_title": "Wertverlauf",
     "max_label": "Maximum (Neuwertig)",
     "min_label": "Minimum (G)",

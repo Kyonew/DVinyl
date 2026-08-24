@@ -842,6 +842,7 @@
     "estimate_desc": "Stiamo interrogando il mercato Discogs per ogni record.",
     "estimate_title": "Stima...",
     "history_empty": "Esegui questa stima almeno due volte per vedere una tendenza.",
+    "history_other_currency": "Esiste uno storico in {{currencies}}, ma i valori non vengono mai convertiti: viene mostrata solo la tua valuta.",
     "history_title": "Cronologia del valore",
     "max_label": "Massimo (nuovo)",
     "min_label": "Minimo (G)",

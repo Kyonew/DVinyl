@@ -201,6 +201,8 @@
         const countSpan = document.getElementById('estimateCount');
         const percentSpan = document.getElementById('estimatePercent');
         const estimateErrorMsg = <%- JSON.stringify(t('messages.estimate_error')) %>;
+        const historyEmptyMsg = <%- JSON.stringify(t('modal.history_empty')) %>;
+        const historyOtherCurrencyMsg = <%- JSON.stringify(t('modal.history_other_currency')) %>;
         const currentLocale = '<%= currentLng === "fr" ? "fr-FR" : "en-US" %>';
         const currentCurrency = '<%= user.currency || "USD" %>';
 
@@ -312,7 +314,6 @@
                             value: totalPriceVG,
                             minValue: totalPriceMin,
                             maxValue: totalPriceMax,
-                            currency: currentCurrency,
                             itemCount: totalAlbums
                         })
                     });
@@ -325,12 +326,10 @@
                 const histRes = await fetch('<%= baseUrl %>/api/estimate/history');
                 const histData = await histRes.json();
                 if (histData.success) {
-                    // Snapshots are scoped per-collection but currency is a per-user setting:
-                    // members with different currency preferences could have written mixed-currency
-                    // points into the same series. Only show this user's own currency so values are
-                    // never silently mixed without conversion.
-                    const ownCurrencySnapshots = (histData.snapshots || []).filter(s => s.currency === currentCurrency);
-                    renderHistoryChart(ownCurrencySnapshots);
+                    // Already scoped to this reader's currency server-side, along with the list of
+                    // the ones it left out (see getEstimateHistory): values are never converted, so
+                    // a collection whose members differ on the setting keeps a series each.
+                    renderHistoryChart(histData.snapshots || [], histData.otherCurrencies || []);
                 } else {
                     canvas.classList.add('hidden');
                     emptyMsg.classList.remove('hidden');
@@ -345,12 +344,17 @@
 
         let historyChartInstance = null;
 
-        function renderHistoryChart(snapshots) {
+        function renderHistoryChart(snapshots, otherCurrencies) {
             const canvas = document.getElementById('historyChart');
             const emptyMsg = document.getElementById('historyEmpty');
 
             if (!snapshots || snapshots.length < 2) {
                 canvas.classList.add('hidden');
+                // "Run it twice" is the wrong thing to say to someone who already has a history
+                // and only changed the currency it was recorded in.
+                emptyMsg.textContent = (otherCurrencies && otherCurrencies.length > 0)
+                    ? historyOtherCurrencyMsg.replace('{{currencies}}', otherCurrencies.join(', '))
+                    : historyEmptyMsg;
                 emptyMsg.classList.remove('hidden');
                 return;
             }

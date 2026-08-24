@@ -231,6 +231,7 @@
     "start_btn": "Start Analysis",
     "history_title": "Value History",
     "history_empty": "Run this estimate at least twice to see a trend.",
+    "history_other_currency": "History exists in {{currencies}}, but values are never converted: only your own currency is charted.",
     "add_hub_title": "What do you want to add?",
     "add_hub_subtitle": "Select the type of media to add to your collection"
   },

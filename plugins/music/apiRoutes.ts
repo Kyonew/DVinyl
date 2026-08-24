@@ -132,15 +132,20 @@ async function getEstimate(req: any, res: any) {
 // SAVE A COLLECTION VALUE SNAPSHOT (called client-side after the Estimate modal finishes)
 async function saveEstimateSnapshot(req: any, res: any) {
   try {
-    const { value, minValue, maxValue, currency, itemCount } = req.body || {};
+    const { value, minValue, maxValue, itemCount } = req.body || {};
 
     if (
       typeof value !== 'number' || typeof minValue !== 'number' ||
-      typeof maxValue !== 'number' || typeof currency !== 'string' ||
-      typeof itemCount !== 'number'
+      typeof maxValue !== 'number' || typeof itemCount !== 'number'
     ) {
       return res.status(400).json({ success: false, error: 'invalid_payload' });
     }
+
+    // Stamped here rather than taken from the payload: getEstimate above asks Discogs for
+    // prices in this same setting, so it is the currency the numbers are actually in, and
+    // reading the history back uses the same source. A client sending its own value could
+    // otherwise file a snapshot under a currency the reader never looks for.
+    const currency = res.locals.user.currency || 'USD';
 
     await PriceHistory.create({
       collection: res.locals.activeCollectionId,
@@ -161,12 +166,26 @@ async function saveEstimateSnapshot(req: any, res: any) {
 // COLLECTION VALUE HISTORY (chart data source)
 async function getEstimateHistory(req: any, res: any) {
   try {
-    const snapshots = await PriceHistory.find({ collection: res.locals.activeCollectionId })
+    // History is collection-scoped but the estimate runs in the currency of whoever asked
+    // for it, so a collection whose members differ on that holds several series at once.
+    // Only the reader's own is returned: nothing here converts between currencies, and
+    // drawing them as one line would invent a trend that never happened.
+    const currency = res.locals.user.currency || 'USD';
+    const collection = res.locals.activeCollectionId;
+
+    const snapshots = await PriceHistory.find({ collection, currency })
       .sort({ capturedAt: 1 })
       .select('capturedAt value minValue maxValue currency itemCount -_id')
       .lean();
 
-    res.json({ success: true, snapshots });
+    // What the scope above left out, so the page can say the history exists in another
+    // currency instead of the "run it twice" invitation meant for a collection with none.
+    const otherCurrencies = await PriceHistory.distinct('currency', {
+      collection,
+      currency: { $ne: currency }
+    });
+
+    res.json({ success: true, currency, snapshots, otherCurrencies });
   } catch (err: any) {
     console.error('[ERR] getEstimateHistory:', err.message);
     res.status(500).json({ success: false, error: 'server_error' });
