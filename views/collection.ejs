@@ -76,6 +76,12 @@
     </div>
 
     <% if (hasEstimateAction) { %>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"
+        integrity="sha384-vsrfeLOOY6KuIYKDlmVH5UiBmgIdB1oEf7p01YgWHuqmOHfZr374+odEv96n9tNC"
+        crossorigin="anonymous"></script>
+    <% } %>
+
+    <% if (hasEstimateAction) { %>
     <div id="estimateModal"
         class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="card-theme rounded-2xl w-full max-w-lg p-6 md:p-8 shadow-2xl relative">
@@ -124,6 +130,15 @@
                         </span>
                         <span id="maxPrice" class="font-bold text-lg">--</span>
                     </div>
+                </div>
+                <div class="mt-2">
+                    <p class="opacity-60 text-xs uppercase font-bold tracking-wider mb-2 text-left">
+                        <%= t('modal.history_title') %>
+                    </p>
+                    <canvas id="historyChart" height="120"></canvas>
+                    <p id="historyEmpty" class="hidden text-xs opacity-50 text-center py-4">
+                        <%= t('modal.history_empty') %>
+                    </p>
                 </div>
             </div>
 
@@ -195,6 +210,10 @@
         let totalPriceVG = 0;
         let totalPriceMin = 0;
         let totalPriceMax = 0;
+        // Albums that actually returned a usable price (as opposed to merely attempted):
+        // used to decide whether the resulting total is representative enough to persist
+        // as a history snapshot. See showResults().
+        let pricedCount = 0;
 
         function openEstimateModal(action) {
             if (action && action.estimate) activeEstimate = action.estimate;
@@ -220,6 +239,7 @@
                 totalPriceVG = 0;
                 totalPriceMin = 0;
                 totalPriceMax = 0;
+                pricedCount = 0;
 
                 countSpan.innerText = `0 / ${totalAlbums}`;
 
@@ -235,7 +255,7 @@
 
                     await new Promise(r => setTimeout(r, 500));
                 }
-                showResults();
+                await showResults();
             } catch (err) {
                 alert(`${estimateErrorMsg} : ${err.message}`);
                 startBtn.classList.remove('hidden');
@@ -251,11 +271,12 @@
                     totalPriceVG += val;
                     totalPriceMin += val;
                     totalPriceMax += (val * (activeEstimate.maxMultiplier || 1.3));
+                    pricedCount++;
                 }
             } catch (e) { }
         }
 
-        function showResults() {
+        async function showResults() {
             const fmt = (val) => {
                 try {
                     return new Intl.NumberFormat(currentLocale, {
@@ -273,6 +294,170 @@
 
             document.getElementById('progressContainer').classList.add('hidden');
             resultDiv.classList.remove('hidden');
+
+            // A run where most albums failed to price (Discogs rate-limiting, a missing/expired
+            // token, or a zero-item collection) produces a total that isn't representative of the
+            // collection's real value. Persisting that as a permanent history point would read as
+            // "the collection dropped in value" when really the estimate just mostly failed. Only
+            // write a snapshot when at least half the attempted albums actually returned a price.
+            // The on-screen result above still reflects whatever was priced, unconditionally.
+            const shouldPersistSnapshot = pricedCount > 0 && pricedCount >= totalAlbums / 2;
+
+            if (shouldPersistSnapshot) {
+                try {
+                    await fetch('<%= baseUrl %>/api/estimate/snapshot', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            value: totalPriceVG,
+                            minValue: totalPriceMin,
+                            maxValue: totalPriceMax,
+                            currency: currentCurrency,
+                            itemCount: totalAlbums
+                        })
+                    });
+                } catch (e) { /* history is a bonus, don't block the result on it */ }
+            }
+
+            const canvas = document.getElementById('historyChart');
+            const emptyMsg = document.getElementById('historyEmpty');
+            try {
+                const histRes = await fetch('<%= baseUrl %>/api/estimate/history');
+                const histData = await histRes.json();
+                if (histData.success) {
+                    // Snapshots are scoped per-collection but currency is a per-user setting:
+                    // members with different currency preferences could have written mixed-currency
+                    // points into the same series. Only show this user's own currency so values are
+                    // never silently mixed without conversion.
+                    const ownCurrencySnapshots = (histData.snapshots || []).filter(s => s.currency === currentCurrency);
+                    renderHistoryChart(ownCurrencySnapshots);
+                } else {
+                    canvas.classList.add('hidden');
+                    emptyMsg.classList.remove('hidden');
+                }
+            } catch (e) {
+                // The fetch itself failed (network error, etc.): show the same empty state as a
+                // genuinely empty history rather than leaving a blank canvas under the heading.
+                canvas.classList.add('hidden');
+                emptyMsg.classList.remove('hidden');
+            }
+        }
+
+        let historyChartInstance = null;
+
+        function renderHistoryChart(snapshots) {
+            const canvas = document.getElementById('historyChart');
+            const emptyMsg = document.getElementById('historyEmpty');
+
+            if (!snapshots || snapshots.length < 2) {
+                canvas.classList.add('hidden');
+                emptyMsg.classList.remove('hidden');
+                return;
+            }
+
+            canvas.classList.remove('hidden');
+            emptyMsg.classList.add('hidden');
+
+            const labels = snapshots.map(s => new Date(s.capturedAt).toLocaleDateString(currentLocale));
+            const values = snapshots.map(s => s.value);
+            const mins = snapshots.map(s => s.minValue);
+            const maxs = snapshots.map(s => s.maxValue);
+            // Caller already filtered to a single currency, so any snapshot's currency stands
+            // in for the whole series; fall back to the viewer's own currency if it's somehow absent.
+            const seriesCurrency = (snapshots[0] && snapshots[0].currency) || currentCurrency;
+            const fmtCurrency = (val) => {
+                try {
+                    return new Intl.NumberFormat(currentLocale, { style: 'currency', currency: seriesCurrency }).format(val);
+                } catch (e) {
+                    return val.toFixed(2) + ' ' + seriesCurrency;
+                }
+            };
+
+            // Canvas 2D has no CSS cascade: Chart.js hands these strings straight to
+            // ctx.strokeStyle/ctx.fillStyle, which silently ignores unresolved var(...) calls.
+            // Resolve the custom property to its actual value here instead. --highlight-rgb is
+            // stored as space-separated channels (e.g. "16 185 129", Tailwind-v3-style for use
+            // inside rgb(... / <alpha-value>)), so it plugs directly into rgb()'s space/slash syntax.
+            const highlightRgb = getComputedStyle(document.documentElement)
+                .getPropertyValue('--highlight-rgb').trim() || '16 185 129';
+            const accentColor = `rgb(${highlightRgb})`;
+            const bandColor = `rgb(${highlightRgb} / 0.12)`;
+            const tickColor = getComputedStyle(document.documentElement)
+                .getPropertyValue('--text-sub').trim() || '#888888';
+            // Gridlines are scaffolding, not text: painting them in the subtext colour puts a
+            // full-strength grid over the panel in both themes. --border-color is the token the
+            // rest of the UI already uses for that weight, and it flips with the theme.
+            const gridColor = getComputedStyle(document.documentElement)
+                .getPropertyValue('--border-color').trim() || 'rgba(128, 128, 128, 0.15)';
+
+            if (historyChartInstance) historyChartInstance.destroy();
+
+            historyChartInstance = new Chart(canvas, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: 'Max',
+                            data: maxs,
+                            borderWidth: 0,
+                            pointRadius: 0,
+                            backgroundColor: bandColor,
+                            fill: '+1'
+                        },
+                        {
+                            label: 'Min',
+                            data: mins,
+                            borderWidth: 0,
+                            pointRadius: 0,
+                            backgroundColor: bandColor,
+                            fill: false
+                        },
+                        {
+                            label: 'Value',
+                            data: values,
+                            borderColor: accentColor,
+                            backgroundColor: accentColor,
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                // The axis only has room for the day, which repeats as soon as a
+                                // collection is estimated twice in one: the hover says which run.
+                                title: (items) => {
+                                    const snapshot = snapshots[items[0].dataIndex];
+                                    return snapshot
+                                        ? new Date(snapshot.capturedAt).toLocaleString(currentLocale)
+                                        : items[0].label;
+                                },
+                                label: (ctx) => `${ctx.dataset.label}: ${fmtCurrency(ctx.parsed.y)}`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: tickColor },
+                            grid: { color: gridColor }
+                        },
+                        y: {
+                            beginAtZero: false,
+                            ticks: {
+                                color: tickColor,
+                                callback: (val) => fmtCurrency(val)
+                            },
+                            grid: { color: gridColor }
+                        }
+                    }
+                }
+            });
         }
     <% } %>
     </script>

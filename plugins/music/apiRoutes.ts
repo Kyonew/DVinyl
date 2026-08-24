@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { PluginApiRoute } from '../../core/types';
 import Item from '../../models/Item';
+import PriceHistory from '../../models/PriceHistory';
 import { editStamp } from '../../core/helpers';
 
 const fetchJson = async (url: string, options?: RequestInit): Promise<any> => {
@@ -125,6 +126,50 @@ async function getEstimate(req: any, res: any) {
   } catch (err: any) {
     console.error("Estimation server error:", err.message);
     res.json({ success: false, error: "Server error" });
+  }
+}
+
+// SAVE A COLLECTION VALUE SNAPSHOT (called client-side after the Estimate modal finishes)
+async function saveEstimateSnapshot(req: any, res: any) {
+  try {
+    const { value, minValue, maxValue, currency, itemCount } = req.body || {};
+
+    if (
+      typeof value !== 'number' || typeof minValue !== 'number' ||
+      typeof maxValue !== 'number' || typeof currency !== 'string' ||
+      typeof itemCount !== 'number'
+    ) {
+      return res.status(400).json({ success: false, error: 'invalid_payload' });
+    }
+
+    await PriceHistory.create({
+      collection: res.locals.activeCollectionId,
+      value,
+      minValue,
+      maxValue,
+      currency,
+      itemCount
+    });
+
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('[ERR] saveEstimateSnapshot:', err.message);
+    res.status(500).json({ success: false, error: 'server_error' });
+  }
+}
+
+// COLLECTION VALUE HISTORY (chart data source)
+async function getEstimateHistory(req: any, res: any) {
+  try {
+    const snapshots = await PriceHistory.find({ collection: res.locals.activeCollectionId })
+      .sort({ capturedAt: 1 })
+      .select('capturedAt value minValue maxValue currency itemCount -_id')
+      .lean();
+
+    res.json({ success: true, snapshots });
+  } catch (err: any) {
+    console.error('[ERR] getEstimateHistory:', err.message);
+    res.status(500).json({ success: false, error: 'server_error' });
   }
 }
 
@@ -310,7 +355,9 @@ export const musicApiRoutes: PluginApiRoute[] = [
   { method: 'get', path: '/api/collection/ids', handler: getCollectionIds },
   { method: 'post', path: '/api/album/:id/track/:trackId/meta', requireEditor: true, handler: updateTrackMeta },
   { method: 'get', path: '/api/album/:id/track/:trackId/lyrics', handler: getTrackLyrics },
+  { method: 'get', path: '/api/estimate/history', handler: getEstimateHistory },
   { method: 'get', path: '/api/estimate/:discogsId', handler: getEstimate },
+  { method: 'post', path: '/api/estimate/snapshot', requireEditor: true, handler: saveEstimateSnapshot },
   { method: 'get', path: '/api/search-discogs-gallery', requireAdmin: true, handler: searchDiscogsGallery },
   { method: 'post', path: '/api/batch-update-barcodes', requireAdmin: true, handler: batchUpdateBarcodes }
 ];

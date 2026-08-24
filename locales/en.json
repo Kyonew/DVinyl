@@ -229,6 +229,8 @@
     "min_label": "Minimum (G)",
     "max_label": "Maximum (Mint)",
     "start_btn": "Start Analysis",
+    "history_title": "Value History",
+    "history_empty": "Run this estimate at least twice to see a trend.",
     "add_hub_title": "What do you want to add?",
     "add_hub_subtitle": "Select the type of media to add to your collection"
   },

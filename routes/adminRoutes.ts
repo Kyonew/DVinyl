@@ -13,6 +13,7 @@ import { BASE_URL } from "../config/constants";
 import { getInstanceSettings, saveInstanceSettings, InstanceSettingsData } from "../utils/instanceSettings";
 import PRESETS from "../config/themes";
 import Item from "../models/Item";
+import PriceHistory from "../models/PriceHistory";
 
 import { registry } from "../core/registry.js";
 import { CARD_ASPECT_RATIOS } from "../core/customPlugin";
@@ -328,6 +329,9 @@ router.post("/collections/:id/delete", requireAuth, requireAdmin, async (req: an
 
     await Item.deleteMany({ collection: target._id });
     await Settings.deleteMany({ collection: target._id });
+    // The value snapshots describe a collection that is about to stop existing, and
+    // nothing else points at them: left behind they would only be unreachable rows.
+    await PriceHistory.deleteMany({ collection: target._id });
     // Users pointing at this collection self-heal to another membership on next request
     await User.updateMany(
       { lastActiveCollectionId: target._id },
