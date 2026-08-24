@@ -18,18 +18,25 @@ import {
 const router = express.Router();
 
 router.get('/wishlist', requireAuth, async (req: any, res: any) => {
-  res.render('wishlist', await getAlbums(req, res, true))
+  const data = await buildShelfView(req, res, true);
+  if (data) res.render('wishlist', data);
 });
 
 router.get('/collection', requireAuthOrShareView, async (req: any, res: any) => {
-  res.render('collection', await getAlbums(req, res, false))
+  const data = await buildShelfView(req, res, false);
+  if (data) res.render('collection', data);
 });
 
-async function getAlbums(req: any, res: any, in_wishlist: boolean) {
+// The collection and the wishlist are the same page over two halves of the same
+// shelf, so they share everything below and differ only on `inWishlist`.
+// Returns null once it has answered on its own (no collection to show, or a
+// failure): the caller must not render on top of a response already sent.
+async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<Record<string, any> | null> {
   try {
     const activeCollectionId = res.locals.activeCollectionId;
     if (!activeCollectionId) {
-      return res.render('no-collection', { user: res.locals.user, msgKey: req.query.msg });
+      res.render('no-collection', { user: res.locals.user, msgKey: req.query.msg });
+      return null;
     }
     const settings = res.locals.settings;
     const { search, type, format, location, genre, style, platform, artist, decade } = req.query;
@@ -58,7 +65,7 @@ async function getAlbums(req: any, res: any, in_wishlist: boolean) {
       limit = clampLimit(req.cookies.limitPref);
     }
 
-    let query: any = { collection: activeCollectionId, in_wishlist };
+    let query: any = { collection: activeCollectionId, in_wishlist: inWishlist };
     // Two separate buckets. `conditions` holds the user's criteria, which filterMode
     // 'hide' inverts. `scopeConditions` holds what defines *which items the page is
     // about at all* (the selected type): inverting that would widen the page to other
@@ -301,7 +308,7 @@ async function getAlbums(req: any, res: any, in_wishlist: boolean) {
 
     // DYNAMIC ARTIST LIST
     const artistList = await (async () => {
-      const baseQuery: any = { collection: activeCollectionId, in_wishlist };
+      const baseQuery: any = { collection: activeCollectionId, in_wishlist: inWishlist };
       // Per-plugin below, which a link scoped to a whole type already covers; this is for
       // the one scoped to some of its formats, where the kind alone would still offer the
       // names behind the formats it left out.
@@ -416,6 +423,10 @@ async function getAlbums(req: any, res: any, in_wishlist: boolean) {
       queryDecade: decade || '',
       filterMode,
       queryFilterMode: filterMode,
+      // Tells an empty page apart from an empty result: the wishlist keeps its
+      // "nothing here yet" invitation for a shelf that really is empty, and falls
+      // back to the plain grid when a filter is what emptied it.
+      hasActiveFilters: allConditions.length > 0,
       currentSort: sort,
       filterMap,
       artistList,
@@ -434,6 +445,7 @@ async function getAlbums(req: any, res: any, in_wishlist: boolean) {
   } catch (err: any) {
     console.error("Collection page loading error:", err.message);
     res.status(500).send(req.t('errors.generic_server_error'));
+    return null;
   }
 }
 
