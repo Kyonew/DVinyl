@@ -425,8 +425,11 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
       queryFilterMode: filterMode,
       // Tells an empty page apart from an empty result: the wishlist keeps its
       // "nothing here yet" invitation for a shelf that really is empty, and falls
-      // back to the plain grid when a filter is what emptied it.
-      hasActiveFilters: allConditions.length > 0,
+      // back to the plain grid when a filter is what emptied it. The selected type
+      // counts as one even though it lands on `query.kind` instead of the buckets
+      // above, or picking a type the shelf holds none of would take away the
+      // controls needed to leave it.
+      hasActiveFilters: allConditions.length > 0 || (!!type && type !== 'all'),
       currentSort: sort,
       filterMap,
       artistList,
