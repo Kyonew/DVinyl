@@ -182,7 +182,7 @@
     "digital": "Digital",
     "lego": "LEGO",
     "legos": "LEGO Sets",
-    "boardgames": "Board games",
+    "boardgames": "Board Games",
     "boardgame": "Board Game"
   },
   "index": {
@@ -1207,6 +1207,15 @@
     "no_results": "No set found.",
     "manual_entry": "Manual entry",
     "btn_scan": "Scan"
+  },
+  "add_boardgame": {
+    "title": "Add a Board Game",
+    "desc": "Search by title.",
+    "search_placeholder": "Game title...",
+    "results_title": "Results",
+    "no_results": "No board game found.",
+    "manual_entry": "Not on BoardGameGeek? Add manually",
+    "btn_scan": "Scan Barcode"
   },
   "confirm_lego": {
     "title": "Confirm addition",

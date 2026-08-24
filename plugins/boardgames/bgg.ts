@@ -18,12 +18,21 @@ async function bggRequest(path: string): Promise<any> {
   return parser.parse(xml);
 }
 
-// fast-xml-parser decodes the 5 named XML entities but leaves numeric character
-// references (BGG uses &#10; for line breaks in descriptions) untouched.
+// BGG descriptions are HTML-escaped text embedded in XML, so they arrive double-encoded
+// (e.g. the XML holds "&amp;mdash;"). fast-xml-parser only unescapes the 5 named XML
+// entities, which turns that into the literal string "&mdash;" - a real HTML entity that
+// still needs decoding, same as the numeric character refs BGG uses for line breaks (&#10;).
+const HTML_ENTITIES: Record<string, string> = {
+  nbsp: ' ', mdash: '—', ndash: '–', hellip: '…',
+  lsquo: '‘', rsquo: '’', ldquo: '“', rdquo: '”',
+  amp: '&', lt: '<', gt: '>', quot: '"', apos: "'"
+};
+
 function decodeNumericEntities(text: string): string {
   return text
     .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)))
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/&([a-z]+);/g, (m, name) => HTML_ENTITIES[name] ?? m);
 }
 
 
@@ -72,7 +81,8 @@ function mapThing(it: any): ConfirmData & { bgg_id: string } {
     min_age: it.minage ? Number(it.minage.value) : 0,
     cover_image: it.image || it.thumbnail || '',
     description: typeof it.description === 'string' ? decodeNumericEntities(it.description) : '',
-    bgg_rating: ratingRaw ? Math.round(Number(ratingRaw) * 10) / 10 : 0
+    bgg_rating: ratingRaw ? Math.round(Number(ratingRaw) * 10) / 10 : 0,
+    quantity: 1
   };
 }
 

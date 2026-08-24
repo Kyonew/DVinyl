@@ -12,6 +12,10 @@ export const boardGamesPlugin: PluginDefinition = {
   i18nKey: 'boardgame',
   order: 60,
   icon: 'dice-d20',
+
+  // BGG's XML API2 has no UPC/barcode lookup and its search indexes titles only,
+  // so a scanned barcode can't be turned into anything useful - hide the affordance.
+  noBarcodeScan: true,
   routePrefix: '/boardgame',
   collectionType: 'boardgames',
 
@@ -33,6 +37,14 @@ export const boardGamesPlugin: PluginDefinition = {
     }
   },
   requiredEnvKeys: ['BGG_API_KEY'],
+
+  // BGG's XML API2 terms of use require the "Powered by BGG" logo, linked back to
+  // BoardGameGeek, on any public-facing page that surfaces data pulled from it.
+  partialsPath: 'plugins/boardgames/partials',
+  searchFormPartial: 'search-form',
+  detailZones: [
+    { id: 'sidebar', partial: 'bgg-attribution.ejs' }
+  ],
 
   fastAddOptions: [
     { value: 'boardgame', label: 'media.boardgames', icon: 'fa-dice-d20', color: 'peer-checked:bg-emerald-600', url: '/add-boardgames' }
