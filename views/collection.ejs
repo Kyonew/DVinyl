@@ -1246,6 +1246,11 @@
             const bandColor = `rgb(${highlightRgb} / 0.12)`;
             const tickColor = getComputedStyle(document.documentElement)
                 .getPropertyValue('--text-sub').trim() || '#888888';
+            // Gridlines are scaffolding, not text: painting them in the subtext colour puts a
+            // full-strength grid over the panel in both themes. --border-color is the token the
+            // rest of the UI already uses for that weight, and it flips with the theme.
+            const gridColor = getComputedStyle(document.documentElement)
+                .getPropertyValue('--border-color').trim() || 'rgba(128, 128, 128, 0.15)';
 
             if (historyChartInstance) historyChartInstance.destroy();
 
@@ -1287,6 +1292,14 @@
                         legend: { display: false },
                         tooltip: {
                             callbacks: {
+                                // The axis only has room for the day, which repeats as soon as a
+                                // collection is estimated twice in one: the hover says which run.
+                                title: (items) => {
+                                    const snapshot = snapshots[items[0].dataIndex];
+                                    return snapshot
+                                        ? new Date(snapshot.capturedAt).toLocaleString(currentLocale)
+                                        : items[0].label;
+                                },
                                 label: (ctx) => `${ctx.dataset.label}: ${fmtCurrency(ctx.parsed.y)}`
                             }
                         }
@@ -1294,7 +1307,7 @@
                     scales: {
                         x: {
                             ticks: { color: tickColor },
-                            grid: { color: tickColor }
+                            grid: { color: gridColor }
                         },
                         y: {
                             beginAtZero: false,
@@ -1302,7 +1315,7 @@
                                 color: tickColor,
                                 callback: (val) => fmtCurrency(val)
                             },
-                            grid: { color: tickColor }
+                            grid: { color: gridColor }
                         }
                     }
                 }

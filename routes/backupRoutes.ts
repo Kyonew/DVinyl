@@ -6,6 +6,7 @@ import LoginLog from '../models/LoginLog';
 import Settings from '../models/Settings';
 import Collection from '../models/Collection';
 import CustomPlugin from '../models/CustomPlugin';
+import PriceHistory from '../models/PriceHistory';
 import InstanceSettings from '../models/InstanceSettings';
 import { invalidateInstanceSettingsCache } from '../utils/instanceSettings';
 import { requireAuth, requireAdmin, requireCollectionRole } from '../middleware/authMiddleware';
@@ -32,6 +33,7 @@ router.get('/export', requireAuth, requireAdmin, async (req, res) => {
             settings: await Settings.find({}).lean(),
             collections: await Collection.find({}).lean(),
             customPlugins: await CustomPlugin.find({}).lean(),
+            priceHistory: await PriceHistory.find({}).lean(),
             instanceSettings: await InstanceSettings.findOne({ key: 'instance' }).lean(),
             metadata: {
                 version: pkg.version,
@@ -99,6 +101,7 @@ router.post('/import', async (req, res) => {
             Settings.deleteMany({}),
             Collection.deleteMany({}),
             CustomPlugin.deleteMany({}),
+            PriceHistory.deleteMany({}),
             InstanceSettings.deleteMany({})
         ]);
         // The singleton is cached in memory; the wipe above must not leave a stale copy
@@ -161,6 +164,22 @@ router.post('/import', async (req, res) => {
 
         if (data.logs && data.logs.length > 0) {
             await LoginLog.insertMany(data.logs);
+        }
+
+        // Value snapshots are collection-scoped, so a dump restored without its collections
+        // has nothing for them to describe: they are dropped rather than left pointing at
+        // ids this instance does not have. A dump older than the feature simply has none.
+        if (hasCollections && Array.isArray(data.priceHistory) && data.priceHistory.length > 0) {
+            const toId = (v: any) => (typeof v === 'string' && mongoose.Types.ObjectId.isValid(v))
+                ? new mongoose.Types.ObjectId(v) : v;
+            const cleanHistory = data.priceHistory.map((snapshot: any) => {
+                const fixed: any = { ...snapshot };
+                if (fixed._id) fixed._id = toId(fixed._id);
+                if (fixed.collection) fixed.collection = toId(fixed.collection);
+                if (fixed.capturedAt) fixed.capturedAt = new Date(fixed.capturedAt);
+                return fixed;
+            });
+            await PriceHistory.collection.insertMany(cleanHistory);
         }
 
         // v3.1 exports settings as an array (one per collection); older dumps as one object
