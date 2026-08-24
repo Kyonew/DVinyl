@@ -1,9 +1,11 @@
+import path from 'path';
+import mongoose from 'mongoose';
 import { PluginDefinition } from '../../core/types';
 import { TMDBProvider } from './tmdb';
 import { dvdImporters } from './importers';
-import { escapeRegExp, fetchJson, PermanentRefreshError } from '../../core/helpers';
+import { escapeRegExp, fetchJson, PermanentRefreshError, editStamp } from '../../core/helpers';
 import Item from '../../models/Item';
-import { TMDB_LANG_MAP, formatSeasonCount } from './constants';
+import { TMDB_LANG_MAP, formatSeasonCount, describeOwnedSeasons } from './constants';
 
 export const dvdPlugin: PluginDefinition = {
   id: 'dvd',
@@ -28,15 +30,140 @@ export const dvdPlugin: PluginDefinition = {
   imageSearchType: 'movie',
   requiredEnvKeys: ['TMDB_API_KEY'],
   duplicateCheckFields: ['format', 'zone'],
+  aspectRatioClass: 'aspect-[2/3]',
   importers: dvdImporters,
   partialsPath: 'plugins/dvds/partials',
   detailZones: [
     { id: 'badge', partial: 'dvd-status.ejs' },
-    { id: 'sidebar', partial: 'status-blocks.ejs' }
+    { id: 'sidebar', partial: 'status-blocks.ejs' },
+    { id: 'content', partial: 'seasons-list.ejs' }
   ],
 
   fastAddOptions: [
     { value: 'dvd', label: 'media.dvd_gen', icon: 'fa-film', color: 'peer-checked:bg-red-600', url: '/add-dvd' }
+  ],
+
+  apiRoutes: [
+    {
+      // What the owner records about one episode: seen or not, what they thought, what they
+      // want to remember. Addressed by episode number rather than by subdocument id, which
+      // is what the page already has and what survives a metadata refresh rebuilding the
+      // array.
+      method: 'post',
+      path: '/api/dvd/:id/episode/:number/meta',
+      requireEditor: true,
+      async handler(req: any, res: any): Promise<any> {
+        try {
+          const number = parseInt(req.params.number, 10);
+          if (!mongoose.Types.ObjectId.isValid(req.params.id) || !Number.isInteger(number)) {
+            return res.status(404).json({ success: false, error: 'Not found' });
+          }
+
+          const body = req.body || {};
+          const set: Record<string, any> = {};
+          const unset: Record<string, any> = {};
+
+          if ('watched' in body) set['episodes.$.watched'] = body.watched === true || body.watched === 'true';
+
+          if ('rating' in body) {
+            const rating = Number(body.rating);
+            if (!Number.isFinite(rating) || rating < 0 || rating > 5) {
+              return res.status(400).json({ success: false, error: 'Invalid rating' });
+            }
+            // Clicking the star already lit means "no rating", not "zero stars".
+            if (rating === 0) unset['episodes.$.rating'] = 1;
+            else set['episodes.$.rating'] = rating;
+          }
+
+          if ('notes' in body) {
+            const notes = String(body.notes || '').trim().slice(0, 2000);
+            if (notes) set['episodes.$.notes'] = notes;
+            else unset['episodes.$.notes'] = 1;
+          }
+
+          const update: any = {};
+          if (Object.keys(set).length) update.$set = set;
+          if (Object.keys(unset).length) update.$unset = unset;
+          if (!Object.keys(update).length) {
+            return res.status(400).json({ success: false, error: 'Nothing to update' });
+          }
+          update.$set = { ...(update.$set || {}), ...editStamp(req.user._id) };
+
+          // `kind` in the filter makes Mongoose cast against the Dvd schema; without it the
+          // base schema knows no `episodes` path and strict mode drops the whole update.
+          const result = await Item.updateOne(
+            {
+              _id: req.params.id,
+              collection: res.locals.activeCollectionId,
+              kind: 'Dvd',
+              'episodes.number': number
+            },
+            update
+          );
+          if (result.matchedCount === 0) {
+            return res.status(404).json({ success: false, error: 'Not found' });
+          }
+          res.json({ success: true });
+        } catch (err: any) {
+          console.error('[ERR] dvd episode meta:', err.message);
+          res.status(500).json({ success: false, error: 'Server error' });
+        }
+      }
+    },
+    {
+      // The episode list of one season of a show, reached from the duration pill on the
+      // item page. A page of its own rather than a block on that page: a season runs to
+      // twenty episodes with their synopses, which would bury everything else.
+      method: 'get',
+      path: '/dvd/:id/episodes',
+      // What a season holds is part of what it is, so a public link that shows the season
+      // shows its episodes too. Read-only either way: the annotations below need edit
+      // rights on the collection, which a share visitor never has.
+      allowShareView: true,
+      async handler(req: any, res: any): Promise<any> {
+        try {
+          const item: any = await Item.findOne({
+            _id: req.params.id,
+            collection: res.locals.activeCollectionId,
+            kind: 'Dvd'
+          }).lean();
+
+          if (!item || item.media_type !== 'tv' || !item.tmdb_id) {
+            return res.status(404).send(req.t('errors.not_found'));
+          }
+
+          // A season carries its own episodes, so its page needs nothing from TMDB and
+          // shows no season picker: the other seasons are items of their own, listed on
+          // the show. Everything else (a series held as one box set, an item added before
+          // the episodes were stored) still reads them live and can browse seasons.
+          const stored = Array.isArray(item.episodes) ? item.episodes : [];
+          if (typeof item.season === 'number' && stored.length > 0) {
+            return res.render(path.join(__dirname, 'partials/episodes'), {
+              item,
+              seasons: [],
+              currentSeason: item.season,
+              episodes: stored,
+              user: res.locals.user
+            });
+          }
+
+          const asked = req.query.season !== undefined ? Number(req.query.season) : item.season;
+          const { seasons, season, episodes } = await new TMDBProvider()
+            .getSeasonEpisodes(item.tmdb_id, asked ?? null, req.language);
+
+          res.render(path.join(__dirname, 'partials/episodes'), {
+            item,
+            seasons,
+            currentSeason: season,
+            episodes,
+            user: res.locals.user
+          });
+        } catch (err: any) {
+          console.error('[ERR] dvd episodes:', err.message);
+          res.status(500).send(req.t('errors.generic_server_error'));
+        }
+      }
+    }
   ],
 
   imageSearchProvider: {
@@ -90,6 +217,26 @@ export const dvdPlugin: PluginDefinition = {
       enum: ['movie', 'tv'],
       default: 'movie'
     },
+    // Which season of a show this item is, when it is one season rather than the whole
+    // series. Absent on films and on a series held as a single item, which is what every
+    // item added before this existed is.
+    season: Number,
+    // The episodes of that season, stored rather than read from TMDB on each visit: this
+    // is what a personal note, a rating or a "seen" mark will be attached to, and none of
+    // that can hang off something refetched every time. Filled when the season is added
+    // and on a metadata refresh, so a show added before this existed picks them up.
+    episodes: [{
+      number: Number,
+      name: String,
+      runtime: Number,
+      air_date: String,
+      overview: String,
+      // What the owner adds, as opposed to what TMDB provides above. Kept on the same
+      // subdocument so a refresh has to preserve it deliberately rather than by luck.
+      watched: { type: Boolean, default: false },
+      rating: { type: Number, min: 0, max: 5 },
+      notes: String
+    }],
     format: {
       type: String,
       enum: ['dvd', 'bluray', '4k', 'vhs', 'laserdisc', 'digital'],
@@ -123,6 +270,17 @@ export const dvdPlugin: PluginDefinition = {
   ],
 
   formFields: [
+    {
+      // Renders nothing unless TMDB answered with a show and its season list, so films and
+      // hand-added items never see it.
+      name: 'season_picker',
+      label: 'confirm_dvd.season_label',
+      type: 'custom',
+      partial: 'season-picker.ejs',
+      showIn: ['confirm'],
+      showCondition: 'api-only',
+      group: 'main'
+    },
     {
       name: 'title',
       label: 'confirm_dvd.field_title',
@@ -317,11 +475,139 @@ export const dvdPlugin: PluginDefinition = {
     };
   },
 
+  cardContains(item: any, contains: any[]): { key: string; params: Record<string, any> } | null {
+    return describeOwnedSeasons((contains || []).map(c => c.season));
+  },
+
+  /**
+   * A show is a holder and its seasons are the items: each has its own cover, year and
+   * episode list, and the collection shows the holder alone.
+   *
+   * The form says which seasons are owned, one ticked box each. The show is created if it
+   * is not there yet, and every ticked season it does not already hold is attached to it,
+   * so ticking the whole list on a show that already has season 1 adds the rest and
+   * nothing else.
+   *
+   * Adding a second season later finds the show already there and attaches to it, which is
+   * also why the whole thing needs to own the step: the core would have taken the show for
+   * a duplicate of itself and merely bumped its quantity.
+   */
+  async handleCreate(data: Record<string, any>, ctx: {
+    body: Record<string, any>;
+    ownerId: any;
+    collectionId: any;
+    language?: string;
+  }): Promise<boolean> {
+    // The form posts one value per ticked box, which arrives as a string on its own when a
+    // single season was picked.
+    const ticked = ctx.body.seasons === undefined ? [] : [ctx.body.seasons].flat();
+    const wanted = ticked
+      .map((value: any) => parseInt(String(value), 10))
+      .filter((number: number) => Number.isInteger(number));
+
+    // Nothing ticked means nothing was said about seasons, so the show is added as the
+    // single item it has always been. That is the standard path, not a case to handle here.
+    if (data.media_type !== 'tv' || !data.tmdb_id || wanted.length === 0) {
+      return false;
+    }
+
+    const provider = new TMDBProvider();
+    const externalId = `tv_${data.tmdb_id}`;
+    const show = await provider.getDetails(externalId, { language: ctx.language });
+
+    // What the person chose on the form and expects to apply to everything they are
+    // adding: the edition they own, where it sits, what it cost them. The identity of
+    // each item (title, year, cover, season, synopsis) comes from TMDB instead.
+    const shared: Record<string, any> = { ...data };
+    for (const key of ['title', 'year', 'cover_image', 'description', 'duration', 'season', 'seasons', 'creator']) {
+      delete shared[key];
+    }
+
+    // Both types accepted: instances that ran a version where an edit stored the id as a
+    // string still hold a few of those, and the holder must be found all the same rather
+    // than silently duplicated.
+    const numericId = parseInt(String(data.tmdb_id));
+    const holder = await Item.findOne({
+      collection: ctx.collectionId,
+      kind: 'Dvd',
+      tmdb_id: { $in: [numericId, String(numericId)] },
+      parent: { $exists: false }
+    });
+
+    // Through the discriminator model, not the base one: director, tmdb_id and season are
+    // Dvd paths, which strict mode on the base schema would drop without a word.
+    const Dvd = mongoose.model('Dvd');
+
+    const holderId = holder
+      ? holder._id
+      : (await Dvd.create({
+        ...shared,
+        title: show.title,
+        year: show.year,
+        cover_image: show.cover_image,
+        description: show.description,
+        duration: show.duration,
+        director: show.director || data.director,
+        owner: ctx.ownerId,
+        collection: ctx.collectionId
+      }) as any)._id;
+
+    // Seasons already owned are left alone rather than duplicated: ticking the whole list
+    // when one season is already there adds only what is missing.
+    const owned = new Set(
+      (await Item.find({ parent: holderId }).select('season').lean())
+        .map((s: any) => s.season)
+    );
+
+    let added = 0;
+    for (const number of wanted) {
+      if (owned.has(number)) continue;
+      const seasonData = await provider.getDetails(externalId, { language: ctx.language, season: number });
+      await Dvd.create({
+        ...shared,
+        title: seasonData.title,
+        year: seasonData.year,
+        cover_image: seasonData.cover_image,
+        description: seasonData.description,
+        duration: seasonData.duration,
+        director: seasonData.director || data.director,
+        season: number,
+        parent: holderId,
+        owner: ctx.ownerId,
+        collection: ctx.collectionId,
+        // Stored with the season rather than fetched each time the page opens: they are
+        // what a personal note will hang off, and a note needs something that persists.
+        episodes: seasonData.episodes || []
+      });
+      added++;
+    }
+
+    // The show is the only thing on the shelf, so it has to carry the date of the last
+    // season put on it: bought today and left at its old date, it would sit halfway down a
+    // list sorted by recent additions, where nobody would look for what they just added.
+    // Same reasoning as a move to or from the wishlist, which already resets this.
+    if (holder && added > 0) {
+      await Item.updateOne(
+        { _id: holderId },
+        { $set: { added_at: new Date(), ...editStamp(ctx.ownerId) } }
+      );
+    }
+
+    return true;
+  },
+
   async findDuplicate(collectionId: any, data: Record<string, any>): Promise<any | null> {
     const tmdbId = data.tmdb_id;
     const matchFormat = data.format || 'dvd';
     const matchZone = (data.zone || '').trim();
     const matchBarcode = (data.barcode || '').trim();
+    // Every season of a show shares one tmdb_id, so without this the second season added
+    // would be taken for a copy of the first. The whole series is its own case again: a
+    // season is not the box set, and the box set is not a season.
+    const rawSeason = data.season;
+    const matchSeason = (rawSeason === undefined || rawSeason === null || rawSeason === '')
+      ? null
+      : parseInt(String(rawSeason), 10);
 
     // A different-zone edition or a different (non-empty) barcode is a distinct copy, not a
     // duplicate: it gets its own entry. An item with no zone/barcode yet still matches
@@ -337,6 +623,9 @@ export const dvdPlugin: PluginDefinition = {
       if (matchBarcode) {
         and.push({ $or: [{ barcode: { $exists: false } }, { barcode: '' }, { barcode: matchBarcode }] });
       }
+      and.push(matchSeason !== null && !Number.isNaN(matchSeason)
+        ? { season: matchSeason }
+        : { $or: [{ season: { $exists: false } }, { season: null }] });
       if (and.length) query.$and = and;
     };
 
@@ -438,6 +727,38 @@ export const dvdPlugin: PluginDefinition = {
     if (!tmdbApiKey) throw new PermanentRefreshError("TMDB_API_KEY missing");
     const lang = req.language || 'fr';
     const tmdbLang = TMDB_LANG_MAP[lang] || "en-US";
+
+    // A season is refreshed against the season, not against the show. Read from the show
+    // endpoint below it would come back wearing the show's title, poster and year, which
+    // is the opposite of what a refresh is for. This is also where a season added before
+    // the episodes were stored picks them up.
+    if (item.media_type === 'tv' && typeof item.season === 'number') {
+      const fresh: any = await new TMDBProvider().getDetails(`tv_${item.tmdb_id}`, {
+        language: lang,
+        season: item.season
+      });
+      return {
+        title: fresh.title,
+        year: fresh.year,
+        duration: fresh.duration,
+        cover_image: fresh.cover_image,
+        description: fresh.description,
+        director: fresh.director,
+        studio: fresh.studio,
+        genres: fresh.genres || [],
+        genre: (fresh.genres || [])[0] || '',
+        // TMDB owns the title, the runtime and the synopsis; the owner owns whether they
+        // watched it, what they thought of it and what they wrote down. Merged by episode
+        // number rather than replaced, otherwise a refresh for a corrected air date would
+        // quietly wipe every note on the season.
+        episodes: (fresh.episodes || []).map((episode: any) => {
+          const mine = (item.episodes || []).find((e: any) => e.number === episode.number);
+          return mine
+            ? { ...episode, watched: mine.watched, rating: mine.rating, notes: mine.notes }
+            : episode;
+        })
+      };
+    }
 
     const mediaType = item.media_type || 'movie';
     const url = `https://api.themoviedb.org/3/${mediaType}/${item.tmdb_id}?api_key=${tmdbApiKey}&language=${tmdbLang}&append_to_response=credits`;

@@ -323,6 +323,18 @@ Once the basics work, these let your plugin do more, all still without touching 
   of the detail page (a status badge, a sidebar block...).
 - **`normalizeForSave(data)`**: adjust the payload just before it is saved (for example LEGO mirrors
   its theme into `genre` so the generic genre filter works).
+- **Items that hold other items** (`handleCreate(data, ctx)` + `cardContains(item, contains)`):
+  when one submission is not one document. A TV show is stored as a show plus one item per
+  season, each with its own cover, year and episodes, linked by the base field `parent`.
+  `handleCreate` takes ownership of the whole creation step (return `false` to fall back to the
+  standard single-item save), and `cardContains` words in one line what the item holds
+  ("Seasons 1 to 4"), returning a translation key and its parameters. The core does the rest on
+  its own: a contained item is kept out of every listing and count, deleted with its holder, and
+  its link is rebuilt on a restore. See [`plugins/dvds/index.ts`](../plugins/dvds/index.ts).
+- **Card cosmetics**: the fields shown under a cover, the badge colors and the field placed in a
+  free corner of the cover are chosen per collection in the plugin editor, from what your plugin
+  declares. Nothing to implement: any field of your schema, and any user-defined field, is
+  offered there.
 
 Reach for these only when you need them. Many plugins never do.
 

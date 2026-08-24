@@ -13,6 +13,13 @@
 
     <div class="max-w-screen-xl mx-auto px-1 md:px-0 pb-12">
 
+        <% if (locals.isShareView) { %>
+            <div class="mt-6 flex items-center gap-3 bg-primary-theme/10 border border-primary-theme/30 rounded-2xl px-4 py-3">
+                <i class="fa-solid fa-eye text-primary-theme"></i>
+                <p class="text-xs font-bold text-primary-theme"><%= t('collection.share_view_banner') %></p>
+            </div>
+        <% } %>
+
         <div class="pt-6 mb-6 flex items-center justify-between">
             <h1 class="text-3xl font-bold transition-colors flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
                 <span>
@@ -116,6 +123,8 @@
                     <% } %>
                 </div>
 
+                <%# Not for a share link: see SHARE_HIDDEN_FIELDS in core/cardFields.ts. %>
+                <% if (!locals.isShareView) { %>
                 <div class="w-full lg:w-44 relative">
                     <input type="text" id="locationInput" list="locations-list"
                         placeholder="<%= t('common.location') %>" value="<%= locals.queryLocation || '' %>"
@@ -130,6 +139,7 @@
                             <% }) %>
                     </datalist>
                 </div>
+                <% } %>
 
                 <%# Each control below is dropped when the selected type has nothing to
                     offer for it, rather than showing an empty or foreign list %>
@@ -497,48 +507,7 @@
                 </div>
             <% } %>
         </div>
-
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6" id="albumGrid">
-            <% albums.forEach(album=> { %>
-                <%
-                    const itemPlugin = registry.getByKind(album.kind);
-                    const isPoster = itemPlugin ? itemPlugin.aspectRatioClass !== 'aspect-square' : true;
-                    const detailUrl = (itemPlugin ? itemPlugin.routePrefix : '/album') + '/' + album._id;
-                    const badge = (itemPlugin && itemPlugin.cardBadge)
-                        ? itemPlugin.cardBadge(album, settings)
-                        : (function(){ var fmt=(album.format||album.media_type||'').toLowerCase(); var opt=itemPlugin?(itemPlugin.formats||[]).find(function(f){return f.value===fmt}):null; return { label: opt?opt.label:fmt, colorClass: (opt&&opt.color)||'bg-gray-600/90' }; })();
-                %>
-
-                    <div class="album-card group relative card-theme rounded-xl overflow-hidden hover:border-primary-theme transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
-                        data-location="<%= album.location || '' %>"
-                        data-format="<%= album.format || album.media_type || '' %>">
-                        <a href="<%= baseUrl + detailUrl %>" class="block">
-                            <div
-                                class="aspect-square w-full relative overflow-hidden bg-black/5 flex items-center justify-center">
-
-                                <% if (isPoster) { %>
-                                    <img src="<%= album.cover_image %>"
-                                        class="absolute inset-0 w-full h-full object-cover blur-xl opacity-30 scale-110 pointer-events-none">
-                                    <% } %>
-
-                                        <img src="<%= album.cover_image %>"
-                                            class="relative z-10 w-full h-full <%= isPoster ? 'object-contain p-2' : 'object-cover' %> transition-transform duration-500 group-hover:scale-105"
-                                            loading="lazy">
-
-                                        <% if (badge.label) { %>
-                                        <span
-                                            class="absolute bottom-2 left-2 z-20 text-white text-[10px] font-bold px-2 py-1 rounded backdrop-blur-md border border-white/10 shadow-sm <%= badge.colorClass %>">
-                                            <%= t(badge.label, { defaultValue: badge.label }) %>
-                                        </span>
-                                        <% } %>
-                            </div>
-
-                            <%- include('partials/item-card-body', { item: album, plugin: itemPlugin, size: 'collection' }) %>
-                        </a>
-                    </div>
-                    <% }) %>
-        </div>
-
+        <%- include('partials/albums-grid', { albums, size: 'collection', gridId: 'albumGrid' }) %>
         <div
             class="mt-12 flex flex-col md:flex-row items-center justify-between gap-6 border-t border-black/5 dark:border-white/10 pt-8">
 
@@ -566,6 +535,7 @@
                     </button>
 
                     <div class="flex items-center gap-1">
+                        <% let jumpRendered = false; %>
                         <% for(let i=1; i <=totalPages; i++) { if (i===1 || i===totalPages || (i>= currentPage - 1 && i
                             <= currentPage + 1)) { %>
                                 <button onclick="changePage(<%= i %>)"
@@ -573,7 +543,15 @@
                                     <%= i %>
                                 </button>
                                 <% } else if (i===currentPage - 2 || i===currentPage + 2) { %>
-                                    <span class="px-1 opacity-30">...</span>
+                                    <% if (!jumpRendered) { jumpRendered = true; %>
+                                        <input type="number" id="pageJumpInput" min="1" max="<%= totalPages %>"
+                                            onkeydown="if (event.key === 'Enter') jumpToPage();"
+                                            placeholder="#"
+                                            title="<%= t('collection.page_jump_title') %>"
+                                            class="no-spinner w-10 h-10 text-sm text-center font-bold card-theme rounded-xl border focus:ring-1 focus:ring-primary-theme outline-none">
+                                    <% } else { %>
+                                        <span class="px-1 opacity-30">...</span>
+                                    <% } %>
                                     <% } } %>
                     </div>
 
@@ -751,6 +729,15 @@
             const url = new URL(window.location.href);
             url.searchParams.set('page', page);
             window.location.href = url.toString();
+        }
+
+        function jumpToPage() {
+            const input = document.getElementById('pageJumpInput');
+            if (!input) return;
+            const page = parseInt(input.value, 10);
+            const maxPage = parseInt(input.max, 10);
+            if (!page || page < 1 || page > maxPage) return;
+            changePage(page);
         }
 
         document.querySelectorAll('.filter-input-textbox').forEach(element => {
@@ -1179,6 +1166,19 @@
 
 
     </script>
+
+    <style>
+        .no-spinner::-webkit-outer-spin-button,
+        .no-spinner::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .no-spinner {
+            -moz-appearance: textfield;
+        }
+    </style>
+
     <%- include('partials/footer') %>
 </body>
 </html>

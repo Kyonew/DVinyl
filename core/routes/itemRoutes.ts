@@ -3,11 +3,13 @@ import mongoose from 'mongoose';
 import { PluginDefinition } from '../types';
 import Item from '../../models/Item';
 import User from '../../models/User';
-import { requireAuth, requireCollectionRole } from '../../middleware/authMiddleware';
-import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle } from '../helpers';
+import { requireAuth, requireAuthOrShareView, requireCollectionRole } from '../../middleware/authMiddleware';
+import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback, editStamp, syncStamp, safeReturnPath } from '../helpers';
 import { DEFAULT_PLACEHOLDER_IMAGE } from '../placeholderImage';
 import { getExtraFields, toFieldDefinitions } from '../pluginExtraFields';
 import { buildFieldSuggestions } from '../fieldSuggestions';
+import { deleteItemsAndContents, moveContentsToWishlist } from '../../utils/itemHelpers';
+import { applyVisibilityFilter, applyShareScopeFilter, isWithinShareScope } from '../../utils/visibilityHelper';
 
 export function createItemRoutes(plugin: PluginDefinition): Router {
   const router = express.Router();
@@ -36,7 +38,13 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       const { query, type, year, country, genre_filter, label_filter } = req.body;
       const rawQuery = typeof query === 'string' ? query.trim() : '';
       let searchQuery = rawQuery;
-      let scannedBarcode = '';
+      // A search run after a scan posts the code back (hidden field in add.ejs), so
+      // correcting the product name by hand no longer detaches it from the saved item.
+      const postedBarcode = String(req.body.scanned_barcode || '');
+      let scannedBarcode = isBarcodeQuery(postedBarcode) ? postedBarcode.replace(/[- ]/g, '') : '';
+      // Set only when this request resolved a barcode: the fallback below rewrites a
+      // seller's product name, never what the user typed themselves.
+      let resolvedTitle = '';
 
       try {
         // Scanned barcode: resolve to a product title via UPC lookup first
@@ -59,10 +67,11 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
             });
           }
           searchQuery = title;
+          resolvedTitle = title;
         }
 
         const settings = res.locals.settings;
-        const results = await plugin.searchProvider!.search(searchQuery, {
+        const runSearch = (q: string) => plugin.searchProvider!.search(q, {
           type: type || plugin.id,
           year,
           country,
@@ -73,10 +82,29 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           pluginSettings: settings?.pluginSettings?.[plugin.id] || {}
         });
 
+        let results;
+        if (resolvedTitle) {
+          const attempt = await searchWithTitleFallback(resolvedTitle, runSearch);
+          results = attempt.results;
+          searchQuery = attempt.query;
+        } else {
+          results = await runSearch(searchQuery);
+        }
+
+        // What the search box shows on the way back. After a scan the digits are useless
+        // there: on a hit it is the query that actually matched, and on a miss the whole
+        // product name, which is the thing the user has to correct.
+        const boxQuery = resolvedTitle
+          ? (results.length > 0 ? searchQuery : resolvedTitle)
+          : rawQuery;
+
         res.render('add', {
           results,
+          // Nothing matched a product name the user never got to see: show it instead of
+          // the digits so it can be corrected, the barcode rides along with the form.
+          error: resolvedTitle && results.length === 0 ? req.t('add_vinyl.barcode_no_match') : undefined,
           searchType: type || plugin.id,
-          searchQuery: rawQuery,
+          searchQuery: boxQuery,
           scanned_barcode: scannedBarcode,
           user: res.locals.user,
           currentType: `add-${plugin.id}`,
@@ -103,7 +131,14 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       const searchTypeHint = req.query.type as string | undefined;
 
       try {
-        const details = await plugin.searchProvider!.getDetails(externalId, { type: searchTypeHint, language: req.language });
+        // The query string is forwarded whole rather than key by key: what a provider needs
+        // to narrow a result down is its own business (TMDB asks which season), and the core
+        // has no reason to learn the vocabulary of each one.
+        const details = await plugin.searchProvider!.getDetails(externalId, {
+          ...req.query,
+          type: searchTypeHint,
+          language: req.language
+        });
         const activeCollectionId = res.locals.activeCollectionId;
 
         // Providers return the creator under a generic `creator` key; make sure
@@ -166,13 +201,63 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
     router.post(`/import/${importer.id}`, ...middlewares, (req: any, res: any) => importer.handler(req, res));
   }
 
+  /**
+   * Keeps out of a list whatever the person looking is not meant to see: what the
+   * collection hides from its viewers, and what a share link's scope leaves out. Both,
+   * because a list built by a plugin knows neither. Costs one query, and none at all on
+   * an empty list.
+   */
+  const filterVisible = async (items: any[], res: any): Promise<any[]> => {
+    if (!items || items.length === 0) return items || [];
+
+    const query: any = { _id: { $in: items.map((i: any) => i._id) } };
+    applyVisibilityFilter(query, res.locals.isCollectionAdmin, res.locals.settings);
+    if (res.locals.isShareView) {
+      applyShareScopeFilter(query, res.locals.shareScope);
+    }
+
+    const allowed = new Set(
+      (await Item.find(query).select('_id').lean()).map((i: any) => String(i._id))
+    );
+    return items.filter((i: any) => allowed.has(String(i._id)));
+  };
+
+  /**
+   * Guards a route a share link is allowed to reach (`allowShareView`). The handler is
+   * the plugin's, so the core checks what it is about to be asked for rather than what
+   * it hands back: the item named by `:id`, against the link's scope and the collection
+   * it belongs to. A route without that parameter tells the core nothing it can check,
+   * so a share visitor is turned away instead of trusted.
+   *
+   * Members go straight through; this costs a query to nobody but a share visitor.
+   */
+  const shareScopeGuard = async (req: any, res: any, next: any) => {
+    if (!res.locals.isShareView) return next();
+
+    const id = req.params.id;
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(404).send(req.t('errors.not_found'));
+    }
+    // Reached only by a share visitor, for whom the wishlist does not exist: the listing
+    // that would show it is behind a login, and its page has to say the same.
+    const guardQuery: any = { _id: id, collection: res.locals.activeCollectionId, in_wishlist: false };
+    applyVisibilityFilter(guardQuery, res.locals.isCollectionAdmin, res.locals.settings);
+    const item = await Item.findOne(guardQuery).lean();
+    if (!item || !await isWithinShareScope(res, item)) {
+      return res.status(404).send(req.t('errors.not_found'));
+    }
+    next();
+  };
+
   // PLUGIN API ROUTES (e.g. Discogs estimate for music)
   for (const apiRouteDef of plugin.apiRoutes || []) {
     const middlewares = apiRouteDef.requireAdmin
       ? [requireAuth, requireCollectionRole('admin')]
       : apiRouteDef.requireEditor
         ? [requireAuth, requireCollectionRole('editor')]
-        : [requireAuth];
+        : apiRouteDef.allowShareView
+          ? [requireAuthOrShareView, shareScopeGuard]
+          : [requireAuth];
     (router as any)[apiRouteDef.method](apiRouteDef.path, ...middlewares, (req: any, res: any) => apiRouteDef.handler(req, res));
   }
 
@@ -319,6 +404,21 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         plugin.normalizeForSave(updateData);
       }
 
+      // Asked before the duplicate lookup below, which assumes one submission is one
+      // document: a show being added with its seasons has to decide for itself what is
+      // already there and what attaches to what.
+      if (!mongo_id && typeof plugin.handleCreate === 'function') {
+        const handled = await plugin.handleCreate(updateData, {
+          body: req.body,
+          ownerId: adminId,
+          collectionId: activeCollectionId,
+          language: req.language
+        });
+        if (handled) {
+          return res.redirect(isWishlist ? '/wishlist' : `/collection?type=${plugin.collectionType}`);
+        }
+      }
+
       let existingItem: any;
       let isEdit = false;
 
@@ -377,7 +477,17 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           delete saveObj.extra;
         }
 
-        await Item.updateOne({ _id: existingItem._id }, { $set: saveObj }, { strict: false });
+        // Through the discriminator model, not the base one. The form posts every value as
+        // a string, and the base schema knows nothing of `tmdb_id` or `discogs_id`, so with
+        // strict off they were written raw: one edit was enough to turn a numeric external
+        // id into "1396", which then matched nothing that looked it up as a number.
+        // `strict: false` still lets the user-defined `extra.*` keys through.
+        const EditModel = mongoose.model(plugin.kind);
+        await EditModel.updateOne(
+          { _id: existingItem._id },
+          { $set: { ...saveObj, ...editStamp(adminId) } },
+          { strict: false }
+        );
       } else {
         const Model = mongoose.model(plugin.kind);
         await Model.create({
@@ -387,7 +497,15 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         });
       }
 
-      if (isWishlist) {
+      // An edit lands back on the item, where the change can be seen; the page it was
+      // started from travels along, so the item's own back arrow still returns there with
+      // its filters and page number. Adding is different and keeps going to the list,
+      // which is where someone looks for what they just added.
+      const returnTo = safeReturnPath(req.body.return_to, req.get('host'));
+      if (isEdit && existingItem) {
+        const origin = returnTo ? `?from=${encodeURIComponent(returnTo)}` : '';
+        res.redirect(`${plugin.routePrefix}/${existingItem._id}${origin}`);
+      } else if (isWishlist) {
         res.redirect('/wishlist');
       } else {
         res.redirect(`/collection?type=${plugin.collectionType}`);
@@ -423,6 +541,9 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         plugin,
         suggestions,
         genres,
+        // Handed over by the item page and posted back with the form: the Referer here is
+        // the item page, which is not where anyone wants to land after saving.
+        backUrl: safeReturnPath(req.query.from, req.get('host')),
         user: res.locals.user
       });
     } catch (err: any) {
@@ -432,31 +553,84 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   });
 
   // GET /{prefix}/:id -> details view
-  router.get(`${plugin.routePrefix}/:id`, requireAuth, async (req: any, res: any) => {
+  router.get(`${plugin.routePrefix}/:id`, requireAuthOrShareView, async (req: any, res: any) => {
     try {
       if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
         return res.status(404).send(req.t('errors.not_found'));
       }
-      const item = await Item.findOne({ _id: req.params.id, collection: res.locals.activeCollectionId });
+      // An item the collection hides from its viewers is hidden from its page too, not just
+      // from the grid: the id is the only thing standing between the two, and a share link
+      // hands it to whoever wants to try one.
+      const detailQuery: any = { _id: req.params.id, collection: res.locals.activeCollectionId };
+      applyVisibilityFilter(detailQuery, res.locals.isCollectionAdmin, res.locals.settings);
+      // What someone merely wants is not part of what a public link was opened to show,
+      // and every listing a share visitor can reach already says so.
+      if (res.locals.isShareView) detailQuery.in_wishlist = false;
+
+      const item = await Item.findOne(detailQuery);
       if (!item) {
         return res.status(404).send(req.t('errors.not_found'));
       }
 
+      // A scoped share link must not leak an out-of-scope item by URL-guessing its id,
+      // even though the collection listing itself already excludes it from the query.
+      if (!await isWithinShareScope(res, item)) {
+        return res.status(404).send(req.t('errors.not_found'));
+      }
+
       const formatted = plugin.formatForView(item);
-      const variants = await plugin.getVariants(formatted);
+
+      // A plugin looks its other editions up by what they are (same title and artist, same
+      // set number), which it can do without knowing who is asking. Whether one of them is
+      // hidden is the collection's business, not the plugin's, so it is settled here rather
+      // than by handing every plugin a viewer to reason about.
+      const variants = await filterVisible(await plugin.getVariants(formatted), res);
 
       // Who put the item there. Read separately rather than populated, so formatForView
       // keeps receiving the raw document it expects. A member removed since then leaves
       // a dangling reference, which simply reads as unknown.
-      const addedBy = item.owner
-        ? await User.findById(item.owner).select('username img').lean() as any
+      // What this item holds, if anything: the seasons of a show. Kept out of every
+      // listing, so this page is the only way to them, which is also why deleting the
+      // holder takes them along.
+      // Where this page was opened from, so leaving it, editing or deleting comes back to
+      // the very page someone was on rather than the first one. The explicit parameter
+      // wins: after saving an edit the header points at the form, while the parameter
+      // still carries the listing that started the whole thing.
+      const backUrl = safeReturnPath(req.query.from, req.get('host'))
+        || safeReturnPath(req.get('Referer'), req.get('host'));
+
+      const containedQuery: any = { parent: item._id };
+      applyVisibilityFilter(containedQuery, res.locals.isCollectionAdmin, res.locals.settings);
+      const contained = await Item.find(containedQuery).lean();
+
+      // And what holds this one, if anything: a season is absent from every listing, so
+      // "back to the collection" would send its page nowhere useful. The show it belongs
+      // to is the place to go back to.
+      const holderQuery: any = { _id: (item as any).parent };
+      applyVisibilityFilter(holderQuery, res.locals.isCollectionAdmin, res.locals.settings);
+      const holder: any = (item as any).parent
+        ? await Item.findOne(holderQuery).select('title').lean()
         : null;
+
+      // Who put the item there and who last touched it, for the people who share the
+      // collection. A public link says nothing about them: it was opened to show a shelf,
+      // not to name the household behind it, so the lookups do not even run.
+      const toProfile = (u: any) => u ? { username: u.username, img: u.img || '/ressources/no-pp.jpg' } : null;
+      const [addedBy, modifiedBy] = res.locals.isShareView ? [null, null] : await Promise.all([
+        item.owner ? User.findById(item.owner).select('username img').lean() as any : null,
+        (item as any).modified_by ? User.findById((item as any).modified_by).select('username img').lean() as any : null
+      ]);
 
       res.render('detail', {
         item: formatted,
         plugin,
         variants: variants.map(v => plugin.formatForView(v)),
-        addedBy: addedBy ? { username: addedBy.username, img: addedBy.img || '/ressources/no-pp.jpg' } : null,
+        addedBy: toProfile(addedBy),
+        modifiedBy: toProfile(modifiedBy),
+        contains: contained.map(c => plugin.formatForView(c)),
+        holder: holder ? { _id: holder._id, title: holder.title } : null,
+        backUrl,
+        containsLabel: plugin.cardContains ? plugin.cardContains(item, contained) : null,
         user: res.locals.user
       });
     } catch (err: any) {
@@ -472,8 +646,9 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       if (!item) {
         return res.status(404).json({ success: false, error: req.t('errors.not_found') });
       }
-      await Item.deleteOne({ _id: req.params.id });
-      res.json({ success: true });
+      // Takes the seasons of a show with it: they are only reachable from here.
+      const deleted = await deleteItemsAndContents([item._id]);
+      res.json({ success: true, deleted });
     } catch (err: any) {
       console.error(`Delete error for ${plugin.id}:`, err.message);
       res.status(500).json({ success: false, error: err.message });
@@ -494,9 +669,12 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         // idempotent). The filter needs `kind` so Mongoose casts against the discriminator
         // schema; without it, plugin-only paths like tracklist are silently stripped by
         // strict mode.
-        if (result && Object.keys(result).length > 0) {
-          await Item.updateOne({ _id: item._id, kind: plugin.kind }, { $set: result });
-        }
+        // Stamped even when the provider returned nothing new: the question the date
+        // answers is when the metadata was last checked, not when it last changed.
+        await Item.updateOne(
+          { _id: item._id, kind: plugin.kind },
+          { $set: { ...(result || {}), ...syncStamp() } }
+        );
         res.json({ success: true, ...result });
       } catch (err: any) {
         console.error(`Refresh item error for ${plugin.id}:`, err.message);
@@ -508,10 +686,12 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   // POST /api/{prefix}/:id/move-to-collection -> move from wishlist to collection
   router.post(`/api${plugin.routePrefix}/:id/move-to-collection`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
     try {
-      await Item.findOneAndUpdate(
+      const stamp = editStamp(req.user._id);
+      const moved = await Item.findOneAndUpdate(
         { _id: req.params.id, collection: res.locals.activeCollectionId },
-        { in_wishlist: false, added_at: new Date() }
+        { in_wishlist: false, added_at: new Date(), ...stamp }
       );
+      if (moved) await moveContentsToWishlist(moved._id, false, stamp);
       res.json({ success: true });
     } catch (err: any) {
       console.error(`Move to collection error for ${plugin.id}:`, err.message);
@@ -525,10 +705,12 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   // at its old acquisition date.
   router.post(`/api${plugin.routePrefix}/:id/move-to-wishlist`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
     try {
-      await Item.findOneAndUpdate(
+      const stamp = editStamp(req.user._id);
+      const moved = await Item.findOneAndUpdate(
         { _id: req.params.id, collection: res.locals.activeCollectionId },
-        { in_wishlist: true, added_at: new Date() }
+        { in_wishlist: true, added_at: new Date(), ...stamp }
       );
+      if (moved) await moveContentsToWishlist(moved._id, true, stamp);
       res.json({ success: true });
     } catch (err: any) {
       console.error(`Move to wishlist error for ${plugin.id}:`, err.message);

@@ -40,6 +40,7 @@
     "results_title": "Ergebnisse",
     "scan_error": "Kamerafehler (Berechtigungen prüfen)",
     "barcode_not_found": "Dieser Barcode wurde nicht erkannt. Versuchen Sie stattdessen die Suche nach Titel.",
+    "barcode_no_match": "Kein Treffer für diesen Barcode. Hier ist der gefundene Produktname: passe ihn an und suche erneut, der Barcode bleibt erhalten.",
     "scan_found": "Gefunden!",
     "scan_init": "Initialisierung...",
     "scan_stop": "Stoppen Sie den Scanvorgang",
@@ -56,7 +57,12 @@
     "backup": {
       "confirm_import": "ACHTUNG: Dadurch werden alle Ihre aktuellen Daten (Alben, Benutzer, Protokolle) gelöscht und durch den Inhalt der Datei ersetzt. Sie werden abgemeldet. Weitermachen?",
       "export_btn": "Datenbank exportieren",
+      "export_csv_btn": "CSV exportieren",
       "import_btn": "Datenbank importieren",
+      "csv": {
+        "type_column": "Typ",
+        "wishlist_column": "Wunschliste"
+      },
       "import_error": "Fehler beim Import.",
       "import_success": "Datenbank erfolgreich importiert.",
       "json_error": "Ungültige JSON-Datei.",
@@ -185,6 +191,7 @@
       },
       "import_updated": "Einträge ergänzt",
       "import_failed": "Zeilen wegen eines Fehlers übersprungen",
+      "import_unenriched": "Einträge kamen ohne Cover und Metadaten an: Führen Sie dieselbe Datei erneut aus, mit aktiviertem „Über die API vervollständigen“.",
       "choose_file": "Datei auswählen",
       "no_file_chosen": "Keine Datei ausgewählt",
       "err_no_file": "Wähle eine Datei."
@@ -289,6 +296,26 @@
       "subtitle": "Diese Sammlung exportieren (Elemente + Einstellungen) oder ihren Inhalt durch ein Backup ersetzen.",
       "confirm_import": "Der Import ERSETZT alle Elemente dieser Sammlung. Fortfahren?"
     },
+    "sharing": {
+      "title": "Öffentliche Freigabelinks",
+      "subtitle": "Lass beliebige Personen diese Sammlung mit einem Link oder QR-Code schreibgeschützt durchstöbern - ganz ohne Konto. Bearbeiten, Löschen und alle anderen Seiten bleiben gesperrt. Erstelle mehrere Links, um verschiedene Teile der Sammlung getrennt zu teilen, z. B. einen für Schallplatten und einen für CDs.",
+      "untitled_link": "Link ohne Namen",
+      "label_placeholder": "Diesen Link benennen (optional) - z. B. \"Nur Schallplatten\"",
+      "enable_btn": "Aktivieren",
+      "disable_btn": "Deaktivieren",
+      "regenerate_btn": "Neu erzeugen",
+      "delete_btn": "Löschen",
+      "confirm_regenerate": "Damit werden der aktuelle Link und QR-Code ungültig - wer den alten nutzt, verliert den Zugriff. Fortfahren?",
+      "confirm_delete": "Diesen Freigabelink löschen? Wer ihn nutzt, verliert sofort den Zugriff.",
+      "new_link_btn": "Neuer Freigabelink",
+      "create_btn": "Link erstellen",
+      "scope_title": "Freigegebener Inhalt",
+      "scope_hint": "Wähle bestimmte Typen (und innerhalb eines Typs bestimmte Formate), um einzuschränken, was dieser Link zeigt - z. B. nur CDs, oder CDs und Schallplatten. Nichts anzukreuzen teilt die ganze Sammlung.",
+      "scope_empty_hint": "Nichts angekreuzt = die ganze Sammlung wird geteilt.",
+      "scope_save_btn": "Änderungen speichern",
+      "copy_btn": "Link kopieren",
+      "copied": "Kopiert"
+    },
     "libib": {
       "title_books": "Libib - Bücher",
       "title_music": "Libib - Musik",
@@ -392,6 +419,7 @@
   },
   "collection": {
     "add": "Hinzufügen",
+    "share_view_banner": "Du siehst eine geteilte Sammlung - schreibgeschützt.",
     "filter_placeholder": "Filter...",
     "refresh": "Aktualisieren",
     "refresh_metadata_btn": "Informationen aktualisieren",
@@ -404,8 +432,8 @@
     "sort_title": "Titel",
     "sort_year": "Jahr",
     "decade_filter": "Jahrzehnt",
-    "filter_mode_hide": "Verstecken",
-    "filter_mode_show": "Zeigen",
+    "filter_mode_hide": "Treffer ausblenden",
+    "filter_mode_show": "Treffer anzeigen",
     "styles_filter": "Styles",
     "platform_filter": "Konsole",
     "xf_from": "Ab",
@@ -416,7 +444,8 @@
     "search_genre_placeholder": "Genres suchen...",
     "search_style_placeholder": "Styles suchen...",
     "search_platform_placeholder": "Konsolen suchen...",
-    "active_filters": "Aktive Filter:"
+    "active_filters": "Aktive Filter:",
+    "page_jump_title": "Zu Seite springen"
   },
   "common": {
     "all": "Alle",
@@ -511,6 +540,11 @@
     "comments_placeholder": "Bsp.: Originalpressung von 1986, auf dem Flohmarkt gekauft ...",
     "media_type_movie": "Film",
     "media_type_tv": "TV-Show",
+    "season_label": "Welche Staffeln besitzen Sie?",
+    "season_hint_owned": "Die Staffeln in Ihrer Sammlung sind angekreuzt und gesperrt. Kreuzen Sie die neu erworbenen an.",
+    "season_absorb_warning": "„{{title}}“ ist bereits in der Sammlung. Die angehakten Staffeln werden ihm zugeordnet: Dieser Eintrag wird zum Eintrag der Serie, und die Staffeln werden über ihn aufgerufen.",
+    "season_select_all": "Alle auswählen",
+    "season_hint": "Jede Staffel wird ein eigener Eintrag, mit eigenem Poster, Jahr und Folgen. Nichts anzukreuzen fügt die Serie als einen Eintrag hinzu.",
     "field_is_boxset": "Ist ein Boxset",
     "field_watch_status": "Status"
   },
@@ -560,6 +594,8 @@
   "detail": {
     "added_at": "Hinzugefügt bei",
     "added_by": "Hinzugefügt von",
+    "modified_at": "Zuletzt geändert",
+    "last_refresh": "Letzte Aktualisierung:",
     "additional_image": "Zusätzliches Bild",
     "view_fullscreen": "Vollbild anzeigen",
     "close_preview": "Vorschau schließen",
@@ -595,6 +631,15 @@
   "dvd_detail": {
     "barcode_label": "Barcode",
     "boxset": "Boxset",
+    "episodes_title": "Folgen",
+    "season_number": "Staffel {{number}}",
+    "seasons_range": "Staffeln {{from}} bis {{to}}",
+    "seasons_list": "Staffeln {{list}}",
+    "seasons_owned": "{{count}} Staffeln im Besitz",
+    "episodes_empty": "TMDB hat keine Folgenliste für diese Staffel.",
+    "episode_watched": "Gesehen",
+    "episode_notes": "Ihre Notizen",
+    "episode_notes_placeholder": "Was Sie sich zu dieser Folge merken möchten",
     "delete_confirm": "Sind Sie sicher, dass Sie dieses Element aus Ihrer Sammlung löschen möchten?",
     "duration_label": "Dauer",
     "movie": "Film",
@@ -780,7 +825,14 @@
     "delete_admin_error": "Sie können keinen anderen Instanz-Administrator löschen.",
     "reset_admin_error": "Sie können das Passwort eines anderen Instanz-Administrators nicht zurücksetzen.",
     "error_collection_quota": "Du hast die maximal zulässige Anzahl an Sammlungen erreicht.",
-    "error_collection_forbidden": "Das Erstellen von Sammlungen ist auf dieser Instanz nicht erlaubt."
+    "error_collection_forbidden": "Das Erstellen von Sammlungen ist auf dieser Instanz nicht erlaubt.",
+    "share_enabled": "Freigabe aktiviert.",
+    "share_disabled": "Freigabe deaktiviert.",
+    "share_regenerated": "Freigabelink neu erzeugt - der alte Link funktioniert nicht mehr.",
+    "share_scope_updated": "Freigegebene Inhalte aktualisiert.",
+    "share_link_created": "Freigabelink erstellt.",
+    "share_link_deleted": "Freigabelink gelöscht.",
+    "error_share": "Die Freigabe konnte nicht aktualisiert werden."
   },
   "modal": {
     "add_hub_subtitle": "Wählen Sie den Medientyp aus, den Sie Ihrer Sammlung hinzufügen möchten",
@@ -799,6 +851,7 @@
     "home": "Heim",
     "loading": "Laden...",
     "logout": "Abmelden",
+    "login": "Anmelden",
     "settings": "Einstellungen",
     "theme_dark": "Dunkler Modus",
     "theme_light": "Lichtmodus",
@@ -806,13 +859,24 @@
     "collections": "Sammlungen",
     "instance": "Instanz",
     "administration": "Verwaltung",
-    "new_collection": "Neue Sammlung"
+    "new_collection": "Neue Sammlung",
+    "search": "Suche",
+    "share_view": "Geteilte Sammlung · schreibgeschützt"
+  },
+  "search": {
+    "title": "Suche",
+    "placeholder": "Titel oder Künstler in allen Sammlungen suchen...",
+    "empty_prompt": "Mindestens 2 Zeichen eingeben, um alle Sammlungen zu durchsuchen.",
+    "no_results": "Keine Ergebnisse gefunden.",
+    "results_count": "{{count}} Ergebnisse"
   },
   "perso": {
     "backHome": "Zurück nach Hause",
     "fastAdd_desc": "Wenn aktiviert, leitet die Schaltfläche „Element hinzufügen“ direkt zum ausgewählten Formular weiter und umgeht das Auswahlmenü.",
     "fastAdd_disabled": "Deaktiviert (modal)",
     "fastAdd_title": "Schnell hinzufügen",
+    "card_aspect_ratio": "Seitenverhältnis der Karte",
+    "card_aspect_ratio_desc": "Form der Kacheln in den Rastern von Sammlung, Startseite und Wunschliste. Jedes Plugin behält auf seinen Detailseiten sein eigenes Verhältnis.",
     "modules": {
       "books": "Bücher",
       "dvd": "DVDs",
@@ -1025,6 +1089,10 @@
     "message_can_create": "Du hast noch keine Sammlung. Erstelle deine eigene, um Einträge hinzuzufügen - du wirst ihr Administrator.",
     "create_btn": "Meine Sammlung erstellen"
   },
+  "share_invalid": {
+    "title": "Link nicht verfügbar",
+    "message": "Dieser Freigabelink ist ungültig oder nicht mehr verfügbar. Frag die Person, der die Sammlung gehört, nach einem neuen."
+  },
   "create_plugin": {
     "title": "Plugin-Editor",
     "subtitle": "Erstelle deinen eigenen Sammlungstyp (Figuren, Karten, Comics...) ohne Code zu schreiben. Das Plugin wird im plugins/-Ordner generiert und ist sofort nutzbar, wie die nativen Module. Hier erstellte Plugins funktionieren nur mit manueller Eingabe (keine externe API).",
@@ -1040,6 +1108,8 @@
     "section_image": "Bild",
     "shape_poster": "Poster (2/3)",
     "shape_square": "Quadratisch (Hülle)",
+    "shape_screen": "Bildschirm (16/9)",
+    "shape_hint": "Gilt für die Seiten und Formulare dieses Plugins. Die Raster verwenden das in der Personalisierung festgelegte Kartenverhältnis.",
     "secondary_label": "Zweitbild",
     "secondary_desc": "Fügt ein zweites bearbeitbares Bild hinzu (wie die Disc bei Musik).",
     "default_cover_label": "Standardbild",
@@ -1110,6 +1180,14 @@
     "sort_formats": "Formate alphabetisch sortieren",
     "card_fields": "Felder der Karte",
     "card_fields_hint": "Werden in allen Rastern unter dem Cover angezeigt, in der Reihenfolge des Plugins. Maximal {{count}}.",
+    "corner_field": "Ecke des Covers",
+    "corner_field_hint": "Wird unten links auf jedem Cover angezeigt, gegenüber dem Format-Badge. Der gespeicherte Wert wird unverändert übernommen, damit er kurz bleibt.",
+    "corner_field_none": "Nichts",
+    "corner_position": "Welche Ecke",
+    "corner_top_left": "Oben links",
+    "corner_bottom_left": "Unten links",
+    "corner_bottom_right": "Unten rechts",
+    "corner_taken": "Die Ecke oben rechts ist vom Format-Badge belegt.",
     "default_color": "Standardfarbe",
     "reset": "Zurücksetzen",
     "customized": "Angepasst"

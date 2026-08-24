@@ -131,7 +131,14 @@
     "delete_admin_error": "You cannot delete another instance administrator.",
     "reset_admin_error": "You cannot reset another instance administrator's password.",
     "error_collection_quota": "You have reached the maximum number of collections allowed.",
-    "error_collection_forbidden": "Creating a collection is not allowed on this instance."
+    "error_collection_forbidden": "Creating a collection is not allowed on this instance.",
+    "share_enabled": "Sharing enabled.",
+    "share_disabled": "Sharing disabled.",
+    "share_regenerated": "Share link regenerated - the old link no longer works.",
+    "share_scope_updated": "Shared content updated.",
+    "share_link_created": "Share link created.",
+    "share_link_deleted": "Share link deleted.",
+    "error_share": "Could not update sharing."
   },
   "media": {
     "vinyl": "Vinyl",
@@ -240,6 +247,7 @@
     "scan_found": "Found!",
     "scan_error": "Camera error (Check permissions)",
     "barcode_not_found": "That barcode wasn't recognised. Try searching by title instead.",
+    "barcode_no_match": "No match for this barcode. Here is the product name it returned: adjust it and search again, the barcode stays attached.",
     "results_title": "Results",
     "no_results": "No results found.",
     "advanced_filters": "Advanced Filters",
@@ -335,13 +343,19 @@
       },
       "import_updated": "items enriched",
       "import_failed": "lines skipped on error",
+      "import_unenriched": "items came in without cover or metadata: re-run the same file with \"Complete from the API\" ticked to fill them in.",
       "choose_file": "Choose a file",
       "no_file_chosen": "No file chosen",
       "err_no_file": "Pick a file."
     },
     "backup": {
       "export_btn": "Export Database",
+      "export_csv_btn": "Export CSV",
       "import_btn": "Import Database",
+      "csv": {
+        "type_column": "Type",
+        "wishlist_column": "Wishlist"
+      },
       "import_success": "Database imported successfully.",
       "import_error": "Error during import.",
       "json_error": "Invalid JSON file.",
@@ -494,6 +508,26 @@
       "subtitle": "Export this collection (items + settings) or replace its content with a backup file.",
       "confirm_import": "Importing will REPLACE every item of this collection. Continue?"
     },
+    "sharing": {
+      "title": "Public share links",
+      "subtitle": "Let anyone browse this collection read-only with a link or QR code - no account needed. Editing, deleting and every other page stay off-limits. Create several links to share different parts of the collection separately, e.g. one for Vinyls and one for CDs.",
+      "untitled_link": "Untitled link",
+      "label_placeholder": "Name this link (optional) - e.g. \"Vinyls only\"",
+      "enable_btn": "Enable",
+      "disable_btn": "Disable",
+      "regenerate_btn": "Regenerate",
+      "delete_btn": "Delete",
+      "confirm_regenerate": "This invalidates the current link and QR code - anyone using the old one loses access. Continue?",
+      "confirm_delete": "Delete this share link? Anyone using it loses access immediately.",
+      "new_link_btn": "New share link",
+      "create_btn": "Create link",
+      "scope_title": "What's shared",
+      "scope_hint": "Pick specific types (and, within a type, specific formats) to limit what this link shows - e.g. only CDs, or CDs and Vinyls. Leave everything unchecked to share the whole collection.",
+      "scope_empty_hint": "Nothing checked = the whole collection is shared.",
+      "scope_save_btn": "Save changes",
+      "copy_btn": "Copy the link",
+      "copied": "Copied"
+    },
     "libib": {
       "title_books": "Libib - Books",
       "title_music": "Libib - Music",
@@ -581,6 +615,7 @@
   },
   "collection": {
     "title": "My Collection",
+    "share_view_banner": "You're viewing a shared collection - read-only.",
     "filter_placeholder": "Filter...",
     "refresh_tooltip": "Refresh from Discogs",
     "refresh": "Refresh",
@@ -593,8 +628,8 @@
     "sort_year": "Year",
     "artist_filter": "Artist",
     "decade_filter": "Decade",
-    "filter_mode_show": "Show",
-    "filter_mode_hide": "Hide",
+    "filter_mode_show": "Show matches",
+    "filter_mode_hide": "Hide matches",
     "styles_filter": "Styles",
     "platform_filter": "Console",
     "xf_from": "From",
@@ -605,7 +640,8 @@
     "search_genre_placeholder": "Search genres...",
     "search_style_placeholder": "Search styles...",
     "search_platform_placeholder": "Search consoles...",
-    "active_filters": "Active filters:"
+    "active_filters": "Active filters:",
+    "page_jump_title": "Jump to page"
   },
   "confirm_vinyl": {
     "cover_preview": "Cover Preview",
@@ -666,6 +702,8 @@
     "close_preview": "Close preview",
     "added_at": "Added at",
     "added_by": "Added by",
+    "modified_at": "Last modified",
+    "last_refresh": "Last refresh:",
     "source": "Source",
     "sleeve_condition": "Sleeve Condition",
     "estimation_title": "Estimation (Discogs)",
@@ -704,6 +742,7 @@
     "settings": "Settings",
     "admin": "Admin Panel",
     "logout": "Logout",
+    "login": "Login",
     "theme_dark": "Dark Mode",
     "theme_light": "Light Mode",
     "home": "Home",
@@ -712,7 +751,16 @@
     "collections": "Collections",
     "instance": "Instance",
     "administration": "Administration",
-    "new_collection": "New collection"
+    "new_collection": "New collection",
+    "search": "Search",
+    "share_view": "Shared collection · read-only"
+  },
+  "search": {
+    "title": "Search",
+    "placeholder": "Search title or artist across your collections...",
+    "empty_prompt": "Type at least 2 characters to search across all your collections.",
+    "no_results": "No matches found.",
+    "results_count": "{{count}} results"
   },
   "footer": {
     "made_with": "Made with",
@@ -770,7 +818,7 @@
     "lego_set_num": "e.g. 42115"
   },
   "perso": {
-    "title": "Personnalisation",
+    "title": "Personalization",
     "subtitle": "Customize the appearance of your DVinyl interface.",
     "backHome": "Back to home",
     "save": "Save Preferences",
@@ -782,6 +830,8 @@
     "fastAdd_title": "Quick add",
     "fastAdd_desc": "If enabled, the \"Add an item\" button redirects directly to the chosen form, bypassing the selection menu.",
     "fastAdd_disabled": "Disabled (modal)",
+    "card_aspect_ratio": "Card aspect ratio",
+    "card_aspect_ratio_desc": "Shape of the tiles in the collection, home and wishlist grids. Each plugin keeps its own ratio on its item pages.",
     "modules": {
       "title": "Active Modules",
       "music": "Music",
@@ -927,6 +977,11 @@
     "comments_placeholder": "Ex: Original 1986 pressing, bought at flea market...",
     "media_type_movie": "Movie",
     "media_type_tv": "TV Show",
+    "season_label": "Which seasons do you own?",
+    "season_hint_owned": "The seasons already in your collection are ticked and locked. Tick the ones you have just got.",
+    "season_absorb_warning": "\"{{title}}\" is already in the collection. The seasons you tick will be attached to it: it becomes the show's entry, and the seasons are reached from it.",
+    "season_select_all": "Select all",
+    "season_hint": "Each season becomes its own item, with its own poster, year and episodes. Leave everything unticked to add the show as a single item.",
     "field_is_boxset": "Is a Boxset",
     "field_watch_status": "Status"
   },
@@ -937,6 +992,15 @@
     "tech_specs": "Technical Details",
     "delete_confirm": "Are you sure you want to delete this item from your collection?",
     "boxset": "Boxset",
+    "episodes_title": "Episodes",
+    "season_number": "Season {{number}}",
+    "seasons_range": "Seasons {{from}} to {{to}}",
+    "seasons_list": "Seasons {{list}}",
+    "seasons_owned": "{{count}} seasons owned",
+    "episodes_empty": "TMDB has no episode list for this season.",
+    "episode_watched": "Seen",
+    "episode_notes": "Your notes",
+    "episode_notes_placeholder": "What you want to remember about this episode",
     "movie": "Movie",
     "series": "Series",
     "duration_label": "Duration",
@@ -1032,6 +1096,10 @@
     "message_can_create": "You don't have a collection yet. Create your own to start adding items - you'll be its administrator.",
     "create_btn": "Create my collection"
   },
+  "share_invalid": {
+    "title": "Link unavailable",
+    "message": "This share link is invalid or is no longer available. Ask the collection owner for a new one."
+  },
   "create_plugin": {
     "title": "Plugin editor",
     "subtitle": "Create your own collection type (figures, cards, comics...) without writing code. The plugin is generated in the plugins/ folder and becomes usable immediately, just like the built-in modules. Plugins created here are manual-entry only (no external API).",
@@ -1047,6 +1115,8 @@
     "section_image": "Image",
     "shape_poster": "Poster (2/3)",
     "shape_square": "Square (sleeve)",
+    "shape_screen": "Screen (16/9)",
+    "shape_hint": "Applies to this plugin's own pages and forms. The item grids use the card ratio set in Personalization.",
     "secondary_label": "Secondary image",
     "secondary_desc": "Adds a second editable visual (like the disc for music).",
     "default_cover_label": "Default image",
@@ -1117,6 +1187,14 @@
     "sort_formats": "Sort formats alphabetically",
     "card_fields": "Card fields",
     "card_fields_hint": "Shown under the cover in every grid, in the order the plugin declares them. Up to {{count}}.",
+    "corner_field": "Corner of the cover",
+    "corner_field_hint": "Shown in the bottom-left corner of every cover, opposite the format badge. The stored value is used as is, so it stays short.",
+    "corner_field_none": "Nothing",
+    "corner_position": "Which corner",
+    "corner_top_left": "Top left",
+    "corner_bottom_left": "Bottom left",
+    "corner_bottom_right": "Bottom right",
+    "corner_taken": "The top-right corner is taken by the format badge.",
     "default_color": "Default color",
     "reset": "Reset",
     "customized": "Customized"

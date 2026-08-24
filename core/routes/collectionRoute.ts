@@ -4,10 +4,11 @@ import { registry } from '../registry';
 import Item from '../../models/Item';
 import Collection from '../../models/Collection';
 import User from '../../models/User';
-import { requireAuth } from '../../middleware/authMiddleware';
-import { applyVisibilityFilter, applyEnabledModulesFilter } from '../../utils/visibilityHelper';
+import { requireAuth, requireAuthOrShareView } from '../../middleware/authMiddleware';
+import { applyVisibilityFilter, applyEnabledModulesFilter, applyContainedFilter, applyShareScopeFilter } from '../../utils/visibilityHelper';
 import { escapeRegExp } from '../helpers';
 import { generateUniqueSlug } from '../../utils/collectionHelpers';
+import { resolveShelfItems } from '../../utils/itemHelpers';
 import { checkCollectionCreation } from '../../utils/instanceSettings';
 import {
   getExtraFields, buildExtraFieldConditions, parseExtraSort, extraSortKey,
@@ -29,7 +30,9 @@ router.get('/wishlist', requireAuth, async (req: any, res: any) => {
 
     applyEnabledModulesFilter(query, res.locals.settings);
 
-    const items = await Item.find(query).sort({ added_at: -1 }).lean();
+    applyContainedFilter(query);
+
+    const items = await resolveShelfItems(await Item.find(query).sort({ added_at: -1 }).lean(), res);
 
     res.render('wishlist', {
       albums: items.map(item => {
@@ -44,7 +47,7 @@ router.get('/wishlist', requireAuth, async (req: any, res: any) => {
   }
 });
 
-router.get('/collection', requireAuth, async (req: any, res: any) => {
+router.get('/collection', requireAuthOrShareView, async (req: any, res: any) => {
   try {
     const activeCollectionId = res.locals.activeCollectionId;
     if (!activeCollectionId) {
@@ -85,7 +88,16 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
     let conditions: any[] = [];
     let scopeConditions: any[] = [];
 
-    const enabledPlugins = registry.getEnabled(settings);
+    // A scoped share link only ever browses the types it allowlists - narrow the
+    // plugin list up front so search fields, the type/format filters and the
+    // artist/genre/style lookups below all follow suit automatically.
+    const shareScope = res.locals.isShareView ? (res.locals.shareScope || []) : [];
+    const shareScopedPluginIds = shareScope.length > 0
+      ? new Set(shareScope.map((s: any) => s.pluginId))
+      : null;
+    const enabledPlugins = shareScopedPluginIds
+      ? registry.getEnabled(settings).filter(p => shareScopedPluginIds.has(p.id))
+      : registry.getEnabled(settings);
 
     // SEARCH QUERY
     if (trimmedSearch) {
@@ -136,7 +148,10 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
     }
 
     // LOCATION FILTER
-    if (location) {
+    // Never for a share link: where things are kept is not part of what is being shown
+    // (see SHARE_HIDDEN_FIELDS), and a filter left open would let a visitor confirm a
+    // shelf name by trying it, which is the same disclosure the hidden control avoids.
+    if (location && !res.locals.isShareView) {
       conditions.push({ location: new RegExp(escapeRegExp(location), 'i') });
     }
 
@@ -212,8 +227,14 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
 
     // Scope shared by every "values actually in use" lookup feeding the filter controls.
     // Without a selected type the page spans them all, so the lookup stays unscoped.
+    //
+    // A share link narrows it the same way it narrows the grid. The values offered by a
+    // filter come from items, and a lookup left wide open would name what the link keeps
+    // from its visitor: asking for a type the link excludes lands here with no selected
+    // plugin, which used to mean "every type" and now means "every type this link shows".
     const typeScope = (): any => {
       const base: any = { collection: activeCollectionId };
+      applyShareScopeFilter(base, shareScope);
       if (!selectedPlugin) return base;
       return selectedPlugin.matchesLegacyItems
         ? { ...base, $or: [{ kind: selectedPlugin.kind }, { kind: { $exists: false } }] }
@@ -233,6 +254,10 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
 
     applyVisibilityFilter(query, res.locals.isCollectionAdmin, settings);
     applyEnabledModulesFilter(query, settings);
+    applyContainedFilter(query);
+    if (res.locals.isShareView) {
+      applyShareScopeFilter(query, shareScope);
+    }
 
     const totalItems = await Item.countDocuments(query);
 
@@ -244,15 +269,19 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
       const sortMap: Record<string, any> = {
         'added_desc': { added_at: -1 },
         'added_asc': { added_at: 1 },
-        'title_asc': { title: 1 },
-        'title_desc': { title: -1 },
+        // `title` stays as a tie-breaker: two items whose sort keys are equal ("The Wall"
+        // and "Wall") would otherwise come back in whatever order Mongo felt like.
+        'title_asc': { sort_title: 1, title: 1 },
+        'title_desc': { sort_title: -1, title: -1 },
         'year_desc': { year: -1 },
         'year_asc': { year: 1 },
       };
 
       if (sort && sort.startsWith('artist')) {
         const dir = sort === 'artist_asc' ? 1 : -1;
-        if (!type || type === 'all') return { title: dir };
+        // No single creator field spans every type, so "all" falls back to the title, and
+        // it sorts on the same normalized key as the title options above.
+        if (!type || type === 'all') return { sort_title: dir, title: dir };
 
         const plugin = enabledPlugins.find(p => p.id === type);
         const field = plugin ? plugin.creatorField : 'title';
@@ -262,11 +291,16 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
       return sortMap[sort || ''] || { added_at: -1 };
     };
 
-    const albums = await Item.find(query)
+    const found = await Item.find(query)
       .sort(buildSortObj())
       .skip((page - 1) * limit)
       .limit(limit)
       .lean();
+
+    // A holder stands in for what it holds: several seasons and the show says so on its
+    // card, a single one and that season takes the place outright. Applied after the
+    // query, so a show still sorts and paginates on its own title.
+    const albums = await resolveShelfItems(found, res);
 
     // DYNAMIC FILTER MAP FROM REGISTRY
     // Read off the decorated registry, not the bare one: the collection's own
@@ -275,15 +309,25 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
     const filterMap: Record<string, { id: string; label: string }[]> = {};
     for (const plugin of enabledPlugins) {
       const customized = res.locals.registry.get(plugin.id) || plugin;
-      filterMap[plugin.id] = customized.formats.map((f: any) => ({
-        id: f.value,
-        label: req.t(f.label)
-      }));
+      const scopedFormats: string[] | null = shareScopedPluginIds
+        ? (shareScope.find((s: any) => s.pluginId === plugin.id)?.formats || [])
+        : null;
+      const allowedFormats = scopedFormats && scopedFormats.length > 0 ? new Set(scopedFormats) : null;
+      filterMap[plugin.id] = customized.formats
+        .filter((f: any) => !allowedFormats || allowedFormats.has(f.value))
+        .map((f: any) => ({
+          id: f.value,
+          label: req.t(f.label)
+        }));
     }
 
     // DYNAMIC ARTIST LIST
     const artistList = await (async () => {
       const baseQuery: any = { collection: activeCollectionId, in_wishlist: false };
+      // Per-plugin below, which a link scoped to a whole type already covers; this is for
+      // the one scoped to some of its formats, where the kind alone would still offer the
+      // names behind the formats it left out.
+      applyShareScopeFilter(baseQuery, shareScope);
       if (!type || type === 'all') {
         const promises = enabledPlugins.map(plugin => 
           Item.distinct(plugin.creatorField, { ...baseQuery, [plugin.creatorField]: { $nin: ['', null] } })
@@ -306,7 +350,11 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
       return plugin ? plugin.formatForView(item) : item;
     });
 
-    const locations = await Item.distinct('location', { collection: activeCollectionId, location: { $nin: ['', null] } });
+    // Where things are kept spans every type, so this one is not scoped by the selected
+    // type. A share link gets none of it: the control is not drawn for a visitor, and the
+    // values that would fill it are not read either.
+    const locationQuery: any = { collection: activeCollectionId, location: { $nin: ['', null] } };
+    const locations = res.locals.isShareView ? [] : await Item.distinct('location', locationQuery);
 
     // Scoped to the selected type, so a type never offers another type's values (and the
     // view drops a control entirely once its list comes back empty).
@@ -382,7 +430,7 @@ router.get('/collection', requireAuth, async (req: any, res: any) => {
       currentType: type || 'all',
       currentFormat: format || 'all',
       querySearch: trimmedSearch,
-      queryLocation: location || '',
+      queryLocation: res.locals.isShareView ? '' : (location || ''),
       queryGenre: genre || '',
       queryStyle: style || '',
       queryPlatform: platform || '',

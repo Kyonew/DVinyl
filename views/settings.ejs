@@ -347,10 +347,9 @@
 
         const translations = {
             avatarSuccess: <%- JSON.stringify(t('messages.avatar_success')) %>,
-            avatarError: <%- JSON.stringify(t('messages.avatar_error')) %>,
             gravatarNotFound: <%- JSON.stringify(t('messages.gravatar_not_found')) %>,
             confirmRemoveAvatar: <%- JSON.stringify(t('settings.avatar_remove_confirm')) %>,
-            passwordSuccess: <%- JSON.stringify(t('messages.password_success')) %>,
+            passwordSuccess: <%- JSON.stringify(t('messages.password_updated')) %>,
             passwordMismatch: <%- JSON.stringify(t('messages.password_mismatch')) %>,
             usernameAvailable: <%- JSON.stringify(t('messages.username_available')) %>,
             genericError: <%- JSON.stringify(t('messages.generic_error')) %>,
@@ -446,7 +445,7 @@
                         alert(translations.avatarSuccess);
                         window.location.reload();
                     } else {
-                        alert(translations.avatarError + ': ' + data.message);
+                        alert(data.message);
                     }
                 } catch (e) {
                     alert(translations.genericError);
@@ -471,7 +470,7 @@
                     } else if (res.status === 404) {
                         alert(translations.gravatarNotFound);
                     } else {
-                        alert(translations.avatarError + ': ' + data.message);
+                        alert(data.message);
                     }
                 } catch (e) {
                     alert(translations.genericError);
@@ -495,7 +494,7 @@
                         closeModal('avatar-modal');
                         window.location.reload();
                     } else {
-                        alert(translations.avatarError + ': ' + data.message);
+                        alert(data.message);
                     }
                 } catch (e) {
                     alert(translations.genericError);
@@ -541,7 +540,7 @@
                         alert(translations.passwordSuccess);
                         window.location.href = '<%= baseUrl %>/logout';
                     } else {
-                        alert(translations.passwordError + ': ' + data.message);
+                        alert(data.message);
                     }
                 } catch (e) { alert(translations.genericError); }
             });

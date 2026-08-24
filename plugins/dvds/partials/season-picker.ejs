@@ -1,0 +1,97 @@
+<%# Which seasons of this show are owned. A list of checkboxes rather than a single
+    choice, because that is the actual question: someone can own seasons 1 and 3 and not 2,
+    and can tick the missing one later without touching what is already there.
+
+    Nothing here reloads the page. Each season's own title, poster, year and episodes are
+    fetched at save time from TMDB, so this form never has to become a season to describe
+    one, and nothing typed above is lost by changing the selection. %>
+<% if (Array.isArray(item.seasons) && item.seasons.length > 0) { %>
+    <%
+        // Seasons already in the collection, read off the duplicate check the confirm page
+        // already ran: they are shown ticked and locked, so the list states what is owned
+        // instead of inviting someone to add it twice.
+        const owned = new Set(
+            (existingItems || [])
+                .map(existing => existing.season)
+                .filter(season => typeof season === 'number')
+        );
+
+        // Someone can already hold this show as a single item, a box set bought before any
+        // of it was recorded season by season. Ticking a season attaches it to that item,
+        // which then stands for the show and is reached through it rather than from the
+        // shelf. Nothing is lost, but nobody would guess it from a list of checkboxes, so
+        // it is said here before anything is ticked.
+        //
+        // Only when no season is held yet: past that point the item is already the show's
+        // entry and everyone has seen it happen.
+        const absorbed = owned.size === 0
+            ? (existingItems || []).find(existing => typeof existing.season !== 'number')
+            : null;
+    %>
+    <div>
+        <div class="flex items-center justify-between gap-4 mb-3">
+            <label class="block text-sm font-bold uppercase tracking-widest opacity-60">
+                <%= t('confirm_dvd.season_label') %>
+            </label>
+            <% if (item.seasons.some(season => !owned.has(season.number))) { %>
+                <button type="button" id="seasonSelectAll"
+                    class="text-xs font-bold text-primary-theme opacity-80 hover:opacity-100 transition-opacity">
+                    <%= t('confirm_dvd.season_select_all') %>
+                </button>
+            <% } %>
+        </div>
+
+        <% if (absorbed) { %>
+            <p class="bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/20 text-orange-600 dark:text-orange-400 p-3 rounded-lg text-xs mb-3 transition-colors">
+                <i class="fa-solid fa-triangle-exclamation mr-1"></i>
+                <%# The title is a value, not markup: i18next escapes it, and EJS escapes the
+                    whole line right after, which would print the entities instead of the
+                    apostrophes. Escaped once, here, by the tag that writes it out. %>
+                <%= t('confirm_dvd.season_absorb_warning', { title: absorbed.title, interpolation: { escapeValue: false } }) %>
+            </p>
+        <% } %>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <% item.seasons.forEach(season => { %>
+                <% const isOwned = owned.has(season.number); %>
+                <label class="flex items-center gap-2 px-3 py-2 rounded-lg border border-black/10 dark:border-white/10 text-sm transition-colors <%= isOwned ? 'opacity-50' : 'cursor-pointer hover:border-primary-theme' %>">
+                    <%# Ticking a season the collection lacks attaches it to the show already
+                        owned, so the confirm page must stop announcing a quantity bump. Only
+                        the seasons that can still be ticked say that: the locked ones are the
+                        duplicate the warning is about. %>
+                    <input type="checkbox" name="seasons" value="<%= season.number %>"
+                        class="js-season accent-primary-theme"
+                        <%= isOwned ? 'checked disabled' : 'data-duplicate-exempt' %>>
+                    <span class="truncate">
+                        <%= season.name %>
+                        <% if (season.episode_count) { %>
+                            <span class="opacity-50">(<%= season.episode_count %>)</span>
+                        <% } %>
+                    </span>
+                </label>
+            <% }) %>
+        </div>
+
+        <p class="text-xs opacity-50 mt-2">
+            <%= owned.size > 0 ? t('confirm_dvd.season_hint_owned') : t('confirm_dvd.season_hint') %>
+        </p>
+    </div>
+
+    <script>
+        (function () {
+            const button = document.getElementById('seasonSelectAll');
+            if (!button) return;
+            button.addEventListener('click', function () {
+                const boxes = Array.from(document.querySelectorAll('.js-season:not([disabled])'));
+                // One button for both directions: it ticks what is left, and unticks
+                // everything once nothing is left to tick.
+                const target = boxes.some(box => !box.checked);
+                boxes.forEach(box => {
+                    box.checked = target;
+                    // Setting `checked` fires nothing, and the confirm page listens for it.
+                    box.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+            });
+        })();
+    </script>
+<% } %>

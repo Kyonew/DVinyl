@@ -28,7 +28,7 @@ import { loadPlugins } from './core/loadPlugins.js';
 import { syncCustomPluginsOnBoot } from './core/customPluginSync.js';
 import { mountPluginRoutes, pluginDispatcher } from './core/pluginRuntime.js';
 import { applyPluginCustomization } from './core/pluginCustomization.js';
-import { getCardLines } from './core/cardFields.js';
+import { getCardLines, getCornerBadge, CORNER_POSITIONS, DEFAULT_CORNER_POSITION, SHARE_HIDDEN_FIELDS } from './core/cardFields.js';
 import { importableFields } from './core/csvMapping.js';
 
 // Routes imports
@@ -36,6 +36,7 @@ import setupRoutes from './routes/setupRoutes.js';
 import pluginBuilderRoutes from './routes/pluginBuilderRoutes.js';
 import pluginAssetRoutes from './routes/pluginAssetRoutes.js';
 import authRoutes from './routes/authRoutes.js';
+import shareRoutes from './routes/shareRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
 import backupRoutes from './routes/backupRoutes.js';
@@ -43,6 +44,7 @@ import oidcRoutes from './routes/oidcRoutes.js';
 
 import dashboardRoute from './core/routes/dashboardRoute.js';
 import collectionRoute from './core/routes/collectionRoute.js';
+import searchRoute from './core/routes/searchRoute.js';
 import manualAddRoute from './core/routes/manualAddRoute.js';
 import csvImportRoute from './core/routes/csvImportRoute.js';
 
@@ -82,6 +84,12 @@ app.set('view engine', 'ejs');
 app.set('views', [path.join(__dirname, 'views'), path.join(__dirname, 'core/views')]);
 // Card bodies are resolved from the plugin declarations, not inlined per grid
 app.locals.getCardLines = getCardLines;
+app.locals.getCornerBadge = getCornerBadge;
+app.locals.CORNER_POSITIONS = CORNER_POSITIONS;
+app.locals.DEFAULT_CORNER_POSITION = DEFAULT_CORNER_POSITION;
+// A share visitor is shown the collection, not the home around it: the item page reads
+// the same list the cards do, so a field kept from one is kept from the other
+app.locals.SHARE_HIDDEN_FIELDS = SHARE_HIDDEN_FIELDS;
 // The CSV mapping screen lists the destinations of every enabled module
 app.locals.importableFields = importableFields;
 // Dates read the same way wherever a view prints one
@@ -235,6 +243,7 @@ loadPlugins();
 // Route mounting
 app.use(BASE_URL + '/setup', setupRoutes);
 app.use(BASE_URL, authRoutes);
+app.use(BASE_URL, shareRoutes);
 app.use(BASE_URL + '/admin', adminRoutes);
 app.use(BASE_URL + '/settings', settingsRoutes);
 app.use(BASE_URL + '/create-plugin', pluginBuilderRoutes);
@@ -245,6 +254,7 @@ if (isOidcEnabled()) {
 
 app.use(BASE_URL, dashboardRoute);
 app.use(BASE_URL, collectionRoute);
+app.use(BASE_URL, searchRoute);
 app.use(BASE_URL, manualAddRoute);
 // Before the plugin dispatcher, which also serves /import/:id routes
 app.use(BASE_URL, csvImportRoute);

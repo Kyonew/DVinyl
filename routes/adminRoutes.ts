@@ -1,19 +1,31 @@
 import express from "express";
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
+import QRCode from "qrcode";
 import User from "../models/User";
 import BlockedIP from "../models/blockedIP";
 import LoginLog from "../models/LoginLog";
 import Settings from "../models/Settings";
 import Collection from "../models/Collection";
 import { requireAuth, requireAdmin, requireCollectionRole } from "../middleware/authMiddleware";
-import { generateUniqueSlug } from "../utils/collectionHelpers";
+import { generateUniqueSlug, generateShareToken } from "../utils/collectionHelpers";
+import { BASE_URL } from "../config/constants";
 import { getInstanceSettings, saveInstanceSettings, InstanceSettingsData } from "../utils/instanceSettings";
 import PRESETS from "../config/themes";
 import Item from "../models/Item";
 
 import { registry } from "../core/registry.js";
-import { PermanentRefreshError } from "../core/helpers";
+import { CARD_ASPECT_RATIOS } from "../core/customPlugin";
+import { PermanentRefreshError, syncStamp } from "../core/helpers";
+import { deleteItemsAndContents } from "../utils/itemHelpers";
+
+// PROD=true is the operator's own declaration that the instance is served over HTTPS
+// (see docs/getting-started.md). Trust that over req.protocol, which depends on the
+// reverse proxy correctly forwarding X-Forwarded-Proto - a single misconfigured proxy
+// hop otherwise silently downgrades every generated share link/QR code to http.
+function getPublicProtocol(req: any): string {
+  return process.env.PROD === "true" ? "https" : req.protocol;
+}
 
 const router = express.Router();
 
@@ -54,7 +66,9 @@ interface InstanceAdminData {
 async function loadCollectionAdminData(activeCollectionId: any): Promise<CollectionAdminData> {
   // Get distinct genres grouped by kind (scoped to the active collection)
   const pipeline = [
-    { $match: { collection: activeCollectionId } },
+    // Contained items carry their holder's genres, so counting them here would just
+    // repeat what the holder already contributed.
+    { $match: { collection: activeCollectionId, parent: { $exists: false } } },
     {
       $project: {
         kind: 1,
@@ -111,7 +125,10 @@ async function loadInstanceAdminData(): Promise<InstanceAdminData> {
     .populate("members.user", "username email img isAdmin")
     .lean();
 
+  // Counted like the grid shows: a show with five seasons is one line and counts as one,
+  // so the number here always matches what a member can count on screen.
   const counts = await Item.aggregate([
+    { $match: { parent: { $exists: false } } },
     { $group: { _id: "$collection", n: { $sum: 1 } } },
   ]);
   const countByCollection: Record<string, number> = {};
@@ -149,6 +166,9 @@ router.get("/", requireAuth, requireCollectionRole("admin"), async (req: any, re
       user: res.locals.user,
       successMessage: msgKey ? req.t(`messages.${msgKey}`) : null,
       newPassword: null,
+      // Share links must show a full, absolute URL (scheme + host) - a bare
+      // baseUrl-relative path is not something you can scan/paste elsewhere.
+      siteOrigin: `${getPublicProtocol(req)}://${req.get("host")}`,
     });
   } catch (err) {
     console.error(err);
@@ -574,12 +594,174 @@ router.post("/members/reset-password", requireAuth, requireCollectionRole("admin
     res.render("admin", {
       ...data,
       user: res.locals.user,
-      successMessage: req.t("messages.password_reset_success", { name: target.username }),
+      // A name is a value, not markup: the view escapes it on the way out, and letting
+      // i18next escape it first would print the entities instead of the apostrophe.
+      successMessage: req.t("messages.password_reset_success", {
+        name: target.username,
+        interpolation: { escapeValue: false },
+      }),
       newPassword: password,
     });
   } catch (err) {
     console.error("Member reset error:", err);
     res.redirect("/admin?msg=error_member");
+  }
+});
+
+// ============ COLLECTION SHARING (collection-admin scope) ============
+// Public, account-free read-only browsing via routes/shareRoutes.ts. A collection can
+// have several independent links at once (e.g. one scoped to Vinyls, one to CDs) -
+// each with its own token, so disabling/regenerating/deleting one never touches
+// the others.
+
+/**
+ * Builds a shareLinks[].scope array from a create/edit submission. Checking no type
+ * boxes at all means "whole collection" - there is no separate on/off toggle for
+ * scope itself. A format checked without its type box (e.g. JS failed to auto-check
+ * it - see the checkbox script in views/admin.ejs) still counts: the type is implied
+ * by having any format selected under it, so a submission is never silently dropped.
+ */
+function parseShareScope(body: any): { pluginId: string; formats: string[] }[] {
+  const rawTypes = body.scopeTypes;
+  const checkedTypes: string[] = Array.isArray(rawTypes) ? rawTypes : rawTypes ? [rawTypes] : [];
+
+  const impliedTypes = Object.keys(body)
+    .filter((k) => k.startsWith("scopeFormats_"))
+    .filter((k) => (Array.isArray(body[k]) ? body[k].length > 0 : !!body[k]))
+    .map((k) => k.slice("scopeFormats_".length));
+
+  const selectedTypes = [...new Set([...checkedTypes, ...impliedTypes])];
+
+  return selectedTypes
+    .map((id: string) => {
+      const plugin = registry.get(id);
+      if (!plugin) return null;
+
+      const rawFormats = body[`scopeFormats_${id}`];
+      const submitted: string[] = Array.isArray(rawFormats) ? rawFormats : rawFormats ? [rawFormats] : [];
+      const validFormats = new Set((plugin.formats || []).map((f: any) => f.value));
+      const formats = submitted.filter((f: string) => validFormats.has(f));
+
+      return { pluginId: id, formats };
+    })
+    .filter((entry): entry is { pluginId: string; formats: string[] } => !!entry);
+}
+
+// Create a new share link with the submitted scope (and optional label).
+router.post("/share/create", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
+  try {
+    const label = String(req.body.label || "").trim().slice(0, 60);
+    const scope = parseShareScope(req.body);
+
+    await Collection.updateOne(
+      { _id: res.locals.activeCollectionId },
+      { $push: { shareLinks: { token: generateShareToken(), label, enabled: true, scope } } },
+    );
+    res.redirect("/admin?msg=share_link_created");
+  } catch (err) {
+    console.error("Share create error:", err);
+    res.redirect("/admin?msg=error_share");
+  }
+});
+
+// Flip one link's enabled state (disabling keeps its token - re-enabling reuses the
+// same link/QR code instead of forcing a reprint).
+router.post("/share/:token/toggle", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
+  try {
+    const coll: any = await Collection.findOne(
+      { _id: res.locals.activeCollectionId, "shareLinks.token": req.params.token },
+      { "shareLinks.$": 1 },
+    );
+    const link = coll?.shareLinks?.[0];
+    if (!link) return res.redirect("/admin?msg=error_share");
+
+    await Collection.updateOne(
+      { _id: res.locals.activeCollectionId, "shareLinks.token": req.params.token },
+      { $set: { "shareLinks.$.enabled": !link.enabled } },
+    );
+    res.redirect(`/admin?msg=${link.enabled ? "share_disabled" : "share_enabled"}`);
+  } catch (err) {
+    console.error("Share toggle error:", err);
+    res.redirect("/admin?msg=error_share");
+  }
+});
+
+// Update an existing link's scope and/or label in place.
+router.post("/share/:token/scope", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
+  try {
+    const label = String(req.body.label || "").trim().slice(0, 60);
+    const scope = parseShareScope(req.body);
+
+    const result = await Collection.updateOne(
+      { _id: res.locals.activeCollectionId, "shareLinks.token": req.params.token },
+      { $set: { "shareLinks.$.scope": scope, "shareLinks.$.label": label } },
+    );
+    if (result.matchedCount === 0) return res.redirect("/admin?msg=error_share");
+    res.redirect("/admin?msg=share_scope_updated");
+  } catch (err) {
+    console.error("Share scope error:", err);
+    res.redirect("/admin?msg=error_share");
+  }
+});
+
+// Rotate a link's token - instantly invalidates whatever URL/QR code is already out
+// there, without touching this collection's other links.
+router.post("/share/:token/regenerate", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
+  try {
+    const result = await Collection.updateOne(
+      { _id: res.locals.activeCollectionId, "shareLinks.token": req.params.token },
+      { $set: { "shareLinks.$.token": generateShareToken(), "shareLinks.$.enabled": true } },
+    );
+    if (result.matchedCount === 0) return res.redirect("/admin?msg=error_share");
+    res.redirect("/admin?msg=share_regenerated");
+  } catch (err) {
+    console.error("Share regenerate error:", err);
+    res.redirect("/admin?msg=error_share");
+  }
+});
+
+// Remove a link entirely.
+router.post("/share/:token/delete", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
+  try {
+    // The token is named in the filter as well as in the $pull, the way the routes above
+    // do it: a token belonging to another collection would otherwise pull nothing while
+    // still reporting a success, since the schema's timestamps count every update as a
+    // modification whether or not anything came out of the array.
+    const result = await Collection.updateOne(
+      { _id: res.locals.activeCollectionId, "shareLinks.token": req.params.token },
+      { $pull: { shareLinks: { token: req.params.token } } },
+    );
+    if (result.matchedCount === 0) return res.redirect("/admin?msg=error_share");
+    res.redirect("/admin?msg=share_link_deleted");
+  } catch (err) {
+    console.error("Share delete error:", err);
+    res.redirect("/admin?msg=error_share");
+  }
+});
+
+// Server-rendered QR PNG so a link's token never has to be handed to a
+// third-party QR-image API - it stays entirely within this instance.
+router.get("/share/:token/qr.png", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
+  try {
+    // $elemMatch, because a collection holds several links: named separately, the two
+    // conditions can be met by two different ones, and the QR of a link someone just
+    // disabled would keep being served as long as any other link is still on.
+    const coll = await Collection.findOne(
+      {
+        _id: res.locals.activeCollectionId,
+        shareLinks: { $elemMatch: { token: req.params.token, enabled: true } },
+      },
+      { _id: 1 },
+    );
+    if (!coll) return res.status(404).send(req.t("errors.not_found"));
+
+    const url = `${getPublicProtocol(req)}://${req.get("host")}${BASE_URL}/share/${req.params.token}`;
+    const png = await QRCode.toBuffer(url, { type: "png", width: 320, margin: 1 });
+    res.set("Content-Type", "image/png");
+    res.send(png);
+  } catch (err) {
+    console.error("Share QR error:", err);
+    res.status(500).send(req.t("errors.generic_server_error"));
   }
 });
 
@@ -619,6 +801,7 @@ router.post("/reset-password", requireAuth, requireAdmin, async (req: any, res: 
         user: res.locals.user,
         successMessage: req.t("messages.password_reset_success", {
           name: userToUpdate.username,
+          interpolation: { escapeValue: false },
         }),
         newPassword: password,
         apiKeyStatus: registry.getApiKeyStatus(),
@@ -712,6 +895,7 @@ router.post(
         homePreset,
         navbarShortcuts,
         statsWidgets,
+        aspectRatioClass,
       } = req.body;
 
       const shortcuts = Array.isArray(navbarShortcuts)
@@ -732,8 +916,14 @@ router.post(
         ? req.body.fastAdd
         : "";
 
+      // Ends up in a class attribute on every card, so only the offered frames pass.
+      const cardAspect = (CARD_ASPECT_RATIOS as readonly string[]).includes(aspectRatioClass)
+        ? aspectRatioClass
+        : "aspect-square";
+
       const update: Record<string, any> = {
         "theme.home.preset": homePreset,
+        aspectRatioClass: cardAspect,
         navbarShortcuts: shortcuts,
         statsWidgets: stats,
         fastAdd: fastAdd,
@@ -913,15 +1103,20 @@ router.post(
       return res.status(400).json({ error: "Invalid kind" });
 
     try {
-      const items = await Item.find({ collection: res.locals.activeCollectionId, kind })
+      // Counted the way the grid counts: "the last 3 items" means the last 3 lines someone
+      // can see, and a show leaves with its seasons rather than counting as several.
+      const items = await Item.find({
+        collection: res.locals.activeCollectionId,
+        kind,
+        parent: { $exists: false }
+      })
         .sort({ added_at: -1, _id: -1 })
         .limit(n)
         .select("_id");
 
-      const ids = items.map((i) => i._id);
-      const result = await Item.deleteMany({ _id: { $in: ids } });
+      const deleted = await deleteItemsAndContents(items.map((i) => i._id));
 
-      res.json({ deleted: result.deletedCount });
+      res.json({ deleted });
     } catch (err: any) {
       console.error("[ERR] delete-last-items:", err.message);
       res.status(500).json({ error: err.message });
@@ -1001,9 +1196,9 @@ router.post(
                   if (refreshedData[k] !== undefined) dataToApply[k] = refreshedData[k];
                 }
               }
-              if (Object.keys(dataToApply).length > 0) {
-                await Item.updateOne({ _id: item._id }, { $set: dataToApply });
-              }
+              // Written even when the provider changed nothing, so the date says when the
+              // item was last checked rather than when it last happened to differ.
+              await Item.updateOne({ _id: item._id }, { $set: { ...dataToApply, ...syncStamp() } });
 
               success = true;
               await new Promise((r) => setTimeout(r, plugin.bulkRefreshDelayMs ?? 500));

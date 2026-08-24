@@ -10,4 +10,6 @@ dist/
 
 # graphify (local knowledge-graph tooling, not part of the app)
 CLAUDE.md
-graphify-out/
+/graphify-out
+/docs/roadmap.md
+/docs/superpowers

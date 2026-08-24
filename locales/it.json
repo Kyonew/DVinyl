@@ -40,6 +40,7 @@
     "results_title": "Risultati",
     "scan_error": "Errore della fotocamera (controlla le autorizzazioni)",
     "barcode_not_found": "Codice a barre non riconosciuto. Prova a cercare per titolo.",
+    "barcode_no_match": "Nessuna corrispondenza per questo codice a barre. Ecco il nome del prodotto trovato: modificalo e cerca di nuovo, il codice a barre resta associato.",
     "scan_found": "Trovato!",
     "scan_init": "Inizializzazione...",
     "scan_stop": "Interrompi la scansione",
@@ -56,7 +57,12 @@
     "backup": {
       "confirm_import": "ATTENZIONE: questa operazione eliminerà tutti i tuoi dati correnti (album, utenti, registri) e li sostituirà con il contenuto del file. Verrai disconnesso. Continuare?",
       "export_btn": "Esporta banca dati",
+      "export_csv_btn": "Esporta CSV",
       "import_btn": "Importa banca dati",
+      "csv": {
+        "type_column": "Tipo",
+        "wishlist_column": "Lista dei desideri"
+      },
       "import_error": "Errore durante l'importazione.",
       "import_success": "Database importato correttamente.",
       "json_error": "File JSON non valido.",
@@ -185,6 +191,7 @@
       },
       "import_updated": "elementi arricchiti",
       "import_failed": "righe ignorate a causa di un errore",
+      "import_unenriched": "elementi sono arrivati senza copertina né metadati: riesegui lo stesso file con «Completa tramite API» selezionato per riempirli.",
       "choose_file": "Scegli un file",
       "no_file_chosen": "Nessun file selezionato",
       "err_no_file": "Scegli un file."
@@ -289,6 +296,26 @@
       "subtitle": "Esporta questa collezione (elementi + impostazioni) o sostituisci il suo contenuto con un backup.",
       "confirm_import": "L'importazione SOSTITUIRÀ tutti gli elementi di questa collezione. Continuare?"
     },
+    "sharing": {
+      "title": "Link di condivisione pubblici",
+      "subtitle": "Permetti a chiunque di sfogliare questa collezione in sola lettura con un link o un codice QR, senza alcun account. Modifica, eliminazione e ogni altra pagina restano off-limits. Crea più link per condividere separatamente parti diverse della collezione, ad es. uno per i vinili e uno per i CD.",
+      "untitled_link": "Link senza nome",
+      "label_placeholder": "Dai un nome a questo link (facoltativo) - es. \"Solo vinili\"",
+      "enable_btn": "Attiva",
+      "disable_btn": "Disattiva",
+      "regenerate_btn": "Rigenera",
+      "delete_btn": "Elimina",
+      "confirm_regenerate": "Questo invalida il link e il codice QR attuali: chi usa il precedente perderà l'accesso. Continuare?",
+      "confirm_delete": "Eliminare questo link di condivisione? Chi lo sta usando perderà subito l'accesso.",
+      "new_link_btn": "Nuovo link di condivisione",
+      "create_btn": "Crea il link",
+      "scope_title": "Contenuto condiviso",
+      "scope_hint": "Scegli tipi specifici (e, all'interno di un tipo, formati specifici) per limitare ciò che questo link mostra: ad es. solo i CD, oppure CD e vinili. Non selezionare nulla condivide l'intera collezione.",
+      "scope_empty_hint": "Niente selezionato = viene condivisa l'intera collezione.",
+      "scope_save_btn": "Salva le modifiche",
+      "copy_btn": "Copia il link",
+      "copied": "Copiato"
+    },
     "libib": {
       "title_books": "Libib - Libri",
       "title_music": "Libib - Musica",
@@ -392,6 +419,7 @@
   },
   "collection": {
     "add": "Aggiungere",
+    "share_view_banner": "Stai consultando una collezione condivisa - sola lettura.",
     "filter_placeholder": "Filtro...",
     "refresh": "Aggiorna",
     "refresh_metadata_btn": "Aggiorna informazioni",
@@ -404,8 +432,8 @@
     "sort_title": "Titolo",
     "sort_year": "Anno",
     "decade_filter": "Decennio",
-    "filter_mode_hide": "Nascondere",
-    "filter_mode_show": "Spettacolo",
+    "filter_mode_hide": "Nascondi i risultati",
+    "filter_mode_show": "Mostra i risultati",
     "styles_filter": "Stili",
     "platform_filter": "Console",
     "xf_from": "Dal",
@@ -416,7 +444,8 @@
     "search_genre_placeholder": "Cerca generi...",
     "search_style_placeholder": "Cerca stili...",
     "search_platform_placeholder": "Cerca console...",
-    "active_filters": "Filtri attivi:"
+    "active_filters": "Filtri attivi:",
+    "page_jump_title": "Vai alla pagina"
   },
   "common": {
     "all": "Tutto",
@@ -443,7 +472,7 @@
     "save_changes": "Salva modifiche",
     "search": "Ricerca",
     "searching": "Ricerca...",
-    "show": "Spettacolo",
+    "show": "Mostra",
     "unknown": "Sconosciuto",
     "update": "Aggiornamento",
     "validate": "Convalidare",
@@ -511,6 +540,11 @@
     "comments_placeholder": "Es: Stampa originale del 1986, acquistata al mercatino delle pulci...",
     "media_type_movie": "Film",
     "media_type_tv": "Programma televisivo",
+    "season_label": "Quali stagioni possiedi?",
+    "season_hint_owned": "Le stagioni già nella tua collezione sono selezionate e bloccate. Seleziona quelle che hai appena preso.",
+    "season_absorb_warning": "«{{title}}» è già nella collezione. Le stagioni selezionate verranno collegate a essa: questa scheda diventerà quella della serie, e le stagioni si consulteranno da lì.",
+    "season_select_all": "Seleziona tutto",
+    "season_hint": "Ogni stagione diventa un elemento a sé, con la sua locandina, il suo anno e i suoi episodi. Non selezionare nulla aggiunge la serie come un solo elemento.",
     "field_is_boxset": "È un cofanetto",
     "field_watch_status": "Stato"
   },
@@ -560,6 +594,8 @@
   "detail": {
     "added_at": "Aggiunto a",
     "added_by": "Aggiunto da",
+    "modified_at": "Ultima modifica",
+    "last_refresh": "Ultimo aggiornamento:",
     "additional_image": "Immagine aggiuntiva",
     "view_fullscreen": "Visualizza a schermo intero",
     "close_preview": "Chiudi anteprima",
@@ -595,6 +631,15 @@
   "dvd_detail": {
     "barcode_label": "Codice a barre",
     "boxset": "Cofanetto",
+    "episodes_title": "Episodi",
+    "season_number": "Stagione {{number}}",
+    "seasons_range": "Stagioni da {{from}} a {{to}}",
+    "seasons_list": "Stagioni {{list}}",
+    "seasons_owned": "{{count}} stagioni possedute",
+    "episodes_empty": "TMDB non ha un elenco di episodi per questa stagione.",
+    "episode_watched": "Visto",
+    "episode_notes": "Le tue note",
+    "episode_notes_placeholder": "Ciò che vuoi ricordare di questo episodio",
     "delete_confirm": "Sei sicuro di voler eliminare questo elemento dalla tua raccolta?",
     "duration_label": "Durata",
     "movie": "Film",
@@ -780,7 +825,14 @@
     "delete_admin_error": "Non puoi eliminare un altro amministratore dell'istanza.",
     "reset_admin_error": "Non puoi reimpostare la password di un altro amministratore dell'istanza.",
     "error_collection_quota": "Hai raggiunto il numero massimo di collezioni consentito.",
-    "error_collection_forbidden": "La creazione di collezioni non è consentita su questa istanza."
+    "error_collection_forbidden": "La creazione di collezioni non è consentita su questa istanza.",
+    "share_enabled": "Condivisione attivata.",
+    "share_disabled": "Condivisione disattivata.",
+    "share_regenerated": "Link di condivisione rigenerato - il link precedente non funziona più.",
+    "share_scope_updated": "Contenuto condiviso aggiornato.",
+    "share_link_created": "Link di condivisione creato.",
+    "share_link_deleted": "Link di condivisione eliminato.",
+    "error_share": "Impossibile aggiornare la condivisione."
   },
   "modal": {
     "add_hub_subtitle": "Seleziona il tipo di media da aggiungere alla tua raccolta",
@@ -799,6 +851,7 @@
     "home": "Casa",
     "loading": "Caricamento...",
     "logout": "Esci",
+    "login": "Accedi",
     "settings": "Impostazioni",
     "theme_dark": "Modalità oscura",
     "theme_light": "Modalità luce",
@@ -806,13 +859,24 @@
     "collections": "Collezioni",
     "instance": "Istanza",
     "administration": "Amministrazione",
-    "new_collection": "Nuova collezione"
+    "new_collection": "Nuova collezione",
+    "search": "Cerca",
+    "share_view": "Collezione condivisa · sola lettura"
+  },
+  "search": {
+    "title": "Cerca",
+    "placeholder": "Cerca titolo o artista in tutte le tue collezioni...",
+    "empty_prompt": "Digita almeno 2 caratteri per cercare in tutte le tue collezioni.",
+    "no_results": "Nessun risultato trovato.",
+    "results_count": "{{count}} risultati"
   },
   "perso": {
     "backHome": "Ritorno a casa",
     "fastAdd_desc": "Se abilitato, il pulsante \"Aggiungi un articolo\" reindirizza direttamente al modulo prescelto, bypassando il menu di selezione.",
     "fastAdd_disabled": "Disabilitato (modale)",
     "fastAdd_title": "Aggiunta rapida",
+    "card_aspect_ratio": "Rapporto d'aspetto della scheda",
+    "card_aspect_ratio_desc": "Forma delle miniature nelle griglie di collezione, home e lista dei desideri. Ogni plugin mantiene il proprio rapporto nelle sue schede.",
     "modules": {
       "books": "Libri",
       "dvd": "DVD",
@@ -1025,6 +1089,10 @@
     "message_can_create": "Non hai ancora nessuna collezione. Crea la tua per iniziare ad aggiungere elementi: ne sarai l'amministratore.",
     "create_btn": "Crea la mia collezione"
   },
+  "share_invalid": {
+    "title": "Link non disponibile",
+    "message": "Questo link di condivisione non è valido o non è più disponibile. Chiedine uno nuovo a chi possiede la collezione."
+  },
   "create_plugin": {
     "title": "Editor di plugin",
     "subtitle": "Crea il tuo tipo di collezione (statuine, carte, fumetti...) senza scrivere codice. Il plugin viene generato nella cartella plugins/ e diventa subito utilizzabile, come i moduli nativi. I plugin creati qui funzionano solo con inserimento manuale (nessuna API esterna).",
@@ -1040,6 +1108,8 @@
     "section_image": "Immagine",
     "shape_poster": "Locandina (2/3)",
     "shape_square": "Quadrata (copertina)",
+    "shape_screen": "Schermo (16/9)",
+    "shape_hint": "Si applica alle pagine e ai moduli di questo plugin. Le griglie usano il rapporto impostato in Personalizzazione.",
     "secondary_label": "Immagine secondaria",
     "secondary_desc": "Aggiunge una seconda immagine modificabile (come il disco per la musica).",
     "default_cover_label": "Immagine predefinita",
@@ -1110,6 +1180,14 @@
     "sort_formats": "Ordina i formati in ordine alfabetico",
     "card_fields": "Campi della scheda",
     "card_fields_hint": "Mostrati sotto la copertina in tutte le griglie, nell'ordine dichiarato dal plugin. Massimo {{count}}.",
+    "corner_field": "Angolo della copertina",
+    "corner_field_hint": "Mostrato nell’angolo in basso a sinistra di ogni copertina, di fronte al badge del formato. Il valore memorizzato è usato così com’è, per restare breve.",
+    "corner_field_none": "Niente",
+    "corner_position": "Quale angolo",
+    "corner_top_left": "In alto a sinistra",
+    "corner_bottom_left": "In basso a sinistra",
+    "corner_bottom_right": "In basso a destra",
+    "corner_taken": "L’angolo in alto a destra è occupato dal badge del formato.",
     "default_color": "Colore predefinito",
     "reset": "Reimposta",
     "customized": "Personalizzato"

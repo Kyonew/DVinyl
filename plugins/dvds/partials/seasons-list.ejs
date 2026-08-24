@@ -1,0 +1,32 @@
+<%# The seasons a show holds. Each is a full item with its own page, its own cover and its
+    own notes; this is the only way to them, since a contained item never appears in the
+    collection. Sorted here rather than in the query: the titles end in "Season 10", which
+    sorts before "Season 2" alphabetically, and the numbers are what should order them. %>
+<% const seasons = (contains || []).slice().sort((a, b) => (a.season || 0) - (b.season || 0)); %>
+<% if (seasons.length > 0) { %>
+    <div class="pt-8 border-t border-black/10 dark:border-white/10 transition-colors">
+        <h3 class="text-xs font-bold uppercase tracking-widest opacity-50 mb-4">
+            <%= t('dvd_detail.seasons_owned', { count: seasons.length }) %>
+        </h3>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            <% seasons.forEach(season => { %>
+                <a href="<%= baseUrl %>/dvd/<%= season._id %>"
+                    class="group card-theme rounded-xl overflow-hidden hover:border-primary-theme transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+                    <div class="aspect-[2/3] w-full overflow-hidden bg-black/5 dark:bg-white/5">
+                        <img src="<%= season.cover_image %>" loading="lazy"
+                            class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
+                    </div>
+                    <div class="p-3">
+                        <p class="text-sm font-bold truncate">
+                            <%= season.season ? t('dvd_detail.season_number', { number: season.season }) : season.title %>
+                        </p>
+                        <p class="text-xs opacity-50 truncate">
+                            <%= [season.year, season.duration].filter(Boolean).join(' · ') %>
+                        </p>
+                    </div>
+                </a>
+            <% }) %>
+        </div>
+    </div>
+<% } %>

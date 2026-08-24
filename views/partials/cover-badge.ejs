@@ -1,0 +1,50 @@
+<%# The badge laid over a cover, and the way it is worked out, both of which lived in four
+    copies across the collection, the wishlist and the two dashboard rows. The copies had
+    drifted apart on position, which is what made a second badge impossible to place: there
+    was no free corner common to all of them.
+
+    Top-right everywhere now, which three of the four already did, and which keeps the badge
+    away from the title sitting immediately under the image. The bottom-left corner is left
+    deliberately empty.
+
+    Expects: item, plugin (may be null), settings. `size: 'compact'` for the tighter cards. %>
+<%
+    const badgePlugin = locals.plugin || null;
+    // A plugin may word its own badge; without one, the item's format is read off the
+    // plugin's format list, falling back to the raw value and a neutral colour.
+    const badge = (badgePlugin && badgePlugin.cardBadge)
+        ? badgePlugin.cardBadge(item, locals.settings)
+        : (function () {
+            const format = (item.format || item.media_type || '').toLowerCase();
+            const option = badgePlugin
+                ? (badgePlugin.formats || []).find(function (f) { return f.value === format; })
+                : null;
+            return { label: option ? option.label : format, colorClass: (option && option.color) || 'bg-gray-600/90' };
+        })();
+
+    const placement = locals.size === 'compact'
+        ? 'top-1.5 right-1.5 md:top-2 md:right-2 px-1.5 py-0.5 md:px-2 md:py-1'
+        : 'top-2 right-2 px-2 py-1';
+%>
+<% if (badge.label) { %>
+    <span class="absolute <%= placement %> z-20 text-white text-[10px] font-bold rounded backdrop-blur-md border border-white/10 shadow-sm <%= badge.colorClass %>">
+        <%= t(badge.label, { defaultValue: badge.label }) %>
+    </span>
+<% } %>
+
+<%
+    // The corner opposite, when the collection asked for something there. Kept neutral on
+    // purpose: the coloured badge above carries the format, and a second colour next to it
+    // would compete with a meaning it does not have. May come back a translation key when
+    // the chosen field is a boolean, hence the same t() with a fallback.
+    const corner = getCornerBadge(badgePlugin, item, { lang: currentLng, isShareView: locals.isShareView === true });
+    const cornerAt = CORNER_POSITIONS[badgePlugin && badgePlugin.cornerPosition] || CORNER_POSITIONS[DEFAULT_CORNER_POSITION];
+    const cornerPlacement = locals.size === 'compact'
+        ? cornerAt.compact + ' px-1.5 py-0.5 md:px-2 md:py-1'
+        : cornerAt.normal + ' px-2 py-1';
+%>
+<% if (corner) { %>
+    <span class="absolute <%= cornerPlacement %> z-20 max-w-[75%] truncate text-white text-[10px] font-bold rounded backdrop-blur-md border border-white/10 shadow-sm bg-black/60">
+        <%= t(corner, { defaultValue: corner }) %>
+    </span>
+<% } %>

@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { PluginApiRoute } from '../../core/types';
 import Item from '../../models/Item';
+import { editStamp } from '../../core/helpers';
 
 const fetchJson = async (url: string, options?: RequestInit): Promise<any> => {
   const response = await fetch(url, options);
@@ -178,7 +179,7 @@ async function batchUpdateBarcodes(req: any, res: any) {
       if (discogsId && barcode) {
         const result = await Item.updateMany(
           { discogs_id: parseInt(discogsId), kind: 'Music', collection: res.locals.activeCollectionId },
-          { $set: { barcode: barcode, barcode_locked: true } }
+          { $set: { barcode: barcode, barcode_locked: true, ...editStamp(req.user._id) } }
         );
         count += result.modifiedCount;
       }
@@ -240,6 +241,9 @@ async function updateTrackMeta(req: any, res: any) {
     if (!Object.keys(update).length) {
       return res.status(400).json({ success: false, error: 'Nothing to update' });
     }
+    // Rating, key, notes and the rest are typed in by hand, so they count as an edit of
+    // the item that carries the track.
+    update.$set = { ...(update.$set || {}), ...editStamp(req.user._id) };
 
     const result = await Item.updateOne(
       { _id: id, collection: res.locals.activeCollectionId, kind: 'Music', 'tracklist._id': trackId },
