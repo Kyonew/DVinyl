@@ -29,7 +29,7 @@
                 </span>
                 <span
                     class="px-3 md:mt-1.5 py-1 bg-black/5 dark:bg-white/10 rounded-full text-sm font-medium opacity-70 w-fit">
-                    <%= albums.length %>
+                    <%= totalItems %>
                         <%= t('common.items') %>
                 </span>
             </h1>
@@ -60,7 +60,10 @@
 
         </div>
 
-        <% if (albums.length===0) { %>
+        <%# The invitation below is for a wishlist that holds nothing at all. A filter
+            that matches nothing keeps the normal page instead, or the controls needed
+            to widen it back would go with the grid. %>
+        <% if (albums.length===0 && !locals.hasActiveFilters) { %>
             <div
                 class="text-center py-16 md:py-20 card-theme rounded-xl border-dashed opacity-80 transition-colors shadow-sm">
                 <i class="fa-regular fa-heart text-5xl md:text-6xl opacity-20 mb-4 transition-colors"></i>
@@ -75,7 +78,9 @@
                     <% } %>
             </div>
             <% } else { %>
+                <%- include('partials/albums-filters') %>
                 <%- include('partials/albums-grid', { albums, size: 'wishlist', wishlist: true, badgeSize: 'compact' }) %>
+                <%- include('partials/albums-page-changer') %>
                 <% } %>
     </div>
 

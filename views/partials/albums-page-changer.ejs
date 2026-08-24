@@ -1,0 +1,72 @@
+<div
+    class="mt-12 flex flex-col md:flex-row items-center justify-between gap-6 border-t border-black/5 dark:border-white/10 pt-8">
+
+    <div class="flex items-center gap-3 order-2 md:order-1">
+        <span class="text-xs font-bold uppercase tracking-widest opacity-40">
+            <%= t('common.show') %>
+        </span>
+        <div class="flex bg-black/5 dark:bg-white/5 p-1 rounded-xl">
+            <% [25, 50, 100].forEach(num=> { %>
+                <button onclick="currentLimit = <%= num %>; reloadPage();"
+                    class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all <%= (locals.queryLimit == num) ? 'bg-primary-theme text-white shadow-md' : 'opacity-50 hover:opacity-100' %>">
+                    <%= num %>
+                </button>
+                <% }) %>
+        </div>
+    </div>
+
+    <% if (totalPages> 1) { %>
+        <nav class="flex items-center gap-2 order-1 md:order-2">
+            <button onclick="changePage(<%= currentPage - 1 %>)" <%=currentPage <=1 ? 'disabled' : '' %>
+                class="w-10 h-10 flex items-center justify-center rounded-xl card-theme border-none
+                hover:bg-primary-theme hover:text-white transition-all disabled:opacity-20
+                disabled:pointer-events-none">
+                <i class="fa-solid fa-chevron-left text-xs"></i>
+            </button>
+
+            <div class="flex items-center gap-1">
+                <% let jumpRendered=false; %>
+                    <% for(let i=1; i <=totalPages; i++) { if (i===1 || i===totalPages || (i>= currentPage - 1 && i
+                        <= currentPage + 1)) { %>
+                            <button onclick="changePage(<%= i %>)"
+                                class="w-10 h-10 flex items-center justify-center rounded-xl font-bold text-sm transition-all <%= currentPage === i ? 'bg-primary-theme text-white shadow-lg scale-110' : 'card-theme hover:bg-black/5 dark:hover:bg-white/5' %>">
+                                <%= i %>
+                            </button>
+                            <% } else if (i===currentPage - 2 || i===currentPage + 2) { %>
+                                <% if (!jumpRendered) { jumpRendered=true; %>
+                                    <input type="number" id="pageJumpInput" min="1" max="<%= totalPages %>"
+                                        onkeydown="if (event.key === 'Enter') jumpToPage();" placeholder="#"
+                                        title="<%= t('collection.page_jump_title') %>"
+                                        class="no-spinner w-10 h-10 text-sm text-center font-bold card-theme rounded-xl border focus:ring-1 focus:ring-primary-theme outline-none">
+                                    <% } else { %>
+                                        <span class="px-1 opacity-30">...</span>
+                                        <% } %>
+                                            <% } } %>
+            </div>
+
+            <button onclick="changePage(<%= currentPage + 1 %>)" <%=currentPage>= totalPages ? 'disabled' : ''
+                %>
+                class="w-10 h-10 flex items-center justify-center rounded-xl card-theme border-none
+                hover:bg-primary-theme hover:text-white transition-all disabled:opacity-20
+                disabled:pointer-events-none">
+                <i class="fa-solid fa-chevron-right text-xs"></i>
+            </button>
+        </nav>
+        <% } %>
+</div>
+<script>
+    function changePage(page) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('page', page);
+        window.location.href = url.toString();
+    }
+
+    function jumpToPage() {
+        const input = document.getElementById('pageJumpInput');
+        if (!input) return;
+        const page = parseInt(input.value, 10);
+        const maxPage = parseInt(input.max, 10);
+        if (!page || page < 1 || page > maxPage) return;
+        changePage(page);
+    }
+</script>
