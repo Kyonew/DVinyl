@@ -73,6 +73,9 @@ registered application token for every XML API request (unauthenticated calls no
    [registration thread](https://boardgamegeek.com/thread/3525319/registration-to-use-the-xml-api-and-obtain-soon-to)
    for BGG's current registration process.
 2. Register your application and obtain an application token.
+   > [!NOTE]
+   > BGG approves these by hand, so it can take up to 7 days to get your token. Apply before you
+   > need it.
 3. Paste it into your `.env` as `BGG_API_KEY`.
 
 ---
