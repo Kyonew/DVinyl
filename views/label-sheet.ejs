@@ -30,11 +30,16 @@
       font-size: 14px;
       cursor: pointer;
     }
+    /* Wrapping flex row rather than CSS multi-column: a multi-column block is what
+       browsers fragment worst across printed pages (boxes clipped at the page break,
+       columns spilling past the margin), while a wrapped row breaks page by page. */
     .sheet {
       max-width: 900px;
       margin: 0 auto;
-      column-count: 3;
-      column-gap: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      align-content: flex-start;
+      gap: 16px;
     }
     .label-box {
       background: #fff;
@@ -43,7 +48,8 @@
       padding: 16px;
       text-align: center;
       break-inside: avoid;
-      margin-bottom: 16px;
+      page-break-inside: avoid;
+      width: calc((100% - 32px) / 3);
     }
     .label-box img {
       width: 100%;
@@ -63,22 +69,41 @@
       margin: 0;
       word-break: break-word;
     }
+    .empty-state {
+      max-width: 900px;
+      margin: 0 auto;
+      text-align: center;
+      padding: 48px 24px;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 15px;
+      line-height: 1.5;
+    }
     @media print {
       body { background: #fff; padding: 0; }
       .print-bar { display: none; }
+      .empty-state { display: none; }
       .sheet { max-width: none; }
       .label-box { border: none; }
     }
   </style>
 </head>
 <body>
-  <div class="print-bar">
-    <button class="print-btn" onclick="window.print()"><%= t('detail.print_label_btn') %></button>
-  </div>
-  <div class="sheet">
-    <% labels.forEach(({ item, plugin, codeDataUrl }) => { %>
-      <%- include('partials/label-box', { item, plugin, codeType, codeDataUrl }) %>
-    <% }) %>
-  </div>
+  <% if (labels.length === 0) { %>
+    <%# Reached when every selected item was skipped, in practice a barcode sheet where
+        none of the picked items carries a barcode. Says so, rather than printing an
+        empty page or bouncing the new tab back to the collection with no explanation. %>
+    <div class="empty-state"><%= t('collection.label_sheet_empty') %></div>
+  <% } else { %>
+    <div class="print-bar">
+      <button class="print-btn" onclick="window.print()"><%= t('detail.print_label_btn') %></button>
+    </div>
+    <div class="sheet">
+      <% labels.forEach(({ item, plugin, codeDataUrl }) => { %>
+        <%- include('partials/label-box', { item, plugin, codeType, codeDataUrl }) %>
+      <% }) %>
+    </div>
+  <% } %>
 </body>
 </html>

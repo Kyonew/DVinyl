@@ -645,7 +645,8 @@
     "selected_count_suffix": "sélectionné(s)",
     "print_selected_qr": "Imprimer les QR codes",
     "print_selected_barcode": "Imprimer les codes-barres",
-    "label_sheet_title": "Imprimer les étiquettes"
+    "label_sheet_title": "Imprimer les étiquettes",
+    "label_sheet_empty": "Aucun des items sélectionnés n'a de code-barres, il n'y a donc rien à imprimer."
   },
   "confirm_vinyl": {
     "cover_preview": "Aperçu Pochette",

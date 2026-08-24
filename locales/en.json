@@ -645,7 +645,8 @@
     "selected_count_suffix": "selected",
     "print_selected_qr": "Print QR labels",
     "print_selected_barcode": "Print barcode labels",
-    "label_sheet_title": "Print labels"
+    "label_sheet_title": "Print labels",
+    "label_sheet_empty": "None of the selected items has a barcode, so there is nothing to print."
   },
   "confirm_vinyl": {
     "cover_preview": "Cover Preview",

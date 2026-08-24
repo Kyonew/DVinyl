@@ -419,7 +419,7 @@
                             <%= t('detail.move_to_wishlist_btn') %>
                         </button>
                     <% } %>
-                    <% if (item.barcode) { %>
+                    <% if (item.barcode && item.barcode.trim()) { %>
                         <%# One button, two destinations: hovering reveals a QR/barcode choice
                             instead of two separate buttons crowding this row. Only offered when
                             the item actually has a barcode - otherwise a "Barcode" option would

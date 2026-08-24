@@ -661,9 +661,12 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
 
       let codeType: 'qr' | 'barcode' = 'qr';
       let codeDataUrl: string | null = null;
+      // Trimmed: a field holding only spaces encodes into a valid but meaningless
+      // symbol, and must not offer the barcode choice either.
+      const barcodeValue = (item.barcode || '').trim();
 
-      if (req.query.type === 'barcode' && item.barcode) {
-        codeDataUrl = await generateBarcodeDataUrl(item.barcode);
+      if (req.query.type === 'barcode' && barcodeValue) {
+        codeDataUrl = await generateBarcodeDataUrl(barcodeValue);
         if (codeDataUrl) codeType = 'barcode';
       }
 
@@ -678,7 +681,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         plugin,
         codeType,
         codeDataUrl,
-        hasBarcode: !!item.barcode,
+        hasBarcode: !!barcodeValue,
         user: res.locals.user
       });
     } catch (err: any) {

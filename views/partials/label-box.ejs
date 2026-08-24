@@ -3,7 +3,7 @@
     generate).
     Params: item, plugin, codeType ('qr' | 'barcode'), codeDataUrl %>
 <div class="label-box">
-    <img src="<%= codeDataUrl %>" alt="<%= codeType === 'barcode' ? 'Barcode' : 'QR code' %>">
+    <img src="<%= codeDataUrl %>" alt="<%= codeType === 'barcode' ? t('detail.barcode_option') : t('detail.qr_option') %>">
     <h1><%= item.title %></h1>
     <% const creatorValue = item[plugin.creatorField]; %>
     <% if (creatorValue) { %>
