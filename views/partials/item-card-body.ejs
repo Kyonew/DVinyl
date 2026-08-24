@@ -30,7 +30,12 @@
   const cardLines = getCardLines(plugin, item, { lang: currentLng, isShareView: locals.isShareView === true });
   const plainLines = cardLines.filter(l => l.style === 'text');
   const markedLines = cardLines.filter(l => l.style !== 'text');
-  const lineText = l => (l.showLabel ? t(l.label, { defaultValue: l.label }) + ' : ' : '') + l.value;
+  // Only what looks like one of our own keys goes through t(): a collection names its own
+  // fields and options in plain words, and a one-word name that happens to be a catalogue
+  // section ("media", "status") comes back as an i18next error message otherwise.
+  const tr = s => isTranslationKey(s) ? t(s, { defaultValue: s }) : s;
+  const valueText = l => l.translateValue ? tr(l.value) : l.value;
+  const lineText = l => (l.showLabel ? tr(l.label) + ' : ' : '') + valueText(l);
 %>
 <div class="<%= cs.wrap %>">
     <h3 class="<%= cs.title %>" title="<%= item.title %>"><%= item.title %></h3>
@@ -45,7 +50,7 @@
 
     <% plainLines.forEach((line, i) => { %>
         <p class="<%= i === 0 ? cs.lead : 'text-[10px] md:text-xs opacity-60 truncate' %>" title="<%= lineText(line) %>">
-            <% if (line.showLabel) { %><span class="opacity-70"><%= t(line.label, { defaultValue: line.label }) %> :</span> <% } %><%= line.value %>
+            <% if (line.showLabel) { %><span class="opacity-70"><%= tr(line.label) %> :</span> <% } %><%= valueText(line) %>
         </p>
     <% }) %>
 
@@ -54,12 +59,12 @@
             <% markedLines.forEach(line => { %>
                 <% if (line.style === 'pill') { %>
                     <span class="text-[9px] md:text-[10px] opacity-60 bg-black/5 dark:bg-white/10 px-1.5 py-0.5 rounded border border-transparent truncate max-w-[50%] font-medium transition-colors" title="<%= lineText(line) %>">
-                        <%= line.value %>
+                        <%= valueText(line) %>
                     </span>
                 <% } else { %>
                     <div class="flex items-center gap-1 min-w-0 truncate" title="<%= lineText(line) %>">
                         <span class="w-1.5 h-1.5 rounded-full bg-primary-theme inline-block flex-shrink-0"></span>
-                        <span class="text-[9px] md:text-[10px] opacity-60 truncate"><%= line.value %></span>
+                        <span class="text-[9px] md:text-[10px] opacity-60 truncate"><%= valueText(line) %></span>
                     </div>
                 <% } %>
             <% }) %>
