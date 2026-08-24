@@ -1,12 +1,14 @@
 import express from 'express';
 import mongoose from 'mongoose';
+import QRCode from 'qrcode';
 import { registry } from '../registry';
 import Item from '../../models/Item';
 import Collection from '../../models/Collection';
 import User from '../../models/User';
-import { requireAuth, requireAuthOrShareView } from '../../middleware/authMiddleware';
+import { BASE_URL } from '../../config/constants';
+import { requireAuth, requireAuthOrShareView, requireCollectionRole } from '../../middleware/authMiddleware';
 import { applyVisibilityFilter, applyEnabledModulesFilter, applyContainedFilter, applyShareScopeFilter } from '../../utils/visibilityHelper';
-import { escapeRegExp } from '../helpers';
+import { escapeRegExp, getPublicProtocol, generateBarcodeDataUrl } from '../helpers';
 import { generateUniqueSlug } from '../../utils/collectionHelpers';
 import { resolveShelfItems } from '../../utils/itemHelpers';
 import { checkCollectionCreation } from '../../utils/instanceSettings';
@@ -455,6 +457,74 @@ router.get('/collection', requireAuthOrShareView, async (req: any, res: any) => 
     });
   } catch (err: any) {
     console.error("Collection page loading error:", err.message);
+    res.status(500).send(req.t('errors.generic_server_error'));
+  }
+});
+
+// Bulk/sheet QR labels for a set of items picked on the collection page. Generic
+// rather than per-plugin: a mixed-type collection page can select items across
+// kinds in one go, so each item resolves its own plugin individually below.
+router.post('/collection/labels', requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
+  try {
+    const activeCollectionId = res.locals.activeCollectionId;
+    if (!activeCollectionId) {
+      return res.redirect('/collection');
+    }
+
+    const rawIds = req.body?.ids;
+    const idList: string[] = Array.isArray(rawIds) ? rawIds : (rawIds ? [rawIds] : []);
+    const ids = idList
+      .filter((id: string) => mongoose.Types.ObjectId.isValid(id))
+      .slice(0, 200);
+
+    if (ids.length === 0) {
+      return res.redirect('/collection');
+    }
+
+    const query: any = { _id: { $in: ids }, collection: activeCollectionId };
+    applyVisibilityFilter(query, res.locals.isCollectionAdmin, res.locals.settings);
+
+    const items = await Item.find(query).lean();
+
+    // One code type for the whole sheet, picked once by the caller: a mixed sheet
+    // (some boxes QR, some barcode) would be confusing to scan through, so a barcode
+    // sheet skips items with no barcode value rather than falling back to QR per item.
+    const codeType: 'qr' | 'barcode' = req.body?.type === 'barcode' ? 'barcode' : 'qr';
+
+    const labels = (await Promise.all(items.map(async (item: any) => {
+      const plugin = registry.getByKind(item.kind);
+      if (!plugin) {
+        // A kind whose module got disabled since the item was added: skip it
+        // rather than fail the whole sheet over one stale item.
+        console.warn(`[LABELS] Skipping item ${item._id}: no plugin for kind "${item.kind}"`);
+        return null;
+      }
+
+      if (codeType === 'barcode') {
+        if (!item.barcode) {
+          console.warn(`[LABELS] Skipping item ${item._id}: no barcode value for a barcode sheet`);
+          return null;
+        }
+        const barcodeDataUrl = await generateBarcodeDataUrl(item.barcode);
+        if (!barcodeDataUrl) {
+          console.warn(`[LABELS] Skipping item ${item._id}: barcode generation failed`);
+          return null;
+        }
+        return { item: plugin.formatForView(item), plugin, codeDataUrl: barcodeDataUrl };
+      }
+
+      const url = `${getPublicProtocol(req)}://${req.get('host')}${BASE_URL}${plugin.routePrefix}/${item._id}`;
+      const qrDataUrl = await QRCode.toDataURL(url, { width: 320, margin: 1 });
+      return { item: plugin.formatForView(item), plugin, codeDataUrl: qrDataUrl };
+    }))).filter(Boolean);
+
+    if (labels.length === 0) {
+      return res.redirect('/collection');
+    }
+
+    res.render('label-sheet', { labels, codeType, user: res.locals.user });
+  } catch (err: any) {
+    console.error('Bulk label error:', err.message);
     res.status(500).send(req.t('errors.generic_server_error'));
   }
 });

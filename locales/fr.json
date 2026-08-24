@@ -637,7 +637,15 @@
     "search_style_placeholder": "Rechercher des styles...",
     "search_platform_placeholder": "Rechercher des consoles...",
     "active_filters": "Filtres actifs :",
-    "page_jump_title": "Aller à la page"
+    "page_jump_title": "Aller à la page",
+    "select_btn": "Sélectionner",
+    "select_all": "Tout sélectionner",
+    "deselect_all": "Tout désélectionner",
+    "cancel_select": "Annuler",
+    "selected_count_suffix": "sélectionné(s)",
+    "print_selected_qr": "Imprimer les QR codes",
+    "print_selected_barcode": "Imprimer les codes-barres",
+    "label_sheet_title": "Imprimer les étiquettes"
   },
   "confirm_vinyl": {
     "cover_preview": "Aperçu Pochette",
@@ -726,6 +734,10 @@
     "refresh_info_error": "Erreur lors de l'actualisation des métadonnées.",
     "variants_title": "Vous possédez également cet item dans d'autres versions :",
     "print_label_btn": "Imprimer l'étiquette",
+    "qr_option": "QR code",
+    "barcode_option": "Code-barres",
+    "switch_to_qr": "Passer au QR code",
+    "switch_to_barcode": "Passer au code-barres",
     "label_page_title": "Étiquette"
   },
   "wishlist": {

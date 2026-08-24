@@ -18,7 +18,7 @@
       background: #f4f4f5;
       color: #111;
     }
-    .label {
+    .label-box {
       background: #fff;
       border: 1px solid #ddd;
       border-radius: 8px;
@@ -26,26 +26,31 @@
       width: 260px;
       text-align: center;
     }
-    .label img {
+    .label-box img {
       width: 100%;
       height: auto;
       display: block;
     }
-    .label h1 {
+    .label-box h1 {
       font-size: 14px;
       font-weight: 700;
       margin: 10px 0 2px;
       line-height: 1.2;
       word-break: break-word;
     }
-    .label p {
+    .label-box p {
       font-size: 12px;
       opacity: .7;
       margin: 0;
       word-break: break-word;
     }
-    .print-btn {
+    .actions {
       margin-top: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .print-btn {
       padding: 10px 20px;
       border: none;
       border-radius: 6px;
@@ -55,22 +60,33 @@
       font-size: 14px;
       cursor: pointer;
     }
+    .toggle-link {
+      font-size: 13px;
+      color: #2563eb;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .toggle-link:hover {
+      text-decoration: underline;
+    }
     @media print {
       body { background: #fff; min-height: 0; }
-      .label { border: none; padding: 0; width: 2in; }
-      .print-btn { display: none; }
+      .label-box { border: none; padding: 0; width: 2in; }
+      .actions { display: none; }
     }
   </style>
 </head>
 <body>
-  <div class="label">
-    <img src="<%= qrDataUrl %>" alt="QR code">
-    <h1><%= item.title %></h1>
-    <% const creatorValue = item[plugin.creatorField]; %>
-    <% if (creatorValue) { %>
-      <p><%= creatorValue %></p>
+  <%- include('partials/label-box', { item, plugin, codeType, codeDataUrl }) %>
+  <div class="actions">
+    <button class="print-btn" onclick="window.print()"><%= t('detail.print_label_btn') %></button>
+    <% if (locals.hasBarcode) { %>
+      <% if (codeType === 'barcode') { %>
+        <a class="toggle-link" href="?type=qr"><%= t('detail.switch_to_qr') %></a>
+      <% } else { %>
+        <a class="toggle-link" href="?type=barcode"><%= t('detail.switch_to_barcode') %></a>
+      <% } %>
     <% } %>
   </div>
-  <button class="print-btn" onclick="window.print()"><%= t('detail.print_label_btn') %></button>
 </body>
 </html>

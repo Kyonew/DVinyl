@@ -637,7 +637,15 @@
     "search_style_placeholder": "Search styles...",
     "search_platform_placeholder": "Search consoles...",
     "active_filters": "Active filters:",
-    "page_jump_title": "Jump to page"
+    "page_jump_title": "Jump to page",
+    "select_btn": "Select",
+    "select_all": "Select all",
+    "deselect_all": "Deselect all",
+    "cancel_select": "Cancel",
+    "selected_count_suffix": "selected",
+    "print_selected_qr": "Print QR labels",
+    "print_selected_barcode": "Print barcode labels",
+    "label_sheet_title": "Print labels"
   },
   "confirm_vinyl": {
     "cover_preview": "Cover Preview",
@@ -726,6 +734,10 @@
     "refresh_info_error": "Error refreshing metadata.",
     "variants_title": "You also own this item in other versions:",
     "print_label_btn": "Print label",
+    "qr_option": "QR code",
+    "barcode_option": "Barcode",
+    "switch_to_qr": "Switch to QR code",
+    "switch_to_barcode": "Switch to barcode",
     "label_page_title": "Label"
   },
   "wishlist": {
