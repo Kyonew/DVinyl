@@ -30,8 +30,12 @@
   const cardLines = getCardLines(plugin, item, { lang: currentLng, isShareView: locals.isShareView === true });
   const plainLines = cardLines.filter(l => l.style === 'text');
   const markedLines = cardLines.filter(l => l.style !== 'text');
-  const valueText = l => l.translateValue ? t(l.value, { defaultValue: l.value }) : l.value;
-  const lineText = l => (l.showLabel ? t(l.label, { defaultValue: l.label }) + ' : ' : '') + valueText(l);
+  // Only what looks like one of our own keys goes through t(): a collection names its own
+  // fields and options in plain words, and a one-word name that happens to be a catalogue
+  // section ("media", "status") comes back as an i18next error message otherwise.
+  const tr = s => isTranslationKey(s) ? t(s, { defaultValue: s }) : s;
+  const valueText = l => l.translateValue ? tr(l.value) : l.value;
+  const lineText = l => (l.showLabel ? tr(l.label) + ' : ' : '') + valueText(l);
 %>
 <div class="<%= cs.wrap %>">
     <h3 class="<%= cs.title %>" title="<%= item.title %>"><%= item.title %></h3>
@@ -46,7 +50,7 @@
 
     <% plainLines.forEach((line, i) => { %>
         <p class="<%= i === 0 ? cs.lead : 'text-[10px] md:text-xs opacity-60 truncate' %>" title="<%= lineText(line) %>">
-            <% if (line.showLabel) { %><span class="opacity-70"><%= t(line.label, { defaultValue: line.label }) %> :</span> <% } %><%= valueText(line) %>
+            <% if (line.showLabel) { %><span class="opacity-70"><%= tr(line.label) %> :</span> <% } %><%= valueText(line) %>
         </p>
     <% }) %>
 

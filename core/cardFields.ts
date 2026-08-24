@@ -45,6 +45,18 @@ interface StringifiedValue {
  */
 export const SHARE_HIDDEN_FIELDS = new Set(['location']);
 
+/**
+ * Whether a string is one of the catalogue's own keys, which all read "namespace.key".
+ *
+ * Labels and option labels are keys when they come from a plugin's code, and plain words
+ * when a collection typed them itself in the Customize panel. Handing the second kind to
+ * t() is how a field named "media" ends up printing i18next's "returned an object instead
+ * of string" on every card: the word happens to be a whole section of the catalogue.
+ */
+export function isTranslationKey(value: string): boolean {
+  return /^[a-z0-9_]+\.[a-z0-9_.]+$/.test(value);
+}
+
 /** Fields a collection may pick from when choosing what its cards show. */
 export function cardFieldCandidates(plugin: PluginDefinition): FieldDefinition[] {
   return (plugin.formFields || []).filter(f =>
