@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="<%= locals.currentLng || 'en' %>">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title><%= t('collection.label_sheet_title') %></title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      margin: 0;
+      background: #f4f4f5;
+      color: #111;
+      padding: 24px;
+    }
+    .print-bar {
+      max-width: 900px;
+      margin: 0 auto 20px;
+      display: flex;
+      justify-content: flex-end;
+    }
+    .print-btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      background: #2563eb;
+      color: #fff;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    /* Wrapping flex row rather than CSS multi-column: a multi-column block is what
+       browsers fragment worst across printed pages (boxes clipped at the page break,
+       columns spilling past the margin), while a wrapped row breaks page by page. */
+    .sheet {
+      max-width: 900px;
+      margin: 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      align-content: flex-start;
+      gap: 16px;
+    }
+    .label-box {
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+      break-inside: avoid;
+      page-break-inside: avoid;
+      width: calc((100% - 32px) / 3);
+    }
+    .label-box img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .label-box h1 {
+      font-size: 14px;
+      font-weight: 700;
+      margin: 10px 0 2px;
+      line-height: 1.2;
+      word-break: break-word;
+    }
+    .label-box p {
+      font-size: 12px;
+      opacity: .7;
+      margin: 0;
+      word-break: break-word;
+    }
+    .empty-state {
+      max-width: 900px;
+      margin: 0 auto;
+      text-align: center;
+      padding: 48px 24px;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+    @media print {
+      body { background: #fff; padding: 0; }
+      .print-bar { display: none; }
+      .empty-state { display: none; }
+      .sheet { max-width: none; }
+      .label-box { border: none; }
+    }
+  </style>
+</head>
+<body>
+  <% if (labels.length === 0) { %>
+    <%# Reached when every selected item was skipped, in practice a barcode sheet where
+        none of the picked items carries a barcode. Says so, rather than printing an
+        empty page or bouncing the new tab back to the collection with no explanation. %>
+    <div class="empty-state"><%= t('collection.label_sheet_empty') %></div>
+  <% } else { %>
+    <div class="print-bar">
+      <button class="print-btn" onclick="window.print()"><%= t('detail.print_label_btn') %></button>
+    </div>
+    <div class="sheet">
+      <% labels.forEach(({ item, plugin, codeDataUrl }) => { %>
+        <%- include('partials/label-box', { item, plugin, codeType, codeDataUrl }) %>
+      <% }) %>
+    </div>
+  <% } %>
+</body>
+</html>

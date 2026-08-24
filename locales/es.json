@@ -445,7 +445,16 @@
     "search_style_placeholder": "Buscar estilos...",
     "search_platform_placeholder": "Buscar consolas...",
     "active_filters": "Filtros activos:",
-    "page_jump_title": "Ir a la página"
+    "page_jump_title": "Ir a la página",
+    "select_btn": "Seleccionar",
+    "select_all": "Seleccionar todo",
+    "deselect_all": "Deseleccionar todo",
+    "cancel_select": "Cancelar",
+    "selected_count_suffix": "seleccionado(s)",
+    "print_selected_qr": "Imprimir los códigos QR",
+    "print_selected_barcode": "Imprimir los códigos de barras",
+    "label_sheet_title": "Imprimir las etiquetas",
+    "label_sheet_empty": "Ninguno de los elementos seleccionados tiene código de barras, así que no hay nada que imprimir."
   },
   "common": {
     "external_id_label": "ID de origen",
@@ -628,7 +637,13 @@
     "tracklist_title": "Lista de canciones",
     "unavailable_data": "Datos no disponibles",
     "view_discogs": "Ver página de Discogs",
-    "variants_title": "También posees este artículo en otras versiones:"
+    "variants_title": "También posees este artículo en otras versiones:",
+    "print_label_btn": "Imprimir la etiqueta",
+    "qr_option": "Código QR",
+    "barcode_option": "Código de barras",
+    "switch_to_qr": "Cambiar al código QR",
+    "switch_to_barcode": "Cambiar al código de barras",
+    "label_page_title": "Etiqueta"
   },
   "dvd_detail": {
     "barcode_label": "Código de barras",

@@ -24,7 +24,13 @@
         %>
         <div class="album-card group relative card-theme rounded-xl overflow-hidden hover:border-primary-theme transition-all duration-300 hover:shadow-lg hover:-translate-y-1 flex flex-col justify-between"
             data-location="<%= locals.isShareView ? '' : (album.location || '') %>"
-            data-format="<%= album.format || album.media_type || '' %>">
+            data-format="<%= album.format || album.media_type || '' %>"
+            <% if (locals.selectable) { %>data-id="<%= album._id %>"<% } %>>
+            <% if (locals.selectable) { %>
+                <div class="select-checkbox-overlay hidden absolute top-2 left-2 z-20 items-center justify-center w-6 h-6 rounded-md bg-white/90 dark:bg-black/70 border border-black/10 dark:border-white/20 shadow">
+                    <input type="checkbox" class="album-select-checkbox w-[18px] h-[18px] accent-primary-theme cursor-pointer" onclick="event.stopPropagation()" onchange="updateSelectedCount()">
+                </div>
+            <% } %>
             <a href="<%= baseUrl + routePrefix %>/<%= album._id %>" class="block flex-grow">
                 <%- include('item-cover', { item: album, plugin: itemPlugin, gridAspect, settings, badgeSize: locals.badgeSize || '' }) %>
                 <%- include('item-card-body', { item: album, plugin: itemPlugin, size: cardSize, reserveExtraRow: locals.reserveExtraRow === true }) %>

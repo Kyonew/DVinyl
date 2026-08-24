@@ -1,10 +1,12 @@
 import express, { Router } from 'express';
 import mongoose from 'mongoose';
+import QRCode from 'qrcode';
 import { PluginDefinition } from '../types';
 import Item from '../../models/Item';
 import User from '../../models/User';
+import { BASE_URL } from '../../config/constants';
 import { requireAuth, requireAuthOrShareView, requireCollectionRole } from '../../middleware/authMiddleware';
-import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback, editStamp, syncStamp, safeReturnPath } from '../helpers';
+import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback, editStamp, syncStamp, safeReturnPath, getPublicProtocol, generateBarcodeDataUrl } from '../helpers';
 import { DEFAULT_PLACEHOLDER_IMAGE } from '../placeholderImage';
 import { getExtraFields, toFieldDefinitions } from '../pluginExtraFields';
 import { buildFieldSuggestions } from '../fieldSuggestions';
@@ -635,6 +637,55 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       });
     } catch (err: any) {
       console.error(`Detail page error for ${plugin.id}:`, err.message);
+      res.status(500).send(req.t('errors.generic_server_error'));
+    }
+  });
+
+  // GET /{prefix}/:id/label -> printable label, either a QR code linking back to the
+  // item's detail page or a barcode of its stored barcode value. ?type=barcode picks
+  // the barcode; anything else (including a missing/unavailable barcode) falls back
+  // to QR, so the two never render on the same label at once.
+  router.get(`${plugin.routePrefix}/:id/label`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(404).send(req.t('errors.not_found'));
+      }
+
+      const labelQuery: any = { _id: req.params.id, collection: res.locals.activeCollectionId };
+      applyVisibilityFilter(labelQuery, res.locals.isCollectionAdmin, res.locals.settings);
+
+      const item = await Item.findOne(labelQuery);
+      if (!item) {
+        return res.status(404).send(req.t('errors.not_found'));
+      }
+
+      let codeType: 'qr' | 'barcode' = 'qr';
+      let codeDataUrl: string | null = null;
+      // Trimmed: a field holding only spaces encodes into a valid but meaningless
+      // symbol, and must not offer the barcode choice either.
+      const barcodeValue = (item.barcode || '').trim();
+
+      if (req.query.type === 'barcode' && barcodeValue) {
+        codeDataUrl = await generateBarcodeDataUrl(barcodeValue);
+        if (codeDataUrl) codeType = 'barcode';
+      }
+
+      if (!codeDataUrl) {
+        const url = `${getPublicProtocol(req)}://${req.get('host')}${BASE_URL}${plugin.routePrefix}/${item._id}`;
+        codeDataUrl = await QRCode.toDataURL(url, { width: 320, margin: 1 });
+        codeType = 'qr';
+      }
+
+      res.render('label', {
+        item: plugin.formatForView(item),
+        plugin,
+        codeType,
+        codeDataUrl,
+        hasBarcode: !!barcodeValue,
+        user: res.locals.user
+      });
+    } catch (err: any) {
+      console.error(`Label error for ${plugin.id}:`, err.message);
       res.status(500).send(req.t('errors.generic_server_error'));
     }
   });

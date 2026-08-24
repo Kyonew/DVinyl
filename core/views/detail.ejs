@@ -419,6 +419,39 @@
                             <%= t('detail.move_to_wishlist_btn') %>
                         </button>
                     <% } %>
+                    <% if (item.barcode && item.barcode.trim()) { %>
+                        <%# One button, two destinations: hovering reveals a QR/barcode choice
+                            instead of two separate buttons crowding this row. Only offered when
+                            the item actually has a barcode - otherwise a "Barcode" option would
+                            just be a dead end that server-side falls back to QR anyway. %>
+                        <div class="relative group" id="labelDropdown">
+                            <button type="button" onclick="toggleLabelDropdown(event)" class="opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 flex items-center gap-2">
+                                <i class="fa-solid fa-qrcode"></i>
+                                <%= t('detail.print_label_btn') %>
+                                <i class="fa-solid fa-chevron-down text-[10px] opacity-50"></i>
+                            </button>
+                            <%# Hover works on desktop via group-hover; the click handler above is
+                                a fallback for touchpads/touchscreens where :hover doesn't reliably
+                                fire, forcing the menu open with !block until an outside click. %>
+                            <div id="labelDropdownMenu" class="hidden group-hover:block absolute left-0 top-full pt-1 z-30 w-max min-w-full">
+                                <div class="card-theme border rounded-lg shadow-xl overflow-hidden">
+                                    <a href="<%= baseUrl %><%= plugin.routePrefix %>/<%= item._id %>/label" target="_blank" rel="noopener"
+                                        class="flex items-center gap-2 px-4 py-2.5 text-sm whitespace-nowrap hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+                                        <i class="fa-solid fa-qrcode w-4"></i> <%= t('detail.qr_option') %>
+                                    </a>
+                                    <a href="<%= baseUrl %><%= plugin.routePrefix %>/<%= item._id %>/label?type=barcode" target="_blank" rel="noopener"
+                                        class="flex items-center gap-2 px-4 py-2.5 text-sm whitespace-nowrap hover:bg-black/5 dark:hover:bg-white/5 transition-colors border-t border-black/5 dark:border-white/5">
+                                        <i class="fa-solid fa-barcode w-4"></i> <%= t('detail.barcode_option') %>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    <% } else { %>
+                        <a href="<%= baseUrl %><%= plugin.routePrefix %>/<%= item._id %>/label" target="_blank" rel="noopener" class="opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
+                            <i class="fa-solid fa-qrcode mr-2"></i>
+                            <%= t('detail.print_label_btn') %>
+                        </a>
+                    <% } %>
                     <%# The origin travels on the link, since the Referer of the edit page
                         is this page and not the listing anyone wants to come back to. %>
                     <a href="<%= baseUrl %><%= plugin.routePrefix %>/edit/<%= item._id %><%= locals.backUrl ? '?from=' + encodeURIComponent(backUrl) : '' %>" class="opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
@@ -467,6 +500,23 @@
         analyzing: t('detail.market_analysis'),
         error_server: t('messages.generic_error')
     }) %>;
+
+    // Click-to-toggle fallback for the QR/barcode label dropdown, alongside the
+    // CSS-only group-hover: touchpads/touchscreens don't reliably fire :hover.
+    function toggleLabelDropdown(e) {
+        e.stopPropagation();
+        const menu = document.getElementById('labelDropdownMenu');
+        if (!menu) return;
+        menu.classList.toggle('!block');
+        menu.classList.toggle('hidden');
+    }
+    document.addEventListener('click', (e) => {
+        const wrapper = document.getElementById('labelDropdown');
+        const menu = document.getElementById('labelDropdownMenu');
+        if (!wrapper || !menu || wrapper.contains(e.target)) return;
+        menu.classList.add('hidden');
+        menu.classList.remove('!block');
+    });
 
     const currentLocale = '<%= currentLng === "fr" ? "fr-FR" : "en-US" %>';
 

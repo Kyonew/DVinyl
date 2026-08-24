@@ -1,12 +1,14 @@
 import express from 'express';
 import mongoose from 'mongoose';
+import QRCode from 'qrcode';
 import { registry } from '../registry';
 import Item from '../../models/Item';
 import Collection from '../../models/Collection';
 import User from '../../models/User';
-import { requireAuth, requireAuthOrShareView } from '../../middleware/authMiddleware';
+import { BASE_URL } from '../../config/constants';
+import { requireAuth, requireAuthOrShareView, requireCollectionRole } from '../../middleware/authMiddleware';
 import { applyVisibilityFilter, applyEnabledModulesFilter, applyContainedFilter, applyShareScopeFilter } from '../../utils/visibilityHelper';
-import { escapeRegExp } from '../helpers';
+import { escapeRegExp, getPublicProtocol, generateBarcodeDataUrl } from '../helpers';
 import { generateUniqueSlug } from '../../utils/collectionHelpers';
 import { resolveShelfItems } from '../../utils/itemHelpers';
 import { checkCollectionCreation } from '../../utils/instanceSettings';
@@ -451,6 +453,88 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
     return null;
   }
 }
+
+// How many labels one sheet may hold. Not a storage limit but a latency one: every
+// box is a code rendered in-process, and Node renders them on the one thread that also
+// serves everyone else, so a sheet is deliberately capped at a plausible print run
+// (measured: ~2.3s of blocked event loop for 200 QR codes).
+const MAX_SHEET_LABELS = 200;
+
+// Bulk/sheet QR labels for a set of items picked on the collection page. Generic
+// rather than per-plugin: a mixed-type collection page can select items across
+// kinds in one go, so each item resolves its own plugin individually below.
+router.post('/collection/labels', requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
+  try {
+    const activeCollectionId = res.locals.activeCollectionId;
+    if (!activeCollectionId) {
+      return res.redirect('/collection');
+    }
+
+    const rawIds = req.body?.ids;
+    const idList: string[] = Array.isArray(rawIds) ? rawIds : (rawIds ? [rawIds] : []);
+    const ids = idList
+      .filter((id: string) => mongoose.Types.ObjectId.isValid(id))
+      .slice(0, MAX_SHEET_LABELS);
+
+    if (ids.length === 0) {
+      return res.redirect('/collection');
+    }
+
+    // Same restrictions the grid the selection was made in already applies: an id
+    // reaching this route by hand must not print what browsing cannot reach.
+    const query: any = { _id: { $in: ids }, collection: activeCollectionId, in_wishlist: false };
+    applyVisibilityFilter(query, res.locals.isCollectionAdmin, res.locals.settings);
+    applyEnabledModulesFilter(query, res.locals.settings);
+    applyContainedFilter(query);
+
+    // Sorted the way the grid sorts by default, so the sheet comes out in the order
+    // the boxes were ticked in rather than in whatever order Mongo returns an $in.
+    const items = await Item.find(query).sort({ sort_title: 1 }).lean();
+
+    // One code type for the whole sheet, picked once by the caller: a mixed sheet
+    // (some boxes QR, some barcode) would be confusing to scan through, so a barcode
+    // sheet skips items with no barcode value rather than falling back to QR per item.
+    const codeType: 'qr' | 'barcode' = req.body?.type === 'barcode' ? 'barcode' : 'qr';
+
+    const labels = (await Promise.all(items.map(async (item: any) => {
+      const plugin = registry.getByKind(item.kind);
+      if (!plugin) {
+        // A kind whose module got disabled since the item was added: skip it
+        // rather than fail the whole sheet over one stale item.
+        console.warn(`[LABELS] Skipping item ${item._id}: no plugin for kind "${item.kind}"`);
+        return null;
+      }
+
+      if (codeType === 'barcode') {
+        // Trimmed: a barcode field holding only spaces encodes into a valid but
+        // meaningless symbol, which prints as a label nobody can act on.
+        const barcodeValue = (item.barcode || '').trim();
+        if (!barcodeValue) {
+          console.warn(`[LABELS] Skipping item ${item._id}: no barcode value for a barcode sheet`);
+          return null;
+        }
+        const barcodeDataUrl = await generateBarcodeDataUrl(barcodeValue);
+        if (!barcodeDataUrl) {
+          console.warn(`[LABELS] Skipping item ${item._id}: barcode generation failed`);
+          return null;
+        }
+        return { item: plugin.formatForView(item), plugin, codeDataUrl: barcodeDataUrl };
+      }
+
+      const url = `${getPublicProtocol(req)}://${req.get('host')}${BASE_URL}${plugin.routePrefix}/${item._id}`;
+      const qrDataUrl = await QRCode.toDataURL(url, { width: 320, margin: 1 });
+      return { item: plugin.formatForView(item), plugin, codeDataUrl: qrDataUrl };
+    }))).filter(Boolean);
+
+    // A barcode sheet whose every item turned out to have no barcode still gets a
+    // page: the sheet opens in a new tab, and silently landing back on the collection
+    // there reads as the print having failed for no reason.
+    res.render('label-sheet', { labels, codeType, user: res.locals.user });
+  } catch (err: any) {
+    console.error('Bulk label error:', err.message);
+    res.status(500).send(req.t('errors.generic_server_error'));
+  }
+});
 
 // Create a collection as an ordinary member. Gated on the instance-wide toggle and
 // per-user quota (utils/instanceSettings.ts); instance admins bypass both and also

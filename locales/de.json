@@ -445,7 +445,16 @@
     "search_style_placeholder": "Styles suchen...",
     "search_platform_placeholder": "Konsolen suchen...",
     "active_filters": "Aktive Filter:",
-    "page_jump_title": "Zu Seite springen"
+    "page_jump_title": "Zu Seite springen",
+    "select_btn": "Auswählen",
+    "select_all": "Alle auswählen",
+    "deselect_all": "Auswahl aufheben",
+    "cancel_select": "Abbrechen",
+    "selected_count_suffix": "ausgewählt",
+    "print_selected_qr": "QR-Etiketten drucken",
+    "print_selected_barcode": "Barcode-Etiketten drucken",
+    "label_sheet_title": "Etiketten drucken",
+    "label_sheet_empty": "Keines der ausgewählten Objekte hat einen Barcode, es gibt also nichts zu drucken."
   },
   "common": {
     "external_id_label": "Quellen-ID",
@@ -628,7 +637,13 @@
     "tracklist_title": "Trackliste",
     "unavailable_data": "Daten nicht verfügbar",
     "view_discogs": "Discogs-Seite ansehen",
-    "variants_title": "Sie besitzen diesen Artikel auch in anderen Versionen:"
+    "variants_title": "Sie besitzen diesen Artikel auch in anderen Versionen:",
+    "print_label_btn": "Etikett drucken",
+    "qr_option": "QR-Code",
+    "barcode_option": "Barcode",
+    "switch_to_qr": "Zum QR-Code wechseln",
+    "switch_to_barcode": "Zum Barcode wechseln",
+    "label_page_title": "Etikett"
   },
   "dvd_detail": {
     "barcode_label": "Barcode",

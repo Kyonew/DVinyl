@@ -42,6 +42,15 @@
                 %>
                     <div class="flex gap-2">
 
+                        <button type="button" id="selectModeBtn" onclick="toggleSelectMode()"
+                            class="flex-shrink-0 w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center gap-2 group"
+                            title="<%= t('collection.select_btn') %>">
+                            <i class="fa-solid fa-check-double group-hover:scale-110 transition-transform"></i>
+                            <span class="hidden md:inline text-xs font-bold uppercase tracking-widest">
+                                <%= t('collection.select_btn') %>
+                            </span>
+                        </button>
+
                         <% if (addRoute) { %>
                             <a href="<%= baseUrl + addRoute %>"
                                 class="flex-shrink-0 w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center gap-2 group"
@@ -71,9 +80,34 @@
         </div>
 
         <%- include('partials/albums-filters') %>
-        <%- include('partials/albums-grid', { albums, size: 'collection', gridId: 'albumGrid' }) %>
+        <%- include('partials/albums-grid', { albums, size: 'collection', gridId: 'albumGrid', selectable: locals.canEditCollection }) %>
         <%- include('partials/albums-page-changer') %>
     </div>
+
+    <% if (locals.canEditCollection) { %>
+    <div id="bulkActionBar" class="hidden fixed bottom-6 inset-x-0 z-40 flex justify-center px-4">
+        <div class="card-theme border rounded-2xl shadow-2xl px-5 py-3 flex items-center gap-4">
+            <span id="bulkSelectedCount" class="text-sm font-bold opacity-80">0 <%= t('collection.selected_count_suffix') %></span>
+            <button type="button" id="selectAllBtn" onclick="toggleSelectAll()"
+                class="px-4 py-2 bg-black/5 dark:bg-white/10 rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all">
+                <%= t('collection.select_all') %>
+            </button>
+            <button type="button" onclick="printSelectedLabels('qr')"
+                class="px-4 py-2 bg-primary-theme text-white rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all">
+                <i class="fa-solid fa-qrcode mr-2"></i><%= t('collection.print_selected_qr') %>
+            </button>
+            <button type="button" onclick="printSelectedLabels('barcode')"
+                class="px-4 py-2 bg-primary-theme text-white rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all">
+                <i class="fa-solid fa-barcode mr-2"></i><%= t('collection.print_selected_barcode') %>
+            </button>
+            <button type="button" onclick="cancelSelectMode()"
+                class="px-4 py-2 bg-black/5 dark:bg-white/10 rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all">
+                <%= t('collection.cancel_select') %>
+            </button>
+        </div>
+    </div>
+    <form id="labelPrintForm" method="POST" action="<%= baseUrl %>/collection/labels" target="_blank" class="hidden"></form>
+    <% } %>
 
     <% if (hasEstimateAction) { %>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"
@@ -155,6 +189,90 @@
     <script src="<%= baseUrl %>/socket.io/socket.io.js"></script>
     <script>
     <% if (locals.canEditCollection) { %>
+        // Bulk label printing: select mode toggles a checkbox overlay on every card
+        // (rendered but hidden by default, see partials/albums-grid) and turns card
+        // clicks into a selection toggle instead of a navigation.
+        let selectMode = false;
+        const selectedCountSuffix = <%- JSON.stringify(t('collection.selected_count_suffix')) %>;
+
+        function toggleSelectMode() {
+            selectMode = !selectMode;
+            document.querySelectorAll('.select-checkbox-overlay').forEach(el => {
+                el.classList.toggle('hidden', !selectMode);
+                el.classList.toggle('flex', selectMode);
+            });
+            document.querySelectorAll('.album-select-checkbox').forEach(cb => { cb.checked = false; });
+            const bar = document.getElementById('bulkActionBar');
+            if (bar) bar.classList.toggle('hidden', !selectMode);
+            const btn = document.getElementById('selectModeBtn');
+            if (btn) btn.classList.toggle('bg-primary-theme', selectMode);
+            if (btn) btn.classList.toggle('text-white', selectMode);
+            updateSelectedCount();
+        }
+
+        function cancelSelectMode() {
+            if (selectMode) toggleSelectMode();
+        }
+
+        function updateSelectedCount() {
+            const checkboxes = document.querySelectorAll('.album-select-checkbox');
+            const count = document.querySelectorAll('.album-select-checkbox:checked').length;
+            const countEl = document.getElementById('bulkSelectedCount');
+            if (countEl) countEl.textContent = count + ' ' + selectedCountSuffix;
+
+            const selectAllBtn = document.getElementById('selectAllBtn');
+            if (selectAllBtn) {
+                const allSelected = checkboxes.length > 0 && count === checkboxes.length;
+                selectAllBtn.textContent = allSelected
+                    ? <%- JSON.stringify(t('collection.deselect_all')) %>
+                    : <%- JSON.stringify(t('collection.select_all')) %>;
+            }
+        }
+
+        // Selects every card on the current page, or clears the selection if every
+        // card is already selected. Matches the v2a scope: current page only, not
+        // "select all matching filter" across pagination.
+        function toggleSelectAll() {
+            const checkboxes = [...document.querySelectorAll('.album-select-checkbox')];
+            const allSelected = checkboxes.length > 0 && checkboxes.every(cb => cb.checked);
+            checkboxes.forEach(cb => { cb.checked = !allSelected; });
+            updateSelectedCount();
+        }
+
+        function printSelectedLabels(type) {
+            const ids = [...document.querySelectorAll('.album-select-checkbox:checked')]
+                .map(cb => cb.closest('[data-id]')?.dataset.id)
+                .filter(Boolean);
+            if (ids.length === 0) return;
+            const form = document.getElementById('labelPrintForm');
+            form.innerHTML = '';
+            const typeInput = document.createElement('input');
+            typeInput.type = 'hidden';
+            typeInput.name = 'type';
+            typeInput.value = type;
+            form.appendChild(typeInput);
+            ids.forEach(id => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'ids[]';
+                input.value = id;
+                form.appendChild(input);
+            });
+            form.submit();
+        }
+
+        document.getElementById('albumGrid')?.addEventListener('click', (e) => {
+            if (!selectMode) return;
+            const card = e.target.closest('.album-card');
+            if (!card) return;
+            e.preventDefault();
+            const checkbox = card.querySelector('.album-select-checkbox');
+            if (checkbox) {
+                checkbox.checked = !checkbox.checked;
+                updateSelectedCount();
+            }
+        });
+
         // Collection-level actions declared by the active plugin (see CollectionAction).
         const COLLECTION_ACTIONS = <%- JSON.stringify(collectionActions) %>;
         const jsBaseUrl = '<%= baseUrl %>';
