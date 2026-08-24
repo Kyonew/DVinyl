@@ -448,6 +448,8 @@
     "page_jump_title": "Ir a la página"
   },
   "common": {
+    "external_id_label": "ID de origen",
+    "external_id_hint": "El identificador con el que este elemento está vinculado en el sitio de origen. Complétalo para recuperar la actualización de metadatos, o corrígelo si el elemento se vinculó a la ficha equivocada.",
     "all": "Todo",
     "apply": "Aplicar",
     "back_home": "Volver a Inicio",

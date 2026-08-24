@@ -1,5 +1,7 @@
 {
   "common": {
+    "external_id_label": "ID source",
+    "external_id_hint": "L'identifiant auquel cet élément est rattaché sur le site d'origine. Renseignez-le pour retrouver la mise à jour des métadonnées, ou corrigez-le si l'élément a été rattaché à la mauvaise fiche.",
     "edit": "Modifier",
     "save": "Enregistrer",
     "validate": "Valider",

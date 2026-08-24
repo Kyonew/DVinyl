@@ -448,6 +448,8 @@
     "page_jump_title": "Zu Seite springen"
   },
   "common": {
+    "external_id_label": "Quellen-ID",
+    "external_id_hint": "Die ID, mit der dieser Eintrag auf der Ursprungsseite verknüpft ist. Tragen Sie sie ein, um die Metadaten-Aktualisierung zurückzuholen, oder korrigieren Sie sie bei einer falschen Zuordnung.",
     "all": "Alle",
     "apply": "Anwenden",
     "back_home": "Zurück nach Hause",

@@ -13,6 +13,8 @@ export const musicPlugin: PluginDefinition = {
   order: 10,
   enabledByDefault: true,
   externalIdField: 'discogs_id',
+  externalIdLabel: 'edit_vinyl.discogs_id_label',
+  externalIdHint: 'edit_vinyl.discogs_id_hint',
   matchesLegacyItems: true,
   pathAliases: ['vinyl', 'cd', 'cassette', 'discogs'],
   creatorSearchFields: ['label'],

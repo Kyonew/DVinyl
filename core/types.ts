@@ -22,6 +22,12 @@ export interface PluginDefinition {
   // Field holding the external API id (discogs_id, tmdb_id, igdb_id, hardcover_slug)
   externalIdField?: string;
 
+  // How the edit form words that id. A plugin whose id means something particular to its
+  // owner says so here (music explains what a wrong Discogs id does to an estimate);
+  // without them the form falls back to the generic wording in common.external_id_*.
+  externalIdLabel?: string;
+  externalIdHint?: string;
+
   // "Source" link shown on the detail page (Discogs, TMDB, Hardcover...)
   externalLink?(item: any): { label: string; url: string } | null;
 

@@ -34,12 +34,12 @@
                     <%
                     // Preserve every schema field not covered by a visible input so an edit-save
                     // doesn't wipe it: genres/styles and external ids (tmdb_id/igdb_id/hardcover_slug...).
-                    // Mirrors the fallback in confirm.ejs. discogs_id is excluded, it has its own
-                    // editable block below.
+                    // Mirrors the fallback in confirm.ejs. The external id is excluded, it has
+                    // its own editable block below and would otherwise be posted twice.
                     const editVisible = new Set(plugin.formFields
                         .filter(f => f.showIn.includes('edit'))
                         .map(f => f.name));
-                    editVisible.add('discogs_id');
+                    if (plugin.externalIdField) editVisible.add(plugin.externalIdField);
 
                     const editHidden = [];
                     Object.keys(plugin.schemaDefinition).forEach(k => {
@@ -58,12 +58,23 @@
                         <input type="hidden" name="<%= name %>" value="<%= Array.isArray(hv) ? hv.join(', ') : (hv ?? '') %>">
                     <% }) %>
 
-                    <!-- Discogs ID field for Music / Other search items -->
-                    <% if (item.discogs_id !== undefined) { %>
+                    <%# The id tying the item to the site it came from (Discogs, TMDB, IGDB...).
+                        Offered whether or not the item already carries one: an item added by
+                        hand never got one, and that is exactly the item whose owner may want
+                        to attach it later to unlock the metadata refresh and the estimate.
+                        Skipped when the plugin already declares the id among its form fields
+                        (lego's set number), which would otherwise print the input twice.
+                        An emptied input changes nothing: save-<plugin> ignores blank ids. %>
+                    <%
+                        const extIdField = plugin.externalIdField;
+                        const extIdInForm = extIdField
+                            && (plugin.formFields || []).some(f => f.name === extIdField && f.showIn.includes('edit'));
+                    %>
+                    <% if (extIdField && !extIdInForm) { %>
                         <div class="bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-700/30 p-4 rounded-lg transition-colors">
-                            <label class="block mb-2 text-sm font-bold text-yellow-700 dark:text-yellow-500"><%= t('edit_vinyl.discogs_id_label') %></label>
-                            <div class="text-xs text-yellow-800/80 dark:text-yellow-200/60 mb-2"><%= t('edit_vinyl.discogs_id_hint') %></div>
-                            <input type="number" name="discogs_id" value="<%= item.discogs_id %>" class="bg-white dark:bg-black/20 border border-yellow-300 dark:border-yellow-600/50 text-sm rounded-lg focus:ring-yellow-500 block w-full p-2.5 font-mono outline-none">
+                            <label class="block mb-2 text-sm font-bold text-yellow-700 dark:text-yellow-500"><%= t(plugin.externalIdLabel || 'common.external_id_label') %></label>
+                            <div class="text-xs text-yellow-800/80 dark:text-yellow-200/60 mb-2"><%= t(plugin.externalIdHint || 'common.external_id_hint') %></div>
+                            <input type="text" name="<%= extIdField %>" value="<%= item[extIdField] ?? '' %>" class="bg-white dark:bg-black/20 border border-yellow-300 dark:border-yellow-600/50 text-sm rounded-lg focus:ring-yellow-500 block w-full p-2.5 font-mono outline-none">
                         </div>
                     <% } %>
 

@@ -1,5 +1,7 @@
 {
   "common": {
+    "external_id_label": "Source ID",
+    "external_id_hint": "The id this item is matched to on the site it came from. Fill it in to bring back the metadata refresh, or correct it if the item was matched to the wrong entry.",
     "edit": "Edit",
     "save": "Save",
     "validate": "Validate",
