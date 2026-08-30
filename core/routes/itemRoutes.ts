@@ -10,6 +10,7 @@ import { getExtraFields, toFieldDefinitions } from '../pluginExtraFields';
 import { buildFieldSuggestions } from '../fieldSuggestions';
 import { deleteItemsAndContents, moveContentsToWishlist } from '../../utils/itemHelpers';
 import { applyVisibilityFilter, applyShareScopeFilter, isWithinShareScope } from '../../utils/visibilityHelper';
+import { resolveBarcodeWithAi } from '../ai/barcode';
 
 export function createItemRoutes(plugin: PluginDefinition): Router {
   const router = express.Router();
@@ -51,7 +52,18 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         if (plugin.supportsBarcodeSearch && isBarcodeQuery(rawQuery)) {
           const { barcode, title } = await lookupBarcodeTitle(rawQuery, plugin.barcodeNoiseTerms);
           scannedBarcode = barcode;
-          if (!title) {
+
+          // UPCitemdb's free tier is 100 lookups a day per IP, so a null title covers an
+          // unknown code and an exhausted quota alike. Either way the user is one step from
+          // a dead end, which is where the AI assist earns its place: it turns the digits
+          // into a search query for the module's real provider. Off or failing, the flow
+          // below is exactly what it was before.
+          let query = title;
+          if (!query) {
+            query = await resolveBarcodeWithAi(barcode, plugin.id);
+          }
+
+          if (!query) {
             // Searching the digits themselves cannot match: these providers index titles,
             // not barcodes. Say the barcode is unknown rather than show an empty result
             // list, which reads as "you don't own this" instead of "I couldn't look it up".
@@ -66,8 +78,8 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
               plugin
             });
           }
-          searchQuery = title;
-          resolvedTitle = title;
+          searchQuery = query;
+          resolvedTitle = query;
         }
 
         const settings = res.locals.settings;
