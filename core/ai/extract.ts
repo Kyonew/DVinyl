@@ -40,7 +40,15 @@ export function validateRows(raw: Record<string, any>[], fields: ImportTargetFie
     // key out — including the ones that are dangerous to copy onto a plain object.
     for (const [name, field] of byName) {
       if (!Object.prototype.hasOwnProperty.call(entry, name)) continue;
-      const value = toStringValue(entry[name]);
+      let value = toStringValue(entry[name]);
+      // quantity (models/Item.ts) is the one field in this app whose valid range starts
+      // at 1: a list rarely states how many copies of something you own, and the model
+      // reliably writes 0 rather than an empty string for that unstated count. A literal
+      // 0 fails the schema outright, so it's corrected to the same default(1) the field
+      // itself declares - shown plainly in the review table rather than left blank and
+      // relying on an invisible DB-level fallback. Every other number field (rating,
+      // pages...) genuinely permits 0, so this is not generalised to numbers at large.
+      if (name === 'quantity' && value === '0') value = '1';
       if (field.required || value) values[name] = value;
       if (value) hasAnyValue = true;
     }

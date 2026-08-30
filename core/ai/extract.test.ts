@@ -56,3 +56,27 @@ test('flattens an array value into a comma-separated string', () => {
 test('returns an empty list for an empty input', () => {
   assert.deepEqual(validateRows([], fields), []);
 });
+
+test('a quantity of 0 is corrected to 1, not left as a literal zero', () => {
+  const withQuantity: ImportTargetField[] = [
+    ...fields,
+    { name: 'quantity', label: 'Quantity', type: 'number', required: false, group: 'base' }
+  ];
+  // quantity's schema (models/Item.ts) is min:1 - a literal 0 would fail the save outright.
+  const rows = validateRows([{ title: 'Dune', author: 'H', quantity: 0 }], withQuantity);
+  assert.equal(rows[0]?.values.quantity, '1');
+});
+
+test('a genuine quantity is kept as-is', () => {
+  const withQuantity: ImportTargetField[] = [
+    ...fields,
+    { name: 'quantity', label: 'Quantity', type: 'number', required: false, group: 'base' }
+  ];
+  const rows = validateRows([{ title: 'Dune', author: 'H', quantity: 3 }], withQuantity);
+  assert.equal(rows[0]?.values.quantity, '3');
+});
+
+test('other number fields keep a literal 0 - only quantity is special-cased', () => {
+  const rows = validateRows([{ title: 'Dune', author: 'H', pages: 0 }], fields);
+  assert.equal(rows[0]?.values.pages, '0');
+});
