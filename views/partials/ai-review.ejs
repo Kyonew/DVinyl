@@ -279,8 +279,11 @@
                 if (data.updated) message += '\n' + data.updated + ' ' + T.updated;
                 if (data.failed) message += '\n' + data.failed + ' ' + T.failed;
                 if (data.unenriched) message += '\n' + data.unenriched + ' ' + T.unenriched;
-                alert(message);
-                window.location.reload();
+                // Reload once the toast is actually dismissed (click, or its own 5s
+                // timeout) rather than the instant it appears - same order the old
+                // blocking alert() gave for free by pausing until "OK" was clicked.
+                if (window.showToast) window.showToast(message, { onDismiss: () => window.location.reload() });
+                else { alert(message); window.location.reload(); }
             });
             socket.on('import_error', (data) => {
                 if (!running) return;
