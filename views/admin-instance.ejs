@@ -961,7 +961,7 @@
                     keySetLine.classList.add('hidden');
                 });
 
-                saveBtn.addEventListener('click', async () => {
+                async function persistAiSettings() {
                     testResult.classList.add('hidden');
                     try {
                         const response = await fetch('<%= baseUrl %>/admin/instance/ai', {
@@ -984,7 +984,14 @@
                     } catch (err) {
                         showResult(testResult, false, err.message);
                     }
-                });
+                }
+
+                saveBtn.addEventListener('click', persistAiSettings);
+
+                // The enable toggle is the one field a user expects to take effect the
+                // moment they flip it, without a separate Save click — every other field
+                // still needs Save since typing a key/model is not itself a decision to commit.
+                enabledEl.addEventListener('change', persistAiSettings);
 
                 testBtn.addEventListener('click', async () => {
                     try {
