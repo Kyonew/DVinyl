@@ -13,9 +13,11 @@
         invalidUrl: t('image_manager.invalid_url'),
         tooMany: t('image_manager.too_many', { max: MAX_ITEM_IMAGES }),
         tooLarge: t('image_manager.too_large', { maxMb: Math.floor(MAX_ITEM_IMAGE_BYTES / (1024 * 1024)) }),
+        uploading: t('image_manager.uploading'),
+        uploadFailed: t('image_manager.upload_failed'),
+        uploadInvalid: t('image_manager.upload_invalid'),
         noResults: t('confirm_' + plugin.i18nKey + '.no_results', { defaultValue: t('confirm_vinyl.no_results') }),
         networkError: t('confirm_' + plugin.i18nKey + '.network_error', { defaultValue: t('confirm_vinyl.network_error') }),
-        compressAlert: t('image_source.compress_alert')
     }) %>;
 
     const list = document.getElementById('imageList');
@@ -27,6 +29,8 @@
     const placeholderImage = <%- JSON.stringify(plugin.placeholderImage || '/ressources/logo.png') %>;
     const maxImages = Number(manager.dataset.maxImages);
     const maxImageBytes = Number(manager.dataset.maxImageBytes);
+    const deploymentBaseUrl = <%- JSON.stringify(baseUrl.replace(/\/+$/, '')) %>;
+    const uploadEndpoint = deploymentBaseUrl + '/api/item-images/upload';
     let images = [];
     let draggedIndex = null;
 
@@ -36,11 +40,17 @@
     } catch (_) {}
     images = [...new Set(images)];
 
+    function displayImageUrl(url) {
+        return typeof url === 'string' && url.startsWith('/uploads/items/')
+            ? deploymentBaseUrl + url
+            : url;
+    }
+
     function syncInputs() {
         jsonInput.value = JSON.stringify(images);
         coverInput.value = images[0] || '';
         userInput.value = images[1] || '';
-        if (livePreview) livePreview.src = images[0] || placeholderImage;
+        if (livePreview) livePreview.src = displayImageUrl(images[0] || placeholderImage);
     }
 
     function moveImage(from, to) {
@@ -74,7 +84,7 @@
             card.dataset.index = String(index);
 
             const image = document.createElement('img');
-            image.src = url;
+            image.src = displayImageUrl(url);
             image.alt = index === 0 ? translations.main : '';
             image.className = 'w-full h-full object-cover pointer-events-none';
             card.appendChild(image);
@@ -178,7 +188,7 @@
                     canvas.width = Math.max(1, Math.round(image.width * scale));
                     canvas.height = Math.max(1, Math.round(image.height * scale));
                     canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
-                    resolve(canvas.toDataURL('image/jpeg', 0.82));
+                    canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('compression_failed')), 'image/jpeg', 0.82);
                 };
                 image.src = event.target.result;
             };
@@ -186,17 +196,44 @@
         });
     }
 
-    document.getElementById('fileInputImages').addEventListener('change', async event => {
-        const files = Array.from(event.target.files || []);
-        if (files.some(file => file.size > 5 * 1024 * 1024)) alert(translations.compressAlert);
-        for (const file of files) {
-            try {
-                addImage(await compressImage(file));
-            } catch (_) {
-                alert(translations.compressAlert);
-            }
+    async function uploadImage(blob) {
+        const form = new FormData();
+        form.append('image', blob, 'item-image.jpg');
+        const response = await fetch(uploadEndpoint, { method: 'POST', body: form });
+        let data = {};
+        try { data = await response.json(); } catch (_) {}
+        if (!response.ok || typeof data.url !== 'string') {
+            throw new Error(data.error || translations.uploadFailed);
         }
-        event.target.value = '';
+        return data.url;
+    }
+
+    document.getElementById('fileInputImages').addEventListener('change', async event => {
+        const input = event.target;
+        const files = Array.from(event.target.files || []);
+        const status = document.getElementById('imageUploadStatus');
+        input.disabled = true;
+        status.textContent = translations.uploading;
+        status.classList.remove('hidden');
+        try {
+            for (const file of files) {
+                if (images.length >= maxImages) {
+                    alert(translations.tooMany);
+                    break;
+                }
+                try {
+                    const blob = await compressImage(file);
+                    addImage(await uploadImage(blob));
+                } catch (err) {
+                    alert(err?.message || translations.uploadInvalid);
+                }
+            }
+        } finally {
+            input.disabled = false;
+            input.value = '';
+            status.textContent = '';
+            status.classList.add('hidden');
+        }
     });
 
     function addUrl() {

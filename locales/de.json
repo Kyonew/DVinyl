@@ -732,6 +732,10 @@
     "invalid_url": "Gib eine gültige HTTP- oder HTTPS-Bild-URL ein.",
     "too_many": "Ein Eintrag kann höchstens {{max}} Bilder enthalten.",
     "too_large": "Lokale Bilder dürfen pro Eintrag insgesamt höchstens {{maxMb}} MB belegen. Entferne ein Bild oder wähle kleinere Dateien.",
+    "uploading": "Bild wird hochgeladen…",
+    "upload_failed": "Das Bild konnte nicht hochgeladen werden.",
+    "upload_invalid": "Die ausgewählte Datei ist kein gültiges Bild.",
+    "upload_too_large": "Das komprimierte Bild ist zu groß (maximal 5 MB).",
     "image_number": "Bild {{number}}",
     "previous": "Vorheriges Bild",
     "next": "Nächstes Bild"

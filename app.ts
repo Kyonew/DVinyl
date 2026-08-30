@@ -31,6 +31,7 @@ import { applyPluginCustomization } from './core/pluginCustomization.js';
 import { getCardLines, getCornerBadge, isTranslationKey, CORNER_POSITIONS, DEFAULT_CORNER_POSITION, SHARE_HIDDEN_FIELDS } from './core/cardFields.js';
 import { importableFields } from './core/csvMapping.js';
 import { MAX_ITEM_IMAGES, MAX_ITEM_IMAGE_BYTES } from './core/itemImages.js';
+import { cleanupStaleItemImageUploads, itemImageUrl } from './core/itemImageStorage.js';
 
 // Routes imports
 import setupRoutes from './routes/setupRoutes.js';
@@ -41,6 +42,7 @@ import shareRoutes from './routes/shareRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
 import backupRoutes from './routes/backupRoutes.js';
+import itemImageRoutes from './routes/itemImageRoutes.js';
 import oidcRoutes from './routes/oidcRoutes.js';
 
 import dashboardRoute from './core/routes/dashboardRoute.js';
@@ -97,6 +99,9 @@ app.locals.importableFields = importableFields;
 // Shared by the image-manager partial so its client-side guard matches the save route.
 app.locals.MAX_ITEM_IMAGES = MAX_ITEM_IMAGES;
 app.locals.MAX_ITEM_IMAGE_BYTES = MAX_ITEM_IMAGE_BYTES;
+// Stored item-upload paths stay deployment-independent; views resolve BASE_URL only
+// when rendering them so edits and exports keep the portable value.
+app.locals.itemImageUrl = itemImageUrl;
 // Dates read the same way wherever a view prints one
 app.locals.dateLocaleFor = dateLocaleFor;
 app.set('io', io); // Expose io to routes
@@ -271,6 +276,7 @@ app.use(BASE_URL + '/admin', adminRoutes);
 app.use(BASE_URL + '/settings', settingsRoutes);
 app.use(BASE_URL + '/create-plugin', pluginBuilderRoutes);
 app.use(BASE_URL + '/backup', backupRoutes);
+app.use(BASE_URL, itemImageRoutes);
 if (isOidcEnabled()) {
   app.use(BASE_URL, oidcRoutes);
 }
@@ -302,6 +308,12 @@ connectDB()
     // a fresh/rebuilt container and backfills the DB from any pre-existing folders.
     console.log('[BOOT] Syncing custom plugins...');
     await syncCustomPluginsOnBoot();
+    try {
+      const removed = await cleanupStaleItemImageUploads();
+      if (removed > 0) console.log(`[BOOT] Removed ${removed} abandoned item image(s)`);
+    } catch (err) {
+      console.warn('[BOOT] Item image cleanup failed:', err);
+    }
     const port = process.env.VINYL_PORT || 3099;
     server.listen(port, () => {
       console.log(`[BOOT] Server started on port ${port} (BASE_URL="${BASE_URL || '/'}", env=${process.env.PROD === 'true' ? 'production' : 'development'})`);

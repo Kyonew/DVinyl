@@ -20,6 +20,7 @@ const pkg = require('../package.json');
 import { migrateDatabase, normalizeThemePresets } from '../utils/migrate';
 import { applyCustomPluginsFromDB } from '../core/customPluginSync';
 import { collectExtraDateFields, reviveExtraDates } from '../core/pluginExtraFields';
+import { deleteUnusedManagedItemImages, managedItemImagesForQuery } from '../core/itemImageStorage';
 
 const router = express.Router();
 
@@ -92,6 +93,7 @@ router.post('/import', async (req, res) => {
         }
 
         const hasCollections = Array.isArray(data.collections) && data.collections.length > 0;
+        const replacedImagePaths = await managedItemImagesForQuery({});
 
         console.log(`[BACKUP] Instance import started (dump version ${data.metadata?.version || 'unknown'}, ${hasCollections ? 'with' : 'without'} collections): ${data.users?.length || 0} user(s), ${data.albums?.length || 0} item(s). Wiping current data...`);
 
@@ -225,6 +227,14 @@ router.post('/import', async (req, res) => {
         // Reconcile no-code plugins with the freshly imported DB: re-materialize the
         // plugins/<id>/ folders and hot-register them, pruning any from the old instance.
         await applyCustomPluginsFromDB();
+
+        // A JSON restore can keep paths already present on this installation. Remove only
+        // files that the replacement no longer references; ZIP transport comes later.
+        try {
+            await deleteUnusedManagedItemImages(replacedImagePaths);
+        } catch (cleanupError) {
+            console.warn('[ITEM IMAGE] Post-import cleanup failed:', cleanupError);
+        }
 
         const restoredCollectionCount = await Collection.countDocuments();
         console.log(`[BACKUP] Instance import finished: ${restoredCollectionCount} collection(s) rebuilt, ${await Item.countDocuments()} item(s) restored`);
@@ -413,6 +423,7 @@ router.post('/collection/import', requireAuth, requireCollectionRole('admin'), a
         }
 
         // Replacement semantics: the collection's current items are wiped first.
+        const replacedImagePaths = await managedItemImagesForQuery({ collection: activeCollectionId });
         await Item.deleteMany({ collection: activeCollectionId });
 
         if (data.albums.length > 0) {
@@ -458,6 +469,12 @@ router.post('/collection/import', requireAuth, requireCollectionRole('admin'), a
             clean.collection = activeCollectionId;
             await Settings.deleteMany({ collection: activeCollectionId });
             await Settings.create(clean);
+        }
+
+        try {
+            await deleteUnusedManagedItemImages(replacedImagePaths);
+        } catch (cleanupError) {
+            console.warn('[ITEM IMAGE] Collection import cleanup failed:', cleanupError);
         }
 
         res.status(200).json({ success: true, message: "Import successful", count: data.albums.length });

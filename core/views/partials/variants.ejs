@@ -14,7 +14,7 @@
                         <% 
                             const varImg = variant.images?.[0] || variant.cover_image || '/ressources/logo.png';
                         %>
-                        <img src="<%= varImg %>" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" alt="<%= variant.title %>">
+                        <img src="<%= itemImageUrl(varImg) %>" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" alt="<%= variant.title %>">
                         
                         <% 
                             let label = '';

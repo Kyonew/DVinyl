@@ -12,7 +12,7 @@
         <div class="lg:col-span-4 space-y-6">
             <div class="card-theme rounded-xl p-6 sticky top-24 transition-colors shadow-sm">
                 <div class="<%= plugin.aspectRatioClass || 'aspect-[2/3]' %> rounded-lg overflow-hidden mb-4 shadow-lg relative group bg-black/5 dark:bg-white/5">
-                    <img id="livePreview" src="<%= item.cover_image %>" class="w-full h-full object-cover transition-all duration-500">
+                    <img id="livePreview" src="<%= itemImageUrl(item.cover_image) %>" class="w-full h-full object-cover transition-all duration-500">
                 </div>
                 <h2 class="text-xl font-bold mb-1"><%= item.title %></h2>
                 <p class="opacity-60 mb-4"><%= item[plugin.creatorField] %></p>

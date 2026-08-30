@@ -1,7 +1,7 @@
 <%- include('../../views/partials/header') %>
 
 <div class="fixed inset-0 -z-10 opacity-10 dark:opacity-20 blur-3xl pointer-events-none transition-opacity duration-1000">
-    <img src="<%= item.cover_image %>" class="w-full h-full object-cover">
+    <img src="<%= itemImageUrl(item.cover_image) %>" class="w-full h-full object-cover">
 </div>
 
 <div class="max-w-screen-xl mx-auto px-4 pb-20">
@@ -47,7 +47,7 @@
         %>
         <div class="lg:col-span-6 min-w-0 flex flex-col items-center">
             <div class="relative w-full <%= coverMaxWidth %> <%= coverAspect %> card-theme rounded-2xl shadow-xl overflow-hidden flex items-center justify-center group transition-colors">
-                <img id="mainImage" src="<%= item.images[0] %>" class="w-full h-full object-contain transition-transform duration-300 group-hover:scale-[1.02] cursor-zoom-in" alt="<%= item.title %>" onclick="openLightbox()">
+                <img id="mainImage" src="<%= itemImageUrl(item.images[0]) %>" class="w-full h-full object-contain transition-transform duration-300 group-hover:scale-[1.02] cursor-zoom-in" alt="<%= item.title %>" onclick="openLightbox()">
 
                 <span id="imageBadge" class="absolute top-4 right-4 bg-white/90 dark:bg-black/60 backdrop-blur-md text-neutral-900 dark:text-white text-xs px-3 py-1 rounded-full border border-black/5 dark:border-white/10 shadow-sm transition-colors">
                     <%= mainImageLabel %>
@@ -72,7 +72,7 @@
                         <% item.images.forEach((image, index) => { %>
                             <button type="button" data-gallery-label="<%= index === 0 ? mainImageLabel : t('image_manager.image_number', { number: index + 1 }) %>"
                                 class="thumb-btn snap-start w-20 h-20 flex-shrink-0 rounded-lg border-2 <%= index === 0 ? 'border-primary-theme opacity-100 ring-2 ring-primary-theme/50' : 'border-transparent opacity-70' %> hover:border-black/20 dark:hover:border-white/20 overflow-hidden relative transition-all hover:opacity-100 focus:outline-none shadow-sm">
-                                <img src="<%= image %>" class="w-full h-full object-cover" alt="">
+                                <img src="<%= itemImageUrl(image) %>" class="w-full h-full object-cover" alt="">
                             </button>
                         <% }) %>
                     </div>

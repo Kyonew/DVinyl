@@ -8,7 +8,8 @@ import { BASE_URL } from '../../config/constants';
 import { requireAuth, requireAuthOrShareView, requireCollectionRole } from '../../middleware/authMiddleware';
 import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback, editStamp, syncStamp, safeReturnPath, getPublicProtocol, generateBarcodeDataUrl } from '../helpers';
 import { DEFAULT_PLACEHOLDER_IMAGE } from '../placeholderImage';
-import { imagesFromForm, ItemImageValidationError, MAX_ITEM_IMAGES, MAX_ITEM_IMAGE_BYTES } from '../itemImages';
+import { imagesForItem, imagesFromForm, ItemImageValidationError, MAX_ITEM_IMAGES, MAX_ITEM_IMAGE_BYTES } from '../itemImages';
+import { deleteUnusedManagedItemImages } from '../itemImageStorage';
 import { getExtraFields, toFieldDefinitions } from '../pluginExtraFields';
 import { buildFieldSuggestions } from '../fieldSuggestions';
 import { deleteItemsAndContents, moveContentsToWishlist } from '../../utils/itemHelpers';
@@ -421,6 +422,11 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           language: req.language
         });
         if (handled) {
+          try {
+            await deleteUnusedManagedItemImages(submittedImages);
+          } catch (cleanupError) {
+            console.warn('[ITEM IMAGE] Post-create cleanup failed:', cleanupError);
+          }
           return res.redirect(isWishlist ? '/wishlist' : `/collection?type=${plugin.collectionType}`);
         }
       }
@@ -501,6 +507,15 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           owner: adminId,
           collection: activeCollectionId
         });
+      }
+
+      try {
+        await deleteUnusedManagedItemImages([
+          ...submittedImages,
+          ...(existingItem ? imagesForItem(existingItem) : [])
+        ]);
+      } catch (cleanupError) {
+        console.warn('[ITEM IMAGE] Post-save cleanup failed:', cleanupError);
       }
 
       // An edit lands back on the item, where the change can be seen; the page it was

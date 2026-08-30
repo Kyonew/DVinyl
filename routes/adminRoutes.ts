@@ -19,6 +19,7 @@ import { registry } from "../core/registry.js";
 import { CARD_ASPECT_RATIOS } from "../core/customPlugin";
 import { PermanentRefreshError, syncStamp, getPublicProtocol } from "../core/helpers";
 import { deleteItemsAndContents } from "../utils/itemHelpers";
+import { deleteUnusedManagedItemImages, managedItemImagesForQuery } from "../core/itemImageStorage";
 
 const router = express.Router();
 
@@ -319,6 +320,7 @@ router.post("/collections/:id/delete", requireAuth, requireAdmin, async (req: an
       return res.redirect("/admin/instance?msg=error_delete_default_collection");
     }
 
+    const itemImages = await managedItemImagesForQuery({ collection: target._id });
     await Item.deleteMany({ collection: target._id });
     await Settings.deleteMany({ collection: target._id });
     // The value snapshots describe a collection that is about to stop existing, and
@@ -330,6 +332,11 @@ router.post("/collections/:id/delete", requireAuth, requireAdmin, async (req: an
       { $set: { lastActiveCollectionId: null } },
     );
     await Collection.deleteOne({ _id: target._id });
+    try {
+      await deleteUnusedManagedItemImages(itemImages);
+    } catch (cleanupError) {
+      console.warn('[ITEM IMAGE] Collection cleanup failed:', cleanupError);
+    }
 
     res.redirect("/admin/instance?msg=collection_deleted");
   } catch (err) {

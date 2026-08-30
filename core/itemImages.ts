@@ -1,8 +1,7 @@
 export const MAX_ITEM_IMAGES = 50;
 
-// Local uploads are stored as data URLs on the item document for now. Keep generous
-// headroom below MongoDB's 16 MiB BSON document limit for the item's metadata and for
-// future schema fields. Remote image URLs barely contribute to this total.
+// New local uploads are stored as files, but this limit still protects MongoDB from
+// legacy data URLs and custom clients. Remote URLs and managed paths barely contribute.
 export const MAX_ITEM_IMAGE_BYTES = 8 * 1024 * 1024;
 
 export type ItemImageValidationCode = 'too_many' | 'too_large';

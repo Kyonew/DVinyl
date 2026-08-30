@@ -98,7 +98,7 @@
                             <div class="flex items-center justify-between p-3 rounded-xl bg-black/5 dark:bg-white/5 group hidden-item-row" data-id="<%= item._id %>">
                                 <div class="flex items-center gap-3">
                                     <div class="w-8 h-8 rounded-md bg-black/10 dark:bg-white/10 overflow-hidden flex-shrink-0">
-                                        <img src="<%= item.cover_image || '/ressources/logo.png' %>" class="w-full h-full object-cover">
+                                        <img src="<%= itemImageUrl(item.cover_image || '/ressources/logo.png') %>" class="w-full h-full object-cover">
                                     </div>
                                     <div class="overflow-hidden">
                                         <div class="text-xs font-bold truncate"><%= item.title %></div>
@@ -135,6 +135,10 @@
     
     // Registry-driven, i18n-correct format labels (built server-side from every plugin's formats).
     const FORMAT_LABELS = <%- JSON.stringify(formatLabelMap) %>;
+    const deploymentBaseUrl = <%- JSON.stringify(baseUrl.replace(/\/+$/, '')) %>;
+    const displayItemImage = (url) => typeof url === 'string' && url.startsWith('/uploads/items/')
+        ? deploymentBaseUrl + url
+        : url;
     const getFormatLabel = (item) => {
         const fmt = (item.format || item.media_type || item.platform || item.format_type || '').toLowerCase();
         if (!fmt) return '';
@@ -164,7 +168,7 @@
                     div.className = `p-3 flex items-center justify-between hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer ${isAlreadyHidden ? 'opacity-50 pointer-events-none' : ''}`;
                     div.innerHTML = `
                         <div class="flex items-center gap-3 overflow-hidden">
-                            <img src="${item.cover_image || '/ressources/logo.png'}" class="w-8 h-8 rounded-md object-cover bg-black/10 dark:bg-white/10">
+                            <img src="${displayItemImage(item.cover_image || '/ressources/logo.png')}" class="w-8 h-8 rounded-md object-cover bg-black/10 dark:bg-white/10">
                             <div class="overflow-hidden">
                                 <div class="text-xs font-bold truncate">${item.title}</div>
                                 <div class="text-[10px] opacity-60 truncate">${item.artist || item.author || item.director || ''}${getFormatLabel(item)}</div>
@@ -212,7 +216,7 @@
         div.innerHTML = `
             <div class="flex items-center gap-3">
                 <div class="w-8 h-8 rounded-md bg-black/10 dark:bg-white/10 overflow-hidden flex-shrink-0">
-                    <img src="${item.cover_image || '/ressources/logo.png'}" class="w-full h-full object-cover">
+                    <img src="${displayItemImage(item.cover_image || '/ressources/logo.png')}" class="w-full h-full object-cover">
                 </div>
                 <div class="overflow-hidden">
                     <div class="text-xs font-bold truncate">${item.title}</div>
