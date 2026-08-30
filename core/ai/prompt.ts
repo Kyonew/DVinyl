@@ -37,16 +37,23 @@ export function buildExtractionMessages(
       role: 'system',
       content:
         'You extract catalogue entries and return data, never prose.\n\n' +
+        'The input is informal: one item per line, several items separated by commas, ' +
+        '"and", or any other casual phrasing a person would type without thinking about ' +
+        'format. Extract every distinct item you can identify, however it is phrased.\n\n' +
         'Return a JSON array. Each element is one item, an object whose keys are taken ' +
         'from this list of fields:\n\n' +
         `${describeFields(fields)}\n\n` +
         'Rules:\n' +
         '- Every value must be a string. Use an empty string for anything you do not know.\n' +
-        '- Never invent a publisher, a year, an ISBN or a page count. An empty string is ' +
-        'always better than a plausible guess.\n' +
+        '- Identifying an item from the text is not inventing: if the title and the ' +
+        'creator are written in the input, use them even when you are unsure of other ' +
+        'details like the exact year or catalog number - just leave those as an empty ' +
+        'string.\n' +
+        '- Never invent a value that is not derivable from the input, such as a ' +
+        'publisher, year, ISBN or page count you are only guessing at.\n' +
         '- Omit keys that are not in the list above.\n' +
         '- Return only the JSON array, with no commentary and no code fence.\n' +
-        '- If you find no items at all, return [].'
+        '- Return [] only when the input truly names nothing you can identify at all.'
     },
     {
       role: 'user',
