@@ -51,6 +51,10 @@ export function buildExtractionMessages(
         'string.\n' +
         '- Never invent a value that is not derivable from the input, such as a ' +
         'publisher, year, ISBN or page count you are only guessing at.\n' +
+        '- Write titles and creator names with their real, correctly capitalised form ' +
+        '(e.g. "charli xcx" -> "Charli XCX", "the lord of the rings" -> "The Lord of ' +
+        'the Rings"), even when the input was typed in lowercase or inconsistently. ' +
+        'This is normalising a name you can identify, not inventing information.\n' +
         '- Omit keys that are not in the list above.\n' +
         '- Return only the JSON array, with no commentary and no code fence.\n' +
         '- Return [] only when the input truly names nothing you can identify at all.'
