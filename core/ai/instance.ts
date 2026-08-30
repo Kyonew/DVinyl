@@ -1,6 +1,6 @@
 import InstanceSettings from '../../models/InstanceSettings';
 import { AiConfig } from './types';
-import { resolveAiConfig, StoredAiSettings } from './config';
+import { resolveAiConfig, normalizeStoredBaseUrl, StoredAiSettings } from './config';
 import { encryptSecret } from './secret';
 
 /**
@@ -51,7 +51,7 @@ export async function saveAiSettings(input: AiSettingsInput): Promise<void> {
   const update: Record<string, any> = {
     'ai.enabled': input.enabled,
     'ai.provider': input.provider,
-    'ai.baseUrl': input.baseUrl.trim(),
+    'ai.baseUrl': normalizeStoredBaseUrl(input.provider, input.baseUrl),
     'ai.model': input.model.trim(),
     'ai.visionModel': input.visionModel.trim()
   };

@@ -54,6 +54,19 @@ export function resolveAiConfig(stored: StoredAiSettings | null | undefined): Ai
 }
 
 /**
+ * The base URL a save should actually persist. Only the custom provider has a
+ * user-supplied endpoint; every hosted preset's URL is fixed by the provider choice
+ * itself, so a value here would be persisted as an explicit override that shadows the
+ * preset's own baseUrl on every future read — including after switching to a
+ * different provider. This is why the panel's (hidden, unedited) base-URL field can
+ * never be trusted as-is: what it holds after a GET is the *resolved* baseUrl, which
+ * already has the current preset's default filled in, not the raw stored one.
+ */
+export function normalizeStoredBaseUrl(provider: string, baseUrl: string): string {
+  return provider === 'custom' ? baseUrl.trim() : '';
+}
+
+/**
  * True when a request can actually be sent. A local endpoint (Ollama, LM Studio) needs no
  * key, so the key is only required of the hosted presets.
  */

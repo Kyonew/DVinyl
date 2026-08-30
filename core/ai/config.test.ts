@@ -6,10 +6,11 @@ process.env.SESSION_SECRET = 'test-session-secret';
 let encryptSecret: (plain: string) => string;
 let resolveAiConfig: (typeof import('./config'))['resolveAiConfig'];
 let isAiConfigured: (typeof import('./config'))['isAiConfigured'];
+let normalizeStoredBaseUrl: (typeof import('./config'))['normalizeStoredBaseUrl'];
 
 before(async () => {
   ({ encryptSecret } = await import('./secret'));
-  ({ resolveAiConfig, isAiConfigured } = await import('./config'));
+  ({ resolveAiConfig, isAiConfigured, normalizeStoredBaseUrl } = await import('./config'));
 });
 
 const AI_ENV = ['AI_API_KEY', 'AI_BASE_URL', 'AI_MODEL', 'AI_PROVIDER'];
@@ -105,6 +106,18 @@ test('a disabled config is never configured, whatever it holds', () => {
     visionModel: '', apiKeyEncrypted: encryptSecret('sk-x')
   });
   assert.equal(isAiConfigured(config), false);
+});
+
+test('normalizeStoredBaseUrl keeps an explicit override only for the custom provider', () => {
+  assert.equal(normalizeStoredBaseUrl('custom', '  http://localhost:11434/v1  '), 'http://localhost:11434/v1');
+});
+
+test('normalizeStoredBaseUrl drops a hosted preset\'s base URL even when the panel echoed it back', () => {
+  // GET returns the *resolved* baseUrl (a preset default already filled in) for display,
+  // not the raw stored one. A save must not trust that value back for a hosted preset,
+  // or picking OpenRouter once permanently shadows every other provider's own endpoint.
+  assert.equal(normalizeStoredBaseUrl('openrouter', 'https://openrouter.ai/api/v1'), '');
+  assert.equal(normalizeStoredBaseUrl('anthropic', 'https://openrouter.ai/api/v1'), '', 'a stale value from a prior provider is dropped, not persisted');
 });
 
 test('visionModel falls back to the text model when unset', () => {
