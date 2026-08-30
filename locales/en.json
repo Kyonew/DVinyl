@@ -631,7 +631,11 @@
     "saved": "AI settings saved",
     "get_key": "Get an API key",
     "err_save": "Could not save the AI settings.",
-    "err_not_configured": "AI assist is not configured yet."
+    "err_not_configured": "AI assist is not configured yet.",
+    "err_no_input": "Enter something to import first.",
+    "err_input_too_long": "That is too long. Import at most {{max}} characters at a time.",
+    "err_no_rows": "No rows to import.",
+    "err_extract_failed": "The AI could not read that: {{error}}"
   },
   "collection": {
     "title": "My Collection",

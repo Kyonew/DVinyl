@@ -631,7 +631,11 @@
     "saved": "Paramètres IA enregistrés",
     "get_key": "Obtenir une clé API",
     "err_save": "Impossible d'enregistrer les paramètres IA.",
-    "err_not_configured": "L'assistant IA n'est pas encore configuré."
+    "err_not_configured": "L'assistant IA n'est pas encore configuré.",
+    "err_no_input": "Saisissez d'abord quelque chose à importer.",
+    "err_input_too_long": "C'est trop long. Importez au maximum {{max}} caractères à la fois.",
+    "err_no_rows": "Aucune ligne à importer.",
+    "err_extract_failed": "L'IA n'a pas pu lire cela : {{error}}"
   },
   "collection": {
     "title": "Ma Collection",
