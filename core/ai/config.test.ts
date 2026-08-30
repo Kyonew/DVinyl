@@ -5,12 +5,13 @@ process.env.SESSION_SECRET = 'test-session-secret';
 
 let encryptSecret: (plain: string) => string;
 let resolveAiConfig: (typeof import('./config'))['resolveAiConfig'];
+let resolveTestConfig: (typeof import('./config'))['resolveTestConfig'];
 let isAiConfigured: (typeof import('./config'))['isAiConfigured'];
 let normalizeStoredBaseUrl: (typeof import('./config'))['normalizeStoredBaseUrl'];
 
 before(async () => {
   ({ encryptSecret } = await import('./secret'));
-  ({ resolveAiConfig, isAiConfigured, normalizeStoredBaseUrl } = await import('./config'));
+  ({ resolveAiConfig, resolveTestConfig, isAiConfigured, normalizeStoredBaseUrl } = await import('./config'));
 });
 
 const AI_ENV = ['AI_API_KEY', 'AI_BASE_URL', 'AI_MODEL', 'AI_PROVIDER'];
@@ -126,4 +127,35 @@ test('visionModel falls back to the text model when unset', () => {
     visionModel: '', apiKeyEncrypted: encryptSecret('sk-x')
   });
   assert.equal(config.visionModel, 'my-model');
+});
+
+test('resolveTestConfig is configured from unsaved fields alone, nothing stored', () => {
+  const config = resolveTestConfig({
+    provider: 'anthropic', baseUrl: '', model: 'claude-sonnet-4-5', visionModel: '',
+    apiKey: 'sk-fresh-unsaved'
+  }, null);
+  assert.equal(config.enabled, true, 'testing does not require the enable toggle');
+  assert.equal(config.provider, 'anthropic');
+  assert.equal(config.baseUrl, 'https://api.anthropic.com/v1');
+  assert.equal(config.apiKey, 'sk-fresh-unsaved');
+  assert.equal(isAiConfigured(config), true);
+});
+
+test('resolveTestConfig falls back to the stored key when the field is blank', () => {
+  const config = resolveTestConfig({
+    provider: 'anthropic', baseUrl: '', model: '', visionModel: '', apiKey: ''
+  }, {
+    enabled: false, provider: 'anthropic', baseUrl: '', model: 'claude-sonnet-4-5',
+    visionModel: '', apiKeyEncrypted: encryptSecret('sk-already-stored')
+  });
+  assert.equal(config.apiKey, 'sk-already-stored');
+  assert.equal(config.model, 'claude-sonnet-4-5');
+});
+
+test('resolveTestConfig ignores a hosted-preset baseUrl left over from a previous provider', () => {
+  const config = resolveTestConfig({
+    provider: 'anthropic', baseUrl: 'https://openrouter.ai/api/v1', model: '', visionModel: '',
+    apiKey: 'sk-x'
+  }, null);
+  assert.equal(config.baseUrl, 'https://api.anthropic.com/v1');
 });

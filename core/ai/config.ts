@@ -14,6 +14,50 @@ export interface StoredAiSettings {
 
 const stripTrailingSlash = (url: string): string => url.replace(/\/+$/, '');
 
+/** Plaintext candidate values (already decrypted, already precedence-resolved between
+ * two sources if there were any) that both resolveAiConfig and resolveTestConfig funnel
+ * through the same environment-override + preset-fallback rules. */
+interface AiCandidate {
+  provider: string;
+  baseUrl: string;
+  model: string;
+  visionModel: string;
+  apiKey: string;
+}
+
+/**
+ * The environment-override and preset-fallback rules shared by every path that produces
+ * an AiConfig, whatever fed the candidate values in (the stored document, or a pending
+ * edit that was never saved).
+ */
+function resolveCandidate(candidate: AiCandidate, enabledFallback: boolean): AiConfig {
+  const envKey = process.env.AI_API_KEY || '';
+  const envBaseUrl = process.env.AI_BASE_URL || '';
+  const envModel = process.env.AI_MODEL || '';
+  const envProvider = process.env.AI_PROVIDER || '';
+  const fromEnv = Boolean(envKey || envBaseUrl || envModel || envProvider);
+
+  const providerId = envProvider || candidate.provider || DEFAULT_PROVIDER_ID;
+  const preset = getProviderPreset(providerId) || getProviderPreset(DEFAULT_PROVIDER_ID)!;
+
+  const baseUrl = stripTrailingSlash(envBaseUrl || candidate.baseUrl || preset.baseUrl);
+  const model = envModel || candidate.model || preset.defaultModel;
+  const visionModel = candidate.visionModel || model;
+  const apiKey = envKey || candidate.apiKey;
+
+  return {
+    // A key supplied through the environment is an explicit act of configuration, so it
+    // turns the feature on without a second switch in the admin panel.
+    enabled: Boolean(envKey) || enabledFallback,
+    provider: preset.id as AiProviderId,
+    baseUrl,
+    model,
+    visionModel,
+    apiKey,
+    fromEnv
+  };
+}
+
 /**
  * The effective AI configuration: what is stored on the instance, with the AI_*
  * environment variables taking precedence.
@@ -26,31 +70,38 @@ const stripTrailingSlash = (url: string): string => url.replace(/\/+$/, '');
  * is what makes the precedence rules testable.
  */
 export function resolveAiConfig(stored: StoredAiSettings | null | undefined): AiConfig {
-  const envKey = process.env.AI_API_KEY || '';
-  const envBaseUrl = process.env.AI_BASE_URL || '';
-  const envModel = process.env.AI_MODEL || '';
-  const envProvider = process.env.AI_PROVIDER || '';
-  const fromEnv = Boolean(envKey || envBaseUrl || envModel || envProvider);
+  return resolveCandidate({
+    provider: stored?.provider || '',
+    baseUrl: stored?.baseUrl || '',
+    model: stored?.model || '',
+    visionModel: stored?.visionModel || '',
+    apiKey: decryptSecret(stored?.apiKeyEncrypted || '')
+  }, stored?.enabled === true);
+}
 
-  const providerId = envProvider || stored?.provider || DEFAULT_PROVIDER_ID;
-  const preset = getProviderPreset(providerId) || getProviderPreset(DEFAULT_PROVIDER_ID)!;
-
-  const baseUrl = stripTrailingSlash(envBaseUrl || stored?.baseUrl || preset.baseUrl);
-  const model = envModel || stored?.model || preset.defaultModel;
-  const visionModel = stored?.visionModel || model;
-  const apiKey = envKey || decryptSecret(stored?.apiKeyEncrypted || '');
-
-  return {
-    // A key supplied through the environment is an explicit act of configuration, so it
-    // turns the feature on without a second switch in the admin panel.
-    enabled: Boolean(envKey) || stored?.enabled === true,
-    provider: preset.id as AiProviderId,
-    baseUrl,
-    model,
-    visionModel,
-    apiKey,
-    fromEnv
-  };
+/**
+ * The config a "Test connection" click should use: the panel's current, possibly-unsaved
+ * fields, falling back field-by-field to what's actually stored (same "blank means
+ * unchanged" convention the save endpoint uses for the API key) so testing works whether
+ * or not the form has been saved yet. Always treated as enabled — testing is a question
+ * about whether a provider/key/model combination works, independent of whether the
+ * instance has the feature switched on.
+ */
+export function resolveTestConfig(
+  input: { provider: string; baseUrl: string; model: string; visionModel: string; apiKey: string },
+  stored: StoredAiSettings | null | undefined
+): AiConfig {
+  const provider = input.provider || stored?.provider || '';
+  return resolveCandidate({
+    provider,
+    // Only the custom provider's base URL is ever a real user edit (see
+    // normalizeStoredBaseUrl) - for every hosted preset this must resolve to the
+    // preset's own URL, never a stale value left over from a different provider.
+    baseUrl: normalizeStoredBaseUrl(provider, input.baseUrl),
+    model: input.model || stored?.model || '',
+    visionModel: input.visionModel || stored?.visionModel || '',
+    apiKey: input.apiKey || decryptSecret(stored?.apiKeyEncrypted || '')
+  }, true);
 }
 
 /**

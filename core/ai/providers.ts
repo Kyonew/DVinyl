@@ -37,8 +37,8 @@ export const AI_PROVIDERS: AiProviderPreset[] = [
     id: 'gemini',
     label: 'Google Gemini',
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
-    defaultModel: 'gemini-2.0-flash',
-    defaultVisionModel: 'gemini-2.0-flash',
+    defaultModel: 'gemini-3.6-flash',
+    defaultVisionModel: 'gemini-3.6-flash',
     docsUrl: 'https://aistudio.google.com/apikey'
   },
   {

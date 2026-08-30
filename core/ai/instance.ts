@@ -19,19 +19,25 @@ export function invalidateAiConfigCache(): void {
   cached = null;
 }
 
-export async function getAiConfig(): Promise<AiConfig> {
-  if (cached && Date.now() - cached.at < CACHE_TTL_MS) return cached.config;
-
-  let stored: StoredAiSettings | null = null;
+/** The raw stored document, undecrypted key and all - for anything that needs to fall
+ * back to it field-by-field (the test-connection route) rather than the fully-resolved
+ * config. */
+export async function getStoredAiSettings(): Promise<StoredAiSettings | null> {
   try {
     const doc: any = await InstanceSettings.findOne({ key: 'instance' }).lean();
-    stored = (doc?.ai as StoredAiSettings) || null;
+    return (doc?.ai as StoredAiSettings) || null;
   } catch (err: any) {
     // A database hiccup must not take a search page down with it: AI is an assist, and
     // an unresolved config simply reads as "not configured".
     console.error('[ERR] AI config read:', err.message);
+    return null;
   }
+}
 
+export async function getAiConfig(): Promise<AiConfig> {
+  if (cached && Date.now() - cached.at < CACHE_TTL_MS) return cached.config;
+
+  const stored = await getStoredAiSettings();
   const config = resolveAiConfig(stored);
   cached = { config, at: Date.now() };
   return config;

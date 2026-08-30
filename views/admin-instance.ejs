@@ -952,7 +952,10 @@
                 providerEl.addEventListener('change', () => {
                     syncProviderFields();
                     const preset = providers.find(p => p.id === providerEl.value);
-                    if (preset && preset.id !== 'custom') modelEl.value = preset.defaultModel;
+                    if (preset && preset.id !== 'custom') {
+                        modelEl.value = preset.defaultModel;
+                        visionModelEl.value = preset.defaultVisionModel;
+                    }
                 });
 
                 clearKeyBtn.addEventListener('click', () => {
@@ -995,7 +998,20 @@
 
                 testBtn.addEventListener('click', async () => {
                     try {
-                        const response = await fetch('<%= baseUrl %>/admin/instance/ai/test', { method: 'POST' });
+                        // Tests whatever is currently in the form, not the saved config, so a
+                        // freshly typed/pasted key can be tried before deciding to Save it. A
+                        // blank apiKey field falls back to the already-stored key server-side.
+                        const response = await fetch('<%= baseUrl %>/admin/instance/ai/test', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                provider: providerEl.value,
+                                baseUrl: baseUrlEl.value,
+                                model: modelEl.value,
+                                visionModel: visionModelEl.value,
+                                apiKey: pendingClear ? '' : apiKeyEl.value
+                            })
+                        });
                         const data = await response.json();
                         if (!response.ok || !data.success) throw new Error(data.error || 'Error');
                         showResult(testResult, true, <%- JSON.stringify(t('ai.test_ok', { model: '__MODEL__' })) %>.replace('__MODEL__', data.model));

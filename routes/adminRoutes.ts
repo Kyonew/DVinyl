@@ -19,8 +19,8 @@ import { CARD_ASPECT_RATIOS } from "../core/customPlugin";
 import { PermanentRefreshError, syncStamp } from "../core/helpers";
 import { deleteItemsAndContents } from "../utils/itemHelpers";
 import { AI_PROVIDERS } from "../core/ai/providers";
-import { getAiConfig, saveAiSettings } from "../core/ai/instance";
-import { isAiConfigured } from "../core/ai/config";
+import { getAiConfig, getStoredAiSettings, saveAiSettings } from "../core/ai/instance";
+import { isAiConfigured, resolveTestConfig } from "../core/ai/config";
 import { keyHint } from "../core/ai/secret";
 import { aiChat, AiError } from "../core/ai/client";
 
@@ -284,7 +284,7 @@ router.get("/instance/ai", requireAuth, requireAdmin, async (_req: any, res: any
     configured: isAiConfigured(config),
     providers: AI_PROVIDERS.map(p => ({
       id: p.id, label: p.label, baseUrl: p.baseUrl,
-      defaultModel: p.defaultModel, docsUrl: p.docsUrl
+      defaultModel: p.defaultModel, defaultVisionModel: p.defaultVisionModel, docsUrl: p.docsUrl
     }))
   });
 });
@@ -307,9 +307,18 @@ router.post("/instance/ai", requireAuth, requireAdmin, async (req: any, res: any
   }
 });
 
-// POST /admin/instance/ai/test -> one real round-trip, so a bad key is found here
+// POST /admin/instance/ai/test -> one real round-trip, so a bad key is found here.
+// Tests the panel's current fields, not the saved config, so a key can be tried before
+// committing to Save; any field left blank falls back to what's actually stored.
 router.post("/instance/ai/test", requireAuth, requireAdmin, async (req: any, res: any) => {
-  const config = await getAiConfig();
+  const stored = await getStoredAiSettings();
+  const config = resolveTestConfig({
+    provider: String(req.body?.provider || ''),
+    baseUrl: String(req.body?.baseUrl || ''),
+    model: String(req.body?.model || ''),
+    visionModel: String(req.body?.visionModel || ''),
+    apiKey: typeof req.body?.apiKey === 'string' ? req.body.apiKey.trim() : ''
+  }, stored);
   if (!isAiConfigured(config)) {
     return res.status(400).json({ success: false, error: req.t('ai.err_not_configured') });
   }
