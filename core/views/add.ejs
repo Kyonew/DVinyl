@@ -31,10 +31,10 @@
                     class="block w-full p-4 pl-12 text-base bg-black/5 dark:bg-white/5 border border-transparent focus:border-primary-theme rounded-2xl focus:ring-2 focus:ring-primary-theme/50 placeholder-opacity-50 transition-all outline-none"
                     placeholder="<%= t('add_' + plugin.i18nKey + '.search_placeholder', { defaultValue: t('add_vinyl.search_placeholder') }) %>" autofocus required>
             </div>
-            <button type="submit"
+            <button type="submit" id="searchSubmitBtn"
                 class="bg-primary-theme hover:brightness-110 text-white font-bold px-8 py-4 rounded-2xl shadow-lg shadow-primary-theme/20 transition-all active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap">
                 <i class="fa-solid fa-search"></i>
-                <%= t('common.search') %>
+                <span><%= t('common.search') %></span>
             </button>
         </div>
 
@@ -158,7 +158,18 @@
     const readerDiv = document.getElementById('reader');
     const searchInput = document.querySelector('input[name="query"]');
     const form = document.querySelector('form[action="<%= baseUrl %>/search-<%= plugin.id %>"]');
+    const searchSubmitBtn = document.getElementById('searchSubmitBtn');
     let isScanning = false;
+
+    // A plain form POST, so this spinner just rides out the page navigation - it's the
+    // one submit path shared by typing a query, clicking Search, and a barcode scan
+    // finding a code, and any of those can now take a few extra seconds when the
+    // barcode falls through to the AI assist.
+    form.addEventListener('submit', () => {
+        searchSubmitBtn.disabled = true;
+        searchSubmitBtn.classList.add('opacity-70', 'cursor-not-allowed');
+        searchSubmitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span><%= t("common.searching") %></span>';
+    });
 
     scanButton.addEventListener('click', () => {
         if (isScanning) {
@@ -195,7 +206,7 @@
                         readerDiv.classList.add('hidden');
                         scanButton.innerHTML = scanTranslations.found;
                         searchInput.value = decodedText;
-                        form.submit();
+                        form.requestSubmit();
                     });
                 },
                 (errorMessage) => {}
