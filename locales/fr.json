@@ -635,7 +635,19 @@
     "err_no_input": "Saisissez d'abord quelque chose à importer.",
     "err_input_too_long": "C'est trop long. Importez au maximum {{max}} caractères à la fois.",
     "err_no_rows": "Aucune ligne à importer.",
-    "err_extract_failed": "L'IA n'a pas pu lire cela : {{error}}"
+    "err_extract_failed": "L'IA n'a pas pu lire cela : {{error}}",
+    "import_title": "Importer avec l'IA",
+    "import_subtitle": "Collez une liste de ce que vous possédez et laissez l'IA la transformer en articles. Vous vérifiez tout avant l'enregistrement.",
+    "import_module": "Ajouter à",
+    "import_text_label": "Votre liste",
+    "import_text_placeholder": "Dune, Frank Herbert, Pocket 1980\nLe Petit Prince, Gallimard",
+    "import_analyse": "Analyser",
+    "import_back": "Modifier votre liste",
+    "import_review_title": "Vérifiez avant d'importer",
+    "import_review_hint": "L'IA peut se tromper. Corrigez ce qui semble incorrect et décochez ce que vous ne voulez pas.",
+    "import_missing_required": "Information requise manquante",
+    "import_confirm": "Importer les lignes cochées",
+    "import_none_selected": "Cochez au moins une ligne."
   },
   "collection": {
     "title": "Ma Collection",

@@ -174,6 +174,9 @@ router.get("/", requireAuth, requireCollectionRole("admin"), async (req: any, re
       // Share links must show a full, absolute URL (scheme + host) - a bare
       // baseUrl-relative path is not something you can scan/paste elsewhere.
       siteOrigin: `${getPublicProtocol(req)}://${req.get("host")}`,
+      // Known once, server-side, from the config this page already has every reason to
+      // read - no reason to make the browser ask again just to decide whether to show the card.
+      aiConfigured: isAiConfigured(await getAiConfig()),
     });
   } catch (err) {
     console.error(err);

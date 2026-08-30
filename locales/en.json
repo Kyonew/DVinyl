@@ -635,7 +635,19 @@
     "err_no_input": "Enter something to import first.",
     "err_input_too_long": "That is too long. Import at most {{max}} characters at a time.",
     "err_no_rows": "No rows to import.",
-    "err_extract_failed": "The AI could not read that: {{error}}"
+    "err_extract_failed": "The AI could not read that: {{error}}",
+    "import_title": "Import with AI",
+    "import_subtitle": "Paste a list of what you own and let the AI turn it into items. You review everything before it is saved.",
+    "import_module": "Add to",
+    "import_text_label": "Your list",
+    "import_text_placeholder": "Dune, Frank Herbert, Pocket 1980\nLe Petit Prince, Gallimard",
+    "import_analyse": "Analyse",
+    "import_back": "Edit your list",
+    "import_review_title": "Check before importing",
+    "import_review_hint": "The AI can be wrong. Correct anything that looks off, and untick what you do not want.",
+    "import_missing_required": "Missing required information",
+    "import_confirm": "Import the ticked rows",
+    "import_none_selected": "Tick at least one row."
   },
   "collection": {
     "title": "My Collection",
