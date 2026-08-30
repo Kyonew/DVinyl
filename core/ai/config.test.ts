@@ -1,0 +1,116 @@
+import { test, beforeEach, before } from 'node:test';
+import assert from 'node:assert/strict';
+
+process.env.SESSION_SECRET = 'test-session-secret';
+
+let encryptSecret: (plain: string) => string;
+let resolveAiConfig: (typeof import('./config'))['resolveAiConfig'];
+let isAiConfigured: (typeof import('./config'))['isAiConfigured'];
+
+before(async () => {
+  ({ encryptSecret } = await import('./secret'));
+  ({ resolveAiConfig, isAiConfigured } = await import('./config'));
+});
+
+const AI_ENV = ['AI_API_KEY', 'AI_BASE_URL', 'AI_MODEL', 'AI_PROVIDER'];
+
+beforeEach(() => {
+  for (const name of AI_ENV) delete process.env[name];
+});
+
+test('an absent stored document yields a disabled, unconfigured config', () => {
+  const config = resolveAiConfig(null);
+  assert.equal(config.enabled, false);
+  assert.equal(config.apiKey, '');
+  assert.equal(isAiConfigured(config), false);
+});
+
+test('stored values are used and the key is decrypted', () => {
+  const config = resolveAiConfig({
+    enabled: true,
+    provider: 'openrouter',
+    baseUrl: '',
+    model: 'openai/gpt-4o-mini',
+    visionModel: '',
+    apiKeyEncrypted: encryptSecret('sk-stored')
+  });
+  assert.equal(config.enabled, true);
+  assert.equal(config.apiKey, 'sk-stored');
+  assert.equal(config.baseUrl, 'https://openrouter.ai/api/v1', 'falls back to the preset base URL');
+  assert.equal(config.model, 'openai/gpt-4o-mini');
+  assert.equal(config.fromEnv, false);
+  assert.equal(isAiConfigured(config), true);
+});
+
+test('the environment overrides the stored key, base URL and model', () => {
+  process.env.AI_API_KEY = 'sk-from-env';
+  process.env.AI_BASE_URL = 'http://localhost:11434/v1';
+  process.env.AI_MODEL = 'llama3';
+  const config = resolveAiConfig({
+    enabled: true,
+    provider: 'openrouter',
+    baseUrl: '',
+    model: 'openai/gpt-4o-mini',
+    visionModel: '',
+    apiKeyEncrypted: encryptSecret('sk-stored')
+  });
+  assert.equal(config.apiKey, 'sk-from-env');
+  assert.equal(config.baseUrl, 'http://localhost:11434/v1');
+  assert.equal(config.model, 'llama3');
+  assert.equal(config.fromEnv, true);
+});
+
+test('AI_API_KEY alone enables AI even with nothing stored', () => {
+  process.env.AI_API_KEY = 'sk-from-env';
+  process.env.AI_MODEL = 'gpt-4o-mini';
+  const config = resolveAiConfig(null);
+  assert.equal(config.enabled, true);
+  assert.equal(isAiConfigured(config), true);
+});
+
+test('a trailing slash is stripped from the base URL', () => {
+  process.env.AI_BASE_URL = 'http://localhost:11434/v1/';
+  const config = resolveAiConfig(null);
+  assert.equal(config.baseUrl, 'http://localhost:11434/v1');
+});
+
+test('an unknown provider falls back to the default preset', () => {
+  const config = resolveAiConfig({
+    enabled: true,
+    provider: 'bogus',
+    baseUrl: '',
+    model: '',
+    visionModel: '',
+    apiKeyEncrypted: encryptSecret('sk-x')
+  });
+  assert.equal(config.provider, 'openrouter');
+  assert.equal(config.model, 'openai/gpt-4o-mini', 'falls back to the preset default model');
+});
+
+test('a config with no model or no base URL is not configured', () => {
+  assert.equal(isAiConfigured(resolveAiConfig({
+    enabled: true, provider: 'custom', baseUrl: '', model: 'x',
+    visionModel: '', apiKeyEncrypted: encryptSecret('sk-x')
+  })), false, 'custom with no base URL');
+
+  assert.equal(isAiConfigured(resolveAiConfig({
+    enabled: true, provider: 'custom', baseUrl: 'http://h/v1', model: '',
+    visionModel: '', apiKeyEncrypted: encryptSecret('sk-x')
+  })), false, 'no model');
+});
+
+test('a disabled config is never configured, whatever it holds', () => {
+  const config = resolveAiConfig({
+    enabled: false, provider: 'openrouter', baseUrl: '', model: 'm',
+    visionModel: '', apiKeyEncrypted: encryptSecret('sk-x')
+  });
+  assert.equal(isAiConfigured(config), false);
+});
+
+test('visionModel falls back to the text model when unset', () => {
+  const config = resolveAiConfig({
+    enabled: true, provider: 'openrouter', baseUrl: '', model: 'my-model',
+    visionModel: '', apiKeyEncrypted: encryptSecret('sk-x')
+  });
+  assert.equal(config.visionModel, 'my-model');
+});
