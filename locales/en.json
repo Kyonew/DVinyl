@@ -609,6 +609,30 @@
       "err_missing_required": "These required fields must be mapped to a column or to a fixed value: {{fields}}"
     }
   },
+  "ai": {
+    "title": "AI assist",
+    "subtitle": "Bring your own key. Used to identify unknown barcodes and to import items from text or photos.",
+    "enable": "Enable AI assist",
+    "provider": "Provider",
+    "base_url": "Base URL",
+    "base_url_hint": "Only for a custom OpenAI-compatible endpoint (Ollama, LM Studio, Groq...).",
+    "model": "Model",
+    "vision_model": "Vision model",
+    "vision_model_hint": "Used for photo import. Leave empty to reuse the model above.",
+    "api_key": "API key",
+    "api_key_hint": "Stored encrypted. Leave empty to keep the current key.",
+    "api_key_set": "A key is saved ({{hint}})",
+    "clear_key": "Remove the saved key",
+    "from_env": "These values come from AI_* environment variables and cannot be edited here.",
+    "save": "Save",
+    "test": "Test connection",
+    "test_ok": "Connection successful ({{model}})",
+    "test_failed": "Connection failed: {{error}}",
+    "saved": "AI settings saved",
+    "get_key": "Get an API key",
+    "err_save": "Could not save the AI settings.",
+    "err_not_configured": "AI assist is not configured yet."
+  },
   "collection": {
     "title": "My Collection",
     "share_view_banner": "You're viewing a shared collection - read-only.",

@@ -207,6 +207,98 @@
                     </form>
                 </section>
 
+                <!-- ============ AI ASSIST ============ -->
+                <section>
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between py-6 gap-4 mb-2">
+                        <h2 class="text-xl md:text-2xl font-bold flex items-center gap-3 transition-colors">
+                            <i class="fa-solid fa-wand-magic-sparkles text-primary-theme"></i>
+                            <%= t('ai.title') %>
+                        </h2>
+                    </div>
+
+                    <div id="aiPanel"
+                        class="card-theme rounded-3xl p-6 md:p-8 shadow-sm transition-colors space-y-6">
+
+                        <p class="text-xs opacity-60 leading-relaxed max-w-2xl -mt-2">
+                            <%= t('ai.subtitle') %>
+                        </p>
+
+                        <div id="aiFromEnvNotice"
+                            class="hidden text-xs font-bold px-4 py-3 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                            <%= t('ai.from_env') %>
+                        </div>
+
+                        <label class="flex items-start justify-between gap-6 cursor-pointer">
+                            <p class="text-sm font-black"><%= t('ai.enable') %></p>
+                            <div class="relative inline-flex items-center shrink-0 mt-1">
+                                <input type="checkbox" id="aiEnabled" class="sr-only peer">
+                                <div class="w-11 h-6 bg-black/10 dark:bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500">
+                                </div>
+                            </div>
+                        </label>
+
+                        <div class="grid sm:grid-cols-2 gap-6 border-t border-black/5 dark:border-white/5 pt-6">
+                            <div class="space-y-2">
+                                <p class="text-sm font-black"><%= t('ai.provider') %></p>
+                                <select id="aiProvider"
+                                    class="w-full p-3 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 focus:outline-none focus:border-primary-theme transition-colors"></select>
+                                <a id="aiGetKeyLink" href="#" target="_blank" rel="noopener"
+                                    class="hidden text-xs font-bold text-primary-theme hover:underline">
+                                    <%= t('ai.get_key') %> <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                                </a>
+                            </div>
+
+                            <div id="aiBaseUrlRow" class="space-y-2 hidden">
+                                <p class="text-sm font-black"><%= t('ai.base_url') %></p>
+                                <input type="text" id="aiBaseUrl" placeholder="http://localhost:11434/v1"
+                                    class="w-full p-3 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 focus:outline-none focus:border-primary-theme transition-colors">
+                                <p class="text-xs opacity-60"><%= t('ai.base_url_hint') %></p>
+                            </div>
+
+                            <div class="space-y-2">
+                                <p class="text-sm font-black"><%= t('ai.model') %></p>
+                                <input type="text" id="aiModel"
+                                    class="w-full p-3 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 focus:outline-none focus:border-primary-theme transition-colors">
+                            </div>
+
+                            <div class="space-y-2">
+                                <p class="text-sm font-black"><%= t('ai.vision_model') %></p>
+                                <input type="text" id="aiVisionModel"
+                                    class="w-full p-3 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 focus:outline-none focus:border-primary-theme transition-colors">
+                                <p class="text-xs opacity-60"><%= t('ai.vision_model_hint') %></p>
+                            </div>
+
+                            <div class="space-y-2 sm:col-span-2">
+                                <p class="text-sm font-black"><%= t('ai.api_key') %></p>
+                                <input type="password" id="aiApiKey" autocomplete="new-password"
+                                    placeholder="<%= t('ai.api_key_hint') %>"
+                                    class="w-full p-3 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 focus:outline-none focus:border-primary-theme transition-colors">
+                                <div id="aiKeySetLine" class="hidden flex items-center gap-3 text-xs">
+                                    <span class="opacity-70 font-bold" id="aiKeyHintText"></span>
+                                    <button type="button" id="aiClearKeyBtn"
+                                        class="text-red-600 hover:underline font-bold"><%= t('ai.clear_key') %></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="aiTestResult" class="hidden text-xs font-bold px-4 py-3 rounded-xl"></div>
+
+                        <div
+                            class="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 border-t border-black/5 dark:border-white/5 pt-6">
+                            <button type="button" id="aiTestBtn"
+                                class="flex items-center justify-center gap-2 bg-black/5 dark:bg-white/5 hover:brightness-110 px-5 py-3 rounded-2xl transition-all active:scale-95">
+                                <i class="fa-solid fa-bolt text-sm"></i>
+                                <span class="text-xs font-black"><%= t('ai.test') %></span>
+                            </button>
+                            <button type="button" id="aiSaveBtn"
+                                class="flex items-center justify-center gap-2 bg-primary-theme hover:brightness-110 text-white px-5 py-3 rounded-2xl shadow-lg shadow-primary-theme/20 transition-all active:scale-95">
+                                <i class="fa-solid fa-floppy-disk text-sm"></i>
+                                <span class="text-xs font-black"><%= t('ai.save') %></span>
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
                 <!-- ============ USERS ============ -->
                 <section>
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between py-6 gap-4 mb-4">
@@ -782,6 +874,130 @@
                 const sync = () => quotaRow.classList.toggle('opacity-40', !toggle.checked);
                 toggle.addEventListener('change', sync);
                 sync();
+            })();
+
+            // ---- AI assist panel ----
+            (function () {
+                const panel = document.getElementById('aiPanel');
+                if (!panel) return;
+
+                const enabledEl = document.getElementById('aiEnabled');
+                const providerEl = document.getElementById('aiProvider');
+                const baseUrlRow = document.getElementById('aiBaseUrlRow');
+                const baseUrlEl = document.getElementById('aiBaseUrl');
+                const modelEl = document.getElementById('aiModel');
+                const visionModelEl = document.getElementById('aiVisionModel');
+                const apiKeyEl = document.getElementById('aiApiKey');
+                const keySetLine = document.getElementById('aiKeySetLine');
+                const keyHintText = document.getElementById('aiKeyHintText');
+                const clearKeyBtn = document.getElementById('aiClearKeyBtn');
+                const getKeyLink = document.getElementById('aiGetKeyLink');
+                const fromEnvNotice = document.getElementById('aiFromEnvNotice');
+                const testBtn = document.getElementById('aiTestBtn');
+                const saveBtn = document.getElementById('aiSaveBtn');
+                const testResult = document.getElementById('aiTestResult');
+
+                let providers = [];
+                let pendingClear = false;
+
+                function setDisabled(disabled) {
+                    [enabledEl, providerEl, baseUrlEl, modelEl, visionModelEl, apiKeyEl, clearKeyBtn, saveBtn, testBtn]
+                        .forEach(el => { if (el) el.disabled = disabled; });
+                }
+
+                function syncProviderFields() {
+                    const preset = providers.find(p => p.id === providerEl.value);
+                    baseUrlRow.classList.toggle('hidden', providerEl.value !== 'custom');
+                    if (preset && preset.docsUrl) {
+                        getKeyLink.href = preset.docsUrl;
+                        getKeyLink.classList.remove('hidden');
+                    } else {
+                        getKeyLink.classList.add('hidden');
+                    }
+                }
+
+                function showResult(el, ok, text) {
+                    el.textContent = text;
+                    el.classList.remove('hidden', 'bg-green-500/10', 'text-green-600', 'bg-red-500/10', 'text-red-600');
+                    el.classList.add(ok ? 'bg-green-500/10' : 'bg-red-500/10', ok ? 'text-green-600' : 'text-red-600');
+                }
+
+                async function loadAiSettings() {
+                    const response = await fetch('<%= baseUrl %>/admin/instance/ai');
+                    if (!response.ok) return;
+                    const data = await response.json();
+
+                    providers = data.providers || [];
+                    providerEl.innerHTML = providers.map(p => `<option value="${p.id}">${p.label}</option>`).join('');
+
+                    enabledEl.checked = data.enabled;
+                    providerEl.value = data.provider;
+                    baseUrlEl.value = data.baseUrl || '';
+                    modelEl.value = data.model || '';
+                    visionModelEl.value = data.visionModel || '';
+                    apiKeyEl.value = '';
+
+                    if (data.hasKey) {
+                        keyHintText.textContent = <%- JSON.stringify(t('ai.api_key_set', { hint: '__HINT__' })) %>.replace('__HINT__', data.keyHint);
+                        keySetLine.classList.remove('hidden');
+                    } else {
+                        keySetLine.classList.add('hidden');
+                    }
+
+                    syncProviderFields();
+                    fromEnvNotice.classList.toggle('hidden', !data.fromEnv);
+                    setDisabled(data.fromEnv);
+                }
+
+                providerEl.addEventListener('change', () => {
+                    syncProviderFields();
+                    const preset = providers.find(p => p.id === providerEl.value);
+                    if (preset && preset.id !== 'custom') modelEl.value = preset.defaultModel;
+                });
+
+                clearKeyBtn.addEventListener('click', () => {
+                    pendingClear = true;
+                    apiKeyEl.value = '';
+                    keySetLine.classList.add('hidden');
+                });
+
+                saveBtn.addEventListener('click', async () => {
+                    testResult.classList.add('hidden');
+                    try {
+                        const response = await fetch('<%= baseUrl %>/admin/instance/ai', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                enabled: enabledEl.checked,
+                                provider: providerEl.value,
+                                baseUrl: baseUrlEl.value,
+                                model: modelEl.value,
+                                visionModel: visionModelEl.value,
+                                apiKey: pendingClear ? '__clear__' : apiKeyEl.value
+                            })
+                        });
+                        const data = await response.json();
+                        if (!response.ok || !data.success) throw new Error(data.error || 'Error');
+                        pendingClear = false;
+                        showResult(testResult, true, <%- JSON.stringify(t('ai.saved')) %>);
+                        await loadAiSettings();
+                    } catch (err) {
+                        showResult(testResult, false, err.message);
+                    }
+                });
+
+                testBtn.addEventListener('click', async () => {
+                    try {
+                        const response = await fetch('<%= baseUrl %>/admin/instance/ai/test', { method: 'POST' });
+                        const data = await response.json();
+                        if (!response.ok || !data.success) throw new Error(data.error || 'Error');
+                        showResult(testResult, true, <%- JSON.stringify(t('ai.test_ok', { model: '__MODEL__' })) %>.replace('__MODEL__', data.model));
+                    } catch (err) {
+                        showResult(testResult, false, <%- JSON.stringify(t('ai.test_failed', { error: '__ERROR__' })) %>.replace('__ERROR__', err.message));
+                    }
+                });
+
+                loadAiSettings();
             })();
 
             document.getElementById('backupInput').onchange = function (e) {

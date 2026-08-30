@@ -609,6 +609,30 @@
       "err_missing_required": "Ces champs obligatoires doivent être associés à une colonne ou à une valeur fixe : {{fields}}"
     }
   },
+  "ai": {
+    "title": "Assistant IA",
+    "subtitle": "Utilisez votre propre clé. Sert à identifier les codes-barres inconnus et à importer des articles depuis du texte ou des photos.",
+    "enable": "Activer l'assistant IA",
+    "provider": "Fournisseur",
+    "base_url": "URL de base",
+    "base_url_hint": "Uniquement pour un endpoint compatible OpenAI personnalisé (Ollama, LM Studio, Groq...).",
+    "model": "Modèle",
+    "vision_model": "Modèle vision",
+    "vision_model_hint": "Utilisé pour l'import photo. Laissez vide pour réutiliser le modèle ci-dessus.",
+    "api_key": "Clé API",
+    "api_key_hint": "Stockée chiffrée. Laissez vide pour conserver la clé actuelle.",
+    "api_key_set": "Une clé est enregistrée ({{hint}})",
+    "clear_key": "Supprimer la clé enregistrée",
+    "from_env": "Ces valeurs proviennent des variables d'environnement AI_* et ne sont pas modifiables ici.",
+    "save": "Enregistrer",
+    "test": "Tester la connexion",
+    "test_ok": "Connexion réussie ({{model}})",
+    "test_failed": "Échec de la connexion : {{error}}",
+    "saved": "Paramètres IA enregistrés",
+    "get_key": "Obtenir une clé API",
+    "err_save": "Impossible d'enregistrer les paramètres IA.",
+    "err_not_configured": "L'assistant IA n'est pas encore configuré."
+  },
   "collection": {
     "title": "Ma Collection",
     "share_view_banner": "Vous consultez une collection partagée - lecture seule.",
