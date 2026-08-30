@@ -112,6 +112,13 @@ router.post('/import/ai', ...guards, (req: any, res: any) => {
     plugin,
     rows,
     mapRow,
+    // Without a searchQuery, enrichment falls back to the title alone (runCsvImport's
+    // own default). Only combined with the creator for a plugin that opts in - see
+    // includeCreatorInSearch's own comment for why this isn't the default for every
+    // provider.
+    ...(plugin.includeCreatorInSearch ? {
+      searchQuery: (_row: any, data: Record<string, any>) => [data[plugin.creatorField], data.title].filter(Boolean).join(' ')
+    } : {}),
     searchOptions: (_row: any, data: Record<string, any>) => (data.media_type ? { type: data.media_type } : {})
   });
 });

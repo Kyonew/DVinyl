@@ -26,6 +26,7 @@ export const musicPlugin: PluginDefinition = {
   routePrefix: '/album',
   collectionType: 'music',
   creatorField: 'artist',
+  includeCreatorInSearch: true,
   extraSearchFields: ['tracklist.title', 'tracklist.tags'],
   supportsBarcodeSearch: true,
   barcodeNoiseTerms: ['Vinyl', 'CD', 'LP', 'EP', '2LP', 'Reissue', 'Remastered', 'Deluxe Edition', 'Deluxe', 'Special Edition', 'Limited Edition', 'Explicit', 'Gatefold', 'Colored Vinyl', 'Picture Disc'],

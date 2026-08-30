@@ -66,6 +66,16 @@ export interface PluginDefinition {
 
   creatorField: string;
 
+  /**
+   * Whether an enrichment search should combine creatorField with the title, the way
+   * this plugin's own dedicated importers already do (see each plugin's importers.ts).
+   * True for a marketplace-style catalog (Discogs, Hardcover) that needs the extra
+   * context to find the right release among many same-titled ones. Left unset for a
+   * provider (TMDB, IGDB) whose search already works from the title alone and is not
+   * proven to tolerate an extra name appended to the query.
+   */
+  includeCreatorInSearch?: boolean;
+
   extraSearchFields?: string[];
 
   searchProvider?: SearchProvider;
