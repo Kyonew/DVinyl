@@ -287,7 +287,7 @@
                             class="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 border-t border-black/5 dark:border-white/5 pt-6">
                             <button type="button" id="aiTestBtn"
                                 class="flex items-center justify-center gap-2 bg-black/5 dark:bg-white/5 hover:brightness-110 px-5 py-3 rounded-2xl transition-all active:scale-95">
-                                <i class="fa-solid fa-bolt text-sm"></i>
+                                <i id="aiTestBtnIcon" class="fa-solid fa-bolt text-sm"></i>
                                 <span class="text-xs font-black"><%= t('ai.test') %></span>
                             </button>
                             <button type="button" id="aiSaveBtn"
@@ -894,6 +894,7 @@
                 const getKeyLink = document.getElementById('aiGetKeyLink');
                 const fromEnvNotice = document.getElementById('aiFromEnvNotice');
                 const testBtn = document.getElementById('aiTestBtn');
+                const testBtnIcon = document.getElementById('aiTestBtnIcon');
                 const saveBtn = document.getElementById('aiSaveBtn');
                 const testResult = document.getElementById('aiTestResult');
 
@@ -997,6 +998,9 @@
                 enabledEl.addEventListener('change', persistAiSettings);
 
                 testBtn.addEventListener('click', async () => {
+                    testBtn.disabled = true;
+                    testBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                    testBtnIcon.className = 'fa-solid fa-spinner fa-spin text-sm';
                     try {
                         // Tests whatever is currently in the form, not the saved config, so a
                         // freshly typed/pasted key can be tried before deciding to Save it. A
@@ -1017,6 +1021,10 @@
                         showResult(testResult, true, <%- JSON.stringify(t('ai.test_ok', { model: '__MODEL__' })) %>.replace('__MODEL__', data.model));
                     } catch (err) {
                         showResult(testResult, false, <%- JSON.stringify(t('ai.test_failed', { error: '__ERROR__' })) %>.replace('__ERROR__', err.message));
+                    } finally {
+                        testBtn.disabled = false;
+                        testBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                        testBtnIcon.className = 'fa-solid fa-bolt text-sm';
                     }
                 });
 
