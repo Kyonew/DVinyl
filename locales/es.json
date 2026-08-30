@@ -57,6 +57,8 @@
     "backup": {
       "confirm_import": "ADVERTENCIA: Esto eliminará todos sus datos actuales (álbumes, usuarios, registros) y los reemplazará con el contenido del archivo. Se cerrará tu sesión. ¿Continuar?",
       "export_btn": "Exportar base de datos",
+      "export_zip_btn": "Exportar ZIP",
+      "export_json_btn": "Exportar JSON",
       "export_csv_btn": "Exportar CSV",
       "import_btn": "Importar base de datos",
       "csv": {
@@ -66,6 +68,7 @@
       "import_error": "Error durante la importación.",
       "import_success": "Base de datos importada exitosamente.",
       "json_error": "Archivo JSON no válido.",
+      "file_error": "El archivo de copia de seguridad está dañado o no es válido.",
       "section_subtitle": "Exporta o restaura toda tu colección.",
       "section_title": "Copia de seguridad de la base de datos",
       "subtitle": "Haga una copia de seguridad de su colección o restaure una base de datos existente.",
@@ -261,7 +264,7 @@
       "stat_items": "Elementos",
       "stat_blocked": "IPs bloqueadas",
       "backup_title": "Copia de la instancia",
-      "backup_subtitle": "Exporta TODA la instancia: todos los usuarios, todas las colecciones con sus elementos, ajustes y registros - en un solo archivo.",
+      "backup_subtitle": "Exporta TODA la instancia. El ZIP incluye las imágenes locales; el JSON solo contiene datos.",
       "backup_warning": "La importación reemplaza TODOS los datos de la instancia (todas las colecciones, todos los usuarios). Para restaurar una sola colección, usa su copia dedicada desde la página de administración de esa colección.",
       "backup_confirm_import": "Esta importación REEMPLAZARÁ TODA la instancia: todos los usuarios, todas las colecciones y sus elementos. Se cerrará tu sesión. ¿Continuar?",
       "self_service_title": "Colecciones en autoservicio",
@@ -293,7 +296,7 @@
     },
     "collection_backup": {
       "title": "Copia de la colección",
-      "subtitle": "Exportar esta colección (elementos + ajustes) o reemplazar su contenido con una copia.",
+      "subtitle": "Exporta esta colección (elementos + ajustes + imágenes locales) o reemplaza su contenido con una copia JSON o ZIP.",
       "confirm_import": "La importación REEMPLAZARÁ todos los elementos de esta colección. ¿Continuar?"
     },
     "sharing": {

@@ -351,6 +351,8 @@
     },
     "backup": {
       "export_btn": "Export Database",
+      "export_zip_btn": "Export ZIP",
+      "export_json_btn": "Export JSON",
       "export_csv_btn": "Export CSV",
       "import_btn": "Import Database",
       "csv": {
@@ -360,6 +362,7 @@
       "import_success": "Database imported successfully.",
       "import_error": "Error during import.",
       "json_error": "Invalid JSON file.",
+      "file_error": "The backup file is corrupted or invalid.",
       "confirm_import": "WARNING: This will delete all your current data (albums, users, logs) and replace it with the content of the file. You will be logged out. Continue?",
       "subtitle": "Backup your collection or restore an existing database.",
       "title": "System Maintenance",
@@ -474,7 +477,7 @@
       "stat_items": "Items",
       "stat_blocked": "Blocked IPs",
       "backup_title": "Instance backup",
-      "backup_subtitle": "Exports the ENTIRE instance: every user, every collection with its items, settings and login logs - in a single file.",
+      "backup_subtitle": "Exports the ENTIRE instance. ZIP includes local images; JSON contains data only.",
       "backup_warning": "Importing replaces ALL data of the instance (all collections, all users). To restore a single collection, use its own backup from that collection's admin page.",
       "backup_confirm_import": "This import will REPLACE the ENTIRE instance: all users, all collections and their items. You will be logged out. Continue?",
       "self_service_title": "Self-service collections",
@@ -506,7 +509,7 @@
     },
     "collection_backup": {
       "title": "Collection backup",
-      "subtitle": "Export this collection (items + settings) or replace its content with a backup file.",
+      "subtitle": "Export this collection (items + settings + local images) or replace its content with a JSON or ZIP backup.",
       "confirm_import": "Importing will REPLACE every item of this collection. Continue?"
     },
     "sharing": {

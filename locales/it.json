@@ -57,6 +57,8 @@
     "backup": {
       "confirm_import": "ATTENZIONE: questa operazione eliminerà tutti i tuoi dati correnti (album, utenti, registri) e li sostituirà con il contenuto del file. Verrai disconnesso. Continuare?",
       "export_btn": "Esporta banca dati",
+      "export_zip_btn": "Esporta ZIP",
+      "export_json_btn": "Esporta JSON",
       "export_csv_btn": "Esporta CSV",
       "import_btn": "Importa banca dati",
       "csv": {
@@ -66,6 +68,7 @@
       "import_error": "Errore durante l'importazione.",
       "import_success": "Database importato correttamente.",
       "json_error": "File JSON non valido.",
+      "file_error": "Il file di backup è danneggiato o non valido.",
       "section_subtitle": "Esporta o ripristina la tua intera collezione.",
       "section_title": "Backup del database",
       "subtitle": "Esegui il backup della tua raccolta o ripristina un database esistente.",
@@ -261,7 +264,7 @@
       "stat_items": "Elementi",
       "stat_blocked": "IP bloccati",
       "backup_title": "Backup dell'istanza",
-      "backup_subtitle": "Esporta TUTTA l'istanza: tutti gli utenti, tutte le collezioni con i loro elementi, impostazioni e log - in un unico file.",
+      "backup_subtitle": "Esporta TUTTA l'istanza. Lo ZIP include le immagini locali; il JSON contiene solo i dati.",
       "backup_warning": "L'importazione sostituisce TUTTI i dati dell'istanza (tutte le collezioni, tutti gli utenti). Per ripristinare una singola collezione, usa il suo backup dedicato dalla pagina admin di quella collezione.",
       "backup_confirm_import": "Questa importazione SOSTITUIRÀ TUTTA l'istanza: tutti gli utenti, tutte le collezioni e i loro elementi. Verrai disconnesso. Continuare?",
       "self_service_title": "Collezioni in self-service",
@@ -293,7 +296,7 @@
     },
     "collection_backup": {
       "title": "Backup della collezione",
-      "subtitle": "Esporta questa collezione (elementi + impostazioni) o sostituisci il suo contenuto con un backup.",
+      "subtitle": "Esporta questa collezione (elementi + impostazioni + immagini locali) o sostituisci il suo contenuto con un backup JSON o ZIP.",
       "confirm_import": "L'importazione SOSTITUIRÀ tutti gli elementi di questa collezione. Continuare?"
     },
     "sharing": {

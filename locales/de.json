@@ -57,6 +57,8 @@
     "backup": {
       "confirm_import": "ACHTUNG: Dadurch werden alle Ihre aktuellen Daten (Alben, Benutzer, Protokolle) gelöscht und durch den Inhalt der Datei ersetzt. Sie werden abgemeldet. Weitermachen?",
       "export_btn": "Datenbank exportieren",
+      "export_zip_btn": "Als ZIP exportieren",
+      "export_json_btn": "Als JSON exportieren",
       "export_csv_btn": "CSV exportieren",
       "import_btn": "Datenbank importieren",
       "csv": {
@@ -66,6 +68,7 @@
       "import_error": "Fehler beim Import.",
       "import_success": "Datenbank erfolgreich importiert.",
       "json_error": "Ungültige JSON-Datei.",
+      "file_error": "Die Sicherungsdatei ist beschädigt oder ungültig.",
       "section_subtitle": "Exportieren oder wiederherstellen Sie Ihre gesamte Sammlung.",
       "section_title": "Datenbanksicherung",
       "subtitle": "Sichern Sie Ihre Sammlung oder stellen Sie eine vorhandene Datenbank wieder her.",
@@ -261,7 +264,7 @@
       "stat_items": "Elemente",
       "stat_blocked": "Gesperrte IPs",
       "backup_title": "Instanz-Backup",
-      "backup_subtitle": "Exportiert die GESAMTE Instanz: alle Benutzer, alle Sammlungen mit ihren Elementen, Einstellungen und Login-Logs - in einer Datei.",
+      "backup_subtitle": "Exportiert die GESAMTE Instanz. ZIP enthält lokale Bilder; JSON enthält nur Daten.",
       "backup_warning": "Der Import ersetzt ALLE Daten der Instanz (alle Sammlungen, alle Benutzer). Um eine einzelne Sammlung wiederherzustellen, nutzen Sie deren eigenes Backup auf der Admin-Seite dieser Sammlung.",
       "backup_confirm_import": "Dieser Import ERSETZT die GESAMTE Instanz: alle Benutzer, alle Sammlungen und ihre Elemente. Sie werden abgemeldet. Fortfahren?",
       "self_service_title": "Sammlungen in Selbstbedienung",
@@ -293,7 +296,7 @@
     },
     "collection_backup": {
       "title": "Sammlungs-Backup",
-      "subtitle": "Diese Sammlung exportieren (Elemente + Einstellungen) oder ihren Inhalt durch ein Backup ersetzen.",
+      "subtitle": "Diese Sammlung exportieren (Elemente + Einstellungen + lokale Bilder) oder ihren Inhalt durch ein JSON- oder ZIP-Backup ersetzen.",
       "confirm_import": "Der Import ERSETZT alle Elemente dieser Sammlung. Fortfahren?"
     },
     "sharing": {

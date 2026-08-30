@@ -336,6 +336,8 @@
     },
     "backup": {
       "export_btn": "Exporter la base de données",
+      "export_zip_btn": "Exporter en ZIP",
+      "export_json_btn": "Exporter en JSON",
       "export_csv_btn": "Exporter en CSV",
       "import_btn": "Importer la base de données",
       "csv": {
@@ -345,6 +347,7 @@
       "import_success": "Base de données importée avec succès.",
       "import_error": "Erreur lors de l'importation.",
       "json_error": "Fichier JSON invalide.",
+      "file_error": "Le fichier de sauvegarde est corrompu ou invalide.",
       "confirm_import": "ATTENTION : Cela va supprimer toutes vos données actuelles (albums, utilisateurs, logs) pour les remplacer par le contenu du fichier. Vous serez déconnecté. Continuer ?",
       "subtitle": "Sauvegardez votre collection ou restaurez une base de données existante.",
       "title": "Maintenance du système",
@@ -474,7 +477,7 @@
       "stat_items": "Items",
       "stat_blocked": "IPs bloquées",
       "backup_title": "Sauvegarde de l'instance",
-      "backup_subtitle": "Exporte TOUTE l'instance : tous les utilisateurs, toutes les collections avec leurs items, réglages et logs de connexion - dans un seul fichier.",
+      "backup_subtitle": "Exporte TOUTE l'instance. Le ZIP inclut les images locales ; le JSON contient uniquement les données.",
       "backup_warning": "L'import remplace TOUTES les données de l'instance (toutes les collections, tous les utilisateurs). Pour restaurer une seule collection, utilisez sa sauvegarde dédiée depuis la page admin de cette collection.",
       "backup_confirm_import": "Cet import va REMPLACER TOUTE l'instance : tous les utilisateurs, toutes les collections et leurs items. Vous serez déconnecté. Continuer ?",
       "self_service_title": "Collections en libre-service",
@@ -506,7 +509,7 @@
     },
     "collection_backup": {
       "title": "Sauvegarde de la collection",
-      "subtitle": "Exporter cette collection (items + réglages) ou remplacer son contenu par une sauvegarde.",
+      "subtitle": "Exporter cette collection (items + réglages + images locales) ou remplacer son contenu avec une sauvegarde JSON ou ZIP.",
       "confirm_import": "L'import va REMPLACER tous les items de cette collection. Continuer ?"
     },
     "sharing": {

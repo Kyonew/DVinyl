@@ -282,7 +282,9 @@ fields whenever an item form is saved. Importers and refresh handlers can theref
 `cover_image`, while new code should read the formatted item's `images` array when it needs the
 whole gallery. New local uploads are compressed to JPEG and stored in `public/uploads/items`; the
 item document only keeps their portable `/uploads/items/...` paths. Linked URLs remain external.
-The stored-data limit still protects legacy data URLs and submissions from custom clients.
+ZIP backups include referenced local files, extract legacy inline JPEGs, and give every restored
+file a fresh name; historical JSON backups remain importable. The stored-data limit still protects
+legacy data URLs and submissions from custom clients.
 
 Provide an `imageSearchProvider` so the image editor can suggest images:
 
