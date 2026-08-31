@@ -32,6 +32,9 @@ const router = express.Router();
 
 router.use(requireAuth, requireCollectionRole('admin'));
 
+/** A description is a sentence, not a pasted list — generous but not import-sized. */
+const MAX_DESCRIPTION_CHARS = 2000;
+
 async function listCustomPlugins() {
   const out: { config: any; itemCount: number }[] = [];
   for (const p of registry.getAll()) {
@@ -95,7 +98,8 @@ router.get('/', async (req: any, res: any) => {
       palette: CUSTOM_PLUGIN_PALETTE,
       iconChoices: CUSTOM_PLUGIN_ICONS,
       maxCardLines: MAX_CARD_LINES,
-      aiConfigured: isAiConfigured(await getAiConfig())
+      aiConfigured: isAiConfigured(await getAiConfig()),
+      maxAiDescriptionChars: MAX_DESCRIPTION_CHARS
     });
   } catch (err: any) {
     console.error('[PluginBuilder] page error:', err);
@@ -194,9 +198,6 @@ router.post('/customize/:pluginId', async (req: any, res: any) => {
   }
 });
 
-/** A description is a sentence, not a pasted list — generous but not import-sized. */
-const MAX_DESCRIPTION_CHARS = 2000;
-
 // POST /create-plugin/ai-generate -> draft a plugin config from a text description
 router.post('/ai-generate', async (req: any, res: any) => {
   try {
@@ -216,7 +217,15 @@ router.post('/ai-generate', async (req: any, res: any) => {
       return res.status(400).json({ success: false, errors: [req.t('ai.err_not_configured')] });
     }
 
-    const draft = await generatePluginDraft(config, description);
+    let draft;
+    try {
+      draft = await generatePluginDraft(config, description);
+    } catch (err: any) {
+      return res.status(502).json({
+        success: false,
+        errors: [req.t('create_plugin.ai_err_generation_failed', { error: err.message })]
+      });
+    }
     if (!draft) {
       return res.status(502).json({ success: false, errors: [req.t('create_plugin.ai_err_failed')] });
     }

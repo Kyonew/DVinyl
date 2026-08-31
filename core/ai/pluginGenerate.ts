@@ -3,7 +3,7 @@ import { aiChat } from './client';
 import { extractJsonObject } from './jsonExtract';
 import {
   CUSTOM_PLUGIN_PALETTE, isValidIcon, FIELD_TYPES, FIELD_NAME_RE,
-  MAX_FIELDS, MAX_FIELD_OPTIONS, MAX_FORMATS, slugify, cleanText
+  MAX_FIELD_OPTIONS, RESERVED_FIELD_NAMES, slugify, cleanText
 } from '../customPluginStore';
 import { CARD_ASPECT_RATIOS, DEFAULT_ASPECT_RATIO } from '../customPlugin';
 
@@ -122,11 +122,11 @@ export function sanitizePluginDraft(raw: any): PluginDraft {
   const fields: PluginDraft['fields'] = [];
   const seenFieldNames = new Set<string>();
   const rawFields = Array.isArray(source.fields) ? source.fields : [];
-  for (const raw of rawFields.slice(0, MAX_FIELDS).slice(0, MAX_DRAFT_FIELDS)) {
+  for (const raw of rawFields.slice(0, MAX_DRAFT_FIELDS)) {
     const fieldLabel = cleanText(raw?.label, 40);
     if (!fieldLabel) continue;
     const name = sanitizeFieldName(fieldLabel);
-    if (!FIELD_NAME_RE.test(name) || seenFieldNames.has(name)) continue;
+    if (!FIELD_NAME_RE.test(name) || RESERVED_FIELD_NAMES.has(name) || seenFieldNames.has(name)) continue;
     seenFieldNames.add(name);
 
     const type = FIELD_TYPES.has(raw?.type) ? raw.type : 'text';
@@ -149,7 +149,7 @@ export function sanitizePluginDraft(raw: any): PluginDraft {
   const formats: PluginDraft['formats'] = [];
   const seenFormatValues = new Set<string>();
   const rawFormats = Array.isArray(source.formats) ? source.formats : [];
-  for (const raw of rawFormats.slice(0, MAX_FORMATS).slice(0, MAX_DRAFT_FORMATS)) {
+  for (const raw of rawFormats.slice(0, MAX_DRAFT_FORMATS)) {
     const fmtLabel = cleanText(raw?.label, 30);
     if (!fmtLabel) continue;
     const value = sanitizeFieldName(fmtLabel);
@@ -163,21 +163,18 @@ export function sanitizePluginDraft(raw: any): PluginDraft {
 
 /**
  * A sanitized first-draft plugin config from a free-text description, or null
- * when the AI is unreachable or returned nothing usable. Never persists anything
- * and never throws — a failed generation must leave the builder form exactly as
- * it was, same principle as `resolveBarcodeWithAi`.
+ * when the call succeeded but returned nothing usable (unparsable JSON). Never
+ * persists anything. Can throw when the AI call itself fails (transport/provider
+ * error propagated from `aiChat`, e.g. a bad API key, wrong model name, or an
+ * unreachable endpoint) — callers should catch and surface that error rather
+ * than treat it the same as a `null` result.
  */
 export async function generatePluginDraft(config: AiConfig, description: string): Promise<PluginDraft | null> {
-  try {
-    const result = await aiChat(config, buildPluginGenerationPrompt(description), {
-      maxTokens: 1500,
-      timeoutMs: 60000
-    });
-    const parsed = extractJsonObject(result.text);
-    if (!parsed) return null;
-    return sanitizePluginDraft(parsed);
-  } catch (err: any) {
-    console.error('[ERR] AI plugin generation:', err.message);
-    return null;
-  }
+  const result = await aiChat(config, buildPluginGenerationPrompt(description), {
+    maxTokens: 1500,
+    timeoutMs: 60000
+  });
+  const parsed = extractJsonObject(result.text);
+  if (!parsed) return null;
+  return sanitizePluginDraft(parsed);
 }

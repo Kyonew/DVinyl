@@ -102,6 +102,18 @@ test('too many fields and formats are capped, not rejected', () => {
   assert.ok(draft.formats.length <= 6);
 });
 
+test('a field name colliding with a reserved name is dropped', () => {
+  const draft = sanitizePluginDraft({
+    label: 'X', creatorLabel: 'Y',
+    fields: [
+      { label: 'Description', type: 'text' },
+      { label: 'Real Field', type: 'text' }
+    ]
+  });
+  assert.equal(draft.fields.length, 1);
+  assert.equal(draft.fields[0]?.label, 'Real Field');
+});
+
 test('a field with no label is dropped rather than rendered blank', () => {
   const draft = sanitizePluginDraft({
     label: 'X', creatorLabel: 'Y',

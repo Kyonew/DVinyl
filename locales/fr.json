@@ -1238,6 +1238,7 @@
     "ai_err_empty": "Décrivez d'abord ce que vous voulez suivre.",
     "ai_err_too_long": "Limitez la description à {{max}} caractères.",
     "ai_err_failed": "La génération par IA n'a rien produit d'utilisable. Reformulez, ou remplissez le formulaire à la main.",
+    "ai_err_generation_failed": "La génération par IA a échoué : {{error}}",
     "ai_section_title": "Ou décrivez-le et laissez l'IA l'ébaucher",
     "ai_section_hint": "Une phrase suffit. Vous relirez et modifierez chaque champ avant d'enregistrer.",
     "ai_placeholder": "ex : « Vieilles bouteilles en verre Coca-Cola »",

@@ -1238,6 +1238,7 @@
     "ai_err_empty": "Describe what you want to track first.",
     "ai_err_too_long": "Keep the description under {{max}} characters.",
     "ai_err_failed": "AI generation could not produce a draft. Try rephrasing, or fill in the form by hand.",
+    "ai_err_generation_failed": "AI generation failed: {{error}}",
     "ai_section_title": "Or describe it and let AI draft it",
     "ai_section_hint": "A sentence is enough. You will review and edit every field before saving.",
     "ai_placeholder": "e.g. \"Old glass Coca-Cola bottles\"",
