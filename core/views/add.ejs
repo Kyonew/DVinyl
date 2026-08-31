@@ -1,6 +1,13 @@
 <%- include('../../views/partials/header') %>
 
-<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+<%# ZXing rather than html5-qrcode: the latter hands its decoder a canvas sized to the
+    CSS width of the viewfinder, so on a phone an EAN-13 arrives at roughly 2 pixels per
+    bar and never decodes (issue #121). ZXing decodes the camera frame at its native
+    resolution instead. Pinned with an integrity hash: an unversioned CDN URL means a
+    publish upstream can break every instance's scanner without a commit here. %>
+<script src="https://unpkg.com/@zxing/library@0.23.0/umd/index.min.js"
+    integrity="sha384-0ASr5PEWAMtTnWsn0PzKmioHVDA4+QqFiJr94io/0DCrGP6E1gRAmbO6O8y5WZW9"
+    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
 <div class="max-w-screen-lg mx-auto pb-20 px-4">
     
@@ -62,7 +69,13 @@
             <% } %>
         </div>
 
-        <div id="reader" class="hidden mt-6 rounded-2xl overflow-hidden shadow-lg border border-black/10 dark:border-white/10"></div>
+        <%# The video element is ours rather than the library's: ZXing only ever reads the
+            frames, so how big it looks on screen no longer has anything to do with what
+            the decoder sees. %>
+        <div id="reader" class="hidden mt-6 rounded-2xl overflow-hidden shadow-lg border border-black/10 dark:border-white/10">
+            <video id="reader-video" class="w-full block bg-black" muted playsinline></video>
+        </div>
+        <p id="scan-hint" class="hidden mt-3 text-center text-xs opacity-60 max-w-md mx-auto leading-relaxed"></p>
     </form>
 
     <% if (locals.results) { %>
@@ -150,67 +163,107 @@
         init: '<i class="fa-solid fa-spinner fa-spin text-xl"></i> <span><%= t("add_vinyl.scan_init") %></span>',
         stop: '<i class="fa-solid fa-xmark text-xl"></i> <span><%= t("add_vinyl.scan_stop") %></span>',
         found: '<i class="fa-solid fa-check text-xl"></i> <span><%= t("add_vinyl.scan_found") %></span>',
-        error: <%- JSON.stringify(t("add_vinyl.scan_error")) %>
+        error: <%- JSON.stringify(t("add_vinyl.scan_error")) %>,
+        hint: <%- JSON.stringify(t("add_vinyl.scan_hint")) %>
     };
 
-    const html5QrCode = new Html5Qrcode("reader");
+    // Restricted to the retail symbologies an item can actually carry: a decoder asked
+    // for fewer formats rejects a bad read faster and misreads less often.
+    const scanHints = new Map();
+    scanHints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+        ZXing.BarcodeFormat.EAN_13,
+        ZXing.BarcodeFormat.EAN_8,
+        ZXing.BarcodeFormat.UPC_A,
+        ZXing.BarcodeFormat.UPC_E
+    ]);
+    // Costs more work per frame, and earns it here: the frames come from a hand-held
+    // camera, where a barcode is rarely square to the lens.
+    scanHints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+
+    const codeReader = new ZXing.BrowserMultiFormatReader(scanHints);
+    // Left at its default of 0, the reader re-decodes a full frame the instant the
+    // previous one failed, which pins a phone's CPU for nothing. Roughly the 10fps the
+    // scanner used to run at.
+    codeReader.timeBetweenDecodingAttempts = 100;
+
     const scanButton = document.getElementById('start-scan');
     const readerDiv = document.getElementById('reader');
+    const videoEl = document.getElementById('reader-video');
+    const hintEl = document.getElementById('scan-hint');
     const searchInput = document.querySelector('input[name="query"]');
     const form = document.querySelector('form[action="<%= baseUrl %>/search-<%= plugin.id %>"]');
     let isScanning = false;
+    let foundCode = false;
+    let hintTimer = null;
+
+    // A camera that opens and never decodes says nothing about why. After a while of
+    // neither a result nor an error, offer what actually helps instead of leaving
+    // someone to wonder whether the scanner is even running.
+    const SCAN_HINT_DELAY_MS = 12000;
+
+    function stopScan() {
+        codeReader.reset();
+        clearTimeout(hintTimer);
+        readerDiv.classList.add('hidden');
+        hintEl.classList.add('hidden');
+        scanButton.classList.remove('bg-red-600', 'hover:bg-red-500', 'text-white');
+        scanButton.classList.add('bg-black/5', 'dark:bg-white/5', 'hover:bg-black/10', 'dark:hover:bg-white/10');
+        isScanning = false;
+    }
 
     scanButton.addEventListener('click', () => {
         if (isScanning) {
-            html5QrCode.stop().then(() => {
-                readerDiv.classList.add('hidden');
-                scanButton.innerHTML = scanTranslations.btnDefault;
-                
-                scanButton.classList.remove('bg-red-600', 'hover:bg-red-500', 'text-white');
-                scanButton.classList.add('bg-black/5', 'dark:bg-white/5', 'hover:bg-black/10', 'dark:hover:bg-white/10');
-                
-                isScanning = false;
-            }).catch(err => console.error("Error stopping scan", err));
-        } else {
-            readerDiv.classList.remove('hidden');
-            scanButton.innerHTML = scanTranslations.init;
-            
-            const config = { 
-                fps: 10, 
-                qrbox: { width: 250, height: 150 }, 
-                aspectRatio: 1.0,
-                formatsToSupport: [ 
-                    Html5QrcodeSupportedFormats.EAN_13,
-                    Html5QrcodeSupportedFormats.EAN_8,
-                    Html5QrcodeSupportedFormats.UPC_A,
-                    Html5QrcodeSupportedFormats.UPC_E
-                ]
-            };
-            
-            html5QrCode.start(
-                { facingMode: "environment" },
-                config,
-                (decodedText) => {
-                    html5QrCode.stop().then(() => {
-                        readerDiv.classList.add('hidden');
-                        scanButton.innerHTML = scanTranslations.found;
-                        searchInput.value = decodedText;
-                        form.submit();
-                    });
-                },
-                (errorMessage) => {}
-            ).then(() => {
-                isScanning = true;
-                scanButton.innerHTML = scanTranslations.stop;
-                
-                scanButton.classList.remove('bg-black/5', 'dark:bg-white/5', 'hover:bg-black/10', 'dark:hover:bg-white/10');
-                scanButton.classList.add('bg-red-600', 'hover:bg-red-500', 'text-white');
-            }).catch(err => {
-                console.error("Error starting scan", err);
-                scanButton.innerHTML = scanTranslations.error;
-            });
+            stopScan();
+            scanButton.innerHTML = scanTranslations.btnDefault;
+            return;
         }
+
+        foundCode = false;
+        readerDiv.classList.remove('hidden');
+        scanButton.innerHTML = scanTranslations.init;
+
+        // Asking for the largest frame the camera will give is the whole point of this
+        // path: ZXing decodes the frame at the resolution it arrives in, so the stream
+        // is what decides whether a barcode is readable, not how big the preview looks.
+        // `ideal` rather than `exact` everywhere, so a laptop with no rear camera and a
+        // phone that cannot do 1080p both fall back instead of failing to open.
+        codeReader.decodeFromConstraints({
+            video: {
+                facingMode: { ideal: 'environment' },
+                width: { ideal: 1920 },
+                height: { ideal: 1080 }
+            }
+        }, videoEl, (result) => {
+            // The error argument fires on every single frame that holds no code, which
+            // is the normal state of a scanner, so only a result is worth reacting to.
+            if (!result || foundCode) return;
+            foundCode = true;
+            stopScan();
+            scanButton.innerHTML = scanTranslations.found;
+            searchInput.value = result.getText();
+            form.submit();
+        }).then(() => {
+            if (foundCode) return;
+            isScanning = true;
+            scanButton.innerHTML = scanTranslations.stop;
+
+            scanButton.classList.remove('bg-black/5', 'dark:bg-white/5', 'hover:bg-black/10', 'dark:hover:bg-white/10');
+            scanButton.classList.add('bg-red-600', 'hover:bg-red-500', 'text-white');
+
+            hintTimer = setTimeout(() => {
+                hintEl.textContent = scanTranslations.hint;
+                hintEl.classList.remove('hidden');
+            }, SCAN_HINT_DELAY_MS);
+        }).catch(err => {
+            console.error("Error starting scan", err);
+            stopScan();
+            scanButton.innerHTML = scanTranslations.error;
+        });
     });
+
+    // A stream left running holds the camera open, and its indicator light on, after
+    // someone has already navigated away.
+    window.addEventListener('pagehide', () => codeReader.reset());
 </script>
 
 <%- include('../../views/partials/footer') %>

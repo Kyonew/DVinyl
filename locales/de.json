@@ -39,6 +39,7 @@
     "no_results": "Keine Ergebnisse gefunden.",
     "results_title": "Ergebnisse",
     "scan_error": "Kamerafehler (Berechtigungen prüfen)",
+    "scan_hint": "Immer noch nichts. Der Strichcode sollte die ganze Breite des Bildes ausfüllen, ruhig gehalten und gut beleuchtet sein; gehen Sie etwas weiter weg, wenn die Kamera nicht scharf stellt. Sie können die Nummer auch oben eingeben.",
     "barcode_not_found": "Dieser Barcode wurde nicht erkannt. Versuchen Sie stattdessen die Suche nach Titel.",
     "barcode_no_match": "Kein Treffer für diesen Barcode. Hier ist der gefundene Produktname: passe ihn an und suche erneut, der Barcode bleibt erhalten.",
     "scan_found": "Gefunden!",

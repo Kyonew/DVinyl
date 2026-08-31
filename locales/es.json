@@ -39,6 +39,7 @@
     "no_results": "No se encontraron resultados.",
     "results_title": "Resultados",
     "scan_error": "Error de cámara (verificar permisos)",
+    "scan_hint": "Todavía nada. Prueba a que el código de barras ocupe todo el ancho de la imagen, sujétalo firme y bien iluminado, y aléjate un poco si la cámara no enfoca. También puedes escribir el número arriba.",
     "barcode_not_found": "No se ha reconocido este código de barras. Prueba a buscar por título.",
     "barcode_no_match": "Sin coincidencias para este código de barras. Este es el nombre de producto encontrado: ajústalo y busca de nuevo, el código de barras se mantiene.",
     "scan_found": "¡Encontró!",
