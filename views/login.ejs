@@ -10,7 +10,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900&family=Varela+Round&display=swap" rel="stylesheet">
   <link rel="icon" type="image/png" href="<%= baseUrl %>/ressources/logo.png">
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.16/dist/tailwind.min.css" rel="stylesheet">
+  <%# Same vendored build as every other page (see partials/header.ejs). This page used
+      to be the one exception, on a Tailwind 2 stylesheet from a third CDN, which meant
+      the login screen and the app behind it were styled by two different major versions. %>
+  <script src="<%= baseUrl %>/vendor/tailwind-3.4.17.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/1.6.5/flowbite.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <link rel="stylesheet" href="<%= baseUrl %>/styles/style.css">

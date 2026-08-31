@@ -55,7 +55,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>DVinyl</title>
   
-  <script src="https://cdn.tailwindcss.com"></script>
+  <%# Served from the instance rather than cdn.tailwindcss.com. The Play CDN is a
+      script that has to run before a single utility class exists, so anything that
+      stops it reaching the browser - an ad blocker, a DNS filter, a company network,
+      or simply an install with no outbound internet - leaves every page here with no
+      layout at all (issue #133). Same build, same runtime config below. %>
+  <script src="<%= baseUrl %>/vendor/tailwind-3.4.17.min.js"></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
