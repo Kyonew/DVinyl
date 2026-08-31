@@ -684,7 +684,7 @@
   "errors": {
     "404_desc": "Die von Ihnen gesuchte Seite scheint aus der Sammlung entfernt worden zu sein oder das zugehörige Modul ist derzeit deaktiviert.",
     "404_title": "Hoppla! Groove nicht gefunden.",
-    "api_error": "Es konnte keine Verbindung zu Discogs hergestellt werden.",
+    "api_error": "Es konnte keine Verbindung zu {{provider}} hergestellt werden.",
     "current_password_incorrect": "Das aktuelle Passwort ist falsch.",
     "sso_no_local_password": "Dieses Konto verwendet Single Sign-On (SSO) und hat kein lokales Passwort zum Ändern.",
     "generic_server_error": "Interner Serverfehler.",

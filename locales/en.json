@@ -81,7 +81,7 @@
     "lang_change_error": "Error while changing language.",
     "setup_error": "Setup error occurred.",
     "generic_server_error": "Internal server error.",
-    "api_error": "Could not connect to Discogs.",
+    "api_error": "Could not connect to {{provider}}.",
     "save_error": "Error while saving.",
     "invalid_credentials": "Invalid credentials",
     "too_many_attempts_timed": "Too many attempts. Try again in {{seconds}} seconds.",

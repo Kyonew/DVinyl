@@ -118,7 +118,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         console.error(`Search error for ${plugin.id}:`, err.message);
         res.render('add', {
           results: [],
-          error: req.t('errors.api_error'),
+          error: req.t('errors.api_error', { provider: plugin.searchProvider!.name }),
           searchType: type || plugin.id,
           searchQuery: rawQuery,
           scanned_barcode: scannedBarcode,
@@ -185,7 +185,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         console.error(`Details fetch error for ${plugin.id} ID ${externalId}:`, err.message);
         res.render('add', {
           results: [],
-          error: `${req.t('errors.api_error')} (${err.message})`,
+          error: `${req.t('errors.api_error', { provider: plugin.searchProvider!.name })} (${err.message})`,
           searchType: searchTypeHint || plugin.id,
           user: res.locals.user,
           currentType: `add-${plugin.id}`,

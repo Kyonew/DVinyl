@@ -684,7 +684,7 @@
   "errors": {
     "404_desc": "La pagina che stai cercando sembra essere stata cancellata dalla raccolta oppure il modulo associato è attualmente disabilitato.",
     "404_title": "Ops! Scanalatura non trovata.",
-    "api_error": "Impossibile connettersi a Discogs.",
+    "api_error": "Impossibile connettersi a {{provider}}.",
     "current_password_incorrect": "La password attuale non è corretta.",
     "sso_no_local_password": "Questo account usa il single sign-on (SSO) e non ha una password locale da modificare.",
     "generic_server_error": "Errore interno del server.",

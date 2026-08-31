@@ -684,7 +684,7 @@
   "errors": {
     "404_desc": "La página que busca parece haber sido eliminada de la colección o el módulo asociado está actualmente deshabilitado.",
     "404_title": "¡Ups! Surco no encontrado.",
-    "api_error": "No se pudo conectar a Discogs.",
+    "api_error": "No se pudo conectar a {{provider}}.",
     "current_password_incorrect": "La contraseña actual es incorrecta.",
     "sso_no_local_password": "Esta cuenta usa inicio de sesión único (SSO) y no tiene una contraseña local que cambiar.",
     "generic_server_error": "Error Interno del Servidor.",

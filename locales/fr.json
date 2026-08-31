@@ -81,7 +81,7 @@
     "lang_change_error": "Erreur lors du changement de langue.",
     "setup_error": "Erreur lors de l'installation.",
     "generic_server_error": "Erreur interne du serveur.",
-    "api_error": "Impossible de contacter Discogs.",
+    "api_error": "Impossible de contacter {{provider}}.",
     "save_error": "Erreur lors de la sauvegarde.",
     "invalid_credentials": "Identifiants invalides",
     "too_many_attempts_timed": "Trop de tentatives. Réessaie dans {{seconds}} secondes.",
