@@ -52,8 +52,8 @@ services:
       - VINYL_PORT=80
       - BASE_URL=
       - PROD=false
-      - PASSJWT=<something>
-      - SESSION_SECRET=<something>
+      - PASSJWT=<openssl rand -hex 32>
+      - SESSION_SECRET=<a different openssl rand -hex 32>
       - DISCOGS_TOKEN=<something>
     ports:
       - '<external_port>:80'
@@ -123,6 +123,16 @@ docker compose up --build -d
 > **Instance** admin page (`/admin/instance`) and use **Backup → Export** and, if you want a
 > belt-and-braces copy, snapshot your `./mongo_data` folder while the containers are stopped. Updates are designed to be safe and
 > automatic, but a backup is your one-command way back if anything surprises you.
+
+> [!WARNING]
+> **Upgrading to 3.1.5 or later:** the app now refuses to start when `PASSJWT` or
+> `SESSION_SECRET` is still set to one of the placeholder values that earlier examples and
+> templates shipped (`SomeComplexPassword`, `AnotherComplexSecret`,
+> `ChangeThisToAComplexPassword`, `ChangeThisToAComplexSecret`). They are published, so an
+> instance running one is signing its sessions with a secret anyone can read. If the container
+> restarts in a loop after the update, read its logs: the message names the variable to fix.
+> Replace both with `openssl rand -hex 32` values. Everyone is logged out once afterwards,
+> which is expected.
 
 ### Updating (Pre-built Image)
 

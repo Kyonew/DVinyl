@@ -122,9 +122,15 @@ app.use(cookieParser());
 
 app.use(i18nMiddleware.handle(i18next));
 
+// Every value DVinyl has ever shipped as a placeholder, from .env.example and from the
+// Unraid template. They are public, so an instance still running one signs its tokens with
+// a secret anybody can read. Keep old entries here even after a template stops offering
+// them: the installs that took them are exactly the ones that never changed them.
 const INSECURE_DEFAULTS = new Set([
   'SomeComplexPassword',
-  'AnotherComplexSecret'
+  'AnotherComplexSecret',
+  'ChangeThisToAComplexPassword',
+  'ChangeThisToAComplexSecret'
 ]);
 
 for (const name of ['PASSJWT', 'SESSION_SECRET'] as const) {
@@ -134,8 +140,9 @@ for (const name of ['PASSJWT', 'SESSION_SECRET'] as const) {
   }
   if (INSECURE_DEFAULTS.has(v)) {
     throw new Error(
-      `[SECURITY] ${name} is using the default example value ("${v}"). ` +
-      `Please set a unique secret in your .env file (e.g. openssl rand -hex 32).`
+      `[SECURITY] ${name} is still set to the placeholder value shipped with DVinyl ("${v}"), ` +
+      `which is public. Replace it with a unique secret in your .env file or container ` +
+      `settings, then restart (generate one with: openssl rand -hex 32).`
     );
   }
   if (v.length < 32) {

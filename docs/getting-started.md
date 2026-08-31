@@ -37,7 +37,9 @@ DVinyl ships with an Unraid Community App template.
 3. **Fill in the required settings:**
    - `MONGODB_URL`: point it to your MongoDB container, for example
      `mongodb://<mongodb-ip>:27017/dvinyl`.
-   - `PASSJWT` and `SESSION_SECRET`: set two different, complex secrets.
+   - `PASSJWT` and `SESSION_SECRET`: two different random secrets, both required. Generate
+     each with `openssl rand -hex 32`. The container will not start while one is empty or
+     left at the placeholder the template used to ship.
    - **Uploads volume**: map it to a persistent path, for example
      `/mnt/user/appdata/dvinyl/uploads`.
 4. **Add API keys** (optional, in the advanced settings) for the media types you want, see
@@ -99,8 +101,15 @@ These are the core variables. See [API keys](./api-keys.md) for the metadata ser
 
 > [!IMPORTANT]
 > Use `PROD=true` **only with HTTPS**. For localhost or a local IP, leave `PROD=false`.
-> Set `PASSJWT` and `SESSION_SECRET` to two different, complex values. They are what keep your
-> sessions secure.
+
+> [!WARNING]
+> `PASSJWT` and `SESSION_SECRET` must be two different random values, and DVinyl **refuses to
+> start** while either one is missing or still set to a placeholder published in `.env.example`
+> or in the Unraid template. Those values are public, so anyone could forge a session token
+> with them. Generate each secret with `openssl rand -hex 32`.
+>
+> Changing them logs everyone out once, which is expected: existing tokens were signed with
+> the old value.
 
 Single sign-on (OIDC) is optional and configured through extra environment variables. See the
 commented block in `.env.example` for the details.
