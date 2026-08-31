@@ -296,7 +296,7 @@
     },
     "collection_backup": {
       "title": "Copia de la colección",
-      "subtitle": "Exporta esta colección (elementos + ajustes + imágenes locales) o reemplaza su contenido con una copia JSON o ZIP.",
+      "subtitle": "Exporta esta colección (elementos + ajustes) o reemplaza su contenido con una copia de seguridad. El ZIP incluye las imágenes locales; el JSON solo contiene datos.",
       "confirm_import": "La importación REEMPLAZARÁ todos los elementos de esta colección. ¿Continuar?"
     },
     "sharing": {

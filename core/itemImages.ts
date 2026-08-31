@@ -68,6 +68,34 @@ export function imagesForItem(item: any): string[] {
   ]);
 }
 
+/**
+ * Keeps the gallery in step when a metadata refresh replaces the main image.
+ *
+ * A refresh only ever writes `cover_image`, and imagesForItem() reads that before the
+ * stored array, so without this the cover it replaced would slide into the gallery as a
+ * second entry and be written there by the next save - one stale provider URL per
+ * refresh, accumulating for as long as the item is refreshed. Substituting it in place
+ * leaves the order, the length and every other image the owner chose untouched.
+ *
+ * Returns the value that was replaced, so a caller can release the file behind it when
+ * it was a local upload nothing references any more.
+ */
+export function alignImagesAfterRefresh(item: any, update: Record<string, any>): string | null {
+  const nextCover = update?.cover_image;
+  if (typeof nextCover !== 'string' || !nextCover) return null;
+
+  const previousCover = typeof item?.cover_image === 'string' ? item.cover_image.trim() : '';
+  if (!previousCover || previousCover === nextCover) return null;
+
+  // A legacy item carries no array to realign: its gallery is derived from cover_image
+  // alone, so the refresh already says everything there is to say.
+  const stored = Array.isArray(item?.images) ? item.images : null;
+  if (!stored || !stored.includes(previousCover)) return null;
+
+  update.images = stored.map((image: any) => (image === previousCover ? nextCover : image));
+  return previousCover;
+}
+
 /** Parses the ordered list posted by the image manager, falling back to legacy fields. */
 export function imagesFromForm(body: any): string[] {
   if (Object.prototype.hasOwnProperty.call(body || {}, 'images_json')) {

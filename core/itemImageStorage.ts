@@ -8,6 +8,7 @@ export const ITEM_IMAGES_URL_PREFIX = '/uploads/items/';
 export const ITEM_IMAGES_DIR = path.join(__dirname, '../public/uploads/items');
 export const MAX_ITEM_IMAGE_UPLOAD_BYTES = 5 * 1024 * 1024;
 export const STALE_ITEM_IMAGE_GRACE_MS = 24 * 60 * 60 * 1000;
+export const ITEM_IMAGE_SWEEP_INTERVAL_MS = 12 * 60 * 60 * 1000;
 
 const MANAGED_ITEM_IMAGE = /^\/uploads\/items\/(item-[0-9a-f-]{36}\.jpg)$/i;
 

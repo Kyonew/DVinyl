@@ -8,7 +8,7 @@ import { BASE_URL } from '../../config/constants';
 import { requireAuth, requireAuthOrShareView, requireCollectionRole } from '../../middleware/authMiddleware';
 import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback, editStamp, syncStamp, safeReturnPath, getPublicProtocol, generateBarcodeDataUrl } from '../helpers';
 import { DEFAULT_PLACEHOLDER_IMAGE } from '../placeholderImage';
-import { imagesForItem, imagesFromForm, ItemImageValidationError, MAX_ITEM_IMAGES, MAX_ITEM_IMAGE_BYTES } from '../itemImages';
+import { alignImagesAfterRefresh, imagesForItem, imagesFromForm, ItemImageValidationError, MAX_ITEM_IMAGES, MAX_ITEM_IMAGE_BYTES } from '../itemImages';
 import { deleteUnusedManagedItemImages } from '../itemImageStorage';
 import { getExtraFields, toFieldDefinitions } from '../pluginExtraFields';
 import { buildFieldSuggestions } from '../fieldSuggestions';
@@ -748,10 +748,19 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         // strict mode.
         // Stamped even when the provider returned nothing new: the question the date
         // answers is when the metadata was last checked, not when it last changed.
+        const update = { ...(result || {}) };
+        const replacedCover = alignImagesAfterRefresh(item, update);
         await Item.updateOne(
           { _id: item._id, kind: plugin.kind },
-          { $set: { ...(result || {}), ...syncStamp() } }
+          { $set: { ...update, ...syncStamp() } }
         );
+        if (replacedCover) {
+          try {
+            await deleteUnusedManagedItemImages([replacedCover]);
+          } catch (cleanupError) {
+            console.warn('[ITEM IMAGE] Post-refresh cleanup failed:', cleanupError);
+          }
+        }
         res.json({ success: true, ...result });
       } catch (err: any) {
         console.error(`Refresh item error for ${plugin.id}:`, err.message);

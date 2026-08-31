@@ -296,7 +296,7 @@
     },
     "collection_backup": {
       "title": "Sammlungs-Backup",
-      "subtitle": "Diese Sammlung exportieren (Elemente + Einstellungen + lokale Bilder) oder ihren Inhalt durch ein JSON- oder ZIP-Backup ersetzen.",
+      "subtitle": "Diese Sammlung exportieren (Elemente + Einstellungen) oder ihren Inhalt durch ein Backup ersetzen. ZIP enthält lokale Bilder; JSON enthält nur Daten.",
       "confirm_import": "Der Import ERSETZT alle Elemente dieser Sammlung. Fortfahren?"
     },
     "sharing": {

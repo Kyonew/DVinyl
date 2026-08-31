@@ -20,6 +20,7 @@ import { CARD_ASPECT_RATIOS } from "../core/customPlugin";
 import { PermanentRefreshError, syncStamp, getPublicProtocol } from "../core/helpers";
 import { deleteItemsAndContents } from "../utils/itemHelpers";
 import { deleteUnusedManagedItemImages, managedItemImagesForQuery } from "../core/itemImageStorage";
+import { alignImagesAfterRefresh } from "../core/itemImages";
 
 const router = express.Router();
 
@@ -1199,9 +1200,21 @@ router.post(
                   if (refreshedData[k] !== undefined) dataToApply[k] = refreshedData[k];
                 }
               }
+              // Same realignment as the single-item refresh: a new cover replaces the old
+              // one inside the gallery instead of pushing it down into it. Copied rather
+              // than mutated, since in the full mode this is the plugin's own return value.
+              const update = { ...dataToApply };
+              const replacedCover = alignImagesAfterRefresh(item, update);
               // Written even when the provider changed nothing, so the date says when the
               // item was last checked rather than when it last happened to differ.
-              await Item.updateOne({ _id: item._id }, { $set: { ...dataToApply, ...syncStamp() } });
+              await Item.updateOne({ _id: item._id }, { $set: { ...update, ...syncStamp() } });
+              if (replacedCover) {
+                try {
+                  await deleteUnusedManagedItemImages([replacedCover]);
+                } catch (cleanupError) {
+                  console.warn('[ITEM IMAGE] Post-refresh cleanup failed:', cleanupError);
+                }
+              }
 
               success = true;
               await new Promise((r) => setTimeout(r, plugin.bulkRefreshDelayMs ?? 500));

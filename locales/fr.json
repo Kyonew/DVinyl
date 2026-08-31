@@ -509,7 +509,7 @@
     },
     "collection_backup": {
       "title": "Sauvegarde de la collection",
-      "subtitle": "Exporter cette collection (items + réglages + images locales) ou remplacer son contenu avec une sauvegarde JSON ou ZIP.",
+      "subtitle": "Exporter cette collection (items + réglages) ou remplacer son contenu avec une sauvegarde. Le ZIP inclut les images locales ; le JSON contient uniquement les données.",
       "confirm_import": "L'import va REMPLACER tous les items de cette collection. Continuer ?"
     },
     "sharing": {
