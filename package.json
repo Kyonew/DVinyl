@@ -5,7 +5,7 @@
   "main": "app.ts",
   "scripts": {
     "start": "node --env-file=.env --import tsx app.ts",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "tsx --test 'core/ai/*.test.ts'",
     "build:css": "npx tailwindcss -i ./website/src/input.css -o ./website/public/styles/tailwind.css --watch"
   },
   "author": "Kyo'",

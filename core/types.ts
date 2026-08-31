@@ -66,6 +66,16 @@ export interface PluginDefinition {
 
   creatorField: string;
 
+  /**
+   * Whether an enrichment search should combine creatorField with the title, the way
+   * this plugin's own dedicated importers already do (see each plugin's importers.ts).
+   * True for a marketplace-style catalog (Discogs, Hardcover) that needs the extra
+   * context to find the right release among many same-titled ones. Left unset for a
+   * provider (TMDB, IGDB) whose search already works from the title alone and is not
+   * proven to tolerate an extra name appended to the query.
+   */
+  includeCreatorInSearch?: boolean;
+
   extraSearchFields?: string[];
 
   searchProvider?: SearchProvider;
@@ -79,6 +89,14 @@ export interface PluginDefinition {
   imageSearchType?: string;
 
   supportsBarcodeSearch?: boolean;
+
+  // True only for a provider whose own free-text search can match raw barcode digits
+  // directly (Discogs indexes release barcodes). When UPCitemdb and the AI fallback both
+  // fail to resolve a title, this lets the route search with the scanned digits instead
+  // of dead-ending — the exact behavior this plugin had before it declared
+  // supportsBarcodeSearch. Left unset for a provider (TMDB, IGDB) that only matches on
+  // title, where searching raw digits cannot succeed and dead-ending is correct.
+  barcodeSearchFallback?: boolean;
 
   // Noise terms stripped from the title returned by the barcode lookup (e.g. 'DVD', 'Blu-ray', 'PS5'),
   // to sharpen the external search query. Plugin-specific (keeps the core agnostic).

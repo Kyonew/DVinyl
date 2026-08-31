@@ -89,12 +89,17 @@ router.post('/import/csv', ...guards, (req: any, res: any) => {
   return runCsvImport(req, res, {
     plugin,
     delimiter,
-    // No searchQuery: enrichment looks the item up by title alone, which is the only
-    // thing every provider matches on. TMDB in particular returns nothing at all for
-    // "Inception Christopher Nolan", so pasting the creator in silently emptied the
+    // Default: no searchQuery, so enrichment looks the item up by title alone, which is
+    // the only thing every provider matches on. TMDB in particular returns nothing at all
+    // for "Inception Christopher Nolan", so pasting the creator in silently emptied the
     // enrichment of every row whose creator column was filled. Telling two same-titled
-    // works apart is the engine's job, from the year and the creator of the row.
+    // works apart is the engine's job, from the year and the creator of the row. A plugin
+    // that opts in via includeCreatorInSearch (see its own comment) overrides this below,
+    // the same way aiImportRoute.ts already does for the other import path.
     mapRow,
+    ...(plugin.includeCreatorInSearch ? {
+      searchQuery: (_row: any, data: Record<string, any>) => [data[plugin.creatorField], data.title].filter(Boolean).join(' ')
+    } : {}),
     // The support the row landed on, when the mapping fed one. Providers that key their
     // search on it (Discogs) otherwise default to vinyl and would enrich a CD import
     // with the wrong pressings; the others ignore the option.

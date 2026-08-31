@@ -34,6 +34,14 @@ export interface CsvImportSpec {
   /** Columns the file must expose, else the whole import is rejected upfront. */
   requiredColumns?: string[];
 
+  /**
+   * Records to import, when the caller already has them. The AI import builds its rows
+   * from a model's reply rather than from a file, and everything after the parse - the
+   * mapping, the duplicate check, the enrichment, the progress events - is identical.
+   * When absent, the CSV in the request body is parsed as before.
+   */
+  rows?: CsvRow[];
+
   /** Separator of the file. Plugin importers know theirs; the generic one is told. */
   delimiter?: string;
 
@@ -356,7 +364,7 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
   const { plugin } = spec;
   const csv = req.body?.csv;
 
-  if (!csv) {
+  if (!spec.rows && !csv) {
     return res.status(400).json({ error: 'Missing CSV data' });
   }
 
@@ -372,7 +380,7 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
   res.status(202).json({ success: true, message: 'Import started' });
 
   try {
-    const records = parseCsvRecords(csv, spec.delimiter || ',');
+    const records = spec.rows ?? parseCsvRecords(csv, spec.delimiter || ',');
     if (records.length === 0) {
       req.io.emit('import_error', { message: 'CSV file is empty or invalid' });
       return;
