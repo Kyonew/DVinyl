@@ -94,7 +94,8 @@ router.get('/', async (req: any, res: any) => {
       editPlaceholder,
       palette: CUSTOM_PLUGIN_PALETTE,
       iconChoices: CUSTOM_PLUGIN_ICONS,
-      maxCardLines: MAX_CARD_LINES
+      maxCardLines: MAX_CARD_LINES,
+      aiConfigured: isAiConfigured(await getAiConfig())
     });
   } catch (err: any) {
     console.error('[PluginBuilder] page error:', err);
