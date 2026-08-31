@@ -20,11 +20,16 @@ The AI assist helps in three ways:
   you can add items without looking up each one.
 - **Photo import:** Point a camera at a physical item (book cover, album art, game box) and the AI
   reads it, pulling out the same metadata as text import would.
+- **Plugin drafting:** In the no-code plugin editor, describe a collection type in a sentence
+  ("old glass Coca-Cola bottles") and the AI drafts a starting point — a name, an icon, a few
+  custom fields and formats — for you to review and edit before saving. It never saves anything
+  itself; the draft only fills in the same form you would otherwise fill in by hand.
 
 ## Off by default
 
-The AI assist is disabled until you configure it. Text and photo import stay fully in your
-control: nothing is analysed until you paste text or upload photos and click **Analyse** yourself.
+The AI assist is disabled until you configure it. Text import, photo import and plugin drafting
+stay fully in your control: nothing is analysed or generated until you paste text, upload photos,
+or type a description and click the relevant button yourself.
 
 The barcode fallback is the one exception — once AI is enabled, it fires automatically on *every*
 scanned barcode the metadata service fails to recognize, with no separate per-scan opt-in. This is
@@ -32,7 +37,9 @@ a small extra request per failed scan, worth knowing about even though nothing i
 you without going through your module's own provider first (see above).
 
 The text/photo import card lives in the admin panel, under **Imports from external services**,
-alongside the CSV, Discogs and Libib importers.
+alongside the CSV, Discogs and Libib importers. Plugin drafting lives in the **plugin editor**
+(`/create-plugin`), above the manual builder form, and only appears there while creating a new
+plugin — not while editing an existing one.
 
 ## Getting started
 

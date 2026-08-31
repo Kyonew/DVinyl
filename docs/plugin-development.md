@@ -19,9 +19,10 @@ There are two ways to add a new collection type:
 | Restart | Hot reload, no restart | Restart the app |
 
 If you just want a manual collection with your own fields, the **no-code plugin editor** is faster
-and needs no coding at all. See the guide on the
-[Wiki](https://github.com/Kyonew/DVinyl/wiki). If you want to pull data from an API or ship
-something others can install, keep reading.
+and needs no coding at all — with an AI assist configured, you can even describe the collection in
+a sentence and have it draft the fields, formats and icon for you to review. See the guide on the
+[Wiki](https://github.com/Kyonew/DVinyl/wiki) and the [AI Assist guide](./ai.md) for that path. If
+you want to pull data from an API or ship something others can install, keep reading.
 
 ## How plugins are loaded
 
