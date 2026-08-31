@@ -206,7 +206,11 @@ export const dvdPlugin: PluginDefinition = {
   defaultCardFields: ['director'],
 
   schemaDefinition: {
-    director: { type: String, required: true },
+    // Not required: an AI-extracted "The Matrix movie" line has no way to know this, and
+    // making it required blocked the preview row before enrichment ever got a chance to
+    // fill it in from TMDB. The display layer already falls back to 'Unknown' (see the
+    // toJSON transform below) for whatever's left genuinely blank.
+    director: { type: String, default: '' },
     studio: String,
     duration: String,
     rating: String,
