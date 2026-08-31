@@ -64,19 +64,28 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           }
 
           if (!query) {
-            // Searching the digits themselves cannot match: these providers index titles,
-            // not barcodes. Say the barcode is unknown rather than show an empty result
-            // list, which reads as "you don't own this" instead of "I couldn't look it up".
-            return res.render('add', {
-              results: [],
-              error: req.t('add_vinyl.barcode_not_found'),
-              searchType: type || plugin.id,
-              searchQuery: rawQuery,
-              scanned_barcode: barcode,
-              user: res.locals.user,
-              currentType: `add-${plugin.id}`,
-              plugin
-            });
+            if (plugin.barcodeSearchFallback) {
+              // See PluginDefinition.barcodeSearchFallback: this provider's free-text
+              // search can match raw barcode digits directly, so fall through to the
+              // normal search call below with the scanned digits instead of dead-ending.
+              searchQuery = rawQuery;
+            } else {
+              // Searching the digits themselves cannot match: these providers index titles,
+              // not barcodes. Say the barcode is unknown rather than show an empty result
+              // list, which reads as "you don't own this" instead of "I couldn't look it up".
+              return res.render('add', {
+                results: [],
+                error: req.t('add_vinyl.barcode_not_found'),
+                searchType: type || plugin.id,
+                searchQuery: rawQuery,
+                scanned_barcode: barcode,
+                user: res.locals.user,
+                currentType: `add-${plugin.id}`,
+                plugin
+              });
+            }
+          } else {
+            searchQuery = query;
           }
           searchQuery = query;
           resolvedTitle = query;

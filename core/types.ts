@@ -90,6 +90,14 @@ export interface PluginDefinition {
 
   supportsBarcodeSearch?: boolean;
 
+  // True only for a provider whose own free-text search can match raw barcode digits
+  // directly (Discogs indexes release barcodes). When UPCitemdb and the AI fallback both
+  // fail to resolve a title, this lets the route search with the scanned digits instead
+  // of dead-ending — the exact behavior this plugin had before it declared
+  // supportsBarcodeSearch. Left unset for a provider (TMDB, IGDB) that only matches on
+  // title, where searching raw digits cannot succeed and dead-ending is correct.
+  barcodeSearchFallback?: boolean;
+
   // Noise terms stripped from the title returned by the barcode lookup (e.g. 'DVD', 'Blu-ray', 'PS5'),
   // to sharpen the external search query. Plugin-specific (keeps the core agnostic).
   barcodeNoiseTerms?: string[];

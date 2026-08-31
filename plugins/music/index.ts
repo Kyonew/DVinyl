@@ -29,6 +29,7 @@ export const musicPlugin: PluginDefinition = {
   includeCreatorInSearch: true,
   extraSearchFields: ['tracklist.title', 'tracklist.tags'],
   supportsBarcodeSearch: true,
+  barcodeSearchFallback: true,
   barcodeNoiseTerms: ['Vinyl', 'CD', 'LP', 'EP', '2LP', 'Reissue', 'Remastered', 'Deluxe Edition', 'Deluxe', 'Special Edition', 'Limited Edition', 'Explicit', 'Gatefold', 'Colored Vinyl', 'Picture Disc'],
   aspectRatioClass: 'aspect-square',
   supportsUserImage: true,
