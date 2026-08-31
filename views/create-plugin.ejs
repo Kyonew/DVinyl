@@ -106,12 +106,12 @@
         </div>
         <p class="text-xs opacity-60"><%= t('create_plugin.ai_section_hint') %></p>
         <div class="flex flex-col md:flex-row gap-3">
-            <input id="aiPluginDescription" type="text" maxlength="2000"
+            <input id="aiPluginDescription" type="text" maxlength="<%= maxAiDescriptionChars %>"
                 placeholder="<%= t('create_plugin.ai_placeholder') %>"
                 class="flex-1 bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme p-3 outline-none">
             <button type="button" id="aiGenerateBtn"
                 class="bg-primary-theme text-white font-bold px-6 py-3 rounded-xl hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2 shrink-0">
-                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                <i id="aiGenerateBtnIcon" class="fa-solid fa-wand-magic-sparkles"></i>
                 <span id="aiGenerateBtnText"><%= t('create_plugin.ai_generate_btn') %></span>
             </button>
         </div>
@@ -990,6 +990,7 @@
     if ($('aiGenerateBtn')) {
         $('aiGenerateBtn').addEventListener('click', async () => {
             const btn = $('aiGenerateBtn');
+            const icon = $('aiGenerateBtnIcon');
             const txt = $('aiGenerateBtnText');
             const errBox = $('builderError');
             const description = $('aiPluginDescription').value.trim();
@@ -997,7 +998,9 @@
 
             btn.disabled = true;
             const prevText = txt.textContent;
+            const prevIconClass = icon.className;
             txt.textContent = i18n.aiGenerating;
+            icon.className = 'fa-solid fa-spinner fa-spin';
 
             try {
                 const res = await fetch(baseUrl + '/create-plugin/ai-generate', {
@@ -1016,6 +1019,7 @@
             } finally {
                 btn.disabled = false;
                 txt.textContent = prevText;
+                icon.className = prevIconClass;
             }
         });
     }
