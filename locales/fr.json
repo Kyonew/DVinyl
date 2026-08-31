@@ -1234,7 +1234,10 @@
     "corner_taken": "Le coin haut-droite est occupé par le badge de format.",
     "default_color": "Couleur par défaut",
     "reset": "Réinitialiser",
-    "customized": "Personnalisé"
+    "customized": "Personnalisé",
+    "ai_err_empty": "Décrivez d'abord ce que vous voulez suivre.",
+    "ai_err_too_long": "Limitez la description à {{max}} caractères.",
+    "ai_err_failed": "La génération par IA n'a rien produit d'utilisable. Reformulez, ou remplissez le formulaire à la main."
   },
   "add_lego": {
     "title": "Ajouter un set LEGO",

@@ -1234,7 +1234,10 @@
     "corner_taken": "The top-right corner is taken by the format badge.",
     "default_color": "Default color",
     "reset": "Reset",
-    "customized": "Customized"
+    "customized": "Customized",
+    "ai_err_empty": "Describe what you want to track first.",
+    "ai_err_too_long": "Keep the description under {{max}} characters.",
+    "ai_err_failed": "AI generation could not produce a draft. Try rephrasing, or fill in the form by hand."
   },
   "add_lego": {
     "title": "Add a LEGO set",

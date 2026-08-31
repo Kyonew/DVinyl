@@ -17,6 +17,9 @@ import { placeholderUrl } from '../core/placeholderImage';
 import { cardFieldCandidates, getCardLines, MAX_CARD_LINES, CORNER_POSITIONS, DEFAULT_CORNER_POSITION } from '../core/cardFields';
 import { registerPluginDirAtRuntime, unregisterPluginAtRuntime } from '../core/pluginRuntime';
 import { saveCustomPluginToDB, deleteCustomPluginFromDB } from '../core/customPluginSync';
+import { generatePluginDraft } from '../core/ai/pluginGenerate';
+import { getAiConfig } from '../core/ai/instance';
+import { isAiConfigured } from '../core/ai/config';
 
 /**
  * /create-plugin: builder for user-created ("custom") plugins.
@@ -187,6 +190,40 @@ router.post('/customize/:pluginId', async (req: any, res: any) => {
   } catch (err: any) {
     console.error('[PluginBuilder] customize error:', err);
     res.status(500).json({ success: false, error: req.t('errors.generic_server_error') });
+  }
+});
+
+/** A description is a sentence, not a pasted list — generous but not import-sized. */
+const MAX_DESCRIPTION_CHARS = 2000;
+
+// POST /create-plugin/ai-generate -> draft a plugin config from a text description
+router.post('/ai-generate', async (req: any, res: any) => {
+  try {
+    const description = typeof req.body?.description === 'string' ? req.body.description.trim() : '';
+    if (!description) {
+      return res.status(400).json({ success: false, errors: [req.t('create_plugin.ai_err_empty')] });
+    }
+    if (description.length > MAX_DESCRIPTION_CHARS) {
+      return res.status(400).json({
+        success: false,
+        errors: [req.t('create_plugin.ai_err_too_long', { max: MAX_DESCRIPTION_CHARS })]
+      });
+    }
+
+    const config = await getAiConfig();
+    if (!isAiConfigured(config)) {
+      return res.status(400).json({ success: false, errors: [req.t('ai.err_not_configured')] });
+    }
+
+    const draft = await generatePluginDraft(config, description);
+    if (!draft) {
+      return res.status(502).json({ success: false, errors: [req.t('create_plugin.ai_err_failed')] });
+    }
+
+    res.json({ success: true, draft });
+  } catch (err: any) {
+    console.error('[PluginBuilder] AI generate error:', err);
+    res.status(500).json({ success: false, errors: [req.t('errors.generic_server_error')] });
   }
 });
 
