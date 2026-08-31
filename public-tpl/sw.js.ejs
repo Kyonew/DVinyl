@@ -1,11 +1,16 @@
-// Rendered per deployment by app.ts so BASE_URL is baked in (see the /sw.js route).
+// Rendered per deployment by app.ts so BASE_URL and the app version are baked in (see
+// the /sw.js route).
 //
 // Scope of this worker: static assets only. DVinyl renders every page on the server,
 // scoped to the signed-in user and their active collection, so an HTML response is never
 // safe to replay from a cache. What is safe is the asset tree, and that is all this file
 // touches. Anything not matched below goes straight to the network, which means a new
 // route, a new plugin or a renamed page needs no change here to keep behaving correctly.
-const CACHE_NAME = 'dvinyl-v3.1.5';
+
+// Read from package.json through res.locals rather than written here by hand, which is
+// what a release has to remember otherwise: a version bump that forgot this line would
+// leave every client serving the previous build's style.css and icons.
+const CACHE_NAME = 'dvinyl-v<%= appVersion %>';
 const BASE = '<%= baseUrl %>';
 
 // Cache-first paths. Everything under them is either content-hashed (plugin placeholders)
