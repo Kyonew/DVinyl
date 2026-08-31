@@ -50,15 +50,17 @@ for LM Studio). The model field should match what you have running.
 
 ### From the admin panel
 
-Open **Settings > AI Assist**. You will see a form with:
+Open the **Instance** link in the navigation, then scroll to the AI Assist section. You will see
+a form with these fields:
 
 - **Provider:** Choose from the presets, or "Custom" for a local or self-hosted endpoint.
-- **API key:** Paste the key you got from your provider (ignored if using a local endpoint).
 - **Base URL:** Only shown if you choose "Custom"; enter your endpoint's base URL.
 - **Model:** The model ID to use (the default for each provider is already filled in, but you can
   change it to any other model the provider offers).
-- **Enable for vision:** A second model ID for photo import (reading images). Leave it as the first
-  model unless your provider has a separate vision-capable model.
+- **Vision model:** A text input for the model ID used for photo import (reading images). Leave it
+  blank to reuse the main model above, or enter a separate model ID if your provider has a
+  dedicated vision-capable model.
+- **API key:** Paste the key you got from your provider (ignored if using a local endpoint).
 
 There is also a **Test connection** button so you can verify your setup works before saving.
 
