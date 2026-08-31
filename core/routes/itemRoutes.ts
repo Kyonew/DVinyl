@@ -86,9 +86,11 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
             }
           } else {
             searchQuery = query;
+            // Whether the title came straight from UPCitemdb or from the AI fallback,
+            // it's a title-shaped string either way, so it earns the same
+            // shorter-forms retry as a resolved barcode always has.
+            resolvedTitle = query;
           }
-          searchQuery = query;
-          resolvedTitle = query;
         }
 
         const settings = res.locals.settings;
