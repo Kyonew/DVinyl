@@ -6,9 +6,10 @@
   <meta name="robots" content="noindex, nofollow">
   <title><%= t('login.title') %></title>
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900&family=Varela+Round&display=swap" rel="stylesheet">
+  <%# Poppins served from the instance. The four weights below are the ones this page
+      actually sets; the nine plus italics it used to request were never drawn, and
+      Varela Round was requested without a single rule ever naming it. %>
+  <link rel="stylesheet" href="<%= baseUrl %>/vendor/fonts/poppins.css">
   <link rel="icon" type="image/png" href="<%= baseUrl %>/ressources/logo.png">
   <%# Same vendored build as every other page (see partials/header.ejs). This page used
       to be the one exception, on a Tailwind 2 stylesheet from a third CDN, which meant

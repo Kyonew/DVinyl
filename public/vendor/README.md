@@ -23,6 +23,13 @@ still change when it should.
 | `flowbite-1.6.5.min.js` | 1.6.5 | every page | dropdowns and modals stop opening |
 | `chart-4.4.7.umd.min.js` | 4.4.7 | the estimate modal | the collection value history draws nothing |
 | `zxing-0.23.0.umd.min.js` | 0.23.0 | the add page | the barcode scanner never starts |
+| `fonts/` | see below | login and setup | those two pages fall back to a system font |
+
+Poppins (login) and Plus Jakarta Sans (setup) are SIL OFL 1.1. Only the `latin` and
+`latin-ext` subsets are kept, and only the weights those two pages actually set: Poppins
+400/500/600/700, and the Plus Jakarta Sans variable file, whose single woff2 covers the
+whole 200-800 range. That family has no 900, so a `font-black` rule on the setup page
+renders at 800.
 
 Tailwind, Flowbite and Chart.js are MIT licensed. Font Awesome Free is CC BY 4.0 (icons),
 SIL OFL 1.1 (fonts) and MIT (code). ZXing for JS is Apache 2.0.
@@ -49,11 +56,25 @@ ones, so nothing 404s on an older client.
       done
     done
 
+Google Fonts serves a different stylesheet per User-Agent, so the font files are pulled
+with a modern desktop UA and the stylesheet is rewritten to point at them locally:
+
+    UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+    curl -sL -A "$UA" 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap'
+    # keep only the /* latin */ and /* latin-ext */ @font-face blocks, download each
+    # woff2 into fonts/, and replace every url(https://...) with url(./<local file>)
+
 Then point the views at the new filenames, delete the old files, and record the hashes
 below. The references live in `views/partials/header.ejs` (Tailwind, Font Awesome,
-Flowbite), `views/login.ejs` and `views/setup.ejs` (Tailwind, Font Awesome),
-`views/collection.ejs` (Chart.js) and `core/views/add.ejs` (ZXing). Tailwind's runtime
-config stays inline in `views/partials/header.ejs`.
+Flowbite), `views/login.ejs` (Tailwind, Font Awesome, Flowbite, Poppins),
+`views/setup.ejs` (Tailwind, Font Awesome, Plus Jakarta Sans), `views/collection.ejs`
+(Chart.js) and `core/views/add.ejs` (ZXing). Tailwind's runtime config stays inline in
+`views/partials/header.ejs`.
+
+Nothing outside this directory is fetched from a third-party host any more. A grep for
+`googleapis`, `gstatic`, `cdnjs`, `jsdelivr`, `unpkg` or `cdn.tailwindcss` across `views/`
+and `core/views/` should stay empty; the only remote URLs a page still requests are the
+cover images collections point at themselves.
 
 ## Hashes
 

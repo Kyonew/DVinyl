@@ -9,7 +9,10 @@
     <%# Vendored, like Tailwind above: the very first page of a new install is the one most
         likely to be opened on a machine with no outbound internet access. %>
     <link rel="stylesheet" href="<%= baseUrl %>/vendor/font-awesome-6.7.2/css/all.min.css" />
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <%# Plus Jakarta Sans served from the instance. It is a variable font, so the single
+        file behind this stylesheet covers the whole 200-800 range. Note the ceiling: the
+        family has no 900, so a font-black rule here renders at 800, as it always did. %>
+    <link rel="stylesheet" href="<%= baseUrl %>/vendor/fonts/plus-jakarta-sans.css">
     
     <style>
         body { 
