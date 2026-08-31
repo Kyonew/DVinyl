@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex, nofollow">
   <title><%= item.title %> — <%= t('detail.label_page_title') %></title>
+  <%# This page stands on its own rather than including partials/header, so it declares the
+      icon itself: without it the browser falls back to requesting /favicon.ico, which DVinyl
+      does not serve and which shows up as a 404 in the logs on every print. %>
+  <link rel="icon" type="image/png" href="<%= baseUrl %>/ressources/logo.png">
   <style>
     * { box-sizing: border-box; }
     body {

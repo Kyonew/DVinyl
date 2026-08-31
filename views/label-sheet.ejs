@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex, nofollow">
   <title><%= t('collection.label_sheet_title') %></title>
+  <%# Declared here for the same reason as views/label.ejs: no header partial, so no icon
+      unless this page provides one, and the browser falls back to a 404 on /favicon.ico. %>
+  <link rel="icon" type="image/png" href="<%= baseUrl %>/ressources/logo.png">
   <style>
     * { box-sizing: border-box; }
     body {
