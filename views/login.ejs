@@ -14,8 +14,10 @@
       to be the one exception, on a Tailwind 2 stylesheet from a third CDN, which meant
       the login screen and the app behind it were styled by two different major versions. %>
   <script src="<%= baseUrl %>/vendor/tailwind-3.4.17.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/1.6.5/flowbite.min.js"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <%# Same vendored builds as partials/header.ejs. This page used to pull Font Awesome 6.4
+      while the app behind it used 6.7, so an icon could render here and not there. %>
+  <script src="<%= baseUrl %>/vendor/flowbite-1.6.5.min.js"></script>
+  <link rel="stylesheet" href="<%= baseUrl %>/vendor/font-awesome-6.7.2/css/all.min.css" />
   <link rel="stylesheet" href="<%= baseUrl %>/styles/style.css">
 
   <style>

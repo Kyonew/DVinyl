@@ -87,8 +87,12 @@
     };
   </script>
 
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/1.6.5/flowbite.min.js"></script>
+  <%# Both served from the instance, for the same reason as Tailwind above: an ad blocker, a
+      DNS filter or an instance with no outbound access takes them out, and every icon in the
+      interface is a Font Awesome glyph while every dropdown and modal is driven by Flowbite.
+      See public/vendor/README.md for how to update them. %>
+  <link rel="stylesheet" href="<%= baseUrl %>/vendor/font-awesome-6.7.2/css/all.min.css">
+  <script src="<%= baseUrl %>/vendor/flowbite-1.6.5.min.js"></script>
   <link rel="icon" type="image/png" href="<%= baseUrl %>/ressources/logo.png">
 
   <style>

@@ -3,11 +3,11 @@
 <%# ZXing rather than html5-qrcode: the latter hands its decoder a canvas sized to the
     CSS width of the viewfinder, so on a phone an EAN-13 arrives at roughly 2 pixels per
     bar and never decodes (issue #121). ZXing decodes the camera frame at its native
-    resolution instead. Pinned with an integrity hash: an unversioned CDN URL means a
-    publish upstream can break every instance's scanner without a commit here. %>
-<script src="https://unpkg.com/@zxing/library@0.23.0/umd/index.min.js"
-    integrity="sha384-0ASr5PEWAMtTnWsn0PzKmioHVDA4+QqFiJr94io/0DCrGP6E1gRAmbO6O8y5WZW9"
-    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    resolution instead. Served from the instance, with the version in the filename: the
+    scanner is reached from a phone on the local network, which is exactly where outbound
+    access to a CDN is least certain, and a publish upstream can no longer change what
+    every instance runs without a commit here. %>
+<script src="<%= baseUrl %>/vendor/zxing-0.23.0.umd.min.js"></script>
 
 <div class="max-w-screen-lg mx-auto pb-20 px-4">
     

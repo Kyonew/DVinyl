@@ -110,9 +110,9 @@
     <% } %>
 
     <% if (hasEstimateAction) { %>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"
-        integrity="sha384-vsrfeLOOY6KuIYKDlmVH5UiBmgIdB1oEf7p01YgWHuqmOHfZr374+odEv96n9tNC"
-        crossorigin="anonymous"></script>
+    <%# Vendored like the rest of the front-end libraries. Loaded only on a page that offers
+        an estimate action, since the value history chart is the only thing that uses it. %>
+    <script src="<%= baseUrl %>/vendor/chart-4.4.7.umd.min.js"></script>
     <% } %>
 
     <% if (hasEstimateAction) { %>
