@@ -8,9 +8,13 @@ as before.
 
 The AI assist helps in three ways:
 
-- **Barcode fallback:** When you scan a barcode and the metadata service does not recognize it (or
-  is unreachable), the AI can read the barcode image and invent a guess at the title and creator,
-  so you get something to start from instead of nothing.
+- **Barcode fallback:** When you scan a barcode and the metadata service does not recognize the
+  digits, the AI is given the scanned number as plain text (never an image) and asked to identify
+  the product. It is explicitly told never to invent a plausible-sounding title, and a low-confidence
+  guess is discarded rather than shown to you. What the AI actually returns is not an item, but a
+  better *search query* — that query is then handed to your module's own provider (Discogs, TMDB,
+  Hardcover, IGDB), so the result you see and save still comes from that provider, exactly like a
+  normal search.
 - **Text import:** When you paste or upload text (a book review, a product description, an article
   snippet), the AI extracts the title, creator, year, and any other field your plugin declares, so
   you can add items without looking up each one.
@@ -19,8 +23,16 @@ The AI assist helps in three ways:
 
 ## Off by default
 
-The AI assist is disabled until you configure it. Even after setup, it only runs on the specific
-items you ask it to — nothing happens automatically in the background.
+The AI assist is disabled until you configure it. Text and photo import stay fully in your
+control: nothing is analysed until you paste text or upload photos and click **Analyse** yourself.
+
+The barcode fallback is the one exception — once AI is enabled, it fires automatically on *every*
+scanned barcode the metadata service fails to recognize, with no separate per-scan opt-in. This is
+a small extra request per failed scan, worth knowing about even though nothing it produces reaches
+you without going through your module's own provider first (see above).
+
+The text/photo import card lives in the admin panel, under **Imports from external services**,
+alongside the CSV, Discogs and Libib importers.
 
 ## Getting started
 
@@ -43,8 +55,8 @@ DVinyl comes with presets for five major providers. Pick one, get a key, and you
 
 If you run **Ollama** or **LM Studio** on the same machine or your network, you can point DVinyl at
 it for free — no API key is needed. Just choose "Custom (OpenAI-compatible)" and enter the base
-URL of your endpoint (for example `http://localhost:11434` for Ollama, or `http://localhost:1234`
-for LM Studio). The model field should match what you have running.
+URL of your endpoint (for example `http://localhost:11434/v1` for Ollama, or `http://localhost:1234/v1`
+for LM Studio — the `/v1` suffix is required). The model field should match what you have running.
 
 ## Configuration
 

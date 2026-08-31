@@ -212,7 +212,7 @@
         function renderPhotoThumbs() {
             el('aiPhotoThumbs').innerHTML = photos.map((src, index) =>
                 '<div class="relative w-16 h-16 rounded-xl overflow-hidden shrink-0 group">'
-                + '<img src="' + src + '" class="w-full h-full object-cover">'
+                + '<img src="' + src + '" alt="Selected photo" class="w-full h-full object-cover">'
                 + '<button type="button" data-ai-photo-remove="' + index + '" title="' + escapeHtml(T.removePhoto) + '"'
                 + ' class="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/70 text-white text-[10px] flex items-center justify-center hover:bg-red-500 transition-colors">'
                 + '<i class="fa-solid fa-xmark"></i></button>'
