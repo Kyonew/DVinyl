@@ -565,7 +565,6 @@
   },
   "confirm_vinyl": {
     "add_secondary_visual": "Aggiungi elemento visivo secondario (disco/mockup)",
-    "api_error": "Errore dell'API.",
     "browse_files": "Sfoglia i file",
     "btn_collection": "Collezione",
     "btn_wishlist": "Lista dei desideri",

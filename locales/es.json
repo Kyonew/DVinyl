@@ -565,7 +565,6 @@
   },
   "confirm_vinyl": {
     "add_secondary_visual": "Agregar imagen secundaria (Disco/Maqueta)",
-    "api_error": "Error de API.",
     "browse_files": "Explorar archivos",
     "btn_collection": "Recopilación",
     "btn_wishlist": "Lista de deseos",
