@@ -58,7 +58,13 @@
 
         <div data-image-pane="url" class="hidden">
             <div class="flex flex-col sm:flex-row gap-2">
-                <input type="url" id="urlInputImage" placeholder="https://site.com/image.jpg" class="flex-grow bg-white dark:bg-black/20 border-transparent rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-primary-theme">
+                <%# Deliberately type="text": this box is a control of the image manager, not a
+                    field of the item form, yet it sits inside that form. As type="url" the
+                    browser validates it on submit, so a half-typed address left behind after a
+                    rejected "Add" blocks the whole save. The pane is usually hidden by then, so
+                    the browser cannot even show which control it is refusing, and the save looks
+                    like it did nothing. addUrl() below does the validating and reports it. %>
+                <input type="text" inputmode="url" id="urlInputImage" placeholder="https://site.com/image.jpg" class="flex-grow bg-white dark:bg-black/20 border-transparent rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-primary-theme">
                 <button type="button" id="addImageUrl" class="bg-primary-theme text-white px-5 py-3 rounded-lg text-sm font-bold hover:brightness-110">
                     <i class="fa-solid fa-plus mr-1"></i> <%= t('image_manager.add') %>
                 </button>
