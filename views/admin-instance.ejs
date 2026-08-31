@@ -902,7 +902,13 @@
                 let pendingClear = false;
 
                 function setDisabled(disabled) {
-                    [enabledEl, providerEl, baseUrlEl, modelEl, visionModelEl, apiKeyEl, clearKeyBtn, saveBtn, testBtn]
+                    // enabledEl is deliberately excluded: even when the rest of the panel is
+                    // locked by an env-provided config, the toggle must stay clickable so a
+                    // key-less local-endpoint env config (no AI_API_KEY) can still be turned
+                    // on by hand — resolveCandidate() only force-enables when an env key is
+                    // present, so without this the toggle would be the only way to flip
+                    // `enabled` and it would be stuck disabled.
+                    [providerEl, baseUrlEl, modelEl, visionModelEl, apiKeyEl, clearKeyBtn, saveBtn, testBtn]
                         .forEach(el => { if (el) el.disabled = disabled; });
                 }
 
@@ -963,6 +969,13 @@
                     pendingClear = true;
                     apiKeyEl.value = '';
                     keySetLine.classList.add('hidden');
+                });
+
+                // If the user clears the key and then types/pastes a new one, that new
+                // input supersedes the pending clear — otherwise the save would still send
+                // the clear sentinel and silently discard what they just typed.
+                apiKeyEl.addEventListener('input', () => {
+                    pendingClear = false;
                 });
 
                 async function persistAiSettings() {
