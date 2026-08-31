@@ -58,6 +58,8 @@
     "backup": {
       "confirm_import": "ADVERTENCIA: Esto eliminará todos sus datos actuales (álbumes, usuarios, registros) y los reemplazará con el contenido del archivo. Se cerrará tu sesión. ¿Continuar?",
       "export_btn": "Exportar base de datos",
+      "export_zip_btn": "Exportar ZIP",
+      "export_json_btn": "Exportar JSON",
       "export_csv_btn": "Exportar CSV",
       "import_btn": "Importar base de datos",
       "csv": {
@@ -67,6 +69,7 @@
       "import_error": "Error durante la importación.",
       "import_success": "Base de datos importada exitosamente.",
       "json_error": "Archivo JSON no válido.",
+      "file_error": "El archivo de copia de seguridad está dañado o no es válido.",
       "section_subtitle": "Exporta o restaura toda tu colección.",
       "section_title": "Copia de seguridad de la base de datos",
       "subtitle": "Haga una copia de seguridad de su colección o restaure una base de datos existente.",
@@ -262,7 +265,7 @@
       "stat_items": "Elementos",
       "stat_blocked": "IPs bloqueadas",
       "backup_title": "Copia de la instancia",
-      "backup_subtitle": "Exporta TODA la instancia: todos los usuarios, todas las colecciones con sus elementos, ajustes y registros - en un solo archivo.",
+      "backup_subtitle": "Exporta TODA la instancia. El ZIP incluye las imágenes locales; el JSON solo contiene datos.",
       "backup_warning": "La importación reemplaza TODOS los datos de la instancia (todas las colecciones, todos los usuarios). Para restaurar una sola colección, usa su copia dedicada desde la página de administración de esa colección.",
       "backup_confirm_import": "Esta importación REEMPLAZARÁ TODA la instancia: todos los usuarios, todas las colecciones y sus elementos. Se cerrará tu sesión. ¿Continuar?",
       "self_service_title": "Colecciones en autoservicio",
@@ -294,7 +297,7 @@
     },
     "collection_backup": {
       "title": "Copia de la colección",
-      "subtitle": "Exportar esta colección (elementos + ajustes) o reemplazar su contenido con una copia.",
+      "subtitle": "Exporta esta colección (elementos + ajustes) o reemplaza su contenido con una copia de seguridad. El ZIP incluye las imágenes locales; el JSON solo contiene datos.",
       "confirm_import": "La importación REEMPLAZARÁ todos los elementos de esta colección. ¿Continuar?"
     },
     "sharing": {
@@ -718,6 +721,29 @@
     "image_preview": "Vista previa de la imagen",
     "genre": "Género"
   },
+  "image_manager": {
+    "title": "Imágenes del elemento",
+    "order_hint": "Arrastra las imágenes para reordenarlas. La primera se usará como imagen principal.",
+    "empty": "Todavía no hay imágenes",
+    "local_hint": "Haz clic para añadir una o varias imágenes",
+    "search_hint": "Haz clic en un resultado para añadirlo a la lista.",
+    "add": "Añadir",
+    "main": "Imagen principal",
+    "remove": "Eliminar imagen",
+    "confirm_remove": "¿Seguro que quieres eliminar esta imagen?",
+    "move_before": "Mover a la izquierda",
+    "move_after": "Mover a la derecha",
+    "invalid_url": "Introduce una URL de imagen HTTP o HTTPS válida.",
+    "too_many": "Un elemento puede contener como máximo {{max}} imágenes.",
+    "too_large": "Las imágenes locales pueden ocupar como máximo {{maxMb}} MB por elemento. Elimina una imagen o elige archivos más pequeños.",
+    "uploading": "Subiendo imagen…",
+    "upload_failed": "No se pudo subir la imagen.",
+    "upload_invalid": "El archivo seleccionado no es una imagen válida.",
+    "upload_too_large": "La imagen comprimida es demasiado grande (máximo 5 MB).",
+    "image_number": "Imagen {{number}}",
+    "previous": "Imagen anterior",
+    "next": "Imagen siguiente"
+  },
   "image_source": {
     "hint": "Haga clic para buscar archivos",
     "local": "archivo local",
@@ -1131,8 +1157,6 @@
     "shape_square": "Cuadrado (funda)",
     "shape_screen": "Pantalla (16/9)",
     "shape_hint": "Se aplica a las páginas y formularios de este plugin. Las cuadrículas usan la relación de aspecto definida en Personalización.",
-    "secondary_label": "Imagen secundaria",
-    "secondary_desc": "Añade un segundo visual editable (como el disco para la música).",
     "default_cover_label": "Imagen por defecto",
     "default_cover_desc": "Se muestra en los elementos añadidos sin portada. Déjalo vacío para conservar el logo de DVinyl.",
     "default_cover_reset": "Volver al logo por defecto",

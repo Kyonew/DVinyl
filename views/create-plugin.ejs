@@ -179,15 +179,6 @@
                 </div>
                 <p class="text-[11px] opacity-50 -mt-3 max-w-lg"><%= t('create_plugin.shape_hint') %></p>
 
-                <label class="flex items-center gap-3 cursor-pointer w-fit">
-                    <input id="secondaryImage" type="checkbox" class="sr-only peer">
-                    <div class="relative w-11 h-6 bg-black/10 dark:bg-white/10 rounded-full peer peer-checked:bg-green-500 after:content-[''] after:absolute after:top-0.5 after:start-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
-                    <div>
-                        <span class="text-sm font-bold"><%= t('create_plugin.secondary_label') %></span>
-                        <p class="text-[11px] opacity-50"><%= t('create_plugin.secondary_desc') %></p>
-                    </div>
-                </label>
-
                 <div class="pt-2 border-t border-black/5 dark:border-white/5">
                     <label class="block mb-1 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('create_plugin.default_cover_label') %></label>
                     <p class="text-[11px] opacity-50 mb-4"><%= t('create_plugin.default_cover_desc') %></p>
@@ -839,7 +830,6 @@
             icon: state.icon,
             color: state.color,
             aspectRatioClass: aspectClassForShape(state.shape),
-            secondaryImage: $('secondaryImage').checked,
             creatorLabel: $('creatorLabel').value.trim(),
             defaultFormat: state.defaultFormat,
             features, formats, fields
@@ -933,7 +923,6 @@
     }
 
     ['pluginLabel', 'creatorLabel'].forEach(id => $(id).addEventListener('input', renderPreview));
-    $('secondaryImage').addEventListener('change', renderPreview);
     document.querySelectorAll('.feature-toggle').forEach(cb => cb.addEventListener('change', renderPreview));
 
     // ---- Save ----------------------------------------------------------------------
@@ -1287,7 +1276,6 @@
         state.icon = editConfig.icon || 'fa-box';
         state.color = editConfig.color || 'teal';
         state.shape = shapeFromConfig(editConfig);
-        $('secondaryImage').checked = editConfig.secondaryImage === true;
         const features = editConfig.features || {};
         document.querySelectorAll('.feature-toggle').forEach(cb => { cb.checked = features[cb.dataset.feature] === true; });
         (editConfig.formats || []).forEach(addFormatRow);

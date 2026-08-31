@@ -156,6 +156,13 @@ safe; just don't downgrade the **MongoDB** major below the version that last wro
 
 By default, the database data is stored in a Docker volume named mongo-data. This ensures your collection is not lost when you stop or update the containers.
 
+Images uploaded from an item form are stored under `public/uploads/items` (the Compose files mount
+`./public/uploads` persistently). Whole-instance and per-collection ZIP backups include every
+referenced local item image. The historical JSON import format remains supported, but JSON alone
+cannot transport those files to another installation. When a ZIP export encounters an older JPEG
+stored inline in MongoDB as a data URL, it moves that image into the archive's `images/` directory;
+restoring the ZIP therefore migrates it to the file-based storage automatically.
+
 ## 🧩 No-code plugins and Docker
 
 Collection types you build with the in-app **plugin editor** (`/create-plugin`) are stored **in the

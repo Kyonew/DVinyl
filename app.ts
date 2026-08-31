@@ -30,6 +30,8 @@ import { mountPluginRoutes, pluginDispatcher } from './core/pluginRuntime.js';
 import { applyPluginCustomization } from './core/pluginCustomization.js';
 import { getCardLines, getCornerBadge, isTranslationKey, CORNER_POSITIONS, DEFAULT_CORNER_POSITION, SHARE_HIDDEN_FIELDS } from './core/cardFields.js';
 import { importableFields } from './core/csvMapping.js';
+import { MAX_ITEM_IMAGES, MAX_ITEM_IMAGE_BYTES } from './core/itemImages.js';
+import { cleanupStaleItemImageUploads, ITEM_IMAGE_SWEEP_INTERVAL_MS, itemImageUrl } from './core/itemImageStorage.js';
 
 // Routes imports
 import setupRoutes from './routes/setupRoutes.js';
@@ -40,6 +42,7 @@ import shareRoutes from './routes/shareRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
 import backupRoutes from './routes/backupRoutes.js';
+import itemImageRoutes from './routes/itemImageRoutes.js';
 import oidcRoutes from './routes/oidcRoutes.js';
 
 import dashboardRoute from './core/routes/dashboardRoute.js';
@@ -93,12 +96,23 @@ app.locals.DEFAULT_CORNER_POSITION = DEFAULT_CORNER_POSITION;
 app.locals.SHARE_HIDDEN_FIELDS = SHARE_HIDDEN_FIELDS;
 // The CSV mapping screen lists the destinations of every enabled module
 app.locals.importableFields = importableFields;
+// Shared by the image-manager partial so its client-side guard matches the save route.
+app.locals.MAX_ITEM_IMAGES = MAX_ITEM_IMAGES;
+app.locals.MAX_ITEM_IMAGE_BYTES = MAX_ITEM_IMAGE_BYTES;
+// Stored item-upload paths stay deployment-independent; views resolve BASE_URL only
+// when rendering them so edits and exports keep the portable value.
+app.locals.itemImageUrl = itemImageUrl;
 // Dates read the same way wherever a view prints one
 app.locals.dateLocaleFor = dateLocaleFor;
 app.set('io', io); // Expose io to routes
 
 // Global middlewares
-app.use(BASE_URL, express.static(path.join(__dirname, 'public')));
+// nosniff on the whole static tree, because part of it is now supplied by users: an
+// uploaded item image is only ever served as the image/jpeg its extension declares,
+// never as whatever a browser might decide the bytes look like.
+app.use(BASE_URL, express.static(path.join(__dirname, 'public'), {
+  setHeaders: (res) => res.setHeader('X-Content-Type-Options', 'nosniff')
+}));
 // Mounted with the static assets: no session, no settings, no collection lookup needed
 app.use(BASE_URL + '/plugin-assets', pluginAssetRoutes);
 app.use(express.json({ limit: '50mb' }));
@@ -267,6 +281,7 @@ app.use(BASE_URL + '/admin', adminRoutes);
 app.use(BASE_URL + '/settings', settingsRoutes);
 app.use(BASE_URL + '/create-plugin', pluginBuilderRoutes);
 app.use(BASE_URL + '/backup', backupRoutes);
+app.use(BASE_URL, itemImageRoutes);
 if (isOidcEnabled()) {
   app.use(BASE_URL, oidcRoutes);
 }
@@ -298,6 +313,19 @@ connectDB()
     // a fresh/rebuilt container and backfills the DB from any pre-existing folders.
     console.log('[BOOT] Syncing custom plugins...');
     await syncCustomPluginsOnBoot();
+    const sweepAbandonedItemImages = async (label: string) => {
+      try {
+        const removed = await cleanupStaleItemImageUploads();
+        if (removed > 0) console.log(`[${label}] Removed ${removed} abandoned item image(s)`);
+      } catch (err) {
+        console.warn(`[${label}] Item image cleanup failed:`, err);
+      }
+    };
+    await sweepAbandonedItemImages('BOOT');
+    // An upload that never made it onto an item is only swept once it is a day old, so a
+    // boot-only pass leaves an instance that stays up for months collecting them. Repeat
+    // it on a timer, unref'd so it never holds the process open on its own.
+    setInterval(() => { void sweepAbandonedItemImages('CLEANUP'); }, ITEM_IMAGE_SWEEP_INTERVAL_MS).unref();
     const port = process.env.VINYL_PORT || 3099;
     server.listen(port, () => {
       console.log(`[BOOT] Server started on port ${port} (BASE_URL="${BASE_URL || '/'}", env=${process.env.PROD === 'true' ? 'production' : 'development'})`);

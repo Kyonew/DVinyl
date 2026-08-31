@@ -337,6 +337,8 @@
     },
     "backup": {
       "export_btn": "Exporter la base de données",
+      "export_zip_btn": "Exporter en ZIP",
+      "export_json_btn": "Exporter en JSON",
       "export_csv_btn": "Exporter en CSV",
       "import_btn": "Importer la base de données",
       "csv": {
@@ -346,6 +348,7 @@
       "import_success": "Base de données importée avec succès.",
       "import_error": "Erreur lors de l'importation.",
       "json_error": "Fichier JSON invalide.",
+      "file_error": "Le fichier de sauvegarde est corrompu ou invalide.",
       "confirm_import": "ATTENTION : Cela va supprimer toutes vos données actuelles (albums, utilisateurs, logs) pour les remplacer par le contenu du fichier. Vous serez déconnecté. Continuer ?",
       "subtitle": "Sauvegardez votre collection ou restaurez une base de données existante.",
       "title": "Maintenance du système",
@@ -475,7 +478,7 @@
       "stat_items": "Items",
       "stat_blocked": "IPs bloquées",
       "backup_title": "Sauvegarde de l'instance",
-      "backup_subtitle": "Exporte TOUTE l'instance : tous les utilisateurs, toutes les collections avec leurs items, réglages et logs de connexion - dans un seul fichier.",
+      "backup_subtitle": "Exporte TOUTE l'instance. Le ZIP inclut les images locales ; le JSON contient uniquement les données.",
       "backup_warning": "L'import remplace TOUTES les données de l'instance (toutes les collections, tous les utilisateurs). Pour restaurer une seule collection, utilisez sa sauvegarde dédiée depuis la page admin de cette collection.",
       "backup_confirm_import": "Cet import va REMPLACER TOUTE l'instance : tous les utilisateurs, toutes les collections et leurs items. Vous serez déconnecté. Continuer ?",
       "self_service_title": "Collections en libre-service",
@@ -507,7 +510,7 @@
     },
     "collection_backup": {
       "title": "Sauvegarde de la collection",
-      "subtitle": "Exporter cette collection (items + réglages) ou remplacer son contenu par une sauvegarde.",
+      "subtitle": "Exporter cette collection (items + réglages) ou remplacer son contenu avec une sauvegarde. Le ZIP inclut les images locales ; le JSON contient uniquement les données.",
       "confirm_import": "L'import va REMPLACER tous les items de cette collection. Continuer ?"
     },
     "sharing": {
@@ -934,6 +937,29 @@
     "image_preview": "Aperçu de l'image",
     "genre": "Genre"
   },
+  "image_manager": {
+    "title": "Images de l'élément",
+    "order_hint": "Faites glisser les images pour les réordonner. La première sera utilisée comme image principale.",
+    "empty": "Aucune image pour le moment",
+    "local_hint": "Cliquez pour ajouter une ou plusieurs images",
+    "search_hint": "Cliquez sur un résultat pour l'ajouter à la liste.",
+    "add": "Ajouter",
+    "main": "Image principale",
+    "remove": "Supprimer l'image",
+    "confirm_remove": "Voulez-vous vraiment supprimer cette image ?",
+    "move_before": "Déplacer vers la gauche",
+    "move_after": "Déplacer vers la droite",
+    "invalid_url": "Saisissez une URL d'image HTTP ou HTTPS valide.",
+    "too_many": "Un élément peut contenir au maximum {{max}} images.",
+    "too_large": "Les images locales peuvent occuper au maximum {{maxMb}} Mo par élément. Supprimez une image ou choisissez des fichiers plus petits.",
+    "uploading": "Envoi de l'image…",
+    "upload_failed": "L'image n'a pas pu être envoyée.",
+    "upload_invalid": "Le fichier sélectionné n'est pas une image valide.",
+    "upload_too_large": "L'image compressée est trop lourde (maximum 5 Mo).",
+    "image_number": "Image {{number}}",
+    "previous": "Image précédente",
+    "next": "Image suivante"
+  },
   "image_source": {
     "local": "Fichier local",
     "url": "URL",
@@ -1131,8 +1157,6 @@
     "shape_square": "Carré (pochette)",
     "shape_screen": "Écran (16/9)",
     "shape_hint": "S'applique aux fiches et formulaires de ce plugin. Les grilles utilisent le rapport défini dans Personnalisation.",
-    "secondary_label": "Image secondaire",
-    "secondary_desc": "Ajoute un second visuel modifiable (comme le disque pour la musique).",
     "default_cover_label": "Image par défaut",
     "default_cover_desc": "Affichée sur les items ajoutés sans visuel. Laissez vide pour garder le logo DVinyl.",
     "default_cover_reset": "Revenir au logo par défaut",

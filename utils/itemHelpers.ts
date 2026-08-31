@@ -1,6 +1,7 @@
 import Item from '../models/Item';
 import { registry } from '../core/registry';
 import { applyVisibilityFilter } from './visibilityHelper';
+import { deleteUnusedManagedItemImages, managedItemImagesFrom } from '../core/itemImageStorage';
 
 /**
  * Resolves, for a page of items, what each one should actually show on the shelf.
@@ -69,10 +70,18 @@ export async function moveContentsToWishlist(holderId: any, inWishlist: boolean,
 export async function deleteItemsAndContents(ids: any[]): Promise<number> {
     if (!ids || ids.length === 0) return 0;
 
-    const contained = await Item.find({ parent: { $in: ids } }).select('_id').lean();
-    const all = [...ids, ...contained.map((c: any) => c._id)];
+    const items = await Item.find({
+        $or: [{ _id: { $in: ids } }, { parent: { $in: ids } }]
+    }).select('_id cover_image user_image images').lean();
+    const all = items.map((item: any) => item._id);
+    const images = items.flatMap(managedItemImagesFrom);
 
     const result = await Item.deleteMany({ _id: { $in: all } });
+    try {
+        await deleteUnusedManagedItemImages(images);
+    } catch (err) {
+        console.warn('[ITEM IMAGE] Post-delete cleanup failed:', err);
+    }
     return result.deletedCount || 0;
 }
 

@@ -1,103 +1,80 @@
-<!-- Images: replace cover + secondary visual (shared by confirm & manual-add) -->
-<%# coverOpen pre-checks the box so the editor is already unfolded. Set by manual-add,
-    where the item never comes with a cover and picking one is the usual next step. %>
-                    <hr class="border-black/10 dark:border-white/10 my-6 transition-colors">
-                    <div class="space-y-4">
-                        <div class="flex items-center">
-                            <input id="checkEditCover" type="checkbox" <%= locals.coverOpen ? 'checked' : '' %> class="w-4 h-4 text-primary-theme bg-black/5 dark:bg-white/10 border-transparent rounded focus:ring-primary-theme focus:ring-2 cursor-pointer transition-colors">
-                            <label for="checkEditCover" class="ml-2 text-sm font-bold cursor-pointer opacity-80 hover:opacity-100 transition-opacity">
-                                <%= t('confirm_' + plugin.i18nKey + '.replace_cover', { defaultValue: t('generic.replace_main_image') }) %>
-                            </label>
-                        </div>
+<%
+    // Keep the historical fields in the initial list: provider results and old items do
+    // not need a migration before they can use the new gallery editor.
+    const initialImages = [];
+    const emptyImageValues = new Set([plugin.placeholderImage, '/ressources/logo.png'].filter(Boolean));
+    [item.cover_image, ...(Array.isArray(item.images) ? item.images : []), item.user_image].forEach(image => {
+        if (typeof image === 'string' && image.trim() && !emptyImageValues.has(image.trim()) && !initialImages.includes(image.trim())) {
+            initialImages.push(image.trim());
+        }
+    });
+%>
 
-                        <input type="hidden" name="cover_image" id="inputCoverImage" value="<%= item.cover_image %>">
+<hr class="border-black/10 dark:border-white/10 my-6 transition-colors">
+<section id="itemImageManager" class="space-y-4" aria-labelledby="itemImagesTitle"
+    data-max-images="<%= MAX_ITEM_IMAGES %>" data-max-image-bytes="<%= MAX_ITEM_IMAGE_BYTES %>">
+    <div>
+        <h2 id="itemImagesTitle" class="text-base font-black flex items-center gap-2">
+            <i class="fa-solid fa-images text-primary-theme"></i>
+            <%= t('image_manager.title') %>
+        </h2>
+        <p class="text-xs opacity-55 mt-1"><%= t('image_manager.order_hint') %></p>
+    </div>
 
-                        <div id="boxEditCover" class="<%= locals.coverOpen ? '' : 'hidden' %> p-4 card-theme rounded-2xl border border-black/10 dark:border-white/10 shadow-inner transition-all">
-                            <div class="flex gap-1 mb-4 p-1 bg-black/5 dark:bg-white/5 rounded-xl">
-                                <button type="button" onclick="setImgTab('cover', 'local')" id="tab-cover-local" class="flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all bg-primary-theme text-white">
-                                    <i class="fa-solid fa-upload mr-1"></i> <%= t('image_source.local') %>
-                                </button>
-                                <button type="button" onclick="setImgTab('cover', 'url')" id="tab-cover-url" class="flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all opacity-50">
-                                    <i class="fa-solid fa-link mr-1"></i> <%= t('image_source.url') %>
-                                </button>
-                                <button type="button" onclick="setImgTab('cover', 'search')" id="tab-cover-search" class="flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all opacity-50">
-                                    <i class="fa-solid fa-search mr-1"></i> <%= t('image_source.search') %>
-                                </button>
-                            </div>
+    <input type="hidden" name="images_json" id="inputImagesJson" value="<%= JSON.stringify(initialImages) %>">
+    <%# Kept for older plugin hooks and clients; JavaScript mirrors the first two images. %>
+    <input type="hidden" name="cover_image" id="inputCoverImage" value="<%= initialImages[0] || '' %>">
+    <input type="hidden" name="user_image" id="inputUserImage" value="<%= initialImages[1] || '' %>">
 
-                            <div id="pane-cover-local" class="img-pane-cover">
-                                <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-black/10 dark:border-white/10 rounded-2xl cursor-pointer hover:bg-black/5 transition-all">
-                                    <div class="flex flex-col items-center justify-center py-4">
-                                        <i class="fa-solid fa-cloud-arrow-up text-2xl opacity-20 mb-2"></i>
-                                        <p class="text-xs font-bold opacity-50 italic"><%= t('image_source.hint') %></p>
-                                    </div>
-                                    <input type="file" id="fileInputCover" class="hidden" accept="image/*">
-                                </label>
-                            </div>
+    <div id="imageList" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3" aria-live="polite"></div>
+    <div id="imageListEmpty" class="hidden min-h-28 border-2 border-dashed border-black/10 dark:border-white/10 rounded-2xl items-center justify-center text-center p-6">
+        <div>
+            <i class="fa-regular fa-images text-2xl opacity-20"></i>
+            <p class="text-xs font-bold opacity-50 mt-2"><%= t('image_manager.empty') %></p>
+        </div>
+    </div>
 
-                            <div id="pane-cover-url" class="img-pane-cover hidden">
-                                <input type="url" id="urlInputCover" placeholder="https://site.com/couverture.jpg" class="w-full bg-white dark:bg-black/20 border-transparent rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-primary-theme">
-                                <p class="text-[9px] mt-2 opacity-50 italic"><%= t('image_source.url_hint') %></p>
-                            </div>
+    <div class="p-4 card-theme rounded-2xl border border-black/10 dark:border-white/10 shadow-inner">
+        <div class="flex gap-1 mb-4 p-1 bg-black/5 dark:bg-white/5 rounded-xl" role="tablist" aria-label="<%= t('image_manager.add') %>">
+            <button type="button" data-image-tab="local" class="image-source-tab flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all bg-primary-theme text-white" role="tab">
+                <i class="fa-solid fa-upload mr-1"></i> <%= t('image_source.local') %>
+            </button>
+            <button type="button" data-image-tab="url" class="image-source-tab flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all opacity-50" role="tab">
+                <i class="fa-solid fa-link mr-1"></i> <%= t('image_source.url') %>
+            </button>
+            <button type="button" data-image-tab="search" class="image-source-tab flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all opacity-50" role="tab">
+                <i class="fa-solid fa-search mr-1"></i> <%= t('image_source.search') %>
+            </button>
+        </div>
 
-                            <div id="pane-cover-search" class="img-pane-cover hidden">
-                                <div class="flex gap-2 mb-4">
-                                    <input type="text" id="queryCover" value="<%= item[plugin.creatorField] %> <%= item.title %>" class="flex-grow bg-white dark:bg-black/20 border-transparent rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-primary-theme">
-                                    <button type="button" onclick="runUniversalSearch('cover')" class="bg-primary-theme text-white px-4 rounded-lg">
-                                        <i class="fa-solid fa-search"></i>
-                                    </button>
-                                </div>
-                                <div id="resultsCover" class="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto custom-scrollbar"></div>
-                            </div>
-                        </div>
+        <div data-image-pane="local">
+            <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-black/10 dark:border-white/10 rounded-2xl cursor-pointer hover:bg-black/5 transition-all">
+                <i class="fa-solid fa-cloud-arrow-up text-2xl opacity-20 mb-2"></i>
+                <p class="text-xs font-bold opacity-50 italic"><%= t('image_manager.local_hint') %></p>
+                <input type="file" id="fileInputImages" class="hidden" accept="image/*" multiple>
+            </label>
+            <p id="imageUploadStatus" class="hidden text-xs text-center font-bold text-primary-theme mt-3" aria-live="polite"></p>
+        </div>
 
-                        <% if (plugin.supportsUserImage) { %>
-                            <div class="flex items-center">
-                                <input id="checkEditDisc" type="checkbox" class="w-4 h-4 text-primary-theme bg-black/5 dark:bg-white/10 border-transparent rounded focus:ring-primary-theme focus:ring-2 cursor-pointer transition-colors">
-                                <label for="checkEditDisc" class="ml-2 text-sm font-bold cursor-pointer opacity-80 hover:opacity-100 transition-opacity">
-                                    <%= t('confirm_' + plugin.i18nKey + '.add_secondary_visual', { defaultValue: t('generic.add_secondary_image') }) %>
-                                </label>
-                            </div>
+        <div data-image-pane="url" class="hidden">
+            <div class="flex flex-col sm:flex-row gap-2">
+                <input type="url" id="urlInputImage" placeholder="https://site.com/image.jpg" class="flex-grow bg-white dark:bg-black/20 border-transparent rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-primary-theme">
+                <button type="button" id="addImageUrl" class="bg-primary-theme text-white px-5 py-3 rounded-lg text-sm font-bold hover:brightness-110">
+                    <i class="fa-solid fa-plus mr-1"></i> <%= t('image_manager.add') %>
+                </button>
+            </div>
+            <p class="text-[10px] mt-2 opacity-50 italic"><%= t('image_source.url_hint') %></p>
+        </div>
 
-                            <input type="hidden" name="user_image" id="inputUserImage" value="<%= item.user_image || '' %>">
-
-                            <div id="boxEditDisc" class="hidden p-4 card-theme rounded-2xl border border-primary-theme/30 shadow-inner">
-                                <div class="flex gap-1 mb-4 p-1 bg-black/5 dark:bg-white/5 rounded-xl">
-                                    <button type="button" onclick="setImgTab('disc', 'local')" id="tab-disc-local" class="flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all bg-primary-theme text-white">
-                                        <i class="fa-solid fa-upload mr-1"></i> <%= t('image_source.local') %>
-                                    </button>
-                                    <button type="button" onclick="setImgTab('disc', 'url')" id="tab-disc-url" class="flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all opacity-50">
-                                        <i class="fa-solid fa-link mr-1"></i> <%= t('image_source.url') %>
-                                    </button>
-                                    <button type="button" onclick="setImgTab('disc', 'search')" id="tab-disc-search" class="flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all opacity-50">
-                                        <i class="fa-solid fa-search mr-1"></i> <%= t('image_source.search') %>
-                                    </button>
-                                </div>
-
-                                <div id="pane-disc-local" class="img-pane-disc">
-                                    <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-black/10 dark:border-white/10 rounded-2xl cursor-pointer hover:bg-black/5 transition-all">
-                                        <div class="flex flex-col items-center justify-center py-4">
-                                            <i class="fa-solid <%= plugin.secondaryImageIcon || 'fa-image' %> text-2xl opacity-20 mb-2"></i>
-                                            <p class="text-xs font-bold opacity-50 italic"><%= t('image_source.hint') %></p>
-                                        </div>
-                                        <input type="file" id="fileInputDisc" class="hidden" accept="image/*">
-                                    </label>
-                                </div>
-
-                                <div id="pane-disc-url" class="img-pane-disc hidden">
-                                    <input type="url" id="urlInputDisc" placeholder="https://site.com/mockup.jpg" class="w-full bg-white dark:bg-black/20 border-transparent rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-primary-theme">
-                                </div>
-
-                                <div id="pane-disc-search" class="img-pane-disc hidden">
-                                    <div class="flex gap-2 mb-4">
-                                        <input type="text" id="queryDisc" value="<%= item[plugin.creatorField] %> <%= item.title %> <%= item.variant_color || '' %>" class="flex-grow bg-white dark:bg-black/20 border-transparent rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-primary-theme">
-                                        <button type="button" onclick="runUniversalSearch('disc')" class="bg-primary-theme text-white px-4 rounded-lg">
-                                            <i class="fa-solid fa-search"></i>
-                                        </button>
-                                    </div>
-                                    <div id="resultsDisc" class="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto custom-scrollbar"></div>
-                                </div>
-                            </div>
-                        <% } %>
-                    </div>
-
+        <div data-image-pane="search" class="hidden">
+            <div class="flex gap-2 mb-4">
+                <input type="search" id="queryImages" value="<%= [item[plugin.creatorField], item.title, item.variant_color].filter(Boolean).join(' ') %>" class="flex-grow bg-white dark:bg-black/20 border-transparent rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-primary-theme">
+                <button type="button" id="searchImagesButton" class="bg-primary-theme text-white px-4 rounded-lg hover:brightness-110" aria-label="<%= t('image_source.search') %>">
+                    <i class="fa-solid fa-search"></i>
+                </button>
+            </div>
+            <p class="text-[10px] opacity-50 mb-3"><%= t('image_manager.search_hint') %></p>
+            <div id="resultsImages" class="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-64 overflow-y-auto custom-scrollbar"></div>
+        </div>
+    </div>
+</section>

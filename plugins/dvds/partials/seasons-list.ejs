@@ -14,7 +14,7 @@
                 <a href="<%= baseUrl %>/dvd/<%= season._id %>"
                     class="group card-theme rounded-xl overflow-hidden hover:border-primary-theme transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
                     <div class="aspect-[2/3] w-full overflow-hidden bg-black/5 dark:bg-white/5">
-                        <img src="<%= season.cover_image %>" loading="lazy"
+                        <img src="<%= itemImageUrl(season.cover_image) %>" loading="lazy"
                             class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
                     </div>
                     <div class="p-3">

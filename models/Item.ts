@@ -20,6 +20,9 @@ const itemSchema = new mongoose.Schema({
   year: String,
   cover_image: String,
   user_image: String,
+  // Ordered gallery shared by every plugin. The first two entries are mirrored to
+  // cover_image/user_image on form saves for compatibility with existing integrations.
+  images: { type: [String], default: undefined },
   owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   // The item holding this one, when it is contained rather than standalone: a season of a
   // show points at the show. A contained item is a full item, with its own cover, year and

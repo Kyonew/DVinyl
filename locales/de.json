@@ -58,6 +58,8 @@
     "backup": {
       "confirm_import": "ACHTUNG: Dadurch werden alle Ihre aktuellen Daten (Alben, Benutzer, Protokolle) gelöscht und durch den Inhalt der Datei ersetzt. Sie werden abgemeldet. Weitermachen?",
       "export_btn": "Datenbank exportieren",
+      "export_zip_btn": "Als ZIP exportieren",
+      "export_json_btn": "Als JSON exportieren",
       "export_csv_btn": "CSV exportieren",
       "import_btn": "Datenbank importieren",
       "csv": {
@@ -67,6 +69,7 @@
       "import_error": "Fehler beim Import.",
       "import_success": "Datenbank erfolgreich importiert.",
       "json_error": "Ungültige JSON-Datei.",
+      "file_error": "Die Sicherungsdatei ist beschädigt oder ungültig.",
       "section_subtitle": "Exportieren oder wiederherstellen Sie Ihre gesamte Sammlung.",
       "section_title": "Datenbanksicherung",
       "subtitle": "Sichern Sie Ihre Sammlung oder stellen Sie eine vorhandene Datenbank wieder her.",
@@ -262,7 +265,7 @@
       "stat_items": "Elemente",
       "stat_blocked": "Gesperrte IPs",
       "backup_title": "Instanz-Backup",
-      "backup_subtitle": "Exportiert die GESAMTE Instanz: alle Benutzer, alle Sammlungen mit ihren Elementen, Einstellungen und Login-Logs - in einer Datei.",
+      "backup_subtitle": "Exportiert die GESAMTE Instanz. ZIP enthält lokale Bilder; JSON enthält nur Daten.",
       "backup_warning": "Der Import ersetzt ALLE Daten der Instanz (alle Sammlungen, alle Benutzer). Um eine einzelne Sammlung wiederherzustellen, nutzen Sie deren eigenes Backup auf der Admin-Seite dieser Sammlung.",
       "backup_confirm_import": "Dieser Import ERSETZT die GESAMTE Instanz: alle Benutzer, alle Sammlungen und ihre Elemente. Sie werden abgemeldet. Fortfahren?",
       "self_service_title": "Sammlungen in Selbstbedienung",
@@ -294,7 +297,7 @@
     },
     "collection_backup": {
       "title": "Sammlungs-Backup",
-      "subtitle": "Diese Sammlung exportieren (Elemente + Einstellungen) oder ihren Inhalt durch ein Backup ersetzen.",
+      "subtitle": "Diese Sammlung exportieren (Elemente + Einstellungen) oder ihren Inhalt durch ein Backup ersetzen. ZIP enthält lokale Bilder; JSON enthält nur Daten.",
       "confirm_import": "Der Import ERSETZT alle Elemente dieser Sammlung. Fortfahren?"
     },
     "sharing": {
@@ -718,6 +721,29 @@
     "image_preview": "Bildvorschau",
     "genre": "Genre"
   },
+  "image_manager": {
+    "title": "Bilder des Eintrags",
+    "order_hint": "Ziehe die Bilder, um sie neu zu ordnen. Das erste wird als Hauptbild verwendet.",
+    "empty": "Noch keine Bilder",
+    "local_hint": "Klicken, um ein oder mehrere Bilder hinzuzufügen",
+    "search_hint": "Klicke auf ein Ergebnis, um es zur Liste hinzuzufügen.",
+    "add": "Hinzufügen",
+    "main": "Hauptbild",
+    "remove": "Bild entfernen",
+    "confirm_remove": "Möchtest du dieses Bild wirklich entfernen?",
+    "move_before": "Nach links verschieben",
+    "move_after": "Nach rechts verschieben",
+    "invalid_url": "Gib eine gültige HTTP- oder HTTPS-Bild-URL ein.",
+    "too_many": "Ein Eintrag kann höchstens {{max}} Bilder enthalten.",
+    "too_large": "Lokale Bilder dürfen pro Eintrag insgesamt höchstens {{maxMb}} MB belegen. Entferne ein Bild oder wähle kleinere Dateien.",
+    "uploading": "Bild wird hochgeladen…",
+    "upload_failed": "Das Bild konnte nicht hochgeladen werden.",
+    "upload_invalid": "Die ausgewählte Datei ist kein gültiges Bild.",
+    "upload_too_large": "Das komprimierte Bild ist zu groß (maximal 5 MB).",
+    "image_number": "Bild {{number}}",
+    "previous": "Vorheriges Bild",
+    "next": "Nächstes Bild"
+  },
   "image_source": {
     "hint": "Klicken Sie hier, um Dateien zu durchsuchen",
     "local": "Lokale Datei",
@@ -1131,8 +1157,6 @@
     "shape_square": "Quadratisch (Hülle)",
     "shape_screen": "Bildschirm (16/9)",
     "shape_hint": "Gilt für die Seiten und Formulare dieses Plugins. Die Raster verwenden das in der Personalisierung festgelegte Kartenverhältnis.",
-    "secondary_label": "Zweitbild",
-    "secondary_desc": "Fügt ein zweites bearbeitbares Bild hinzu (wie die Disc bei Musik).",
     "default_cover_label": "Standardbild",
     "default_cover_desc": "Wird bei Objekten ohne eigenes Cover angezeigt. Leer lassen, um das DVinyl-Logo zu behalten.",
     "default_cover_reset": "Zurück zum Standardlogo",

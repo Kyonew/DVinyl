@@ -1,5 +1,8 @@
 import express from 'express';
 import mongoose from 'mongoose';
+import multer from 'multer';
+import os from 'os';
+import { promises as fs } from 'fs';
 import Item from '../models/Item';
 import User from '../models/User';
 import LoginLog from '../models/LoginLog';
@@ -20,27 +23,85 @@ const pkg = require('../package.json');
 import { migrateDatabase, normalizeThemePresets } from '../utils/migrate';
 import { applyCustomPluginsFromDB } from '../core/customPluginSync';
 import { collectExtraDateFields, reviveExtraDates } from '../core/pluginExtraFields';
+import { deleteUnusedManagedItemImages, managedItemImagesForQuery } from '../core/itemImageStorage';
+import { MAX_BACKUP_UPLOAD_BYTES, readBackupArchive, sendBackupArchive } from '../core/backupArchive';
 
 const router = express.Router();
+const backupArchiveUpload = multer({
+    dest: os.tmpdir(),
+    limits: { files: 1, fileSize: MAX_BACKUP_UPLOAD_BYTES }
+});
+
+const requireInstanceImportAccess = async (req: any, res: any, next: any) => {
+    try {
+        const userCount = await User.countDocuments();
+        if (userCount === 0 || res.locals.user?.isAdmin) return next();
+        console.warn(`[SECURITY] import unauthorized : ${req.ip}`);
+        return res.status(403).json({ error: 'Import unauthorized.' });
+    } catch (err) {
+        next(err);
+    }
+};
+
+const receiveBackupArchive = (req: any, res: any, next: any) => {
+    backupArchiveUpload.single('backup')(req, res, (err: any) => {
+        if (!err) return next();
+        const tooLarge = err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE';
+        return res.status(tooLarge ? 413 : 400).json({ error: tooLarge ? 'Backup archive too large' : 'Invalid backup archive' });
+    });
+};
+
+const loadBackupArchive = async (req: any, res: any, next: any) => {
+    if (!req.file?.path) return res.status(400).json({ error: 'Backup archive missing' });
+    try {
+        const imported = await readBackupArchive(req.file.path);
+        req.body = imported.data;
+        req.importedManagedImagePaths = imported.importedImages;
+        next();
+    } catch (err) {
+        console.warn('[BACKUP] Invalid archive:', err);
+        res.status(400).json({ error: 'Backup archive corrupted or invalid' });
+    } finally {
+        try {
+            await fs.unlink(req.file.path);
+        } catch (err: any) {
+            if (err?.code !== 'ENOENT') console.warn('[BACKUP] Temporary archive cleanup failed:', err);
+        }
+    }
+};
+
+async function cleanupImportedImages(req: any): Promise<void> {
+    const images = Array.isArray(req.importedManagedImagePaths) ? req.importedManagedImagePaths : [];
+    if (images.length === 0) return;
+    try {
+        await deleteUnusedManagedItemImages(images);
+    } catch (err) {
+        console.warn('[BACKUP] Imported image cleanup failed:', err);
+    }
+}
 
 // ============ WHOLE-INSTANCE BACKUP (instance admin) ============
 
+async function buildInstanceBackup(): Promise<any> {
+    return {
+        users: await User.find({}).lean(),
+        albums: await Item.find({}).lean(),
+        logs: await LoginLog.find({}).lean(),
+        settings: await Settings.find({}).lean(),
+        collections: await Collection.find({}).lean(),
+        customPlugins: await CustomPlugin.find({}).lean(),
+        priceHistory: await PriceHistory.find({}).lean(),
+        instanceSettings: await InstanceSettings.findOne({ key: 'instance' }).lean(),
+        metadata: {
+            version: pkg.version,
+            date: new Date()
+        }
+    };
+}
+
 router.get('/export', requireAuth, requireAdmin, async (req, res) => {
     try {
-        const data = {
-            users: await User.find({}).lean(),
-            albums: await Item.find({}).lean(),
-            logs: await LoginLog.find({}).lean(),
-            settings: await Settings.find({}).lean(),
-            collections: await Collection.find({}).lean(),
-            customPlugins: await CustomPlugin.find({}).lean(),
-            priceHistory: await PriceHistory.find({}).lean(),
-            instanceSettings: await InstanceSettings.findOne({ key: 'instance' }).lean(),
-            metadata: {
-                version: pkg.version,
-                date: new Date()
-            }
-        };
+        const data = await buildInstanceBackup();
 
         const fileName = `dvinyl_instance_${new Date().toISOString().split('T')[0]}.json`;
         console.log(`[BACKUP] Instance export: ${data.users.length} user(s), ${data.albums.length} item(s), ${data.collections.length} collection(s)`);
@@ -53,6 +114,19 @@ router.get('/export', requireAuth, requireAdmin, async (req, res) => {
     }
 });
 
+router.get('/export-archive', requireAuth, requireAdmin, async (req, res) => {
+    try {
+        const data = await buildInstanceBackup();
+        const fileName = `dvinyl_instance_${new Date().toISOString().split('T')[0]}.zip`;
+        console.log(`[BACKUP] Instance archive export: ${data.users.length} user(s), ${data.albums.length} item(s), ${data.collections.length} collection(s)`);
+        await sendBackupArchive(res, data, fileName);
+    } catch (err) {
+        console.error('[BACKUP] Instance archive export failed:', err);
+        if (!res.headersSent) res.status(500).send('Export failed');
+        else res.destroy(err as Error);
+    }
+});
+
 /**
  * POST /import - whole-instance restore (wipe & replace).
  * Supports three dump generations:
@@ -61,21 +135,8 @@ router.get('/export', requireAuth, requireAdmin, async (req, res) => {
  *    fields are stripped and the boot migration is re-run to rebuild a default
  *    collection and re-stamp everything.
  */
-router.post('/import', async (req, res) => {
+const importInstanceBackup = async (req: any, res: any) => {
     try {
-        const userCount = await User.countDocuments();
-
-        if (userCount > 0) {
-            const currentUser = res.locals.user;
-
-            if (!currentUser || !currentUser.isAdmin) {
-                console.warn(`[SECURITY] import unauthorized : ${req.ip}`);
-                return res.status(403).json({
-                    error: "Import unauthorized."
-                });
-            }
-        }
-
         // Setup
         let data = req.body;
 
@@ -83,15 +144,18 @@ router.post('/import', async (req, res) => {
             try {
                 data = typeof data.backupData === 'string' ? JSON.parse(data.backupData) : data.backupData;
             } catch (e) {
+                await cleanupImportedImages(req);
                 return res.status(400).json({ error: "Invalid JSON format" });
             }
         }
 
-        if (!data || (!data.users && !data.albums)) {
+        if (!data || (!Array.isArray(data.users) && !Array.isArray(data.albums))) {
+            await cleanupImportedImages(req);
             return res.status(400).json({ error: "Backup file missing required fields" });
         }
 
         const hasCollections = Array.isArray(data.collections) && data.collections.length > 0;
+        const replacedImagePaths = await managedItemImagesForQuery({});
 
         console.log(`[BACKUP] Instance import started (dump version ${data.metadata?.version || 'unknown'}, ${hasCollections ? 'with' : 'without'} collections): ${data.users?.length || 0} user(s), ${data.albums?.length || 0} item(s). Wiping current data...`);
 
@@ -226,6 +290,15 @@ router.post('/import', async (req, res) => {
         // plugins/<id>/ folders and hot-register them, pruning any from the old instance.
         await applyCustomPluginsFromDB();
 
+        // A JSON restore can keep paths already present on this installation, while a ZIP
+        // restore has already rewritten its files to fresh paths. In both cases, remove only
+        // files that the replacement no longer references.
+        try {
+            await deleteUnusedManagedItemImages(replacedImagePaths);
+        } catch (cleanupError) {
+            console.warn('[ITEM IMAGE] Post-import cleanup failed:', cleanupError);
+        }
+
         const restoredCollectionCount = await Collection.countDocuments();
         console.log(`[BACKUP] Instance import finished: ${restoredCollectionCount} collection(s) rebuilt, ${await Item.countDocuments()} item(s) restored`);
 
@@ -241,25 +314,31 @@ router.post('/import', async (req, res) => {
 
     } catch (err: any) {
         console.error("[ERR] Import :", err);
+        await cleanupImportedImages(req);
         res.status(500).json({ error: err.message });
     }
-});
+};
+
+router.post('/import', requireInstanceImportAccess, importInstanceBackup);
+router.post(
+    '/import-archive',
+    requireInstanceImportAccess,
+    receiveBackupArchive,
+    loadBackupArchive,
+    importInstanceBackup
+);
 
 // ============ PER-COLLECTION BACKUP (collection admin) ============
 
-router.get('/collection/export', requireAuth, requireCollectionRole('admin'), async (req: any, res: any) => {
-    try {
-        const activeCollectionId = res.locals.activeCollectionId;
-        const collection = res.locals.activeCollection;
+async function buildCollectionBackup(activeCollectionId: any, collection: any): Promise<any> {
+    const settings = await Settings.findOne({ collection: activeCollectionId }).lean() as any;
+    if (settings) {
+        delete settings._id;
+        delete settings.collection;
+        delete settings.__v;
+    }
 
-        const settings = await Settings.findOne({ collection: activeCollectionId }).lean() as any;
-        if (settings) {
-            delete settings._id;
-            delete settings.collection;
-            delete settings.__v;
-        }
-
-        const albums = (await Item.find({ collection: activeCollectionId }).lean()).map((a: any) => {
+    const albums = (await Item.find({ collection: activeCollectionId }).lean()).map((a: any) => {
             // Owner and collection are re-stamped at import time (a dump may be restored
             // into another collection, or another instance), so they go. The id stays: a
             // season points at the show that holds it, and the import can only rebuild
@@ -267,18 +346,25 @@ router.get('/collection/export', requireAuth, requireCollectionRole('admin'), as
             // the import draws a new one and rewrites the links against it.
             const { __v, owner, collection, ...rest } = a;
             return rest;
-        });
+    });
 
-        const data = {
-            collectionName: collection?.name || 'Collection',
-            albums,
-            settings: settings || null,
-            metadata: {
-                version: pkg.version,
-                type: "collection",
-                date: new Date()
-            }
-        };
+    return {
+        collectionName: collection?.name || 'Collection',
+        albums,
+        settings: settings || null,
+        metadata: {
+            version: pkg.version,
+            type: 'collection',
+            date: new Date()
+        }
+    };
+}
+
+router.get('/collection/export', requireAuth, requireCollectionRole('admin'), async (req: any, res: any) => {
+    try {
+        const activeCollectionId = res.locals.activeCollectionId;
+        const collection = res.locals.activeCollection;
+        const data = await buildCollectionBackup(activeCollectionId, collection);
 
         const slug = collection?.slug || 'collection';
         const fileName = `dvinyl_collection-${slug}_${new Date().toISOString().split('T')[0]}.json`;
@@ -288,6 +374,21 @@ router.get('/collection/export', requireAuth, requireCollectionRole('admin'), as
     } catch (err) {
         console.error("[ERR] Collection export:", err);
         res.status(500).send("Export failed");
+    }
+});
+
+router.get('/collection/export-archive', requireAuth, requireCollectionRole('admin'), async (req: any, res: any) => {
+    try {
+        const activeCollectionId = res.locals.activeCollectionId;
+        const collection = res.locals.activeCollection;
+        const data = await buildCollectionBackup(activeCollectionId, collection);
+        const slug = collection?.slug || 'collection';
+        const fileName = `dvinyl_collection-${slug}_${new Date().toISOString().split('T')[0]}.zip`;
+        await sendBackupArchive(res, data, fileName);
+    } catch (err) {
+        console.error('[BACKUP] Collection archive export failed:', err);
+        if (!res.headersSent) res.status(500).send('Export failed');
+        else res.destroy(err as Error);
     }
 });
 
@@ -395,7 +496,7 @@ router.get('/collection/export-csv', requireAuth, requireCollectionRole('admin')
  * when present in the file) with the backup's content. Accepts both per-collection
  * dumps (albums pre-stripped) and whole-instance dumps (albums re-stamped here).
  */
-router.post('/collection/import', requireAuth, requireCollectionRole('admin'), async (req: any, res: any) => {
+const importCollectionBackup = async (req: any, res: any) => {
     try {
         const activeCollectionId = res.locals.activeCollectionId;
 
@@ -404,15 +505,18 @@ router.post('/collection/import', requireAuth, requireCollectionRole('admin'), a
             try {
                 data = typeof data.backupData === 'string' ? JSON.parse(data.backupData) : data.backupData;
             } catch (e) {
+                await cleanupImportedImages(req);
                 return res.status(400).json({ error: "Invalid JSON format" });
             }
         }
 
         if (!data || !Array.isArray(data.albums)) {
+            await cleanupImportedImages(req);
             return res.status(400).json({ error: "Backup file missing required fields" });
         }
 
         // Replacement semantics: the collection's current items are wiped first.
+        const replacedImagePaths = await managedItemImagesForQuery({ collection: activeCollectionId });
         await Item.deleteMany({ collection: activeCollectionId });
 
         if (data.albums.length > 0) {
@@ -460,11 +564,28 @@ router.post('/collection/import', requireAuth, requireCollectionRole('admin'), a
             await Settings.create(clean);
         }
 
+        try {
+            await deleteUnusedManagedItemImages(replacedImagePaths);
+        } catch (cleanupError) {
+            console.warn('[ITEM IMAGE] Collection import cleanup failed:', cleanupError);
+        }
+
         res.status(200).json({ success: true, message: "Import successful", count: data.albums.length });
     } catch (err: any) {
         console.error("[ERR] Collection import:", err);
+        await cleanupImportedImages(req);
         res.status(500).json({ error: err.message });
     }
-});
+};
+
+router.post('/collection/import', requireAuth, requireCollectionRole('admin'), importCollectionBackup);
+router.post(
+    '/collection/import-archive',
+    requireAuth,
+    requireCollectionRole('admin'),
+    receiveBackupArchive,
+    loadBackupArchive,
+    importCollectionBackup
+);
 
 export = router;
