@@ -247,6 +247,7 @@
     "scan_stop": "Stop scanning",
     "scan_found": "Found!",
     "scan_error": "Camera error (Check permissions)",
+    "scan_hint": "Still nothing. Try filling the width of the frame with the barcode, holding it steady in good light, and moving slightly further away if it will not focus. You can also type the number in above.",
     "barcode_not_found": "That barcode wasn't recognised. Try searching by title instead.",
     "barcode_no_match": "No match for this barcode. Here is the product name it returned: adjust it and search again, the barcode stays attached.",
     "results_title": "Results",
