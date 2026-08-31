@@ -14,7 +14,7 @@ import InstanceSettings from '../models/InstanceSettings';
 import { invalidateInstanceSettingsCache } from '../utils/instanceSettings';
 import { requireAuth, requireAdmin, requireCollectionRole } from '../middleware/authMiddleware';
 import { registry } from '../core/registry';
-import { buildSortTitle, stringifyCsv } from '../core/helpers';
+import { buildSortTitle, stringifyCsv, getPublicProtocol } from '../core/helpers';
 import { importableFields, fieldValue, ImportTargetField } from '../core/csvMapping';
 
 // Stamped into every dump so a restore log says which build produced the file.
@@ -23,8 +23,9 @@ const pkg = require('../package.json');
 import { migrateDatabase, normalizeThemePresets } from '../utils/migrate';
 import { applyCustomPluginsFromDB } from '../core/customPluginSync';
 import { collectExtraDateFields, reviveExtraDates } from '../core/pluginExtraFields';
-import { deleteUnusedManagedItemImages, managedItemImagesForQuery } from '../core/itemImageStorage';
+import { deleteUnusedManagedItemImages, managedItemImageFile, managedItemImagesForQuery } from '../core/itemImageStorage';
 import { MAX_BACKUP_UPLOAD_BYTES, readBackupArchive, sendBackupArchive } from '../core/backupArchive';
+import { BASE_URL } from '../config/constants';
 
 const router = express.Router();
 const backupArchiveUpload = multer({
@@ -468,12 +469,21 @@ router.get('/collection/export-csv', requireAuth, requireCollectionRole('admin')
 
         const header = [typeLabel, ...columns.map(c => c.label), wishlistLabel];
 
+        // An image uploaded from an item form is stored as a portable `/uploads/items/...`
+        // path, which is what the item document and the ZIP archive want: neither is tied
+        // to the address this instance answers on. A spreadsheet is read outside the app,
+        // where that path resolves nowhere, so the column headed "Cover (URL)" is given the
+        // absolute URL this deployment actually serves the file at. Linked images already
+        // carry their own absolute URL and are handed through untouched.
+        const publicOrigin = `${getPublicProtocol(req)}://${req.get('host')}${BASE_URL.replace(/\/+$/, '')}`;
+        const asPublicUrl = (value: string) => (managedItemImageFile(value) ? `${publicOrigin}${value}` : value);
+
         const rows: string[][] = [header];
         for (const album of albums) {
             const kind = String((album as any).kind || '');
             const plugin = registry.getByKind(kind);
             const typeName = plugin ? req.t(plugin.label, { defaultValue: plugin.id }) : kind;
-            const cells = columns.map(c => (c.kinds.has(kind) ? fieldValue(album, c.field) : ''));
+            const cells = columns.map(c => (c.kinds.has(kind) ? asPublicUrl(fieldValue(album, c.field)) : ''));
             rows.push([typeName, ...cells, (album as any).in_wishlist ? 'true' : 'false']);
         }
 
