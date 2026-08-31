@@ -44,6 +44,8 @@ read-only preview of a finished instance.
 - **Smart import.** Add an item by ID or barcode, or bulk import a whole existing collection
   (a full Discogs library, for example) in one click.
 - **Barcode scanner.** Point at the barcode of a physical item and let DVinyl find it for you.
+- **AI-assisted import.** Bring-your-own-key support for text, photo or barcode-fallback AI import.
+  See the [AI Assist guide](./docs/ai.md) to set it up.
 - **Market value.** Live low, median and high estimates for your music collection.
 - **Wishlist.** Keep an eye on the pieces you are still hunting for.
 
@@ -115,6 +117,7 @@ No Docker? No worries. Have a look at the other ways to install and run DVinyl i
 | [Getting started](./docs/getting-started.md) | Manual installation and requirements |
 | [Docker deployment](./docs/docker.md) | Deploy with Docker Compose (recommended) |
 | [API keys](./docs/api-keys.md) | Get your Discogs, Hardcover, TMDB, IGDB and Rebrickable keys |
+| [AI Assist](./docs/ai.md) | Optional bring-your-own-key AI for text, photo and barcode-fallback import |
 | [Plugin development](./docs/plugin-development.md) | Build your own media type as a code plugin |
 | [Public share links](./docs/sharing.md) | Let anyone browse a collection (or part of it) read-only, no account needed |
 | [Wiki](https://github.com/Kyonew/DVinyl/wiki) | User guides and no-code tutorials |

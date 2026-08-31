@@ -14,6 +14,9 @@ need the keys for the media types you actually plan to use, and **every key is f
 Add the keys you need to your `.env` file. Any media type whose key is missing simply stays disabled
 in the admin panel until you provide it.
 
+For optional AI-assisted import (text, photo, or barcode fallback), see the [AI Assist guide](./ai.md)
+— it is not tied to one media type and runs across the whole collection.
+
 ## 🎵 Discogs (Music)
 
 Used for album metadata, tracklists and market value.

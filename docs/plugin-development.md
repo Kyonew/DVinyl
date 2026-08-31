@@ -335,6 +335,9 @@ Once the basics work, these let your plugin do more, all still without touching 
   free corner of the cover are chosen per collection in the plugin editor, from what your plugin
   declares. Nothing to implement: any field of your schema, and any user-defined field, is
   offered there.
+- **AI-assisted import** (text, photo, barcode fallback): every plugin gets this for free once
+  [AI assist is configured](./ai.md). The model is asked to fill the exact fields your schema
+  declares; nothing needs implementing on your side.
 
 Reach for these only when you need them. Many plugins never do.
 
