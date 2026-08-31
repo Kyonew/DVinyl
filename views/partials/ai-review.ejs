@@ -56,6 +56,17 @@
                     class="bg-black/5 dark:bg-white/5 border border-transparent text-sm rounded-lg focus:ring-primary-theme block w-full p-3 outline-none resize-y"></textarea>
             </div>
 
+            <div>
+                <label class="block text-[10px] font-black uppercase tracking-widest opacity-50 mb-1.5"><%= t('ai.import_photos_label') %></label>
+                <p class="text-xs opacity-50 mb-2"><%= t('ai.import_photos_hint') %></p>
+                <input type="file" id="aiPhotos" accept="image/*" multiple capture="environment" class="hidden">
+                <button type="button" onclick="document.getElementById('aiPhotos').click()"
+                    class="bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-camera"></i> <%= t('ai.import_photos_label') %>
+                </button>
+                <div id="aiPhotoThumbs" class="flex flex-wrap gap-2 mt-3"></div>
+            </div>
+
             <button type="button" id="aiAnalyzeBtn" onclick="aiAnalyze()"
                 class="w-full mt-2 bg-primary-theme text-white font-bold px-6 py-3.5 rounded-2xl hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2">
                 <i class="fa-solid fa-wand-magic-sparkles"></i> <%= t('ai.import_analyse') %>
@@ -113,13 +124,24 @@
             unenriched: <%- JSON.stringify(t('admin.modal.import_unenriched')) %>,
             missingRequired: <%- JSON.stringify(t('ai.import_missing_required')) %>,
             noneSelected: <%- JSON.stringify(t('ai.import_none_selected')) %>,
-            confirm: <%- JSON.stringify(t('ai.import_confirm')) %>
+            confirm: <%- JSON.stringify(t('ai.import_confirm')) %>,
+            noInput: <%- JSON.stringify(t('ai.err_no_input')) %>,
+            imageRejected: <%- JSON.stringify(t('ai.err_image_rejected')) %>,
+            removePhoto: <%- JSON.stringify(t('ai.import_photos_remove')) %>
         };
 
-        // Everything the review table and the import need, kept in the page: the text is
-        // never re-sent to the AI and the extraction is never parked on the server
-        // between the two steps.
+        // Same cap as the server (see aiImportRoute.ts): four photos is a shelf, not a library.
+        const MAX_PHOTOS = 4;
+        // Downscaled to this longest edge before it ever leaves the browser - a phone
+        // photo is several MB, and express.json is capped well below what four of those
+        // would cost.
+        const MAX_PHOTO_EDGE = 1600;
+
+        // Everything the review table and the import need, kept in the page: neither the
+        // text nor the photos are ever re-sent to the AI and the extraction is never
+        // parked on the server between the two steps.
         let preview = null; // { rows, fields, module }
+        let photos = []; // data URLs, already downscaled
         let running = false;
         let socket = null;
 
@@ -162,9 +184,67 @@
             clearError();
         };
 
+        /** Longest edge capped to MAX_PHOTO_EDGE, re-encoded as JPEG - what actually
+         * leaves the browser is a few hundred kB, never the multi-MB original. */
+        function downscaleImage(file) {
+            return new Promise((resolve, reject) => {
+                const url = URL.createObjectURL(file);
+                const img = new Image();
+                img.onload = () => {
+                    URL.revokeObjectURL(url);
+                    let { width, height } = img;
+                    if (width <= 0 || height <= 0) { reject(new Error('empty image')); return; }
+                    const scale = Math.min(1, MAX_PHOTO_EDGE / Math.max(width, height));
+                    width = Math.max(1, Math.round(width * scale));
+                    height = Math.max(1, Math.round(height * scale));
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/jpeg', 0.8));
+                };
+                img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('could not load image')); };
+                img.src = url;
+            });
+        }
+
+        function renderPhotoThumbs() {
+            el('aiPhotoThumbs').innerHTML = photos.map((src, index) =>
+                '<div class="relative w-16 h-16 rounded-xl overflow-hidden shrink-0 group">'
+                + '<img src="' + src + '" class="w-full h-full object-cover">'
+                + '<button type="button" data-ai-photo-remove="' + index + '" title="' + escapeHtml(T.removePhoto) + '"'
+                + ' class="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/70 text-white text-[10px] flex items-center justify-center hover:bg-red-500 transition-colors">'
+                + '<i class="fa-solid fa-xmark"></i></button>'
+                + '</div>'
+            ).join('');
+        }
+
+        el('aiPhotoThumbs').addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-ai-photo-remove]');
+            if (!btn) return;
+            photos.splice(parseInt(btn.getAttribute('data-ai-photo-remove'), 10), 1);
+            renderPhotoThumbs();
+        });
+
+        el('aiPhotos').addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files || []);
+            e.target.value = ''; // clears the input so re-picking the same file still fires change
+            clearError();
+            for (const file of files) {
+                if (photos.length >= MAX_PHOTOS) break;
+                try {
+                    photos.push(await downscaleImage(file));
+                } catch {
+                    showError(T.imageRejected);
+                }
+            }
+            renderPhotoThumbs();
+        });
+
         window.aiAnalyze = async function () {
             const text = el('aiText').value.trim();
-            if (!text) { showError(<%- JSON.stringify(t('ai.err_no_input')) %>); return; }
+            if (!text && photos.length === 0) { showError(T.noInput); return; }
 
             const btn = el('aiAnalyzeBtn');
             const original = btn.innerHTML;
@@ -176,7 +256,7 @@
                 const res = await fetch('<%= baseUrl %>/import/ai/preview', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ plugin: el('aiModule').value, text })
+                    body: JSON.stringify({ plugin: el('aiModule').value, text, images: photos })
                 });
                 const data = await res.json().catch(() => ({}));
                 if (!res.ok) throw new Error(data.error || 'Error');

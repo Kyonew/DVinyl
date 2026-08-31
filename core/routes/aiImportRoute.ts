@@ -6,7 +6,7 @@ import { runCsvImport } from '../csvImport';
 import { getAiConfig } from '../ai/instance';
 import { isAiConfigured } from '../ai/config';
 import { extractRows } from '../ai/extract';
-import { textPart } from '../ai/client';
+import { textPart, imagePart } from '../ai/client';
 import { AiExtractedRow } from '../ai/types';
 
 /**
@@ -32,6 +32,20 @@ const guards = [requireAuth, requireCollectionRole('admin')];
 const MAX_INPUT_CHARS = 20000;
 const MAX_ROWS = 200;
 
+/** Data URIs the browser has already downscaled. Four photos is a shelf, not a library. */
+const MAX_IMAGES = 4;
+const MAX_IMAGE_CHARS = 4_000_000;
+
+function validImages(raw: any): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((entry: any): entry is string =>
+      typeof entry === 'string' &&
+      /^data:image\/(jpeg|png|webp);base64,/.test(entry) &&
+      entry.length <= MAX_IMAGE_CHARS)
+    .slice(0, MAX_IMAGES);
+}
+
 function resolvePlugin(req: any, res: any) {
   const settings = res.locals.settings;
   const plugin = registry.get(String(req.body?.plugin || ''));
@@ -50,22 +64,34 @@ router.post('/import/ai/preview', ...guards, async (req: any, res: any) => {
   if (!plugin) return res.status(400).json({ error: req.t('admin.csv_import.err_unknown_module') });
 
   const text = String(req.body?.text || '').trim();
-  if (!text) return res.status(400).json({ error: req.t('ai.err_no_input') });
+  const images = validImages(req.body?.images);
+  if (!text && images.length === 0) {
+    return res.status(400).json({ error: req.t('ai.err_no_input') });
+  }
   if (text.length > MAX_INPUT_CHARS) {
     return res.status(400).json({ error: req.t('ai.err_input_too_long', { max: MAX_INPUT_CHARS }) });
   }
 
   const fields = importableFields(plugin, res.locals.settings, req.t);
 
+  const instruction = images.length > 0
+    ? `Identify every ${plugin.id} visible in these photographs. A photo may show a single ` +
+      `cover, a spine, or a whole shelf: return one entry per distinct item you can read. ` +
+      `Only report what is legible; do not complete a title you cannot see.`
+    : `Extract every ${plugin.id} entry from the following list. ` +
+      `Language of the input may be any; keep titles in their original language.`;
+
+  const parts = [
+    ...(text ? [textPart(text)] : []),
+    ...images.map(image => imagePart(image))
+  ];
+
   try {
-    const rows = await extractRows(
-      config,
-      fields,
-      `Extract every ${plugin.id} entry from the following list. ` +
-      `Language of the input may be any; keep titles in their original language.`,
-      [textPart(text)],
-      { timeoutMs: 60000 }
-    );
+    const rows = await extractRows(config, fields, instruction, parts, {
+      // A vision-capable model, and longer: reading a shelf is slower than reading a list.
+      ...(images.length > 0 ? { model: config.visionModel } : {}),
+      timeoutMs: images.length > 0 ? 120000 : 60000
+    });
     res.json({
       rows: rows.slice(0, MAX_ROWS),
       truncated: rows.length > MAX_ROWS,
