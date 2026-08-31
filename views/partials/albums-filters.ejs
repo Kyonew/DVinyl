@@ -755,8 +755,10 @@
             }
         });
 
-        // Artist autocomplete
-        const allArtists = <%- JSON.stringify(artistList || []) %>;
+        // Artist autocomplete. The names are collection content, so they are user-supplied
+        // text: every `<` is escaped here because a name carrying a closing script tag would
+        // otherwise end this block and let the rest of the name be parsed as markup.
+        const allArtists = <%- JSON.stringify(artistList || []).replace(/</g, '\\u003c') %>;
         const artistAutocompleteEl = document.getElementById('artistAutocomplete');
 
         if (artistInput && artistAutocompleteEl) {
@@ -771,10 +773,17 @@
                     artistAutocompleteEl.classList.add('hidden');
                     return;
                 }
-                artistAutocompleteEl.innerHTML = matches.map(m =>
-                    `<button type="button" class="w-full text-left px-3 py-2 text-sm hover:bg-primary-theme/10 hover:text-primary-theme transition-colors cursor-pointer truncate"
-                        onclick="selectArtist('${m.replace(/'/g, "\\'")}')">${m}</button>`
-                ).join('');
+                // Built through the DOM rather than from an HTML string: a name reaches the
+                // menu as text and as a closure argument, never as markup or as the body of
+                // an inline handler, so no quoting rule stands between a name and a script.
+                artistAutocompleteEl.replaceChildren(...matches.map(m => {
+                    const option = document.createElement('button');
+                    option.type = 'button';
+                    option.className = 'w-full text-left px-3 py-2 text-sm hover:bg-primary-theme/10 hover:text-primary-theme transition-colors cursor-pointer truncate';
+                    option.textContent = m;
+                    option.addEventListener('click', () => selectArtist(m));
+                    return option;
+                }));
                 artistAutocompleteEl.classList.remove('hidden');
             });
 
