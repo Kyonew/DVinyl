@@ -73,7 +73,7 @@ export class YgoprodeckProvider implements SearchProvider {
   async getDetails(encodedId: string): Promise<ConfirmData> {
     const [numericId, setCode] = encodedId.split('::');
     const card = await fetchYgoprodeckCard(numericId!);
-    const printing = setCode ? findPrinting(card, setCode) : card.card_sets?.[0];
+    const printing = findPrinting(card, setCode || '') || card.card_sets?.[0];
     const remoteImage = card.card_images?.[0]?.image_url || '';
     const cover_image = await cacheYugiohImage(String(card.id), remoteImage);
 

@@ -224,7 +224,7 @@ export const yugiohPlugin: PluginDefinition = {
     }
     const [numericId, setCode] = String(item.ygo_card_id).split('::');
     const card = await fetchYgoprodeckCard(numericId!);
-    const printing = setCode ? (card.card_sets || []).find(s => s.set_code === setCode) : card.card_sets?.[0];
+    const printing = (card.card_sets || []).find(s => s.set_code === setCode) || card.card_sets?.[0];
     const remoteImage = card.card_images?.[0]?.image_url || '';
     const cover_image = await cacheYugiohImage(numericId!, remoteImage);
 
