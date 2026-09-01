@@ -19,7 +19,7 @@ async function getCollectionIds(req: any, res: any) {
 async function getEstimate(req: any, res: any) {
   try {
     const [numericId] = String(req.params.cardId).split('::');
-    const card = await fetchYgoprodeckCard(numericId);
+    const card = await fetchYgoprodeckCard(numericId!);
     const prices = card.card_prices?.[0] || {};
 
     const chain: Array<[string, string]> = [

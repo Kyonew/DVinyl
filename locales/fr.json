@@ -183,7 +183,8 @@
     "lego": "LEGO",
     "legos": "Sets LEGO",
     "pokemon": "Cartes Pokémon",
-    "mtg": "Magic: The Gathering"
+    "mtg": "Magic: The Gathering",
+    "yugioh": "Yu-Gi-Oh!"
   },
   "index": {
     "welcome": "Salut",
@@ -226,7 +227,9 @@
     "top_set_label": "Extension la plus fréquente",
     "top_type_label": "Type le plus fréquent",
     "mtg_total_label": "Cartes Magic",
-    "top_color_label": "Couleur la plus fréquente"
+    "top_color_label": "Couleur la plus fréquente",
+    "yugioh_total_label": "Cartes Yu-Gi-Oh!",
+    "top_race_label": "Type de monstre le plus fréquent"
   },
   "modal": {
     "estimate_title": "Estimation en cours...",
@@ -897,7 +900,10 @@
     "mtg_type_instant": "Éphémère",
     "mtg_type_sorcery": "Rituel",
     "mtg_type_artifact": "Artefact",
-    "mtg_type_enchantment": "Enchantement"
+    "mtg_type_enchantment": "Enchantement",
+    "yugioh_type_monster": "Monstre",
+    "yugioh_type_spell": "Magie",
+    "yugioh_type_trap": "Piège"
   },
   "status": {
     "to_read": "À lire",
@@ -1289,6 +1295,37 @@
     "rarity_label": "Rareté",
     "artist_label": "Illustrateur",
     "colors_label": "Couleurs",
+    "condition_label": "État",
+    "condition_placeholder": "Choisir un état...",
+    "condition_mint": "Neuf (M)",
+    "condition_near_mint": "Comme neuf (NM)",
+    "condition_lightly_played": "Légèrement joué (LP)",
+    "condition_moderately_played": "Modérément joué (MP)",
+    "condition_heavily_played": "Fortement joué (HP)",
+    "condition_damaged": "Endommagé (DMG)",
+    "barcode_label": "Code-barres",
+    "quantity_label": "Quantité",
+    "comments_label": "Commentaires"
+  },
+  "add_yugioh": {
+    "title": "Ajouter une carte Yu-Gi-Oh!",
+    "desc": "Cherche par nom de carte.",
+    "search_placeholder": "Nom de la carte...",
+    "btn_scan": "Scanner",
+    "results_title": "Résultats",
+    "no_results": "Aucune carte trouvée.",
+    "manual_entry": "Saisie manuelle"
+  },
+  "confirm_yugioh": {
+    "field_title": "Nom",
+    "set_name_label": "Extension",
+    "card_type_label": "Type de carte",
+    "race_label": "Type",
+    "attribute_label": "Attribut",
+    "atk_label": "ATQ",
+    "def_label": "DEF",
+    "level_label": "Niveau",
+    "rarity_label": "Rareté",
     "condition_label": "État",
     "condition_placeholder": "Choisir un état...",
     "condition_mint": "Neuf (M)",

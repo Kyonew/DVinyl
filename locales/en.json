@@ -183,7 +183,8 @@
     "lego": "LEGO",
     "legos": "LEGO Sets",
     "pokemon": "Pokémon cards",
-    "mtg": "Magic: The Gathering"
+    "mtg": "Magic: The Gathering",
+    "yugioh": "Yu-Gi-Oh!"
   },
   "index": {
     "welcome": "Hello",
@@ -226,7 +227,9 @@
     "top_set_label": "Top set",
     "top_type_label": "Top type",
     "mtg_total_label": "Magic cards",
-    "top_color_label": "Top color"
+    "top_color_label": "Top color",
+    "yugioh_total_label": "Yu-Gi-Oh! cards",
+    "top_race_label": "Top monster type"
   },
   "modal": {
     "estimate_title": "Estimating...",
@@ -897,7 +900,10 @@
     "mtg_type_instant": "Instant",
     "mtg_type_sorcery": "Sorcery",
     "mtg_type_artifact": "Artifact",
-    "mtg_type_enchantment": "Enchantment"
+    "mtg_type_enchantment": "Enchantment",
+    "yugioh_type_monster": "Monster",
+    "yugioh_type_spell": "Spell",
+    "yugioh_type_trap": "Trap"
   },
   "status": {
     "to_read": "To read",
@@ -1289,6 +1295,37 @@
     "rarity_label": "Rarity",
     "artist_label": "Artist",
     "colors_label": "Colors",
+    "condition_label": "Condition",
+    "condition_placeholder": "Select a condition...",
+    "condition_mint": "Mint (M)",
+    "condition_near_mint": "Near Mint (NM)",
+    "condition_lightly_played": "Lightly Played (LP)",
+    "condition_moderately_played": "Moderately Played (MP)",
+    "condition_heavily_played": "Heavily Played (HP)",
+    "condition_damaged": "Damaged (DMG)",
+    "barcode_label": "Barcode",
+    "quantity_label": "Quantity",
+    "comments_label": "Comments"
+  },
+  "add_yugioh": {
+    "title": "Add a Yu-Gi-Oh! card",
+    "desc": "Search by card name.",
+    "search_placeholder": "Card name...",
+    "btn_scan": "Scan",
+    "results_title": "Results",
+    "no_results": "No card found.",
+    "manual_entry": "Manual entry"
+  },
+  "confirm_yugioh": {
+    "field_title": "Name",
+    "set_name_label": "Set",
+    "card_type_label": "Card type",
+    "race_label": "Type",
+    "attribute_label": "Attribute",
+    "atk_label": "ATK",
+    "def_label": "DEF",
+    "level_label": "Level",
+    "rarity_label": "Rarity",
     "condition_label": "Condition",
     "condition_placeholder": "Select a condition...",
     "condition_mint": "Mint (M)",
