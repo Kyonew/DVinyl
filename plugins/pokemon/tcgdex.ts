@@ -45,14 +45,19 @@ export class TcgdexProvider implements SearchProvider {
   name = 'TCGdex';
 
   async search(query: string, options: SearchOptions): Promise<SearchResult[]> {
+    const limit = options.limit || 25;
+    // Without pagination params TCGdex returns EVERY match — 1.4 MB for the single-letter
+    // query "a" — just to show 25 rows. Its `pagination:` params cut that to a few hundred
+    // bytes (verified live). The slice() below is now redundant but kept as a guard in
+    // case the API ever ignores the cap.
     const results: TcgdexCardBrief[] = await fetchJson(
-      `${BASE_URL}?name=like:${encodeURIComponent(query)}`
+      `${BASE_URL}?name=like:${encodeURIComponent(query)}&pagination:page=1&pagination:itemsPerPage=${limit}`
     );
     // TCGdex's list endpoint returns only id/localId/name/image (no set info), unlike
     // Discogs/Rebrickable whose search endpoints already carry a creator field. The
     // creator column stays blank at this stage; getDetails() fills in set_name once a
     // result is picked, matching the CardBrief/Card split TCGdex's own API makes.
-    return (results || []).slice(0, options.limit || 25).map(card => ({
+    return (results || []).slice(0, limit).map(card => ({
       id: card.id,
       title: card.name,
       creator: '',

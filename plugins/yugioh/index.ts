@@ -1,7 +1,7 @@
 import { PluginDefinition } from '../../core/types';
 import { escapeRegExp, PermanentRefreshError } from '../../core/helpers';
 import Item from '../../models/Item';
-import { YgoprodeckProvider, fetchYgoprodeckCard } from './ygoprodeck';
+import { YgoprodeckProvider, fetchYgoprodeckCard, findPrinting, parseYugiohId } from './ygoprodeck';
 import { cacheYugiohImage } from './imageCache';
 import { yugiohApiRoutes } from './apiRoutes';
 import { CARD_CONDITIONS, CARD_CONDITION_ENUM, YUGIOH_FORMATS, deriveYugiohFormat } from './constants';
@@ -46,10 +46,27 @@ export const yugiohPlugin: PluginDefinition = {
     }
   ],
 
+  // Picking one of these images PERSISTS it as the item's cover_image, so it has to go
+  // through the local image cache — YGOPRODeck's usage policy forbids hotlinking, and a
+  // stored remote URL would keep hotlinking forever. (The main search-results grid is
+  // deliberately NOT cached: those previews are transient and mostly never picked — see
+  // the note in ygoprodeck.ts's search().)
   imageSearchProvider: {
     async search(query: string): Promise<string[]> {
       const results = await ygoprodeck.search(query, { limit: 12 });
-      return results.map(r => r.cover_image).filter(Boolean) as string[];
+      // Every printing of a card shares the same card_images[0] URL, so the flattened
+      // search rows repeat images. Dedupe before caching, otherwise the same file gets
+      // downloaded several times in parallel and the picker shows duplicates.
+      const seen = new Set<string>();
+      const unique: Array<{ numericId: string; url: string }> = [];
+      for (const r of results) {
+        const url = r.cover_image;
+        if (!url || seen.has(url)) continue;
+        seen.add(url);
+        unique.push({ numericId: parseYugiohId(String(r.id)).numericId, url });
+      }
+      const cached = await Promise.all(unique.map(u => cacheYugiohImage(u.numericId, u.url)));
+      return cached.filter(Boolean);
     }
   },
 
@@ -222,11 +239,11 @@ export const yugiohPlugin: PluginDefinition = {
     if (!item.ygo_card_id) {
       throw new PermanentRefreshError('No Yu-Gi-Oh card id to refresh');
     }
-    const [numericId, setCode] = String(item.ygo_card_id).split('::');
-    const card = await fetchYgoprodeckCard(numericId!);
-    const printing = (card.card_sets || []).find(s => s.set_code === setCode) || card.card_sets?.[0];
+    const { numericId, setCode, idx } = parseYugiohId(item.ygo_card_id);
+    const card = await fetchYgoprodeckCard(numericId);
+    const printing = findPrinting(card, setCode, idx) || card.card_sets?.[0];
     const remoteImage = card.card_images?.[0]?.image_url || '';
-    const cover_image = await cacheYugiohImage(numericId!, remoteImage);
+    const cover_image = await cacheYugiohImage(numericId, remoteImage);
 
     return {
       set_name: printing?.set_name || item.set_name,

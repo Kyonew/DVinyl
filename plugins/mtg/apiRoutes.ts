@@ -21,10 +21,23 @@ async function getEstimate(req: any, res: any) {
     const card = await fetchScryfallCard(req.params.cardId);
     const prices = card.prices || {};
     const isFoil = (req.query.condition as string || '').toLowerCase().includes('foil');
+    const userCurrency = res.locals.user.currency || 'USD';
 
-    const chain: Array<[keyof typeof prices, string]> = isFoil
-      ? [['usd_foil', 'USD'], ['usd', 'USD'], ['eur', 'EUR'], ['tix', 'MTGO tix']]
-      : [['usd', 'USD'], ['usd_foil', 'USD'], ['eur', 'EUR'], ['tix', 'MTGO tix']];
+    // views/collection.ejs sums `price.value` and labels the total with the user's own
+    // currency, ignoring the `currency` we return — and Scryfall's price fields are
+    // fixed-currency, not selectable. So try the currency the user actually uses first;
+    // the foil/non-foil sub-ordering is preserved within whichever currency wins.
+    // `tix` is deliberately absent: MTGO event tickets aren't a currency the app's
+    // currency selector supports, so surfacing one mislabeled as the user's currency
+    // would be actively wrong rather than merely imprecise.
+    const usdChain: Array<[keyof typeof prices, string]> = isFoil
+      ? [['usd_foil', 'USD'], ['usd', 'USD']]
+      : [['usd', 'USD'], ['usd_foil', 'USD']];
+    const eurChain: Array<[keyof typeof prices, string]> = [['eur', 'EUR']];
+
+    const chain: Array<[keyof typeof prices, string]> = userCurrency === 'EUR'
+      ? [...eurChain, ...usdChain]
+      : [...usdChain, ...eurChain];
 
     for (const [key, currency] of chain) {
       const raw = prices[key];

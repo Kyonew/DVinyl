@@ -50,11 +50,9 @@ export const pokemonPlugin: PluginDefinition = {
     }
   },
 
-  externalLink(item: any) {
-    return item.pokemon_card_id
-      ? { label: 'TCGdex', url: `https://www.tcgdex.net/cards/${item.pokemon_card_id}` }
-      : null;
-  },
+  // No externalLink: TCGdex has no public per-card web page — www.tcgdex.net doesn't
+  // resolve at all, only the api.tcgdex.net host does, so any such link 404s. The One
+  // Piece plugin omits externalLink for the same reason (optcgapi.com is API-only).
 
   fastAddOptions: [
     { value: 'pokemon', label: 'media.pokemon', icon: 'fa-circle-half-stroke', color: 'peer-checked:bg-amber-600', url: '/add-pokemon' }

@@ -18,17 +18,32 @@ async function getCollectionIds(req: any, res: any) {
 
 async function getEstimate(req: any, res: any) {
   try {
+    // Prices are per-card, not per-printing, so only the numeric id segment matters here.
     const [numericId] = String(req.params.cardId).split('::');
     const card = await fetchYgoprodeckCard(numericId!);
     const prices = card.card_prices?.[0] || {};
+    const userCurrency = res.locals.user.currency || 'USD';
 
-    const chain: Array<[string, string]> = [
-      ['tcgplayer_price', 'USD'],
-      ['cardmarket_price', 'EUR'],
-      ['ebay_price', 'USD'],
-      ['amazon_price', 'USD'],
-      ['coolstuffinc_price', 'USD']
-    ];
+    // views/collection.ejs sums `price.value` and labels the total with the user's own
+    // currency, ignoring the `currency` we return here — and none of YGOPRODeck's price
+    // fields are currency-selectable. Trying the source that matches the user's currency
+    // first at least reduces the mismatch for EUR users (cardmarket_price is the only
+    // non-USD source available).
+    const chain: Array<[string, string]> = userCurrency === 'EUR'
+      ? [
+          ['cardmarket_price', 'EUR'],
+          ['tcgplayer_price', 'USD'],
+          ['ebay_price', 'USD'],
+          ['amazon_price', 'USD'],
+          ['coolstuffinc_price', 'USD']
+        ]
+      : [
+          ['tcgplayer_price', 'USD'],
+          ['cardmarket_price', 'EUR'],
+          ['ebay_price', 'USD'],
+          ['amazon_price', 'USD'],
+          ['coolstuffinc_price', 'USD']
+        ];
 
     for (const [key, currency] of chain) {
       const raw = (prices as any)[key];
