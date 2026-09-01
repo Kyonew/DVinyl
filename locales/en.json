@@ -182,7 +182,8 @@
     "digital": "Digital",
     "lego": "LEGO",
     "legos": "LEGO Sets",
-    "pokemon": "Pokémon cards"
+    "pokemon": "Pokémon cards",
+    "mtg": "Magic: The Gathering"
   },
   "index": {
     "welcome": "Hello",
@@ -223,7 +224,9 @@
     "top_theme_label": "Top theme",
     "pokemon_total_label": "Pokémon cards",
     "top_set_label": "Top set",
-    "top_type_label": "Top type"
+    "top_type_label": "Top type",
+    "mtg_total_label": "Magic cards",
+    "top_color_label": "Top color"
   },
   "modal": {
     "estimate_title": "Estimating...",
@@ -803,7 +806,8 @@
     "publisher": "Ex: Penguin...",
     "lego_set_num": "e.g. 42115",
     "pokemon_card_number": "e.g. 136/189",
-    "pokemon_types": "Fire, Water, Psychic..."
+    "pokemon_types": "Fire, Water, Psychic...",
+    "mtg_colors": "White, Blue, Black..."
   },
   "perso": {
     "title": "Personalization",
@@ -885,7 +889,15 @@
     "digital": "Digital",
     "pokemon_category_pokemon": "Pokémon",
     "pokemon_category_trainer": "Trainer",
-    "pokemon_category_energy": "Energy"
+    "pokemon_category_energy": "Energy",
+    "mtg_type_creature": "Creature",
+    "mtg_type_planeswalker": "Planeswalker",
+    "mtg_type_battle": "Battle",
+    "mtg_type_land": "Land",
+    "mtg_type_instant": "Instant",
+    "mtg_type_sorcery": "Sorcery",
+    "mtg_type_artifact": "Artifact",
+    "mtg_type_enchantment": "Enchantment"
   },
   "status": {
     "to_read": "To read",
@@ -1237,6 +1249,28 @@
     "artist_label": "Illustrator",
     "hp_label": "HP",
     "types_label": "Types",
+    "condition_label": "Condition",
+    "condition_placeholder": "Select a condition...",
+    "condition_mint": "Mint (M)",
+    "condition_near_mint": "Near Mint (NM)",
+    "condition_lightly_played": "Lightly Played (LP)",
+    "condition_moderately_played": "Moderately Played (MP)",
+    "condition_heavily_played": "Heavily Played (HP)",
+    "condition_damaged": "Damaged (DMG)",
+    "barcode_label": "Barcode",
+    "quantity_label": "Quantity",
+    "comments_label": "Comments"
+  },
+  "confirm_mtg": {
+    "field_title": "Name",
+    "set_name_label": "Set",
+    "card_type_label": "Card type",
+    "mana_cost_label": "Mana cost",
+    "power_label": "Power",
+    "toughness_label": "Toughness",
+    "rarity_label": "Rarity",
+    "artist_label": "Artist",
+    "colors_label": "Colors",
     "condition_label": "Condition",
     "condition_placeholder": "Select a condition...",
     "condition_mint": "Mint (M)",

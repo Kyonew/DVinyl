@@ -182,7 +182,8 @@
     "book": "Livre",
     "lego": "LEGO",
     "legos": "Sets LEGO",
-    "pokemon": "Cartes Pokémon"
+    "pokemon": "Cartes Pokémon",
+    "mtg": "Magic: The Gathering"
   },
   "index": {
     "welcome": "Salut",
@@ -223,7 +224,9 @@
     "top_theme_label": "Thème le plus présent",
     "pokemon_total_label": "Cartes Pokémon",
     "top_set_label": "Extension la plus fréquente",
-    "top_type_label": "Type le plus fréquent"
+    "top_type_label": "Type le plus fréquent",
+    "mtg_total_label": "Cartes Magic",
+    "top_color_label": "Couleur la plus fréquente"
   },
   "modal": {
     "estimate_title": "Estimation en cours...",
@@ -803,7 +806,8 @@
     "publisher": "Ex: Gallimard...",
     "lego_set_num": "Ex: 42115",
     "pokemon_card_number": "ex : 136/189",
-    "pokemon_types": "Feu, Eau, Psy..."
+    "pokemon_types": "Feu, Eau, Psy...",
+    "mtg_colors": "Blanc, Bleu, Noir..."
   },
   "perso": {
     "title": "Personnalisation",
@@ -885,7 +889,15 @@
     "digital": "Digital",
     "pokemon_category_pokemon": "Pokémon",
     "pokemon_category_trainer": "Dresseur",
-    "pokemon_category_energy": "Énergie"
+    "pokemon_category_energy": "Énergie",
+    "mtg_type_creature": "Créature",
+    "mtg_type_planeswalker": "Planeswalker",
+    "mtg_type_battle": "Bataille",
+    "mtg_type_land": "Terrain",
+    "mtg_type_instant": "Éphémère",
+    "mtg_type_sorcery": "Rituel",
+    "mtg_type_artifact": "Artefact",
+    "mtg_type_enchantment": "Enchantement"
   },
   "status": {
     "to_read": "À lire",
@@ -1237,6 +1249,28 @@
     "artist_label": "Illustrateur",
     "hp_label": "PV",
     "types_label": "Types",
+    "condition_label": "État",
+    "condition_placeholder": "Choisir un état...",
+    "condition_mint": "Neuf (M)",
+    "condition_near_mint": "Comme neuf (NM)",
+    "condition_lightly_played": "Légèrement joué (LP)",
+    "condition_moderately_played": "Modérément joué (MP)",
+    "condition_heavily_played": "Fortement joué (HP)",
+    "condition_damaged": "Endommagé (DMG)",
+    "barcode_label": "Code-barres",
+    "quantity_label": "Quantité",
+    "comments_label": "Commentaires"
+  },
+  "confirm_mtg": {
+    "field_title": "Nom",
+    "set_name_label": "Extension",
+    "card_type_label": "Type de carte",
+    "mana_cost_label": "Coût en mana",
+    "power_label": "Force",
+    "toughness_label": "Endurance",
+    "rarity_label": "Rareté",
+    "artist_label": "Illustrateur",
+    "colors_label": "Couleurs",
     "condition_label": "État",
     "condition_placeholder": "Choisir un état...",
     "condition_mint": "Neuf (M)",
