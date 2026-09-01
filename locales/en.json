@@ -233,7 +233,7 @@
   },
   "modal": {
     "estimate_title": "Estimating...",
-    "estimate_desc": "We are querying the Discogs market for each record.",
+    "estimate_desc": "We are querying the marketplace for each item.",
     "avg_label": "Estimated Value (Average)",
     "condition_hint": "Based on \"Very Good+\" condition",
     "min_label": "Minimum (G)",

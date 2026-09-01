@@ -233,7 +233,7 @@
   },
   "modal": {
     "estimate_title": "Estimation en cours...",
-    "estimate_desc": "Nous interrogeons le marché Discogs pour chaque disque.",
+    "estimate_desc": "Nous interrogeons le marché pour chaque objet.",
     "avg_label": "Valeur estimée (Moyenne)",
     "condition_hint": "Basé sur l'état \"Very Good+\"",
     "min_label": "Minimum (G)",
