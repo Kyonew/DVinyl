@@ -24,6 +24,10 @@ function ensureCacheDir(): void {
  */
 export async function cacheYugiohImage(cardId: string, remoteUrl: string): Promise<string> {
   if (!remoteUrl) return '';
+  if (!/^\d+$/.test(cardId)) {
+    console.warn(`cacheYugiohImage: rejecting non-numeric cardId "${cardId}", falling back to remote URL`);
+    return remoteUrl; // YGOPRODeck ids are always positive integers; refuse to build a path from anything else
+  }
   ensureCacheDir();
   const localPath = path.join(CACHE_DIR, `${cardId}.jpg`);
   const publicPath = `${BASE_URL}/uploads/yugioh-cards/${cardId}.jpg`;
