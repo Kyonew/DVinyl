@@ -184,7 +184,8 @@
     "legos": "Sets LEGO",
     "pokemon": "Cartes Pokémon",
     "mtg": "Magic: The Gathering",
-    "yugioh": "Yu-Gi-Oh!"
+    "yugioh": "Yu-Gi-Oh!",
+    "onepiece": "One Piece"
   },
   "index": {
     "welcome": "Salut",
@@ -229,7 +230,8 @@
     "mtg_total_label": "Cartes Magic",
     "top_color_label": "Couleur la plus fréquente",
     "yugioh_total_label": "Cartes Yu-Gi-Oh!",
-    "top_race_label": "Type de monstre le plus fréquent"
+    "top_race_label": "Type de monstre le plus fréquent",
+    "onepiece_total_label": "Cartes One Piece"
   },
   "modal": {
     "estimate_title": "Estimation en cours...",
@@ -903,7 +905,11 @@
     "mtg_type_enchantment": "Enchantement",
     "yugioh_type_monster": "Monstre",
     "yugioh_type_spell": "Magie",
-    "yugioh_type_trap": "Piège"
+    "yugioh_type_trap": "Piège",
+    "onepiece_type_leader": "Leader",
+    "onepiece_type_character": "Personnage",
+    "onepiece_type_event": "Événement",
+    "onepiece_type_stage": "Décor"
   },
   "status": {
     "to_read": "À lire",
@@ -1325,6 +1331,38 @@
     "atk_label": "ATQ",
     "def_label": "DEF",
     "level_label": "Niveau",
+    "rarity_label": "Rareté",
+    "condition_label": "État",
+    "condition_placeholder": "Choisir un état...",
+    "condition_mint": "Neuf (M)",
+    "condition_near_mint": "Comme neuf (NM)",
+    "condition_lightly_played": "Légèrement joué (LP)",
+    "condition_moderately_played": "Modérément joué (MP)",
+    "condition_heavily_played": "Fortement joué (HP)",
+    "condition_damaged": "Endommagé (DMG)",
+    "barcode_label": "Code-barres",
+    "quantity_label": "Quantité",
+    "comments_label": "Commentaires"
+  },
+  "add_onepiece": {
+    "title": "Ajouter une carte One Piece",
+    "desc": "Cherche par nom de carte.",
+    "search_placeholder": "Nom de la carte...",
+    "btn_scan": "Scanner",
+    "results_title": "Résultats",
+    "no_results": "Aucune carte trouvée.",
+    "manual_entry": "Saisie manuelle"
+  },
+  "confirm_onepiece": {
+    "field_title": "Nom",
+    "set_name_label": "Extension",
+    "card_type_label": "Type de carte",
+    "color_label": "Couleur",
+    "cost_label": "Coût",
+    "power_label": "Puissance",
+    "counter_label": "Contre",
+    "life_label": "Vie",
+    "traits_label": "Traits",
     "rarity_label": "Rareté",
     "condition_label": "État",
     "condition_placeholder": "Choisir un état...",

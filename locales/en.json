@@ -184,7 +184,8 @@
     "legos": "LEGO Sets",
     "pokemon": "Pokémon cards",
     "mtg": "Magic: The Gathering",
-    "yugioh": "Yu-Gi-Oh!"
+    "yugioh": "Yu-Gi-Oh!",
+    "onepiece": "One Piece"
   },
   "index": {
     "welcome": "Hello",
@@ -229,7 +230,8 @@
     "mtg_total_label": "Magic cards",
     "top_color_label": "Top color",
     "yugioh_total_label": "Yu-Gi-Oh! cards",
-    "top_race_label": "Top monster type"
+    "top_race_label": "Top monster type",
+    "onepiece_total_label": "One Piece cards"
   },
   "modal": {
     "estimate_title": "Estimating...",
@@ -903,7 +905,11 @@
     "mtg_type_enchantment": "Enchantment",
     "yugioh_type_monster": "Monster",
     "yugioh_type_spell": "Spell",
-    "yugioh_type_trap": "Trap"
+    "yugioh_type_trap": "Trap",
+    "onepiece_type_leader": "Leader",
+    "onepiece_type_character": "Character",
+    "onepiece_type_event": "Event",
+    "onepiece_type_stage": "Stage"
   },
   "status": {
     "to_read": "To read",
@@ -1325,6 +1331,38 @@
     "atk_label": "ATK",
     "def_label": "DEF",
     "level_label": "Level",
+    "rarity_label": "Rarity",
+    "condition_label": "Condition",
+    "condition_placeholder": "Select a condition...",
+    "condition_mint": "Mint (M)",
+    "condition_near_mint": "Near Mint (NM)",
+    "condition_lightly_played": "Lightly Played (LP)",
+    "condition_moderately_played": "Moderately Played (MP)",
+    "condition_heavily_played": "Heavily Played (HP)",
+    "condition_damaged": "Damaged (DMG)",
+    "barcode_label": "Barcode",
+    "quantity_label": "Quantity",
+    "comments_label": "Comments"
+  },
+  "add_onepiece": {
+    "title": "Add a One Piece card",
+    "desc": "Search by card name.",
+    "search_placeholder": "Card name...",
+    "btn_scan": "Scan",
+    "results_title": "Results",
+    "no_results": "No card found.",
+    "manual_entry": "Manual entry"
+  },
+  "confirm_onepiece": {
+    "field_title": "Name",
+    "set_name_label": "Set",
+    "card_type_label": "Card type",
+    "color_label": "Color",
+    "cost_label": "Cost",
+    "power_label": "Power",
+    "counter_label": "Counter",
+    "life_label": "Life",
+    "traits_label": "Traits",
     "rarity_label": "Rarity",
     "condition_label": "Condition",
     "condition_placeholder": "Select a condition...",
