@@ -1,6 +1,7 @@
 .env
 /node_modules
 /public/uploads/avatars/*
+/public/uploads/yugioh-cards/*
 /mongo_data
 /mongo_data_test
 docker-compose.override.yml
