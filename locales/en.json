@@ -181,7 +181,8 @@
     "steelbook": "Steelbook",
     "digital": "Digital",
     "lego": "LEGO",
-    "legos": "LEGO Sets"
+    "legos": "LEGO Sets",
+    "pokemon": "Pokémon cards"
   },
   "index": {
     "welcome": "Hello",
@@ -219,7 +220,10 @@
     "lego_pieces_label": "Total pieces",
     "lego_minifigs_label": "Total minifigures",
     "lego_sealed_label": "Sealed sets",
-    "top_theme_label": "Top theme"
+    "top_theme_label": "Top theme",
+    "pokemon_total_label": "Pokémon cards",
+    "top_set_label": "Top set",
+    "top_type_label": "Top type"
   },
   "modal": {
     "estimate_title": "Estimating...",
@@ -797,7 +801,9 @@
     "genres": "Rock, Pop...",
     "styles": "Prog Rock, Synth-pop...",
     "publisher": "Ex: Penguin...",
-    "lego_set_num": "e.g. 42115"
+    "lego_set_num": "e.g. 42115",
+    "pokemon_card_number": "e.g. 136/189",
+    "pokemon_types": "Fire, Water, Psychic..."
   },
   "perso": {
     "title": "Personalization",
@@ -876,7 +882,10 @@
     "graphic_novel": "Graphic Novel",
     "manga": "Manga",
     "comic": "Comic",
-    "digital": "Digital"
+    "digital": "Digital",
+    "pokemon_category_pokemon": "Pokémon",
+    "pokemon_category_trainer": "Trainer",
+    "pokemon_category_energy": "Energy"
   },
   "status": {
     "to_read": "To read",
@@ -1218,5 +1227,26 @@
     "set_num_label": "Set number",
     "theme_label": "Theme",
     "delete_confirm": "Do you really want to remove this set from your collection?"
+  },
+  "confirm_pokemon": {
+    "field_title": "Name",
+    "set_name_label": "Set",
+    "card_number_label": "Card number",
+    "category_label": "Category",
+    "rarity_label": "Rarity",
+    "artist_label": "Illustrator",
+    "hp_label": "HP",
+    "types_label": "Types",
+    "condition_label": "Condition",
+    "condition_placeholder": "Select a condition...",
+    "condition_mint": "Mint (M)",
+    "condition_near_mint": "Near Mint (NM)",
+    "condition_lightly_played": "Lightly Played (LP)",
+    "condition_moderately_played": "Moderately Played (MP)",
+    "condition_heavily_played": "Heavily Played (HP)",
+    "condition_damaged": "Damaged (DMG)",
+    "barcode_label": "Barcode",
+    "quantity_label": "Quantity",
+    "comments_label": "Comments"
   }
 }
