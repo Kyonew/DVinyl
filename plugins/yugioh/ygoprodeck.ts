@@ -62,7 +62,8 @@ export class YgoprodeckProvider implements SearchProvider {
           id: printing ? `${card.id}::${printing.set_code}` : `${card.id}::`,
           title: card.name,
           creator: printing?.set_name || '',
-          cover_image: card.card_images?.[0]?.image_url || ''
+          cover_image: card.card_images?.[0]?.image_url || '',
+          rarity: printing?.set_rarity || ''
         });
       }
       if (rows.length >= limit) break;

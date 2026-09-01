@@ -48,7 +48,8 @@ export class ScryfallProvider implements SearchProvider {
       id: card.id,
       title: card.name,
       creator: card.set_name,
-      cover_image: coverImage(card)
+      cover_image: coverImage(card),
+      rarity: card.rarity
     }));
   }
 
