@@ -1240,6 +1240,24 @@
     "theme_label": "Thème",
     "delete_confirm": "Voulez-vous vraiment supprimer ce set de votre collection ?"
   },
+  "add_pokemon": {
+    "title": "Ajouter une carte Pokémon",
+    "desc": "Cherche par nom de carte.",
+    "search_placeholder": "Nom de la carte...",
+    "btn_scan": "Scanner",
+    "results_title": "Résultats",
+    "no_results": "Aucune carte trouvée.",
+    "manual_entry": "Saisie manuelle"
+  },
+  "add_mtg": {
+    "title": "Ajouter une carte Magic",
+    "desc": "Cherche par nom de carte.",
+    "search_placeholder": "Nom de la carte...",
+    "btn_scan": "Scanner",
+    "results_title": "Résultats",
+    "no_results": "Aucune carte trouvée.",
+    "manual_entry": "Saisie manuelle"
+  },
   "confirm_pokemon": {
     "field_title": "Nom",
     "set_name_label": "Extension",

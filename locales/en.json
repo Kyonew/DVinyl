@@ -1240,6 +1240,24 @@
     "theme_label": "Theme",
     "delete_confirm": "Do you really want to remove this set from your collection?"
   },
+  "add_pokemon": {
+    "title": "Add a Pokémon card",
+    "desc": "Search by card name.",
+    "search_placeholder": "Card name...",
+    "btn_scan": "Scan",
+    "results_title": "Results",
+    "no_results": "No card found.",
+    "manual_entry": "Manual entry"
+  },
+  "add_mtg": {
+    "title": "Add a Magic card",
+    "desc": "Search by card name.",
+    "search_placeholder": "Card name...",
+    "btn_scan": "Scan",
+    "results_title": "Results",
+    "no_results": "No card found.",
+    "manual_entry": "Manual entry"
+  },
   "confirm_pokemon": {
     "field_title": "Name",
     "set_name_label": "Set",
