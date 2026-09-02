@@ -75,6 +75,23 @@ read-only preview of a finished instance.
 
 Every plugin can be turned on or off per collection from the admin panel.
 
+## Trading card games
+
+| Plugin | Metadata source | Price estimate |
+| :----- | :--------------- | :---: |
+| Pokémon | TCGdex | ✅ |
+| Magic: The Gathering | Scryfall | ✅ |
+| Yu-Gi-Oh! | YGOPRODeck | ✅ |
+| One Piece | optcgapi.com | ✅ |
+| Lorcana | Lorcana API | — |
+| Star Wars: Unlimited | SWU-DB | ✅ |
+| Digimon | DigimonCard.io | — |
+| Flesh and Blood | goagain.dev | — |
+
+All eight are free and fully keyless — no `.env` setup, just enable the ones you want per
+collection from the admin panel. "Price estimate" sums your collection's live market value from
+the collection page; the three without it use sources that don't publish pricing data.
+
 ## Build your own type
 
 DVinyl is made to grow with you. There are two ways to add a new kind of collection:
@@ -128,7 +145,7 @@ No Docker? No worries. Have a look at the other ways to install and run DVinyl i
 | Frontend | EJS templates |
 | Styling | Tailwind CSS |
 | Localization | i18next |
-| Metadata APIs | Discogs, Hardcover, TMDB, IGDB, Rebrickable |
+| Metadata APIs | Discogs, Hardcover, TMDB, IGDB, Rebrickable, plus 8 free TCG APIs (see [Trading card games](#trading-card-games)) |
 
 ## Contributing
 
