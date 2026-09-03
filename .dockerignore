@@ -4,3 +4,4 @@ node_modules
 mongo_data
 mongo_data_test
 dist
+.claude
