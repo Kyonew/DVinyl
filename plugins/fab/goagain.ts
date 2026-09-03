@@ -1,5 +1,5 @@
 import { SearchProvider, SearchOptions, SearchResult, ConfirmData } from '../../core/types';
-import { fetchJson } from '../../core/helpers';
+import { fetchJson, fuzzyCardSearch } from '../../core/helpers';
 
 const BASE_URL = 'https://goagain.dev/v1';
 
@@ -33,15 +33,18 @@ export class FabProvider implements SearchProvider {
   name = 'Flesh and Blood API';
 
   async search(query: string, options: SearchOptions): Promise<SearchResult[]> {
-    let payload: { data: FabCard[] };
-    try {
-      payload = await fetchJson(`${BASE_URL}/cards?name=${encodeURIComponent(query)}`);
-    } catch (err: any) {
-      if (err.status === 404) return [];
-      throw err;
-    }
+    const fetchRows = async (q: string): Promise<FabCard[]> => {
+      try {
+        const payload: { data: FabCard[] } = await fetchJson(`${BASE_URL}/cards?name=${encodeURIComponent(q)}`);
+        return payload.data || [];
+      } catch (err: any) {
+        if (err.status === 404) return [];
+        throw err;
+      }
+    };
+    const cards = await fuzzyCardSearch(query, fetchRows, card => card.name);
     const results: SearchResult[] = [];
-    for (const card of payload.data || []) {
+    for (const card of cards) {
       for (const printing of card.printings || []) {
         results.push({
           id: `${card.unique_id}::${printing.id}`,

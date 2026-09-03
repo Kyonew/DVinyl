@@ -1,5 +1,5 @@
 import { SearchProvider, SearchOptions, SearchResult, ConfirmData } from '../../core/types';
-import { fetchJson } from '../../core/helpers';
+import { fetchJson, fuzzyCardSearch } from '../../core/helpers';
 
 const BASE_URL = 'https://api.lorcana-api.com/cards/fetch';
 
@@ -40,14 +40,21 @@ export class LorcanaProvider implements SearchProvider {
   name = 'Lorcana API';
 
   // name~ is a contains match (verified live: "Elsa" returns every "Elsa - ..." printing).
+  // Every Lorcana card name is "Character - Subtitle"; a query typed without that dash
+  // (the common case) is not a literal substring, which is what fuzzyCardSearch's
+  // first-word retry recovers - see its doc comment in core/helpers.ts.
   async search(query: string, options: SearchOptions): Promise<SearchResult[]> {
-    let rows: LorcanaCard[];
-    try {
-      rows = await fetchJson(`${BASE_URL}?search=name~${encodeURIComponent(query)}`);
-    } catch (err: any) {
-      if (err.status === 404) return [];
-      throw err;
-    }
+    const fetchRows = async (q: string): Promise<LorcanaCard[]> => {
+      try {
+        return await fetchJson(`${BASE_URL}?search=name~${encodeURIComponent(q)}`);
+      } catch (err: any) {
+        if (err.status === 404) return [];
+        throw err;
+      }
+    };
+
+    const rows = await fuzzyCardSearch(query, fetchRows, card => card.Name);
+
     return (rows || []).slice(0, options.limit || 25).map(card => ({
       id: card.Unique_ID,
       title: card.Name,

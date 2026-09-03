@@ -1,5 +1,5 @@
 import { SearchProvider, SearchOptions, SearchResult, ConfirmData } from '../../core/types';
-import { fetchJson } from '../../core/helpers';
+import { fetchJson, fuzzyCardSearch } from '../../core/helpers';
 
 const BASE_URL = 'https://api.tcgdex.net/v2/en/cards';
 
@@ -50,9 +50,10 @@ export class TcgdexProvider implements SearchProvider {
     // query "a" — just to show 25 rows. Its `pagination:` params cut that to a few hundred
     // bytes (verified live). The slice() below is now redundant but kept as a guard in
     // case the API ever ignores the cap.
-    const results: TcgdexCardBrief[] = await fetchJson(
-      `${BASE_URL}?name=like:${encodeURIComponent(query)}&pagination:page=1&pagination:itemsPerPage=${limit}`
+    const fetchRows = (q: string): Promise<TcgdexCardBrief[]> => fetchJson(
+      `${BASE_URL}?name=like:${encodeURIComponent(q)}&pagination:page=1&pagination:itemsPerPage=${limit}`
     );
+    const results = await fuzzyCardSearch(query, fetchRows, card => card.name);
     // TCGdex's list endpoint returns only id/localId/name/image (no set info), unlike
     // Discogs/Rebrickable whose search endpoints already carry a creator field. The
     // creator column stays blank at this stage; getDetails() fills in set_name once a

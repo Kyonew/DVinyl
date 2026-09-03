@@ -1,5 +1,5 @@
 import { SearchProvider, SearchOptions, SearchResult, ConfirmData } from '../../core/types';
-import { fetchJson } from '../../core/helpers';
+import { fetchJson, fuzzyCardSearch } from '../../core/helpers';
 
 const BASE_URL = 'https://digimoncard.io/api-public/search';
 // Without a User-Agent, digimoncard.io has been observed to 301-redirect oddly instead
@@ -60,16 +60,18 @@ export class DigimonProvider implements SearchProvider {
   // database unfiltered instead of erroring, so using the wrong one silently breaks
   // search rather than failing loudly — do not "fix" this to a more obvious param.
   async search(query: string, options: SearchOptions): Promise<SearchResult[]> {
-    let rows: DigimonCard[];
-    try {
-      rows = await fetchJson(
-        `${BASE_URL}?series=${encodeURIComponent('Digimon Card Game')}&n=${encodeURIComponent(query)}`,
-        { headers: HEADERS }
-      );
-    } catch (err: any) {
-      if (err.status === 404) return [];
-      throw err;
-    }
+    const fetchRows = async (q: string): Promise<DigimonCard[]> => {
+      try {
+        return await fetchJson(
+          `${BASE_URL}?series=${encodeURIComponent('Digimon Card Game')}&n=${encodeURIComponent(q)}`,
+          { headers: HEADERS }
+        );
+      } catch (err: any) {
+        if (err.status === 404) return [];
+        throw err;
+      }
+    };
+    const rows = await fuzzyCardSearch(query, fetchRows, card => card.name);
     // Alternate-art/parallel printings repeat the same id as separate rows; only the
     // first occurrence of each id is kept, matching the plugin's one-row-per-id model
     // (there is no per-printing external id scheme here, unlike One Piece/Yu-Gi-Oh!).

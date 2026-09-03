@@ -1,5 +1,5 @@
 import { SearchProvider, SearchOptions, SearchResult, ConfirmData } from '../../core/types';
-import { fetchJson } from '../../core/helpers';
+import { fetchJson, fuzzyCardSearch } from '../../core/helpers';
 import { deriveMtgFormat, expandColors } from './constants';
 
 const BASE_URL = 'https://api.scryfall.com';
@@ -34,16 +34,21 @@ export async function fetchScryfallCard(id: string): Promise<ScryfallCard> {
 export class ScryfallProvider implements SearchProvider {
   name = 'Scryfall';
 
+  // Scryfall's own q= search already tokenizes fairly well; fuzzyCardSearch's first-word
+  // retry is a no-cost safety net underneath it, for the punctuation-sensitive cases it
+  // still misses (a double-faced card's "Fire // Ice", typed without the slashes).
   async search(query: string, options: SearchOptions): Promise<SearchResult[]> {
-    let data: any;
-    try {
-      data = await fetchJson(`${BASE_URL}/cards/search?q=${encodeURIComponent(query)}`, { headers: HEADERS });
-    } catch (err: any) {
-      // Scryfall returns 404 for "no cards matched" rather than an empty 200 list.
-      if (err.status === 404) return [];
-      throw err;
-    }
-    const cards: ScryfallCard[] = data.data || [];
+    const fetchRows = async (q: string): Promise<ScryfallCard[]> => {
+      try {
+        const data = await fetchJson(`${BASE_URL}/cards/search?q=${encodeURIComponent(q)}`, { headers: HEADERS });
+        return data.data || [];
+      } catch (err: any) {
+        // Scryfall returns 404 for "no cards matched" rather than an empty 200 list.
+        if (err.status === 404) return [];
+        throw err;
+      }
+    };
+    const cards = await fuzzyCardSearch(query, fetchRows, card => card.name);
     return cards.slice(0, options.limit || 25).map(card => ({
       id: card.id,
       title: card.name,

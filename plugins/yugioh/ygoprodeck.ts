@@ -1,5 +1,5 @@
 import { SearchProvider, SearchOptions, SearchResult, ConfirmData } from '../../core/types';
-import { fetchJson } from '../../core/helpers';
+import { fetchJson, fuzzyCardSearch } from '../../core/helpers';
 import { cacheYugiohImage } from './imageCache';
 import { deriveYugiohFormat } from './constants';
 
@@ -73,14 +73,16 @@ export class YgoprodeckProvider implements SearchProvider {
   // as both search and detail (returns full card_sets[] already), so no second call
   // is needed here.
   async search(query: string, options: SearchOptions): Promise<SearchResult[]> {
-    let data: any;
-    try {
-      data = await fetchJson(`${BASE_URL}/cardinfo.php?fname=${encodeURIComponent(query)}`);
-    } catch (err: any) {
-      if (err.status === 400) return []; // YGOPRODeck 400s on "no cards matched"
-      throw err;
-    }
-    const cards: YgoCard[] = data.data || [];
+    const fetchRows = async (q: string): Promise<YgoCard[]> => {
+      try {
+        const data = await fetchJson(`${BASE_URL}/cardinfo.php?fname=${encodeURIComponent(q)}`);
+        return data.data || [];
+      } catch (err: any) {
+        if (err.status === 400) return []; // YGOPRODeck 400s on "no cards matched"
+        throw err;
+      }
+    };
+    const cards = await fuzzyCardSearch(query, fetchRows, card => card.name);
     const rows: SearchResult[] = [];
     const limit = options.limit || 25;
     // A single card can carry dozens of printings (Dark Magician: 59, verified live).

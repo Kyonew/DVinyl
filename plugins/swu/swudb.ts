@@ -1,5 +1,5 @@
 import { SearchProvider, SearchOptions, SearchResult, ConfirmData } from '../../core/types';
-import { fetchJson } from '../../core/helpers';
+import { fetchJson, fuzzyCardSearch } from '../../core/helpers';
 
 const BASE_URL = 'https://api.swu-db.com';
 
@@ -43,15 +43,22 @@ export class SwuProvider implements SearchProvider {
 
   // The `q` param takes a `field:value` filter expression (verified live); `name:` is the
   // one this plugin needs. Only the value itself is percent-encoded, not the `name:` prefix.
+  // name: only matches Card.Name, not the "Name - Subtitle" full display title (see
+  // displayTitle below) — fuzzyCardSearch's getName compares against the full title, so a
+  // query that includes the subtitle ("Boba Fett Special Ops") still narrows correctly
+  // once the first-word retry has widened the candidate set.
   async search(query: string, options: SearchOptions): Promise<SearchResult[]> {
-    let payload: { data: SwuCard[] };
-    try {
-      payload = await fetchJson(`${BASE_URL}/cards/search?q=name:${encodeURIComponent(query)}&format=json`);
-    } catch (err: any) {
-      if (err.status === 404) return [];
-      throw err;
-    }
-    return (payload.data || []).slice(0, options.limit || 25).map(card => ({
+    const fetchRows = async (q: string): Promise<SwuCard[]> => {
+      try {
+        const payload: { data: SwuCard[] } = await fetchJson(`${BASE_URL}/cards/search?q=name:${encodeURIComponent(q)}&format=json`);
+        return payload.data || [];
+      } catch (err: any) {
+        if (err.status === 404) return [];
+        throw err;
+      }
+    };
+    const rows = await fuzzyCardSearch(query, fetchRows, displayTitle);
+    return rows.slice(0, options.limit || 25).map(card => ({
       id: `${card.Set}-${card.Number}`,
       title: displayTitle(card),
       creator: card.Set,

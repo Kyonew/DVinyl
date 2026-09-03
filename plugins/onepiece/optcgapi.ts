@@ -1,5 +1,5 @@
 import { SearchProvider, SearchOptions, SearchResult, ConfirmData } from '../../core/types';
-import { fetchJson } from '../../core/helpers';
+import { fetchJson, fuzzyCardSearch } from '../../core/helpers';
 
 const BASE_URL = 'https://optcgapi.com/api';
 
@@ -49,13 +49,15 @@ export class OptcgapiProvider implements SearchProvider {
   // card_name= / q= / search= / card= all return the API's "used incorrectly" error;
   // card_name= is the confirmed working param (case-insensitive substring match).
   async search(query: string, options: SearchOptions): Promise<SearchResult[]> {
-    let rows: OnePieceCard[];
-    try {
-      rows = await fetchJson(`${BASE_URL}/sets/filtered/?card_name=${encodeURIComponent(query)}`);
-    } catch (err: any) {
-      if (err.status === 404) return [];
-      throw err;
-    }
+    const fetchRows = async (q: string): Promise<OnePieceCard[]> => {
+      try {
+        return await fetchJson(`${BASE_URL}/sets/filtered/?card_name=${encodeURIComponent(q)}`);
+      } catch (err: any) {
+        if (err.status === 404) return [];
+        throw err;
+      }
+    };
+    const rows = await fuzzyCardSearch(query, fetchRows, card => card.card_name);
     return (rows || []).slice(0, options.limit || 25).map(card => ({
       // Encoded printing id — see fetchOnePieceCard above. The filtered/ search endpoint
       // returns one row per printing and carries card_image_id too (verified live), so
