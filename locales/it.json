@@ -39,6 +39,7 @@
     "no_results": "Nessun risultato trovato",
     "results_title": "Risultati",
     "scan_error": "Errore della fotocamera (controlla le autorizzazioni)",
+    "scan_hint": "Ancora nulla. Prova a far occupare al codice a barre tutta la larghezza dell'immagine, tienilo fermo e ben illuminato e allontanati un po' se la fotocamera non mette a fuoco. Puoi anche digitare il numero qui sopra.",
     "barcode_not_found": "Codice a barre non riconosciuto. Prova a cercare per titolo.",
     "barcode_no_match": "Nessuna corrispondenza per questo codice a barre. Ecco il nome del prodotto trovato: modificalo e cerca di nuovo, il codice a barre resta associato.",
     "scan_found": "Trovato!",
@@ -57,6 +58,8 @@
     "backup": {
       "confirm_import": "ATTENZIONE: questa operazione eliminerà tutti i tuoi dati correnti (album, utenti, registri) e li sostituirà con il contenuto del file. Verrai disconnesso. Continuare?",
       "export_btn": "Esporta banca dati",
+      "export_zip_btn": "Esporta ZIP",
+      "export_json_btn": "Esporta JSON",
       "export_csv_btn": "Esporta CSV",
       "import_btn": "Importa banca dati",
       "csv": {
@@ -66,6 +69,7 @@
       "import_error": "Errore durante l'importazione.",
       "import_success": "Database importato correttamente.",
       "json_error": "File JSON non valido.",
+      "file_error": "Il file di backup è danneggiato o non valido.",
       "section_subtitle": "Esporta o ripristina la tua intera collezione.",
       "section_title": "Backup del database",
       "subtitle": "Esegui il backup della tua raccolta o ripristina un database esistente.",
@@ -261,7 +265,7 @@
       "stat_items": "Elementi",
       "stat_blocked": "IP bloccati",
       "backup_title": "Backup dell'istanza",
-      "backup_subtitle": "Esporta TUTTA l'istanza: tutti gli utenti, tutte le collezioni con i loro elementi, impostazioni e log - in un unico file.",
+      "backup_subtitle": "Esporta TUTTA l'istanza. Lo ZIP include le immagini locali; il JSON contiene solo i dati.",
       "backup_warning": "L'importazione sostituisce TUTTI i dati dell'istanza (tutte le collezioni, tutti gli utenti). Per ripristinare una singola collezione, usa il suo backup dedicato dalla pagina admin di quella collezione.",
       "backup_confirm_import": "Questa importazione SOSTITUIRÀ TUTTA l'istanza: tutti gli utenti, tutte le collezioni e i loro elementi. Verrai disconnesso. Continuare?",
       "self_service_title": "Collezioni in self-service",
@@ -293,7 +297,7 @@
     },
     "collection_backup": {
       "title": "Backup della collezione",
-      "subtitle": "Esporta questa collezione (elementi + impostazioni) o sostituisci il suo contenuto con un backup.",
+      "subtitle": "Esporta questa collezione (elementi + impostazioni) o sostituisci il suo contenuto con un backup. Lo ZIP include le immagini locali; il JSON contiene solo i dati.",
       "confirm_import": "L'importazione SOSTITUIRÀ tutti gli elementi di questa collezione. Continuare?"
     },
     "sharing": {
@@ -445,9 +449,20 @@
     "search_style_placeholder": "Cerca stili...",
     "search_platform_placeholder": "Cerca console...",
     "active_filters": "Filtri attivi:",
-    "page_jump_title": "Vai alla pagina"
+    "page_jump_title": "Vai alla pagina",
+    "select_btn": "Seleziona",
+    "select_all": "Seleziona tutto",
+    "deselect_all": "Deseleziona tutto",
+    "cancel_select": "Annulla",
+    "selected_count_suffix": "selezionato/i",
+    "print_selected_qr": "Stampa i codici QR",
+    "print_selected_barcode": "Stampa i codici a barre",
+    "label_sheet_title": "Stampa le etichette",
+    "label_sheet_empty": "Nessuno degli elementi selezionati ha un codice a barre, quindi non c’è nulla da stampare."
   },
   "common": {
+    "external_id_label": "ID di origine",
+    "external_id_hint": "L'identificativo a cui questo elemento è collegato sul sito di origine. Inseriscilo per recuperare l'aggiornamento dei metadati, o correggilo se l'elemento è stato collegato alla scheda sbagliata.",
     "all": "Tutto",
     "apply": "Fare domanda a",
     "back_home": "Ritorno a casa",
@@ -550,7 +565,6 @@
   },
   "confirm_vinyl": {
     "add_secondary_visual": "Aggiungi elemento visivo secondario (disco/mockup)",
-    "api_error": "Errore dell'API.",
     "browse_files": "Sfoglia i file",
     "btn_collection": "Collezione",
     "btn_wishlist": "Lista dei desideri",
@@ -626,7 +640,13 @@
     "tracklist_title": "Elenco delle tracce",
     "unavailable_data": "Dati non disponibili",
     "view_discogs": "Visualizza la pagina Discogs",
-    "variants_title": "Possiedi questo articolo anche in altre versioni:"
+    "variants_title": "Possiedi questo articolo anche in altre versioni:",
+    "print_label_btn": "Stampa l'etichetta",
+    "qr_option": "Codice QR",
+    "barcode_option": "Codice a barre",
+    "switch_to_qr": "Passa al codice QR",
+    "switch_to_barcode": "Passa al codice a barre",
+    "label_page_title": "Etichetta"
   },
   "dvd_detail": {
     "barcode_label": "Codice a barre",
@@ -663,7 +683,7 @@
   "errors": {
     "404_desc": "La pagina che stai cercando sembra essere stata cancellata dalla raccolta oppure il modulo associato è attualmente disabilitato.",
     "404_title": "Ops! Scanalatura non trovata.",
-    "api_error": "Impossibile connettersi a Discogs.",
+    "api_error": "Impossibile connettersi a {{provider}}.",
     "current_password_incorrect": "La password attuale non è corretta.",
     "sso_no_local_password": "Questo account usa il single sign-on (SSO) e non ha una password locale da modificare.",
     "generic_server_error": "Errore interno del server.",
@@ -699,6 +719,29 @@
     "secondary_image": "Immagine secondaria",
     "image_preview": "Anteprima dell'immagine",
     "genre": "Genere"
+  },
+  "image_manager": {
+    "title": "Immagini dell'elemento",
+    "order_hint": "Trascina le immagini per riordinarle. La prima verrà usata come immagine principale.",
+    "empty": "Nessuna immagine",
+    "local_hint": "Fai clic per aggiungere una o più immagini",
+    "search_hint": "Fai clic su un risultato per aggiungerlo all'elenco.",
+    "add": "Aggiungi",
+    "main": "Immagine principale",
+    "remove": "Elimina immagine",
+    "confirm_remove": "Vuoi davvero eliminare questa immagine?",
+    "move_before": "Sposta a sinistra",
+    "move_after": "Sposta a destra",
+    "invalid_url": "Inserisci un URL immagine HTTP o HTTPS valido.",
+    "too_many": "Un elemento può contenere al massimo {{max}} immagini.",
+    "too_large": "Le immagini locali possono occupare al massimo {{maxMb}} MB per elemento. Rimuovi un'immagine o scegli file più piccoli.",
+    "uploading": "Caricamento dell'immagine…",
+    "upload_failed": "Non è stato possibile caricare l'immagine.",
+    "upload_invalid": "Il file selezionato non è un'immagine valida.",
+    "upload_too_large": "L'immagine compressa è troppo grande (massimo 5 MB).",
+    "image_number": "Immagine {{number}}",
+    "previous": "Immagine precedente",
+    "next": "Immagine successiva"
   },
   "image_source": {
     "hint": "Fare clic per sfogliare i file",
@@ -841,6 +884,9 @@
     "condition_hint": "Basato su condizioni \"molto buone\".",
     "estimate_desc": "Stiamo interrogando il mercato Discogs per ogni record.",
     "estimate_title": "Stima...",
+    "history_empty": "Esegui questa stima almeno due volte per vedere una tendenza.",
+    "history_other_currency": "Esiste uno storico in {{currencies}}, ma i valori non vengono mai convertiti: viene mostrata solo la tua valuta.",
+    "history_title": "Cronologia del valore",
     "max_label": "Massimo (nuovo)",
     "min_label": "Minimo (G)",
     "start_btn": "Avvia analisi"
@@ -1110,8 +1156,6 @@
     "shape_square": "Quadrata (copertina)",
     "shape_screen": "Schermo (16/9)",
     "shape_hint": "Si applica alle pagine e ai moduli di questo plugin. Le griglie usano il rapporto impostato in Personalizzazione.",
-    "secondary_label": "Immagine secondaria",
-    "secondary_desc": "Aggiunge una seconda immagine modificabile (come il disco per la musica).",
     "default_cover_label": "Immagine predefinita",
     "default_cover_desc": "Mostrata sugli elementi aggiunti senza copertina. Lascia vuoto per mantenere il logo DVinyl.",
     "default_cover_reset": "Torna al logo predefinito",

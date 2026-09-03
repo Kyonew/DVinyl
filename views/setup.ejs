@@ -5,9 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><%= t('setup.title') %></title>
     
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="<%= baseUrl %>/vendor/tailwind-3.4.17.min.js"></script>
+    <%# Vendored, like Tailwind above: the very first page of a new install is the one most
+        likely to be opened on a machine with no outbound internet access. %>
+    <link rel="stylesheet" href="<%= baseUrl %>/vendor/font-awesome-6.7.2/css/all.min.css" />
+    <%# Plus Jakarta Sans served from the instance. It is a variable font, so the single
+        file behind this stylesheet covers the whole 200-800 range. Note the ceiling: the
+        family has no 900, so a font-black rule here renders at 800, as it always did. %>
+    <link rel="stylesheet" href="<%= baseUrl %>/vendor/fonts/plus-jakarta-sans.css">
     
     <style>
         body { 
@@ -201,7 +206,7 @@
                             <i class="fa-solid fa-file-import"></i>
                         </div>
                         <span class="text-xs font-bold uppercase tracking-wider"><%= t('setup.restore_backup') %></span>
-                        <input type="file" id="setupBackupInput" class="hidden" accept=".json">
+                        <input type="file" id="setupBackupInput" class="hidden" accept=".json,.zip,application/zip">
                     </label>
                 </div>
 
@@ -306,21 +311,27 @@
             const file = e.target.files[0];
             if (!file) return;
 
-            const reader = new FileReader();
-            reader.onload = async (event) => {
+            (async () => {
                 try {
-                    const backupData = JSON.parse(event.target.result);
-                    
                     errorBox.classList.add('hidden');
                     const btn = document.querySelector('button[type="submit"]');
                     btn.disabled = true;
                     btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> Restauration...';
 
-                    const response = await fetch('<%= baseUrl %>/backup/import', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(backupData)
-                    });
+                    const isArchive = file.name.toLowerCase().endsWith('.zip');
+                    let response;
+                    if (isArchive) {
+                        const formData = new FormData();
+                        formData.append('backup', file);
+                        response = await fetch('<%= baseUrl %>/backup/import-archive', { method: 'POST', body: formData });
+                    } else {
+                        const backupData = JSON.parse(await file.text());
+                        response = await fetch('<%= baseUrl %>/backup/import', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(backupData)
+                        });
+                    }
 
                     if (response.ok) {
                         window.location.href = '<%= baseUrl %>/login';
@@ -334,8 +345,7 @@
                     btn.disabled = false;
                     btn.innerHTML = '<span class="relative z-10 flex items-center justify-center gap-2"><%= t("setup.submit_btn") %><i class="fa-solid fa-rocket"></i></span>';
                 }
-            };
-            reader.readAsText(file);
+            })();
         });
 
 

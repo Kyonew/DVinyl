@@ -24,7 +24,9 @@ export interface CustomPluginConfig {
   // Legacy shape of the pre-aspectRatioClass builder, still read from configs
   // written before it (see resolveAspectRatioClass).
   imageShape?: 'poster' | 'square';
-  secondaryImage?: boolean; // show the secondary (user) image editor
+  // Legacy builder setting. Read so existing plugin.json files stay valid; ignored now
+  // that every plugin uses the shared ordered image gallery.
+  secondaryImage?: boolean;
   // Image used for items with no cover: either an http(s) URL or an uploaded
   // base64 data URI (see placeholderImage.ts). Absent means the generic logo.
   defaultCover?: string;
@@ -273,7 +275,6 @@ export function createCustomPlugin(config: CustomPluginConfig): PluginDefinition
     routePrefix: `/${config.id}`,
     collectionType: config.id,
     creatorField: 'creator',
-    supportsUserImage: config.secondaryImage === true,
     placeholderImage: placeholder,
     defaultCardFields: ['creator'],
     partialsPath: CUSTOM_PARTIALS_PATH,

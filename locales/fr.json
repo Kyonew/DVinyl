@@ -1,5 +1,7 @@
 {
   "common": {
+    "external_id_label": "ID source",
+    "external_id_hint": "L'identifiant auquel cet élément est rattaché sur le site d'origine. Renseignez-le pour retrouver la mise à jour des métadonnées, ou corrigez-le si l'élément a été rattaché à la mauvaise fiche.",
     "edit": "Modifier",
     "save": "Enregistrer",
     "validate": "Valider",
@@ -79,7 +81,7 @@
     "lang_change_error": "Erreur lors du changement de langue.",
     "setup_error": "Erreur lors de l'installation.",
     "generic_server_error": "Erreur interne du serveur.",
-    "api_error": "Impossible de contacter Discogs.",
+    "api_error": "Impossible de contacter {{provider}}.",
     "save_error": "Erreur lors de la sauvegarde.",
     "invalid_credentials": "Identifiants invalides",
     "too_many_attempts_timed": "Trop de tentatives. Réessaie dans {{seconds}} secondes.",
@@ -229,6 +231,9 @@
     "min_label": "Minimum (G)",
     "max_label": "Maximum (Mint)",
     "start_btn": "Lancer l'analyse",
+    "history_title": "Historique de valeur",
+    "history_empty": "Lancez cette estimation au moins deux fois pour voir une tendance.",
+    "history_other_currency": "Un historique existe en {{currencies}}, mais les valeurs ne sont jamais converties : seule votre devise est affichée.",
     "add_hub_title": "On ajoute quoi ?",
     "add_hub_subtitle": "Sélectionnez le type de média à intégrer à votre collection"
   },
@@ -242,6 +247,7 @@
     "scan_stop": "Arrêter le scan",
     "scan_found": "Trouvé !",
     "scan_error": "Erreur caméra (Permissions ?)",
+    "scan_hint": "Toujours rien. Essayez de faire occuper toute la largeur de l'image au code-barres, de le tenir bien stable et bien éclairé, et de reculer un peu s'il ne fait pas la mise au point. Vous pouvez aussi saisir le numéro ci-dessus.",
     "barcode_not_found": "Ce code-barres n'a pas été reconnu. Essaie plutôt une recherche par titre.",
     "barcode_no_match": "Aucune correspondance pour ce code-barres. Voici le nom du produit trouvé : ajuste-le et relance la recherche, le code-barres reste attaché.",
     "results_title": "Résultats",
@@ -331,6 +337,8 @@
     },
     "backup": {
       "export_btn": "Exporter la base de données",
+      "export_zip_btn": "Exporter en ZIP",
+      "export_json_btn": "Exporter en JSON",
       "export_csv_btn": "Exporter en CSV",
       "import_btn": "Importer la base de données",
       "csv": {
@@ -340,6 +348,7 @@
       "import_success": "Base de données importée avec succès.",
       "import_error": "Erreur lors de l'importation.",
       "json_error": "Fichier JSON invalide.",
+      "file_error": "Le fichier de sauvegarde est corrompu ou invalide.",
       "confirm_import": "ATTENTION : Cela va supprimer toutes vos données actuelles (albums, utilisateurs, logs) pour les remplacer par le contenu du fichier. Vous serez déconnecté. Continuer ?",
       "subtitle": "Sauvegardez votre collection ou restaurez une base de données existante.",
       "title": "Maintenance du système",
@@ -469,7 +478,7 @@
       "stat_items": "Items",
       "stat_blocked": "IPs bloquées",
       "backup_title": "Sauvegarde de l'instance",
-      "backup_subtitle": "Exporte TOUTE l'instance : tous les utilisateurs, toutes les collections avec leurs items, réglages et logs de connexion - dans un seul fichier.",
+      "backup_subtitle": "Exporte TOUTE l'instance. Le ZIP inclut les images locales ; le JSON contient uniquement les données.",
       "backup_warning": "L'import remplace TOUTES les données de l'instance (toutes les collections, tous les utilisateurs). Pour restaurer une seule collection, utilisez sa sauvegarde dédiée depuis la page admin de cette collection.",
       "backup_confirm_import": "Cet import va REMPLACER TOUTE l'instance : tous les utilisateurs, toutes les collections et leurs items. Vous serez déconnecté. Continuer ?",
       "self_service_title": "Collections en libre-service",
@@ -501,7 +510,7 @@
     },
     "collection_backup": {
       "title": "Sauvegarde de la collection",
-      "subtitle": "Exporter cette collection (items + réglages) ou remplacer son contenu par une sauvegarde.",
+      "subtitle": "Exporter cette collection (items + réglages) ou remplacer son contenu avec une sauvegarde. Le ZIP inclut les images locales ; le JSON contient uniquement les données.",
       "confirm_import": "L'import va REMPLACER tous les items de cette collection. Continuer ?"
     },
     "sharing": {
@@ -637,7 +646,16 @@
     "search_style_placeholder": "Rechercher des styles...",
     "search_platform_placeholder": "Rechercher des consoles...",
     "active_filters": "Filtres actifs :",
-    "page_jump_title": "Aller à la page"
+    "page_jump_title": "Aller à la page",
+    "select_btn": "Sélectionner",
+    "select_all": "Tout sélectionner",
+    "deselect_all": "Tout désélectionner",
+    "cancel_select": "Annuler",
+    "selected_count_suffix": "sélectionné(s)",
+    "print_selected_qr": "Imprimer les QR codes",
+    "print_selected_barcode": "Imprimer les codes-barres",
+    "label_sheet_title": "Imprimer les étiquettes",
+    "label_sheet_empty": "Aucun des items sélectionnés n'a de code-barres, il n'y a donc rien à imprimer."
   },
   "confirm_vinyl": {
     "cover_preview": "Aperçu Pochette",
@@ -660,7 +678,6 @@
     "comments_placeholder": "Ex: Pressage original de 1986, acheté aux Puces...",
     "btn_wishlist": "Wishlist",
     "btn_collection": "Collection",
-    "api_error": "Erreur lors de l'appel à l'API.",
     "no_images": "Aucune image trouvée.",
     "field_quantity": "Quantité",
     "source_local": "Local",
@@ -724,7 +741,13 @@
     "no_tracklist": "Aucune tracklist enregistrée.",
     "refresh_info_success": "Métadonnées actualisées avec succès !",
     "refresh_info_error": "Erreur lors de l'actualisation des métadonnées.",
-    "variants_title": "Vous possédez également cet item dans d'autres versions :"
+    "variants_title": "Vous possédez également cet item dans d'autres versions :",
+    "print_label_btn": "Imprimer l'étiquette",
+    "qr_option": "QR code",
+    "barcode_option": "Code-barres",
+    "switch_to_qr": "Passer au QR code",
+    "switch_to_barcode": "Passer au code-barres",
+    "label_page_title": "Étiquette"
   },
   "wishlist": {
     "title": "Liste de Souhaits",
@@ -912,6 +935,29 @@
     "secondary_image": "Image secondaire",
     "image_preview": "Aperçu de l'image",
     "genre": "Genre"
+  },
+  "image_manager": {
+    "title": "Images de l'élément",
+    "order_hint": "Faites glisser les images pour les réordonner. La première sera utilisée comme image principale.",
+    "empty": "Aucune image pour le moment",
+    "local_hint": "Cliquez pour ajouter une ou plusieurs images",
+    "search_hint": "Cliquez sur un résultat pour l'ajouter à la liste.",
+    "add": "Ajouter",
+    "main": "Image principale",
+    "remove": "Supprimer l'image",
+    "confirm_remove": "Voulez-vous vraiment supprimer cette image ?",
+    "move_before": "Déplacer vers la gauche",
+    "move_after": "Déplacer vers la droite",
+    "invalid_url": "Saisissez une URL d'image HTTP ou HTTPS valide.",
+    "too_many": "Un élément peut contenir au maximum {{max}} images.",
+    "too_large": "Les images locales peuvent occuper au maximum {{maxMb}} Mo par élément. Supprimez une image ou choisissez des fichiers plus petits.",
+    "uploading": "Envoi de l'image…",
+    "upload_failed": "L'image n'a pas pu être envoyée.",
+    "upload_invalid": "Le fichier sélectionné n'est pas une image valide.",
+    "upload_too_large": "L'image compressée est trop lourde (maximum 5 Mo).",
+    "image_number": "Image {{number}}",
+    "previous": "Image précédente",
+    "next": "Image suivante"
   },
   "image_source": {
     "local": "Fichier local",
@@ -1110,8 +1156,6 @@
     "shape_square": "Carré (pochette)",
     "shape_screen": "Écran (16/9)",
     "shape_hint": "S'applique aux fiches et formulaires de ce plugin. Les grilles utilisent le rapport défini dans Personnalisation.",
-    "secondary_label": "Image secondaire",
-    "secondary_desc": "Ajoute un second visuel modifiable (comme le disque pour la musique).",
     "default_cover_label": "Image par défaut",
     "default_cover_desc": "Affichée sur les items ajoutés sans visuel. Laissez vide pour garder le logo DVinyl.",
     "default_cover_reset": "Revenir au logo par défaut",

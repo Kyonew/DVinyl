@@ -1,3 +1,4 @@
+import bwipjs from 'bwip-js';
 import { BASE_URL } from '../config/constants';
 
 /**
@@ -359,6 +360,50 @@ export function stringifyCsv(rows: string[][]): string {
     return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
   };
   return rows.map(row => row.map(escapeCell).join(',')).join('\r\n');
+}
+
+/**
+ * True protocol DVinyl is served over. Trusts the operator's own PROD flag over
+ * req.protocol, which depends on the reverse proxy correctly forwarding
+ * X-Forwarded-Proto - a single misconfigured proxy hop otherwise silently downgrades
+ * a generated absolute URL (share link, QR code, item label) to http.
+ */
+export function getPublicProtocol(req: any): string {
+  return process.env.PROD === 'true' ? 'https' : req.protocol;
+}
+
+/**
+ * Renders an item's stored barcode (whatever a scan or a manual entry left in it) as a
+ * scannable Code128 image, base64-encoded for direct embedding in a label view.
+ *
+ * Code128 over EAN-13/UPC-A: the barcode field holds whatever was scanned or typed,
+ * which is not always a clean 12/13-digit retail code (an ISBN-10, a manually corrected
+ * value, an import artifact). Code128 encodes any of that without a digit-count or
+ * checksum requirement that would otherwise reject it. Returns null rather than
+ * throwing so one unprintable value skips its barcode instead of failing the label.
+ */
+export async function generateBarcodeDataUrl(value: string): Promise<string | null> {
+  try {
+    const png = await bwipjs.toBuffer({
+      bcid: 'code128',
+      text: value,
+      scale: 3,
+      height: 10,
+      includetext: true,
+      textxalign: 'center',
+      // Without an explicit background, bwip-js leaves the PNG's background
+      // transparent (alpha 0) rather than opaque white. That renders fine on
+      // screen over a light page, but a scanner reading the raw pixels (zbar,
+      // and likely some dedicated barcode readers) fails to detect the symbol
+      // at all against transparency - confirmed by testing this exact output
+      // against zbarimg before and after adding this option.
+      backgroundcolor: 'FFFFFF',
+    });
+    return `data:image/png;base64,${png.toString('base64')}`;
+  } catch (err: any) {
+    console.warn(`[LABELS] Barcode generation failed for "${value}":`, err.message);
+    return null;
+  }
 }
 
 /**

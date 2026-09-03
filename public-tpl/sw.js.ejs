@@ -1,77 +1,92 @@
-const CACHE_NAME = 'dvinyl-v3.1.4';
+// Rendered per deployment by app.ts so BASE_URL and the app version are baked in (see
+// the /sw.js route).
+//
+// Scope of this worker: static assets only. DVinyl renders every page on the server,
+// scoped to the signed-in user and their active collection, so an HTML response is never
+// safe to replay from a cache. What is safe is the asset tree, and that is all this file
+// touches. Anything not matched below goes straight to the network, which means a new
+// route, a new plugin or a renamed page needs no change here to keep behaving correctly.
 
-const STATIC_ASSETS = [
-  '<%= baseUrl %>/',
-  '<%= baseUrl %>/styles/tailwind.css',
-  '<%= baseUrl %>/manifest.json',
-  '<%= baseUrl %>/ressources/icone-192.png',
-  '<%= baseUrl %>/ressources/icone-512.png'
+// Read from package.json through res.locals rather than written here by hand, which is
+// what a release has to remember otherwise: a version bump that forgot this line would
+// leave every client serving the previous build's style.css and icons.
+const CACHE_NAME = 'dvinyl-v<%= appVersion %>';
+const BASE = '<%= baseUrl %>';
+
+// Cache-first paths. Everything under them is either content-hashed (plugin placeholders)
+// or carries its version in the filename (the vendored libraries). The unversioned ones,
+// style.css and the icons, are safe too because CACHE_NAME carries the app version: a
+// release drops the whole cache, so a stale copy cannot outlive the build it came from.
+const STATIC_PREFIXES = [
+  BASE + '/vendor/',
+  BASE + '/styles/',
+  BASE + '/ressources/',
+  BASE + '/plugin-assets/'
 ];
 
+// Warmed at install so an install prompt has the icons and the manifest on hand. The rest
+// of the asset tree is cached on first use instead, which keeps this list short and avoids
+// pulling megabytes of vendored libraries before anything has asked for them.
+const PRECACHE_URLS = [
+  BASE + '/manifest.json',
+  BASE + '/ressources/icone-192.png',
+  BASE + '/ressources/icone-512.png'
+];
+
+function isStaticAsset(url) {
+  return url.origin === self.location.origin
+    && STATIC_PREFIXES.some(prefix => url.pathname.startsWith(prefix));
+}
 
 self.addEventListener('install', event => {
   self.skipWaiting();
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      console.log('[SW] Caching static assets');
-      return cache.addAll(STATIC_ASSETS);
-    })
-  );
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    // Added one at a time rather than through cache.addAll, which rejects the whole batch
+    // on a single failed request and takes the install down with it. A precache is an
+    // optimisation: one asset that moved or 404s must never cost the worker its install.
+    const results = await Promise.allSettled(PRECACHE_URLS.map(url => cache.add(url)));
+    const failed = PRECACHE_URLS.filter((_, i) => results[i].status === 'rejected');
+    if (failed.length > 0) {
+      console.warn('[SW] Could not precache:', failed.join(', '));
+    }
+    console.log(`[SW] Precached ${PRECACHE_URLS.length - failed.length}/${PRECACHE_URLS.length} static assets`);
+  })());
 });
-
 
 self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys().then(cacheNames =>
-      Promise.all(
-        cacheNames.map(cache => {
-          if (cache !== CACHE_NAME) {
-            console.log('[SW] Deleting old cache:', cache);
-            return caches.delete(cache);
-          }
-        })
-      )
-    )
-  );
-  return self.clients.claim();
+  event.waitUntil((async () => {
+    const names = await caches.keys();
+    await Promise.all(names.map(name => {
+      if (name === CACHE_NAME) return undefined;
+      console.log('[SW] Deleting old cache:', name);
+      return caches.delete(name);
+    }));
+    // Take over the pages that loaded before this worker activated, so the version just
+    // installed is the one serving them rather than the previous one.
+    await self.clients.claim();
+  })());
 });
 
-
 self.addEventListener('fetch', event => {
-  const url = new URL(event.request.url);
-
   if (event.request.method !== 'GET') return;
 
-  const dynamicRoutes = [
-    // Auth
-    '<%= baseUrl %>/login', '<%= baseUrl %>/logout', '<%= baseUrl %>/setup',
-    // Collections
-    '<%= baseUrl %>/collection', '<%= baseUrl %>/wishlist',
-    '<%= baseUrl %>/album/', '<%= baseUrl %>/book/', '<%= baseUrl %>/dvd/', '<%= baseUrl %>/game/',
-    // Add / confirmation
-    '<%= baseUrl %>/add-vinyl', '<%= baseUrl %>/add-book', '<%= baseUrl %>/add-dvd', '<%= baseUrl %>/add-game',
-    '<%= baseUrl %>/confirm-vinyl/', '<%= baseUrl %>/confirm-dvd/', '<%= baseUrl %>/confirm-book/', '<%= baseUrl %>/confirm-game/',
-    '<%= baseUrl %>/save-vinyl', '<%= baseUrl %>/save-book', '<%= baseUrl %>/save-dvd', '<%= baseUrl %>/save-game',
-    // Edition
-    '<%= baseUrl %>/album/edit/', '<%= baseUrl %>/book/edit/', '<%= baseUrl %>/dvd/edit/', '<%= baseUrl %>/game/edit/',
-    // search
-    '<%= baseUrl %>/search-discogs', '<%= baseUrl %>/search-books', '<%= baseUrl %>/search-dvds', '<%= baseUrl %>/search-games',
-    // internals API
-    '<%= baseUrl %>/api/',
-    // Import
-    '<%= baseUrl %>/import/',
-    // Admin
-    '<%= baseUrl %>/admin', '<%= baseUrl %>/settings',
-    // Backup
-    '<%= baseUrl %>/export', '<%= baseUrl %>/import'
-  ];
+  const url = new URL(event.request.url);
+  // Not an asset of ours: pages, API calls, uploaded images and remote covers all fall
+  // through untouched to the network.
+  if (!isStaticAsset(url)) return;
 
-  const isDynamic = dynamicRoutes.some(route => url.pathname.startsWith(route));
-  if (isDynamic) return;
+  event.respondWith((async () => {
+    const cached = await caches.match(event.request);
+    if (cached) return cached;
 
-  event.respondWith(
-    caches.match(event.request).then(response => {
-      return response || fetch(event.request);
-    })
-  );
+    const response = await fetch(event.request);
+    // Only a complete same-origin response is worth storing. A redirect or an error page
+    // cached under an asset URL would keep being served until the next release.
+    if (response.ok && response.type === 'basic') {
+      const cache = await caches.open(CACHE_NAME);
+      cache.put(event.request, response.clone());
+    }
+    return response;
+  })());
 });

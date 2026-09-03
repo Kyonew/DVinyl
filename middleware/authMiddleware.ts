@@ -68,6 +68,9 @@ export const checkUser = (req: Record<string, any>, res: any, next: any) => {
         next();
       } else {
         let user = await User.findById(decodedToken.id);
+        if (user && user.lastChange && decodedToken.iat * 1000 < user.lastChange.getTime()) {
+          user = null;
+        }
         res.locals.user = user;
         req.user = user;
 

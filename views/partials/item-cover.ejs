@@ -14,10 +14,10 @@
 %>
 <div class="<%= gridAspect %> w-full relative overflow-hidden bg-black/5 dark:bg-white/5 flex items-center justify-center">
     <% if (!fitsGrid) { %>
-        <img src="<%= item.cover_image %>"
+        <img src="<%= itemImageUrl(item.cover_image) %>"
             class="absolute inset-0 w-full h-full object-cover blur-xl opacity-30 scale-110 pointer-events-none">
     <% } %>
-    <img src="<%= item.cover_image %>"
+    <img src="<%= itemImageUrl(item.cover_image) %>"
         class="relative z-10 w-full h-full <%= fitsGrid ? 'object-cover' : 'object-contain p-2' %> transition-transform duration-500 group-hover:scale-105"
         loading="lazy">
     <% if (locals.cornerLabel) { %>

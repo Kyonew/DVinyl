@@ -364,10 +364,15 @@
                                 </p>
                             </div>
                             <div class="flex flex-wrap gap-3">
+                                <a href="<%= baseUrl %>/backup/collection/export-archive"
+                                    class="flex-1 sm:flex-none bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-file-zipper"></i>
+                                    <%= t('admin.backup.export_zip_btn') %>
+                                </a>
                                 <a href="<%= baseUrl %>/backup/collection/export"
                                     class="flex-1 sm:flex-none bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-file-export"></i>
-                                    <%= t('admin.backup.export_btn') %>
+                                    <i class="fa-solid fa-file-code"></i>
+                                    <%= t('admin.backup.export_json_btn') %>
                                 </a>
                                 <a href="<%= baseUrl %>/backup/collection/export-csv"
                                     class="flex-1 sm:flex-none bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2">
@@ -378,7 +383,7 @@
                                     class="flex-1 sm:flex-none bg-black/5 dark:bg-white/5 hover:bg-yellow-500 hover:text-white px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer">
                                     <i class="fa-solid fa-file-import"></i>
                                     <%= t('admin.backup.import_btn') %>
-                                        <input type="file" id="collectionBackupInput" class="hidden" accept=".json">
+                                        <input type="file" id="collectionBackupInput" class="hidden" accept=".json,.zip,application/zip">
                                 </label>
                             </div>
                         </div>
@@ -763,15 +768,25 @@
                 const file = e.target.files[0];
                 if (!file) return;
                 if (confirm(<%- JSON.stringify(t('admin.collection_backup.confirm_import')) %>)) {
-                    const reader = new FileReader();
-                    reader.onload = async (event) => {
+                    (async () => {
                         try {
-                            const backupData = JSON.parse(event.target.result);
-                            const response = await fetch('<%= baseUrl %>/backup/collection/import', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(backupData)
-                            });
+                            const isArchive = file.name.toLowerCase().endsWith('.zip');
+                            let response;
+                            if (isArchive) {
+                                const form = new FormData();
+                                form.append('backup', file);
+                                response = await fetch('<%= baseUrl %>/backup/collection/import-archive', {
+                                    method: 'POST',
+                                    body: form
+                                });
+                            } else {
+                                const backupData = JSON.parse(await file.text());
+                                response = await fetch('<%= baseUrl %>/backup/collection/import', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify(backupData)
+                                });
+                            }
                             if (response.ok) {
                                 alert(<%- JSON.stringify(t('admin.backup.import_success')) %>);
                                 window.location.reload();
@@ -779,10 +794,9 @@
                                 alert(<%- JSON.stringify(t('admin.backup.import_error')) %>);
                             }
                         } catch (err) {
-                            alert(<%- JSON.stringify(t('admin.backup.json_error')) %>);
+                            alert(<%- JSON.stringify(t('admin.backup.file_error')) %>);
                         }
-                    };
-                    reader.readAsText(file);
+                    })();
                 }
                 this.value = '';
             };

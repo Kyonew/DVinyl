@@ -6,13 +6,19 @@
   <meta name="robots" content="noindex, nofollow">
   <title><%= t('login.title') %></title>
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900&family=Varela+Round&display=swap" rel="stylesheet">
+  <%# Poppins served from the instance. The four weights below are the ones this page
+      actually sets; the nine plus italics it used to request were never drawn, and
+      Varela Round was requested without a single rule ever naming it. %>
+  <link rel="stylesheet" href="<%= baseUrl %>/vendor/fonts/poppins.css">
   <link rel="icon" type="image/png" href="<%= baseUrl %>/ressources/logo.png">
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.16/dist/tailwind.min.css" rel="stylesheet">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/1.6.5/flowbite.min.js"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <%# Same vendored build as every other page (see partials/header.ejs). This page used
+      to be the one exception, on a Tailwind 2 stylesheet from a third CDN, which meant
+      the login screen and the app behind it were styled by two different major versions. %>
+  <script src="<%= baseUrl %>/vendor/tailwind-3.4.17.min.js"></script>
+  <%# Same vendored builds as partials/header.ejs. This page used to pull Font Awesome 6.4
+      while the app behind it used 6.7, so an icon could render here and not there. %>
+  <script src="<%= baseUrl %>/vendor/flowbite-1.6.5.min.js"></script>
+  <link rel="stylesheet" href="<%= baseUrl %>/vendor/font-awesome-6.7.2/css/all.min.css" />
   <link rel="stylesheet" href="<%= baseUrl %>/styles/style.css">
 
   <style>

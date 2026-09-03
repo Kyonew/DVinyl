@@ -1,15 +1,19 @@
 import express, { Router } from 'express';
 import mongoose from 'mongoose';
+import QRCode from 'qrcode';
 import { PluginDefinition } from '../types';
 import Item from '../../models/Item';
 import User from '../../models/User';
+import { BASE_URL } from '../../config/constants';
 import { requireAuth, requireAuthOrShareView, requireCollectionRole } from '../../middleware/authMiddleware';
-import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback, editStamp, syncStamp, safeReturnPath } from '../helpers';
+import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback, editStamp, syncStamp, safeReturnPath, getPublicProtocol, generateBarcodeDataUrl } from '../helpers';
 import { DEFAULT_PLACEHOLDER_IMAGE } from '../placeholderImage';
+import { alignImagesAfterRefresh, imagesForItem, imagesFromForm, ItemImageValidationError, MAX_ITEM_IMAGES, MAX_ITEM_IMAGE_BYTES } from '../itemImages';
+import { deleteUnusedManagedItemImages } from '../itemImageStorage';
 import { getExtraFields, toFieldDefinitions } from '../pluginExtraFields';
 import { buildFieldSuggestions } from '../fieldSuggestions';
 import { deleteItemsAndContents, moveContentsToWishlist } from '../../utils/itemHelpers';
-import { applyVisibilityFilter, applyShareScopeFilter, isWithinShareScope } from '../../utils/visibilityHelper';
+import { applyVisibilityFilter, applyShareScopeFilter, applyPluginKindFilter, isWithinShareScope } from '../../utils/visibilityHelper';
 
 export function createItemRoutes(plugin: PluginDefinition): Router {
   const router = express.Router();
@@ -114,7 +118,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         console.error(`Search error for ${plugin.id}:`, err.message);
         res.render('add', {
           results: [],
-          error: req.t('errors.api_error'),
+          error: req.t('errors.api_error', { provider: plugin.searchProvider!.name }),
           searchType: type || plugin.id,
           searchQuery: rawQuery,
           scanned_barcode: scannedBarcode,
@@ -181,7 +185,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         console.error(`Details fetch error for ${plugin.id} ID ${externalId}:`, err.message);
         res.render('add', {
           results: [],
-          error: `${req.t('errors.api_error')} (${err.message})`,
+          error: `${req.t('errors.api_error', { provider: plugin.searchProvider!.name })} (${err.message})`,
           searchType: searchTypeHint || plugin.id,
           user: res.locals.user,
           currentType: `add-${plugin.id}`,
@@ -241,6 +245,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
     // Reached only by a share visitor, for whom the wishlist does not exist: the listing
     // that would show it is behind a login, and its page has to say the same.
     const guardQuery: any = { _id: id, collection: res.locals.activeCollectionId, in_wishlist: false };
+    applyPluginKindFilter(guardQuery, plugin);
     applyVisibilityFilter(guardQuery, res.locals.isCollectionAdmin, res.locals.settings);
     const item = await Item.findOne(guardQuery).lean();
     if (!item || !await isWithinShareScope(res, item)) {
@@ -312,16 +317,19 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       // placeholder. Storing it would freeze a copy of the plugin's default image on the
       // item; kept empty instead, so the item follows that default if it ever changes.
       const placeholder = plugin.placeholderImage || DEFAULT_PLACEHOLDER_IMAGE;
-      const coverImage = (cover_image === placeholder || cover_image === DEFAULT_PLACEHOLDER_IMAGE)
-        ? ''
-        : cover_image;
+      const submittedImages = imagesFromForm(req.body).filter(image =>
+        image !== placeholder && image !== DEFAULT_PLACEHOLDER_IMAGE
+      );
+      const coverImage = submittedImages[0] || '';
+      const secondaryImage = submittedImages[1] || '';
 
       // Build updateData generic object
       const updateData: any = {
         title,
         year,
         cover_image: coverImage,
-        user_image,
+        user_image: secondaryImage,
+        images: submittedImages,
         in_wishlist: isWishlist,
         comments: comments || '',
         location: location || '',
@@ -345,7 +353,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       // Handle plugin specific fields
       for (const field of [...plugin.formFields, ...extraFields]) {
         if ([
-          'title', 'year', 'cover_image', 'user_image', 'in_wishlist', 'comments',
+          'title', 'year', 'cover_image', 'user_image', 'images', 'in_wishlist', 'comments',
           'location', 'quantity', 'barcode', 'barcode_locked', 'added_at', 'genres', 'styles', 'genre'
         ].includes(field.name)) {
           continue;
@@ -415,6 +423,11 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           language: req.language
         });
         if (handled) {
+          try {
+            await deleteUnusedManagedItemImages(submittedImages);
+          } catch (cleanupError) {
+            console.warn('[ITEM IMAGE] Post-create cleanup failed:', cleanupError);
+          }
           return res.redirect(isWishlist ? '/wishlist' : `/collection?type=${plugin.collectionType}`);
         }
       }
@@ -427,7 +440,9 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         // form left open after switching collections) can't target another item. A
         // miss here must fail outright, not fall through to the duplicate-match
         // branch below and silently overwrite an unrelated item.
-        existingItem = await Item.findOne({ _id: mongo_id, collection: activeCollectionId });
+        const editQuery: any = { _id: mongo_id, collection: activeCollectionId };
+        applyPluginKindFilter(editQuery, plugin);
+        existingItem = await Item.findOne(editQuery);
         if (!existingItem) {
           return res.status(404).send(req.t('errors.not_found'));
         }
@@ -497,6 +512,15 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         });
       }
 
+      try {
+        await deleteUnusedManagedItemImages([
+          ...submittedImages,
+          ...(existingItem ? imagesForItem(existingItem) : [])
+        ]);
+      } catch (cleanupError) {
+        console.warn('[ITEM IMAGE] Post-save cleanup failed:', cleanupError);
+      }
+
       // An edit lands back on the item, where the change can be seen; the page it was
       // started from travels along, so the item's own back arrow still returns there with
       // its filters and page number. Adding is different and keeps going to the list,
@@ -511,6 +535,13 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         res.redirect(`/collection?type=${plugin.collectionType}`);
       }
     } catch (err: any) {
+      if (err instanceof ItemImageValidationError) {
+        const key = err.code === 'too_many' ? 'image_manager.too_many' : 'image_manager.too_large';
+        return res.status(400).send(req.t(key, {
+          max: MAX_ITEM_IMAGES,
+          maxMb: Math.floor(MAX_ITEM_IMAGE_BYTES / (1024 * 1024))
+        }));
+      }
       console.error(`Save error for ${plugin.id}:`, err);
       res.status(500).send(req.t('errors.generic_server_error'));
     }
@@ -524,7 +555,9 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         return res.status(404).send(req.t('errors.not_found'));
       }
       const activeCollectionId = res.locals.activeCollectionId;
-      const item = await Item.findOne({ _id: req.params.id, collection: activeCollectionId });
+      const editFormQuery: any = { _id: req.params.id, collection: activeCollectionId };
+      applyPluginKindFilter(editFormQuery, plugin);
+      const item = await Item.findOne(editFormQuery);
       if (!item) {
         return res.status(404).send(req.t('errors.not_found'));
       }
@@ -562,6 +595,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       // from the grid: the id is the only thing standing between the two, and a share link
       // hands it to whoever wants to try one.
       const detailQuery: any = { _id: req.params.id, collection: res.locals.activeCollectionId };
+      applyPluginKindFilter(detailQuery, plugin);
       applyVisibilityFilter(detailQuery, res.locals.isCollectionAdmin, res.locals.settings);
       // What someone merely wants is not part of what a public link was opened to show,
       // and every listing a share visitor can reach already says so.
@@ -639,10 +673,62 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
     }
   });
 
+  // GET /{prefix}/:id/label -> printable label, either a QR code linking back to the
+  // item's detail page or a barcode of its stored barcode value. ?type=barcode picks
+  // the barcode; anything else (including a missing/unavailable barcode) falls back
+  // to QR, so the two never render on the same label at once.
+  router.get(`${plugin.routePrefix}/:id/label`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(404).send(req.t('errors.not_found'));
+      }
+
+      const labelQuery: any = { _id: req.params.id, collection: res.locals.activeCollectionId };
+      applyPluginKindFilter(labelQuery, plugin);
+      applyVisibilityFilter(labelQuery, res.locals.isCollectionAdmin, res.locals.settings);
+
+      const item = await Item.findOne(labelQuery);
+      if (!item) {
+        return res.status(404).send(req.t('errors.not_found'));
+      }
+
+      let codeType: 'qr' | 'barcode' = 'qr';
+      let codeDataUrl: string | null = null;
+      // Trimmed: a field holding only spaces encodes into a valid but meaningless
+      // symbol, and must not offer the barcode choice either.
+      const barcodeValue = (item.barcode || '').trim();
+
+      if (req.query.type === 'barcode' && barcodeValue) {
+        codeDataUrl = await generateBarcodeDataUrl(barcodeValue);
+        if (codeDataUrl) codeType = 'barcode';
+      }
+
+      if (!codeDataUrl) {
+        const url = `${getPublicProtocol(req)}://${req.get('host')}${BASE_URL}${plugin.routePrefix}/${item._id}`;
+        codeDataUrl = await QRCode.toDataURL(url, { width: 320, margin: 1 });
+        codeType = 'qr';
+      }
+
+      res.render('label', {
+        item: plugin.formatForView(item),
+        plugin,
+        codeType,
+        codeDataUrl,
+        hasBarcode: !!barcodeValue,
+        user: res.locals.user
+      });
+    } catch (err: any) {
+      console.error(`Label error for ${plugin.id}:`, err.message);
+      res.status(500).send(req.t('errors.generic_server_error'));
+    }
+  });
+
   // DELETE /api/{prefix}/:id -> delete item
   router.delete(`/api${plugin.routePrefix}/:id`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
     try {
-      const item = await Item.findOne({ _id: req.params.id, collection: res.locals.activeCollectionId });
+      const deleteQuery: any = { _id: req.params.id, collection: res.locals.activeCollectionId };
+      applyPluginKindFilter(deleteQuery, plugin);
+      const item = await Item.findOne(deleteQuery);
       if (!item) {
         return res.status(404).json({ success: false, error: req.t('errors.not_found') });
       }
@@ -659,7 +745,9 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   if (plugin.refreshItem) {
     router.post(`/api${plugin.routePrefix}/:id/refresh-info`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
       try {
-        const item = await Item.findOne({ _id: req.params.id, collection: res.locals.activeCollectionId });
+        const refreshQuery: any = { _id: req.params.id, collection: res.locals.activeCollectionId };
+        applyPluginKindFilter(refreshQuery, plugin);
+        const item = await Item.findOne(refreshQuery);
         if (!item) {
           return res.status(404).json({ success: false, error: "Item not found" });
         }
@@ -671,10 +759,19 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         // strict mode.
         // Stamped even when the provider returned nothing new: the question the date
         // answers is when the metadata was last checked, not when it last changed.
+        const update = { ...(result || {}) };
+        const replacedCover = alignImagesAfterRefresh(item, update);
         await Item.updateOne(
           { _id: item._id, kind: plugin.kind },
-          { $set: { ...(result || {}), ...syncStamp() } }
+          { $set: { ...update, ...syncStamp() } }
         );
+        if (replacedCover) {
+          try {
+            await deleteUnusedManagedItemImages([replacedCover]);
+          } catch (cleanupError) {
+            console.warn('[ITEM IMAGE] Post-refresh cleanup failed:', cleanupError);
+          }
+        }
         res.json({ success: true, ...result });
       } catch (err: any) {
         console.error(`Refresh item error for ${plugin.id}:`, err.message);
@@ -687,11 +784,18 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   router.post(`/api${plugin.routePrefix}/:id/move-to-collection`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
     try {
       const stamp = editStamp(req.user._id);
+      const moveQuery: any = { _id: req.params.id, collection: res.locals.activeCollectionId };
+      applyPluginKindFilter(moveQuery, plugin);
       const moved = await Item.findOneAndUpdate(
-        { _id: req.params.id, collection: res.locals.activeCollectionId },
+        moveQuery,
         { in_wishlist: false, added_at: new Date(), ...stamp }
       );
-      if (moved) await moveContentsToWishlist(moved._id, false, stamp);
+      // A miss means the id is not this plugin's to move (or not in this collection).
+      // Saying "success" there would tell the page a move happened that never did.
+      if (!moved) {
+        return res.status(404).json({ success: false, error: req.t('errors.not_found') });
+      }
+      await moveContentsToWishlist(moved._id, false, stamp);
       res.json({ success: true });
     } catch (err: any) {
       console.error(`Move to collection error for ${plugin.id}:`, err.message);
@@ -706,11 +810,18 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   router.post(`/api${plugin.routePrefix}/:id/move-to-wishlist`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
     try {
       const stamp = editStamp(req.user._id);
+      const moveQuery: any = { _id: req.params.id, collection: res.locals.activeCollectionId };
+      applyPluginKindFilter(moveQuery, plugin);
       const moved = await Item.findOneAndUpdate(
-        { _id: req.params.id, collection: res.locals.activeCollectionId },
+        moveQuery,
         { in_wishlist: true, added_at: new Date(), ...stamp }
       );
-      if (moved) await moveContentsToWishlist(moved._id, true, stamp);
+      // A miss means the id is not this plugin's to move (or not in this collection).
+      // Saying "success" there would tell the page a move happened that never did.
+      if (!moved) {
+        return res.status(404).json({ success: false, error: req.t('errors.not_found') });
+      }
+      await moveContentsToWishlist(moved._id, true, stamp);
       res.json({ success: true });
     } catch (err: any) {
       console.error(`Move to wishlist error for ${plugin.id}:`, err.message);

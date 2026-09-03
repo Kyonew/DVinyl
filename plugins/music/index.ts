@@ -13,6 +13,8 @@ export const musicPlugin: PluginDefinition = {
   order: 10,
   enabledByDefault: true,
   externalIdField: 'discogs_id',
+  externalIdLabel: 'edit_vinyl.discogs_id_label',
+  externalIdHint: 'edit_vinyl.discogs_id_hint',
   matchesLegacyItems: true,
   pathAliases: ['vinyl', 'cd', 'cassette', 'discogs'],
   creatorSearchFields: ['label'],
@@ -29,10 +31,8 @@ export const musicPlugin: PluginDefinition = {
   extraSearchFields: ['tracklist.title', 'tracklist.tags'],
   supportsBarcodeSearch: false,
   aspectRatioClass: 'aspect-square',
-  supportsUserImage: true,
   secondaryImageSearchPath: '/api/search-discogs-gallery',
-  secondaryImageIcon: 'fa-compact-disc',
-  imageLabels: { main: 'detail.official_cover', secondary: 'detail.additional_image' },
+  imageLabels: { main: 'detail.official_cover' },
   duplicateCheckFields: ['media_type', 'variant_color'],
 
   fastAddOptions: [

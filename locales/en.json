@@ -1,5 +1,7 @@
 {
   "common": {
+    "external_id_label": "Source ID",
+    "external_id_hint": "The id this item is matched to on the site it came from. Fill it in to bring back the metadata refresh, or correct it if the item was matched to the wrong entry.",
     "edit": "Edit",
     "save": "Save",
     "validate": "Validate",
@@ -79,7 +81,7 @@
     "lang_change_error": "Error while changing language.",
     "setup_error": "Setup error occurred.",
     "generic_server_error": "Internal server error.",
-    "api_error": "Could not connect to Discogs.",
+    "api_error": "Could not connect to {{provider}}.",
     "save_error": "Error while saving.",
     "invalid_credentials": "Invalid credentials",
     "too_many_attempts_timed": "Too many attempts. Try again in {{seconds}} seconds.",
@@ -229,6 +231,9 @@
     "min_label": "Minimum (G)",
     "max_label": "Maximum (Mint)",
     "start_btn": "Start Analysis",
+    "history_title": "Value History",
+    "history_empty": "Run this estimate at least twice to see a trend.",
+    "history_other_currency": "History exists in {{currencies}}, but values are never converted: only your own currency is charted.",
     "add_hub_title": "What do you want to add?",
     "add_hub_subtitle": "Select the type of media to add to your collection"
   },
@@ -242,6 +247,7 @@
     "scan_stop": "Stop scanning",
     "scan_found": "Found!",
     "scan_error": "Camera error (Check permissions)",
+    "scan_hint": "Still nothing. Try filling the width of the frame with the barcode, holding it steady in good light, and moving slightly further away if it will not focus. You can also type the number in above.",
     "barcode_not_found": "That barcode wasn't recognised. Try searching by title instead.",
     "barcode_no_match": "No match for this barcode. Here is the product name it returned: adjust it and search again, the barcode stays attached.",
     "results_title": "Results",
@@ -346,6 +352,8 @@
     },
     "backup": {
       "export_btn": "Export Database",
+      "export_zip_btn": "Export ZIP",
+      "export_json_btn": "Export JSON",
       "export_csv_btn": "Export CSV",
       "import_btn": "Import Database",
       "csv": {
@@ -355,6 +363,7 @@
       "import_success": "Database imported successfully.",
       "import_error": "Error during import.",
       "json_error": "Invalid JSON file.",
+      "file_error": "The backup file is corrupted or invalid.",
       "confirm_import": "WARNING: This will delete all your current data (albums, users, logs) and replace it with the content of the file. You will be logged out. Continue?",
       "subtitle": "Backup your collection or restore an existing database.",
       "title": "System Maintenance",
@@ -469,7 +478,7 @@
       "stat_items": "Items",
       "stat_blocked": "Blocked IPs",
       "backup_title": "Instance backup",
-      "backup_subtitle": "Exports the ENTIRE instance: every user, every collection with its items, settings and login logs - in a single file.",
+      "backup_subtitle": "Exports the ENTIRE instance. ZIP includes local images; JSON contains data only.",
       "backup_warning": "Importing replaces ALL data of the instance (all collections, all users). To restore a single collection, use its own backup from that collection's admin page.",
       "backup_confirm_import": "This import will REPLACE the ENTIRE instance: all users, all collections and their items. You will be logged out. Continue?",
       "self_service_title": "Self-service collections",
@@ -501,7 +510,7 @@
     },
     "collection_backup": {
       "title": "Collection backup",
-      "subtitle": "Export this collection (items + settings) or replace its content with a backup file.",
+      "subtitle": "Export this collection (items + settings) or replace its content with a backup file. ZIP includes local images; JSON contains data only.",
       "confirm_import": "Importing will REPLACE every item of this collection. Continue?"
     },
     "sharing": {
@@ -637,7 +646,16 @@
     "search_style_placeholder": "Search styles...",
     "search_platform_placeholder": "Search consoles...",
     "active_filters": "Active filters:",
-    "page_jump_title": "Jump to page"
+    "page_jump_title": "Jump to page",
+    "select_btn": "Select",
+    "select_all": "Select all",
+    "deselect_all": "Deselect all",
+    "cancel_select": "Cancel",
+    "selected_count_suffix": "selected",
+    "print_selected_qr": "Print QR labels",
+    "print_selected_barcode": "Print barcode labels",
+    "label_sheet_title": "Print labels",
+    "label_sheet_empty": "None of the selected items has a barcode, so there is nothing to print."
   },
   "confirm_vinyl": {
     "cover_preview": "Cover Preview",
@@ -660,7 +678,6 @@
     "comments_placeholder": "Ex: Original 1986 pressing, bought at flea market...",
     "btn_wishlist": "Wishlist",
     "btn_collection": "Collection",
-    "api_error": "API Error.",
     "no_images": "No images found.",
     "field_quantity": "Quantity",
     "source_local": "Local",
@@ -724,7 +741,13 @@
     "no_tracklist": "No tracklist available.",
     "refresh_info_success": "Metadata refreshed successfully!",
     "refresh_info_error": "Error refreshing metadata.",
-    "variants_title": "You also own this item in other versions:"
+    "variants_title": "You also own this item in other versions:",
+    "print_label_btn": "Print label",
+    "qr_option": "QR code",
+    "barcode_option": "Barcode",
+    "switch_to_qr": "Switch to QR code",
+    "switch_to_barcode": "Switch to barcode",
+    "label_page_title": "Label"
   },
   "wishlist": {
     "title": "My Wishlist",
@@ -912,6 +935,29 @@
     "secondary_image": "Secondary image",
     "image_preview": "Image preview",
     "genre": "Genre"
+  },
+  "image_manager": {
+    "title": "Item images",
+    "order_hint": "Drag images to reorder them. The first one is used as the main image.",
+    "empty": "No images yet",
+    "local_hint": "Click to add one or more images",
+    "search_hint": "Click a result to add it to the list.",
+    "add": "Add",
+    "main": "Main image",
+    "remove": "Remove image",
+    "confirm_remove": "Are you sure you want to remove this image?",
+    "move_before": "Move left",
+    "move_after": "Move right",
+    "invalid_url": "Enter a valid HTTP or HTTPS image URL.",
+    "too_many": "An item can have at most {{max}} images.",
+    "too_large": "Local images can use at most {{maxMb}} MB per item. Remove an image or choose smaller files.",
+    "uploading": "Uploading image…",
+    "upload_failed": "The image could not be uploaded.",
+    "upload_invalid": "The selected file is not a valid image.",
+    "upload_too_large": "The compressed image is too large (maximum 5 MB).",
+    "image_number": "Image {{number}}",
+    "previous": "Previous image",
+    "next": "Next image"
   },
   "image_source": {
     "local": "Local file",
@@ -1110,8 +1156,6 @@
     "shape_square": "Square (sleeve)",
     "shape_screen": "Screen (16/9)",
     "shape_hint": "Applies to this plugin's own pages and forms. The item grids use the card ratio set in Personalization.",
-    "secondary_label": "Secondary image",
-    "secondary_desc": "Adds a second editable visual (like the disc for music).",
     "default_cover_label": "Default image",
     "default_cover_desc": "Shown on items added without a cover. Leave empty to keep the DVinyl logo.",
     "default_cover_reset": "Back to the default logo",

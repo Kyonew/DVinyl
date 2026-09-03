@@ -30,8 +30,19 @@ router.get('/', async (req, res) => {
 
 // POST /setup - create initial admin user and issue a JWT
 router.post('/', async (req, res) => {
+    const count = await User.countDocuments();
+    if (count > 0) return res.redirect('/login'); // safety: only allow setup when DB empty
+
     try {
         const { username, email, password, language } = req.body;
+
+        if (!username || !email || !password) {
+            return res.render('setup', { error: req.t('errors.setup_error') });
+        }
+
+        // Backdate lastChange so the freshly issued JWT's second-granularity iat
+        // is not rejected by authMiddleware's staleness check
+        const lastChange = new Date(Date.now() - 60_000);
 
         // Create the initial admin user (isAdmin: true)
         const hashedPassword = await bcrypt.hash(password, 10);
@@ -45,7 +56,7 @@ router.post('/', async (req, res) => {
             // side: normalized rather than trusted, or the enum rejects the whole document
             // and the instance cannot be installed at all.
             language: normalizeLanguage(language || req.language),
-            lastChange: new Date()
+            lastChange
         });
 
         // Force-update the stored password hash

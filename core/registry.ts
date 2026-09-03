@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { PluginDefinition } from './types';
 import { DEFAULT_PLACEHOLDER_IMAGE } from './placeholderImage';
 import Item from '../models/Item';
+import { imagesForItem } from './itemImages';
 
 const FLATTENS_EXTRA = Symbol('flattensExtra');
 const RESOLVES_PLACEHOLDER = Symbol('resolvesPlaceholder');
@@ -43,9 +44,11 @@ function resolvePlaceholderCover(plugin: PluginDefinition): void {
   plugin.formatForView = function (item: any): any {
     const view = original(item);
     if (!view || typeof view !== 'object') return view;
-    if (!view.cover_image || view.cover_image === DEFAULT_PLACEHOLDER_IMAGE) {
-      view.cover_image = plugin.placeholderImage || DEFAULT_PLACEHOLDER_IMAGE;
-    }
+    const images = imagesForItem(view);
+    const placeholder = plugin.placeholderImage || DEFAULT_PLACEHOLDER_IMAGE;
+    view.cover_image = images[0] || placeholder;
+    view.user_image = images[1] || '';
+    view.images = images.length > 0 ? images : [placeholder];
     return view;
   };
   (plugin as any)[RESOLVES_PLACEHOLDER] = true;

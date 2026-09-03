@@ -42,7 +42,7 @@ const RESERVED_IDS = new Set([
 
 // Paths of the base Item schema + form plumbing: custom fields may not redefine them.
 export const RESERVED_FIELD_NAMES = new Set([
-  '_id', 'kind', 'owner', 'collection', 'title', 'year', 'cover_image', 'user_image',
+  '_id', 'kind', 'owner', 'collection', 'title', 'year', 'cover_image', 'user_image', 'images',
   'in_wishlist', 'comments', 'location', 'quantity', 'genre', 'genres', 'styles',
   'barcode', 'barcode_locked', 'added_at', 'updated_at', 'creator', 'format',
   'tracklist', 'user_rating', 'mongo_id', 'extra', 'description'
@@ -225,7 +225,6 @@ export function buildConfigFromSubmission(body: any, existing?: CustomPluginConf
     color,
     order: existing?.order ?? 200,
     aspectRatioClass,
-    secondaryImage: body.secondaryImage === true || body.secondaryImage === 'true',
     creatorLabel,
     features,
     fields,

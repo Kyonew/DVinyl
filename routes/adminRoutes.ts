@@ -13,19 +13,14 @@ import { BASE_URL } from "../config/constants";
 import { getInstanceSettings, saveInstanceSettings, InstanceSettingsData } from "../utils/instanceSettings";
 import PRESETS from "../config/themes";
 import Item from "../models/Item";
+import PriceHistory from "../models/PriceHistory";
 
 import { registry } from "../core/registry.js";
 import { CARD_ASPECT_RATIOS } from "../core/customPlugin";
-import { PermanentRefreshError, syncStamp } from "../core/helpers";
+import { PermanentRefreshError, syncStamp, getPublicProtocol } from "../core/helpers";
 import { deleteItemsAndContents } from "../utils/itemHelpers";
-
-// PROD=true is the operator's own declaration that the instance is served over HTTPS
-// (see docs/getting-started.md). Trust that over req.protocol, which depends on the
-// reverse proxy correctly forwarding X-Forwarded-Proto - a single misconfigured proxy
-// hop otherwise silently downgrades every generated share link/QR code to http.
-function getPublicProtocol(req: any): string {
-  return process.env.PROD === "true" ? "https" : req.protocol;
-}
+import { deleteUnusedManagedItemImages, managedItemImagesForQuery } from "../core/itemImageStorage";
+import { alignImagesAfterRefresh } from "../core/itemImages";
 
 const router = express.Router();
 
@@ -326,14 +321,23 @@ router.post("/collections/:id/delete", requireAuth, requireAdmin, async (req: an
       return res.redirect("/admin/instance?msg=error_delete_default_collection");
     }
 
+    const itemImages = await managedItemImagesForQuery({ collection: target._id });
     await Item.deleteMany({ collection: target._id });
     await Settings.deleteMany({ collection: target._id });
+    // The value snapshots describe a collection that is about to stop existing, and
+    // nothing else points at them: left behind they would only be unreachable rows.
+    await PriceHistory.deleteMany({ collection: target._id });
     // Users pointing at this collection self-heal to another membership on next request
     await User.updateMany(
       { lastActiveCollectionId: target._id },
       { $set: { lastActiveCollectionId: null } },
     );
     await Collection.deleteOne({ _id: target._id });
+    try {
+      await deleteUnusedManagedItemImages(itemImages);
+    } catch (cleanupError) {
+      console.warn('[ITEM IMAGE] Collection cleanup failed:', cleanupError);
+    }
 
     res.redirect("/admin/instance?msg=collection_deleted");
   } catch (err) {
@@ -1196,9 +1200,21 @@ router.post(
                   if (refreshedData[k] !== undefined) dataToApply[k] = refreshedData[k];
                 }
               }
+              // Same realignment as the single-item refresh: a new cover replaces the old
+              // one inside the gallery instead of pushing it down into it. Copied rather
+              // than mutated, since in the full mode this is the plugin's own return value.
+              const update = { ...dataToApply };
+              const replacedCover = alignImagesAfterRefresh(item, update);
               // Written even when the provider changed nothing, so the date says when the
               // item was last checked rather than when it last happened to differ.
-              await Item.updateOne({ _id: item._id }, { $set: { ...dataToApply, ...syncStamp() } });
+              await Item.updateOne({ _id: item._id }, { $set: { ...update, ...syncStamp() } });
+              if (replacedCover) {
+                try {
+                  await deleteUnusedManagedItemImages([replacedCover]);
+                } catch (cleanupError) {
+                  console.warn('[ITEM IMAGE] Post-refresh cleanup failed:', cleanupError);
+                }
+              }
 
               success = true;
               await new Promise((r) => setTimeout(r, plugin.bulkRefreshDelayMs ?? 500));

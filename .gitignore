@@ -1,9 +1,11 @@
 .env
 /node_modules
 /public/uploads/avatars/*
+/public/uploads/items/*
 /mongo_data
 /mongo_data_test
 docker-compose.override.yml
+dvinyl_collection-*.csv
 .vscode/
 .claude/
 dist/
@@ -11,3 +13,4 @@ CLAUDE.md
 /graphify-out
 /docs/roadmap.md
 /docs/superpowers
+/.superpowers

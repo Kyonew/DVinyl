@@ -52,8 +52,8 @@ services:
       - VINYL_PORT=80
       - BASE_URL=
       - PROD=false
-      - PASSJWT=<something>
-      - SESSION_SECRET=<something>
+      - PASSJWT=<openssl rand -hex 32>
+      - SESSION_SECRET=<a different openssl rand -hex 32>
       - DISCOGS_TOKEN=<something>
     ports:
       - '<external_port>:80'
@@ -124,6 +124,16 @@ docker compose up --build -d
 > belt-and-braces copy, snapshot your `./mongo_data` folder while the containers are stopped. Updates are designed to be safe and
 > automatic, but a backup is your one-command way back if anything surprises you.
 
+> [!WARNING]
+> **Upgrading to 3.1.5 or later:** the app now refuses to start when `PASSJWT` or
+> `SESSION_SECRET` is still set to one of the placeholder values that earlier examples and
+> templates shipped (`SomeComplexPassword`, `AnotherComplexSecret`,
+> `ChangeThisToAComplexPassword`, `ChangeThisToAComplexSecret`). They are published, so an
+> instance running one is signing its sessions with a secret anyone can read. If the container
+> restarts in a loop after the update, read its logs: the message names the variable to fix.
+> Replace both with `openssl rand -hex 32` values. Everyone is logged out once afterwards,
+> which is expected.
+
 ### Updating (Pre-built Image)
 
 If you are using the GHCR image (Option 1):
@@ -155,6 +165,13 @@ safe; just don't downgrade the **MongoDB** major below the version that last wro
 ## 💾 Persistence
 
 By default, the database data is stored in a Docker volume named mongo-data. This ensures your collection is not lost when you stop or update the containers.
+
+Images uploaded from an item form are stored under `public/uploads/items` (the Compose files mount
+`./public/uploads` persistently). Whole-instance and per-collection ZIP backups include every
+referenced local item image. The historical JSON import format remains supported, but JSON alone
+cannot transport those files to another installation. When a ZIP export encounters an older JPEG
+stored inline in MongoDB as a data URL, it moves that image into the archive's `images/` directory;
+restoring the ZIP therefore migrates it to the file-based storage automatically.
 
 ## 🧩 No-code plugins and Docker
 
