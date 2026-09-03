@@ -22,6 +22,7 @@ export const mtgPlugin: PluginDefinition = {
   collectionType: 'mtg',
   aspectRatioClass: 'aspect-[5/7]',
   supportsBarcodeSearch: false,
+  supportsCardScan: true,
   searchProvider: scryfall,
   imageSearchType: 'mtg',
   apiRoutes: mtgApiRoutes,

@@ -263,6 +263,7 @@
     "scan_stop": "Arrêter le scan",
     "scan_found": "Trouvé !",
     "scan_error": "Erreur caméra (Permissions ?)",
+    "scan_card_analyzing": "Analyse de la carte...",
     "barcode_not_found": "Ce code-barres n'a pas été reconnu. Essaie plutôt une recherche par titre.",
     "barcode_no_match": "Aucune correspondance pour ce code-barres. Voici le nom du produit trouvé : ajuste-le et relance la recherche, le code-barres reste attaché.",
     "results_title": "Résultats",
@@ -657,6 +658,7 @@
     "err_input_too_long": "C'est trop long. Importez au maximum {{max}} caractères à la fois.",
     "err_no_rows": "Aucune ligne à importer.",
     "err_extract_failed": "L'IA n'a pas pu lire cela : {{error}}",
+    "err_card_not_recognized": "Cette carte n'a pas pu être reconnue. Essayez une photo plus nette et mieux éclairée, ou cherchez par nom.",
     "import_title": "Importer avec l'IA",
     "import_subtitle": "Collez une liste de ce que vous possédez et laissez l'IA la transformer en articles. Vous vérifiez tout avant l'enregistrement.",
     "import_module": "Ajouter à",
@@ -1352,7 +1354,7 @@
     "title": "Ajouter une carte Pokémon",
     "desc": "Cherche par nom de carte.",
     "search_placeholder": "Nom de la carte...",
-    "btn_scan": "Scanner",
+    "btn_scan": "Scanner la carte",
     "results_title": "Résultats",
     "no_results": "Aucune carte trouvée.",
     "manual_entry": "Saisie manuelle"
@@ -1361,7 +1363,7 @@
     "title": "Ajouter une carte Magic",
     "desc": "Cherche par nom de carte.",
     "search_placeholder": "Nom de la carte...",
-    "btn_scan": "Scanner",
+    "btn_scan": "Scanner la carte",
     "results_title": "Résultats",
     "no_results": "Aucune carte trouvée.",
     "manual_entry": "Saisie manuelle"
@@ -1413,7 +1415,7 @@
     "title": "Ajouter une carte Yu-Gi-Oh!",
     "desc": "Cherche par nom de carte.",
     "search_placeholder": "Nom de la carte...",
-    "btn_scan": "Scanner",
+    "btn_scan": "Scanner la carte",
     "results_title": "Résultats",
     "no_results": "Aucune carte trouvée.",
     "manual_entry": "Saisie manuelle"
@@ -1444,7 +1446,7 @@
     "title": "Ajouter une carte One Piece",
     "desc": "Cherche par nom de carte.",
     "search_placeholder": "Nom de la carte...",
-    "btn_scan": "Scanner",
+    "btn_scan": "Scanner la carte",
     "results_title": "Résultats",
     "no_results": "Aucune carte trouvée.",
     "manual_entry": "Saisie manuelle"
@@ -1453,7 +1455,7 @@
     "title": "Ajouter une carte Lorcana",
     "desc": "Cherche par nom de carte.",
     "search_placeholder": "Nom de la carte...",
-    "btn_scan": "Scanner",
+    "btn_scan": "Scanner la carte",
     "results_title": "Résultats",
     "no_results": "Aucune carte trouvée.",
     "manual_entry": "Saisie manuelle"
@@ -1462,7 +1464,7 @@
     "title": "Ajouter une carte Star Wars : Unlimited",
     "desc": "Cherche par nom de carte.",
     "search_placeholder": "Nom de la carte...",
-    "btn_scan": "Scanner",
+    "btn_scan": "Scanner la carte",
     "results_title": "Résultats",
     "no_results": "Aucune carte trouvée.",
     "manual_entry": "Saisie manuelle"
@@ -1471,7 +1473,7 @@
     "title": "Ajouter une carte Digimon",
     "desc": "Cherche par nom de carte.",
     "search_placeholder": "Nom de la carte...",
-    "btn_scan": "Scanner",
+    "btn_scan": "Scanner la carte",
     "results_title": "Résultats",
     "no_results": "Aucune carte trouvée.",
     "manual_entry": "Saisie manuelle"
@@ -1480,7 +1482,7 @@
     "title": "Ajouter une carte Flesh and Blood",
     "desc": "Cherche par nom de carte.",
     "search_placeholder": "Nom de la carte...",
-    "btn_scan": "Scanner",
+    "btn_scan": "Scanner la carte",
     "results_title": "Résultats",
     "no_results": "Aucune carte trouvée.",
     "manual_entry": "Saisie manuelle"

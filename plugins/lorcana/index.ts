@@ -21,6 +21,7 @@ export const lorcanaPlugin: PluginDefinition = {
   collectionType: 'lorcana',
   aspectRatioClass: 'aspect-[5/7]',
   supportsBarcodeSearch: false,
+  supportsCardScan: true,
   searchProvider: lorcanaApi,
   imageSearchType: 'lorcana',
   defaultCardFields: ['set_name', 'rarity'],

@@ -21,6 +21,7 @@ export const fabPlugin: PluginDefinition = {
   collectionType: 'fab',
   aspectRatioClass: 'aspect-[5/7]',
   supportsBarcodeSearch: false,
+  supportsCardScan: true,
   searchProvider: goagain,
   imageSearchType: 'fab',
   defaultCardFields: ['set_name', 'rarity'],

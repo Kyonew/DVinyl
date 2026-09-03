@@ -23,6 +23,7 @@ export const yugiohPlugin: PluginDefinition = {
   collectionType: 'yugioh',
   aspectRatioClass: 'aspect-[5/7]',
   supportsBarcodeSearch: false,
+  supportsCardScan: true,
   searchProvider: ygoprodeck,
   imageSearchType: 'yugioh',
   apiRoutes: yugiohApiRoutes,

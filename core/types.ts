@@ -90,6 +90,13 @@ export interface PluginDefinition {
 
   supportsBarcodeSearch?: boolean;
 
+  // True for a plugin whose items have no scannable retail barcode of their own (a single
+  // trading card, unlike its sealed booster box). Swaps the add page's barcode scanner for
+  // a "Scan card" photo flow: a photo of the card is identified by the AI assist
+  // (core/ai/cardScan.ts) into a search query, handed to this plugin's own searchProvider
+  // exactly like a typed search — see POST /add-{id}/card-scan in itemRoutes.ts.
+  supportsCardScan?: boolean;
+
   // True only for a provider whose own free-text search can match raw barcode digits
   // directly (Discogs indexes release barcodes). When UPCitemdb and the AI fallback both
   // fail to resolve a title, this lets the route search with the scanned digits instead

@@ -22,6 +22,7 @@ export const pokemonPlugin: PluginDefinition = {
   collectionType: 'pokemon',
   aspectRatioClass: 'aspect-[5/7]',
   supportsBarcodeSearch: false,
+  supportsCardScan: true,
   searchProvider: tcgdex,
   imageSearchType: 'pokemon',
   apiRoutes: pokemonApiRoutes,

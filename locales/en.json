@@ -263,6 +263,7 @@
     "scan_stop": "Stop scanning",
     "scan_found": "Found!",
     "scan_error": "Camera error (Check permissions)",
+    "scan_card_analyzing": "Analyzing card...",
     "barcode_not_found": "That barcode wasn't recognised. Try searching by title instead.",
     "barcode_no_match": "No match for this barcode. Here is the product name it returned: adjust it and search again, the barcode stays attached.",
     "results_title": "Results",
@@ -657,6 +658,7 @@
     "err_input_too_long": "That is too long. Import at most {{max}} characters at a time.",
     "err_no_rows": "No rows to import.",
     "err_extract_failed": "The AI could not read that: {{error}}",
+    "err_card_not_recognized": "Couldn't recognise that card. Try a clearer, well-lit photo, or search by name instead.",
     "import_title": "Import with AI",
     "import_subtitle": "Paste a list of what you own and let the AI turn it into items. You review everything before it is saved.",
     "import_module": "Add to",
@@ -1352,7 +1354,7 @@
     "title": "Add a Pokémon card",
     "desc": "Search by card name.",
     "search_placeholder": "Card name...",
-    "btn_scan": "Scan",
+    "btn_scan": "Scan card",
     "results_title": "Results",
     "no_results": "No card found.",
     "manual_entry": "Manual entry"
@@ -1361,7 +1363,7 @@
     "title": "Add a Magic card",
     "desc": "Search by card name.",
     "search_placeholder": "Card name...",
-    "btn_scan": "Scan",
+    "btn_scan": "Scan card",
     "results_title": "Results",
     "no_results": "No card found.",
     "manual_entry": "Manual entry"
@@ -1413,7 +1415,7 @@
     "title": "Add a Yu-Gi-Oh! card",
     "desc": "Search by card name.",
     "search_placeholder": "Card name...",
-    "btn_scan": "Scan",
+    "btn_scan": "Scan card",
     "results_title": "Results",
     "no_results": "No card found.",
     "manual_entry": "Manual entry"
@@ -1444,7 +1446,7 @@
     "title": "Add a One Piece card",
     "desc": "Search by card name.",
     "search_placeholder": "Card name...",
-    "btn_scan": "Scan",
+    "btn_scan": "Scan card",
     "results_title": "Results",
     "no_results": "No card found.",
     "manual_entry": "Manual entry"
@@ -1453,7 +1455,7 @@
     "title": "Add a Lorcana card",
     "desc": "Search by card name.",
     "search_placeholder": "Card name...",
-    "btn_scan": "Scan",
+    "btn_scan": "Scan card",
     "results_title": "Results",
     "no_results": "No card found.",
     "manual_entry": "Manual entry"
@@ -1462,7 +1464,7 @@
     "title": "Add a Star Wars: Unlimited card",
     "desc": "Search by card name.",
     "search_placeholder": "Card name...",
-    "btn_scan": "Scan",
+    "btn_scan": "Scan card",
     "results_title": "Results",
     "no_results": "No card found.",
     "manual_entry": "Manual entry"
@@ -1471,7 +1473,7 @@
     "title": "Add a Digimon card",
     "desc": "Search by card name.",
     "search_placeholder": "Card name...",
-    "btn_scan": "Scan",
+    "btn_scan": "Scan card",
     "results_title": "Results",
     "no_results": "No card found.",
     "manual_entry": "Manual entry"
@@ -1480,7 +1482,7 @@
     "title": "Add a Flesh and Blood card",
     "desc": "Search by card name.",
     "search_placeholder": "Card name...",
-    "btn_scan": "Scan",
+    "btn_scan": "Scan card",
     "results_title": "Results",
     "no_results": "No card found.",
     "manual_entry": "Manual entry"

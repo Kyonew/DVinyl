@@ -22,6 +22,7 @@ export const swuPlugin: PluginDefinition = {
   collectionType: 'swu',
   aspectRatioClass: 'aspect-[5/7]',
   supportsBarcodeSearch: false,
+  supportsCardScan: true,
   searchProvider: swudb,
   imageSearchType: 'swu',
   apiRoutes: swuApiRoutes,

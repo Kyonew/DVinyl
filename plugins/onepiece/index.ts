@@ -22,6 +22,7 @@ export const onePiecePlugin: PluginDefinition = {
   collectionType: 'onepiece',
   aspectRatioClass: 'aspect-[5/7]',
   supportsBarcodeSearch: false,
+  supportsCardScan: true,
   searchProvider: optcgapi,
   imageSearchType: 'onepiece',
   apiRoutes: onePieceApiRoutes,

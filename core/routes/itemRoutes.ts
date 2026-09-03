@@ -11,6 +11,10 @@ import { buildFieldSuggestions } from '../fieldSuggestions';
 import { deleteItemsAndContents, moveContentsToWishlist } from '../../utils/itemHelpers';
 import { applyVisibilityFilter, applyShareScopeFilter, isWithinShareScope } from '../../utils/visibilityHelper';
 import { resolveBarcodeWithAi } from '../ai/barcode';
+import { resolveCardScanWithAi } from '../ai/cardScan';
+import { getAiConfig } from '../ai/instance';
+import { isAiConfigured } from '../ai/config';
+import { isValidImageDataUrl } from '../ai/image';
 
 export function createItemRoutes(plugin: PluginDefinition): Router {
   const router = express.Router();
@@ -147,6 +151,42 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         });
       }
     });
+
+    if (plugin.supportsCardScan) {
+      // POST /add-{id}/card-scan -> AI-identify a photographed card, return a search query
+      // for this plugin's own searchProvider. Companion to the barcode-scan branch above:
+      // a single trading card has no scannable retail barcode, so a photo of the card is
+      // the input instead. Never saves anything itself — the client fills the query box
+      // with the result and submits the normal search-{id} form, so what the user
+      // eventually picks always comes from the plugin's real provider.
+      router.post(`/add-${plugin.id}/card-scan`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
+        const config = await getAiConfig();
+        if (!isAiConfigured(config)) {
+          return res.status(400).json({ error: req.t('ai.err_not_configured') });
+        }
+        if (!isValidImageDataUrl(req.body?.image)) {
+          return res.status(400).json({ error: req.t('ai.err_image_rejected') });
+        }
+
+        const guess = await resolveCardScanWithAi(req.body.image, plugin.id);
+        if (!guess) {
+          return res.status(422).json({ error: req.t('ai.err_card_not_recognized') });
+        }
+
+        // The set name is the part a vision model most often misreads (a small symbol,
+        // easy to guess wrong), and a wrong set name appended to the title actively hurts
+        // the search rather than narrowing it. So a guess that includes one is verified
+        // against this plugin's real provider first, falling back to the bare title -
+        // still handed to the same provider on submit either way - if that combined guess
+        // finds nothing.
+        let query = [guess.title, guess.setName].filter(Boolean).join(' ');
+        if (guess.setName) {
+          const results = await plugin.searchProvider!.search(query, { type: plugin.id });
+          if (results.length === 0) query = guess.title;
+        }
+        res.json({ query });
+      });
+    }
 
     // GET /confirm-{type}/:id -> show details from external API before saving
     router.get(`/confirm-${plugin.id}/:id`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {

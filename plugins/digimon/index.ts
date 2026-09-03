@@ -21,6 +21,7 @@ export const digimonPlugin: PluginDefinition = {
   collectionType: 'digimon',
   aspectRatioClass: 'aspect-[5/7]',
   supportsBarcodeSearch: false,
+  supportsCardScan: true,
   searchProvider: digimoncard,
   imageSearchType: 'digimon',
   defaultCardFields: ['set_name', 'rarity'],
