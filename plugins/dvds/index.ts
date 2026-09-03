@@ -206,7 +206,11 @@ export const dvdPlugin: PluginDefinition = {
   defaultCardFields: ['director'],
 
   schemaDefinition: {
-    director: { type: String, required: true },
+    // Not required: an AI-extracted "The Matrix movie" line has no way to know this, and
+    // making it required blocked the preview row before enrichment ever got a chance to
+    // fill it in from TMDB. The display layer already falls back to 'Unknown' (see the
+    // toJSON transform below) for whatever's left genuinely blank.
+    director: { type: String, default: '' },
     studio: String,
     duration: String,
     rating: String,
@@ -651,9 +655,14 @@ export const dvdPlugin: PluginDefinition = {
       collection: collectionId,
       in_wishlist: false,
       kind: 'Dvd',
-      title: { $regex: new RegExp(`^${escapeRegExp(matchTitle)}$`, 'i') },
-      director: { $regex: new RegExp(`^${escapeRegExp(matchDirector)}$`, 'i') }
+      title: { $regex: new RegExp(`^${escapeRegExp(matchTitle)}$`, 'i') }
     };
+    // An unknown director (AI import with nothing to go on) must not turn into a
+    // `/^$/i` clause, which can only match another item whose director is also empty —
+    // it would never find the real, already-enriched item and would create a duplicate.
+    if (matchDirector) {
+      query.director = { $regex: new RegExp(`^${escapeRegExp(matchDirector)}$`, 'i') };
+    }
 
     if (matchFormat) {
       query.format = matchFormat;
@@ -674,6 +683,12 @@ export const dvdPlugin: PluginDefinition = {
         title: { $regex: new RegExp(`^${escapeRegExp(title)}$`, 'i') },
         director: { $regex: new RegExp(`^${escapeRegExp(director)}$`, 'i') }
       });
+    } else if (title) {
+      // No director to narrow by (AI import with nothing to go on) — still surface
+      // title-only matches rather than losing potential-duplicate detection entirely.
+      or.push({
+        title: { $regex: new RegExp(`^${escapeRegExp(title)}$`, 'i') }
+      });
     }
     if (or.length === 0) return [];
     return Item.find({
@@ -686,14 +701,19 @@ export const dvdPlugin: PluginDefinition = {
 
   async getVariants(item: any): Promise<any[]> {
     if (!item) return [];
-    return await Item.find({
+    const query: any = {
       collection: item.collection,
       in_wishlist: false,
       kind: 'Dvd',
       _id: { $ne: item._id },
-      title: { $regex: new RegExp(`^${escapeRegExp(item.title)}$`, 'i') },
-      director: { $regex: new RegExp(`^${escapeRegExp(item.director)}$`, 'i') }
-    }).lean();
+      title: { $regex: new RegExp(`^${escapeRegExp(item.title)}$`, 'i') }
+    };
+    // See findDuplicate: an empty director must not become a `/^$/i` clause that can
+    // only match another director-less item.
+    if (item.director) {
+      query.director = { $regex: new RegExp(`^${escapeRegExp(item.director)}$`, 'i') };
+    }
+    return await Item.find(query).lean();
   },
 
   getManualDefaults(): Record<string, any> {

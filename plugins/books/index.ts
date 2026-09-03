@@ -20,6 +20,7 @@ export const booksPlugin: PluginDefinition = {
   routePrefix: '/book',
   collectionType: 'books',
   creatorField: 'author',
+  includeCreatorInSearch: true,
   extraSearchFields: ['isbn', 'publisher'],
   supportsBarcodeSearch: false,
   searchProvider: new HardcoverProvider(),

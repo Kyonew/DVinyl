@@ -18,6 +18,9 @@ The eight trading-card-game plugins (Pokémon, Magic: The Gathering, Yu-Gi-Oh!, 
 Star Wars: Unlimited, Digimon, Flesh and Blood) need **no key at all** — see
 [Trading card games](#-trading-card-games-no-key-needed) below.
 
+For optional AI-assisted import (text, photo, or barcode fallback), see the [AI Assist guide](./ai.md)
+— it is not tied to one media type and runs across the whole collection.
+
 ## 🎵 Discogs (Music)
 
 Used for album metadata, tracklists and market value.

@@ -47,6 +47,7 @@ import collectionRoute from './core/routes/collectionRoute.js';
 import searchRoute from './core/routes/searchRoute.js';
 import manualAddRoute from './core/routes/manualAddRoute.js';
 import csvImportRoute from './core/routes/csvImportRoute.js';
+import aiImportRoute from './core/routes/aiImportRoute.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -258,6 +259,7 @@ app.use(BASE_URL, searchRoute);
 app.use(BASE_URL, manualAddRoute);
 // Before the plugin dispatcher, which also serves /import/:id routes
 app.use(BASE_URL, csvImportRoute);
+app.use(BASE_URL, aiImportRoute);
 
 // Plugin routers live behind a runtime dispatcher (not mounted directly on `app`)
 // so custom plugins created via /create-plugin are reachable without a restart.

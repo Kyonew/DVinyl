@@ -10,6 +10,7 @@ import { getExtraFields, toFieldDefinitions } from '../pluginExtraFields';
 import { buildFieldSuggestions } from '../fieldSuggestions';
 import { deleteItemsAndContents, moveContentsToWishlist } from '../../utils/itemHelpers';
 import { applyVisibilityFilter, applyShareScopeFilter, isWithinShareScope } from '../../utils/visibilityHelper';
+import { resolveBarcodeWithAi } from '../ai/barcode';
 
 export function createItemRoutes(plugin: PluginDefinition): Router {
   const router = express.Router();
@@ -51,23 +52,45 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         if (plugin.supportsBarcodeSearch && isBarcodeQuery(rawQuery)) {
           const { barcode, title } = await lookupBarcodeTitle(rawQuery, plugin.barcodeNoiseTerms);
           scannedBarcode = barcode;
-          if (!title) {
-            // Searching the digits themselves cannot match: these providers index titles,
-            // not barcodes. Say the barcode is unknown rather than show an empty result
-            // list, which reads as "you don't own this" instead of "I couldn't look it up".
-            return res.render('add', {
-              results: [],
-              error: req.t('add_vinyl.barcode_not_found'),
-              searchType: type || plugin.id,
-              searchQuery: rawQuery,
-              scanned_barcode: barcode,
-              user: res.locals.user,
-              currentType: `add-${plugin.id}`,
-              plugin
-            });
+
+          // UPCitemdb's free tier is 100 lookups a day per IP, so a null title covers an
+          // unknown code and an exhausted quota alike. Either way the user is one step from
+          // a dead end, which is where the AI assist earns its place: it turns the digits
+          // into a search query for the module's real provider. Off or failing, the flow
+          // below is exactly what it was before.
+          let query = title;
+          if (!query) {
+            query = await resolveBarcodeWithAi(barcode, plugin.id);
           }
-          searchQuery = title;
-          resolvedTitle = title;
+
+          if (!query) {
+            if (plugin.barcodeSearchFallback) {
+              // See PluginDefinition.barcodeSearchFallback: this provider's free-text
+              // search can match raw barcode digits directly, so fall through to the
+              // normal search call below with the scanned digits instead of dead-ending.
+              searchQuery = rawQuery;
+            } else {
+              // Searching the digits themselves cannot match: these providers index titles,
+              // not barcodes. Say the barcode is unknown rather than show an empty result
+              // list, which reads as "you don't own this" instead of "I couldn't look it up".
+              return res.render('add', {
+                results: [],
+                error: req.t('add_vinyl.barcode_not_found'),
+                searchType: type || plugin.id,
+                searchQuery: rawQuery,
+                scanned_barcode: barcode,
+                user: res.locals.user,
+                currentType: `add-${plugin.id}`,
+                plugin
+              });
+            }
+          } else {
+            searchQuery = query;
+            // Whether the title came straight from UPCitemdb or from the AI fallback,
+            // it's a title-shaped string either way, so it earns the same
+            // shorter-forms retry as a resolved barcode always has.
+            resolvedTitle = query;
+          }
         }
 
         const settings = res.locals.settings;
