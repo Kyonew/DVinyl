@@ -18,6 +18,11 @@ import { registry } from "../core/registry.js";
 import { CARD_ASPECT_RATIOS } from "../core/customPlugin";
 import { PermanentRefreshError, syncStamp } from "../core/helpers";
 import { deleteItemsAndContents } from "../utils/itemHelpers";
+import { AI_PROVIDERS } from "../core/ai/providers";
+import { getAiConfig, getStoredAiSettings, saveAiSettings } from "../core/ai/instance";
+import { isAiConfigured, resolveTestConfig } from "../core/ai/config";
+import { keyHint } from "../core/ai/secret";
+import { aiChat, AiError } from "../core/ai/client";
 
 // PROD=true is the operator's own declaration that the instance is served over HTTPS
 // (see docs/getting-started.md). Trust that over req.protocol, which depends on the
@@ -169,6 +174,9 @@ router.get("/", requireAuth, requireCollectionRole("admin"), async (req: any, re
       // Share links must show a full, absolute URL (scheme + host) - a bare
       // baseUrl-relative path is not something you can scan/paste elsewhere.
       siteOrigin: `${getPublicProtocol(req)}://${req.get("host")}`,
+      // Known once, server-side, from the config this page already has every reason to
+      // read - no reason to make the browser ask again just to decide whether to show the card.
+      aiConfigured: isAiConfigured(await getAiConfig()),
     });
   } catch (err) {
     console.error(err);
@@ -259,6 +267,74 @@ router.post("/instance/settings", requireAuth, requireAdmin, async (req: any, re
   } catch (err) {
     console.error("[ADMIN] Instance settings error:", err);
     res.redirect("/admin/instance?msg=generic_error");
+  }
+});
+
+// GET /admin/instance/ai -> current AI settings, never the key itself
+router.get("/instance/ai", requireAuth, requireAdmin, async (_req: any, res: any) => {
+  const config = await getAiConfig();
+  res.json({
+    enabled: config.enabled,
+    provider: config.provider,
+    baseUrl: config.baseUrl,
+    model: config.model,
+    visionModel: config.visionModel,
+    hasKey: Boolean(config.apiKey),
+    keyHint: keyHint(config.apiKey),
+    // The panel greys its inputs out when the environment is in charge, so nobody edits
+    // a value that an AI_* variable is going to override on the next read.
+    fromEnv: config.fromEnv,
+    configured: isAiConfigured(config),
+    providers: AI_PROVIDERS.map(p => ({
+      id: p.id, label: p.label, baseUrl: p.baseUrl,
+      defaultModel: p.defaultModel, defaultVisionModel: p.defaultVisionModel, docsUrl: p.docsUrl
+    }))
+  });
+});
+
+// POST /admin/instance/ai -> save the AI settings
+router.post("/instance/ai", requireAuth, requireAdmin, async (req: any, res: any) => {
+  try {
+    await saveAiSettings({
+      enabled: req.body?.enabled === true || req.body?.enabled === 'true',
+      provider: String(req.body?.provider || 'openrouter'),
+      baseUrl: String(req.body?.baseUrl || ''),
+      model: String(req.body?.model || ''),
+      visionModel: String(req.body?.visionModel || ''),
+      apiKey: typeof req.body?.apiKey === 'string' ? req.body.apiKey : ''
+    });
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('[ERR] AI settings save:', err.message);
+    res.status(500).json({ success: false, error: req.t('ai.err_save') });
+  }
+});
+
+// POST /admin/instance/ai/test -> one real round-trip, so a bad key is found here.
+// Tests the panel's current fields, not the saved config, so a key can be tried before
+// committing to Save; any field left blank falls back to what's actually stored.
+router.post("/instance/ai/test", requireAuth, requireAdmin, async (req: any, res: any) => {
+  const stored = await getStoredAiSettings();
+  const config = resolveTestConfig({
+    provider: String(req.body?.provider || ''),
+    baseUrl: String(req.body?.baseUrl || ''),
+    model: String(req.body?.model || ''),
+    visionModel: String(req.body?.visionModel || ''),
+    apiKey: typeof req.body?.apiKey === 'string' ? req.body.apiKey.trim() : ''
+  }, stored);
+  if (!isAiConfigured(config)) {
+    return res.status(400).json({ success: false, error: req.t('ai.err_not_configured') });
+  }
+  try {
+    const result = await aiChat(
+      config,
+      [{ role: 'user', content: 'Reply with the single word: ready' }],
+      { maxTokens: 16, timeoutMs: 15000 }
+    );
+    res.json({ success: true, model: result.model, reply: result.text.trim().slice(0, 100) });
+  } catch (err: any) {
+    const status = err instanceof AiError && err.status ? err.status : 502;
+    res.status(status).json({ success: false, error: err.message });
   }
 });
 

@@ -229,6 +229,42 @@ export async function searchWithTitleFallback<T>(
   return { results, query };
 }
 
+/** Lowercased, punctuation collapsed to single spaces, so "Mulan Reflecting" and
+ * "Mulan - Reflecting" compare equal regardless of the separator either side used. */
+export function normalizeCardName(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+/**
+ * Runs a card search as typed; if that finds nothing, retries on just the query's first
+ * word and narrows that wider set with a punctuation-insensitive contains check instead
+ * of trusting the provider's own literal one.
+ *
+ * Several trading-card APIs store a multi-part name with an internal separator the card
+ * itself doesn't show on the box (Lorcana's "Mulan - Reflecting", SWU's "Boba Fett -
+ * Special Ops") — typing the name as printed, without that punctuation, is not a literal
+ * substring of the stored field, so a provider whose own search only does exact
+ * containment (not every one does — Scryfall and YGOPRODeck already tokenize) finds
+ * nothing. This recovers that case without a fuzzy-search dependency, at the cost of one
+ * extra request, and only when the first attempt already came back empty.
+ */
+export async function fuzzyCardSearch<T>(
+  query: string,
+  fetchByQuery: (q: string) => Promise<T[]>,
+  getName: (row: T) => string
+): Promise<T[]> {
+  const rows = await fetchByQuery(query);
+  if (rows.length > 0) return rows;
+
+  const words = query.trim().split(/\s+/).filter(Boolean);
+  const firstWord = words[0];
+  if (words.length < 2 || !firstWord) return rows;
+
+  const broad = await fetchByQuery(firstWord);
+  const needle = normalizeCardName(query);
+  return broad.filter(row => normalizeCardName(getName(row)).includes(needle));
+}
+
 /**
  * Returns true when a search query looks like a scanned product barcode.
  */

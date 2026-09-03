@@ -44,6 +44,9 @@ read-only preview of a finished instance.
 - **Smart import.** Add an item by ID or barcode, or bulk import a whole existing collection
   (a full Discogs library, for example) in one click.
 - **Barcode scanner.** Point at the barcode of a physical item and let DVinyl find it for you.
+- **AI assist.** Bring-your-own-key support for text, photo or barcode-fallback import, and for
+  drafting a new no-code plugin from a one-sentence description. See the
+  [AI Assist guide](./docs/ai.md) to set it up.
 - **Market value.** Live low, median and high estimates for your music collection.
 - **Wishlist.** Keep an eye on the pieces you are still hunting for.
 
@@ -74,6 +77,23 @@ read-only preview of a finished instance.
 | LEGO   | LEGO sets              | Rebrickable |
 
 Every plugin can be turned on or off per collection from the admin panel.
+
+## Trading card games
+
+| Plugin | Metadata source | Price estimate |
+| :----- | :--------------- | :---: |
+| Pokémon | TCGdex | ✅ |
+| Magic: The Gathering | Scryfall | ✅ |
+| Yu-Gi-Oh! | YGOPRODeck | ✅ |
+| One Piece | optcgapi.com | ✅ |
+| Lorcana | Lorcana API | — |
+| Star Wars: Unlimited | SWU-DB | ✅ |
+| Digimon | DigimonCard.io | — |
+| Flesh and Blood | goagain.dev | — |
+
+All eight are free and fully keyless — no `.env` setup, just enable the ones you want per
+collection from the admin panel. "Price estimate" sums your collection's live market value from
+the collection page; the three without it use sources that don't publish pricing data.
 
 ## Build your own type
 
@@ -115,6 +135,7 @@ No Docker? No worries. Have a look at the other ways to install and run DVinyl i
 | [Getting started](./docs/getting-started.md) | Manual installation and requirements |
 | [Docker deployment](./docs/docker.md) | Deploy with Docker Compose (recommended) |
 | [API keys](./docs/api-keys.md) | Get your Discogs, Hardcover, TMDB, IGDB and Rebrickable keys |
+| [AI Assist](./docs/ai.md) | Optional bring-your-own-key AI for text, photo and barcode-fallback import, and for drafting a no-code plugin |
 | [Plugin development](./docs/plugin-development.md) | Build your own media type as a code plugin |
 | [Public share links](./docs/sharing.md) | Let anyone browse a collection (or part of it) read-only, no account needed |
 | [Wiki](https://github.com/Kyonew/DVinyl/wiki) | User guides and no-code tutorials |
@@ -128,7 +149,7 @@ No Docker? No worries. Have a look at the other ways to install and run DVinyl i
 | Frontend | EJS templates |
 | Styling | Tailwind CSS |
 | Localization | i18next |
-| Metadata APIs | Discogs, Hardcover, TMDB, IGDB, Rebrickable |
+| Metadata APIs | Discogs, Hardcover, TMDB, IGDB, Rebrickable, plus 8 free TCG APIs (see [Trading card games](#trading-card-games)) |
 
 ## Contributing
 

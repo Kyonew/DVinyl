@@ -10,6 +10,11 @@ import { getExtraFields, toFieldDefinitions } from '../pluginExtraFields';
 import { buildFieldSuggestions } from '../fieldSuggestions';
 import { deleteItemsAndContents, moveContentsToWishlist } from '../../utils/itemHelpers';
 import { applyVisibilityFilter, applyShareScopeFilter, isWithinShareScope } from '../../utils/visibilityHelper';
+import { resolveBarcodeWithAi } from '../ai/barcode';
+import { resolveCardScanWithAi } from '../ai/cardScan';
+import { getAiConfig } from '../ai/instance';
+import { isAiConfigured } from '../ai/config';
+import { isValidImageDataUrl } from '../ai/image';
 
 export function createItemRoutes(plugin: PluginDefinition): Router {
   const router = express.Router();
@@ -51,23 +56,45 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         if (plugin.supportsBarcodeSearch && isBarcodeQuery(rawQuery)) {
           const { barcode, title } = await lookupBarcodeTitle(rawQuery, plugin.barcodeNoiseTerms);
           scannedBarcode = barcode;
-          if (!title) {
-            // Searching the digits themselves cannot match: these providers index titles,
-            // not barcodes. Say the barcode is unknown rather than show an empty result
-            // list, which reads as "you don't own this" instead of "I couldn't look it up".
-            return res.render('add', {
-              results: [],
-              error: req.t('add_vinyl.barcode_not_found'),
-              searchType: type || plugin.id,
-              searchQuery: rawQuery,
-              scanned_barcode: barcode,
-              user: res.locals.user,
-              currentType: `add-${plugin.id}`,
-              plugin
-            });
+
+          // UPCitemdb's free tier is 100 lookups a day per IP, so a null title covers an
+          // unknown code and an exhausted quota alike. Either way the user is one step from
+          // a dead end, which is where the AI assist earns its place: it turns the digits
+          // into a search query for the module's real provider. Off or failing, the flow
+          // below is exactly what it was before.
+          let query = title;
+          if (!query) {
+            query = await resolveBarcodeWithAi(barcode, plugin.id);
           }
-          searchQuery = title;
-          resolvedTitle = title;
+
+          if (!query) {
+            if (plugin.barcodeSearchFallback) {
+              // See PluginDefinition.barcodeSearchFallback: this provider's free-text
+              // search can match raw barcode digits directly, so fall through to the
+              // normal search call below with the scanned digits instead of dead-ending.
+              searchQuery = rawQuery;
+            } else {
+              // Searching the digits themselves cannot match: these providers index titles,
+              // not barcodes. Say the barcode is unknown rather than show an empty result
+              // list, which reads as "you don't own this" instead of "I couldn't look it up".
+              return res.render('add', {
+                results: [],
+                error: req.t('add_vinyl.barcode_not_found'),
+                searchType: type || plugin.id,
+                searchQuery: rawQuery,
+                scanned_barcode: barcode,
+                user: res.locals.user,
+                currentType: `add-${plugin.id}`,
+                plugin
+              });
+            }
+          } else {
+            searchQuery = query;
+            // Whether the title came straight from UPCitemdb or from the AI fallback,
+            // it's a title-shaped string either way, so it earns the same
+            // shorter-forms retry as a resolved barcode always has.
+            resolvedTitle = query;
+          }
         }
 
         const settings = res.locals.settings;
@@ -124,6 +151,42 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         });
       }
     });
+
+    if (plugin.supportsCardScan) {
+      // POST /add-{id}/card-scan -> AI-identify a photographed card, return a search query
+      // for this plugin's own searchProvider. Companion to the barcode-scan branch above:
+      // a single trading card has no scannable retail barcode, so a photo of the card is
+      // the input instead. Never saves anything itself — the client fills the query box
+      // with the result and submits the normal search-{id} form, so what the user
+      // eventually picks always comes from the plugin's real provider.
+      router.post(`/add-${plugin.id}/card-scan`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
+        const config = await getAiConfig();
+        if (!isAiConfigured(config)) {
+          return res.status(400).json({ error: req.t('ai.err_not_configured') });
+        }
+        if (!isValidImageDataUrl(req.body?.image)) {
+          return res.status(400).json({ error: req.t('ai.err_image_rejected') });
+        }
+
+        const guess = await resolveCardScanWithAi(req.body.image, plugin.id);
+        if (!guess) {
+          return res.status(422).json({ error: req.t('ai.err_card_not_recognized') });
+        }
+
+        // The set name is the part a vision model most often misreads (a small symbol,
+        // easy to guess wrong), and a wrong set name appended to the title actively hurts
+        // the search rather than narrowing it. So a guess that includes one is verified
+        // against this plugin's real provider first, falling back to the bare title -
+        // still handed to the same provider on submit either way - if that combined guess
+        // finds nothing.
+        let query = [guess.title, guess.setName].filter(Boolean).join(' ');
+        if (guess.setName) {
+          const results = await plugin.searchProvider!.search(query, { type: plugin.id });
+          if (results.length === 0) query = guess.title;
+        }
+        res.json({ query });
+      });
+    }
 
     // GET /confirm-{type}/:id -> show details from external API before saving
     router.get(`/confirm-${plugin.id}/:id`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {

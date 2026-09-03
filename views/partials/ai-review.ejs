@@ -1,0 +1,426 @@
+<%
+    // Same source as the CSV import: every enabled module is a possible destination.
+    // Unlike CSV, the field list itself comes back from the preview call, keyed to
+    // whatever the AI actually populated, not computed here.
+    const aiModules = registry.getEnabled(settings).map(p => ({
+        id: p.id,
+        label: t(p.label),
+        icon: 'fa-' + p.icon,
+        canEnrich: !!p.searchProvider
+    }));
+%>
+
+<% if (locals.aiConfigured && aiModules.length > 0) { %>
+<div class="card-theme rounded-3xl p-6 md:p-8 shadow-sm transition-colors mb-6">
+    <div class="flex flex-col md:flex-row md:items-center gap-4">
+        <div class="w-10 h-10 rounded-xl bg-black/5 dark:bg-white/5 flex items-center justify-center shrink-0">
+            <i class="fa-solid fa-wand-magic-sparkles text-primary-theme"></i>
+        </div>
+        <div class="flex-1">
+            <h3 class="font-bold"><%= t('ai.import_title') %></h3>
+            <p class="text-xs opacity-50"><%= t('ai.import_subtitle') %></p>
+        </div>
+        <button type="button" onclick="toggleAiImportModal()"
+            class="bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-5 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 shrink-0">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> <%= t('ai.import_analyse') %>
+        </button>
+    </div>
+</div>
+
+<div id="aiImportModal" class="fixed inset-0 z-[120] hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="absolute inset-0" onclick="toggleAiImportModal()"></div>
+    <div class="relative card-theme w-full max-w-4xl rounded-3xl p-6 md:p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <button type="button" onclick="toggleAiImportModal()" class="absolute top-5 right-5 opacity-40 hover:opacity-100 transition-opacity">
+            <i class="fa-solid fa-xmark text-xl"></i>
+        </button>
+
+        <h3 class="text-xl font-bold flex items-center gap-2 mb-1">
+            <i class="fa-solid fa-wand-magic-sparkles text-primary-theme"></i> <%= t('ai.import_title') %>
+        </h3>
+        <p class="text-sm opacity-60 mb-5"><%= t('ai.import_subtitle') %></p>
+
+        <!-- STEP 1: what to add and where -->
+        <div id="aiStep1" class="space-y-4">
+            <div>
+                <label class="block text-[10px] font-black uppercase tracking-widest opacity-50 mb-1.5"><%= t('ai.import_module') %></label>
+                <select id="aiModule" class="bg-black/5 dark:bg-white/5 border border-transparent text-sm rounded-lg focus:ring-primary-theme block w-full p-3 outline-none cursor-pointer">
+                    <% aiModules.forEach(m => { %>
+                        <option value="<%= m.id %>" class="bg-white dark:bg-[#1a1a1a]"><%= m.label %></option>
+                    <% }) %>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-[10px] font-black uppercase tracking-widest opacity-50 mb-1.5"><%= t('ai.import_text_label') %></label>
+                <textarea id="aiText" rows="8" placeholder="<%= t('ai.import_text_placeholder') %>"
+                    class="bg-black/5 dark:bg-white/5 border border-transparent text-sm rounded-lg focus:ring-primary-theme block w-full p-3 outline-none resize-y"></textarea>
+            </div>
+
+            <div>
+                <label class="block text-[10px] font-black uppercase tracking-widest opacity-50 mb-1.5"><%= t('ai.import_photos_label') %></label>
+                <p class="text-xs opacity-50 mb-2"><%= t('ai.import_photos_hint') %></p>
+                <input type="file" id="aiPhotos" accept="image/*" multiple capture="environment" class="hidden">
+                <button type="button" onclick="document.getElementById('aiPhotos').click()"
+                    class="bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-camera"></i> <%= t('ai.import_photos_label') %>
+                </button>
+                <div id="aiPhotoThumbs" class="flex flex-wrap gap-2 mt-3"></div>
+            </div>
+
+            <button type="button" id="aiAnalyzeBtn" onclick="aiAnalyze()"
+                class="w-full mt-2 bg-primary-theme text-white font-bold px-6 py-3.5 rounded-2xl hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> <%= t('ai.import_analyse') %>
+            </button>
+        </div>
+
+        <!-- STEP 2: review table -->
+        <div id="aiStep2" class="hidden">
+            <div class="flex items-center justify-between gap-3 mb-4">
+                <div>
+                    <h4 class="font-bold text-sm"><%= t('ai.import_review_title') %></h4>
+                    <p class="text-xs opacity-50"><%= t('ai.import_review_hint') %></p>
+                </div>
+                <button type="button" onclick="aiBackToStep1()" class="text-xs font-bold opacity-60 hover:opacity-100 transition-opacity shrink-0 whitespace-nowrap">
+                    <i class="fa-solid fa-arrow-left mr-1"></i> <%= t('ai.import_back') %>
+                </button>
+            </div>
+
+            <div class="overflow-x-auto rounded-2xl border border-black/5 dark:border-white/5">
+                <table class="w-full text-xs">
+                    <thead id="aiReviewHead" class="bg-black/5 dark:bg-white/5"></thead>
+                    <tbody id="aiReviewBody"></tbody>
+                </table>
+            </div>
+
+            <label id="aiEnrichRow" class="hidden items-center gap-3 bg-black/5 dark:bg-white/5 rounded-2xl p-4 cursor-pointer mt-4">
+                <input type="checkbox" id="aiEnrichCheck" checked class="w-4 h-4 accent-current text-primary-theme">
+                <span class="text-xs">
+                    <span class="font-bold block"><%= t('admin.csv_import.enrich_label') %></span>
+                    <span class="opacity-50"><%= t('admin.csv_import.enrich_hint') %></span>
+                </span>
+            </label>
+        </div>
+
+        <div id="importErr_ai" class="hidden mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-500">
+            <span data-err-text></span>
+        </div>
+
+        <button type="button" id="aiImportBtn" onclick="aiRunImport()"
+            class="hidden w-full mt-6 bg-primary-theme text-white font-bold px-6 py-3.5 rounded-2xl hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2">
+            <i class="fa-solid fa-cloud-arrow-down"></i> <%= t('ai.import_confirm') %>
+        </button>
+    </div>
+</div>
+
+<script>
+    (function () {
+        const modules = <%- JSON.stringify(aiModules) %>;
+        const T = {
+            loading: '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> <%= t("common.searching") %>',
+            started: '<i class="fa-solid fa-spinner fa-spin mr-2"></i> <%= t("admin.modal.import_started") %>',
+            done: <%- JSON.stringify(t('admin.modal.import_done')) %>,
+            updated: <%- JSON.stringify(t('admin.modal.import_updated')) %>,
+            failed: <%- JSON.stringify(t('admin.modal.import_failed')) %>,
+            unenriched: <%- JSON.stringify(t('admin.modal.import_unenriched')) %>,
+            missingRequired: <%- JSON.stringify(t('ai.import_missing_required')) %>,
+            noneSelected: <%- JSON.stringify(t('ai.import_none_selected')) %>,
+            confirm: <%- JSON.stringify(t('ai.import_confirm')) %>,
+            noInput: <%- JSON.stringify(t('ai.err_no_input')) %>,
+            imageRejected: <%- JSON.stringify(t('ai.err_image_rejected')) %>,
+            removePhoto: <%- JSON.stringify(t('ai.import_photos_remove')) %>
+        };
+
+        // Same cap as the server (see aiImportRoute.ts): four photos is a shelf, not a library.
+        const MAX_PHOTOS = 4;
+        // Downscaled to this longest edge before it ever leaves the browser - a phone
+        // photo is several MB, and express.json is capped well below what four of those
+        // would cost.
+        const MAX_PHOTO_EDGE = 1600;
+
+        // Everything the review table and the import need, kept in the page: neither the
+        // text nor the photos are ever re-sent to the AI and the extraction is never
+        // parked on the server between the two steps.
+        let preview = null; // { rows, fields, module }
+        let photos = []; // data URLs, already downscaled
+        let running = false;
+        let socket = null;
+
+        const el = (id) => document.getElementById(id);
+        const errBox = () => el('importErr_ai');
+
+        function showError(message) {
+            const box = errBox();
+            box.querySelector('[data-err-text]').innerText = message;
+            box.classList.remove('hidden');
+        }
+        function clearError() { errBox().classList.add('hidden'); }
+
+        function escapeHtml(value) {
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        window.toggleAiImportModal = function () {
+            el('aiImportModal').classList.toggle('hidden');
+        };
+
+        function currentModule() {
+            return modules.find(m => m.id === el('aiModule').value) || modules[0];
+        }
+
+        function refreshEnrichRow() {
+            const row = el('aiEnrichRow');
+            const canEnrich = currentModule().canEnrich;
+            row.classList.toggle('hidden', !canEnrich);
+            row.classList.toggle('flex', canEnrich);
+            if (!canEnrich) el('aiEnrichCheck').checked = false;
+        }
+
+        window.aiBackToStep1 = function () {
+            el('aiStep1').classList.remove('hidden');
+            el('aiStep2').classList.add('hidden');
+            el('aiImportBtn').classList.add('hidden');
+            clearError();
+        };
+
+        /** Longest edge capped to MAX_PHOTO_EDGE, re-encoded as JPEG - what actually
+         * leaves the browser is a few hundred kB, never the multi-MB original. */
+        function downscaleImage(file) {
+            return new Promise((resolve, reject) => {
+                const url = URL.createObjectURL(file);
+                const img = new Image();
+                img.onload = () => {
+                    URL.revokeObjectURL(url);
+                    let { width, height } = img;
+                    if (width <= 0 || height <= 0) { reject(new Error('empty image')); return; }
+                    const scale = Math.min(1, MAX_PHOTO_EDGE / Math.max(width, height));
+                    width = Math.max(1, Math.round(width * scale));
+                    height = Math.max(1, Math.round(height * scale));
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/jpeg', 0.8));
+                };
+                img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('could not load image')); };
+                img.src = url;
+            });
+        }
+
+        function renderPhotoThumbs() {
+            el('aiPhotoThumbs').innerHTML = photos.map((src, index) =>
+                '<div class="relative w-16 h-16 rounded-xl overflow-hidden shrink-0 group">'
+                + '<img src="' + src + '" alt="Selected photo" class="w-full h-full object-cover">'
+                + '<button type="button" data-ai-photo-remove="' + index + '" title="' + escapeHtml(T.removePhoto) + '"'
+                + ' class="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/70 text-white text-[10px] flex items-center justify-center hover:bg-red-500 transition-colors">'
+                + '<i class="fa-solid fa-xmark"></i></button>'
+                + '</div>'
+            ).join('');
+        }
+
+        el('aiPhotoThumbs').addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-ai-photo-remove]');
+            if (!btn) return;
+            photos.splice(parseInt(btn.getAttribute('data-ai-photo-remove'), 10), 1);
+            renderPhotoThumbs();
+        });
+
+        el('aiPhotos').addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files || []);
+            e.target.value = ''; // clears the input so re-picking the same file still fires change
+            clearError();
+            for (const file of files) {
+                if (photos.length >= MAX_PHOTOS) break;
+                try {
+                    photos.push(await downscaleImage(file));
+                } catch {
+                    showError(T.imageRejected);
+                }
+            }
+            renderPhotoThumbs();
+        });
+
+        window.aiAnalyze = async function () {
+            const text = el('aiText').value.trim();
+            if (!text && photos.length === 0) { showError(T.noInput); return; }
+
+            const btn = el('aiAnalyzeBtn');
+            const original = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = T.loading;
+            clearError();
+
+            try {
+                const res = await fetch('<%= baseUrl %>/import/ai/preview', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ plugin: el('aiModule').value, text, images: photos })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.error || 'Error');
+
+                preview = { module: currentModule(), ...data };
+                renderReview();
+
+                el('aiStep1').classList.add('hidden');
+                el('aiStep2').classList.remove('hidden');
+                el('aiImportBtn').classList.remove('hidden');
+                refreshEnrichRow();
+            } catch (err) {
+                showError(err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = original;
+            }
+        };
+
+        function fieldInputHtml(field, value) {
+            const val = escapeHtml(value || '');
+            if (field.options && field.options.length > 0) {
+                const options = ['<option value=""></option>'].concat(field.options.map(o =>
+                    '<option value="' + escapeHtml(o.value) + '"' + (o.value === value ? ' selected' : '') + '>'
+                    + escapeHtml(o.label) + '</option>'
+                )).join('');
+                return '<select data-ai-field="' + escapeHtml(field.name) + '" class="bg-black/5 dark:bg-white/5 border border-transparent text-xs rounded-lg block w-full p-2 outline-none cursor-pointer">' + options + '</select>';
+            }
+            const type = field.type === 'number' ? 'number' : 'text';
+            return '<input type="' + type + '" data-ai-field="' + escapeHtml(field.name) + '" value="' + val + '"'
+                + ' class="bg-black/5 dark:bg-white/5 border border-transparent text-xs rounded-lg block w-full p-2 outline-none">';
+        }
+
+        /**
+         * One column per field the AI actually populated on at least one row, not every
+         * field the plugin could accept — a book plugin alone has twenty-odd fields, and
+         * most rows from a short text list only ever fill title and author.
+         */
+        function columnsInUse() {
+            const used = new Set();
+            for (const row of preview.rows) {
+                for (const name of Object.keys(row.values)) used.add(name);
+            }
+            return preview.fields.filter(f => used.has(f.name));
+        }
+
+        function renderReview() {
+            const columns = columnsInUse();
+
+            el('aiReviewHead').innerHTML = '<tr>'
+                + '<th class="p-2 text-left w-8"></th>'
+                + columns.map(f => '<th class="p-2 text-left font-black uppercase tracking-widest opacity-50" style="font-size:10px">'
+                    + escapeHtml(f.label) + (f.required ? ' <span class="text-red-500">*</span>' : '') + '</th>').join('')
+                + '<th class="p-2"></th>'
+                + '</tr>';
+
+            el('aiReviewBody').innerHTML = preview.rows.map((row, index) => {
+                const hasMissing = row.missingRequired.length > 0;
+                return '<tr data-ai-row="' + index + '" class="border-t border-black/5 dark:border-white/5' + (hasMissing ? ' bg-amber-500/10' : '') + '">'
+                    + '<td class="p-2 align-top"><input type="checkbox" data-ai-row-check class="w-4 h-4 accent-current mt-1"' + (hasMissing ? '' : ' checked') + '></td>'
+                    + columns.map(f => '<td class="p-2 align-top">' + fieldInputHtml(f, row.values[f.name]) + '</td>').join('')
+                    + '<td class="p-2 align-top text-[10px] text-amber-600 dark:text-amber-400 whitespace-nowrap">' + (hasMissing ? escapeHtml(T.missingRequired) : '') + '</td>'
+                    + '</tr>';
+            }).join('');
+        }
+
+        function collectCheckedRows() {
+            const rows = [];
+            for (const tr of el('aiReviewBody').querySelectorAll('[data-ai-row]')) {
+                const checkbox = tr.querySelector('[data-ai-row-check]');
+                if (!checkbox.checked) continue;
+                const values = {};
+                for (const input of tr.querySelectorAll('[data-ai-field]')) {
+                    const name = input.getAttribute('data-ai-field');
+                    const value = input.value.trim();
+                    if (value) values[name] = value;
+                }
+                if (Object.keys(values).length > 0) rows.push(values);
+            }
+            return rows;
+        }
+
+        /** Same progress socket pattern as the CSV importer next door - see its comment. */
+        function ensureSocket() {
+            if (socket) return socket;
+            if (typeof io === 'undefined') {
+                console.error('[ai-import] socket.io client missing: no progress will be reported.');
+                return null;
+            }
+            socket = io({ path: '<%= baseUrl %>/socket.io' });
+
+            socket.on('import_progress', (data) => {
+                if (!running) return;
+                const suffix = data.total ? (data.current + ' / ' + data.total) : ('' + data.current);
+                el('aiImportBtn').innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> ' + suffix;
+            });
+            socket.on('import_finished', (data) => {
+                if (!running) return;
+                let message = data.count + ' ' + T.done;
+                if (data.updated) message += '\n' + data.updated + ' ' + T.updated;
+                if (data.failed) message += '\n' + data.failed + ' ' + T.failed;
+                if (data.unenriched) message += '\n' + data.unenriched + ' ' + T.unenriched;
+                // Reload once the toast is actually dismissed (click, or its own 5s
+                // timeout) rather than the instant it appears - same order the old
+                // blocking alert() gave for free by pausing until "OK" was clicked.
+                if (window.showToast) window.showToast(message, { onDismiss: () => window.location.reload() });
+                else { alert(message); window.location.reload(); }
+            });
+            socket.on('import_error', (data) => {
+                if (!running) return;
+                showError(data.message);
+                running = false;
+                resetImportButton();
+            });
+
+            return socket;
+        }
+
+        function resetImportButton() {
+            const btn = el('aiImportBtn');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-down"></i> ' + escapeHtml(T.confirm);
+        }
+
+        window.aiRunImport = async function () {
+            if (!preview || running) return;
+            const rows = collectCheckedRows();
+            if (rows.length === 0) { showError(T.noneSelected); return; }
+
+            clearError();
+            const btn = el('aiImportBtn');
+            btn.disabled = true;
+            btn.innerHTML = T.loading;
+            running = true;
+
+            const sock = ensureSocket();
+            if (sock && !sock.connected) {
+                await new Promise(resolve => {
+                    sock.once('connect', resolve);
+                    setTimeout(resolve, 3000);
+                });
+            }
+
+            try {
+                const res = await fetch('<%= baseUrl %>/import/ai', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        plugin: preview.module.id,
+                        rows,
+                        enrich: el('aiEnrichCheck').checked
+                    })
+                });
+                if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Error'); }
+                btn.innerHTML = T.started;
+            } catch (err) {
+                showError(err.message);
+                running = false;
+                resetImportButton();
+            }
+        };
+
+        el('aiModule').addEventListener('change', refreshEnrichRow);
+        ensureSocket();
+    })();
+</script>
+<% } %>
