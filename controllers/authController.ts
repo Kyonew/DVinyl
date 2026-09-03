@@ -91,9 +91,14 @@ export const handleErrors = (err: any) => {
  * Render the login page, or hand the visitor straight to the identity provider
  * when the instance has no local sign-in. An OIDC error is still shown here, so
  * a failed SSO round-trip reports what happened instead of bouncing forever.
+ *
+ * Someone arriving straight from /logout is shown the page too. The provider's
+ * own session outlives ours, so bouncing them at it would have it hand the same
+ * identity back without a prompt and land them logged in again, which is what
+ * signing out on an SSO-only instance used to do.
  */
 export const login_get = (req: any, res: any) => {
-  if (isLocalLoginDisabled() && !req.query.error) {
+  if (isLocalLoginDisabled() && !req.query.error && !req.query.logged_out) {
     return res.redirect(`${res.locals.baseUrl || ''}/login/oidc`);
   }
   res.render('login', { oidcError: req.query.error || null });
@@ -195,9 +200,25 @@ export const login_post = async (req: any, res: any) => {
 
 /**
  * GET /logout
+ *
+ * Goes to the login page rather than to '/', which only bounced there anyway once
+ * the session cookie was gone. Naming it explicitly is what lets the SSO-only
+ * instances above tell a sign-out apart from an ordinary visit.
  */
 export const logout_get = (req: any, res: any) => {
   console.log(`[AUTH] Logout${req.user?.email ? ': ' + req.user.email : ''}`);
   res.cookie('jwt', '', { maxAge: 1 });
-  res.redirect('/');
+
+  const target = `${res.locals.baseUrl || ''}/login?logged_out=1`;
+
+  // The express session outlives the jwt cookie otherwise. It only carries the
+  // in-flight OIDC handshake today, but leaving a signed-out visitor's session
+  // standing is the kind of thing that quietly becomes a hole the day anything
+  // worth keeping is put in it. A failure to destroy it must not strand someone
+  // on a page that no longer has a session either, hence the redirect regardless.
+  if (!req.session) return res.redirect(target);
+  req.session.destroy((err: any) => {
+    if (err) console.warn('[AUTH] Could not destroy session on logout:', err.message);
+    res.redirect(target);
+  });
 };
