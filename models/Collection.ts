@@ -37,6 +37,14 @@ const collectionSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    // Set once the boot migration has turned this collection's free-text `location`
+    // values into shelves. Its own flag rather than "has no furniture yet", so
+    // deleting every piece of furniture on purpose does not bring the seeded ones
+    // back on the next restart.
+    shelvesSeeded: {
+        type: Boolean,
+        default: false
+    },
     members: {
         type: [memberSchema],
         default: []

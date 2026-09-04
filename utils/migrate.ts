@@ -2,9 +2,11 @@ import Item from '../models/Item';
 import Settings from '../models/Settings';
 import User from '../models/User';
 import Collection from '../models/Collection';
+import Furniture from '../models/Furniture';
 import { registry } from '../core/registry';
 import { buildSortTitle } from '../core/helpers';
 import { findOrCreateDefaultCollection } from './collectionHelpers';
+import { locationKey, pickDisplayName, fitGrid, capacityPerFurniture } from './shelfHelpers';
 
 /**
  * Legacy Settings could store theme.<key>.preset as an object (e.g. { default: 'default' })
@@ -276,6 +278,91 @@ export const migrateDatabase = async () => {
             }
             if (broken.length > ops.length) {
                 console.warn(`[MIGRATION] ${broken.length - ops.length} ${plugin.kind} item(s) hold a non-numeric ${field}; left untouched.`);
+            }
+        }
+
+        // Where an item is kept used to be free text and nothing else. The shelf view
+        // needs those places to exist as things of their own, so each collection's
+        // distinct `location` values become the cells of a piece of furniture.
+        //
+        // Nothing is invented and nothing is lost: an item keeps carrying its shelf's
+        // name in `location`, which is what leaves the location filter, the CSV
+        // mapping, the exports and the backups working untouched. The only rewriting
+        // is of spellings that were always the same shelf ("Salon", "salon", "Salon ")
+        // onto the one the collection uses most.
+        const collectionsToSeed = await Collection.find({ shelvesSeeded: { $ne: true } }, '_id name').lean();
+        for (const coll of collectionsToSeed) {
+            // Counted per spelling, since the most used one is the one kept.
+            const storedLocations = await Item.collection.aggregate([
+                { $match: { collection: coll._id, location: { $nin: ['', null] } } },
+                { $group: { _id: '$location', count: { $sum: 1 } } }
+            ]).toArray();
+
+            const groups = new Map<string, { name: string; count: number }[]>();
+            let blanked = 0;
+            for (const entry of storedLocations) {
+                const raw = String(entry._id ?? '');
+                const key = locationKey(raw);
+                // A value made of nothing but spaces is not a place; it is an empty
+                // field that looks filled, and it would seed a nameless shelf.
+                if (!key) {
+                    const cleared = await Item.updateMany(
+                        { collection: coll._id, location: raw },
+                        { $set: { location: '' } }
+                    );
+                    blanked += cleared.modifiedCount;
+                    continue;
+                }
+                groups.set(key, [...(groups.get(key) || []), { name: raw, count: entry.count }]);
+            }
+
+            const shelves: { name: string; key: string }[] = [];
+            let renamed = 0;
+            for (const [key, variants] of groups) {
+                const name = pickDisplayName(variants);
+                shelves.push({ name, key });
+                for (const variant of variants) {
+                    if (variant.name === name) continue;
+                    const merged = await Item.updateMany(
+                        { collection: coll._id, location: variant.name },
+                        { $set: { location: name } }
+                    );
+                    renamed += merged.modifiedCount;
+                }
+            }
+            shelves.sort((a, b) => a.name.localeCompare(b.name));
+
+            // A collection with more shelves than one piece of furniture can hold gets
+            // several, which is what the view pages over anyway.
+            const perFurniture = capacityPerFurniture();
+            for (let start = 0, page = 0; start < shelves.length; start += perFurniture, page += 1) {
+                const chunk = shelves.slice(start, start + perFurniture);
+                const { columns, rows } = fitGrid(chunk.length);
+                await Furniture.create({
+                    collection: coll._id,
+                    name: page === 0 ? coll.name : `${coll.name} (${page + 1})`,
+                    layout: 'cubes',
+                    columns,
+                    rows,
+                    order: 100 + page,
+                    cells: chunk.map((shelf, index) => ({
+                        name: shelf.name,
+                        key: shelf.key,
+                        row: Math.floor(index / columns),
+                        column: index % columns
+                    }))
+                });
+            }
+
+            // Marked even when the collection had no location at all: this converts what
+            // the free-text era left behind, once. Shelves created from now on come from
+            // the shelf editor, not from here.
+            await Collection.updateOne({ _id: coll._id }, { $set: { shelvesSeeded: true } });
+
+            if (shelves.length > 0) {
+                console.log(`[MIGRATION] ${shelves.length} shelf/shelves seeded for collection "${coll.name}"` +
+                    (renamed > 0 ? `, ${renamed} item(s) moved onto a merged spelling` : '') +
+                    (blanked > 0 ? `, ${blanked} blank location(s) cleared` : '') + '.');
             }
         }
 
