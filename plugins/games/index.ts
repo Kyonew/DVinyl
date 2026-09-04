@@ -159,6 +159,16 @@ export const gamesPlugin: PluginDefinition = {
     { value: 'digital', label: 'media.digital', color: 'bg-cyan-600/90' }
   ],
 
+  // The standard disc-console case, which every format here shares; the collector and
+  // limited editions are boxes rather than cases, so they get the room they take.
+  spineSize: {
+    physical: { thickness: 14, height: 170 },
+    collector: { thickness: 60, height: 200 },
+    limited: { thickness: 30, height: 180 },
+    steelbook: { thickness: 15, height: 170 },
+    digital: { thickness: 5, height: 170 }
+  },
+
   formFields: [
     {
       name: 'title',

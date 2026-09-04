@@ -269,6 +269,17 @@ export const dvdPlugin: PluginDefinition = {
     { value: 'digital', label: 'media.digital', color: 'bg-cyan-600/90' }
   ],
 
+  // A DVD keep case against the slimmer Blu-ray case, the VHS cassette that dwarfs
+  // both, and the LaserDisc, which is a 12" sleeve by another name.
+  spineSize: {
+    dvd: { thickness: 14, height: 190 },
+    bluray: { thickness: 12, height: 171 },
+    '4k': { thickness: 12, height: 171 },
+    vhs: { thickness: 25, height: 188 },
+    laserdisc: { thickness: 4, height: 315 },
+    digital: { thickness: 5, height: 171 }
+  },
+
   formFields: [
     {
       // Renders nothing unless TMDB answered with a show and its season list, so films and

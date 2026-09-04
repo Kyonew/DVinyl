@@ -97,6 +97,16 @@ export const legoPlugin: PluginDefinition = {
     { value: 'incomplete', label: 'confirm_lego.cond_incomplete', color: 'bg-red-600/90' }
   ],
 
+  // Sets are shelved as boxes, and their formats describe a condition rather than a
+  // size, so what changes here is what the state implies: a sealed box keeps its shop
+  // proportions, a built model stands as its own object, a dismantled one is a bag.
+  spineSize: {
+    sealed: { thickness: 60, height: 260 },
+    built: { thickness: 90, height: 200 },
+    dismantled: { thickness: 70, height: 150 },
+    incomplete: { thickness: 70, height: 150 }
+  },
+
   formFields: [
     {
       name: 'title',

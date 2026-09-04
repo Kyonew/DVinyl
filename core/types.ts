@@ -70,6 +70,13 @@ export interface PluginDefinition {
 
   formats: FormatOption[];
 
+  // Real-world footprint of one item standing on its spine, per format value, in
+  // millimetres. What the shelf view draws to scale: a CD is thicker than an LP sleeve
+  // but far shorter, and that is what makes a mixed shelf read as a real one.
+  // A plugin that declares nothing, or a format missing from the map, falls back to
+  // SPINE_FALLBACK in core/spine.ts.
+  spineSize?: Record<string, { thickness: number; height: number }>;
+
   creatorField: string;
 
   extraSearchFields?: string[];
@@ -415,7 +422,9 @@ export interface CollectionView {
 
   // A view can be unavailable rather than empty: it is then neither offered in the
   // selector nor reachable through ?view=, and the page falls back to the default.
-  isAvailable?(context: CollectionViewContext): boolean;
+  // Async because what makes a view worth offering can live in the database (the
+  // shelf has nothing to show a collection with no furniture in it).
+  isAvailable?(context: CollectionViewContext): boolean | Promise<boolean>;
 }
 
 export interface CollectionViewContext {
@@ -425,4 +434,13 @@ export interface CollectionViewContext {
   // The collection and the wishlist are the same page over two halves of one shelf,
   // so a view says here whether it makes sense on a list of things nobody owns yet.
   inWishlist: boolean;
+
+  // The resolved Mongo filter behind the page: every criterion the filter controls
+  // produced, plus the visibility, module and share-scope narrowing, and minus paging
+  // and ordering. A view that draws something other than one page of items builds its
+  // own query on top of this, so it shows exactly what the filters say it should.
+  itemQuery: any;
+
+  // The ordering the page resolved, for a view keeping a list of items of its own.
+  itemSort: any;
 }

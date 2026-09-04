@@ -1,0 +1,169 @@
+<%# The collection as furniture: items standing on their spine in the compartment their
+    location names, plus a reserve for everything standing nowhere.
+
+    Spines are drawn to the sizes core/spine.ts measured: heights to true scale against
+    the tallest format in the piece, thicknesses compressed onto a readable range. Read
+    only for now, nothing here moves an item. %>
+
+<style>
+    .shelf-plank {
+        display: flex;
+        align-items: flex-end;
+        gap: 2px;
+        min-width: min-content;
+        padding: 0 2px;
+    }
+
+    .shelf-spine {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        writing-mode: vertical-rl;
+        text-orientation: mixed;
+        padding: 7px 0;
+        border-radius: 2px 2px 0 0;
+        font-size: 11px;
+        font-weight: 600;
+        line-height: 1;
+        letter-spacing: 0.01em;
+        white-space: nowrap;
+        overflow: hidden;
+        background: rgb(0 0 0 / 0.10);
+        border: 1px solid rgb(0 0 0 / 0.16);
+        border-bottom: none;
+        transition: transform 0.15s ease, background-color 0.15s ease;
+    }
+
+    .dark .shelf-spine {
+        background: rgb(255 255 255 / 0.08);
+        border-color: rgb(255 255 255 / 0.12);
+    }
+
+    .shelf-spine:hover {
+        transform: translateY(-6px);
+        background: rgb(var(--highlight-rgb));
+        border-color: rgb(var(--highlight-rgb));
+        color: #fff;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .shelf-spine { transition: none; }
+        .shelf-spine:hover { transform: none; }
+    }
+
+    <%# The board the spines stand on. Its shadow is what reads as thickness. %>
+    .shelf-board {
+        border-bottom: 7px solid rgb(0 0 0 / 0.18);
+        box-shadow: 0 5px 0 -1px rgb(0 0 0 / 0.10);
+    }
+
+    .dark .shelf-board {
+        border-bottom-color: rgb(255 255 255 / 0.16);
+        box-shadow: 0 5px 0 -1px rgb(255 255 255 / 0.06);
+    }
+</style>
+
+<% if (!locals.activeFurniture) { %>
+
+    <div class="card-theme border rounded-2xl px-6 py-12 text-center">
+        <i class="fa-solid fa-table-columns text-3xl opacity-20 mb-4"></i>
+        <p class="text-sm opacity-60"><%= t('collection.shelf_no_furniture') %></p>
+    </div>
+
+<% } else { %>
+
+    <%
+        // One page is one piece of furniture, so the pieces are the pager.
+        const spineHref = (item) => {
+            const itemPlugin = registry.getByKind(item.kind);
+            return baseUrl + (itemPlugin ? itemPlugin.routePrefix : '/album') + '/' + item._id;
+        };
+        // Room for the tallest spine plus the board it stands on.
+        const plankHeight = shelfMaxSpineHeight + 10;
+    %>
+
+    <% if (furnitureList.length > 1) { %>
+        <div class="flex flex-wrap gap-2 mb-6">
+            <% furnitureList.forEach(piece => { %>
+                <a href="<%= piece.href %>"
+                    class="px-4 py-2 rounded-full text-xs font-bold transition-all active:scale-95 <%= String(piece._id) === String(activeFurniture._id) ? 'bg-primary-theme text-white shadow-lg' : 'bg-black/5 dark:bg-white/10 opacity-60 hover:opacity-100' %>">
+                    <%= piece.name %>
+                </a>
+            <% }) %>
+        </div>
+    <% } %>
+
+    <div class="space-y-4">
+        <% shelfRows.forEach(slots => { %>
+            <div class="grid gap-4" style="grid-template-columns: repeat(<%= shelfColumns %>, minmax(0, 1fr));">
+                <% slots.forEach(cell => { %>
+                    <% if (!cell) { %>
+                        <%# A compartment the furniture has room for and nobody named yet. %>
+                        <div class="rounded-xl border border-dashed border-black/10 dark:border-white/10 min-h-[120px]"></div>
+                    <% } else { %>
+                        <div class="card-theme border rounded-xl overflow-hidden flex flex-col">
+                            <div class="px-3 py-2 flex items-baseline justify-between gap-2 border-b border-black/5 dark:border-white/10">
+                                <span class="text-xs font-bold uppercase tracking-widest truncate" title="<%= cell.name %>">
+                                    <%= cell.name %>
+                                </span>
+                                <span class="text-[10px] font-bold opacity-40 tabular-nums flex-shrink-0">
+                                    <%= cell.items.length %><% if (cell.capacity > 0) { %>/<%= cell.capacity %><% } %>
+                                </span>
+                            </div>
+
+                            <% if (cell.items.length === 0) { %>
+                                <div class="flex-grow flex items-center justify-center py-8">
+                                    <span class="text-[10px] uppercase tracking-widest opacity-25"><%= t('collection.shelf_empty_cell') %></span>
+                                </div>
+                            <% } else { %>
+                                <div class="px-3 pt-4 overflow-x-auto custom-scrollbar">
+                                    <div class="shelf-plank shelf-board" style="height: <%= plankHeight %>px;">
+                                        <% cell.items.forEach(item => { %>
+                                            <a href="<%= spineHref(item) %>"
+                                                class="shelf-spine"
+                                                title="<%= item.title %>"
+                                                style="width: <%= item.spine.width %>px; height: <%= item.spine.height %>px;">
+                                                <span class="truncate"><%= item.title %></span>
+                                            </a>
+                                        <% }) %>
+                                    </div>
+                                </div>
+                            <% } %>
+                        </div>
+                    <% } %>
+                <% }) %>
+            </div>
+        <% }) %>
+    </div>
+
+    <% if (unsortedTotal > 0) { %>
+        <div class="mt-8 pt-6 border-t border-black/5 dark:border-white/10">
+            <div class="flex items-baseline justify-between gap-3 mb-3">
+                <h2 class="text-xs font-bold uppercase tracking-widest opacity-50">
+                    <%= t('collection.shelf_unsorted') %>
+                    <span class="ml-2 opacity-60 tabular-nums"><%= unsortedTotal %></span>
+                </h2>
+                <% if (unsortedShown < unsortedTotal) { %>
+                    <span class="text-[10px] uppercase tracking-widest opacity-40">
+                        <%= unsortedTotal - unsortedShown %> <%= t('collection.shelf_more_hidden') %>
+                    </span>
+                <% } %>
+            </div>
+
+            <div class="card-theme border rounded-xl px-3 pt-4 overflow-x-auto custom-scrollbar">
+                <div class="shelf-plank shelf-board" style="height: <%= plankHeight %>px;">
+                    <% unsorted.forEach(item => { %>
+                        <a href="<%= spineHref(item) %>"
+                            class="shelf-spine"
+                            title="<%= item.title %>"
+                            style="width: <%= item.spine.width %>px; height: <%= item.spine.height %>px;">
+                            <span class="truncate"><%= item.title %></span>
+                        </a>
+                    <% }) %>
+                </div>
+            </div>
+        </div>
+    <% } %>
+
+<% } %>

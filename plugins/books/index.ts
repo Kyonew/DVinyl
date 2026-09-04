@@ -115,6 +115,18 @@ export const booksPlugin: PluginDefinition = {
     { value: 'digital', label: 'format.digital', color: 'bg-cyan-600/90' }
   ],
 
+  // Book thickness is really a property of the page count, which nothing here records,
+  // so these are the usual proportions of each kind rather than a measurement. A comic
+  // is the giveaway: almost nothing thick, and taller than everything around it.
+  spineSize: {
+    paperback: { thickness: 15, height: 195 },
+    hardcover: { thickness: 25, height: 240 },
+    manga: { thickness: 13, height: 180 },
+    comic: { thickness: 5, height: 260 },
+    graphic_novel: { thickness: 15, height: 255 },
+    digital: { thickness: 5, height: 195 }
+  },
+
   formFields: [
     {
       name: 'title',

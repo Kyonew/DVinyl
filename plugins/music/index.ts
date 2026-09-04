@@ -154,6 +154,16 @@ export const musicPlugin: PluginDefinition = {
     { value: 'digital', label: 'media.digital', color: 'bg-cyan-600/90' },
   ],
 
+  // A 12" sleeve is the tallest thing most shelves hold, and the thinnest: it is the
+  // 3mm this scale is anchored on. A jewel case is more than three times thicker and
+  // barely a third as tall.
+  spineSize: {
+    vinyl: { thickness: 3, height: 315 },
+    cd: { thickness: 10, height: 125 },
+    cassette: { thickness: 17, height: 109 },
+    digital: { thickness: 3, height: 125 }
+  },
+
   // Field order drives the layout (2-column pairs):
   // album info (main) -> tracklist -> images -> storage/condition (metadata)
   formFields: [

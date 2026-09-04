@@ -69,16 +69,6 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
       limit = clampLimit(req.cookies.limitPref);
     }
 
-    // How the page is drawn, remembered per browser like the two above. Resolved
-    // through the registry before it is stored, so an id that does not exist, or one
-    // that no longer applies to this page, cannot come back from the cookie on every
-    // later request.
-    const viewContext: CollectionViewContext = { req, res, inWishlist };
-    const activeView = viewRegistry.resolve(req.query.view || req.cookies.viewPref, viewContext);
-    if (req.query.view === activeView.id) {
-      res.cookie('viewPref', activeView.id, { maxAge: 365 * 24 * 60 * 60 * 1000 });
-    }
-
     let query: any = { collection: activeCollectionId, in_wishlist: inWishlist };
     // Two separate buckets. `conditions` holds the user's criteria, which filterMode
     // 'hide' inverts. `scopeConditions` holds what defines *which items the page is
@@ -290,11 +280,26 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
       return sortMap[sort || ''] || { added_at: -1 };
     };
 
+    const itemSort = buildSortObj();
+
     const found = await Item.find(query)
-      .sort(buildSortObj())
+      .sort(itemSort)
       .skip((page - 1) * limit)
       .limit(limit)
       .lean();
+
+    // How the page is drawn, remembered per browser like the sort and the page size.
+    // Resolved here rather than with them, because a view that draws something other
+    // than one page of items needs the finished query and ordering to build its own.
+    // Resolved through the registry before it is stored, so an id that does not exist,
+    // or one that no longer applies to this page, cannot come back from the cookie on
+    // every later request.
+    const viewContext: CollectionViewContext = { req, res, inWishlist, itemQuery: query, itemSort };
+    const availableViews = await viewRegistry.getAvailable(viewContext);
+    const activeView = viewRegistry.resolve(req.query.view || req.cookies.viewPref, availableViews);
+    if (req.query.view === activeView.id) {
+      res.cookie('viewPref', activeView.id, { maxAge: 365 * 24 * 60 * 60 * 1000 });
+    }
 
     // A holder stands in for what it holds: several seasons and the show says so on its
     // card, a single one and that season takes the place outright. Applied after the
@@ -459,7 +464,7 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
       user: res.locals.user,
       settings,
       activeView,
-      collectionViews: viewRegistry.getAvailable(viewContext)
+      collectionViews: availableViews
     };
 
     // Only the view being rendered gets to add to the page, so a view nobody is

@@ -1,4 +1,5 @@
 import { CollectionView, CollectionViewContext } from './types';
+import { SHELF_VIEW } from './shelfView';
 
 // The view a page starts on before anybody chooses, and the one it falls back to.
 export const DEFAULT_VIEW_ID = 'grid';
@@ -39,8 +40,11 @@ class ViewRegistry {
   }
 
   /** The views offered on this particular page, in selector order. */
-  getAvailable(context: CollectionViewContext): CollectionView[] {
-    return this.getAll().filter(view => !view.isAvailable || view.isAvailable(context));
+  async getAvailable(context: CollectionViewContext): Promise<CollectionView[]> {
+    const verdicts = await Promise.all(
+      this.getAll().map(view => view.isAvailable ? view.isAvailable(context) : true)
+    );
+    return this.getAll().filter((_, index) => verdicts[index]);
   }
 
   /**
@@ -49,11 +53,13 @@ class ViewRegistry {
    * available on this page, falls back to the default rather than failing: a view can
    * stop being available between the moment it was chosen and the next page load.
    *
+   * Takes the available list rather than the context so the page resolves it once and
+   * hands the same list to the view selector, instead of asking every view twice.
+   *
    * The page always has something to draw, down to the grid itself: it is the floor
    * the core falls back to when every view has opted out of this page.
    */
-  resolve(requested: unknown, context: CollectionViewContext): CollectionView {
-    const available = this.getAvailable(context);
+  resolve(requested: unknown, available: CollectionView[]): CollectionView {
     const chosen = (typeof requested === 'string'
       ? available.find(view => view.id === requested)
       : undefined)
@@ -66,4 +72,5 @@ class ViewRegistry {
 export const viewRegistry = new ViewRegistry();
 
 viewRegistry.register(GRID_VIEW);
+viewRegistry.register(SHELF_VIEW);
 
