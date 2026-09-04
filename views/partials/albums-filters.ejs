@@ -322,8 +322,22 @@
         </div>
 
         <div class="flex items-center gap-2 w-full lg:w-auto">
+            <%# Built from core/viewRegistry.ts, so a new way of looking at a collection
+                shows up here on its own. Left out while there is only one to pick. %>
+            <% if ((locals.collectionViews || []).length > 1) { %>
+                <div class="flex bg-black/5 dark:bg-white/5 p-1 rounded-lg h-10 items-center">
+                    <% collectionViews.forEach(view => { %>
+                        <button onclick="setView('<%= view.id %>')"
+                            title="<%= t(view.label) %>"
+                            class="w-10 h-8 flex items-center justify-center rounded-md transition-all <%= view.id === activeView.id ? 'bg-white dark:bg-white/20 shadow-sm text-primary-theme' : 'opacity-40 hover:opacity-100' %>">
+                            <i class="fa-solid <%= view.icon %> text-xs"></i>
+                        </button>
+                    <% }) %>
+                </div>
+            <% } %>
+
             <div class="flex bg-black/5 dark:bg-white/5 p-1 rounded-lg h-10 items-center">
-                <button onclick="setFilterMode('show')" 
+                <button onclick="setFilterMode('show')"
                     title="<%= t('collection.filter_mode_show') %>"
                     class="w-10 h-8 flex items-center justify-center rounded-md transition-all <%= (locals.queryFilterMode !== 'hide') ? 'bg-white dark:bg-white/20 shadow-sm text-primary-theme' : 'opacity-40 hover:opacity-100' %>">
                     <i class="fa-solid fa-eye text-xs"></i>
@@ -448,6 +462,7 @@
         let currentDecade = '<%= locals.queryDecade || "" %>';
         let currentStyle = '<%= locals.queryStyle || "" %>';
         let currentFilterMode = '<%= locals.queryFilterMode || "show" %>';
+        let currentView = '<%= locals.activeView ? activeView.id : "" %>';
 
         function reloadPage() {
             const url = new URL(window.location.origin + window.location.pathname);
@@ -493,6 +508,7 @@
             validateAndSetUrlSearchParamString('sort', currentSort);
             validateAndSetUrlSearchParamString('artist', artistInput?.value);
             validateAndSetUrlSearchParamString('filterMode', currentFilterMode);
+            validateAndSetUrlSearchParamString('view', currentView);
 
             url.searchParams.set('page', 1);
             window.location.href = url.toString();
@@ -506,6 +522,11 @@
 
         function setFilterMode(mode) {
             currentFilterMode = mode;
+            reloadPage();
+        }
+
+        function setView(id) {
+            currentView = id;
             reloadPage();
         }
 
@@ -559,12 +580,14 @@
             const sort = new URLSearchParams(window.location.search).get('sort');
             const limit = new URLSearchParams(window.location.search).get('limit');
             const filterMode = new URLSearchParams(window.location.search).get('filterMode');
+            const view = new URLSearchParams(window.location.search).get('view');
             
             if (type) url.searchParams.set('type', type);
             if (format) url.searchParams.set('format', format);
             if (sort) url.searchParams.set('sort', sort);
             if (limit) url.searchParams.set('limit', limit);
             if (filterMode) url.searchParams.set('filterMode', filterMode);
+            if (view) url.searchParams.set('view', view);
             
             url.searchParams.set('page', 1);
             window.location.href = url.toString();

@@ -622,6 +622,7 @@
     "title": "My Collection",
     "share_view_banner": "You're viewing a shared collection - read-only.",
     "filter_placeholder": "Filter...",
+    "view_grid": "Grid",
     "refresh_tooltip": "Refresh from Discogs",
     "refresh": "Refresh",
     "refresh_metadata_btn": "Refresh info",

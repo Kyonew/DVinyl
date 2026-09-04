@@ -2,6 +2,8 @@ import express from 'express';
 import mongoose from 'mongoose';
 import QRCode from 'qrcode';
 import { registry } from '../registry';
+import { viewRegistry } from '../viewRegistry';
+import { CollectionViewContext } from '../types';
 import Item from '../../models/Item';
 import Collection from '../../models/Collection';
 import User from '../../models/User';
@@ -65,6 +67,16 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
       res.cookie('limitPref', String(limit), { maxAge: 365 * 24 * 60 * 60 * 1000 });
     } else {
       limit = clampLimit(req.cookies.limitPref);
+    }
+
+    // How the page is drawn, remembered per browser like the two above. Resolved
+    // through the registry before it is stored, so an id that does not exist, or one
+    // that no longer applies to this page, cannot come back from the cookie on every
+    // later request.
+    const viewContext: CollectionViewContext = { req, res, inWishlist };
+    const activeView = viewRegistry.resolve(req.query.view || req.cookies.viewPref, viewContext);
+    if (req.query.view === activeView.id) {
+      res.cookie('viewPref', activeView.id, { maxAge: 365 * 24 * 60 * 60 * 1000 });
     }
 
     let query: any = { collection: activeCollectionId, in_wishlist: inWishlist };
@@ -408,7 +420,7 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
       })
     );
 
-    return {
+    const viewModel: Record<string, any> = {
       albums: albumsFormatted,
       totalItems,
       totalPages: Math.ceil(totalItems / limit),
@@ -445,8 +457,19 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
       extraAny: EXTRA_ANY,
       extraNone: EXTRA_NONE,
       user: res.locals.user,
-      settings
+      settings,
+      activeView,
+      collectionViews: viewRegistry.getAvailable(viewContext)
     };
+
+    // Only the view being rendered gets to add to the page, so a view nobody is
+    // looking at costs nothing. It reads what is already there, which is how it
+    // reaches the filters the page resolved above.
+    if (activeView.buildData) {
+      Object.assign(viewModel, await activeView.buildData(viewContext, viewModel));
+    }
+
+    return viewModel;
   } catch (err: any) {
     console.error("Collection page loading error:", err.message);
     res.status(500).send(req.t('errors.generic_server_error'));

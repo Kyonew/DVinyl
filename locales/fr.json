@@ -622,6 +622,7 @@
     "title": "Ma Collection",
     "share_view_banner": "Vous consultez une collection partagée - lecture seule.",
     "filter_placeholder": "Filtrer...",
+    "view_grid": "Grille",
     "refresh_tooltip": "Rafraîchir depuis Discogs",
     "refresh": "Rafraîchir",
     "refresh_metadata_btn": "Actualiser les infos",

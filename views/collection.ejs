@@ -80,7 +80,10 @@
         </div>
 
         <%- include('partials/albums-filters') %>
-        <%- include('partials/albums-grid', { albums, size: 'collection', gridId: 'albumGrid', selectable: locals.canEditCollection }) %>
+        <%# What is drawn here is up to the active view (core/viewRegistry.ts). The
+            params are what the item grid reads; a view that has no use for them
+            ignores them and works off what its own buildData put in the page. %>
+        <%- include(activeView.partial, { albums, size: 'collection', gridId: 'albumGrid', selectable: locals.canEditCollection }) %>
         <%- include('partials/albums-page-changer') %>
     </div>
 

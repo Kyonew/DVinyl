@@ -384,3 +384,45 @@ export interface CollectionAction {
   // behavior 'importer-sync': id of the importer to trigger (POST /import/{importerId}).
   importerId?: string;
 }
+
+// How the collection and the wishlist draw the items they hold. The pages themselves
+// stay agnostic: they render whichever view is active, and the view selector is built
+// from what the registry holds (see core/viewRegistry.ts).
+export interface CollectionView {
+  id: string;
+
+  // i18n key of the name shown in the view selector
+  label: string;
+
+  // FontAwesome icon of the selector button (e.g. 'fa-table-cells')
+  icon: string;
+
+  // Display order in the selector, ascending. Default 100.
+  order?: number;
+
+  // Partial rendered in place of the item grid, resolved from the page's own
+  // directory (e.g. 'partials/albums-grid').
+  partial: string;
+
+  // 'items' keeps the per-page selector and the page numbers under the view.
+  // 'none' means the view pages over something of its own and hides both.
+  paginates: 'items' | 'none';
+
+  // Merged into the page's view model, and only when this view is the active one:
+  // a view nobody is looking at must not cost a query. `base` is what the page has
+  // built so far, so a view can read the filters that were already resolved.
+  buildData?(context: CollectionViewContext, base: Record<string, any>): Promise<Record<string, any>>;
+
+  // A view can be unavailable rather than empty: it is then neither offered in the
+  // selector nor reachable through ?view=, and the page falls back to the default.
+  isAvailable?(context: CollectionViewContext): boolean;
+}
+
+export interface CollectionViewContext {
+  req: any;
+  res: any;
+
+  // The collection and the wishlist are the same page over two halves of one shelf,
+  // so a view says here whether it makes sense on a list of things nobody owns yet.
+  inWishlist: boolean;
+}
