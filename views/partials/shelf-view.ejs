@@ -2,8 +2,13 @@
     location names, plus a reserve for everything standing nowhere.
 
     Spines are drawn to the sizes core/spine.ts measured: heights to true scale against
-    the tallest format in the piece, thicknesses compressed onto a readable range. Read
-    only for now, nothing here moves an item. %>
+    the tallest format in the piece, thicknesses compressed onto a readable range.
+
+    An editor can drag a spine from one compartment to another, which is the same
+    POST /shelf/move the bulk action uses, with one item instead of thirty. Dragging is
+    a mouse gesture and nothing else: a touch screen has no dragstart, and the folded
+    layout it gets makes dragging between bands a poor gesture anyway, so a phone files
+    things away through the selection bar. %>
 
 <style>
     .shelf-plank {
@@ -71,6 +76,29 @@
         <%# Room the piece has and nobody has named yet. Worth drawing where the shape
             of the furniture is visible, pure noise once it is a stack of bands. %>
         .shelf-slot-empty { display: none; }
+    }
+
+    .shelf-spine[draggable="true"] { cursor: grab; }
+    .shelf-spine.is-dragging { opacity: 0.35; cursor: grabbing; }
+
+    <%# The compartment being aimed at. Outlined rather than filled, so the spines
+        already standing in it stay readable while something is held over them. %>
+    .shelf-drop.is-target {
+        outline: 2px dashed rgb(var(--highlight-rgb));
+        outline-offset: -2px;
+        border-radius: 0.5rem;
+    }
+
+    <%# Said by a compartment holding nothing. Inside the plank rather than instead of
+        it, or an empty shelf would be the one thing nothing could be dropped onto. %>
+    .shelf-empty-label {
+        margin: auto;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        opacity: 0.25;
+        writing-mode: horizontal-tb;
     }
 
     <%# The board the spines stand on. Its shadow is what reads as thickness. %>
@@ -172,29 +200,27 @@
                                 <span class="text-xs font-bold uppercase tracking-widest truncate" title="<%= cell.name %>">
                                     <%= cell.name %>
                                 </span>
-                                <span class="text-[10px] font-bold opacity-40 tabular-nums flex-shrink-0">
+                                <span class="text-[10px] font-bold opacity-40 tabular-nums flex-shrink-0"
+                                    data-shelf-count="<%= cell.name %>" data-capacity="<%= cell.capacity %>">
                                     <%= cell.items.length %><% if (cell.capacity > 0) { %>/<%= cell.capacity %><% } %>
                                 </span>
                             </div>
 
-                            <% if (cell.items.length === 0) { %>
-                                <div class="flex-grow flex items-center justify-center py-8">
-                                    <span class="text-[10px] uppercase tracking-widest opacity-25"><%= t('collection.shelf_empty_cell') %></span>
+                            <div class="px-3 pt-4 overflow-x-auto custom-scrollbar shelf-drop" data-shelf="<%= cell.name %>">
+                                <div class="shelf-plank shelf-board" style="height: <%= plankHeight %>px;">
+                                    <span class="shelf-empty-label" <%= cell.items.length > 0 ? 'hidden' : '' %>><%= t('collection.shelf_empty_cell') %></span>
+                                    <% cell.items.forEach(item => { %>
+                                        <a href="<%= spineHref(item) %>"
+                                            class="shelf-spine"
+                                            title="<%= item.title %>"
+                                            data-item-id="<%= item._id %>"
+                                            <% if (locals.canEditCollection) { %>draggable="true"<% } %>
+                                            style="width: <%= item.spine.width %>px; height: <%= item.spine.height %>px;">
+                                            <span class="truncate"><%= item.title %></span>
+                                        </a>
+                                    <% }) %>
                                 </div>
-                            <% } else { %>
-                                <div class="px-3 pt-4 overflow-x-auto custom-scrollbar">
-                                    <div class="shelf-plank shelf-board" style="height: <%= plankHeight %>px;">
-                                        <% cell.items.forEach(item => { %>
-                                            <a href="<%= spineHref(item) %>"
-                                                class="shelf-spine"
-                                                title="<%= item.title %>"
-                                                style="width: <%= item.spine.width %>px; height: <%= item.spine.height %>px;">
-                                                <span class="truncate"><%= item.title %></span>
-                                            </a>
-                                        <% }) %>
-                                    </div>
-                                </div>
-                            <% } %>
+                            </div>
                         </div>
                     <% } %>
                 <% }) %>
@@ -207,7 +233,7 @@
             <div class="flex items-baseline justify-between gap-3 mb-3">
                 <h2 class="text-xs font-bold uppercase tracking-widest opacity-50">
                     <%= t('collection.shelf_unsorted') %>
-                    <span class="ml-2 opacity-60 tabular-nums"><%= unsortedTotal %></span>
+                    <span class="ml-2 opacity-60 tabular-nums" data-unsorted-count><%= unsortedTotal %></span>
                 </h2>
                 <% if (unsortedShown < unsortedTotal) { %>
                     <span class="text-[10px] uppercase tracking-widest opacity-40">
@@ -216,12 +242,15 @@
                 <% } %>
             </div>
 
-            <div class="card-theme border rounded-xl px-3 pt-4 overflow-x-auto custom-scrollbar">
+            <div class="card-theme border rounded-xl px-3 pt-4 overflow-x-auto custom-scrollbar shelf-drop" data-shelf="">
                 <div class="shelf-plank shelf-board" style="height: <%= plankHeight %>px;">
+                    <span class="shelf-empty-label" <%= unsorted.length > 0 ? 'hidden' : '' %>><%= t('collection.shelf_empty_cell') %></span>
                     <% unsorted.forEach(item => { %>
                         <a href="<%= spineHref(item) %>"
                             class="shelf-spine"
                             title="<%= item.title %>"
+                            data-item-id="<%= item._id %>"
+                            <% if (locals.canEditCollection) { %>draggable="true"<% } %>
                             style="width: <%= item.spine.width %>px; height: <%= item.spine.height %>px;">
                             <span class="truncate"><%= item.title %></span>
                         </a>
@@ -229,6 +258,151 @@
                 </div>
             </div>
         </div>
+    <% } %>
+
+<% if (locals.canEditCollection) { %>
+    <script>
+        (function () {
+            const baseUrl = '<%= baseUrl %>';
+            let dragged = null;
+
+            // How close to the top or bottom of the window the pointer has to come before
+            // the page starts moving under it, and how fast it moves once it is right on
+            // the edge.
+            const EDGE_BAND = 100;
+            const MAX_SCROLL_STEP = 24;
+
+            let pointerY = 0;
+            let scrollFrame = null;
+
+            // A drag holds the page still: nothing scrolls while the mouse button is
+            // down, so a piece of furniture taller than the window makes its top shelves
+            // unreachable from the reserve at the bottom. The page has to be moved for
+            // the user, and on its own clock rather than on dragover, which stops firing
+            // the moment the pointer is held still against the edge.
+            function autoScroll() {
+                if (!dragged) { stopAutoScroll(); return; }
+
+                const above = pointerY - EDGE_BAND;
+                const below = pointerY - (window.innerHeight - EDGE_BAND);
+                let step = 0;
+                if (above < 0) step = Math.max(-MAX_SCROLL_STEP, (above / EDGE_BAND) * MAX_SCROLL_STEP);
+                else if (below > 0) step = Math.min(MAX_SCROLL_STEP, (below / EDGE_BAND) * MAX_SCROLL_STEP);
+
+                if (step !== 0) window.scrollBy(0, step);
+                scrollFrame = requestAnimationFrame(autoScroll);
+            }
+
+            function stopAutoScroll() {
+                if (scrollFrame !== null) cancelAnimationFrame(scrollFrame);
+                scrollFrame = null;
+            }
+
+            // A spine's own href takes it to the item, so a drag must not end in a
+            // navigation: the browser follows the link on drop unless it is told not to.
+            document.addEventListener('dragstart', event => {
+                const spine = event.target.closest?.('.shelf-spine[draggable="true"]');
+                if (!spine) return;
+                dragged = spine;
+                spine.classList.add('is-dragging');
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData('text/plain', spine.dataset.itemId);
+                pointerY = event.clientY;
+                if (scrollFrame === null) scrollFrame = requestAnimationFrame(autoScroll);
+            });
+
+            // Fired on the spine being carried, wherever the pointer happens to be, which
+            // dragover is not: that one only reports while the pointer is over something,
+            // and stops the moment it slows down or crosses a gap. Held against the top
+            // of the window, this is the only event still saying where the pointer is.
+            document.addEventListener('drag', event => {
+                if (!dragged) return;
+                // The last drag event of a gesture reports the origin rather than the
+                // pointer, and acting on it would fling the page to the top.
+                if (event.clientX === 0 && event.clientY === 0) return;
+                pointerY = event.clientY;
+            });
+
+            document.addEventListener('dragend', () => {
+                stopAutoScroll();
+                dragged?.classList.remove('is-dragging');
+                document.querySelectorAll('.shelf-drop.is-target').forEach(el => el.classList.remove('is-target'));
+                dragged = null;
+            });
+
+            document.addEventListener('dragover', event => {
+                if (!dragged) return;
+                // Read wherever the pointer is, not only over a compartment: the way from
+                // the reserve up to the top shelf crosses plenty that accepts no drop, and
+                // that is exactly the stretch the page has to scroll through.
+                pointerY = event.clientY;
+
+                const target = event.target.closest?.('.shelf-drop');
+                if (!target) return;
+                event.preventDefault();
+                event.dataTransfer.dropEffect = 'move';
+                if (!target.classList.contains('is-target')) {
+                    document.querySelectorAll('.shelf-drop.is-target').forEach(el => el.classList.remove('is-target'));
+                    target.classList.add('is-target');
+                }
+            });
+
+            document.addEventListener('drop', async event => {
+                const target = event.target.closest?.('.shelf-drop');
+                if (!dragged || !target) return;
+                event.preventDefault();
+
+                stopAutoScroll();
+                const spine = dragged;
+                const from = spine.closest('.shelf-drop');
+                target.classList.remove('is-target');
+                if (from === target) return;
+
+                // Moved first, asked second: the shelf is the answer to a question the
+                // user has already made up their mind about, and a spine that hovers in
+                // place until the network replies reads as a gesture that failed.
+                const plank = target.querySelector('.shelf-plank');
+                plank.appendChild(spine);
+                refreshCounts(from);
+                refreshCounts(target);
+
+                try {
+                    const res = await fetch(baseUrl + '/shelf/move', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ids: [spine.dataset.itemId], location: target.dataset.shelf })
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok || !data.success) throw new Error(data.error || res.status);
+                } catch (err) {
+                    // Whatever the page is now showing is a guess that turned out wrong,
+                    // and only the server knows what else the failure left behind.
+                    window.location.reload();
+                }
+            });
+
+            <%# The counters are the only thing a drop invalidates: the spine itself keeps
+                its own measurements wherever it stands. %>
+            function refreshCounts(zone) {
+                const plank = zone.querySelector('.shelf-plank');
+                const count = plank.querySelectorAll('.shelf-spine').length;
+
+                const label = plank.querySelector('.shelf-empty-label');
+                if (label) label.hidden = count > 0;
+
+                if (zone.dataset.shelf === '') {
+                    const total = document.querySelector('[data-unsorted-count]');
+                    if (total) total.textContent = count;
+                    return;
+                }
+
+                const badge = document.querySelector('[data-shelf-count="' + CSS.escape(zone.dataset.shelf) + '"]');
+                if (!badge) return;
+                const capacity = parseInt(badge.dataset.capacity, 10) || 0;
+                badge.textContent = capacity > 0 ? count + '/' + capacity : String(count);
+            }
+        })();
+    </script>
     <% } %>
 
 <% } %>

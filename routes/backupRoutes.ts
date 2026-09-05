@@ -11,6 +11,7 @@ import Collection from '../models/Collection';
 import CustomPlugin from '../models/CustomPlugin';
 import PriceHistory from '../models/PriceHistory';
 import InstanceSettings from '../models/InstanceSettings';
+import Furniture from '../models/Furniture';
 import { invalidateInstanceSettingsCache } from '../utils/instanceSettings';
 import { requireAuth, requireAdmin, requireCollectionRole } from '../middleware/authMiddleware';
 import { registry } from '../core/registry';
@@ -21,6 +22,7 @@ import { importableFields, fieldValue, ImportTargetField } from '../core/csvMapp
 // Read from package.json rather than copied, which is how it came to say 3.1.0 on 3.1.1.
 const pkg = require('../package.json');
 import { migrateDatabase, normalizeThemePresets } from '../utils/migrate';
+import { seedFurnitureFromLocations } from '../core/shelfStore';
 import { applyCustomPluginsFromDB } from '../core/customPluginSync';
 import { collectExtraDateFields, reviveExtraDates } from '../core/pluginExtraFields';
 import { deleteUnusedManagedItemImages, managedItemImageFile, managedItemImagesForQuery } from '../core/itemImageStorage';
@@ -90,6 +92,7 @@ async function buildInstanceBackup(): Promise<any> {
         logs: await LoginLog.find({}).lean(),
         settings: await Settings.find({}).lean(),
         collections: await Collection.find({}).lean(),
+        furniture: await Furniture.find({}).lean(),
         customPlugins: await CustomPlugin.find({}).lean(),
         priceHistory: await PriceHistory.find({}).lean(),
         instanceSettings: await InstanceSettings.findOne({ key: 'instance' }).lean(),
@@ -166,6 +169,7 @@ const importInstanceBackup = async (req: any, res: any) => {
             User.deleteMany({}),
             Settings.deleteMany({}),
             Collection.deleteMany({}),
+            Furniture.deleteMany({}),
             CustomPlugin.deleteMany({}),
             PriceHistory.deleteMany({}),
             InstanceSettings.deleteMany({})
@@ -176,6 +180,24 @@ const importInstanceBackup = async (req: any, res: any) => {
 
         if (hasCollections) {
             await Collection.insertMany(data.collections);
+        }
+
+        // Furniture belongs to a collection, so it only means anything alongside them.
+        // A dump from before the shelves carries none: their collections come back
+        // flagged as already seeded, which would leave every restored item saying where
+        // it is kept with nothing to say it to. Clearing the flag hands them to the
+        // migration below, which rebuilds the shelves from those very locations.
+        if (hasCollections && Array.isArray(data.furniture) && data.furniture.length > 0) {
+            const toId = (v: any) => (typeof v === 'string' && mongoose.Types.ObjectId.isValid(v))
+                ? new mongoose.Types.ObjectId(v) : v;
+            await Furniture.collection.insertMany(data.furniture.map((piece: any) => ({
+                ...piece,
+                _id: toId(piece._id),
+                collection: toId(piece.collection),
+                createdBy: piece.createdBy ? toId(piece.createdBy) : undefined
+            })));
+        } else if (hasCollections) {
+            await Collection.updateMany({}, { $set: { shelvesSeeded: false } });
         }
 
         if (data.users && data.users.length > 0) {
@@ -349,9 +371,18 @@ async function buildCollectionBackup(activeCollectionId: any, collection: any): 
             return rest;
     });
 
+    // Stripped of what the import re-stamps. Everything a shelf is made of is its name
+    // and its place in the grid, and the items find it by name, so nothing else is needed
+    // for the restore to put the collection back exactly as it stood.
+    const furniture = (await Furniture.find({ collection: activeCollectionId }).lean()).map((piece: any) => {
+        const { _id, __v, collection: owner, createdBy, created_at, updated_at, ...rest } = piece;
+        return rest;
+    });
+
     return {
         collectionName: collection?.name || 'Collection',
         albums,
+        furniture,
         settings: settings || null,
         metadata: {
             version: pkg.version,
@@ -561,6 +592,30 @@ const importCollectionBackup = async (req: any, res: any) => {
                 return fixed;
             });
             await Item.insertMany(cleanAlbums);
+        }
+
+        // Replacement semantics again: the collection's own furniture goes with its items.
+        await Furniture.deleteMany({ collection: activeCollectionId });
+
+        if (Array.isArray(data.furniture) && data.furniture.length > 0) {
+            await Furniture.insertMany(data.furniture.map((piece: any, index: number) => ({
+                ...piece,
+                collection: activeCollectionId,
+                order: typeof piece.order === 'number' ? piece.order : 100 + index,
+                createdBy: req.user._id
+            })));
+        } else {
+            // A dump from before the shelves still says where each item is kept, in the
+            // free text of the era. Rebuilt into furniture the same way the boot migration
+            // does it, so an older backup does not restore into a collection whose every
+            // item is unsorted.
+            const seeded = await seedFurnitureFromLocations(
+                activeCollectionId,
+                res.locals.activeCollection?.name || 'Collection'
+            );
+            if (seeded.shelves > 0) {
+                console.log(`[BACKUP] ${seeded.shelves} shelf/shelves rebuilt from the restored locations.`);
+            }
         }
 
         // Restore the collection's settings container when the dump carries one
