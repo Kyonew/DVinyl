@@ -95,6 +95,10 @@
                 class="px-4 py-2 bg-black/5 dark:bg-white/10 rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all">
                 <%= t('collection.select_all') %>
             </button>
+            <button type="button" onclick="openShelfMoveModal()"
+                class="px-4 py-2 bg-primary-theme text-white rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all">
+                <i class="fa-solid fa-inbox mr-2"></i><%= t('collection.shelf_move_btn') %>
+            </button>
             <button type="button" onclick="printSelectedLabels('qr')"
                 class="px-4 py-2 bg-primary-theme text-white rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all">
                 <i class="fa-solid fa-qrcode mr-2"></i><%= t('collection.print_selected_qr') %>
@@ -110,6 +114,42 @@
         </div>
     </div>
     <form id="labelPrintForm" method="POST" action="<%= baseUrl %>/collection/labels" target="_blank" class="hidden"></form>
+
+    <%# Where to put what is selected. Offers the collection's shelves, and lets one be
+        invented on the spot; core/shelfStore.ts decides what that name becomes. %>
+    <div id="shelfMoveModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm items-center justify-center p-4">
+        <div class="card-theme border rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <h3 class="text-lg font-bold mb-1"><%= t('collection.shelf_move_title') %></h3>
+            <p class="text-xs opacity-50 mb-5"><span id="shelfMoveCount">0</span> <%= t('collection.selected_count_suffix') %></p>
+
+            <label class="block mb-2 text-xs font-bold uppercase tracking-widest opacity-60" for="shelfMoveSelect">
+                <%= t('common.location') %>
+            </label>
+            <select id="shelfMoveSelect"
+                class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme block w-full p-3 outline-none cursor-pointer">
+                <option value="" class="bg-white dark:bg-[#1a1a1a]"><%= t('collection.shelf_none') %></option>
+                <% locations.forEach(shelf => { %>
+                    <option value="<%= shelf %>" class="bg-white dark:bg-[#1a1a1a]"><%= shelf %></option>
+                <% }) %>
+                <option value="" class="bg-white dark:bg-[#1a1a1a]" data-new-shelf><%= t('collection.shelf_new_option') %></option>
+            </select>
+            <input type="text" id="shelfMoveNew" placeholder="<%= t('collection.shelf_new_placeholder') %>"
+                class="hidden mt-2 bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme w-full p-3 outline-none">
+
+            <p id="shelfMoveError" class="hidden mt-3 text-xs font-bold text-red-500"></p>
+
+            <div class="flex gap-2 mt-6">
+                <button type="button" onclick="closeShelfMoveModal()"
+                    class="flex-1 py-2.5 bg-black/5 dark:bg-white/10 rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all">
+                    <%= t('collection.cancel_select') %>
+                </button>
+                <button type="button" id="shelfMoveConfirm" onclick="confirmShelfMove()"
+                    class="flex-1 py-2.5 bg-primary-theme text-white rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all disabled:opacity-50">
+                    <%= t('collection.shelf_move_confirm') %>
+                </button>
+            </div>
+        </div>
+    </div>
     <% } %>
 
     <% if (hasEstimateAction) { %>
@@ -240,6 +280,63 @@
             const allSelected = checkboxes.length > 0 && checkboxes.every(cb => cb.checked);
             checkboxes.forEach(cb => { cb.checked = !allSelected; });
             updateSelectedCount();
+        }
+
+        function selectedItemIds() {
+            return [...document.querySelectorAll('.album-select-checkbox:checked')]
+                .map(cb => cb.closest('[data-id]')?.dataset.id)
+                .filter(Boolean);
+        }
+
+        function openShelfMoveModal() {
+            const count = selectedItemIds().length;
+            if (count === 0) return;
+            const modal = document.getElementById('shelfMoveModal');
+            document.getElementById('shelfMoveCount').textContent = count;
+            document.getElementById('shelfMoveError').classList.add('hidden');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeShelfMoveModal() {
+            const modal = document.getElementById('shelfMoveModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        document.getElementById('shelfMoveSelect')?.addEventListener('change', function () {
+            const creating = this.options[this.selectedIndex]?.hasAttribute('data-new-shelf');
+            const input = document.getElementById('shelfMoveNew');
+            input.classList.toggle('hidden', !creating);
+            if (creating) input.focus(); else input.value = '';
+        });
+
+        async function confirmShelfMove() {
+            const ids = selectedItemIds();
+            if (ids.length === 0) return;
+
+            const select = document.getElementById('shelfMoveSelect');
+            const creating = select.options[select.selectedIndex]?.hasAttribute('data-new-shelf');
+            const location = creating ? document.getElementById('shelfMoveNew').value : select.value;
+
+            const button = document.getElementById('shelfMoveConfirm');
+            const error = document.getElementById('shelfMoveError');
+            button.disabled = true;
+
+            try {
+                const res = await fetch('<%= baseUrl %>/shelf/move', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids, location })
+                });
+                const data = await res.json();
+                if (!res.ok || !data.success) throw new Error(data.error || res.status);
+                window.location.reload();
+            } catch (err) {
+                button.disabled = false;
+                error.textContent = <%- JSON.stringify(t('errors.generic_server_error')) %>;
+                error.classList.remove('hidden');
+            }
         }
 
         function printSelectedLabels(type) {

@@ -12,6 +12,7 @@ import { alignImagesAfterRefresh, imagesForItem, imagesFromForm, ItemImageValida
 import { deleteUnusedManagedItemImages } from '../itemImageStorage';
 import { getExtraFields, toFieldDefinitions } from '../pluginExtraFields';
 import { buildFieldSuggestions } from '../fieldSuggestions';
+import { resolveShelfLocation } from '../shelfStore';
 import { deleteItemsAndContents, moveContentsToWishlist } from '../../utils/itemHelpers';
 import { applyVisibilityFilter, applyShareScopeFilter, applyPluginKindFilter, isWithinShareScope } from '../../utils/visibilityHelper';
 
@@ -332,7 +333,9 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         images: submittedImages,
         in_wishlist: isWishlist,
         comments: comments || '',
-        location: location || '',
+        // Never the raw form value: the store is what turns it into the one spelling
+        // the collection uses, and what creates the shelf when the picker invented one.
+        location: await resolveShelfLocation(activeCollectionId, location),
         quantity: parseInt(quantity) || 1,
         genre: req.body.genre || (parsedGenres.length > 0 ? parsedGenres[0] : ''),
         genres: parsedGenres,

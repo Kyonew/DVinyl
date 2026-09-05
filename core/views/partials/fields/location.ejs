@@ -1,0 +1,65 @@
+<%
+    /**
+     * Where an item is kept. Not a free text box any more: the shelves of the
+     * collection's furniture are the choices, so two spellings of one shelf cannot be
+     * created by hand (see core/shelfStore.ts, which is what actually decides).
+     *
+     * A shelf can still be invented on the spot. Choosing "new" hands the `location`
+     * name over to the text input and takes it off the select, so exactly one value is
+     * ever submitted and the route reads the same field either way. The select stays
+     * usable, which is how one changes their mind back to an existing shelf.
+     *
+     * The item's own value is always among the choices, even when it names no shelf the
+     * collection knows: saving the form must never move an item that nobody moved.
+     */
+    const shelves = (typeof suggestions !== 'undefined' && suggestions && Array.isArray(suggestions[field.name]))
+        ? suggestions[field.name]
+        : [];
+    const current = value || '';
+    const choices = shelves.includes(current) || !current ? shelves : [current, ...shelves];
+    const selectId = `location-select-${Math.random().toString(36).slice(2, 8)}`;
+    const inputId = `${selectId}-new`;
+%>
+<label class="block mb-2 text-sm font-bold uppercase tracking-widest opacity-60" for="<%= selectId %>">
+    <%= t(field.label) %>
+</label>
+
+<select name="<%= field.name %>" id="<%= selectId %>"
+    class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme block w-full p-3 outline-none cursor-pointer">
+    <option value="" class="bg-white dark:bg-[#1a1a1a]" <%= current ? '' : 'selected' %>>
+        <%= t('collection.shelf_none') %>
+    </option>
+    <% choices.forEach(shelf => { %>
+        <option value="<%= shelf %>" class="bg-white dark:bg-[#1a1a1a]" <%= shelf === current ? 'selected' : '' %>>
+            <%= shelf %>
+        </option>
+    <% }) %>
+    <%# Empty on purpose: with no JavaScript this reads as "nowhere yet" instead of
+        creating a shelf literally named after the option. %>
+    <option value="" class="bg-white dark:bg-[#1a1a1a]" data-new-shelf>
+        <%= t('collection.shelf_new_option') %>
+    </option>
+</select>
+
+<input type="text" id="<%= inputId %>"
+    placeholder="<%= t('collection.shelf_new_placeholder') %>"
+    class="hidden mt-2 bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme w-full p-3 outline-none">
+
+<script>
+    (function () {
+        const select = document.getElementById('<%= selectId %>');
+        const input = document.getElementById('<%= inputId %>');
+        if (!select || !input) return;
+
+        select.addEventListener('change', function () {
+            const creating = select.options[select.selectedIndex]?.hasAttribute('data-new-shelf');
+            // A control with no name is not submitted, so the field is posted once
+            // whichever of the two is carrying it.
+            select.name = creating ? '' : '<%= field.name %>';
+            input.name = creating ? '<%= field.name %>' : '';
+            input.classList.toggle('hidden', !creating);
+            if (creating) input.focus();
+            else input.value = '';
+        });
+    })();
+</script>

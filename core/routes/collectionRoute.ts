@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import QRCode from 'qrcode';
 import { registry } from '../registry';
 import { viewRegistry } from '../viewRegistry';
+import { shelfChoices } from '../shelfStore';
 import { CollectionViewContext } from '../types';
 import Item from '../../models/Item';
 import Collection from '../../models/Collection';
@@ -357,8 +358,7 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
     // Where things are kept spans every type, so this one is not scoped by the selected
     // type. A share link gets none of it: the control is not drawn for a visitor, and the
     // values that would fill it are not read either.
-    const locationQuery: any = { collection: activeCollectionId, location: { $nin: ['', null] } };
-    const locations = res.locals.isShareView ? [] : await Item.distinct('location', locationQuery);
+    const locations = res.locals.isShareView ? [] : await shelfChoices(activeCollectionId);
 
     // Scoped to the selected type, so a type never offers another type's values (and the
     // view drops a control entirely once its list comes back empty).

@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { PluginDefinition, SearchResult } from './types';
 import { escapeRegExp, parseCsvRecords, syncStamp } from './helpers';
+import { createShelfLocationResolver } from './shelfStore';
 
 /**
  * Generic engine behind the CSV importers declared by plugins (Libib & co.).
@@ -474,6 +475,11 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
       // LEGO mirrors its theme into genre...).
       plugin.normalizeForSave?.(data);
 
+      // A file naming a shelf the collection already has must land on it rather than
+      // beside it: "salon" in a CSV is the "Salon" the furniture holds. One lookup per
+      // distinct value in the file, the rest served from the resolver's memory.
+      if (data.location !== undefined) data.location = await resolveLocation(data.location);
+
       await Model.create({
         ...data,
         kind: plugin.kind,
@@ -483,6 +489,8 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
       });
       return 'created';
     };
+
+    const resolveLocation = createShelfLocationResolver(ctx.collectionId);
 
     // Announce the size of the job before the first item: an enriched import spends
     // seconds per item, and the admin would otherwise stare at a frozen button.
