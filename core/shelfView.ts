@@ -28,11 +28,15 @@ export const SHELF_VIEW: CollectionView = {
     // A wishlist is a list of things nobody owns yet, so none of it is anywhere.
     if (context.inWishlist) return false;
 
-    // Where things are kept is not part of what a share link shows (see
-    // SHARE_HIDDEN_FIELDS), and a shelf is nothing but that. A visitor keeps the grid
-    // until the view learns to respect a link's scope.
-    if (context.res.locals.isShareView) return false;
-
+    // A share visitor may look at the furniture, and only ever look: the editor is
+    // drawn behind canEditCollection, which a link never carries. What the compartments
+    // hold is already narrowed for them, since itemQuery comes out of the page with the
+    // link's scope applied to it.
+    //
+    // Note this does show a visitor the names of the shelves, which the location filter
+    // deliberately withholds from them (see SHARE_HIDDEN_FIELDS and the LOCATION FILTER
+    // in core/routes/collectionRoute.ts). That is the collection's choice to make, and
+    // the switch is this one line.
     const collectionId = context.res.locals.activeCollectionId;
     if (!collectionId) return false;
     if ((await Furniture.countDocuments({ collection: collectionId })) > 0) return true;

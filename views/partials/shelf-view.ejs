@@ -52,6 +52,27 @@
         .shelf-spine:hover { transform: none; }
     }
 
+    <%# The furniture's own grid. The column count is a property of the piece, so it
+        arrives as a custom property rather than a Tailwind class: an inline
+        grid-template-columns would win over any breakpoint class and the piece could
+        never fold. %>
+    .shelf-grid {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: repeat(var(--shelf-columns, 1), minmax(0, 1fr));
+    }
+
+    @media (max-width: 767px) {
+        <%# No screen holds four compartments side by side and still lets a spine be
+            read, so the piece unfolds into one full-width shelf per band. The metaphor
+            survives, the shape of the furniture does not. %>
+        .shelf-grid { grid-template-columns: 1fr; }
+
+        <%# Room the piece has and nobody has named yet. Worth drawing where the shape
+            of the furniture is visible, pure noise once it is a stack of bands. %>
+        .shelf-slot-empty { display: none; }
+    }
+
     <%# The board the spines stand on. Its shadow is what reads as thickness. %>
     .shelf-board {
         border-bottom: 7px solid rgb(0 0 0 / 0.18);
@@ -140,11 +161,11 @@
 
     <div class="space-y-4">
         <% shelfRows.forEach(slots => { %>
-            <div class="grid gap-4" style="grid-template-columns: repeat(<%= shelfColumns %>, minmax(0, 1fr));">
+            <div class="shelf-grid" style="--shelf-columns: <%= shelfColumns %>;">
                 <% slots.forEach(cell => { %>
                     <% if (!cell) { %>
                         <%# A compartment the furniture has room for and nobody named yet. %>
-                        <div class="rounded-xl border border-dashed border-black/10 dark:border-white/10 min-h-[120px]"></div>
+                        <div class="shelf-slot-empty rounded-xl border border-dashed border-black/10 dark:border-white/10 min-h-[120px]"></div>
                     <% } else { %>
                         <div class="card-theme border rounded-xl overflow-hidden flex flex-col">
                             <div class="px-3 py-2 flex items-baseline justify-between gap-2 border-b border-black/5 dark:border-white/10">
