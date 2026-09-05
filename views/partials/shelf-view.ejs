@@ -68,8 +68,33 @@
 
     <div class="card-theme border rounded-2xl px-6 py-12 text-center">
         <i class="fa-solid fa-table-columns text-3xl opacity-20 mb-4"></i>
-        <p class="text-sm opacity-60"><%= t('collection.shelf_no_furniture') %></p>
+        <p class="text-sm opacity-60 mb-5"><%= t('collection.shelf_no_furniture') %></p>
+        <% if (locals.canEditCollection) { %>
+            <button type="button" onclick="shelfCreateFurniture()"
+                class="px-5 py-2.5 bg-primary-theme text-white rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all">
+                <i class="fa-solid fa-plus mr-1.5"></i><%= t('collection.shelf_new_furniture') %>
+            </button>
+        <% } %>
     </div>
+
+    <% if (locals.canEditCollection) { %>
+        <%# The editor panel needs a piece of furniture to edit, so with none built yet
+            only its "create" step is reachable, on its own. %>
+        <script>
+            async function shelfCreateFurniture() {
+                const name = prompt(<%- JSON.stringify(t('collection.shelf_new_furniture_prompt')) %>);
+                if (!name || !name.trim()) return;
+                const res = await fetch('<%= baseUrl %>/shelf/furniture', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (data.success) window.location.href = '<%= baseUrl %>/collection?view=shelf&furniture=' + data.id;
+                else alert(<%- JSON.stringify(t('errors.generic_server_error')) %>);
+            }
+        </script>
+    <% } %>
 
 <% } else { %>
 
@@ -83,15 +108,34 @@
         const plankHeight = shelfMaxSpineHeight + 10;
     %>
 
-    <% if (furnitureList.length > 1) { %>
-        <div class="flex flex-wrap gap-2 mb-6">
+    <div class="flex flex-wrap items-center gap-2 mb-6">
+        <% if (furnitureList.length > 1) { %>
             <% furnitureList.forEach(piece => { %>
                 <a href="<%= piece.href %>"
                     class="px-4 py-2 rounded-full text-xs font-bold transition-all active:scale-95 <%= String(piece._id) === String(activeFurniture._id) ? 'bg-primary-theme text-white shadow-lg' : 'bg-black/5 dark:bg-white/10 opacity-60 hover:opacity-100' %>">
                     <%= piece.name %>
                 </a>
             <% }) %>
-        </div>
+        <% } else { %>
+            <span class="px-4 py-2 rounded-full text-xs font-bold bg-black/5 dark:bg-white/10 opacity-60"><%= activeFurniture.name %></span>
+        <% } %>
+
+        <% if (locals.canEditCollection) { %>
+            <div class="ml-auto flex gap-2">
+                <button type="button" onclick="shelfEditor.open()"
+                    class="px-4 py-2 card-theme border rounded-lg text-xs font-bold uppercase tracking-widest hover:text-primary-theme hover:border-primary-theme transition-all">
+                    <i class="fa-solid fa-sliders mr-1.5"></i><%= t('collection.shelf_arrange') %>
+                </button>
+                <button type="button" onclick="shelfEditor.createFurniture()"
+                    class="px-4 py-2 card-theme border rounded-lg text-xs font-bold uppercase tracking-widest hover:text-primary-theme hover:border-primary-theme transition-all">
+                    <i class="fa-solid fa-plus mr-1.5"></i><%= t('collection.shelf_new_furniture') %>
+                </button>
+            </div>
+        <% } %>
+    </div>
+
+    <% if (locals.canEditCollection) { %>
+        <%- include('shelf-editor') %>
     <% } %>
 
     <div class="space-y-4">

@@ -35,7 +35,12 @@ export const SHELF_VIEW: CollectionView = {
 
     const collectionId = context.res.locals.activeCollectionId;
     if (!collectionId) return false;
-    return (await Furniture.countDocuments({ collection: collectionId })) > 0;
+    if ((await Furniture.countDocuments({ collection: collectionId })) > 0) return true;
+
+    // Nothing to stand anything on yet. Whoever is allowed to build the furniture still
+    // needs the view that builds it, or deleting the last piece would be a one-way door
+    // out of the shelf entirely.
+    return context.res.locals.canEditCollection === true;
   },
 
   buildData: async (context, base) => {
@@ -131,6 +136,17 @@ export const SHELF_VIEW: CollectionView = {
     return {
       furnitureList,
       activeFurniture,
+      // The same compartments, flat and in reading order, which is the shape the editor
+      // works in: it reorders a list and lets the column count decide the grid.
+      shelfCells: cells
+        .slice()
+        .sort((a, b) => (a.row - b.row) || (a.column - b.column))
+        .map(cell => ({
+          key: cell.key,
+          name: cell.name,
+          capacity: cell.capacity || 0,
+          count: (byLocation.get(cell.name) || []).length
+        })),
       shelfRows,
       shelfColumns: columnCount,
       shelfMaxSpineHeight: SPINE_MAX_HEIGHT_PX,

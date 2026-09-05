@@ -1,0 +1,276 @@
+<%# Arranging the furniture: its shape, and the shelves in it.
+
+    Deliberately a list rather than a drawing one edits in place. A shelf's position is
+    its rank in this list, and the column count decides where that rank falls in the
+    grid, so reordering is moving a line up or down and widening the piece reflows it.
+    The drawing itself is one click away, which is where the result is judged.
+
+    Expects: activeFurniture, shelfCells, furnitureList. %>
+
+<div id="shelfEditor" class="hidden mb-6 card-theme border rounded-2xl p-5">
+
+    <div class="flex flex-wrap items-end gap-3 pb-5 mb-5 border-b border-black/5 dark:border-white/10">
+        <div class="flex-grow min-w-[12rem]">
+            <label class="block mb-1 text-[10px] font-bold uppercase tracking-widest opacity-50" for="shelfEditorName">
+                <%= t('collection.shelf_furniture_name') %>
+            </label>
+            <input type="text" id="shelfEditorName" maxlength="60" value="<%= activeFurniture.name %>"
+                class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme block w-full p-2.5 outline-none">
+        </div>
+
+        <div class="w-36">
+            <label class="block mb-1 text-[10px] font-bold uppercase tracking-widest opacity-50" for="shelfEditorLayout">
+                <%= t('collection.shelf_layout') %>
+            </label>
+            <select id="shelfEditorLayout"
+                class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme block w-full p-2.5 outline-none cursor-pointer">
+                <option value="cubes" class="bg-white dark:bg-[#1a1a1a]" <%= activeFurniture.layout !== 'rows' ? 'selected' : '' %>><%= t('collection.shelf_layout_cubes') %></option>
+                <option value="rows" class="bg-white dark:bg-[#1a1a1a]" <%= activeFurniture.layout === 'rows' ? 'selected' : '' %>><%= t('collection.shelf_layout_rows') %></option>
+            </select>
+        </div>
+
+        <div class="w-24">
+            <label class="block mb-1 text-[10px] font-bold uppercase tracking-widest opacity-50" for="shelfEditorColumns">
+                <%= t('collection.shelf_columns') %>
+            </label>
+            <input type="number" id="shelfEditorColumns" min="1" max="12" value="<%= activeFurniture.columns %>"
+                class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme block w-full p-2.5 outline-none">
+        </div>
+
+        <div class="w-24">
+            <label class="block mb-1 text-[10px] font-bold uppercase tracking-widest opacity-50" for="shelfEditorRows">
+                <%= t('collection.shelf_rows') %>
+            </label>
+            <input type="number" id="shelfEditorRows" min="1" max="12" value="<%= activeFurniture.rows %>"
+                class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme block w-full p-2.5 outline-none">
+        </div>
+    </div>
+
+    <div class="flex items-center justify-between gap-3 mb-3">
+        <h3 class="text-[10px] font-bold uppercase tracking-widest opacity-50"><%= t('collection.shelf_shelves') %></h3>
+        <button type="button" onclick="shelfEditor.addShelf()"
+            class="px-3 py-1.5 bg-black/5 dark:bg-white/10 rounded-lg text-xs font-bold hover:brightness-110 active:scale-95 transition-all">
+            <i class="fa-solid fa-plus mr-1.5"></i><%= t('collection.shelf_add') %>
+        </button>
+    </div>
+
+    <div id="shelfEditorList" class="space-y-2"></div>
+
+    <p id="shelfEditorError" class="hidden mt-4 text-xs font-bold text-red-500"></p>
+
+    <div class="flex flex-wrap gap-2 mt-6 pt-5 border-t border-black/5 dark:border-white/10">
+        <button type="button" id="shelfEditorSave" onclick="shelfEditor.save()"
+            class="px-5 py-2.5 bg-primary-theme text-white rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all disabled:opacity-50">
+            <%= t('collection.shelf_save') %>
+        </button>
+        <button type="button" onclick="shelfEditor.close()"
+            class="px-5 py-2.5 bg-black/5 dark:bg-white/10 rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all">
+            <%= t('collection.cancel_select') %>
+        </button>
+        <button type="button" onclick="shelfEditor.removeFurniture()"
+            class="ml-auto px-5 py-2.5 rounded-lg text-sm font-bold text-red-500 hover:bg-red-500/10 active:scale-95 transition-all">
+            <i class="fa-solid fa-trash-can mr-1.5"></i><%= t('collection.shelf_delete_furniture') %>
+        </button>
+    </div>
+</div>
+
+<script>
+    const shelfEditor = (function () {
+        const baseUrl = '<%= baseUrl %>';
+        const furnitureId = '<%= activeFurniture._id %>';
+        const otherFurniture = <%- JSON.stringify(furnitureList.filter(p => String(p._id) !== String(activeFurniture._id)).map(p => ({ id: String(p._id), name: p.name }))) %>;
+        const text = <%- JSON.stringify({
+            capacity: t('collection.shelf_capacity'),
+            namePlaceholder: t('collection.shelf_name_placeholder'),
+            moveTo: t('collection.shelf_move_to'),
+            up: t('collection.shelf_up'),
+            down: t('collection.shelf_down'),
+            remove: t('collection.shelf_remove'),
+            items: t('common.items'),
+            confirmDeleteFurniture: t('collection.shelf_confirm_delete_furniture'),
+            confirmRemoveShelf: t('collection.shelf_confirm_remove'),
+            newFurniture: t('collection.shelf_new_furniture_prompt'),
+            duplicate: t('collection.shelf_error_duplicate'),
+            elsewhere: t('collection.shelf_error_elsewhere'),
+            generic: t('errors.generic_server_error')
+        }) %>;
+
+        // What the furniture holds, as the page was served. `from` is the key each shelf
+        // had then, which is what lets the server tell a rename from a removal plus an
+        // addition. Kept untouched so closing the panel really does discard the edits.
+        const pristine = <%- JSON.stringify(shelfCells.map(c => ({ from: c.key, name: c.name, capacity: c.capacity, count: c.count }))) %>;
+        let shelves = [];
+
+        const list = document.getElementById('shelfEditorList');
+        const panel = document.getElementById('shelfEditor');
+        const error = document.getElementById('shelfEditorError');
+
+        function render() {
+            list.innerHTML = '';
+            shelves.forEach((shelf, index) => {
+                const row = document.createElement('div');
+                row.className = 'flex flex-wrap items-center gap-2 bg-black/5 dark:bg-white/5 rounded-lg p-2';
+
+                const name = document.createElement('input');
+                name.type = 'text';
+                name.maxLength = 60;
+                name.value = shelf.name;
+                name.placeholder = text.namePlaceholder;
+                name.className = 'flex-grow min-w-[8rem] bg-transparent border border-black/10 dark:border-white/10 rounded-md text-sm p-2 outline-none focus:ring-1 focus:ring-primary-theme';
+                name.addEventListener('input', () => { shelf.name = name.value; });
+                row.appendChild(name);
+
+                const count = document.createElement('span');
+                count.className = 'text-[10px] font-bold uppercase tracking-widest opacity-40 tabular-nums pl-1';
+                count.textContent = shelf.count + ' ' + text.items;
+                row.appendChild(count);
+
+                // Reads as the "52 / 40" the compartment itself shows, so the bare number
+                // box next to a count is not mistaken for a second count.
+                const over = document.createElement('span');
+                over.className = 'text-xs opacity-30';
+                over.textContent = '/';
+                row.appendChild(over);
+
+                const capacity = document.createElement('input');
+                capacity.type = 'number';
+                capacity.min = '0';
+                capacity.value = shelf.capacity;
+                capacity.title = text.capacity;
+                capacity.placeholder = '0';
+                capacity.className = 'w-20 bg-transparent border border-black/10 dark:border-white/10 rounded-md text-sm p-2 outline-none focus:ring-1 focus:ring-primary-theme';
+                capacity.addEventListener('input', () => { shelf.capacity = capacity.value; });
+                row.appendChild(capacity);
+
+                // Only offered to a shelf that already exists: one invented a moment ago
+                // has nothing to carry and is not saved anywhere yet.
+                if (otherFurniture.length > 0 && shelf.from) {
+                    const move = document.createElement('select');
+                    move.className = 'w-40 bg-transparent border border-black/10 dark:border-white/10 rounded-md text-sm p-2 outline-none cursor-pointer';
+                    move.innerHTML = '<option value="">' + text.moveTo + '</option>' +
+                        otherFurniture.map(p => '<option value="' + p.id + '">' + p.name + '</option>').join('');
+                    move.addEventListener('change', () => { if (move.value) moveShelf(shelf.from, move.value); });
+                    row.appendChild(move);
+                }
+
+                row.appendChild(iconButton('fa-arrow-up', text.up, index === 0, () => swap(index, index - 1)));
+                row.appendChild(iconButton('fa-arrow-down', text.down, index === shelves.length - 1, () => swap(index, index + 1)));
+                row.appendChild(iconButton('fa-xmark', text.remove, false, () => removeShelf(index), 'text-red-500'));
+
+                list.appendChild(row);
+            });
+        }
+
+        function iconButton(icon, title, disabled, onClick, extraClass) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.title = title;
+            button.disabled = disabled;
+            button.className = 'w-8 h-8 flex items-center justify-center rounded-md hover:bg-black/10 dark:hover:bg-white/10 transition-colors disabled:opacity-20 disabled:pointer-events-none ' + (extraClass || 'opacity-60');
+            button.innerHTML = '<i class="fa-solid ' + icon + ' text-xs"></i>';
+            button.addEventListener('click', onClick);
+            return button;
+        }
+
+        function swap(a, b) {
+            [shelves[a], shelves[b]] = [shelves[b], shelves[a]];
+            render();
+        }
+
+        function removeShelf(index) {
+            const shelf = shelves[index];
+            // Emptying a shelf is not the same as losing what stood on it: the items keep
+            // saying where they were and simply show up in the reserve.
+            if (shelf.count > 0 && !confirm(text.confirmRemoveShelf.replace('%d', shelf.count))) return;
+            shelves.splice(index, 1);
+            render();
+        }
+
+        async function post(url, body) {
+            const res = await fetch(baseUrl + url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body || {})
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.success) {
+                const err = new Error(data.error || String(res.status));
+                err.payload = data;
+                throw err;
+            }
+            return data;
+        }
+
+        function fail(err) {
+            const payload = err.payload || {};
+            if (err.message === 'duplicate_shelf') error.textContent = text.duplicate;
+            else if (err.message === 'shelf_elsewhere') error.textContent = text.elsewhere.replace('%s', payload.furniture || '');
+            else error.textContent = text.generic;
+            error.classList.remove('hidden');
+        }
+
+        async function moveShelf(key, to) {
+            try {
+                await post('/shelf/cell/move', { key, to });
+                window.location.reload();
+            } catch (err) { fail(err); }
+        }
+
+        return {
+            open() {
+                shelves = pristine.map(shelf => ({ ...shelf }));
+                render();
+                error.classList.add('hidden');
+                panel.classList.remove('hidden');
+                panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            },
+
+            close() {
+                panel.classList.add('hidden');
+            },
+
+            addShelf() {
+                shelves.push({ from: null, name: '', capacity: 0, count: 0 });
+                render();
+                const inputs = list.querySelectorAll('input[type="text"]');
+                inputs[inputs.length - 1]?.focus();
+            },
+
+            async save() {
+                const button = document.getElementById('shelfEditorSave');
+                button.disabled = true;
+                error.classList.add('hidden');
+                try {
+                    await post('/shelf/furniture/' + furnitureId, {
+                        name: document.getElementById('shelfEditorName').value,
+                        layout: document.getElementById('shelfEditorLayout').value,
+                        columns: document.getElementById('shelfEditorColumns').value,
+                        rows: document.getElementById('shelfEditorRows').value,
+                        cells: shelves.map(s => ({ from: s.from, name: s.name, capacity: s.capacity }))
+                    });
+                    window.location.reload();
+                } catch (err) {
+                    button.disabled = false;
+                    fail(err);
+                }
+            },
+
+            async removeFurniture() {
+                if (!confirm(text.confirmDeleteFurniture)) return;
+                try {
+                    await post('/shelf/furniture/' + furnitureId + '/delete');
+                    window.location.href = baseUrl + '/collection?view=shelf';
+                } catch (err) { fail(err); }
+            },
+
+            async createFurniture() {
+                const name = prompt(text.newFurniture);
+                if (!name || !name.trim()) return;
+                try {
+                    const data = await post('/shelf/furniture', { name });
+                    window.location.href = baseUrl + '/collection?view=shelf&furniture=' + data.id;
+                } catch (err) { fail(err); }
+            }
+        };
+    })();
+</script>
