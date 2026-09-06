@@ -654,6 +654,10 @@
     "selected_count_suffix": "selected",
     "print_selected_qr": "Print QR labels",
     "print_selected_barcode": "Print barcode labels",
+    "delete_selected": "Delete selected",
+    "confirm_delete_selected": "Delete {{count}} selected item(s)? This action is irreversible.",
+    "delete_selected_done": "Deleted {{count}} item(s).",
+    "delete_selected_failed": "Bulk delete finished: {{deleted}} deleted, {{failed}} failed.",
     "label_sheet_title": "Print labels",
     "label_sheet_empty": "None of the selected items has a barcode, so there is nothing to print."
   },

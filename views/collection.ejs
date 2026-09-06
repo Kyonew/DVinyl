@@ -100,6 +100,10 @@
                 class="px-4 py-2 bg-primary-theme text-white rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all">
                 <i class="fa-solid fa-barcode mr-2"></i><%= t('collection.print_selected_barcode') %>
             </button>
+            <button type="button" id="bulkDeleteBtn" onclick="deleteSelectedItems()"
+                class="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all">
+                <i class="fa-solid fa-trash mr-2"></i><%= t('collection.delete_selected') %>
+            </button>
             <button type="button" onclick="cancelSelectMode()"
                 class="px-4 py-2 bg-black/5 dark:bg-white/10 rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all">
                 <%= t('collection.cancel_select') %>
@@ -194,6 +198,9 @@
         // clicks into a selection toggle instead of a navigation.
         let selectMode = false;
         const selectedCountSuffix = <%- JSON.stringify(t('collection.selected_count_suffix')) %>;
+        const bulkDeleteConfirmTpl = <%- JSON.stringify(t('collection.confirm_delete_selected')) %>;
+        const bulkDeleteDoneTpl = <%- JSON.stringify(t('collection.delete_selected_done')) %>;
+        const bulkDeleteFailedTpl = <%- JSON.stringify(t('collection.delete_selected_failed')) %>;
 
         function toggleSelectMode() {
             selectMode = !selectMode;
@@ -227,6 +234,9 @@
                     ? <%- JSON.stringify(t('collection.deselect_all')) %>
                     : <%- JSON.stringify(t('collection.select_all')) %>;
             }
+
+            const deleteBtn = document.getElementById('bulkDeleteBtn');
+            if (deleteBtn) deleteBtn.disabled = count === 0;
         }
 
         // Selects every card on the current page, or clears the selection if every
@@ -259,6 +269,54 @@
                 form.appendChild(input);
             });
             form.submit();
+        }
+
+        async function deleteSelectedItems() {
+            const ids = [...document.querySelectorAll('.album-select-checkbox:checked')]
+                .map(cb => cb.closest('[data-id]')?.dataset.id)
+                .filter(Boolean);
+
+            if (ids.length === 0) return;
+
+            const confirmMsg = bulkDeleteConfirmTpl.replace('{{count}}', String(ids.length));
+            if (!confirm(confirmMsg)) return;
+
+            const deleteBtn = document.getElementById('bulkDeleteBtn');
+            if (deleteBtn) deleteBtn.disabled = true;
+
+            try {
+                const response = await fetch(`${jsBaseUrl}/api/collection/delete-selected`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids })
+                });
+                const data = await response.json().catch(() => null);
+
+                if (response.ok && data && data.success) {
+                    const deleted = Number(data.deleted || 0);
+                    const failed = Number(data.failed || 0);
+                    if (failed === 0) {
+                        alert(bulkDeleteDoneTpl.replace('{{count}}', String(deleted)));
+                    } else {
+                        alert(
+                            bulkDeleteFailedTpl
+                                .replace('{{deleted}}', String(deleted))
+                                .replace('{{failed}}', String(failed))
+                        );
+                    }
+                    window.location.reload();
+                    return;
+                }
+            } catch {
+                // handled below
+            }
+
+            alert(
+                bulkDeleteFailedTpl
+                    .replace('{{deleted}}', '0')
+                    .replace('{{failed}}', String(ids.length))
+            );
+            if (deleteBtn) deleteBtn.disabled = false;
         }
 
         document.getElementById('albumGrid')?.addEventListener('click', (e) => {
