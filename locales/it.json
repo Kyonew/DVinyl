@@ -457,6 +457,10 @@
     "selected_count_suffix": "selezionato/i",
     "print_selected_qr": "Stampa i codici QR",
     "print_selected_barcode": "Stampa i codici a barre",
+    "delete_selected": "Elimina selezionati",
+    "confirm_delete_selected": "Eliminare {{count}} elemento/i selezionato/i? Questa azione è irreversibile.",
+    "delete_selected_done": "Eliminati {{count}} elemento/i.",
+    "delete_selected_failed": "Eliminazione multipla completata: {{deleted}} eliminati, {{failed}} non riusciti.",
     "label_sheet_title": "Stampa le etichette",
     "label_sheet_empty": "Nessuno degli elementi selezionati ha un codice a barre, quindi non c’è nulla da stampare."
   },

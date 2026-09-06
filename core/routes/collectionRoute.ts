@@ -10,7 +10,7 @@ import { requireAuth, requireAuthOrShareView, requireCollectionRole } from '../.
 import { applyVisibilityFilter, applyEnabledModulesFilter, applyContainedFilter, applyShareScopeFilter } from '../../utils/visibilityHelper';
 import { escapeRegExp, getPublicProtocol, generateBarcodeDataUrl } from '../helpers';
 import { generateUniqueSlug } from '../../utils/collectionHelpers';
-import { resolveShelfItems } from '../../utils/itemHelpers';
+import { resolveShelfItems, deleteItemsAndContents } from '../../utils/itemHelpers';
 import { checkCollectionCreation } from '../../utils/instanceSettings';
 import {
   getExtraFields, buildExtraFieldConditions, parseExtraSort, extraSortKey,
@@ -460,6 +460,10 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
 // (measured: ~2.3s of blocked event loop for 200 QR codes).
 const MAX_SHEET_LABELS = 200;
 
+// How many explicit selections one request may delete. This keeps payloads sane and
+// prevents one accidental click from triggering an unbounded destructive operation.
+const MAX_BULK_DELETE_SELECTION = 500;
+
 // Bulk/sheet QR labels for a set of items picked on the collection page. Generic
 // rather than per-plugin: a mixed-type collection page can select items across
 // kinds in one go, so each item resolves its own plugin individually below.
@@ -533,6 +537,50 @@ router.post('/collection/labels', requireAuth, requireCollectionRole('editor'), 
   } catch (err: any) {
     console.error('Bulk label error:', err.message);
     res.status(500).send(req.t('errors.generic_server_error'));
+  }
+});
+
+// Bulk deletion for the collection page selection mode.
+router.post('/api/collection/delete-selected', requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
+  try {
+    const activeCollectionId = res.locals.activeCollectionId;
+    if (!activeCollectionId) {
+      return res.status(400).json({ success: false, error: req.t('errors.generic_server_error') });
+    }
+
+    const rawIds = req.body?.ids;
+    const idList: string[] = Array.isArray(rawIds) ? rawIds : (rawIds ? [rawIds] : []);
+    const selectedIds = Array.from(new Set(
+      idList.filter((id: string) => mongoose.Types.ObjectId.isValid(id)).slice(0, MAX_BULK_DELETE_SELECTION)
+    ));
+
+    if (selectedIds.length === 0) {
+      return res.status(400).json({ success: false, error: req.t('errors.not_found') });
+    }
+
+    // Mirror the same visibility/module/containment restrictions as the shelf page:
+    // a handcrafted request must not delete items that are not reachable there.
+    const query: any = { _id: { $in: selectedIds }, collection: activeCollectionId, in_wishlist: false };
+    applyVisibilityFilter(query, res.locals.isCollectionAdmin, res.locals.settings);
+    applyEnabledModulesFilter(query, res.locals.settings);
+    applyContainedFilter(query);
+
+    const items = await Item.find(query).select('_id').lean();
+    const itemIds = items.map((item: any) => item._id);
+    if (itemIds.length === 0) {
+      return res.status(404).json({ success: false, error: req.t('errors.not_found') });
+    }
+
+    await deleteItemsAndContents(itemIds);
+
+    // 'deleted' reports selected top-level entries deleted from this page; nested
+    // contents removed together are implicit and not shown as failed selections.
+    const deleted = itemIds.length;
+    const failed = selectedIds.length - deleted;
+    res.json({ success: true, deleted, failed });
+  } catch (err: any) {
+    console.error('Bulk delete selected error:', err.message);
+    res.status(500).json({ success: false, error: req.t('errors.generic_server_error') });
   }
 });
 
