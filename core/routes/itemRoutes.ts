@@ -459,11 +459,22 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         const finalQty = isEdit ? qtyToAdd : (existingItem.quantity || 1) + qtyToAdd;
 
         let saveObj: any;
+        let unsetObj: Record<string, ''> = {};
         if (isEdit) {
           saveObj = { ...updateData, quantity: finalQty };
           // Do not reset the added date when editing an existing item
           if (!added_at) {
             saveObj.added_at = existingItem.added_at || new Date();
+          }
+
+          // Unset plugin schema fields when posted as blank strings (including external ids)
+          for (const fieldName of Object.keys(plugin.schemaDefinition)) {
+            const postedValue = req.body[fieldName];
+            const isBlank = postedValue === undefined || (typeof postedValue === 'string' && postedValue.trim() === '') || postedValue === '';
+            if (isBlank && existingItem[fieldName] !== undefined && existingItem[fieldName] !== null && existingItem[fieldName] !== '') {
+              unsetObj[fieldName] = '';
+              delete saveObj[fieldName];
+            }
           }
         } else {
           // Duplicate: increment quantity and backfill identifiers/metadata the existing record
@@ -498,9 +509,13 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         // id into "1396", which then matched nothing that looked it up as a number.
         // `strict: false` still lets the user-defined `extra.*` keys through.
         const EditModel = mongoose.model(plugin.kind);
+        const updateDoc: any = { $set: { ...saveObj, ...editStamp(adminId) } };
+        if (Object.keys(unsetObj).length > 0) {
+          updateDoc.$unset = unsetObj;
+        }
         await EditModel.updateOne(
           { _id: existingItem._id },
-          { $set: { ...saveObj, ...editStamp(adminId) } },
+          updateDoc,
           { strict: false }
         );
       } else {

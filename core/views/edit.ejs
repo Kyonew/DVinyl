@@ -64,7 +64,7 @@
                         to attach it later to unlock the metadata refresh and the estimate.
                         Skipped when the plugin already declares the id among its form fields
                         (lego's set number), which would otherwise print the input twice.
-                        An emptied input changes nothing: save-<plugin> ignores blank ids. %>
+                        In edit mode, clearing the input removes the stored id from DB. %>
                     <%
                         const extIdField = plugin.externalIdField;
                         const extIdInForm = extIdField
