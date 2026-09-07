@@ -17,6 +17,7 @@ import { BASE_URL, SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE, normalizeLanguage, dat
 import { isOidcEnabled, getOidcButtonLabel, isLocalLoginDisabled } from './config/oidc.js';
 import { connectDB } from './config/db.js';
 import { migrateDatabase } from './utils/migrate.js';
+import { migrateExtraFieldIdentities } from './utils/migrateExtraFieldIdentities.js';
 
 // Models
 import User from './models/User.js';
@@ -320,6 +321,8 @@ connectDB()
     // a fresh/rebuilt container and backfills the DB from any pre-existing folders.
     console.log('[BOOT] Syncing custom plugins...');
     await syncCustomPluginsOnBoot();
+    console.log('[BOOT] Migrating custom field identities...');
+    await migrateExtraFieldIdentities();
     const sweepAbandonedItemImages = async (label: string) => {
       try {
         const removed = await cleanupStaleItemImageUploads();

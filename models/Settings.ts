@@ -45,7 +45,8 @@ const settingsSchema = new mongoose.Schema({
     },
     // Per-collection user-defined fields added on top of a plugin's own fields, for
     // native and custom plugins alike:
-    //   { [pluginId]: [{ name, label, type, group, placeholder, options }] }
+    //   { [pluginId]: [{ name, keyVersion, label, type, group, placeholder, options }] }
+    // `name` is an opaque generated identity; changing `label` never moves item data.
     // Values land in item.extra[name]; see core/pluginExtraFields.ts.
     pluginExtraFields: {
         type: mongoose.Schema.Types.Mixed,
