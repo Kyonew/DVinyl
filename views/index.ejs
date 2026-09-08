@@ -27,10 +27,25 @@
 
             <div class="flex flex-wrap justify-center gap-4 pt-4 text-sm opacity-80">
                 <% if (locals.canEditCollection && registry.getEnabled(settings).length > 0) { %>
-                    <button onclick="toggleAddModal()" class="inline-flex items-center gap-2 hover:text-primary-theme transition-colors">
+                    <button onclick="openAddModal()" class="inline-flex items-center gap-2 hover:text-primary-theme transition-colors">
                         <i class="fa-solid fa-plus-circle" data-add-hub-icon></i>
                         <span class="hidden sm:inline"><%= t('index.nav_add_full') %></span>
                     </button>
+                    <span class="opacity-30">|</span>
+                <% } %>
+                <% const scanPlugins = registry.getEnabled(settings).filter(p => p.searchProvider); %>
+                <% if (locals.canEditCollection && scanPlugins.length > 0) { %>
+                    <% if (scanPlugins.length === 1) { %>
+                        <a href="<%= baseUrl %>/add-<%= scanPlugins[0].id %>?scan=1" class="inline-flex items-center gap-2 hover:text-primary-theme transition-colors">
+                            <i class="fa-solid fa-barcode"></i>
+                            <span class="hidden sm:inline"><%= t('index.nav_scan_full') %></span>
+                        </a>
+                    <% } else { %>
+                        <button onclick="openScanPicker()" class="inline-flex items-center gap-2 hover:text-primary-theme transition-colors">
+                            <i class="fa-solid fa-barcode"></i>
+                            <span class="hidden sm:inline"><%= t('index.nav_scan_full') %></span>
+                        </button>
+                    <% } %>
                     <span class="opacity-30">|</span>
                 <% } %>
                 <a href="<%= baseUrl %>/collection" class="inline-flex items-center gap-2 hover:text-primary-theme transition-colors">

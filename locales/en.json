@@ -191,6 +191,7 @@
     "search_placeholder": "Search...",
     "nav_add_full": "Add an item",
     "nav_add_short": "Add",
+    "nav_scan_full": "Scan a barcode",
     "nav_view_all": "View all",
     "section_latest": "Latest Additions",
     "section_wishlist": "Wishlist",
@@ -626,6 +627,7 @@
     "refresh": "Refresh",
     "refresh_metadata_btn": "Refresh info",
     "add": "Add",
+    "scan": "Scan",
     "sort_label": "Sort by",
     "sort_added": "Date added",
     "sort_title": "Title",
@@ -753,6 +755,7 @@
     "title": "My Wishlist",
     "empty_msg": "Your wishlist is empty.",
     "search_link": "Add your first item",
+    "scan_link": "Or scan a barcode",
     "btn_received": "I received it!",
     "confirm_move": "Great! Do you want to move this album to your official collection?"
   },

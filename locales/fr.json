@@ -191,6 +191,7 @@
     "search_placeholder": "Rechercher...",
     "nav_add_full": "Ajouter un élément",
     "nav_add_short": "Ajouter",
+    "nav_scan_full": "Scanner un code-barres",
     "nav_view_all": "Voir tout",
     "section_latest": "Derniers Ajouts",
     "section_wishlist": "Wishlist",
@@ -626,6 +627,7 @@
     "refresh": "Rafraîchir",
     "refresh_metadata_btn": "Actualiser les infos",
     "add": "Ajouter",
+    "scan": "Scanner",
     "artist_filter": "Artiste",
     "sort_added": "Date d'ajout",
     "sort_artist": "Artiste",
@@ -753,6 +755,7 @@
     "title": "Liste de Souhaits",
     "empty_msg": "Ta liste de souhaits est vide.",
     "search_link": "Ajouter un premier élément",
+    "scan_link": "Ou scannez un code-barres",
     "btn_received": "Je l'ai reçu !",
     "confirm_move": "Super ! Tu veux ajouter cet album à ta collection officielle ?"
   },
