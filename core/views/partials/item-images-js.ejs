@@ -309,6 +309,25 @@
         }
     });
 
+    // Lets a plugin-specific confirm-page widget (e.g. books' edition picker) swap the
+    // main image when its own selection changes, without reaching into this closure's
+    // `images` array directly. `previousUrl` is what the caller itself put in the main
+    // slot last time: still there, it's replaced in place; moved or removed by the user
+    // since, the new one is added instead, so a manual reorder is never undone underneath
+    // someone.
+    window.dvinylSetPrimaryImage = function (url, previousUrl) {
+        const clean = typeof url === 'string' ? url.trim() : '';
+        if (!clean) return;
+        images = images.filter(image => image !== clean);
+        if (previousUrl && images[0] === previousUrl) {
+            images[0] = clean;
+        } else {
+            images.unshift(clean);
+            if (images.length > maxImages) images.length = maxImages;
+        }
+        render();
+    };
+
     render();
 })();
 </script>
