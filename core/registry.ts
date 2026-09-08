@@ -44,8 +44,10 @@ function resolvePlaceholderCover(plugin: PluginDefinition): void {
   plugin.formatForView = function (item: any): any {
     const view = original(item);
     if (!view || typeof view !== 'object') return view;
-    const images = imagesForItem(view);
     const placeholder = plugin.placeholderImage || DEFAULT_PLACEHOLDER_IMAGE;
+    const images = imagesForItem(view).filter(image =>
+      image !== DEFAULT_PLACEHOLDER_IMAGE && image !== placeholder
+    );
     view.cover_image = images[0] || placeholder;
     view.user_image = images[1] || '';
     view.images = images.length > 0 ? images : [placeholder];
