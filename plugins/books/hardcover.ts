@@ -158,7 +158,11 @@ export class HardcoverProvider implements SearchProvider {
       pages: e.pages || null,
       year: (e.release_date || '').slice(0, 4) || '',
       physical_format: e.physical_format || '',
-      edition_format: e.edition_format || ''
+      edition_format: e.edition_format || '',
+      // Not every edition has its own cover on Hardcover; left empty rather than falling
+      // back to the book's, so the picker knows not to touch the gallery when there's
+      // nothing edition-specific to show.
+      cover_image: e.image?.url || ''
     })).filter((e: any) => e.id);
   }
 
@@ -189,6 +193,7 @@ export class HardcoverProvider implements SearchProvider {
             release_date
             edition_format
             physical_format
+            image { url }
           }
         }
       }

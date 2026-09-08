@@ -4,8 +4,8 @@
 
     Nothing here reloads the page: every edition's fields are already on the page, so
     switching just writes them into the inputs below (publisher, year, ISBN, pages,
-    language, and format when the edition's own format maps cleanly onto ours). The cover
-    is left alone — pick a different one from the image manager if it matters. %>
+    language, format when the edition's own format maps cleanly onto ours, and the main
+    cover through the image manager's own swap hook when the edition has one of its own). %>
 <% if (Array.isArray(item.editions) && item.editions.length > 1) { %>
     <% const editions = item.editions; %>
     <div>
@@ -46,6 +46,13 @@
                 return form.elements.namedItem(name);
             }
 
+            // What this picker itself last put in the gallery's main slot, so a second
+            // switch can replace that exact image rather than just piling another one on
+            // top of it. Stays null until an edition with its own cover is actually picked,
+            // so a book whose editions have no cover art of their own never touches the
+            // gallery at all.
+            let lastAppliedCover = null;
+
             function applyEdition(edition) {
                 if (!edition) return;
                 const setIfPresent = (name, value) => {
@@ -66,6 +73,11 @@
                 const physical = String(edition.physical_format || '').toLowerCase();
                 const match = FORMAT_MATCHERS.find(([needle]) => physical.includes(needle));
                 if (match) setIfPresent('format', match[1]);
+
+                if (edition.cover_image && typeof window.dvinylSetPrimaryImage === 'function') {
+                    window.dvinylSetPrimaryImage(edition.cover_image, lastAppliedCover);
+                    lastAppliedCover = edition.cover_image;
+                }
             }
 
             select.addEventListener('change', () => applyEdition(editions[Number(select.value)]));
