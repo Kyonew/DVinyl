@@ -1,0 +1,74 @@
+<%# Which print of this book to add. Hardcover indexes a book as one work with several
+    editions (different publisher, format, page count, ISBN); getDetails() already fetches
+    them and defaults to the most-used one, this just lets that default be overridden.
+
+    Nothing here reloads the page: every edition's fields are already on the page, so
+    switching just writes them into the inputs below (publisher, year, ISBN, pages,
+    language, and format when the edition's own format maps cleanly onto ours). The cover
+    is left alone — pick a different one from the image manager if it matters. %>
+<% if (Array.isArray(item.editions) && item.editions.length > 1) { %>
+    <% const editions = item.editions; %>
+    <div>
+        <label class="block mb-2 text-sm font-bold uppercase tracking-widest opacity-60">
+            <%= t('confirm_book.field_edition') %>
+        </label>
+        <select id="editionPicker" class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme block w-full p-3 outline-none">
+            <% editions.forEach((edition, index) => { %>
+                <%
+                    const parts = [
+                        edition.publisher || t('confirm_book.edition_unknown_publisher'),
+                        edition.physical_format || edition.edition_format,
+                        edition.year,
+                        edition.pages ? `${edition.pages}p` : ''
+                    ].filter(Boolean);
+                %>
+                <option value="<%= index %>"><%= parts.join(' · ') %></option>
+            <% }) %>
+        </select>
+        <p class="text-xs opacity-50 mt-2"><%= t('confirm_book.edition_hint') %></p>
+    </div>
+
+    <script>
+        (function () {
+            const editions = <%- JSON.stringify(editions) %>;
+            const select = document.getElementById('editionPicker');
+            const form = select.closest('form');
+            // Physical formats Hardcover reports vary in wording ("Trade Paperback", "Mass
+            // Market Paperback"...); only the two DVinyl itself distinguishes are mapped, so
+            // an edition it can't confidently classify (audiobook, ebook...) leaves the
+            // format dropdown as the user already set it rather than guessing.
+            const FORMAT_MATCHERS = [
+                ['hardcover', 'hardcover'],
+                ['paperback', 'paperback']
+            ];
+
+            function fieldByName(name) {
+                return form.elements.namedItem(name);
+            }
+
+            function applyEdition(edition) {
+                if (!edition) return;
+                const setIfPresent = (name, value) => {
+                    const field = fieldByName(name);
+                    if (field && value) field.value = value;
+                };
+                setIfPresent('publisher', edition.publisher);
+                setIfPresent('year', edition.year);
+                setIfPresent('pages', edition.pages);
+                setIfPresent('language', edition.language);
+                // The visible ISBN input and the hidden `isbn` field the save handler reads
+                // both start out holding the same default edition's value; both must move
+                // together or normalizeForSave() only fills the empty one back in from the
+                // other, leaving the two out of sync.
+                setIfPresent('barcode', edition.isbn);
+                setIfPresent('isbn', edition.isbn);
+
+                const physical = String(edition.physical_format || '').toLowerCase();
+                const match = FORMAT_MATCHERS.find(([needle]) => physical.includes(needle));
+                if (match) setIfPresent('format', match[1]);
+            }
+
+            select.addEventListener('change', () => applyEdition(editions[Number(select.value)]));
+        })();
+    </script>
+<% } %>
