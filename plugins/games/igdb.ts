@@ -77,6 +77,33 @@ export class IGDBProvider implements SearchProvider {
       throw new Error("Formatting failed");
     }
 
+    Object.assign(formatted, await this.getCompletionTimes(id));
+
     return formatted;
+  }
+
+  // IGDB's own completion-time estimates (the same "hastily/normally/completely" data
+  // HowLongToBeat shows), pulled from its own endpoint rather than an unofficial scraper.
+  // A separate call keyed by game_id, not a field on `games`; absent for games nobody has
+  // timed yet, so a missing key stays undefined instead of a fabricated 0. Best-effort: a
+  // failure here shouldn't break search/confirm/refresh over supplementary data.
+  private async getCompletionTimes(id: string): Promise<Record<string, number | undefined>> {
+    try {
+      const results = await igdbRequest('game_time_to_beats',
+        `where game_id = ${id}; fields hastily, normally, completely; limit 1;`
+      );
+      const row = results && results[0];
+      if (!row) return {};
+
+      const toHours = (seconds: number) => Math.round((seconds / 3600) * 10) / 10;
+      return {
+        completionHastily: typeof row.hastily === 'number' ? toHours(row.hastily) : undefined,
+        completionNormally: typeof row.normally === 'number' ? toHours(row.normally) : undefined,
+        completionCompletely: typeof row.completely === 'number' ? toHours(row.completely) : undefined
+      };
+    } catch (err: any) {
+      console.error('[ERR] IGDB time-to-beat:', err.message);
+      return {};
+    }
   }
 }
