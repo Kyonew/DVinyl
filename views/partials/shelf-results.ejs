@@ -1,0 +1,9 @@
+<%# Item grid + pager fragment shared by the collection and wishlist pages. Factored out
+    (rather than the two inline includes each page used to have) so the live-search AJAX
+    response (see collectionRoute.ts's renderShelfPartial) re-renders exactly this piece
+    -  no full page reload, no duplicated markup to drift out of sync.
+    Params: albums, isWishlist %>
+<%- include('albums-grid', locals.isWishlist
+    ? { albums, size: 'wishlist', wishlist: true, badgeSize: 'compact' }
+    : { albums, size: 'collection', gridId: 'albumGrid', selectable: locals.canEditCollection }) %>
+<%- include('albums-page-changer') %>
