@@ -25,7 +25,7 @@
                 <span>
                     <%= t('collection.title') %>
                 </span>
-                <span
+                <span id="totalItemsBadge"
                     class="px-3 md:mt-1.5 py-1 bg-black/5 dark:bg-white/10 rounded-full text-sm font-medium opacity-70 w-fit">
                     <%= totalItems %>
                         <%= t('common.items') %>
@@ -80,8 +80,9 @@
         </div>
 
         <%- include('partials/albums-filters') %>
-        <%- include('partials/albums-grid', { albums, size: 'collection', gridId: 'albumGrid', selectable: locals.canEditCollection }) %>
-        <%- include('partials/albums-page-changer') %>
+        <div id="shelfResults" class="transition-opacity duration-150">
+            <%- include('partials/shelf-results', { albums, isWishlist: false }) %>
+        </div>
     </div>
 
     <% if (locals.canEditCollection) { %>
