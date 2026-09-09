@@ -2,10 +2,18 @@
 
 <div class="max-w-screen-xl mx-auto pb-20 px-4 md:px-0">
     
-    <nav class="flex mb-6 text-sm opacity-60 transition-colors">
-        <a href="<%= baseUrl %>/add-<%= plugin.id %>" class="hover:opacity-100 transition-opacity flex items-center py-2">
+    <nav class="flex items-center justify-between gap-4 mb-6 text-sm transition-colors">
+        <%# A plain href here would land back on an empty search form: the results only
+            ever exist as the response to the POST that made them, so going "back" has to
+            mean the browser's own back navigation, not a fresh GET. The href stays as a
+            fallback for opening in a new tab or with JS disabled. %>
+        <a href="<%= baseUrl %>/add-<%= plugin.id %>" onclick="if (window.history.length > 1) { history.back(); return false; }" class="opacity-60 hover:opacity-100 transition-opacity flex items-center py-2">
             <i class="fa-solid fa-arrow-left mr-2"></i> <%= t('common.back_to_search') %>
         </a>
+        <button type="submit" form="confirm-form" name="in_wishlist" value="false"
+            class="flex-shrink-0 text-white bg-primary-theme hover:brightness-110 font-bold rounded-lg text-xs px-4 py-2.5 transition-transform hover:scale-[1.02] flex items-center justify-center gap-2 shadow-lg shadow-primary-theme/20">
+            <i class="fa-solid fa-check"></i> <%= t('confirm_' + plugin.i18nKey + '.btn_collection', { defaultValue: t('confirm_vinyl.btn_collection') }) %>
+        </button>
     </nav>
 
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -97,7 +105,7 @@
                 <!-- Duplicate warning banner -->
                 <%- include('partials/duplicate-warning') %>
 
-                <form action="<%= baseUrl %>/save-<%= plugin.id %>" method="POST" class="space-y-6">
+                <form id="confirm-form" action="<%= baseUrl %>/save-<%= plugin.id %>" method="POST" class="space-y-6">
                     <%
                     // Everything the API provided must reach the save handler, even without a visible input:
                     // 1. formFields hidden by showCondition (manual-only in API mode and vice versa)

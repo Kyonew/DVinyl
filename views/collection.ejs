@@ -62,6 +62,19 @@
                             </a>
                             <% } %>
 
+                            <%# The page is already scoped to one module, so unlike the dashboard/wishlist
+                                triggers there's no picker question - straight to that module's scanner. %>
+                            <% if (currentPlugin && currentPlugin.searchProvider) { %>
+                                <a href="<%= baseUrl %>/add-<%= currentPlugin.id %>?scan=1"
+                                    class="flex-shrink-0 w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center gap-2 group"
+                                    title="<%= t('collection.scan') %>">
+                                    <i class="fa-solid fa-barcode group-hover:scale-110 transition-transform"></i>
+                                    <span class="hidden md:inline text-xs font-bold uppercase tracking-widest">
+                                        <%= t('collection.scan') %>
+                                    </span>
+                                </a>
+                                <% } %>
+
                                 <% collectionActions.forEach(action => { %>
                                     <button type="button" data-action-id="<%= action.id %>"
                                         onclick="runCollectionAction('<%= action.id %>')"
