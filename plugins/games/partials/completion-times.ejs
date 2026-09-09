@@ -1,0 +1,26 @@
+<%
+    const completionTimes = [
+        item.completionHastily ? { key: 'completion_hastily', value: item.completionHastily } : null,
+        item.completionNormally ? { key: 'completion_normally', value: item.completionNormally } : null,
+        item.completionCompletely ? { key: 'completion_completely', value: item.completionCompletely } : null
+    ].filter(Boolean);
+%>
+<% if (completionTimes.length) { %>
+<div class="w-full mt-4">
+    <span class="block text-[10px] uppercase font-bold opacity-50 mb-2 text-center">
+        <%= t('confirm_game.completion_time_label') %>
+    </span>
+    <!-- Fixed at 2 columns, same as the status/rating row above, regardless of how many
+         estimates IGDB returned (1-3) — a fixed grid-cols-3 made the common case (one
+         missing) render narrower than that row instead of matching it. A 3rd entry wraps
+         to its own row rather than squeezing three into the row's width. -->
+    <div class="grid grid-cols-2 gap-2">
+        <% completionTimes.forEach(function(entry) { %>
+        <div class="card-theme p-3 rounded-xl text-center shadow-sm">
+            <span class="block text-[9px] uppercase font-bold opacity-50 mb-1"><%= t('confirm_game.' + entry.key) %></span>
+            <span class="text-sm font-bold"><%= entry.value %>h</span>
+        </div>
+        <% }) %>
+    </div>
+</div>
+<% } %>
