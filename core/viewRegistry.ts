@@ -1,5 +1,6 @@
 import { CollectionView, CollectionViewContext } from './types';
 import { SHELF_VIEW } from './shelfView';
+import { TABLE_VIEW } from './tableView';
 
 // The view a page starts on before anybody chooses, and the one it falls back to.
 export const DEFAULT_VIEW_ID = 'grid';
@@ -72,5 +73,6 @@ class ViewRegistry {
 export const viewRegistry = new ViewRegistry();
 
 viewRegistry.register(GRID_VIEW);
+viewRegistry.register(TABLE_VIEW);
 viewRegistry.register(SHELF_VIEW);
 
