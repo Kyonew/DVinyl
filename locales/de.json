@@ -211,7 +211,9 @@
       "last_change": "Letzte Bearbeitung",
       "loc": "Ort.",
       "security": "Sicherheit",
-      "user": "Benutzer"
+      "user": "Benutzer",
+      "home_collection": "Standardsammlung",
+      "home_collection_last": "Zuletzt besucht"
     },
     "temp_password_hint": "Hier ist das temporäre Passwort (kopieren Sie es, es wird nicht mehr angezeigt):",
     "time_ago_min": "Vor {{count}} Minuten",
@@ -913,7 +915,8 @@
     "share_scope_updated": "Freigegebene Inhalte aktualisiert.",
     "share_link_created": "Freigabelink erstellt.",
     "share_link_deleted": "Freigabelink gelöscht.",
-    "error_share": "Die Freigabe konnte nicht aktualisiert werden."
+    "error_share": "Die Freigabe konnte nicht aktualisiert werden.",
+    "home_collection_updated": "Standardsammlung aktualisiert."
   },
   "modal": {
     "add_hub_subtitle": "Wählen Sie den Medientyp aus, den Sie Ihrer Sammlung hinzufügen möchten",
@@ -1031,7 +1034,17 @@
     "oidc_linked_label": "Mit Ihrem Identitätsanbieter verknüpft",
     "oidc_not_linked_label": "Nicht verknüpft",
     "oidc_link_btn": "Konto verknüpfen",
-    "oidc_unlink_btn": "Verknüpfung aufheben"
+    "oidc_unlink_btn": "Verknüpfung aufheben",
+    "home_title": "Start",
+    "home_hint": "Wo die App sich öffnet.",
+    "home_collection_label": "Standardsammlung",
+    "home_collection_last": "Zuletzt besucht",
+    "home_page_label": "Startseite",
+    "home_page_dashboard": "Heim",
+    "home_page_collection": "Sammlung",
+    "home_page_wishlist": "Wunschliste",
+    "home_view_label": "Standardansicht",
+    "home_view_last": "Zuletzt verwendet"
   },
   "setup": {
     "admin_config": "Admin-Konfiguration",

@@ -71,7 +71,17 @@
     "oidc_linked_label": "Linked to your identity provider",
     "oidc_not_linked_label": "Not linked",
     "oidc_link_btn": "Link account",
-    "oidc_unlink_btn": "Unlink"
+    "oidc_unlink_btn": "Unlink",
+    "home_title": "Startup",
+    "home_hint": "Where opening the app takes you.",
+    "home_collection_label": "Default collection",
+    "home_collection_last": "Last visited",
+    "home_page_label": "Landing page",
+    "home_page_dashboard": "Home",
+    "home_page_collection": "Collection",
+    "home_page_wishlist": "Wishlist",
+    "home_view_label": "Default view",
+    "home_view_last": "Last used"
   },
   "errors": {
     "username_taken": "This username is already taken.",
@@ -140,7 +150,8 @@
     "share_scope_updated": "Shared content updated.",
     "share_link_created": "Share link created.",
     "share_link_deleted": "Share link deleted.",
-    "error_share": "Could not update sharing."
+    "error_share": "Could not update sharing.",
+    "home_collection_updated": "Default collection updated."
   },
   "media": {
     "vinyl": "Vinyl",
@@ -312,7 +323,9 @@
       "loc": "Loc.",
       "ip_device": "IP & Device",
       "date": "Date",
-      "security": "Security"
+      "security": "Security",
+      "home_collection": "Default collection",
+      "home_collection_last": "Last visited"
     },
     "tooltips": {
       "reset_password": "Reset Password",

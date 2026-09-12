@@ -60,6 +60,28 @@ const userSchema = new mongoose.Schema({
         ref: 'Collection',
         default: null
     },
+    // Where opening the app puts the user. Separate from lastActiveCollectionId, which
+    // follows them around while they browse: this one is a choice, applied when a
+    // session starts and never touched by the collection switcher afterwards.
+    // Null means "wherever I left off".
+    homeCollectionId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Collection',
+        default: null
+    },
+    homePage: {
+        type: String,
+        enum: ['dashboard', 'collection', 'wishlist'],
+        default: 'dashboard'
+    },
+    // Id of a view in core/viewRegistry.ts, applied to the landing page when it is the
+    // collection or the wishlist. Not an enum: views are registered at runtime, and an
+    // id that stops resolving falls back to the grid like any other stale choice.
+    // Empty means the browser's own last-used view.
+    homeView: {
+        type: String,
+        default: ''
+    },
     // OIDC identity linked from the Settings page. Optional: password login
     // always remains available. `sub` is the subject claim issued by the
     // identity provider and identifies the external account.

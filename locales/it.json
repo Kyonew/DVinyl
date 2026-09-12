@@ -211,7 +211,9 @@
       "last_change": "Ultimo cambiamento",
       "loc": "Loc.",
       "security": "Sicurezza",
-      "user": "Utente"
+      "user": "Utente",
+      "home_collection": "Collezione predefinita",
+      "home_collection_last": "Ultima visitata"
     },
     "temp_password_hint": "Ecco la password temporanea (copiala, non verrà più mostrata):",
     "time_ago_min": "{{count}} minuti fa",
@@ -913,7 +915,8 @@
     "share_scope_updated": "Contenuto condiviso aggiornato.",
     "share_link_created": "Link di condivisione creato.",
     "share_link_deleted": "Link di condivisione eliminato.",
-    "error_share": "Impossibile aggiornare la condivisione."
+    "error_share": "Impossibile aggiornare la condivisione.",
+    "home_collection_updated": "Collezione predefinita aggiornata."
   },
   "modal": {
     "add_hub_subtitle": "Seleziona il tipo di media da aggiungere alla tua raccolta",
@@ -1031,7 +1034,17 @@
     "oidc_linked_label": "Collegato al tuo provider di identità",
     "oidc_not_linked_label": "Non collegato",
     "oidc_link_btn": "Collega account",
-    "oidc_unlink_btn": "Scollega"
+    "oidc_unlink_btn": "Scollega",
+    "home_title": "Avvio",
+    "home_hint": "Dove si apre l'applicazione.",
+    "home_collection_label": "Collezione predefinita",
+    "home_collection_last": "Ultima visitata",
+    "home_page_label": "Pagina di arrivo",
+    "home_page_dashboard": "Casa",
+    "home_page_collection": "Collezione",
+    "home_page_wishlist": "Lista dei desideri",
+    "home_view_label": "Vista predefinita",
+    "home_view_last": "Ultima utilizzata"
   },
   "setup": {
     "admin_config": "Configurazione amministratore",

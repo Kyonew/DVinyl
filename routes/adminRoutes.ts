@@ -230,6 +230,40 @@ router.post("/add-user", requireAuth, requireAdmin, async (req: any, res: any) =
   }
 });
 
+// Assign a member's home collection: the one they land in when they open the app
+// (see utils/homePage.ts). The user can change it themselves from their settings;
+// an admin sets it here so a new account starts somewhere sensible. Empty clears it,
+// which puts the user back on whatever they last browsed.
+router.post("/users/home-collection", requireAuth, requireAdmin, async (req: any, res: any) => {
+  try {
+    const { userId, collectionId } = req.body;
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.redirect("/admin/instance");
+    }
+
+    if (!collectionId) {
+      await User.updateOne({ _id: userId }, { $set: { homeCollectionId: null } });
+      return res.redirect("/admin/instance?msg=home_collection_updated");
+    }
+
+    // Only a collection the user belongs to: anything else would send them, every
+    // launch, somewhere the collection middleware has to heal them away from.
+    const member = await Collection.findOne({
+      _id: mongoose.Types.ObjectId.isValid(collectionId) ? collectionId : null,
+      "members.user": userId,
+    }).select("_id");
+    if (!member) {
+      return res.redirect("/admin/instance?msg=error_member_not_found");
+    }
+
+    await User.updateOne({ _id: userId }, { $set: { homeCollectionId: member._id } });
+    res.redirect("/admin/instance?msg=home_collection_updated");
+  } catch (err) {
+    console.error("[ADMIN] Home collection error:", err);
+    res.redirect("/admin/instance?msg=generic_error");
+  }
+});
+
 // Instance-wide settings (POST) - currently the member self-service collection toggle
 // and its per-user quota. Stored in the InstanceSettings singleton, not in the
 // per-collection Settings document.
@@ -332,6 +366,10 @@ router.post("/collections/:id/delete", requireAuth, requireAdmin, async (req: an
       { lastActiveCollectionId: target._id },
       { $set: { lastActiveCollectionId: null } },
     );
+    await User.updateMany(
+      { homeCollectionId: target._id },
+      { $set: { homeCollectionId: null } },
+    );
     await Collection.deleteOne({ _id: target._id });
     try {
       await deleteUnusedManagedItemImages(itemImages);
@@ -412,6 +450,10 @@ router.post("/instance/collections/:id/members/remove", requireAuth, requireAdmi
     await User.updateOne(
       { _id: userId, lastActiveCollectionId: req.params.id },
       { $set: { lastActiveCollectionId: null } },
+    );
+    await User.updateOne(
+      { _id: userId, homeCollectionId: req.params.id },
+      { $set: { homeCollectionId: null } },
     );
 
     res.redirect("/admin/instance?msg=member_removed");
@@ -553,6 +595,10 @@ router.post("/members/remove", requireAuth, requireCollectionRole("admin"), asyn
     await User.updateOne(
       { _id: userId, lastActiveCollectionId: res.locals.activeCollectionId },
       { $set: { lastActiveCollectionId: null } },
+    );
+    await User.updateOne(
+      { _id: userId, homeCollectionId: res.locals.activeCollectionId },
+      { $set: { homeCollectionId: null } },
     );
 
     res.redirect("/admin?msg=member_removed");

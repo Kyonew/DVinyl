@@ -301,7 +301,9 @@
           <%
             // Global shortcuts plus shortcuts declared by each plugin (navbarShortcuts)
             const shortcutConfig = {
-                'global_home': { label: t('nav.home'), url: '/' },
+                // Its own path, not '/': that one lands wherever the user chose, which
+                // may be the collection, and the dashboard would then have no entry.
+                'global_home': { label: t('nav.home'), url: '/dashboard' },
                 'global_collection': { label: t('nav.collection'), url: '/collection' },
                 'global_wishlist': { label: t('nav.wishlist'), url: '/wishlist' }
             };

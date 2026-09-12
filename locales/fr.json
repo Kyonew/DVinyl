@@ -71,7 +71,17 @@
     "oidc_linked_label": "Lié à votre fournisseur d'identité",
     "oidc_not_linked_label": "Non lié",
     "oidc_link_btn": "Lier le compte",
-    "oidc_unlink_btn": "Délier"
+    "oidc_unlink_btn": "Délier",
+    "home_title": "Démarrage",
+    "home_hint": "L'endroit où l'application s'ouvre.",
+    "home_collection_label": "Collection par défaut",
+    "home_collection_last": "Dernière visitée",
+    "home_page_label": "Page d'arrivée",
+    "home_page_dashboard": "Accueil",
+    "home_page_collection": "Collection",
+    "home_page_wishlist": "Souhaits",
+    "home_view_label": "Vue par défaut",
+    "home_view_last": "Dernière utilisée"
   },
   "errors": {
     "username_taken": "Ce pseudo est déjà utilisé.",
@@ -140,7 +150,8 @@
     "share_scope_updated": "Contenu partagé mis à jour.",
     "share_link_created": "Lien de partage créé.",
     "share_link_deleted": "Lien de partage supprimé.",
-    "error_share": "Impossible de mettre à jour le partage."
+    "error_share": "Impossible de mettre à jour le partage.",
+    "home_collection_updated": "Collection par défaut mise à jour."
   },
   "media": {
     "vinyl": "Vinyle",
@@ -297,7 +308,9 @@
       "loc": "Loc.",
       "ip_device": "IP & Appareil",
       "date": "Date",
-      "security": "Sécurité"
+      "security": "Sécurité",
+      "home_collection": "Collection par défaut",
+      "home_collection_last": "Dernière visitée"
     },
     "tooltips": {
       "reset_password": "Réinitialiser MDP",

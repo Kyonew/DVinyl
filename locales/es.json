@@ -211,7 +211,9 @@
       "last_change": "Último cambio",
       "loc": "Loc.",
       "security": "Seguridad",
-      "user": "Usuario"
+      "user": "Usuario",
+      "home_collection": "Recopilación predeterminada",
+      "home_collection_last": "Última visitada"
     },
     "temp_password_hint": "Aquí está la contraseña temporal (cópiala, no se volverá a mostrar):",
     "time_ago_min": "Hace {{count}} minutos",
@@ -913,7 +915,8 @@
     "share_scope_updated": "Contenido compartido actualizado.",
     "share_link_created": "Enlace para compartir creado.",
     "share_link_deleted": "Enlace para compartir eliminado.",
-    "error_share": "No se ha podido actualizar el uso compartido."
+    "error_share": "No se ha podido actualizar el uso compartido.",
+    "home_collection_updated": "Recopilación predeterminada actualizada."
   },
   "modal": {
     "add_hub_subtitle": "Seleccione el tipo de medios para agregar a su colección",
@@ -1031,7 +1034,17 @@
     "oidc_linked_label": "Vinculada a tu proveedor de identidad",
     "oidc_not_linked_label": "No vinculada",
     "oidc_link_btn": "Vincular cuenta",
-    "oidc_unlink_btn": "Desvincular"
+    "oidc_unlink_btn": "Desvincular",
+    "home_title": "Inicio",
+    "home_hint": "Dónde se abre la aplicación.",
+    "home_collection_label": "Recopilación predeterminada",
+    "home_collection_last": "Última visitada",
+    "home_page_label": "Página de llegada",
+    "home_page_dashboard": "Inicio",
+    "home_page_collection": "Recopilación",
+    "home_page_wishlist": "Lista de deseos",
+    "home_view_label": "Vista predeterminada",
+    "home_view_last": "Última utilizada"
   },
   "setup": {
     "admin_config": "Configuración de administrador",

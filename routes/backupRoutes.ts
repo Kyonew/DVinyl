@@ -204,7 +204,7 @@ const importInstanceBackup = async (req: any, res: any) => {
             const cleanUsers = hasCollections
                 ? data.users
                 : data.users.map((u: any) => {
-                    const { lastActiveCollectionId, ...rest } = u;
+                    const { lastActiveCollectionId, homeCollectionId, ...rest } = u;
                     return rest;
                 });
             await User.insertMany(cleanUsers);
