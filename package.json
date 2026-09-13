@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node --env-file=.env --import tsx app.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
+    "test:mongo": "tsx scripts/test-mongo.ts",
     "build:css": "npx tailwindcss -i ./website/src/input.css -o ./website/public/styles/tailwind.css --watch"
   },
   "author": "Kyo'",
@@ -17,6 +18,7 @@
     "ejs": "^3.1.10",
     "express": "^5.1.0",
     "express-session": "^1.18.1",
+    "fast-xml-parser": "^5.11.0",
     "i18next": "^25.8.0",
     "i18next-http-middleware": "^3.9.2",
     "jsonwebtoken": "^9.0.2",
@@ -40,6 +42,7 @@
     "@types/yauzl": "^3.4.0",
     "@types/yazl": "^3.3.1",
     "autoprefixer": "^10.4.21",
+    "mongodb-memory-server": "^11.2.0",
     "nodemon": "^3.1.10",
     "postcss": "^8.5.3",
     "tailwindcss": "^4.1.5",

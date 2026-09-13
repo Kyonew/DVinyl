@@ -9,6 +9,8 @@ dvinyl_collection-*.csv
 .vscode/
 .claude/
 dist/
+
+# graphify (local knowledge-graph tooling, not part of the app)
 CLAUDE.md
 /graphify-out
 /docs/roadmap.md
