@@ -1377,15 +1377,6 @@
     "theme_label": "Thème",
     "delete_confirm": "Voulez-vous vraiment supprimer ce set de votre collection ?"
   },
-  "add_boardgames": {
-    "title": "Ajouter un jeu de société",
-    "desc": "Recherchez un titre via BoardGameGeek.",
-    "search_placeholder": "Titre du jeu...",
-    "results_title": "Résultats",
-    "no_results": "Aucun jeu trouvé.",
-    "manual_entry": "Saisie manuelle",
-    "btn_scan": "Scanner"
-  },
   "confirm_boardgame": {
     "title": "Confirmer l'ajout",
     "desc": "Vérifiez les informations et complétez les détails de votre jeu.",

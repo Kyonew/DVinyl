@@ -1377,15 +1377,6 @@
     "theme_label": "Theme",
     "delete_confirm": "Do you really want to remove this set from your collection?"
   },
-  "add_boardgames": {
-    "title": "Add a board game",
-    "desc": "Search a title via BoardGameGeek.",
-    "search_placeholder": "Game title...",
-    "results_title": "Results",
-    "no_results": "No game found.",
-    "manual_entry": "Manual entry",
-    "btn_scan": "Scan"
-  },
   "confirm_boardgame": {
     "title": "Confirm addition",
     "desc": "Check the information and complete your game's details.",

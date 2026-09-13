@@ -776,7 +776,10 @@
     "hardcover": "De tapa dura",
     "manga": "Manga",
     "paperback": "Libro de bolsillo",
-    "digital": "Digital"
+    "digital": "Digital",
+    "boxed": "Caja",
+    "expansion": "Expansión",
+    "promo": "Promo"
   },
   "generic": {
     "edit_title": "Editar el elemento",
@@ -892,7 +895,9 @@
     "digital": "Digital",
     "book": "Libro",
     "lego": "LEGO",
-    "legos": "Sets LEGO"
+    "legos": "Sets LEGO",
+    "boardgames": "Juegos de mesa",
+    "boardgame": "Juego de mesa"
   },
   "messages": {
     "saved": "¡Guardado!",
@@ -1113,7 +1118,9 @@
     "lego_pieces_label": "Total de piezas",
     "lego_minifigs_label": "Total de minifiguras",
     "lego_sealed_label": "Sets sellados",
-    "top_theme_label": "Tema principal"
+    "top_theme_label": "Tema principal",
+    "boardgames_total_label": "Total juegos de mesa",
+    "top_designer_label": "Autor principal"
   },
   "status": {
     "read": "Leer",
@@ -1325,6 +1332,15 @@
     "manual_entry": "Entrada manual",
     "btn_scan": "Escanear"
   },
+  "add_boardgame": {
+    "title": "Añadir un juego de mesa",
+    "desc": "Busca por título vía BoardGameGeek.",
+    "search_placeholder": "Título del juego...",
+    "results_title": "Resultados",
+    "no_results": "No se encontró ningún juego.",
+    "manual_entry": "Entrada manual",
+    "btn_scan": "Escanear"
+  },
   "confirm_lego": {
     "title": "Confirmar adición",
     "desc": "Verifica la información y completa los detalles de tu set.",
@@ -1360,5 +1376,39 @@
     "set_num_label": "Número de set",
     "theme_label": "Tema",
     "delete_confirm": "¿Seguro que quieres eliminar este set de tu colección?"
+  },
+  "confirm_boardgame": {
+    "title": "Confirmar adición",
+    "desc": "Verifica la información y completa los detalles de tu juego.",
+    "config_title": "Revisar y completar",
+    "field_title": "Título",
+    "field_designer": "Autor",
+    "field_publisher": "Editorial",
+    "field_year": "Año",
+    "field_players": "Jugadores",
+    "field_playtime": "Duración (min)",
+    "field_min_age": "Edad mínima",
+    "field_format": "Formato",
+    "field_barcode": "Código de barras",
+    "field_quantity": "Cantidad",
+    "field_rating": "Valoración (sobre 5)",
+    "field_comments": "Notas / Comentarios",
+    "comments_placeholder": "Ej: Faltan algunas fichas...",
+    "designer_label": "Autor",
+    "year_label": "Año",
+    "barcode_label": "Código de barras",
+    "btn_collection": "Añadir a la colección",
+    "btn_wishlist": "Añadir a la Wishlist"
+  },
+  "edit_boardgame": {
+    "title": "Editar juego de mesa"
+  },
+  "boardgame_detail": {
+    "players_label": "jugadores",
+    "playtime_label": "min",
+    "designer_label": "Autor",
+    "publisher_label": "Editorial",
+    "rating_label": "Valoración BGG",
+    "delete_confirm": "¿Seguro que quieres eliminar este juego de tu colección?"
   }
 }

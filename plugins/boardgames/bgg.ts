@@ -62,6 +62,13 @@ function formatPlaytime(minplaytime: any, maxplaytime: any, playingtime: any): s
   return playingtime ? String(playingtime.value) : '';
 }
 
+// /thing tags each item with what it is. An expansion carried no format of its own, so
+// every import landed as a boxed game and the "Expansions" navbar shortcut stayed empty
+// whatever the collection held.
+function formatOf(type: any): string {
+  return String(type || '') === 'boardgameexpansion' ? 'expansion' : 'boxed';
+}
+
 function mapThing(it: any): ConfirmData & { bgg_id: string } {
   const title = primaryName(it.name);
   const designer = firstLink(it.link, 'boardgamedesigner');
@@ -79,6 +86,7 @@ function mapThing(it: any): ConfirmData & { bgg_id: string } {
     players: formatPlayers(it.minplayers, it.maxplayers),
     playtime: formatPlaytime(it.minplaytime, it.maxplaytime, it.playingtime),
     min_age: it.minage ? Number(it.minage.value) : 0,
+    format: formatOf(it.type),
     cover_image: it.image || it.thumbnail || '',
     description: typeof it.description === 'string' ? decodeNumericEntities(it.description) : '',
     bgg_rating: ratingRaw ? Math.round(Number(ratingRaw) * 10) / 10 : 0,

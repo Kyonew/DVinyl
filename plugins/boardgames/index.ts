@@ -93,6 +93,15 @@ export const boardGamesPlugin: PluginDefinition = {
     { value: 'promo', label: 'format.promo', color: 'bg-amber-600/90' }
   ],
 
+  // A boxed game is shelved flat-side out, so its "thickness" is the box depth and its
+  // "height" the side standing up: roughly a square 295mm box for a big game. Expansions
+  // ship in the same footprint but a fraction of the depth, and a promo is a sleeve.
+  spineSize: {
+    boxed: { thickness: 75, height: 295 },
+    expansion: { thickness: 40, height: 240 },
+    promo: { thickness: 10, height: 120 }
+  },
+
   formFields: [
     { name: 'title', label: 'confirm_boardgame.field_title', type: 'text', required: true,
       showIn: ['edit', 'confirm', 'detail', 'manual'], group: 'main' },
@@ -126,13 +135,6 @@ export const boardGamesPlugin: PluginDefinition = {
     { name: 'location', label: 'common.location', type: 'text',
       showIn: ['edit', 'confirm', 'manual'], group: 'metadata', placeholder: 'placeholders.location' }
   ],
-
-  cardBadge(item: any) {
-    const labels: Record<string, string> = { boxed: 'Boxed', expansion: 'Expansion', promo: 'Promo' };
-    const format = item.format || 'boxed';
-    const colors: Record<string, string> = { boxed: 'bg-emerald-600/90', expansion: 'bg-sky-600/90', promo: 'bg-amber-600/90' };
-    return { label: labels[format] || format, colorClass: colors[format] || 'bg-gray-600/90' };
-  },
 
   getStats(items: any[]): Record<string, any> {
     const qty = (i: any) => Number(i.quantity || 1);
