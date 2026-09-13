@@ -51,6 +51,9 @@ read-only preview of a finished instance.
 - **14 color themes.** Ocean, Forest, Sunset, Sakura, Midnight and more, each with a light and a
   dark variant, and you can even set a different theme per category.
 - **Modular dashboard.** Pick the stat widgets you want and add your own navbar shortcuts.
+- **Collection info page.** Present a collection in your own words: a Markdown page with a few
+  images, linked from the home page and the collection, and readable from a share link if you
+  want it to be.
 - **Responsive.** Built to feel right on mobile too.
 - **Multilingual.** English, French, German, Spanish and Italian.
 

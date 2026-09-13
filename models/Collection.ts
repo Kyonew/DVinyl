@@ -45,6 +45,26 @@ const collectionSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    // Free-form presentation page for the collection (see core/collectionInfo.ts and
+    // core/routes/collectionInfoRoute.ts). Lives on the collection rather than in its
+    // Settings container because it is what the collection says about itself, not how
+    // the instance is configured to display it.
+    info: {
+        // Drawn and linked to only when on. Off is the state of a collection that has
+        // never written one, so nothing appears until somebody has something to say.
+        enabled: { type: Boolean, default: false },
+        // Whether a share-link visitor sees it too. A collection can keep a page for
+        // its own members while its public link shows nothing.
+        shareVisible: { type: Boolean, default: true },
+        title: { type: String, default: '', trim: true },
+        // Markdown, rendered at display time (core/markdown.ts). Stored as written so
+        // an edit reopens on the author's own text.
+        body: { type: String, default: '' },
+        // Managed upload paths or remote URLs, in display order; same storage as the
+        // item galleries (core/itemImageStorage.ts).
+        images: { type: [String], default: [] },
+        updated_at: { type: Date, default: null }
+    },
     members: {
         type: [memberSchema],
         default: []

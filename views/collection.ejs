@@ -31,6 +31,19 @@
                         <%= t('common.items') %>
                 </span>
             </h1>
+            <div class="flex items-center gap-2">
+            <%# The collection's page, reachable from the collection itself: a share
+                visitor never sees the dashboard, and this is the page they land on. %>
+            <% if (isCollectionInfoVisible(locals.activeCollection, locals.isShareView)) { %>
+                <a href="<%= baseUrl %>/info"
+                    class="flex-shrink-0 w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center gap-2 group"
+                    title="<%= t('collection_info.title') %>">
+                    <i class="fa-solid fa-circle-info group-hover:scale-110 transition-transform"></i>
+                    <span class="hidden md:inline text-xs font-bold uppercase tracking-widest">
+                        <%= t('collection_info.title') %>
+                    </span>
+                </a>
+            <% } %>
             <% if (locals.canEditCollection) { %>
                 <%
                     // Add button target: external-search page if the plugin has one, else manual entry
@@ -76,6 +89,7 @@
 
                     </div>
                     <% } %>
+            </div>
 
         </div>
 

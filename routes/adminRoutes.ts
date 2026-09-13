@@ -20,6 +20,14 @@ import { CARD_ASPECT_RATIOS } from "../core/customPlugin";
 import { PermanentRefreshError, syncStamp, getPublicProtocol } from "../core/helpers";
 import { deleteItemsAndContents } from "../utils/itemHelpers";
 import { deleteUnusedManagedItemImages, managedItemImagesForQuery } from "../core/itemImageStorage";
+import {
+  collectionInfoFromForm,
+  collectionInfoOf,
+  MAX_COLLECTION_INFO_BODY,
+  MAX_COLLECTION_INFO_IMAGES,
+  MAX_COLLECTION_INFO_TITLE,
+} from "../core/collectionInfo";
+import { renderMarkdown } from "../core/markdown";
 import { alignImagesAfterRefresh } from "../core/itemImages";
 
 const router = express.Router();
@@ -922,6 +930,68 @@ router.post("/delete-last-logs", requireAuth, requireAdmin, async (req: any, res
     console.error("[ERR] delete-last-logs:", err.message);
     res.status(500).json({ error: err.message });
   }
+});
+
+// COLLECTION INFO PAGE EDITOR (see core/collectionInfo.ts). The page it writes is
+// served by core/routes/collectionInfoRoute.ts and is readable by share visitors, so
+// only a collection admin gets to write it.
+router.get("/collection-info", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
+  try {
+    const collection = await Collection.findById(res.locals.activeCollectionId).lean();
+    if (!collection) return res.redirect("/admin");
+
+    const info = collectionInfoOf(collection);
+    res.render("admin-collection-info", {
+      user: res.locals.user,
+      collectionName: (collection as any).name,
+      info,
+      infoHtml: renderMarkdown(info.body),
+      maxTitle: MAX_COLLECTION_INFO_TITLE,
+      maxBody: MAX_COLLECTION_INFO_BODY,
+      maxImages: MAX_COLLECTION_INFO_IMAGES,
+      successMessage: req.query.msg ? req.t(`messages.${req.query.msg}`) : null,
+    });
+  } catch (err) {
+    console.error("[ERR] Collection info editor:", err);
+    res.status(500).send(req.t("errors.generic_server_error"));
+  }
+});
+
+router.post("/collection-info", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
+  try {
+    const collectionId = res.locals.activeCollectionId;
+    const previous = collectionInfoOf(await Collection.findById(collectionId).lean());
+    const info = collectionInfoFromForm(req.body);
+
+    await Collection.updateOne(
+      { _id: collectionId },
+      { $set: { info: { ...info, updated_at: new Date() } } },
+    );
+
+    // An upload dropped from the page is nothing's image any more. The release is
+    // guarded against every other reference (items, other collections), so a picture
+    // used twice stays where it is.
+    const removed = previous.images.filter(image => !info.images.includes(image));
+    if (removed.length > 0) {
+      try {
+        await deleteUnusedManagedItemImages(removed);
+      } catch (cleanupError) {
+        console.warn("[COLLECTION INFO] Image cleanup failed:", cleanupError);
+      }
+    }
+
+    res.redirect("/admin/collection-info?msg=saved");
+  } catch (err) {
+    console.error("[ERR] Collection info save:", err);
+    res.status(500).send(req.t("errors.generic_server_error"));
+  }
+});
+
+// Live preview of the editor's text. Rendered here rather than in the browser so the
+// preview and the page itself can never drift apart: both read core/markdown.ts.
+router.post("/collection-info/preview", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
+  const body = typeof req.body?.body === "string" ? req.body.body : "";
+  res.json({ html: renderMarkdown(body.slice(0, MAX_COLLECTION_INFO_BODY)) });
 });
 
 router.get("/personnalisation", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {

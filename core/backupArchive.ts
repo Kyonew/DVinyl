@@ -24,10 +24,34 @@ interface ImportedBackupArchive {
   importedImages: string[];
 }
 
+/**
+ * The info pages a dump carries: one on a collection dump, one per collection on an
+ * instance dump. Their pictures live in the same upload folder as the items' and have
+ * to travel in the archive the same way, or a restore brings back a page whose images
+ * are all missing.
+ */
+function backupInfoPages(data: any): any[] {
+  const pages: any[] = [];
+  if (data?.info && typeof data.info === 'object') pages.push(data.info);
+  if (Array.isArray(data?.collections)) {
+    for (const collection of data.collections) {
+      if (collection?.info && typeof collection.info === 'object') pages.push(collection.info);
+    }
+  }
+  return pages;
+}
+
+function infoPageImages(data: any): string[] {
+  return backupInfoPages(data)
+    .flatMap((page: any) => (Array.isArray(page.images) ? page.images : []))
+    .filter((image: unknown): image is string => typeof image === 'string' && image.length > 0);
+}
+
 function backupImages(data: any): string[] {
   const albums = Array.isArray(data?.albums) ? data.albums : [];
   const images: string[] = albums.flatMap((album: any) => managedItemImagesFrom(album));
-  return [...new Set<string>(images)];
+  const infoImages = infoPageImages(data).filter(image => managedItemImageFile(image));
+  return [...new Set<string>([...images, ...infoImages])];
 }
 
 function backupImageValues(data: any): string[] {
@@ -36,7 +60,8 @@ function backupImageValues(data: any): string[] {
     album?.cover_image,
     album?.user_image,
     ...(Array.isArray(album?.images) ? album.images : [])
-  ]).filter((image: unknown): image is string => typeof image === 'string' && image.length > 0);
+  ]).filter((image: unknown): image is string => typeof image === 'string' && image.length > 0)
+    .concat(infoPageImages(data));
 }
 
 function cloneForArchive(data: any): any {
@@ -53,15 +78,19 @@ function legacyInlineJpeg(image: string): Buffer | null {
 }
 
 function rewriteBackupImages(data: any, replacements: Map<string, string>): void {
-  if (!Array.isArray(data?.albums) || replacements.size === 0) return;
+  if (replacements.size === 0) return;
   const replace = (value: unknown) => typeof value === 'string'
     ? (replacements.get(value) || value)
     : value;
 
-  for (const album of data.albums) {
+  for (const album of (Array.isArray(data?.albums) ? data.albums : [])) {
     album.cover_image = replace(album.cover_image);
     album.user_image = replace(album.user_image);
     if (Array.isArray(album.images)) album.images = album.images.map(replace);
+  }
+
+  for (const page of backupInfoPages(data)) {
+    if (Array.isArray(page.images)) page.images = page.images.map(replace);
   }
 }
 

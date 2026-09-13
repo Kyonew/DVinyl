@@ -22,6 +22,11 @@ than a member ever does:
 - **Who is behind the collection.** "Added by" and "Last modified" are not shown, so a link says
   what is on the shelf without naming the household around it.
 
+A collection's **info page** is the one page besides the collection itself a link can open: if the
+collection has one and it is set to be visible from share links, visitors get a link to it and can
+read it. It is written from the admin panel, and the toggle that keeps it from the share links is
+right next to the one that turns it on, so a page written for members alone stays with them.
+
 A collection can have **several share links at once**, each independent. Disabling, regenerating
 or deleting one never touches the others.
 

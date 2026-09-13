@@ -23,6 +23,7 @@ import { importableFields, fieldValue, ImportTargetField } from '../core/csvMapp
 const pkg = require('../package.json');
 import { migrateDatabase, normalizeThemePresets } from '../utils/migrate';
 import { seedFurnitureFromLocations } from '../core/shelfStore';
+import { collectionInfoFromBackup, collectionInfoOf } from '../core/collectionInfo';
 import { applyCustomPluginsFromDB } from '../core/customPluginSync';
 import { collectExtraDateFields, reviveExtraDates } from '../core/pluginExtraFields';
 import { deleteUnusedManagedItemImages, managedItemImageFile, managedItemImagesForQuery } from '../core/itemImageStorage';
@@ -160,6 +161,11 @@ const importInstanceBackup = async (req: any, res: any) => {
 
         const hasCollections = Array.isArray(data.collections) && data.collections.length > 0;
         const replacedImagePaths = await managedItemImagesForQuery({});
+        // The wipe below takes the info pages with it, so their uploads are candidates
+        // for release too, exactly like the items' own images.
+        for (const current of await Collection.find({}).select('info.images').lean()) {
+            replacedImagePaths.push(...collectionInfoOf(current).images);
+        }
 
         console.log(`[BACKUP] Instance import started (dump version ${data.metadata?.version || 'unknown'}, ${hasCollections ? 'with' : 'without'} collections): ${data.users?.length || 0} user(s), ${data.albums?.length || 0} item(s). Wiping current data...`);
 
@@ -383,6 +389,9 @@ async function buildCollectionBackup(activeCollectionId: any, collection: any): 
         collectionName: collection?.name || 'Collection',
         albums,
         furniture,
+        // The collection's own page travels with it: it is written about these items,
+        // and its pictures are picked up by the archive alongside theirs.
+        info: collectionInfoOf(collection),
         settings: settings || null,
         metadata: {
             version: pkg.version,
@@ -616,6 +625,16 @@ const importCollectionBackup = async (req: any, res: any) => {
             if (seeded.shelves > 0) {
                 console.log(`[BACKUP] ${seeded.shelves} shelf/shelves rebuilt from the restored locations.`);
             }
+        }
+
+        // The info page is replaced like everything else, and the pictures the previous
+        // one held are released once the new page is in place (nothing else points at
+        // them, and the release checks every other reference before it unlinks a file).
+        const previousInfo = collectionInfoOf(await Collection.findById(activeCollectionId).lean());
+        if (data.info && typeof data.info === 'object') {
+            const info = collectionInfoFromBackup(data.info);
+            await Collection.updateOne({ _id: activeCollectionId }, { $set: { info } });
+            replacedImagePaths.push(...previousInfo.images.filter(image => !info.images.includes(image)));
         }
 
         // Restore the collection's settings container when the dump carries one

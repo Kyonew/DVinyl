@@ -356,6 +356,34 @@
                         <div class="border-t border-black/5 dark:border-white/5 pt-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
                             <div>
                                 <h3 class="text-lg font-bold flex items-center gap-2 mb-1">
+                                    <i class="fa-solid fa-circle-info text-primary-theme"></i>
+                                    <%= t('collection_info.title') %>
+                                    <% if (isCollectionInfoVisible(locals.collectionDoc, false)) { %>
+                                        <span class="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-green-500/15 text-green-600 dark:text-green-400">
+                                            <%= t('collection_info.status_on') %>
+                                        </span>
+                                    <% } else { %>
+                                        <span class="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-black/5 dark:bg-white/10 opacity-60">
+                                            <%= t('collection_info.status_off') %>
+                                        </span>
+                                    <% } %>
+                                </h3>
+                                <p class="text-xs opacity-60">
+                                    <%= t('collection_info.admin_subtitle') %>
+                                </p>
+                            </div>
+                            <div class="flex flex-wrap gap-3">
+                                <a href="<%= baseUrl %>/admin/collection-info"
+                                    class="flex-1 sm:flex-none bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-pen"></i>
+                                    <%= t('collection_info.edit') %>
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="border-t border-black/5 dark:border-white/5 pt-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                            <div>
+                                <h3 class="text-lg font-bold flex items-center gap-2 mb-1">
                                     <i class="fa-solid fa-database text-primary-theme"></i>
                                     <%= t('admin.collection_backup.title') %>
                                 </h3>

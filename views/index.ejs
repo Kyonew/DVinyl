@@ -40,6 +40,18 @@
         </div>
     </section>
 
+    <% if (isCollectionInfoVisible(locals.activeCollection, locals.isShareView)) { %>
+        <%# The collection's own page, one line under the welcome panel: a place for what
+            the cards cannot say. Only drawn once there is a page to open. %>
+        <a href="<%= baseUrl %>/info"
+            class="-mt-4 md:-mt-8 flex items-center gap-3 card-theme rounded-2xl px-5 py-3 shadow-sm hover:border-primary-theme hover:text-primary-theme transition-all group">
+            <i class="fa-solid fa-circle-info text-primary-theme"></i>
+            <span class="text-sm font-bold"><%= t('collection_info.bar_label') %></span>
+            <span class="text-xs opacity-50 truncate hidden sm:inline"><%= locals.activeCollection.name %></span>
+            <i class="fa-solid fa-arrow-right ml-auto text-xs opacity-50 group-hover:translate-x-1 transition-transform"></i>
+        </a>
+    <% } %>
+
     <section>
         <div class="flex items-center justify-between mb-4 md:mb-6 px-2">
             <div class="flex items-center gap-2">

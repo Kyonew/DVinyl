@@ -32,6 +32,7 @@ import { getCardLines, getCornerBadge, isTranslationKey, CORNER_POSITIONS, DEFAU
 import { importableFields } from './core/csvMapping.js';
 import { MAX_ITEM_IMAGES, MAX_ITEM_IMAGE_BYTES } from './core/itemImages.js';
 import { cleanupStaleItemImageUploads, ITEM_IMAGE_SWEEP_INTERVAL_MS, itemImageUrl } from './core/itemImageStorage.js';
+import { isCollectionInfoVisible } from './core/collectionInfo.js';
 
 // Routes imports
 import setupRoutes from './routes/setupRoutes.js';
@@ -47,6 +48,7 @@ import oidcRoutes from './routes/oidcRoutes.js';
 
 import dashboardRoute from './core/routes/dashboardRoute.js';
 import collectionRoute from './core/routes/collectionRoute.js';
+import collectionInfoRoute from './core/routes/collectionInfoRoute.js';
 import shelfRoute from './core/routes/shelfRoute.js';
 import searchRoute from './core/routes/searchRoute.js';
 import manualAddRoute from './core/routes/manualAddRoute.js';
@@ -105,6 +107,9 @@ app.locals.MAX_ITEM_IMAGE_BYTES = MAX_ITEM_IMAGE_BYTES;
 app.locals.itemImageUrl = itemImageUrl;
 // Dates read the same way wherever a view prints one
 app.locals.dateLocaleFor = dateLocaleFor;
+// Every entry point to the collection info page asks the same question before it links
+// to it, share visitors included (core/collectionInfo.ts).
+app.locals.isCollectionInfoVisible = isCollectionInfoVisible;
 app.set('io', io); // Expose io to routes
 
 // Global middlewares
@@ -296,6 +301,7 @@ if (isOidcEnabled()) {
 
 app.use(BASE_URL, dashboardRoute);
 app.use(BASE_URL, collectionRoute);
+app.use(BASE_URL, collectionInfoRoute);
 app.use(BASE_URL, shelfRoute);
 app.use(BASE_URL, searchRoute);
 app.use(BASE_URL, manualAddRoute);
