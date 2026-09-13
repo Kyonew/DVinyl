@@ -1036,7 +1036,7 @@
     "oidc_link_btn": "Collega account",
     "oidc_unlink_btn": "Scollega",
     "home_title": "Avvio",
-    "home_hint": "Dove si apre l'applicazione.",
+    "home_hint": "Dove si apre l'applicazione e come viene mostrata la collezione.",
     "home_collection_label": "Collezione predefinita",
     "home_collection_last": "Ultima visitata",
     "home_page_label": "Pagina di arrivo",

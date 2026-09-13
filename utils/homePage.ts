@@ -18,16 +18,13 @@ export function isHomePage(value: unknown): value is HomePage {
 }
 
 /**
- * The path a user should land on when they open the app. The view is carried as a
- * query parameter rather than stored per browser, because the collection page already
- * resolves `?view=` through the registry: an id that no longer exists, or one that does
- * not apply to the page (the shelf on a wishlist), falls back to the grid on its own.
+ * The path a user should land on when they open the app. Bare, with no view pinned to
+ * it: the collection page reads `homeView` itself, so the default view applies whether
+ * the user got there by opening the app or by clicking Collection in the nav.
  */
 export function homePathFor(user: any): string {
     const page: HomePage = isHomePage(user?.homePage) ? user.homePage : 'dashboard';
-    const path = PATH_BY_PAGE[page];
-    if (page === 'dashboard' || !user?.homeView) return path;
-    return `${path}?view=${encodeURIComponent(user.homeView)}`;
+    return PATH_BY_PAGE[page];
 }
 
 /**

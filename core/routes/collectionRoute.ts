@@ -289,15 +289,23 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
       .limit(limit)
       .lean();
 
-    // How the page is drawn, remembered per browser like the sort and the page size.
-    // Resolved here rather than with them, because a view that draws something other
-    // than one page of items needs the finished query and ordering to build its own.
-    // Resolved through the registry before it is stored, so an id that does not exist,
-    // or one that no longer applies to this page, cannot come back from the cookie on
-    // every later request.
+    // How the page is drawn. Three sources, narrowest first: the view selector says so
+    // outright, then the user's chosen default view, then the one this browser last
+    // used. A default set in the settings outranks the cookie on purpose - that is what
+    // makes it a default rather than a one-off, and leaving it on "last used" is how a
+    // user asks for the cookie to keep deciding.
+    //
+    // Resolved here rather than with the sort and the page size, because a view that
+    // draws something other than one page of items needs the finished query and ordering
+    // to build its own. Resolved through the registry before it is stored, so an id that
+    // does not exist, or one that no longer applies to this page, cannot come back from
+    // the cookie on every later request.
     const viewContext: CollectionViewContext = { req, res, inWishlist, itemQuery: query, itemSort };
     const availableViews = await viewRegistry.getAvailable(viewContext);
-    const activeView = viewRegistry.resolve(req.query.view || req.cookies.viewPref, availableViews);
+    const activeView = viewRegistry.resolve(
+      req.query.view || req.user?.homeView || req.cookies.viewPref,
+      availableViews
+    );
     if (req.query.view === activeView.id) {
       res.cookie('viewPref', activeView.id, { maxAge: 365 * 24 * 60 * 60 * 1000 });
     }

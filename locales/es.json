@@ -1036,7 +1036,7 @@
     "oidc_link_btn": "Vincular cuenta",
     "oidc_unlink_btn": "Desvincular",
     "home_title": "Inicio",
-    "home_hint": "Dónde se abre la aplicación.",
+    "home_hint": "Dónde se abre la aplicación y cómo se muestra la recopilación.",
     "home_collection_label": "Recopilación predeterminada",
     "home_collection_last": "Última visitada",
     "home_page_label": "Página de llegada",

@@ -30,9 +30,7 @@ router.get('/', requireAuth, async (req: any, res: any) => {
   // Callers reach '/' carrying a message to show ('/?msg=collection_created'), and the
   // page that displays one is the page being redirected to.
   const msg = typeof req.query.msg === 'string' ? req.query.msg : '';
-  if (!msg) return res.redirect(target);
-  const separator = target.includes('?') ? '&' : '?';
-  res.redirect(`${target}${separator}msg=${encodeURIComponent(msg)}`);
+  res.redirect(msg ? `${target}?msg=${encodeURIComponent(msg)}` : target);
 });
 
 router.get('/dashboard', requireAuth, async (req: any, res: any) => {

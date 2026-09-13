@@ -1036,7 +1036,7 @@
     "oidc_link_btn": "Konto verknüpfen",
     "oidc_unlink_btn": "Verknüpfung aufheben",
     "home_title": "Start",
-    "home_hint": "Wo die App sich öffnet.",
+    "home_hint": "Wo die App sich öffnet und wie die Sammlung dargestellt wird.",
     "home_collection_label": "Standardsammlung",
     "home_collection_last": "Zuletzt besucht",
     "home_page_label": "Startseite",

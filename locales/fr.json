@@ -73,7 +73,7 @@
     "oidc_link_btn": "Lier le compte",
     "oidc_unlink_btn": "Délier",
     "home_title": "Démarrage",
-    "home_hint": "L'endroit où l'application s'ouvre.",
+    "home_hint": "L'endroit où l'application s'ouvre, et la façon dont la collection s'affiche.",
     "home_collection_label": "Collection par défaut",
     "home_collection_last": "Dernière visitée",
     "home_page_label": "Page d'arrivée",
