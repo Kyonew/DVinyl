@@ -65,7 +65,8 @@
                             label: t(p.label),
                             icon: 'fa-' + p.icon,
                             needsKey: requiredEnvKeysFor(p).length > 0,
-                            settings: p.settings || []
+                            settings: p.settings || [],
+                            sources: sourceStatusFor(p, settings)
                         }));
                         %>
                             <% mods.forEach((mod)=> { %>
@@ -83,7 +84,7 @@
                                             </span>
                                         </div>
                                         <div class="flex items-center gap-2">
-                                            <% if (mod.settings.length > 0) { %>
+                                            <% if (mod.settings.length > 0 || mod.sources.length > 0) { %>
                                                 <span role="button" tabindex="0"
                                                     onclick="event.preventDefault(); document.getElementById('opts-<%= mod.pluginId %>').classList.toggle('hidden');"
                                                     onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); document.getElementById('opts-<%= mod.pluginId %>').classList.toggle('hidden');}"
@@ -102,8 +103,50 @@
                                         </div>
                                     </label>
 
-                                    <% if (mod.settings.length > 0) { %>
+                                    <% if (mod.settings.length > 0 || mod.sources.length > 0) { %>
                                         <div id="opts-<%= mod.pluginId %>" class="hidden p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 space-y-3">
+                                            <%# Where the module looks things up, in the order it tries them. Each row
+                                                says what the service answers and, when it answers nothing yet, which
+                                                variable it is waiting for: with several services behind one module,
+                                                "an API key is missing" no longer names anything actionable. %>
+                                            <% if (mod.sources.length > 0) { %>
+                                                <div data-source-list="<%= mod.pluginId %>">
+                                                    <p class="text-xs font-bold opacity-80"><%= t('admin.sources.title') %></p>
+                                                    <p class="text-[10px] opacity-50 mt-0.5 mb-2 leading-snug"><%= t('admin.sources.hint') %></p>
+                                                    <input type="hidden" name="sourceOrder_<%= mod.pluginId %>" value="<%= mod.sources.map(src => src.id).join(',') %>">
+                                                    <ul class="space-y-1.5">
+                                                        <% mod.sources.forEach((src, index) => { %>
+                                                            <li data-source-id="<%= src.id %>" class="flex items-center gap-2 p-2 rounded-xl bg-white/60 dark:bg-black/20">
+                                                                <div class="flex flex-col gap-0.5">
+                                                                    <button type="button" data-source-move="up" aria-label="<%= t('admin.sources.move_up') %>"
+                                                                        class="w-4 h-3 flex items-center justify-center opacity-40 hover:opacity-100 hover:text-primary-theme transition-opacity disabled:opacity-10 disabled:hover:opacity-10"
+                                                                        <%= index === 0 ? 'disabled' : '' %>><i class="fa-solid fa-chevron-up text-[8px]"></i></button>
+                                                                    <button type="button" data-source-move="down" aria-label="<%= t('admin.sources.move_down') %>"
+                                                                        class="w-4 h-3 flex items-center justify-center opacity-40 hover:opacity-100 hover:text-primary-theme transition-opacity disabled:opacity-10 disabled:hover:opacity-10"
+                                                                        <%= index === mod.sources.length - 1 ? 'disabled' : '' %>><i class="fa-solid fa-chevron-down text-[8px]"></i></button>
+                                                                </div>
+                                                                <span class="text-xs font-bold truncate"><%= src.name %></span>
+                                                                <div class="flex items-center gap-1 ml-auto shrink-0">
+                                                                    <% if (src.searchable) { %>
+                                                                        <span class="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-primary-theme/10 text-primary-theme"><%= t('admin.sources.cap_search') %></span>
+                                                                    <% } %>
+                                                                    <% if (src.images) { %>
+                                                                        <span class="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-black/10 dark:bg-white/10 opacity-70"><%= t('admin.sources.cap_images') %></span>
+                                                                    <% } %>
+                                                                    <% if (src.missingKeys.length > 0) { %>
+                                                                        <span class="text-[9px] font-bold text-red-500 truncate" title="<%= src.missingKeys.join(', ') %>">
+                                                                            <i class="fa-solid fa-circle-exclamation"></i>
+                                                                            <%= t('admin.sources.missing', { keys: src.missingKeys.join(', ') }) %>
+                                                                        </span>
+                                                                    <% } else { %>
+                                                                        <span class="text-[9px] font-bold text-green-500"><i class="fa-solid fa-circle-check"></i> <%= t('admin.sources.ready') %></span>
+                                                                    <% } %>
+                                                                </div>
+                                                            </li>
+                                                        <% }) %>
+                                                    </ul>
+                                                </div>
+                                            <% } %>
                                             <% mod.settings.forEach(opt => {
                                                 const current = registry.getPluginSetting(settings, mod.pluginId, opt.key);
                                             %>
@@ -617,7 +660,7 @@
                     </p>
 
                     <!-- Metadata refresh: one block per enabled plugin that declares refreshItem -->
-                    <% registry.getEnabled(settings).filter(p => typeof p.refreshItem === 'function').forEach(p => { const K = p.kind; %>
+                    <% registry.getEnabled(settings).filter(p => canRefresh(p)).forEach(p => { const K = p.kind; %>
                         <div class="card-theme rounded-3xl p-6 md:p-8 shadow-sm transition-colors mb-6">
                             <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
                                 <div class="max-w-xl">
@@ -844,6 +887,31 @@
                         .filter(p => requiredEnvKeysFor(p).length > 0)
                         .map(p => ({ name: p.collectionType + 'Active', collectionType: p.collectionType, errorId: 'error-' + p.collectionType }))
                 ) %>.map(m => ({ ...m, hasKey: apiKeyStatus[m.collectionType] }));
+                // Reordering a module's sources: the rows move and the hidden field the save
+                // reads is rewritten from what the list shows, so what was submitted is always
+                // what was on screen. Buttons are re-disabled at the ends after every move.
+                document.querySelectorAll('[data-source-list]').forEach(list => {
+                    const input = list.querySelector('input[name^="sourceOrder_"]');
+                    const sync = () => {
+                        const rows = Array.from(list.querySelectorAll('li[data-source-id]'));
+                        input.value = rows.map(row => row.dataset.sourceId).join(',');
+                        rows.forEach((row, index) => {
+                            row.querySelector('[data-source-move="up"]').disabled = index === 0;
+                            row.querySelector('[data-source-move="down"]').disabled = index === rows.length - 1;
+                        });
+                    };
+                    list.addEventListener('click', event => {
+                        const button = event.target.closest('[data-source-move]');
+                        if (!button || button.disabled) return;
+                        const row = button.closest('li[data-source-id]');
+                        const up = button.dataset.sourceMove === 'up';
+                        const sibling = up ? row.previousElementSibling : row.nextElementSibling;
+                        if (!sibling) return;
+                        list.querySelector('ul').insertBefore(up ? row : sibling, up ? sibling : row);
+                        sync();
+                    });
+                });
+
                 modulesWithKeys.forEach(mod => {
                     const checkbox = document.querySelector(`input[name="${mod.name}"]`);
                     const errorBox = document.getElementById(mod.errorId);

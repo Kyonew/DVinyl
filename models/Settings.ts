@@ -37,6 +37,15 @@ const settingsSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.Mixed,
         default: () => registry.getDefaultPluginSettings()
     },
+    // Per-collection order in which a plugin's sources are tried, by plugin:
+    //   { [pluginId]: ['screenscraper', 'igdb'] }
+    // Only ids the plugin still declares are honoured, so a source dropped from a plugin
+    // leaves nothing behind and one added later falls in at the end of the list rather
+    // than jumping to the front of a preference nobody expressed.
+    sourceOrder: {
+        type: mongoose.Schema.Types.Mixed,
+        default: () => ({})
+    },
     // Per-collection cosmetic overrides applied on top of the shared plugin
     // definitions: { [pluginId]: { icon: 'fa-xxx', formatColors: { [formatValue]: paletteColor } } }
     pluginCustomization: {

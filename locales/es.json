@@ -406,6 +406,16 @@
         "language": "Idioma"
       },
       "err_missing_required": "Estos campos obligatorios deben asociarse a una columna o a un valor fijo: {{fields}}"
+    },
+    "sources": {
+      "title": "Dónde busca este módulo",
+      "hint": "Se prueban en este orden. La primera que responde hace la búsqueda; todas alimentan el selector de imágenes.",
+      "cap_search": "Búsqueda",
+      "cap_images": "Imágenes",
+      "ready": "Lista",
+      "missing": "Falta {{keys}}",
+      "move_up": "Subir",
+      "move_down": "Bajar"
     }
   },
   "auth": {

@@ -634,6 +634,16 @@
         "language": "Language"
       },
       "err_missing_required": "These required fields must be mapped to a column or to a fixed value: {{fields}}"
+    },
+    "sources": {
+      "title": "Where this looks things up",
+      "hint": "Tried in this order. The first working one answers a search; every one of them feeds the image picker.",
+      "cap_search": "Search",
+      "cap_images": "Images",
+      "ready": "Ready",
+      "missing": "Missing {{keys}}",
+      "move_up": "Move up",
+      "move_down": "Move down"
     }
   },
   "collection": {

@@ -406,6 +406,16 @@
         "language": "Sprache"
       },
       "err_missing_required": "Diese Pflichtfelder müssen einer Spalte oder einem festen Wert zugeordnet werden: {{fields}}"
+    },
+    "sources": {
+      "title": "Wo dieses Modul sucht",
+      "hint": "In dieser Reihenfolge angefragt. Die erste, die antwortet, übernimmt die Suche; alle liefern Bilder.",
+      "cap_search": "Suche",
+      "cap_images": "Bilder",
+      "ready": "Bereit",
+      "missing": "Fehlt {{keys}}",
+      "move_up": "Nach oben",
+      "move_down": "Nach unten"
     }
   },
   "auth": {

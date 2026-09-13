@@ -420,7 +420,7 @@
                         // as one more thing to know about the item.
                     %>
                     <div class="flex flex-col items-start gap-1 md:flex-1">
-                        <% if (plugin.refreshItem) { %>
+                        <% if (canRefresh(plugin)) { %>
                             <button id="refreshInfoBtn" onclick="refreshMetadata('<%= item._id %>')" class="w-full md:w-auto opacity-60 hover:opacity-100 px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center md:justify-start gap-2">
                                 <i class="fa-solid fa-arrows-rotate" id="refreshInfoIcon"></i>
                                 <%= t('collection.refresh_metadata_btn') %>

@@ -16,6 +16,7 @@ import Item from "../models/Item";
 import PriceHistory from "../models/PriceHistory";
 
 import { registry } from "../core/registry.js";
+import { canRefresh, refreshPatchFor, gatherImages, pluginSources } from "../core/sources.js";
 import { CARD_ASPECT_RATIOS } from "../core/customPlugin";
 import { PermanentRefreshError, syncStamp, getPublicProtocol } from "../core/helpers";
 import { deleteItemsAndContents } from "../utils/itemHelpers";
@@ -1089,6 +1090,18 @@ router.post("/modules/save", requireAuth, requireCollectionRole("admin"), async 
       }
     }
 
+    // Order the collection prefers its sources in: sourceOrder_<pluginId>, a comma-separated
+    // list of ids. Filtered against what the plugin declares, so a stale form or a hand-made
+    // request cannot store an id that means nothing, and deduplicated, since a repeated id
+    // would silently drop whichever source it displaced.
+    for (const p of registry.getAll()) {
+      const raw = req.body[`sourceOrder_${p.id}`];
+      if (typeof raw !== "string") continue;
+      const declared = new Set(pluginSources(p).map(s => s.id));
+      const ids = [...new Set(raw.split(",").map((id: string) => id.trim()).filter((id: string) => declared.has(id)))];
+      if (ids.length > 0) update[`sourceOrder.${p.id}`] = ids;
+    }
+
     await Settings.findOneAndUpdate(
       { collection: res.locals.activeCollectionId },
       { $set: update },
@@ -1188,18 +1201,25 @@ router.get(
   async (req: any, res: any) => {
     let { q, type } = req.query;
     q = typeof q === 'string' ? q.trim() : '';
-    console.log(`[SEARCH] Query: "${q}" | Type: ${type}`);
+    const pluginId = typeof req.query.plugin === 'string' ? req.query.plugin : '';
 
     try {
-      // Each plugin declares its imageSearchProvider; fall back to the legacy plugin (music)
-      const plugin = registry.getAll().find(p => p.imageSearchType === type && p.imageSearchProvider)
-        || registry.getAll().find(p => p.matchesLegacyItems && p.imageSearchProvider);
+      // The picker names its plugin outright. `type` is what it used to send and is still
+      // accepted: the route is a public endpoint of the instance, and an old page left
+      // open in a tab must not start coming back empty.
+      //
+      // Nothing falls back to the legacy plugin any more. It used to, which is how a
+      // custom plugin asking for its own images was handed music's album covers: a
+      // plugin with no image source of its own now gets none rather than someone else's.
+      const plugin = (pluginId ? registry.get(pluginId) : undefined)
+        || registry.getAll().find(p => p.imageSearchType === type);
 
-      if (!plugin || !plugin.imageSearchProvider) {
+      if (!plugin) {
         return res.json([]);
       }
 
-      const urls = await plugin.imageSearchProvider.search(q, { language: req.language });
+      // Every image source of the plugin at once, merged and deduplicated.
+      const urls = await gatherImages(plugin, q, { language: req.language }, res.locals.settings);
       console.log(`[SEARCH] ${plugin.id} found: ${urls.length} images`);
       res.json(urls);
     } catch (err: any) {
@@ -1253,14 +1273,21 @@ router.post(
     const { mode = "all" } = req.body;
     const plugin = registry.get(pluginId);
     if (!plugin) return res.status(404).json({ error: "Plugin not found" });
-    if (!plugin.refreshItem) return res.status(400).json({ error: "Plugin does not support refresh" });
+    if (!canRefresh(plugin)) return res.status(400).json({ error: "Plugin does not support refresh" });
 
     try {
       const idField = plugin.externalIdField || '_id';
 
+      // An item qualifies on either reference: the plugin's own id field, which is what
+      // everything added before sources existed carries, or the stored source pair, which
+      // is the only thing an item filled in from another database has. Selecting on the id
+      // field alone is what would leave those out of every bulk run, silently.
       let query: any = {
         collection: res.locals.activeCollectionId,
-        [idField]: { $exists: true, $ne: null }
+        $or: [
+          { [idField]: { $exists: true, $ne: null } },
+          { source_id: { $exists: true, $nin: [null, ''] } }
+        ]
       };
 
       if (plugin.matchesLegacyItems) {
@@ -1306,7 +1333,7 @@ router.post(
                 });
               }
 
-              const refreshedData = await plugin.refreshItem!(item, req);
+              const refreshedData = await refreshPatchFor(plugin, item, req);
               // "missing" mode only backfills genre metadata, never clobber cover/description/
               // publisher/etc that the user may have edited by hand.
               let dataToApply = refreshedData;
@@ -1323,7 +1350,14 @@ router.post(
               const replacedCover = alignImagesAfterRefresh(item, update);
               // Written even when the provider changed nothing, so the date says when the
               // item was last checked rather than when it last happened to differ.
-              await Item.updateOne({ _id: item._id }, { $set: { ...update, ...syncStamp() } });
+              //
+              // Through the discriminator model rather than the base one: the plugin's own
+              // paths (developer, publisher, tracklist...) do not exist on the base schema,
+              // and strict mode drops them without a word. A bulk run reported every item
+              // as refreshed while writing back only the fields the base schema shares.
+              // The single-item route sidesteps this by casting through `kind` in its filter.
+              const RefreshModel = mongoose.model(plugin.kind);
+              await RefreshModel.updateOne({ _id: item._id }, { $set: { ...update, ...syncStamp() } });
               if (replacedCover) {
                 try {
                   await deleteUnusedManagedItemImages([replacedCover]);

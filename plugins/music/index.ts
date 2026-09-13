@@ -1,8 +1,8 @@
 import { PluginDefinition } from '../../core/types';
-import { sourceFromProvider } from '../../core/sources';
+import { sourceFromProvider, imageSourceFrom } from '../../core/sources';
 import { DiscogsProvider } from './discogs';
 import { musicImporters } from './importers';
-import { musicApiRoutes } from './apiRoutes';
+import { musicApiRoutes, discogsGalleryImages } from './apiRoutes';
 import { escapeRegExp, fetchJson, PermanentRefreshError, syncStamp } from '../../core/helpers';
 import Item from '../../models/Item';
 
@@ -12,7 +12,24 @@ const discogsProvider = new DiscogsProvider();
 // saved before sources existed to this id, so it must never change.
 const discogs = sourceFromProvider(discogsProvider, {
   id: 'discogs',
-  itemUrl: (id: string) => `https://www.discogs.com/release/${id}`
+  itemUrl: (id: string) => `https://www.discogs.com/release/${id}`,
+  // Everything a release holds a picture of, sleeve and labels included.
+  searchImages: (query: string) => discogsGalleryImages(query)
+});
+
+// Cover art only, and no item behind it: nothing is ever added or attributed to iTunes.
+// It sits next to Discogs rather than replacing it, because the two answer different
+// halves of the same question: a clean square cover, and the object in the hand.
+const itunes = imageSourceFrom({
+  id: 'itunes',
+  name: 'iTunes',
+  async searchImages(query: string): Promise<string[]> {
+    const data = await fetchJson(
+      `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=album&limit=12`,
+      { headers: { 'User-Agent': 'DVinylApp/2.0' }, signal: AbortSignal.timeout(10000) }
+    );
+    return (data.results || []).map((item: any) => item.artworkUrl100.replace('100x100bb.jpg', '600x600bb.jpg'));
+  }
 });
 
 export const musicPlugin: PluginDefinition = {
@@ -41,7 +58,6 @@ export const musicPlugin: PluginDefinition = {
   extraSearchFields: ['tracklist.title', 'tracklist.tags'],
   supportsBarcodeSearch: false,
   aspectRatioClass: 'aspect-square',
-  secondaryImageSearchPath: '/api/search-discogs-gallery',
   imageLabels: { main: 'detail.official_cover' },
   duplicateCheckFields: ['media_type', 'variant_color'],
 
@@ -77,15 +93,6 @@ export const musicPlugin: PluginDefinition = {
     }
   ],
 
-  imageSearchProvider: {
-    async search(query: string): Promise<string[]> {
-      const data = await fetchJson(
-        `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=album&limit=12`,
-        { headers: { 'User-Agent': 'DVinylApp/2.0' }, signal: AbortSignal.timeout(10000) }
-      );
-      return (data.results || []).map((item: any) => item.artworkUrl100.replace('100x100bb.jpg', '600x600bb.jpg'));
-    }
-  },
 
   navbarShortcuts: [
     { id: 'music', label: 'media.music', url: '/collection?type=music' },
@@ -334,7 +341,7 @@ export const musicPlugin: PluginDefinition = {
     }
   ],
 
-  sources: [discogs],
+  sources: [discogs, itunes],
   searchFormPartial: 'search-form',
   imageSearchType: 'music',
   importers: musicImporters,

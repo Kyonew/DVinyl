@@ -1,5 +1,5 @@
 import { PluginDefinition } from '../../core/types';
-import { sourceFromProvider } from '../../core/sources';
+import { sourceFromProvider, imageSourceFrom } from '../../core/sources';
 import { HardcoverProvider } from './hardcover';
 import { booksImporters } from './importers';
 import { escapeRegExp, fetchJson, PermanentRefreshError } from '../../core/helpers';
@@ -13,6 +13,23 @@ const hardcover = sourceFromProvider(hardcoverProvider, {
   id: 'hardcover',
   requiredEnvKeys: ['HARDCOVER_API_KEY'],
   itemUrl: (id: string) => `https://hardcover.app/books/${id}`
+});
+
+// Covers only, and from a different service than the metadata: books are described by
+// Hardcover and pictured by Open Library. Needs no key, so the picker keeps working on
+// an instance that never configured Hardcover at all.
+const openLibrary = imageSourceFrom({
+  id: 'openlibrary',
+  name: 'Open Library',
+  async searchImages(query: string): Promise<string[]> {
+    const data = await fetchJson(
+      `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=10`,
+      { headers: { 'User-Agent': 'DVinylApp/2.0' }, signal: AbortSignal.timeout(10000) }
+    );
+    return (data.docs || [])
+      .filter((doc: any) => doc.cover_i)
+      .map((doc: any) => `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg`);
+  }
 });
 
 export const booksPlugin: PluginDefinition = {
@@ -33,7 +50,7 @@ export const booksPlugin: PluginDefinition = {
   creatorField: 'author',
   extraSearchFields: ['isbn', 'publisher'],
   supportsBarcodeSearch: false,
-  sources: [hardcover],
+  sources: [hardcover, openLibrary],
   imageSearchType: 'book',
   importers: booksImporters,
   duplicateCheckFields: ['format'],
@@ -49,17 +66,6 @@ export const booksPlugin: PluginDefinition = {
     { value: 'book', label: 'media.books', icon: 'fa-book', color: 'peer-checked:bg-amber-600', url: '/add-books' }
   ],
 
-  imageSearchProvider: {
-    async search(query: string): Promise<string[]> {
-      const data = await fetchJson(
-        `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=10`,
-        { headers: { 'User-Agent': 'DVinylApp/2.0' }, signal: AbortSignal.timeout(10000) }
-      );
-      return (data.docs || [])
-        .filter((doc: any) => doc.cover_i)
-        .map((doc: any) => `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg`);
-    }
-  },
 
   navbarShortcuts: [
     { id: 'books', label: 'media.books', url: '/collection?type=books' },

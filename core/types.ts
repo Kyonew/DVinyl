@@ -94,6 +94,9 @@ export interface PluginDefinition {
   // Custom EJS partial rendered in the search form ('top' and 'bottom' zones)
   searchFormPartial?: string;
 
+  // The plugin's single historical image provider. Superseded by sources declaring
+  // searchImages, and still merged in alongside them, so a plugin that declares only
+  // this keeps the picker it had.
   imageSearchProvider?: ImageSearchProvider;
 
   // Value of the `type` param for /admin/api/search-image-universal ('music', 'book', 'movie', 'game')
@@ -125,8 +128,10 @@ export interface PluginDefinition {
   // image gallery is now available to every plugin regardless of this value.
   supportsUserImage?: boolean;
 
-  // Optional provider-specific endpoint merged into the generic image search results.
-  // Ex: music -> '/api/search-discogs-gallery'.
+  // Superseded by a source declaring searchImages, and still honoured: an extra endpoint
+  // whose results are merged into the image picker. It was the one way to have two image
+  // services behind one plugin (music: iTunes covers plus the Discogs gallery of the
+  // physical object) before sources could say so themselves.
   secondaryImageSearchPath?: string;
 
   // Legacy icon setting retained for custom-plugin config compatibility.
@@ -222,7 +227,23 @@ export interface PluginDefinition {
   partialsPath?: string;
 
   detailZones?: DetailZone[];
+
+  // Fetches fresh metadata for an item and says what to write. Owns the whole step,
+  // request included, which is what a plugin needs when its refresh asks its API
+  // something its search never asks (music reads the release's barcode identifiers,
+  // books run a query of their own). Only ever reaches the plugin's historical
+  // provider, so an item filled in from another source cannot be refreshed this way:
+  // prefer mergeRefresh where the refresh is a plain lookup by id.
   refreshItem?(item: any, req: any): Promise<Record<string, any>>;
+
+  // How fresh details from a source fold into an item that already exists. The fetch
+  // belongs to the source, the merge belongs here: only the plugin knows that a provider
+  // returning no publisher means "keep the one we have" rather than "clear it", or that
+  // the owner's own notes on an episode outlive the episode being re-read.
+  //
+  // Pure, and the core writes what it returns. Declaring it is what makes an item
+  // refreshable from whichever source filled it in rather than from one provider.
+  mergeRefresh?(item: any, details: ConfirmData): Record<string, any>;
 
   bulkRefresh?: BulkRefreshProvider;
 }
@@ -290,8 +311,11 @@ export interface ImageSearchProvider {
  * the life of the source: changing it orphans everything already saved. It is also
  * global rather than per-plugin, since a source is free to serve several plugins.
  */
-export interface ExternalSource extends SearchProvider {
+export interface ExternalSource {
   id: string;
+
+  // Shown to the user: on a result badge, in an error message. Plain text, not a key.
+  name: string;
 
   // Environment variables this source needs. It stays out of every list until all of
   // them are set, which is what lets a plugin ship a source nobody has configured.
@@ -301,6 +325,22 @@ export interface ExternalSource extends SearchProvider {
   // detail page links to for an item the plugin's own externalLink cannot place,
   // because that one only knows the plugin's historical provider.
   itemUrl?(externalId: string): string | null;
+
+  // What this source can answer. A source implements the capabilities it has and no
+  // more, and the core asks before it calls: a database of cover art has no item to
+  // hand over and nothing to attribute, and forcing it to pretend otherwise would put
+  // unopenable results in front of the user.
+
+  // Metadata search. Comes as a pair with getDetails: a result nobody can expand is a
+  // dead end, so a source offering one without the other is not offered for searching.
+  search?(query: string, options: SearchOptions): Promise<SearchResult[]>;
+  getDetails?(id: string, options: any): Promise<ConfirmData>;
+
+  // Image search: bare URLs, for the picker in the image manager. Every image-capable
+  // source of a plugin is asked at once and the results are merged, since images are
+  // gathered rather than chosen from one place: a vinyl's front cover lives on one
+  // service and the scan of its inner sleeve on another.
+  searchImages?(query: string, options?: { language?: string }): Promise<string[]>;
 }
 
 export interface PluginApiRoute {

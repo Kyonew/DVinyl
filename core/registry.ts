@@ -3,7 +3,7 @@ import { PluginDefinition } from './types';
 import { DEFAULT_PLACEHOLDER_IMAGE } from './placeholderImage';
 import Item from '../models/Item';
 import { imagesForItem } from './itemImages';
-import { pluginSources, isSourceConfigured, requiredEnvKeysFor } from './sources';
+import { pluginSources, isSourceConfigured, isSearchable, requiredEnvKeysFor } from './sources';
 
 const FLATTENS_EXTRA = Symbol('flattensExtra');
 const RESOLVES_PLACEHOLDER = Symbol('resolvesPlaceholder');
@@ -121,8 +121,11 @@ class PluginRegistry {
     const status: Record<string, boolean> = {};
     for (const p of this.getAll()) {
       const ownKeys = (p.requiredEnvKeys || []).every(k => !!process.env[k]);
-      const sources = pluginSources(p);
-      status[p.collectionType] = ownKeys && (sources.length === 0 || sources.some(isSourceConfigured));
+      // Only the sources that can be searched decide. An image source is not what makes
+      // a module usable, and counting it would report a plugin ready because the service
+      // it fetches cover art from is configured while the one it looks items up in is not.
+      const searchable = pluginSources(p).filter(isSearchable);
+      status[p.collectionType] = ownKeys && (searchable.length === 0 || searchable.some(isSourceConfigured));
     }
     return status;
   }

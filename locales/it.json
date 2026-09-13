@@ -406,6 +406,16 @@
         "language": "Lingua"
       },
       "err_missing_required": "Questi campi obbligatori devono essere associati a una colonna o a un valore fisso: {{fields}}"
+    },
+    "sources": {
+      "title": "Dove cerca questo modulo",
+      "hint": "Provate in quest'ordine. La prima che risponde fa la ricerca; tutte alimentano il selettore di immagini.",
+      "cap_search": "Ricerca",
+      "cap_images": "Immagini",
+      "ready": "Pronta",
+      "missing": "Manca {{keys}}",
+      "move_up": "Su",
+      "move_down": "Giù"
     }
   },
   "auth": {

@@ -634,6 +634,16 @@
         "language": "Langue"
       },
       "err_missing_required": "Ces champs obligatoires doivent être associés à une colonne ou à une valeur fixe : {{fields}}"
+    },
+    "sources": {
+      "title": "Où ce module cherche",
+      "hint": "Essayées dans cet ordre. La première qui répond fait la recherche ; toutes alimentent le sélecteur d'images.",
+      "cap_search": "Recherche",
+      "cap_images": "Images",
+      "ready": "Prête",
+      "missing": "Manque {{keys}}",
+      "move_up": "Monter",
+      "move_down": "Descendre"
     }
   },
   "collection": {

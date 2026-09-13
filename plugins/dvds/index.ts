@@ -14,7 +14,19 @@ const tmdbProvider = new TMDBProvider();
 // saved before sources existed to this id, so it must never change.
 const tmdb = sourceFromProvider(tmdbProvider, {
   id: 'tmdb',
-  requiredEnvKeys: ['TMDB_API_KEY']
+  requiredEnvKeys: ['TMDB_API_KEY'],
+  async searchImages(query: string, options?: { language?: string }): Promise<string[]> {
+    const tmdbApiKey = process.env.TMDB_API_KEY;
+    if (!tmdbApiKey) throw new Error('Missing TMDB API Key');
+    const tmdbLang = TMDB_LANG_MAP[options?.language || ''] || 'en-US';
+    const data = await fetchJson(
+      `https://api.themoviedb.org/3/search/multi?api_key=${tmdbApiKey}&query=${encodeURIComponent(query)}&language=${tmdbLang}`,
+      { headers: { 'User-Agent': 'DVinylApp/2.0' }, signal: AbortSignal.timeout(10000) }
+    );
+    return (data.results || [])
+      .filter((item: any) => item.poster_path)
+      .map((item: any) => `https://image.tmdb.org/t/p/w500${item.poster_path}`);
+  }
 });
 
 export const dvdPlugin: PluginDefinition = {
@@ -175,20 +187,6 @@ export const dvdPlugin: PluginDefinition = {
     }
   ],
 
-  imageSearchProvider: {
-    async search(query: string, options?: { language?: string }): Promise<string[]> {
-      const tmdbApiKey = process.env.TMDB_API_KEY;
-      if (!tmdbApiKey) throw new Error('Missing TMDB API Key');
-      const tmdbLang = TMDB_LANG_MAP[options?.language || ''] || 'en-US';
-      const data = await fetchJson(
-        `https://api.themoviedb.org/3/search/multi?api_key=${tmdbApiKey}&query=${encodeURIComponent(query)}&language=${tmdbLang}`,
-        { headers: { 'User-Agent': 'DVinylApp/2.0' }, signal: AbortSignal.timeout(10000) }
-      );
-      return (data.results || [])
-        .filter((item: any) => item.poster_path)
-        .map((item: any) => `https://image.tmdb.org/t/p/w500${item.poster_path}`);
-    }
-  },
 
   navbarShortcuts: [
     { id: 'dvd', label: 'media.dvd_gen', url: '/collection?type=dvd' },

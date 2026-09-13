@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
-import { PluginDefinition, SearchResult, ExternalSource } from './types';
-import { resolveSource } from './sources';
+import { PluginDefinition, SearchResult } from './types';
+import { resolveSource, SearchableSource } from './sources';
 import { escapeRegExp, parseCsvRecords, syncStamp } from './helpers';
 import { createShelfLocationResolver } from './shelfStore';
 
@@ -296,7 +296,7 @@ class ImportPace {
  */
 async function fetchEnrichment(
   plugin: PluginDefinition,
-  source: ExternalSource,
+  source: SearchableSource,
   query: string,
   options: Record<string, any>,
   target: MatchTarget,
@@ -328,7 +328,7 @@ async function fetchEnrichment(
 
 async function enrichOnce(
   plugin: PluginDefinition,
-  source: ExternalSource,
+  source: SearchableSource,
   query: string,
   options: Record<string, any>,
   target: MatchTarget
@@ -400,7 +400,8 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
     const Model = mongoose.model(plugin.kind);
     // One source answers for the whole file: a per-row choice would mean asking several
     // databases the same question, and the quota of the smallest one is what gives out.
-    const enrichSource = resolveSource(plugin);
+    // Which one is the collection's first working choice, same as the add page's default.
+    const enrichSource = resolveSource(plugin, null, res.locals.settings);
     const canEnrich = enrich && !!enrichSource;
     const pace = new ImportPace(spec.enrichDelayMs ?? 500);
     const allowed = enrichableFields(plugin);

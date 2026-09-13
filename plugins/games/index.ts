@@ -1,8 +1,8 @@
 import { PluginDefinition } from '../../core/types';
-import { sourceFromProvider } from '../../core/sources';
+import { sourceFromProvider, imageSourceFrom } from '../../core/sources';
 import { IGDBProvider } from './igdb';
 import { gamesImporters } from './importers';
-import { escapeRegExp, fetchJson, PermanentRefreshError, syncStamp } from '../../core/helpers';
+import { escapeRegExp, fetchJson } from '../../core/helpers';
 import { igdbRequest } from './igdbHelper';
 import Item from '../../models/Item';
 
@@ -13,7 +13,65 @@ const igdbProvider = new IGDBProvider();
 const igdb = sourceFromProvider(igdbProvider, {
   id: 'igdb',
   requiredEnvKeys: ['TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET'],
-  itemUrl: (id: string) => `https://www.igdb.com/games/${id}`
+  itemUrl: (id: string) => `https://www.igdb.com/games/${id}`,
+  // Covers, artworks and screenshots: what IGDB holds of a game beyond its box.
+  async searchImages(query: string): Promise<string[]> {
+    const results = await igdbRequest('games',
+      `search "${query.replace(/"/g, '\\"')}";
+      fields cover.url, artworks.url, screenshots.url;
+      limit 5;`
+    );
+
+    const urls: string[] = [];
+    results.forEach((g: any) => {
+      if (g.cover && g.cover.url) urls.push(g.cover.url);
+      if (g.artworks) g.artworks.forEach((a: any) => urls.push(a.url));
+      if (g.screenshots) g.screenshots.forEach((sc: any) => urls.push(sc.url));
+    });
+
+    return urls.map((u) => {
+      let r = u.replace('t_thumb', 't_cover_big');
+      if (r.startsWith('//')) r = 'https:' + r;
+      return r;
+    });
+  }
+});
+
+// A game's box art is often on TMDB, which knows the film adaptations and the covers
+// that came with them. Declared with its key so it drops out of the picker by itself
+// when the instance has no TMDB credentials, instead of being skipped by a test inside
+// someone else's function.
+const tmdbImages = imageSourceFrom({
+  id: 'tmdb',
+  name: 'TMDB',
+  requiredEnvKeys: ['TMDB_API_KEY'],
+  async searchImages(query: string, options?: { language?: string }): Promise<string[]> {
+    const langMap: Record<string, string> = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', it: 'it-IT', de: 'de-DE' };
+    const tmdbLang = langMap[options?.language || ''] || 'en-US';
+    const data = await fetchJson(
+      `https://api.themoviedb.org/3/search/multi?api_key=${process.env.TMDB_API_KEY}&query=${encodeURIComponent(query)}&language=${tmdbLang}`,
+      { headers: { 'User-Agent': 'DVinylApp/2.0' }, signal: AbortSignal.timeout(10000) }
+    );
+    return (data.results || [])
+      .filter((item: any) => item.poster_path)
+      .map((item: any) => `https://image.tmdb.org/t/p/w500${item.poster_path}`);
+  }
+});
+
+// The App Store icon of a game that also shipped on mobile. Last of the three, as it has
+// always been: it answers for the fewest titles.
+const itunesSoftware = imageSourceFrom({
+  id: 'itunes',
+  name: 'iTunes',
+  async searchImages(query: string): Promise<string[]> {
+    const data = await fetchJson(
+      `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=software&limit=5`,
+      { headers: { 'User-Agent': 'DVinylApp/2.0' }, signal: AbortSignal.timeout(10000) }
+    );
+    return (data.results || [])
+      .filter((item: any) => item.artworkUrl100)
+      .map((item: any) => item.artworkUrl100.replace('100x100bb', '512x512bb'));
+  }
 });
 
 export const gamesPlugin: PluginDefinition = {
@@ -35,7 +93,7 @@ export const gamesPlugin: PluginDefinition = {
   extraSearchFields: ['platform', 'publisher'],
   supportsBarcodeSearch: true,
   barcodeNoiseTerms: ['Nintendo', 'PlayStation', 'Xbox', 'PS2', 'PS3', 'PS4', 'PS5', 'Switch', 'Wii U', 'Wii', 'Series X', 'Series S', 'One'],
-  sources: [igdb],
+  sources: [igdb, tmdbImages, itunesSoftware],
   imageSearchType: 'game',
   duplicateCheckFields: ['platform', 'region', 'format'],
   aspectRatioClass: 'aspect-[2/3]',
@@ -58,55 +116,6 @@ export const gamesPlugin: PluginDefinition = {
     { value: 'game', label: 'media.games', icon: 'fa-gamepad', color: 'peer-checked:bg-emerald-600', url: '/add-games' }
   ],
 
-  imageSearchProvider: {
-    async search(query: string, options?: { language?: string }): Promise<string[]> {
-      const fetchOptions = { headers: { 'User-Agent': 'DVinylApp/2.0' }, signal: AbortSignal.timeout(10000) };
-
-      // 1. IGDB assets (covers + artworks + screenshots)
-      const igdbResults = await igdbRequest('games',
-        `search "${query.replace(/"/g, '\\"')}";
-        fields cover.url, artworks.url, screenshots.url;
-        limit 5;`
-      );
-
-      let urls: string[] = [];
-      igdbResults.forEach((g: any) => {
-        if (g.cover && g.cover.url) urls.push(g.cover.url);
-        if (g.artworks) g.artworks.forEach((a: any) => urls.push(a.url));
-        if (g.screenshots) g.screenshots.forEach((sc: any) => urls.push(sc.url));
-      });
-      urls = urls.map((u) => {
-        let r = u.replace('t_thumb', 't_cover_big');
-        if (r.startsWith('//')) r = 'https:' + r;
-        return r;
-      });
-
-      // 2. TMDB fallback
-      const tmdbApiKey = process.env.TMDB_API_KEY;
-      if (tmdbApiKey) {
-        const langMap: Record<string, string> = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', it: 'it-IT', de: 'de-DE' };
-        const tmdbLang = langMap[options?.language || ''] || 'en-US';
-        const tmdbData = await fetchJson(
-          `https://api.themoviedb.org/3/search/multi?api_key=${tmdbApiKey}&query=${encodeURIComponent(query)}&language=${tmdbLang}`,
-          fetchOptions
-        );
-        urls = urls.concat((tmdbData.results || [])
-          .filter((item: any) => item.poster_path)
-          .map((item: any) => `https://image.tmdb.org/t/p/w500${item.poster_path}`));
-      }
-
-      // 3. iTunes software fallback
-      const itunesData = await fetchJson(
-        `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=software&limit=5`,
-        fetchOptions
-      );
-      urls = urls.concat((itunesData.results || [])
-        .filter((item: any) => item.artworkUrl100)
-        .map((item: any) => item.artworkUrl100.replace('100x100bb', '512x512bb')));
-
-      return [...new Set(urls)];
-    }
-  },
 
   navbarShortcuts: [
     { id: 'games', label: 'media.games', url: '/collection?type=games' },
@@ -445,27 +454,19 @@ export const gamesPlugin: PluginDefinition = {
     }).lean();
   },
 
-  async refreshItem(item: any): Promise<Record<string, any>> {
-    if (!item.igdb_id) {
-      throw new PermanentRefreshError('No IGDB ID to refresh');
-    }
+  mergeRefresh(item: any, details: any): Record<string, any> {
+    const genres = details.genres || [];
 
-    const formatted = await igdbProvider.getDetails(String(item.igdb_id), {});
-    const genres = formatted.genres || [];
-
-    const updateData: any = {
-      cover_image: formatted.cover_image,
+    return {
+      cover_image: details.cover_image,
       genres,
       genre: genres[0] || '',
-      year: formatted.year,
-      developer: formatted.developer || item.developer,
-      publisher: formatted.publisher || item.publisher,
-      // `description` holds the IGDB summary shown on the detail page — persist it on refresh too
-      description: formatted.description || item.description
+      year: details.year,
+      developer: details.developer || item.developer,
+      publisher: details.publisher || item.publisher,
+      // `description` holds the provider's summary shown on the detail page — persist it on refresh too
+      description: details.description || item.description
     };
-
-    await Item.updateOne({ _id: item._id }, { $set: { ...updateData, ...syncStamp() } });
-    return updateData;
   },
 
   getManualDefaults(): Record<string, any> {

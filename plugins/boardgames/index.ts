@@ -1,6 +1,6 @@
 import { PluginDefinition } from '../../core/types';
 import { sourceFromProvider } from '../../core/sources';
-import { escapeRegExp, PermanentRefreshError } from '../../core/helpers';
+import { escapeRegExp } from '../../core/helpers';
 import Item from '../../models/Item';
 import { BggProvider } from './bgg';
 
@@ -11,7 +11,8 @@ const bgg = new BggProvider();
 const bggSource = sourceFromProvider(bgg, {
   id: 'bgg',
   requiredEnvKeys: ['BGG_API_KEY'],
-  itemUrl: (id: string) => `https://boardgamegeek.com/boardgame/${id}`
+  itemUrl: (id: string) => `https://boardgamegeek.com/boardgame/${id}`,
+  searchImages: (query: string) => bgg.searchImages(query)
 });
 
 export const boardGamesPlugin: PluginDefinition = {
@@ -40,11 +41,6 @@ export const boardGamesPlugin: PluginDefinition = {
 
   sources: [bggSource],
   imageSearchType: 'boardgame',
-  imageSearchProvider: {
-    async search(query: string): Promise<string[]> {
-      return bgg.searchImages(query);
-    }
-  },
 
   // BGG's XML API2 terms of use require the "Powered by BGG" logo, linked back to
   // BoardGameGeek, on any public-facing page that surfaces data pulled from it.
@@ -264,12 +260,7 @@ export const boardGamesPlugin: PluginDefinition = {
     };
   },
 
-  async refreshItem(item: any): Promise<Record<string, any>> {
-    if (!item.bgg_id) {
-      throw new PermanentRefreshError('No BoardGameGeek id to refresh');
-    }
-
-    const details = await bgg.getDetails(String(item.bgg_id), {});
+  mergeRefresh(item: any, details: any): Record<string, any> {
     return {
       cover_image: details.cover_image || item.cover_image,
       designer: details.designer || item.designer,

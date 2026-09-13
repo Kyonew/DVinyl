@@ -15,7 +15,7 @@ import { buildFieldSuggestions } from '../fieldSuggestions';
 import { resolveShelfLocation } from '../shelfStore';
 import { deleteItemsAndContents, moveContentsToWishlist } from '../../utils/itemHelpers';
 import { applyVisibilityFilter, applyShareScopeFilter, applyPluginKindFilter, isWithinShareScope } from '../../utils/visibilityHelper';
-import { hasSearch, configuredSources, resolveSource } from '../sources';
+import { hasSearch, searchableSources, resolveSource, canRefresh, refreshPatchFor } from '../sources';
 
 export function createItemRoutes(plugin: PluginDefinition): Router {
   const router = express.Router();
@@ -31,8 +31,8 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           searchType: formatParam || plugin.id,
           user: res.locals.user,
           currentType: `add-${plugin.id}`,
-          sources: configuredSources(plugin),
-          activeSource: resolveSource(plugin)?.id || '',
+          sources: searchableSources(plugin, res.locals.settings),
+          activeSource: resolveSource(plugin, null, res.locals.settings)?.id || '',
           plugin
         });
       } catch (err: any) {
@@ -47,8 +47,8 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       const rawQuery = typeof query === 'string' ? query.trim() : '';
       // Which database to ask. The form only offers the picker when the plugin has more
       // than one configured, so most searches arrive without it and take the default.
-      const source = resolveSource(plugin, req.body.source);
-      const sources = configuredSources(plugin);
+      const source = resolveSource(plugin, req.body.source, res.locals.settings);
+      const sources = searchableSources(plugin, res.locals.settings);
       let searchQuery = rawQuery;
       // A search run after a scan posts the code back (hidden field in add.ejs), so
       // correcting the product name by hand no longer detaches it from the saved item.
@@ -172,7 +172,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       // The id in the path was handed out by the source the result came from, carried
       // here by the result card. An unknown or dropped one falls back to the plugin's
       // default source, which is what every link predating this carries.
-      const source = resolveSource(plugin, req.query.source as string | undefined);
+      const source = resolveSource(plugin, req.query.source as string | undefined, res.locals.settings);
 
       try {
         if (!source) throw new Error('no source configured');
@@ -237,7 +237,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           searchType: searchTypeHint || plugin.id,
           user: res.locals.user,
           currentType: `add-${plugin.id}`,
-          sources: configuredSources(plugin),
+          sources: searchableSources(plugin, res.locals.settings),
           activeSource: source?.id || '',
           plugin
         });
@@ -812,7 +812,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   });
 
   // POST /api/{prefix}/:id/refresh-info -> refresh metadata of single item
-  if (plugin.refreshItem) {
+  if (canRefresh(plugin)) {
     router.post(`/api${plugin.routePrefix}/:id/refresh-info`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
       try {
         const refreshQuery: any = { _id: req.params.id, collection: res.locals.activeCollectionId };
@@ -822,7 +822,10 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           return res.status(404).json({ success: false, error: "Item not found" });
         }
 
-        const result = await plugin.refreshItem!(item, req);
+        // Through the item's own source where the plugin can merge one, so an item that
+        // came from somewhere other than the plugin's historical provider refreshes
+        // against the database that actually holds it.
+        const result = await refreshPatchFor(plugin, item, req);
         // Persist the refreshed metadata (some plugins already persist internally; this is
         // idempotent). The filter needs `kind` so Mongoose casts against the discriminator
         // schema; without it, plugin-only paths like tracklist are silently stripped by

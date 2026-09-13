@@ -262,7 +262,7 @@
         results.innerHTML = '<div class="col-span-full py-6 text-center opacity-50"><i class="fa-solid fa-spinner fa-spin"></i></div>';
 
         const endpoints = [
-            `<%= baseUrl %>/admin/api/search-image-universal?q=${encodeURIComponent(query)}&type=<%= plugin.imageSearchType || 'music' %>`
+            `<%= baseUrl %>/admin/api/search-image-universal?q=${encodeURIComponent(query)}&plugin=<%= plugin.id %>`
             <% if (plugin.secondaryImageSearchPath) { %>,
             `<%= baseUrl %><%= plugin.secondaryImageSearchPath %>?q=${encodeURIComponent(query)}`
             <% } %>

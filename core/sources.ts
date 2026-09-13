@@ -1,4 +1,5 @@
 import { PluginDefinition, ExternalSource, SearchProvider } from './types';
+import { PermanentRefreshError } from './helpers';
 
 /**
  * Where a plugin looks items up, and which of those places is usable right now.
@@ -20,8 +21,15 @@ const LEGACY_WRAPPERS = new WeakMap<PluginDefinition, ExternalSource[]>();
  */
 export function sourceFromProvider(
   provider: SearchProvider,
-  spec: { id: string; requiredEnvKeys?: string[]; itemUrl?(externalId: string): string | null }
-): ExternalSource {
+  spec: {
+    id: string;
+    requiredEnvKeys?: string[];
+    itemUrl?(externalId: string): string | null;
+    // A service that answers both questions declares its image side here rather than
+    // being split into two sources wearing the same name.
+    searchImages?(query: string, options?: { language?: string }): Promise<string[]>;
+  }
+): SearchableSource {
   return {
     ...spec,
     name: provider.name,
@@ -55,14 +63,86 @@ export function pluginSources(plugin: PluginDefinition): ExternalSource[] {
   return wrapped;
 }
 
+/**
+ * A source that can actually be searched. Narrowing it in the type is what lets the add
+ * and confirm routes call search/getDetails without a guard each time: a source reaches
+ * them only through the resolver below, which never hands back one that cannot answer.
+ */
+export type SearchableSource = ExternalSource & Required<Pick<ExternalSource, 'search' | 'getDetails'>>;
+
+/**
+ * Searching takes both halves. A source offering results nobody can expand would fill
+ * the page with cards that lead to an error, so it is not offered for searching at all.
+ */
+export function isSearchable(source: ExternalSource): source is SearchableSource {
+  return typeof source.search === 'function' && typeof source.getDetails === 'function';
+}
+
+/**
+ * Builds a source that only knows where pictures are.
+ *
+ * A service can have cover art for a record it cannot describe: iTunes hands out artwork
+ * and nothing else, no item to add and nothing ever attributed to it. Declaring only the
+ * capability it has is what keeps it out of the search picker while still feeding the
+ * image one.
+ */
+export function imageSourceFrom(spec: {
+  id: string;
+  name: string;
+  requiredEnvKeys?: string[];
+  searchImages(query: string, options?: { language?: string }): Promise<string[]>;
+}): ExternalSource {
+  return { ...spec };
+}
+
 /** True when every environment variable the source needs is set. */
 export function isSourceConfigured(source: ExternalSource): boolean {
   return (source.requiredEnvKeys || []).every(key => !!process.env[key]);
 }
 
-/** The sources that can actually be called, in the plugin's declared order. */
-export function configuredSources(plugin: PluginDefinition): ExternalSource[] {
-  return pluginSources(plugin).filter(isSourceConfigured);
+/**
+ * The plugin's sources in the order this collection prefers them.
+ *
+ * The order is a preference, not a definition: it is stored per collection, it only ever
+ * mentions ids, and it is re-read against what the plugin currently declares. A source
+ * dropped from a plugin therefore leaves nothing behind, and one added by an update falls
+ * in at the end rather than jumping ahead of a choice somebody made.
+ */
+export function orderedSources(plugin: PluginDefinition, settings?: any): ExternalSource[] {
+  const declared = pluginSources(plugin);
+  const preferred = settings?.sourceOrder?.[plugin.id];
+  if (!Array.isArray(preferred) || preferred.length === 0) return declared;
+
+  const rank = new Map<string, number>();
+  preferred.forEach((id: unknown, index: number) => {
+    if (typeof id === 'string' && !rank.has(id)) rank.set(id, index);
+  });
+
+  const keyOf = (source: ExternalSource) =>
+    rank.has(source.id) ? rank.get(source.id)! : preferred.length + declared.indexOf(source);
+
+  return [...declared].sort((a, b) => keyOf(a) - keyOf(b));
+}
+
+/** The sources that can actually be called, in this collection's order. */
+export function configuredSources(plugin: PluginDefinition, settings?: any): ExternalSource[] {
+  return orderedSources(plugin, settings).filter(isSourceConfigured);
+}
+
+/** Those of them that can be searched: what the add page offers and what a query goes to. */
+export function searchableSources(plugin: PluginDefinition, settings?: any): SearchableSource[] {
+  return configuredSources(plugin, settings).filter(isSearchable);
+}
+
+/**
+ * Every image-capable source of the plugin, all of which are asked at once.
+ *
+ * Images are not picked from one place the way metadata is: a record's front cover and
+ * the scan of its label come from different services, and the picker shows both lots
+ * side by side. Merging is the whole point, so there is no "the" image source.
+ */
+export function imageSources(plugin: PluginDefinition, settings?: any): ExternalSource[] {
+  return configuredSources(plugin, settings).filter(s => typeof s.searchImages === 'function');
 }
 
 /**
@@ -72,7 +152,7 @@ export function configuredSources(plugin: PluginDefinition): ExternalSource[] {
  * turn the plugin into a manual-only one behind the user's back.
  */
 export function hasSearch(plugin: PluginDefinition): boolean {
-  return pluginSources(plugin).length > 0;
+  return pluginSources(plugin).some(isSearchable);
 }
 
 /**
@@ -82,8 +162,8 @@ export function hasSearch(plugin: PluginDefinition): boolean {
  * from values stored on items, so it can name a source that was removed, renamed or
  * whose keys have since been taken out of the environment.
  */
-export function resolveSource(plugin: PluginDefinition, id?: string | null): ExternalSource | undefined {
-  const available = configuredSources(plugin);
+export function resolveSource(plugin: PluginDefinition, id?: string | null, settings?: any): SearchableSource | undefined {
+  const available = searchableSources(plugin, settings);
   if (id) {
     const named = available.find(s => s.id === id);
     if (named) return named;
@@ -104,7 +184,10 @@ export function sourceForItem(plugin: PluginDefinition, item: any): ExternalSour
  */
 export function requiredEnvKeysFor(plugin: PluginDefinition): string[] {
   const keys = new Set<string>(plugin.requiredEnvKeys || []);
-  for (const source of pluginSources(plugin)) {
+  // Searchable sources only, to match what getApiKeyStatus gates on. An image source
+  // missing its key thins the picker; it never stops the module from being turned on,
+  // so listing it here would read as a blocker it is not.
+  for (const source of pluginSources(plugin).filter(isSearchable)) {
     for (const key of source.requiredEnvKeys || []) keys.add(key);
   }
   return Array.from(keys);
@@ -127,4 +210,120 @@ export function externalLinkFor(plugin: PluginDefinition, item: any): { label: s
 
   const url = source.itemUrl(String(item.source_id));
   return url ? { label: source.name, url } : null;
+}
+
+/**
+ * Whether this plugin can refresh an item at all, either way of doing it.
+ *
+ * What decides whether the refresh button exists and whether the admin offers a bulk
+ * run, so it has to answer for both hooks: a plugin that only declares mergeRefresh is
+ * as refreshable as one that owns the whole step.
+ */
+export function canRefresh(plugin: PluginDefinition): boolean {
+  return typeof plugin.refreshItem === 'function' || typeof plugin.mergeRefresh === 'function';
+}
+
+/**
+ * Fresh metadata for one item, as a patch for the caller to write.
+ *
+ * The item's own source answers first, when the plugin can merge what a source returns.
+ * That is the only path that reaches an item filled in from anywhere other than the
+ * plugin's historical provider: refreshItem reads the plugin's own id field, which such
+ * an item does not carry.
+ *
+ * Falls back to refreshItem for a plugin whose refresh asks its API something a plain
+ * lookup by id does not answer.
+ */
+export async function refreshPatchFor(
+  plugin: PluginDefinition,
+  item: any,
+  req?: any
+): Promise<Record<string, any>> {
+  if (plugin.mergeRefresh) {
+    // The stored pair first. Failing that, the plugin's own id field read against its
+    // default source, which is the same attribution the boot migration makes: a document
+    // restored from an old backup carries the id without the pair until that migration
+    // runs, and it has to stay refreshable in between.
+    const stored = sourceForItem(plugin, item);
+    const legacyId = plugin.externalIdField ? item[plugin.externalIdField] : undefined;
+
+    const source = (stored && item.source_id) ? stored : (legacyId ? pluginSources(plugin)[0] : undefined);
+    const externalId = (stored && item.source_id) ? item.source_id : legacyId;
+
+    if (source && externalId && typeof source.getDetails === 'function') {
+      if (!isSourceConfigured(source)) {
+        // Waiting will not help: the credentials are missing from the environment, which
+        // only an admin restarting the instance can change.
+        throw new PermanentRefreshError(`${source.name} is not configured`);
+      }
+      const details = await source.getDetails(String(externalId), { language: req?.language });
+      return plugin.mergeRefresh(item, details);
+    }
+  }
+
+  if (plugin.refreshItem) return plugin.refreshItem(item, req);
+
+  throw new PermanentRefreshError('This item carries nothing to refresh it from');
+}
+
+/**
+ * Every image the plugin can offer for a query: each of its image sources, plus the
+ * legacy single provider, merged in declaration order and deduplicated.
+ *
+ * Settled one by one rather than awaited together, so a service that is down, rate
+ * limited or missing its key costs its own results and not everyone else's. That is new:
+ * the picker used to fire its requests from the browser, where one rejection emptied the
+ * grid even though the other service had answered.
+ */
+export async function gatherImages(
+  plugin: PluginDefinition,
+  query: string,
+  options?: { language?: string },
+  settings?: any
+): Promise<string[]> {
+  const lookups: Promise<string[]>[] = imageSources(plugin, settings).map(source => source.searchImages!(query, options));
+
+  // A plugin that declares nothing but the old single provider keeps the picker it had.
+  if (plugin.imageSearchProvider) {
+    lookups.push(plugin.imageSearchProvider.search(query, options));
+  }
+
+  const settled = await Promise.allSettled(lookups);
+  for (const result of settled) {
+    if (result.status === 'rejected') {
+      console.warn(`[IMAGES] ${plugin.id}: one image source failed:`, result.reason?.message || result.reason);
+    }
+  }
+
+  const urls = settled.flatMap(result =>
+    result.status === 'fulfilled' && Array.isArray(result.value) ? result.value : []
+  );
+  return [...new Set(urls.filter(Boolean))];
+}
+
+/** One source as the admin needs to show it: what it can do, and what it is waiting for. */
+export interface SourceStatus {
+  id: string;
+  name: string;
+  searchable: boolean;
+  images: boolean;
+  /** Environment variables it needs that are not set. Empty means it is ready. */
+  missingKeys: string[];
+}
+
+/**
+ * What a plugin searches, in this collection's order, described for the admin.
+ *
+ * Says which service is missing which variable, rather than the single "an API key is
+ * missing" the module card used to show: with several sources behind one plugin, that
+ * sentence no longer names anything an admin can act on.
+ */
+export function sourceStatusFor(plugin: PluginDefinition, settings?: any): SourceStatus[] {
+  return orderedSources(plugin, settings).map(source => ({
+    id: source.id,
+    name: source.name,
+    searchable: isSearchable(source),
+    images: typeof source.searchImages === 'function',
+    missingKeys: (source.requiredEnvKeys || []).filter(key => !process.env[key])
+  }));
 }
