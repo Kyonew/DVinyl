@@ -15,12 +15,13 @@ import { buildFieldSuggestions } from '../fieldSuggestions';
 import { resolveShelfLocation } from '../shelfStore';
 import { deleteItemsAndContents, moveContentsToWishlist } from '../../utils/itemHelpers';
 import { applyVisibilityFilter, applyShareScopeFilter, applyPluginKindFilter, isWithinShareScope } from '../../utils/visibilityHelper';
+import { hasSearch, configuredSources, resolveSource } from '../sources';
 
 export function createItemRoutes(plugin: PluginDefinition): Router {
   const router = express.Router();
 
   // EXTERNAL SEARCH
-  if (plugin.searchProvider) {
+  if (hasSearch(plugin)) {
     // GET /add-{type} -> render 'add' page
     router.get(`/add-${plugin.id}`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
       try {
@@ -30,6 +31,8 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           searchType: formatParam || plugin.id,
           user: res.locals.user,
           currentType: `add-${plugin.id}`,
+          sources: configuredSources(plugin),
+          activeSource: resolveSource(plugin)?.id || '',
           plugin
         });
       } catch (err: any) {
@@ -42,6 +45,10 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
     router.post(`/search-${plugin.id}`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
       const { query, type, year, country, genre_filter, label_filter } = req.body;
       const rawQuery = typeof query === 'string' ? query.trim() : '';
+      // Which database to ask. The form only offers the picker when the plugin has more
+      // than one configured, so most searches arrive without it and take the default.
+      const source = resolveSource(plugin, req.body.source);
+      const sources = configuredSources(plugin);
       let searchQuery = rawQuery;
       // A search run after a scan posts the code back (hidden field in add.ejs), so
       // correcting the product name by hand no longer detaches it from the saved item.
@@ -68,6 +75,8 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
               scanned_barcode: barcode,
               user: res.locals.user,
               currentType: `add-${plugin.id}`,
+              sources,
+              activeSource: source?.id || '',
               plugin
             });
           }
@@ -76,7 +85,24 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         }
 
         const settings = res.locals.settings;
-        const runSearch = (q: string) => plugin.searchProvider!.search(q, {
+        if (!source) {
+          // Every source the plugin declares is missing its credentials. Nothing to ask,
+          // and nothing the user can do about it from here.
+          return res.render('add', {
+            results: [],
+            error: req.t('errors.api_error', { provider: req.t(plugin.label) }),
+            searchType: type || plugin.id,
+            searchQuery: rawQuery,
+            scanned_barcode: scannedBarcode,
+            user: res.locals.user,
+            currentType: `add-${plugin.id}`,
+            sources,
+            activeSource: '',
+            plugin
+          });
+        }
+
+        const runSearch = (q: string) => source.search(q, {
           type: type || plugin.id,
           year,
           country,
@@ -103,6 +129,11 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           ? (results.length > 0 ? searchQuery : resolvedTitle)
           : rawQuery;
 
+        // The id a result carries only means something next to the database that handed
+        // it out, so it travels with it: the confirm link needs to ask the same source
+        // for the details, and the item ends up storing the pair.
+        for (const result of results) result.source = source.id;
+
         res.render('add', {
           results,
           // Nothing matched a product name the user never got to see: show it instead of
@@ -113,18 +144,22 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           scanned_barcode: scannedBarcode,
           user: res.locals.user,
           currentType: `add-${plugin.id}`,
+          sources,
+          activeSource: source.id,
           plugin
         });
       } catch (err: any) {
         console.error(`Search error for ${plugin.id}:`, err.message);
         res.render('add', {
           results: [],
-          error: req.t('errors.api_error', { provider: plugin.searchProvider!.name }),
+          error: req.t('errors.api_error', { provider: source?.name || req.t(plugin.label) }),
           searchType: type || plugin.id,
           searchQuery: rawQuery,
           scanned_barcode: scannedBarcode,
           user: res.locals.user,
           currentType: `add-${plugin.id}`,
+          sources,
+          activeSource: source?.id || '',
           plugin
         });
       }
@@ -134,16 +169,28 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
     router.get(`/confirm-${plugin.id}/:id`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
       const externalId = req.params.id;
       const searchTypeHint = req.query.type as string | undefined;
+      // The id in the path was handed out by the source the result came from, carried
+      // here by the result card. An unknown or dropped one falls back to the plugin's
+      // default source, which is what every link predating this carries.
+      const source = resolveSource(plugin, req.query.source as string | undefined);
 
       try {
+        if (!source) throw new Error('no source configured');
+
         // The query string is forwarded whole rather than key by key: what a provider needs
         // to narrow a result down is its own business (TMDB asks which season), and the core
         // has no reason to learn the vocabulary of each one.
-        const details = await plugin.searchProvider!.getDetails(externalId, {
+        const details = await source.getDetails(externalId, {
           ...req.query,
           type: searchTypeHint,
           language: req.language
         });
+
+        // Where this item is about to come from. Written on the confirm form as a hidden
+        // pair so the save handler stores it, which is what lets the item be traced back
+        // to the right database later on.
+        details.source = source.id;
+        details.source_id = String(externalId);
         const activeCollectionId = res.locals.activeCollectionId;
 
         // Providers return the creator under a generic `creator` key; make sure
@@ -186,10 +233,12 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         console.error(`Details fetch error for ${plugin.id} ID ${externalId}:`, err.message);
         res.render('add', {
           results: [],
-          error: `${req.t('errors.api_error', { provider: plugin.searchProvider!.name })} (${err.message})`,
+          error: `${req.t('errors.api_error', { provider: source?.name || req.t(plugin.label) })} (${err.message})`,
           searchType: searchTypeHint || plugin.id,
           user: res.locals.user,
           currentType: `add-${plugin.id}`,
+          sources: configuredSources(plugin),
+          activeSource: source?.id || '',
           plugin
         });
       }
@@ -410,6 +459,15 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         }
       }
 
+      // Which database this save came from. Not a plugin schema path (every item carries
+      // the pair, whatever its plugin), so the loop above does not pick it up. Taken only
+      // when the form actually posts it: a manual add posts neither, and must not blank
+      // the reference an earlier lookup wrote.
+      if (req.body.source && req.body.source_id) {
+        updateData.source = String(req.body.source);
+        updateData.source_id = String(req.body.source_id);
+      }
+
       // Optional per-plugin normalization (e.g. books mirror barcode <-> isbn)
       if (typeof plugin.normalizeForSave === 'function') {
         plugin.normalizeForSave(updateData);
@@ -482,6 +540,15 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
             if (incoming !== undefined && incoming !== null && incoming !== '' && existingEmpty) {
               saveObj[key] = (key === idField && /^\d+$/.test(String(incoming))) ? parseInt(String(incoming)) : incoming;
             }
+          }
+
+          // The source pair is backfilled as one value: half of it says nothing, and a
+          // stored id belongs to whichever database handed it out. Left alone as soon as
+          // the existing item already names a source, even a different one, since that is
+          // where its metadata came from and where a refresh has to go looking.
+          if (updateData.source && updateData.source_id && !existingItem.source) {
+            saveObj.source = updateData.source;
+            saveObj.source_id = updateData.source_id;
           }
         }
 

@@ -3,6 +3,7 @@ import { PluginDefinition } from './types';
 import { DEFAULT_PLACEHOLDER_IMAGE } from './placeholderImage';
 import Item from '../models/Item';
 import { imagesForItem } from './itemImages';
+import { pluginSources, isSourceConfigured, requiredEnvKeysFor } from './sources';
 
 const FLATTENS_EXTRA = Symbol('flattensExtra');
 const RESOLVES_PLACEHOLDER = Symbol('resolvesPlaceholder');
@@ -107,13 +108,28 @@ class PluginRegistry {
     return this.getAll().filter(p => settings?.modules?.[p.collectionType] === true);
   }
 
-  /** Map collectionType -> true if all the plugin's requiredEnvKeys are present in process.env. */
+  /**
+   * Map collectionType -> whether the plugin can be enabled as things stand.
+   *
+   * One working source is enough. A plugin with several of them is usable as soon as
+   * any one answers, and keeping the old "every declared key must be set" rule would
+   * hold a plugin shut over credentials for a database its owner never intends to use.
+   * The plugin's own requiredEnvKeys, which are about the plugin rather than about
+   * where it searches, are still all required.
+   */
   getApiKeyStatus(): Record<string, boolean> {
     const status: Record<string, boolean> = {};
     for (const p of this.getAll()) {
-      status[p.collectionType] = (p.requiredEnvKeys || []).every(k => !!process.env[k]);
+      const ownKeys = (p.requiredEnvKeys || []).every(k => !!process.env[k]);
+      const sources = pluginSources(p);
+      status[p.collectionType] = ownKeys && (sources.length === 0 || sources.some(isSourceConfigured));
     }
     return status;
+  }
+
+  /** Every environment variable a plugin needs to be fully usable, its sources' included. */
+  getRequiredEnvKeys(plugin: PluginDefinition): string[] {
+    return requiredEnvKeysFor(plugin);
   }
 
   /** Reads a plugin-scoped setting value, falling back to the plugin's declared default. */

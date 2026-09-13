@@ -45,7 +45,11 @@ export const RESERVED_FIELD_NAMES = new Set([
   '_id', 'kind', 'owner', 'collection', 'title', 'year', 'cover_image', 'user_image', 'images',
   'in_wishlist', 'comments', 'location', 'quantity', 'genre', 'genres', 'styles',
   'barcode', 'barcode_locked', 'added_at', 'updated_at', 'creator', 'format',
-  'tracklist', 'user_rating', 'mongo_id', 'extra', 'description'
+  'tracklist', 'user_rating', 'mongo_id', 'extra', 'description',
+  // Where the item's metadata came from. "Source" is a name a collector reaches for
+  // (where a copy was bought), and a builder field carrying it would write over the
+  // reference the core keeps there.
+  'source', 'source_id'
 ]);
 
 // Upper bounds on what a builder form may declare. Every field becomes a real Mongoose

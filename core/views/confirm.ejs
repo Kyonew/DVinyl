@@ -133,6 +133,13 @@
                     <% if (item.hardcover_id) { %>
                         <input type="hidden" name="hardcover_id" value="<%= item.hardcover_id %>">
                     <% } %>
+                    <%# Which database these details came from. Posted as a pair or not at
+                        all: an id alone names nothing, since two sources hand out the same
+                        numbers for unrelated records. %>
+                    <% if (item.source && item.source_id) { %>
+                        <input type="hidden" name="source" value="<%= item.source %>">
+                        <input type="hidden" name="source_id" value="<%= item.source_id %>">
+                    <% } %>
 
                     <!-- formFields, main group first then metadata -->
                     

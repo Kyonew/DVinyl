@@ -332,7 +332,7 @@
                     </div>
                 <% } %>
                 <!-- External "source" link, declared by the plugin -->
-                <% const extLink = plugin.externalLink ? plugin.externalLink(item) : null; %>
+                <% const extLink = externalLinkFor(plugin, item); %>
                 <% if (extLink) { %>
                     <div>
                         <span class="block text-xs opacity-50 uppercase font-bold mb-1"><%= t('detail.source') %></span>

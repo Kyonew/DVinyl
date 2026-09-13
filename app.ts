@@ -33,6 +33,7 @@ import { importableFields } from './core/csvMapping.js';
 import { MAX_ITEM_IMAGES, MAX_ITEM_IMAGE_BYTES } from './core/itemImages.js';
 import { cleanupStaleItemImageUploads, ITEM_IMAGE_SWEEP_INTERVAL_MS, itemImageUrl } from './core/itemImageStorage.js';
 import { isCollectionInfoVisible } from './core/collectionInfo.js';
+import { externalLinkFor, hasSearch, requiredEnvKeysFor } from './core/sources';
 
 // Routes imports
 import setupRoutes from './routes/setupRoutes.js';
@@ -110,6 +111,11 @@ app.locals.dateLocaleFor = dateLocaleFor;
 // Every entry point to the collection info page asks the same question before it links
 // to it, share visitors included (core/collectionInfo.ts).
 app.locals.isCollectionInfoVisible = isCollectionInfoVisible;
+// Where an item came from, and whether a plugin can be searched at all: both are now
+// answers about its sources rather than about a single provider hanging off it.
+app.locals.externalLinkFor = externalLinkFor;
+app.locals.hasSearch = hasSearch;
+app.locals.requiredEnvKeysFor = requiredEnvKeysFor;
 app.set('io', io); // Expose io to routes
 
 // Global middlewares

@@ -5,7 +5,7 @@
         id: p.id,
         label: t(p.label),
         icon: 'fa-' + p.icon,
-        canEnrich: !!p.searchProvider,
+        canEnrich: hasSearch(p),
         fields: importableFields(p, settings, t)
     }));
 %>

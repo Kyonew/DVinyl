@@ -64,7 +64,7 @@
                             pluginId: p.id,
                             label: t(p.label),
                             icon: 'fa-' + p.icon,
-                            needsKey: (p.requiredEnvKeys || []).length > 0,
+                            needsKey: requiredEnvKeysFor(p).length > 0,
                             settings: p.settings || []
                         }));
                         %>
@@ -841,7 +841,7 @@
                 const apiKeyStatus = <%- JSON.stringify(registry.getApiKeyStatus()) %>;
                 const modulesWithKeys = <%- JSON.stringify(
                     registry.getAll()
-                        .filter(p => (p.requiredEnvKeys || []).length > 0)
+                        .filter(p => requiredEnvKeysFor(p).length > 0)
                         .map(p => ({ name: p.collectionType + 'Active', collectionType: p.collectionType, errorId: 'error-' + p.collectionType }))
                 ) %>.map(m => ({ ...m, hasKey: apiKeyStatus[m.collectionType] }));
                 modulesWithKeys.forEach(mod => {

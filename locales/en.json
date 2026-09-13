@@ -257,6 +257,7 @@
     "desc": "Search by name or scan the barcode.",
     "search_placeholder": "Artist, Album...",
     "separator_or": "OR",
+    "source_label": "Source",
     "btn_scan": "Scan Barcode",
     "scan_init": "Initializing...",
     "scan_stop": "Stop scanning",

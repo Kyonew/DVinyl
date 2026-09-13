@@ -1,9 +1,18 @@
 import { PluginDefinition } from '../../core/types';
+import { sourceFromProvider } from '../../core/sources';
 import { escapeRegExp, PermanentRefreshError } from '../../core/helpers';
 import Item from '../../models/Item';
 import { BggProvider } from './bgg';
 
 const bgg = new BggProvider();
+
+// The database this plugin has always searched. The migration attributes every item
+// saved before sources existed to this id, so it must never change.
+const bggSource = sourceFromProvider(bgg, {
+  id: 'bgg',
+  requiredEnvKeys: ['BGG_API_KEY'],
+  itemUrl: (id: string) => `https://boardgamegeek.com/boardgame/${id}`
+});
 
 export const boardGamesPlugin: PluginDefinition = {
   id: 'boardgames',
@@ -29,14 +38,13 @@ export const boardGamesPlugin: PluginDefinition = {
   extraSearchFields: ['bgg_id'],
   summaryField: { label: 'confirm_boardgame.field_designer', field: 'designer' },
 
-  searchProvider: bgg,
+  sources: [bggSource],
   imageSearchType: 'boardgame',
   imageSearchProvider: {
     async search(query: string): Promise<string[]> {
       return bgg.searchImages(query);
     }
   },
-  requiredEnvKeys: ['BGG_API_KEY'],
 
   // BGG's XML API2 terms of use require the "Powered by BGG" logo, linked back to
   // BoardGameGeek, on any public-facing page that surfaces data pulled from it.

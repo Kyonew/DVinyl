@@ -1,8 +1,19 @@
 import { PluginDefinition } from '../../core/types';
+import { sourceFromProvider } from '../../core/sources';
 import { HardcoverProvider } from './hardcover';
 import { booksImporters } from './importers';
 import { escapeRegExp, fetchJson, PermanentRefreshError } from '../../core/helpers';
 import Item from '../../models/Item';
+
+const hardcoverProvider = new HardcoverProvider();
+
+// The database this plugin has always searched. The migration attributes every item
+// saved before sources existed to this id, so it must never change.
+const hardcover = sourceFromProvider(hardcoverProvider, {
+  id: 'hardcover',
+  requiredEnvKeys: ['HARDCOVER_API_KEY'],
+  itemUrl: (id: string) => `https://hardcover.app/books/${id}`
+});
 
 export const booksPlugin: PluginDefinition = {
   id: 'books',
@@ -22,10 +33,9 @@ export const booksPlugin: PluginDefinition = {
   creatorField: 'author',
   extraSearchFields: ['isbn', 'publisher'],
   supportsBarcodeSearch: false,
-  searchProvider: new HardcoverProvider(),
+  sources: [hardcover],
   imageSearchType: 'book',
   importers: booksImporters,
-  requiredEnvKeys: ['HARDCOVER_API_KEY'],
   duplicateCheckFields: ['format'],
   backfillFields: ['isbn'],
   partialsPath: 'plugins/books/partials',

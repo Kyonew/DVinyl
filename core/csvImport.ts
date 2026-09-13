@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
-import { PluginDefinition, SearchResult } from './types';
+import { PluginDefinition, SearchResult, ExternalSource } from './types';
+import { resolveSource } from './sources';
 import { escapeRegExp, parseCsvRecords, syncStamp } from './helpers';
 import { createShelfLocationResolver } from './shelfStore';
 
@@ -55,7 +56,9 @@ export interface CsvImportSpec {
 }
 
 /** Base Item paths an enrichment result may fill, on top of the plugin's own schema. */
-const ENRICHABLE_BASE_FIELDS = ['cover_image', 'year', 'barcode', 'genre', 'genres', 'styles'];
+// `source`/`source_id` among them: a row identified by a lookup owes its metadata to
+// that database, and an item that cannot say so can no longer be traced back to it.
+const ENRICHABLE_BASE_FIELDS = ['cover_image', 'year', 'barcode', 'genre', 'genres', 'styles', 'source', 'source_id'];
 
 /** Giving up on one provider lookup rather than stalling the whole import on it. */
 const ENRICH_TIMEOUT_MS = 20000;
@@ -293,6 +296,7 @@ class ImportPace {
  */
 async function fetchEnrichment(
   plugin: PluginDefinition,
+  source: ExternalSource,
   query: string,
   options: Record<string, any>,
   target: MatchTarget,
@@ -300,7 +304,7 @@ async function fetchEnrichment(
 ): Promise<Record<string, any> | null> {
   for (let attempt = 0; attempt <= RATE_LIMIT_BACKOFF_MS.length; attempt++) {
     try {
-      return await enrichOnce(plugin, query, options, target);
+      return await enrichOnce(plugin, source, query, options, target);
     } catch (err: any) {
       if (err?.status !== 429) {
         console.error(`[${plugin.id}] Enrichment failed for "${query}":`, err.message);
@@ -324,12 +328,13 @@ async function fetchEnrichment(
 
 async function enrichOnce(
   plugin: PluginDefinition,
+  source: ExternalSource,
   query: string,
   options: Record<string, any>,
   target: MatchTarget
 ): Promise<Record<string, any> | null> {
   {
-    const search = (q: string) => withTimeout(plugin.searchProvider!.search(q, options), ENRICH_TIMEOUT_MS);
+    const search = (q: string) => withTimeout(source.search(q, options), ENRICH_TIMEOUT_MS);
 
     let { match, sure } = pickBestMatch(await search(query), target);
 
@@ -344,8 +349,8 @@ async function enrichOnce(
     }
     if (!match) return null;
 
-    const details = await withTimeout(plugin.searchProvider!.getDetails(String(match.id), options), ENRICH_TIMEOUT_MS);
-    return { ...match, ...details };
+    const details = await withTimeout(source.getDetails(String(match.id), options), ENRICH_TIMEOUT_MS);
+    return { ...match, ...details, source: source.id, source_id: String(match.id) };
   }
 }
 
@@ -393,7 +398,10 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
     }
 
     const Model = mongoose.model(plugin.kind);
-    const canEnrich = enrich && !!plugin.searchProvider;
+    // One source answers for the whole file: a per-row choice would mean asking several
+    // databases the same question, and the quota of the smallest one is what gives out.
+    const enrichSource = resolveSource(plugin);
+    const canEnrich = enrich && !!enrichSource;
     const pace = new ImportPace(spec.enrichDelayMs ?? 500);
     const allowed = enrichableFields(plugin);
     const defaults = schemaDefaults(plugin);
@@ -437,7 +445,7 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
         // and metadata rather than being skipped outright.
         if (!canEnrich || !query) return 'skipped';
 
-        const enriched = await fetchEnrichment(plugin, query, searchOptions, target, pace);
+        const enriched = await fetchEnrichment(plugin, enrichSource!, query, searchOptions, target, pace);
         await pace.wait();
         if (!enriched) {
           totalUnenriched++;
@@ -464,7 +472,7 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
       }
 
       if (canEnrich && query) {
-        const enriched = await fetchEnrichment(plugin, query, searchOptions, target, pace);
+        const enriched = await fetchEnrichment(plugin, enrichSource!, query, searchOptions, target, pace);
         if (enriched) fillEmptyFields(data, enriched, allowed);
         else totalUnenriched++;
         await pace.wait();

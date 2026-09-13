@@ -81,7 +81,15 @@ export interface PluginDefinition {
 
   extraSearchFields?: string[];
 
+  // The plugin's single historical provider. Superseded by `sources`, and still read
+  // when a plugin declares no source of its own: it is then treated as one source
+  // bearing the plugin's own id, so third-party plugins keep working untouched.
   searchProvider?: SearchProvider;
+
+  // Where this plugin can look items up, in the order it prefers them. The first one
+  // is the plugin's default, and the one the stored reference of every item predating
+  // this field is attributed to (see the migration).
+  sources?: ExternalSource[];
 
   // Custom EJS partial rendered in the search form ('top' and 'bottom' zones)
   searchFormPartial?: string;
@@ -268,6 +276,31 @@ export interface ConfirmData {
 
 export interface ImageSearchProvider {
   search(query: string, options?: { language?: string }): Promise<string[]>;
+}
+
+/**
+ * One external service a plugin can look items up in.
+ *
+ * A plugin says what an item *is*; a source says where its metadata can be found. The
+ * two are separate because the same medium has several databases behind it, and which
+ * one answers best depends on what is being collected: IGDB knows recent games, an
+ * archive of the era knows MS-DOS.
+ *
+ * The `id` is written onto every item the source fills in, so it must stay stable for
+ * the life of the source: changing it orphans everything already saved. It is also
+ * global rather than per-plugin, since a source is free to serve several plugins.
+ */
+export interface ExternalSource extends SearchProvider {
+  id: string;
+
+  // Environment variables this source needs. It stays out of every list until all of
+  // them are set, which is what lets a plugin ship a source nobody has configured.
+  requiredEnvKeys?: string[];
+
+  // Page of the item on the source's own site, from the id it handed out. What the
+  // detail page links to for an item the plugin's own externalLink cannot place,
+  // because that one only knows the plugin's historical provider.
+  itemUrl?(externalId: string): string | null;
 }
 
 export interface PluginApiRoute {

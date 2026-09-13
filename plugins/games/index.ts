@@ -1,4 +1,5 @@
 import { PluginDefinition } from '../../core/types';
+import { sourceFromProvider } from '../../core/sources';
 import { IGDBProvider } from './igdb';
 import { gamesImporters } from './importers';
 import { escapeRegExp, fetchJson, PermanentRefreshError, syncStamp } from '../../core/helpers';
@@ -6,6 +7,14 @@ import { igdbRequest } from './igdbHelper';
 import Item from '../../models/Item';
 
 const igdbProvider = new IGDBProvider();
+
+// The database this plugin has always searched. The migration attributes every item
+// saved before sources existed to this id, so it must never change.
+const igdb = sourceFromProvider(igdbProvider, {
+  id: 'igdb',
+  requiredEnvKeys: ['TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET'],
+  itemUrl: (id: string) => `https://www.igdb.com/games/${id}`
+});
 
 export const gamesPlugin: PluginDefinition = {
   id: 'games',
@@ -26,9 +35,8 @@ export const gamesPlugin: PluginDefinition = {
   extraSearchFields: ['platform', 'publisher'],
   supportsBarcodeSearch: true,
   barcodeNoiseTerms: ['Nintendo', 'PlayStation', 'Xbox', 'PS2', 'PS3', 'PS4', 'PS5', 'Switch', 'Wii U', 'Wii', 'Series X', 'Series S', 'One'],
-  searchProvider: igdbProvider,
+  sources: [igdb],
   imageSearchType: 'game',
-  requiredEnvKeys: ['TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET'],
   duplicateCheckFields: ['platform', 'region', 'format'],
   aspectRatioClass: 'aspect-[2/3]',
 

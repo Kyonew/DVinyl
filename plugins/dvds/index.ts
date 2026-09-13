@@ -1,11 +1,21 @@
 import path from 'path';
 import mongoose from 'mongoose';
 import { PluginDefinition } from '../../core/types';
+import { sourceFromProvider } from '../../core/sources';
 import { TMDBProvider } from './tmdb';
 import { dvdImporters } from './importers';
 import { escapeRegExp, fetchJson, PermanentRefreshError, editStamp } from '../../core/helpers';
 import Item from '../../models/Item';
 import { TMDB_LANG_MAP, formatSeasonCount, describeOwnedSeasons } from './constants';
+
+const tmdbProvider = new TMDBProvider();
+
+// The database this plugin has always searched. The migration attributes every item
+// saved before sources existed to this id, so it must never change.
+const tmdb = sourceFromProvider(tmdbProvider, {
+  id: 'tmdb',
+  requiredEnvKeys: ['TMDB_API_KEY']
+});
 
 export const dvdPlugin: PluginDefinition = {
   id: 'dvd',
@@ -26,9 +36,8 @@ export const dvdPlugin: PluginDefinition = {
   extraSearchFields: ['studio'],
   supportsBarcodeSearch: true,
   barcodeNoiseTerms: ['DVD', 'Blu-ray', 'Blu Ray', 'Bluray', '4K', 'UHD', 'Ultra HD', 'Coffret', 'Edition', 'Édition', 'Steelbook', 'Combo'],
-  searchProvider: new TMDBProvider(),
+  sources: [tmdb],
   imageSearchType: 'movie',
-  requiredEnvKeys: ['TMDB_API_KEY'],
   duplicateCheckFields: ['format', 'zone'],
   aspectRatioClass: 'aspect-[2/3]',
   importers: dvdImporters,

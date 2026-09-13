@@ -47,6 +47,7 @@
     "scan_stop": "Dejar de escanear",
     "search_placeholder": "Artista, Álbum...",
     "separator_or": "O",
+    "source_label": "Fuente",
     "title": "Agregar un registro",
     "manual_entry": "No aparece en Discogs? Agregar manualmente"
   },

@@ -1,10 +1,19 @@
 import { PluginDefinition } from '../../core/types';
+import { sourceFromProvider } from '../../core/sources';
 import { escapeRegExp, PermanentRefreshError } from '../../core/helpers';
 import Item from '../../models/Item';
 import { RebrickableProvider } from './rebrickable';
 import { themeBadgeColor } from './constants';
 
 const rebrickable = new RebrickableProvider();
+
+// The database this plugin has always searched. The migration attributes every item
+// saved before sources existed to this id, so it must never change.
+const rebrickableSource = sourceFromProvider(rebrickable, {
+  id: 'rebrickable',
+  requiredEnvKeys: ['REBRICKABLE_API_KEY'],
+  itemUrl: (id: string) => `https://rebrickable.com/sets/${id}/`
+});
 
 export const legoPlugin: PluginDefinition = {
   id: 'lego',
@@ -24,9 +33,8 @@ export const legoPlugin: PluginDefinition = {
   icon: 'cubes',
   routePrefix: '/lego',
   collectionType: 'lego',
-  searchProvider: rebrickable,
+  sources: [rebrickableSource],
   imageSearchType: 'lego',
-  requiredEnvKeys: ['REBRICKABLE_API_KEY'],
   duplicateCheckFields: ['format'],
   aspectRatioClass: 'aspect-square',
   partialsPath: 'plugins/lego/partials',

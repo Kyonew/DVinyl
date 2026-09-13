@@ -50,7 +50,7 @@
                     const currentPlugin = registry.getAll().find(p => p.collectionType === currentType);
                     let addRoute = null;
                     if (currentPlugin) {
-                        addRoute = currentPlugin.searchProvider ? ('/add-' + currentPlugin.id) : ('/manual-add?type=' + currentPlugin.id);
+                        addRoute = hasSearch(currentPlugin) ? ('/add-' + currentPlugin.id) : ('/manual-add?type=' + currentPlugin.id);
                     }
                 %>
                     <div class="flex gap-2">

@@ -1,9 +1,19 @@
 import { PluginDefinition } from '../../core/types';
+import { sourceFromProvider } from '../../core/sources';
 import { DiscogsProvider } from './discogs';
 import { musicImporters } from './importers';
 import { musicApiRoutes } from './apiRoutes';
 import { escapeRegExp, fetchJson, PermanentRefreshError, syncStamp } from '../../core/helpers';
 import Item from '../../models/Item';
+
+const discogsProvider = new DiscogsProvider();
+
+// The database this plugin has always searched. The migration attributes every item
+// saved before sources existed to this id, so it must never change.
+const discogs = sourceFromProvider(discogsProvider, {
+  id: 'discogs',
+  itemUrl: (id: string) => `https://www.discogs.com/release/${id}`
+});
 
 export const musicPlugin: PluginDefinition = {
   id: 'music',
@@ -324,7 +334,7 @@ export const musicPlugin: PluginDefinition = {
     }
   ],
 
-  searchProvider: new DiscogsProvider(),
+  sources: [discogs],
   searchFormPartial: 'search-form',
   imageSearchType: 'music',
   importers: musicImporters,

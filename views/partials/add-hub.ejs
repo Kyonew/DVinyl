@@ -44,7 +44,7 @@
         <div class="grid <%= gridCols %> <%= desktopGridCols %> gap-3 sm:gap-6">
 
             <% addHubPlugins.forEach(p => { %>
-                <a href="<%= baseUrl %>/<%= p.searchProvider ? ('add-' + p.id) : ('manual-add?type=' + p.id) %>" class="group flex flex-col items-center justify-center p-5 sm:p-8 rounded-[1.5rem] sm:rounded-[2rem] bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white transition-all duration-300">
+                <a href="<%= baseUrl %>/<%= hasSearch(p) ? ('add-' + p.id) : ('manual-add?type=' + p.id) %>" class="group flex flex-col items-center justify-center p-5 sm:p-8 rounded-[1.5rem] sm:rounded-[2rem] bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white transition-all duration-300">
                     <div class="w-12 h-12 sm:w-20 sm:h-20 rounded-full bg-primary-theme/10 group-hover:bg-white/20 flex items-center justify-center mb-3 sm:mb-4">
                         <i class="fa-solid fa-<%= p.icon %> text-xl sm:text-4xl"></i>
                     </div>

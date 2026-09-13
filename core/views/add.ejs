@@ -47,6 +47,22 @@
             </button>
         </div>
 
+        <%# Which database to ask, when this plugin knows more than one. A plugin with a
+            single source keeps exactly the form it had. peer-checked:text-white is
+            written out because .bg-primary-theme carries its text colour as hand-written
+            CSS on the bare class, which a variant never matches. %>
+        <% if ((locals.sources || []).length > 1) { %>
+            <div class="flex flex-wrap items-center justify-center gap-2 mt-4">
+                <span class="text-xs font-bold uppercase opacity-40 mr-1"><%= t('add_vinyl.source_label') %></span>
+                <% sources.forEach(src => { %>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="source" value="<%= src.id %>" class="sr-only peer" <%= (locals.activeSource || '') === src.id ? 'checked' : '' %>>
+                        <span class="block px-3 py-1.5 rounded-lg text-xs font-bold bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 peer-checked:bg-primary-theme peer-checked:text-white transition-colors"><%= src.name %></span>
+                    </label>
+                <% }) %>
+            </div>
+        <% } %>
+
         <% if (plugin.searchFormPartial && plugin.partialsPath) { %>
             <%- include('../../' + plugin.partialsPath + '/' + plugin.searchFormPartial, { zone: 'bottom', searchType: locals.searchType }) %>
         <% } %>
@@ -106,6 +122,9 @@
                         const confirmParams = [];
                         if (locals.searchType && locals.searchType !== plugin.id) confirmParams.push('type=' + encodeURIComponent(searchType));
                         if (locals.scanned_barcode) confirmParams.push('barcode=' + encodeURIComponent(scanned_barcode));
+                        // The id below belongs to the database that returned it; the confirm
+                        // page has to ask that same one for the details.
+                        if (item.source) confirmParams.push('source=' + encodeURIComponent(item.source));
                         const confirmQs = confirmParams.length ? '?' + confirmParams.join('&') : '';
                     %>
                     <a href="<%= baseUrl %>/confirm-<%= plugin.id %>/<%= item.id || item.hardcover_id || item.tmdb_id || item.igdb_id %><%- confirmQs %>" class="card-theme rounded-xl overflow-hidden hover:border-primary-theme transition-all group flex flex-col hover:shadow-lg hover:-translate-y-1">
@@ -126,6 +145,17 @@
                                 <p class="opacity-60 text-xs mb-1 transition-colors line-clamp-1"><%= creatorLine %></p>
                             <% } %>
                             <p class="opacity-40 text-[10px] mb-2 transition-colors"><%= item.country ? item.country + ' • ' : '' %><%= item.year %></p>
+
+                            <%# Where the result came from, so two databases answering the same
+                                query stay tellable apart. Pointless when only one can answer. %>
+                            <% if ((locals.sources || []).length > 1 && item.source) { %>
+                                <% const resultSource = sources.find(s => s.id === item.source); %>
+                                <% if (resultSource) { %>
+                                    <div class="flex items-center gap-1 mb-2">
+                                        <span class="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-primary-theme/10 text-primary-theme truncate max-w-full"><%= resultSource.name %></span>
+                                    </div>
+                                <% } %>
+                            <% } %>
 
                             <% if (item.is_advanced_cd) { %>
                                 <div class="flex items-center gap-1 mb-2">

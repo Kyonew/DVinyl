@@ -6,6 +6,7 @@ import { registry } from '../core/registry';
 import { buildSortTitle } from '../core/helpers';
 import { findOrCreateDefaultCollection } from './collectionHelpers';
 import { seedFurnitureFromLocations } from '../core/shelfStore';
+import { pluginSources } from '../core/sources';
 
 /**
  * Legacy Settings could store theme.<key>.preset as an object (e.g. { default: 'default' })
@@ -277,6 +278,45 @@ export const migrateDatabase = async () => {
             }
             if (broken.length > ops.length) {
                 console.warn(`[MIGRATION] ${broken.length - ops.length} ${plugin.kind} item(s) hold a non-numeric ${field}; left untouched.`);
+            }
+        }
+
+        // An item used to carry its provider id on a typed path of its own (discogs_id,
+        // igdb_id, set_num...) and nothing saying which database handed that id out. There
+        // was only ever one per plugin, so it never needed saying. Now that a plugin can
+        // search several, an id alone no longer identifies anything: two databases number
+        // unrelated records the same way.
+        //
+        // Everything already saved is attributed to the plugin's first declared source,
+        // which is the one that historically filled that field. The typed path is left
+        // exactly as it is: it is what the price estimates, the duplicate lookups and the
+        // external links have always read.
+        for (const plugin of registry.getAll()) {
+            const field = plugin.externalIdField;
+            const source = pluginSources(plugin)[0];
+            if (!field || !source) continue;
+
+            const unattributed = await Item.collection
+                .find({
+                    kind: plugin.kind,
+                    [field]: { $nin: [null, ''] },
+                    $or: [{ source: { $exists: false } }, { source: '' }]
+                }, { projection: { [field]: 1 } })
+                .toArray();
+
+            for (let i = 0; i < unattributed.length; i += 500) {
+                await Item.collection.bulkWrite(
+                    unattributed.slice(i, i + 500).map((doc: any) => ({
+                        updateOne: {
+                            filter: { _id: doc._id },
+                            update: { $set: { source: source.id, source_id: String(doc[field]) } }
+                        }
+                    }))
+                );
+            }
+
+            if (unattributed.length > 0) {
+                console.log(`[MIGRATION] ${unattributed.length} ${plugin.kind} item(s) attributed to source "${source.id}".`);
             }
         }
 

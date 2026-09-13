@@ -257,6 +257,7 @@
     "desc": "Cherche par nom ou scanne le code-barres.",
     "search_placeholder": "Artiste, Album...",
     "separator_or": "OU",
+    "source_label": "Source",
     "btn_scan": "Scanner le code-barres",
     "scan_init": "Initialisation...",
     "scan_stop": "Arrêter le scan",
