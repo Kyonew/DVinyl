@@ -721,6 +721,12 @@
     "selected_count_suffix": "sélectionné(s)",
     "print_selected_qr": "Imprimer les QR codes",
     "print_selected_barcode": "Imprimer les codes-barres",
+    "delete_selected": "Supprimer la sélection",
+    "confirm_delete_selected": "Supprimer {{count}} élément(s) sélectionné(s) ? Ce qu'ils contiennent est supprimé avec eux. Cette action est irréversible.",
+    "delete_selected_done": "{{count}} élément(s) supprimé(s).",
+    "delete_selected_partial": "{{deleted}} élément(s) supprimé(s), {{failed}} non supprimé(s).",
+    "delete_selected_error": "La suppression a échoué : rien n'a été supprimé.",
+    "delete_selected_too_many": "Seuls {{max}} éléments peuvent être supprimés en une fois.",
     "label_sheet_title": "Imprimer les étiquettes",
     "label_sheet_empty": "Aucun des items sélectionnés n'a de code-barres, il n'y a donc rien à imprimer."
   },

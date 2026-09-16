@@ -496,8 +496,9 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
 // (measured: ~2.3s of blocked event loop for 200 QR codes).
 const MAX_SHEET_LABELS = 200;
 
-// How many explicit selections one request may delete. This keeps payloads sane and
-// prevents one accidental click from triggering an unbounded destructive operation.
+// How many explicit selections one request may delete. Not a latency cap like the label
+// sheet above but a blast-radius one: the grid only ever ticks what one page shows, so a
+// payload past this is not something the UI can produce.
 const MAX_BULK_DELETE_SELECTION = 500;
 
 // Bulk/sheet QR labels for a set of items picked on the collection page. Generic
@@ -585,13 +586,25 @@ router.post('/api/collection/delete-selected', requireAuth, requireCollectionRol
     }
 
     const rawIds = req.body?.ids;
-    const idList: string[] = Array.isArray(rawIds) ? rawIds : (rawIds ? [rawIds] : []);
+    const idList: any[] = Array.isArray(rawIds) ? rawIds : (rawIds ? [rawIds] : []);
+    // Deduplicated before the cap is measured, so a payload that repeats the same card
+    // is not refused for a size it does not really have.
     const selectedIds = Array.from(new Set(
-      idList.filter((id: string) => mongoose.Types.ObjectId.isValid(id)).slice(0, MAX_BULK_DELETE_SELECTION)
+      idList.filter((id: any) => typeof id === 'string' && mongoose.Types.ObjectId.isValid(id))
     ));
 
     if (selectedIds.length === 0) {
       return res.status(400).json({ success: false, error: req.t('errors.not_found') });
+    }
+
+    // Refused rather than trimmed to the cap: a label sheet that prints its first 200
+    // boxes is still a usable sheet, whereas a delete that silently drops part of the
+    // selection would report a success the user has no way to check.
+    if (selectedIds.length > MAX_BULK_DELETE_SELECTION) {
+      return res.status(400).json({
+        success: false,
+        error: req.t('collection.delete_selected_too_many', { max: MAX_BULK_DELETE_SELECTION })
+      });
     }
 
     // Mirror the same visibility/module/containment restrictions as the shelf page:
@@ -609,8 +622,10 @@ router.post('/api/collection/delete-selected', requireAuth, requireCollectionRol
 
     await deleteItemsAndContents(itemIds);
 
-    // 'deleted' reports selected top-level entries deleted from this page; nested
-    // contents removed together are implicit and not shown as failed selections.
+    // 'deleted' counts the ticked cards that went, not the documents removed: contents
+    // leave with their holder and were never selectable on their own, so counting them
+    // would report more deletions than there were boxes. 'failed' is what the selection
+    // asked for and did not get: hidden by a visibility rule, or already gone.
     const deleted = itemIds.length;
     const failed = selectedIds.length - deleted;
     res.json({ success: true, deleted, failed });

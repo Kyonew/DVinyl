@@ -103,7 +103,7 @@
 
     <% if (locals.canEditCollection) { %>
     <div id="bulkActionBar" class="hidden fixed bottom-6 inset-x-0 z-40 flex justify-center px-4">
-        <div class="card-theme border rounded-2xl shadow-2xl px-5 py-3 flex items-center gap-4">
+        <div class="card-theme border rounded-2xl shadow-2xl px-5 py-3 flex flex-wrap items-center justify-center gap-3">
             <span id="bulkSelectedCount" class="text-sm font-bold opacity-80">0 <%= t('collection.selected_count_suffix') %></span>
             <button type="button" id="selectAllBtn" onclick="toggleSelectAll()"
                 class="px-4 py-2 bg-black/5 dark:bg-white/10 rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all">
@@ -121,8 +121,8 @@
                 class="px-4 py-2 bg-primary-theme text-white rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all">
                 <i class="fa-solid fa-barcode mr-2"></i><%= t('collection.print_selected_barcode') %>
             </button>
-            <button type="button" id="bulkDeleteBtn" onclick="deleteSelectedItems()"
-                class="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all">
+            <button type="button" id="bulkDeleteBtn" onclick="deleteSelectedItems()" disabled
+                class="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:brightness-100 disabled:active:scale-100">
                 <i class="fa-solid fa-trash mr-2"></i><%= t('collection.delete_selected') %>
             </button>
             <button type="button" onclick="cancelSelectMode()"
@@ -257,7 +257,8 @@
         const selectedCountSuffix = <%- JSON.stringify(t('collection.selected_count_suffix')) %>;
         const bulkDeleteConfirmTpl = <%- JSON.stringify(t('collection.confirm_delete_selected')) %>;
         const bulkDeleteDoneTpl = <%- JSON.stringify(t('collection.delete_selected_done')) %>;
-        const bulkDeleteFailedTpl = <%- JSON.stringify(t('collection.delete_selected_failed')) %>;
+        const bulkDeletePartialTpl = <%- JSON.stringify(t('collection.delete_selected_partial')) %>;
+        const bulkDeleteErrorTpl = <%- JSON.stringify(t('collection.delete_selected_error')) %>;
 
         function toggleSelectMode() {
             selectMode = !selectMode;
@@ -386,10 +387,7 @@
         }
 
         async function deleteSelectedItems() {
-            const ids = [...document.querySelectorAll('.album-select-checkbox:checked')]
-                .map(cb => cb.closest('[data-id]')?.dataset.id)
-                .filter(Boolean);
-
+            const ids = selectedItemIds();
             if (ids.length === 0) return;
 
             const confirmMsg = bulkDeleteConfirmTpl.replace('{{count}}', String(ids.length));
@@ -401,7 +399,10 @@
             try {
                 const response = await fetch(`${jsBaseUrl}/api/collection/delete-selected`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    // Accept matters here: a POST that fails the role check answers a plain
+                    // browser request with a redirect to the home page, and only an explicit
+                    // JSON accept gets the 403 body back (middleware/authMiddleware.ts).
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
                     body: JSON.stringify({ ids })
                 });
                 const data = await response.json().catch(() => null);
@@ -409,27 +410,25 @@
                 if (response.ok && data && data.success) {
                     const deleted = Number(data.deleted || 0);
                     const failed = Number(data.failed || 0);
-                    if (failed === 0) {
-                        alert(bulkDeleteDoneTpl.replace('{{count}}', String(deleted)));
-                    } else {
-                        alert(
-                            bulkDeleteFailedTpl
-                                .replace('{{deleted}}', String(deleted))
-                                .replace('{{failed}}', String(failed))
-                        );
-                    }
+                    // A non-zero 'failed' is not a broken request: those selections were
+                    // refused one by one (hidden by a visibility rule, or already gone),
+                    // so it is reported apart from an outright failure.
+                    alert(failed === 0
+                        ? bulkDeleteDoneTpl.replace('{{count}}', String(deleted))
+                        : bulkDeletePartialTpl
+                            .replace('{{deleted}}', String(deleted))
+                            .replace('{{failed}}', String(failed)));
                     window.location.reload();
                     return;
                 }
+
+                // The route answers in the reader's language, so its own message is
+                // worth more than a generic one when it sent one.
+                alert(typeof data?.error === 'string' && data.error ? data.error : bulkDeleteErrorTpl);
             } catch {
-                // handled below
+                alert(bulkDeleteErrorTpl);
             }
 
-            alert(
-                bulkDeleteFailedTpl
-                    .replace('{{deleted}}', '0')
-                    .replace('{{failed}}', String(ids.length))
-            );
             if (deleteBtn) deleteBtn.disabled = false;
         }
 

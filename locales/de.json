@@ -509,6 +509,12 @@
     "selected_count_suffix": "ausgewählt",
     "print_selected_qr": "QR-Etiketten drucken",
     "print_selected_barcode": "Barcode-Etiketten drucken",
+    "delete_selected": "Auswahl löschen",
+    "confirm_delete_selected": "{{count}} ausgewählte Objekte löschen? Ihr Inhalt wird mitgelöscht. Diese Aktion ist irreversibel.",
+    "delete_selected_done": "{{count}} Objekt(e) gelöscht.",
+    "delete_selected_partial": "{{deleted}} Objekt(e) gelöscht, {{failed}} übersprungen.",
+    "delete_selected_error": "Löschen fehlgeschlagen: Es wurde nichts gelöscht.",
+    "delete_selected_too_many": "Es können höchstens {{max}} Objekte auf einmal gelöscht werden.",
     "label_sheet_title": "Etiketten drucken",
     "label_sheet_empty": "Keines der ausgewählten Objekte hat einen Barcode, es gibt also nichts zu drucken."
   },
