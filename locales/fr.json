@@ -598,6 +598,7 @@
       "target_wishlist": "Liste de souhaits",
       "enrich_label": "Compléter depuis l'API",
       "enrich_hint": "Recherche chaque élément pour récupérer les jaquettes et métadonnées absentes du fichier (plus lent).",
+      "source_label": "Chercher dans",
       "btn_analyze": "Analyser le fichier",
       "btn_back": "Changer de fichier",
       "btn_import": "Lancer l'importation",

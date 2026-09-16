@@ -370,6 +370,7 @@
       "target_wishlist": "Lista de deseos",
       "enrich_label": "Completar desde la API",
       "enrich_hint": "Busca cada elemento para recuperar las carátulas y los metadatos que faltan en el archivo (más lento).",
+      "source_label": "Buscar en",
       "btn_analyze": "Analizar el archivo",
       "btn_back": "Cambiar de archivo",
       "btn_import": "Iniciar la importación",

@@ -370,6 +370,7 @@
       "target_wishlist": "Lista dei desideri",
       "enrich_label": "Completa dall'API",
       "enrich_hint": "Cerca ogni elemento per recuperare copertine e metadati assenti dal file (più lento).",
+      "source_label": "Cerca in",
       "btn_analyze": "Analizza il file",
       "btn_back": "Cambia file",
       "btn_import": "Avvia l'importazione",

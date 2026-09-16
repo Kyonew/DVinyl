@@ -33,7 +33,7 @@ import { importableFields } from './core/csvMapping.js';
 import { MAX_ITEM_IMAGES, MAX_ITEM_IMAGE_BYTES } from './core/itemImages.js';
 import { cleanupStaleItemImageUploads, ITEM_IMAGE_SWEEP_INTERVAL_MS, itemImageUrl } from './core/itemImageStorage.js';
 import { isCollectionInfoVisible } from './core/collectionInfo.js';
-import { externalLinkFor, hasSearch, requiredEnvKeysFor, canRefresh, sourceStatusFor } from './core/sources';
+import { externalLinkFor, hasSearch, requiredEnvKeysFor, canRefresh, sourceStatusFor, searchableSources } from './core/sources';
 
 // Routes imports
 import setupRoutes from './routes/setupRoutes.js';
@@ -118,6 +118,7 @@ app.locals.hasSearch = hasSearch;
 app.locals.requiredEnvKeysFor = requiredEnvKeysFor;
 app.locals.canRefresh = canRefresh;
 app.locals.sourceStatusFor = sourceStatusFor;
+app.locals.searchableSources = searchableSources;
 app.set('io', io); // Expose io to routes
 
 // Global middlewares

@@ -370,6 +370,7 @@
       "target_wishlist": "Wunschliste",
       "enrich_label": "Über die API ergänzen",
       "enrich_hint": "Sucht jeden Eintrag, um Cover und Metadaten zu ergänzen, die die Datei nicht enthält (langsamer).",
+      "source_label": "Nachschlagen in",
       "btn_analyze": "Datei analysieren",
       "btn_back": "Datei wechseln",
       "btn_import": "Import starten",

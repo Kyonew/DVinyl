@@ -6,6 +6,8 @@
         label: t(p.label),
         icon: 'fa-' + p.icon,
         canEnrich: hasSearch(p),
+        // Offered only when there is a choice to make; one source needs no picker.
+        sources: searchableSources(p, settings).map(src => ({ id: src.id, name: src.name })),
         fields: importableFields(p, settings, t)
     }));
 %>
@@ -92,6 +94,13 @@
                     <span class="opacity-50"><%= t('admin.csv_import.enrich_hint') %></span>
                 </span>
             </label>
+
+            <%# Which database the whole file is looked up in. One source answers for every
+                row, so this is a choice made once, here, rather than per line. %>
+            <div id="csvSourceRow" class="hidden items-center gap-3 bg-black/5 dark:bg-white/5 rounded-2xl p-4">
+                <span class="text-xs font-bold shrink-0"><%= t('admin.csv_import.source_label') %></span>
+                <select id="csvSource" class="flex-1 bg-white dark:bg-black/20 border-transparent rounded-xl p-2 text-xs outline-none focus:ring-2 focus:ring-primary-theme"></select>
+            </div>
 
             <button type="button" id="csvAnalyzeBtn" onclick="csvAnalyze()"
                 class="w-full mt-2 bg-primary-theme text-white font-bold px-6 py-3.5 rounded-2xl hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2">
@@ -219,10 +228,29 @@
 
         function refreshEnrichRow() {
             const row = el('csvEnrichRow');
-            const canEnrich = currentModule().canEnrich;
+            const module = currentModule();
+            const canEnrich = module.canEnrich;
             row.classList.toggle('hidden', !canEnrich);
             row.classList.toggle('flex', canEnrich);
             if (!canEnrich) el('csvEnrich').checked = false;
+
+            // Rebuilt for the module now selected, and shown only when it has more than one
+            // place to look: a single source is not a choice, it is the answer.
+            const sourceRow = el('csvSourceRow');
+            const sources = module.sources || [];
+            const offer = canEnrich && sources.length > 1;
+            sourceRow.classList.toggle('hidden', !offer);
+            sourceRow.classList.toggle('flex', offer);
+            const select = el('csvSource');
+            select.replaceChildren();
+            if (offer) {
+                for (const source of sources) {
+                    const option = document.createElement('option');
+                    option.value = source.id;
+                    option.textContent = source.name;
+                    select.appendChild(option);
+                }
+            }
         }
 
         el('csvModule').addEventListener('change', refreshEnrichRow);
@@ -474,6 +502,7 @@
                         plugin: csv.module.id,
                         type: el('csvTarget').value,
                         enrich: el('csvEnrich').checked,
+                        source: el('csvSource').value || undefined,
                         mapping
                     })
                 });

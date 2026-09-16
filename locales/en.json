@@ -598,6 +598,7 @@
       "target_wishlist": "Wishlist",
       "enrich_label": "Complete from the API",
       "enrich_hint": "Looks every item up to fill in the covers and metadata the file does not carry (slower).",
+      "source_label": "Look up in",
       "btn_analyze": "Analyse the file",
       "btn_back": "Change file",
       "btn_import": "Start the import",

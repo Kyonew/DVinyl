@@ -265,12 +265,32 @@ export class BggProvider implements SearchProvider {
 }
 ```
 
-Then plug it in:
+Then declare it as a **source**: a place your plugin looks things up. A plugin can have
+several, and each one carries its own credentials.
 
 ```ts
-searchProvider: new BggProvider(),
-requiredEnvKeys: ['BGG_API_KEY'], // the type stays disabled until this env var is set
+const bggSource = sourceFromProvider(new BggProvider(), {
+  id: 'bgg',                          // stored on every item this source fills in: never change it
+  requiredEnvKeys: ['BGG_API_KEY'],   // the source drops out of the lists until these are set
+  itemUrl: (id: string) => `https://boardgamegeek.com/boardgame/${id}`
+});
+
+// ...then, in the plugin definition:
+sources: [bggSource],
 ```
+
+The module stays usable as long as **one** of its searchable sources is configured, and the
+add page grows a source picker by itself as soon as there are two. Each item records which
+source answered, in `source` and `source_id`, so it can be traced back and refreshed against
+the right database later on.
+
+`sourceFromProvider` is a convenience for a class you already wrote. A source is a plain
+object and it only implements the capabilities it has: `search` + `getDetails` to be
+searchable, `searchImages` for pictures. A service that only knows where artwork lives
+declares images alone, through `imageSourceFrom` (see below).
+
+The older single `searchProvider` is still read: a plugin declaring one is treated as having
+one source bearing the plugin's own id, so nothing that exists needs rewriting.
 
 Use `fetchJson` / `fetchText` from [`core/helpers.ts`](../core/helpers.ts) for network calls, they
 handle JSON parsing and errors for you. Keep your API client, constants and headers in their own
@@ -286,32 +306,52 @@ ZIP backups include referenced local files, extract legacy inline JPEGs, and giv
 file a fresh name; historical JSON backups remain importable. The stored-data limit still protects
 legacy data URLs and submissions from custom clients.
 
-Provide an `imageSearchProvider` so the image editor can suggest images:
+Let a source suggest images by giving it `searchImages`. **Every** image-capable source of
+the plugin is asked at once and the results are merged and deduplicated, because pictures are
+gathered rather than picked from one place: a record's front cover and the scan of its inner
+sleeve come from different services.
 
 ```ts
-imageSearchType: 'boardgame',
-imageSearchProvider: {
-  async search(query: string): Promise<string[]> {
-    return []; // return a list of image URLs
+// On a source that answers both kinds of question:
+const bggSource = sourceFromProvider(new BggProvider(), {
+  id: 'bgg',
+  searchImages: (query: string) => new BggProvider().searchImages(query)
+});
+
+// Or a service that only has pictures, with no item to hand over:
+const openLibrary = imageSourceFrom({
+  id: 'openlibrary',
+  name: 'Open Library',
+  async searchImages(query: string): Promise<string[]> {
+    return []; // a list of image URLs
   }
-}
+});
 ```
 
-If a plugin has a second provider or endpoint, declare `secondaryImageSearchPath`; its URL results
-are merged with the universal search rather than assigned to a special image slot.
+One source being down, rate limited or short of its key costs its own results and nobody
+else's. A plugin with no image source simply offers none, rather than another plugin's.
 
-**Refresh.** Let users re-pull metadata for an existing item with `refreshItem`:
+The older `imageSearchProvider` and `secondaryImageSearchPath` are still merged in alongside
+sources, so a plugin declaring only those keeps the picker it had.
+
+**Refresh.** Let users re-pull metadata for an existing item with `mergeRefresh`. The core
+fetches from whichever source filled the item in; you only say how the fresh details fold into
+what is already there, because only you know that a missing publisher means "keep the one we
+have" rather than "clear it".
 
 ```ts
-async refreshItem(item: any): Promise<Record<string, any>> {
-  if (!item.bgg_id) throw new Error('No BGG id to refresh');
-  const details = await new BggProvider().getDetails(String(item.bgg_id), {});
+mergeRefresh(item: any, details: any): Record<string, any> {
   return {
     cover_image: details.cover_image || item.cover_image,
     publisher: details.publisher || item.publisher
   };
 }
 ```
+
+Declaring it is what makes an item refreshable from *any* of your sources. Use `refreshItem`
+instead when your refresh has to ask your API something a plain lookup by id does not answer
+(music reads a release's barcode identifiers, books run a query of their own): it owns the
+whole step, request included, but it only ever reaches your plugin's historical provider.
 
 ## Level 4: advanced capabilities
 
@@ -321,7 +361,7 @@ Once the basics work, these let your plugin do more, all still without touching 
   `POST /import/{id}`. Provide a declarative `ui` and the admin renders the button, modal and
   progress bar for you. See [`plugins/music/importers.ts`](../plugins/music/importers.ts).
   For a CSV, `runCsvImport()` ([`core/csvImport.ts`](../core/csvImport.ts)) does the plumbing
-  (parsing, duplicate check, progress events, optional enrichment through your `searchProvider`)
+  (parsing, duplicate check, progress events, optional enrichment through your sources)
   and only asks you for a `mapRow(row)`. A source that mixes several media types in one file, like
   the Libib export, declares one importer per plugin, each filtering the rows it owns (see the
   `libib-*` importers).
@@ -379,7 +419,8 @@ Common gotchas:
 
 - **Nothing shows up:** you forgot the `export default`, or you did not restart.
 - **`kind` collision:** `kind` must be unique across all plugins.
-- **The type stays greyed out in the admin:** a value in `requiredEnvKeys` is missing from `.env`.
+- **The type stays greyed out in the admin:** none of its searchable sources has all of its
+  `requiredEnvKeys` set in `.env`. The ⚙ button on the module says which variable each one wants.
 
 ## Sharing your plugin
 

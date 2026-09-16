@@ -15,6 +15,13 @@ need the keys for the media types you actually plan to use, and **every key is f
 Add the keys you need to your `.env` file. Any media type whose key is missing simply stays disabled
 in the admin panel until you provide it.
 
+A media type can look things up in more than one service, and it is usable as soon as **one** of
+them is configured. The admin panel lists them per module, behind the ⚙ button: each line says what
+the service answers (search, images, or both) and which variable it is still waiting for. Some are
+picture-only and need no key at all, so cover art keeps working on an instance that configured
+nothing: Open Library for books, iTunes for music and games. Games also uses TMDB for extra artwork
+if `TMDB_API_KEY` happens to be set, and quietly skips it otherwise.
+
 ## 🎵 Discogs (Music)
 
 Used for album metadata, tracklists and market value.
