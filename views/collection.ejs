@@ -254,11 +254,35 @@
         // (rendered but hidden by default, see partials/albums-grid) and turns card
         // clicks into a selection toggle instead of a navigation.
         let selectMode = false;
+        let lastSelectedIndex = null;
         const selectedCountSuffix = <%- JSON.stringify(t('collection.selected_count_suffix')) %>;
         const bulkDeleteConfirmTpl = <%- JSON.stringify(t('collection.confirm_delete_selected')) %>;
         const bulkDeleteDoneTpl = <%- JSON.stringify(t('collection.delete_selected_done')) %>;
         const bulkDeletePartialTpl = <%- JSON.stringify(t('collection.delete_selected_partial')) %>;
         const bulkDeleteErrorTpl = <%- JSON.stringify(t('collection.delete_selected_error')) %>;
+
+        function getSelectableCheckboxes() {
+            return [...document.querySelectorAll('#albumGrid .album-card .album-select-checkbox')];
+        }
+
+        function applySelection(checkbox, checked, useRange) {
+            const checkboxes = getSelectableCheckboxes();
+            const currentIndex = checkboxes.indexOf(checkbox);
+            if (currentIndex === -1) return;
+
+            if (useRange && lastSelectedIndex !== null && lastSelectedIndex !== currentIndex) {
+                const start = Math.min(lastSelectedIndex, currentIndex);
+                const end = Math.max(lastSelectedIndex, currentIndex);
+                for (let i = start; i <= end; i += 1) {
+                    checkboxes[i].checked = checked;
+                }
+            } else {
+                checkbox.checked = checked;
+            }
+
+            lastSelectedIndex = currentIndex;
+            updateSelectedCount();
+        }
 
         function toggleSelectMode() {
             selectMode = !selectMode;
@@ -267,6 +291,7 @@
                 el.classList.toggle('flex', selectMode);
             });
             document.querySelectorAll('.album-select-checkbox').forEach(cb => { cb.checked = false; });
+            lastSelectedIndex = null;
             const bar = document.getElementById('bulkActionBar');
             if (bar) bar.classList.toggle('hidden', !selectMode);
             const btn = document.getElementById('selectModeBtn');
@@ -438,10 +463,8 @@
             if (!card) return;
             e.preventDefault();
             const checkbox = card.querySelector('.album-select-checkbox');
-            if (checkbox) {
-                checkbox.checked = !checkbox.checked;
-                updateSelectedCount();
-            }
+            if (!checkbox) return;
+            applySelection(checkbox, !checkbox.checked, e.shiftKey);
         });
 
         // Collection-level actions declared by the active plugin (see CollectionAction).

@@ -28,7 +28,7 @@
             <% if (locals.selectable) { %>data-id="<%= album._id %>"<% } %>>
             <% if (locals.selectable) { %>
                 <div class="select-checkbox-overlay hidden absolute top-2 left-2 z-20 items-center justify-center w-6 h-6 rounded-md bg-white/90 dark:bg-black/70 border border-black/10 dark:border-white/20 shadow">
-                    <input type="checkbox" class="album-select-checkbox w-[18px] h-[18px] accent-primary-theme cursor-pointer" onclick="event.stopPropagation()" onchange="updateSelectedCount()">
+                    <input type="checkbox" class="album-select-checkbox w-[18px] h-[18px] accent-primary-theme cursor-pointer">
                 </div>
             <% } %>
             <a href="<%= baseUrl + routePrefix %>/<%= album._id %>" class="block flex-grow">
