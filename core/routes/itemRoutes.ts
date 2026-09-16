@@ -459,7 +459,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         const finalQty = isEdit ? qtyToAdd : (existingItem.quantity || 1) + qtyToAdd;
 
         let saveObj: any;
-        let unsetObj: Record<string, ''> = {};
+        const unsetObj: Record<string, ''> = {};
         if (isEdit) {
           saveObj = { ...updateData, quantity: finalQty };
           // Do not reset the added date when editing an existing item
@@ -467,11 +467,23 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
             saveObj.added_at = existingItem.added_at || new Date();
           }
 
-          // Unset plugin schema fields when posted as blank strings (including external ids)
+          // An emptied input now clears the stored value instead of being ignored, which
+          // is the only way to detach a wrong external id (a CSV import matching the
+          // wrong Discogs release) or to blank a number field. Written as $unset rather
+          // than $set: a Number path would reject the empty string it is posted as.
+          //
+          // Eligible: a path the form posted back blank, and that nothing above already
+          // resolved. A key absent from the body means the form does not carry that path
+          // at all, not that the owner emptied it, so it stays untouched: tracklist comes
+          // back as `tracklist_json`, episodes never come back, and unsetting either
+          // would wipe the ratings and notes the owner attached to them.
           for (const fieldName of Object.keys(plugin.schemaDefinition)) {
             const postedValue = req.body[fieldName];
-            const isBlank = postedValue === undefined || (typeof postedValue === 'string' && postedValue.trim() === '') || postedValue === '';
-            if (isBlank && existingItem[fieldName] !== undefined && existingItem[fieldName] !== null && existingItem[fieldName] !== '') {
+            const isBlank = typeof postedValue === 'string' && postedValue.trim() === '';
+            const alreadyResolved = saveObj[fieldName] !== undefined;
+            const storedValue = existingItem[fieldName];
+            const hasStoredValue = storedValue !== undefined && storedValue !== null && storedValue !== '';
+            if (isBlank && !alreadyResolved && hasStoredValue) {
               unsetObj[fieldName] = '';
               delete saveObj[fieldName];
             }
