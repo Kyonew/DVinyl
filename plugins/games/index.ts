@@ -109,7 +109,8 @@ export const gamesPlugin: PluginDefinition = {
   partialsPath: 'plugins/games/partials',
   detailZones: [
     { id: 'badge', partial: 'game-status.ejs' },
-    { id: 'sidebar', partial: 'status-blocks.ejs' }
+    { id: 'sidebar', partial: 'status-blocks.ejs' },
+    { id: 'sidebar', partial: 'completion-times.ejs' }
   ],
 
   fastAddOptions: [
@@ -165,7 +166,12 @@ export const gamesPlugin: PluginDefinition = {
     genre: { type: String, default: '' },
     genres: { type: [String], default: [] },
     styles: { type: [String], default: [] },
-    description: { type: String, default: '' }
+    description: { type: String, default: '' },
+    // Estimated hours to beat, from IGDB's own time-to-beat data. Absent (not 0) for a
+    // game nobody has timed yet, or one added before this existed.
+    completionHastily: Number,
+    completionNormally: Number,
+    completionCompletely: Number
   },
 
   formats: [
@@ -465,7 +471,12 @@ export const gamesPlugin: PluginDefinition = {
       developer: details.developer || item.developer,
       publisher: details.publisher || item.publisher,
       // `description` holds the provider's summary shown on the detail page — persist it on refresh too
-      description: details.description || item.description
+      description: details.description || item.description,
+      // Fall back to what is already stored: a transient miss on the time-to-beat lookup
+      // must not wipe out an estimate fetched earlier.
+      completionHastily: details.completionHastily ?? item.completionHastily,
+      completionNormally: details.completionNormally ?? item.completionNormally,
+      completionCompletely: details.completionCompletely ?? item.completionCompletely
     };
   },
 
