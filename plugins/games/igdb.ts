@@ -60,13 +60,19 @@ export class IGDBProvider implements SearchProvider {
   }
 
   async getDetails(id: string, options: any): Promise<ConfirmData> {
-    const results = await igdbRequest('games',
-      `where id = ${id};
-      fields name, cover.url, platforms.name, platforms.id, first_release_date,
-             involved_companies.company.name, involved_companies.developer, involved_companies.publisher,
-             genres.name, summary;
-      limit 1;`
-    );
+    // The completion times live on their own endpoint, so they cannot be asked for in the
+    // same query. Both calls are fired together rather than one after the other: they are
+    // independent, and waiting for the second one doubles how long the confirm page hangs.
+    const [results, completionTimes] = await Promise.all([
+      igdbRequest('games',
+        `where id = ${id};
+        fields name, cover.url, platforms.name, platforms.id, first_release_date,
+               involved_companies.company.name, involved_companies.developer, involved_companies.publisher,
+               genres.name, summary;
+        limit 1;`
+      ),
+      this.getCompletionTimes(id)
+    ]);
 
     if (!results || results.length === 0) {
       throw new Error("Game not found on IGDB");
@@ -77,16 +83,16 @@ export class IGDBProvider implements SearchProvider {
       throw new Error("Formatting failed");
     }
 
-    Object.assign(formatted, await this.getCompletionTimes(id));
+    Object.assign(formatted, completionTimes);
 
     return formatted;
   }
 
-  // IGDB's own completion-time estimates (the same "hastily/normally/completely" data
-  // HowLongToBeat shows), pulled from its own endpoint rather than an unofficial scraper.
-  // A separate call keyed by game_id, not a field on `games`; absent for games nobody has
-  // timed yet, so a missing key stays undefined instead of a fabricated 0. Best-effort: a
-  // failure here shouldn't break search/confirm/refresh over supplementary data.
+  // IGDB's own completion-time estimates, the same "hastily/normally/completely" figures
+  // HowLongToBeat publishes, read from the API the plugin already authenticates against.
+  // Keyed by game_id on its own endpoint, and absent for a game nobody has timed: those
+  // keys stay undefined rather than reporting a fabricated 0. Best-effort, since losing
+  // supplementary data must never fail a search, a confirm or a refresh.
   private async getCompletionTimes(id: string): Promise<Record<string, number | undefined>> {
     try {
       const results = await igdbRequest('game_time_to_beats',
