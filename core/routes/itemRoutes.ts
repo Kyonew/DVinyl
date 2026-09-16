@@ -549,6 +549,19 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
               delete saveObj[fieldName];
             }
           }
+
+          // Detaching the external id detaches the record it pointed at. refreshPatchFor()
+          // prefers the stored source pair over the plugin's own id field, so leaving the
+          // pair behind would keep refreshing the item from the very match its owner just
+          // rejected, which is what emptying the id is for. Skipped when the form posts a
+          // pair of its own, which is a re-attachment rather than a detachment.
+          const detachedIdField = plugin.externalIdField;
+          if (detachedIdField && unsetObj[detachedIdField] !== undefined && !saveObj.source_id) {
+            if (existingItem.source) unsetObj.source = '';
+            if (existingItem.source_id) unsetObj.source_id = '';
+            delete saveObj.source;
+            delete saveObj.source_id;
+          }
         } else {
           // Duplicate: increment quantity and backfill identifiers/metadata the existing record
           // still lacks: the external id, the barcode, plus any plugin-declared backfillFields
