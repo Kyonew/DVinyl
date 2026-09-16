@@ -297,6 +297,8 @@
             const btn = document.getElementById('selectModeBtn');
             if (btn) btn.classList.toggle('bg-primary-theme', selectMode);
             if (btn) btn.classList.toggle('text-white', selectMode);
+            // Shift-clicking a range would otherwise highlight every title it sweeps over.
+            document.getElementById('albumGrid')?.classList.toggle('select-none', selectMode);
             updateSelectedCount();
         }
 
@@ -329,6 +331,9 @@
             const checkboxes = [...document.querySelectorAll('.album-select-checkbox')];
             const allSelected = checkboxes.length > 0 && checkboxes.every(cb => cb.checked);
             checkboxes.forEach(cb => { cb.checked = !allSelected; });
+            // A blanket select has no anchor to extend from: the next shift-click
+            // starts a fresh range instead of reaching back to a stale index.
+            lastSelectedIndex = null;
             updateSelectedCount();
         }
 
@@ -457,14 +462,21 @@
             if (deleteBtn) deleteBtn.disabled = false;
         }
 
+        // Single entry point for both views: the checkbox carries no inline handler,
+        // so a click on it lands here like any other click on the card.
         document.getElementById('albumGrid')?.addEventListener('click', (e) => {
             if (!selectMode) return;
             const card = e.target.closest('.album-card');
             if (!card) return;
-            e.preventDefault();
             const checkbox = card.querySelector('.album-select-checkbox');
             if (!checkbox) return;
-            applySelection(checkbox, !checkbox.checked, e.shiftKey);
+
+            // The browser already flipped the box when the click landed on it, so we
+            // read that state instead of inverting it again, and we leave the event
+            // alone. Anywhere else on the card, the default is the <a> navigation.
+            const onCheckbox = e.target === checkbox;
+            if (!onCheckbox) e.preventDefault();
+            applySelection(checkbox, onCheckbox ? checkbox.checked : !checkbox.checked, e.shiftKey);
         });
 
         // Collection-level actions declared by the active plugin (see CollectionAction).
