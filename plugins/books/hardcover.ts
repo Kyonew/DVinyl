@@ -9,6 +9,18 @@ const BOOK_GENRES_WHITELIST: string[] = [
   'LGBTQ', 'LGBTQIA', 'LGBTQIA+'
 ];
 
+/**
+ * Whether a query is an ISBN, i.e. names one edition rather than describing a book. The
+ * hyphens and spaces an ISBN is printed with are stripped first, since neither is stored.
+ *
+ * Exported because the answer decides two things: which of the two queries below runs, and
+ * whether the plugin will let a single hit be saved without being looked at first
+ * (`instantAddQuery`).
+ */
+export function isIsbnQuery(query: string): boolean {
+  return /^\d{10,13}$/.test(String(query || '').replace(/[- ]/g, ''));
+}
+
 export class HardcoverProvider implements SearchProvider {
   name = 'Hardcover';
 
@@ -82,7 +94,7 @@ export class HardcoverProvider implements SearchProvider {
   async search(query: string, options: SearchOptions): Promise<SearchResult[]> {
     const apiKey = process.env.HARDCOVER_API_KEY || '';
     const cleanQuery = query.replace(/[- ]/g, '');
-    const isIsbn = /^\d{10,13}$/.test(cleanQuery);
+    const isIsbn = isIsbnQuery(query);
 
     let graphqlQuery = '';
     let variables: any = {};
