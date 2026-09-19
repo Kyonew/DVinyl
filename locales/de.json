@@ -1128,6 +1128,8 @@
   },
   "add": {
     "manual_entry": "Manueller Eintrag",
+    "instant_saving": "Wird hinzugefügt …",
+    "instant_blocked": "Hier fehlt eine Angabe, die das Formular benötigt. Bitte ergänzen und hinzufügen.",
     "added": "„{{title}}“ hinzugefügt.",
     "added_again": "„{{title}}“ war schon vorhanden: Sie haben jetzt {{quantity}}."
   },

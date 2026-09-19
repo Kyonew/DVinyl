@@ -1128,6 +1128,8 @@
   },
   "add": {
     "manual_entry": "Entrada manual",
+    "instant_saving": "Añadiendo…",
+    "instant_blocked": "Falta un dato que el formulario necesita. Complétalo y añádelo.",
     "added": "«{{title}}» añadido.",
     "added_again": "«{{title}}» ya estaba: ahora tienes {{quantity}}."
   },

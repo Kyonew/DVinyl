@@ -43,6 +43,10 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         res.render('add', {
           results: null,
           searchType: formatParam || plugin.id,
+          // What the add this page was returned to saved (see withAddedNotice), since
+          // nothing else on the page would show it.
+          addedTitle: typeof req.query.added === 'string' ? req.query.added : '',
+          addedQuantity: parseInt(String(req.query.qty || ''), 10) || 0,
           user: res.locals.user,
           currentType: `add-${plugin.id}`,
           plugin
