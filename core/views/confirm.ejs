@@ -98,6 +98,13 @@
                 <%- include('partials/duplicate-warning') %>
 
                 <form action="<%= baseUrl %>/save-<%= plugin.id %>" method="POST" class="space-y-6">
+                    <% if (locals.scanMode) { %>
+                        <%# Scan mode: an add comes back to the add page instead of the
+                            collection, so the next item goes straight in. Read by the save
+                            handler for a collection add only: "add to wishlist" is a
+                            deliberate detour and lands on the wishlist, as it always has. %>
+                        <input type="hidden" name="after_add" value="<%= baseUrl %>/add-<%= plugin.id %>">
+                    <% } %>
                     <%
                     // Everything the API provided must reach the save handler, even without a visible input:
                     // 1. formFields hidden by showCondition (manual-only in API mode and vice versa)

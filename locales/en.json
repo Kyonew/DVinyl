@@ -1127,7 +1127,9 @@
     "add_lyrics_manual": "Add lyrics manually"
   },
   "add": {
-    "manual_entry": "Manual entry"
+    "manual_entry": "Manual entry",
+    "added": "“{{title}}” added.",
+    "added_again": "“{{title}}” was already there: you now have {{quantity}}."
   },
   "no_collection": {
     "title": "No collection access",

@@ -19,6 +19,24 @@
         <p class="opacity-60 mt-2"><%= t('add_' + plugin.i18nKey + '.desc', { defaultValue: t('add_vinyl.desc') }) %></p>
     </div>
 
+    <%# What the last add saved, when it came back here instead of to the collection (scan
+        mode). The escaping is EJS's: a title arrives from the query string and carries
+        whatever punctuation a title carries, so i18next is told to leave it alone rather
+        than have both escape it. %>
+    <% if (locals.addedTitle) { %>
+        <div role="status"
+            class="max-w-2xl mx-auto mb-6 p-4 rounded-2xl bg-green-500/10 text-green-700 dark:text-green-400 text-sm font-bold flex items-center gap-3">
+            <i class="fa-solid fa-circle-check text-base"></i>
+            <span>
+                <% if (locals.addedQuantity > 1) { %>
+                    <%= t('add.added_again', { title: addedTitle, quantity: addedQuantity, interpolation: { escapeValue: false } }) %>
+                <% } else { %>
+                    <%= t('add.added', { title: addedTitle, interpolation: { escapeValue: false } }) %>
+                <% } %>
+            </span>
+        </div>
+    <% } %>
+
     <form action="<%= baseUrl %>/search-<%= plugin.id %>" method="POST" class="max-w-2xl mx-auto mb-10">
         <% if (plugin.searchFormPartial && plugin.partialsPath) { %>
             <%- include('../../' + plugin.partialsPath + '/' + plugin.searchFormPartial, { zone: 'top', searchType: locals.searchType }) %>

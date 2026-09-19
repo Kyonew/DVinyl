@@ -15,6 +15,22 @@ import { buildFieldSuggestions } from '../fieldSuggestions';
 import { deleteItemsAndContents, moveContentsToWishlist } from '../../utils/itemHelpers';
 import { applyVisibilityFilter, applyShareScopeFilter, applyPluginKindFilter, isWithinShareScope } from '../../utils/visibilityHelper';
 
+/**
+ * Names what was just saved in the path an add comes back to, so the add page can say so.
+ * It is the one place that needs telling: the collection listing shows the new item itself,
+ * while the add page someone scanning is sent back to looks untouched otherwise.
+ *
+ * `qty` rides along only when the add landed on an item already there, which while working
+ * through a stack is the thing worth noticing.
+ */
+function withAddedNotice(path: string, title: string, mergedQuantity: number | null): string {
+  const [base, existingQuery] = path.split('?');
+  const params = new URLSearchParams(existingQuery || '');
+  params.set('added', title || '');
+  if (mergedQuantity && mergedQuantity > 1) params.set('qty', String(mergedQuantity));
+  return `${base}?${params.toString()}`;
+}
+
 export function createItemRoutes(plugin: PluginDefinition): Router {
   const router = express.Router();
 
@@ -93,6 +109,22 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           searchQuery = attempt.query;
         } else {
           results = await runSearch(searchQuery);
+        }
+
+        // Scan mode: the query named one exact item (an ISBN) and one thing came back, so
+        // there is nothing to choose between. Straight to the confirm page, which submits
+        // itself, rather than a list of one waiting to be clicked. Anything else - several
+        // hits, none, or a query that merely describes what is wanted - falls through to
+        // the list below, where a human settles it.
+        if (settings?.instantAdd === true && results.length === 1
+          && typeof plugin.instantAddQuery === 'function' && plugin.instantAddQuery(rawQuery)) {
+          const hit: any = results[0];
+          const externalId = hit.id || hit.hardcover_id || hit.tmdb_id || hit.igdb_id;
+          if (externalId) {
+            const params = new URLSearchParams({ instant: '1' });
+            if (type && type !== plugin.id) params.set('type', type);
+            return res.redirect(`/confirm-${plugin.id}/${externalId}?${params.toString()}`);
+          }
         }
 
         // What the search box shows on the way back. After a scan the digits are useless
@@ -179,7 +211,12 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           currentType: plugin.collectionType,
           existingItems: existingItemsArray,
           plugin,
-          isManual: false
+          isManual: false,
+          // Scan mode sends every add back to the add page, whether it submitted itself or
+          // was finished by hand here; `instantAdd` is the search route saying this page was
+          // reached by a scan that resolved to one exact item and needs no clicking.
+          scanMode: res.locals.settings?.instantAdd === true,
+          instantAdd: res.locals.settings?.instantAdd === true && req.query.instant === '1'
         });
       } catch (err: any) {
         console.error(`Details fetch error for ${plugin.id} ID ${externalId}:`, err.message);
@@ -288,7 +325,11 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           currentType: plugin.collectionType,
           existingItems: [],
           plugin,
-          isManual: true
+          isManual: true,
+          // Typed in by hand rather than scanned, so nothing submits itself here; what scan
+          // mode still owes this form is landing back on the add page afterwards.
+          scanMode: res.locals.settings?.instantAdd === true,
+          instantAdd: false
         });
       } catch (err: any) {
         console.error(`Error loading manual add for ${plugin.id}:`, err.message);
@@ -309,6 +350,11 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       const adminId = req.user._id;
       const activeCollectionId = res.locals.activeCollectionId;
       const isWishlist = in_wishlist === 'true';
+      // Where an add goes next when the form asks for somewhere other than the collection:
+      // the add page it came from, in scan mode. Validated like any other path handed over
+      // by a form, and left out of the wishlist and edit cases, which have their own
+      // destination and did not come from a scan.
+      const afterAdd = safeReturnPath(req.body.after_add, req.get('host'));
       const isBarcodeLocked = barcode_locked === 'on' || barcode_locked === 'true' || barcode_locked === true;
 
       const { genres: parsedGenres, styles: parsedStyles } = parseGenresAndStyles(genres, styles);
@@ -428,12 +474,18 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           } catch (cleanupError) {
             console.warn('[ITEM IMAGE] Post-create cleanup failed:', cleanupError);
           }
-          return res.redirect(isWishlist ? '/wishlist' : `/collection?type=${plugin.collectionType}`);
+          if (isWishlist) return res.redirect('/wishlist');
+          return res.redirect(afterAdd
+            ? withAddedNotice(afterAdd, updateData.title, null)
+            : `/collection?type=${plugin.collectionType}`);
         }
       }
 
       let existingItem: any;
       let isEdit = false;
+      // Set only when this add landed on an item that was already there, whose quantity it
+      // bumped: the number the add page reports back.
+      let mergedQuantity: number | null = null;
 
       if (mongo_id) {
         // Scope the edit to the active collection so a stale mongo_id (e.g. from a
@@ -457,6 +509,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       if (existingItem) {
         const qtyToAdd = parseInt(quantity) || 1;
         const finalQty = isEdit ? qtyToAdd : (existingItem.quantity || 1) + qtyToAdd;
+        if (!isEdit) mergedQuantity = finalQty;
 
         let saveObj: any;
         if (isEdit) {
@@ -531,6 +584,10 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         res.redirect(`${plugin.routePrefix}/${existingItem._id}${origin}`);
       } else if (isWishlist) {
         res.redirect('/wishlist');
+      } else if (afterAdd) {
+        // Scan mode: back to the add page, which is where the next item is going in, with
+        // what just landed named in the query string since this page shows no list.
+        res.redirect(withAddedNotice(afterAdd, updateData.title, mergedQuantity));
       } else {
         res.redirect(`/collection?type=${plugin.collectionType}`);
       }

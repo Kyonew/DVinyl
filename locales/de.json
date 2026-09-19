@@ -1127,7 +1127,9 @@
     "add_lyrics_manual": "Songtext manuell hinzufügen"
   },
   "add": {
-    "manual_entry": "Manueller Eintrag"
+    "manual_entry": "Manueller Eintrag",
+    "added": "„{{title}}“ hinzugefügt.",
+    "added_again": "„{{title}}“ war schon vorhanden: Sie haben jetzt {{quantity}}."
   },
   "no_collection": {
     "title": "Kein Sammlungszugriff",

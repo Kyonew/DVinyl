@@ -1127,7 +1127,9 @@
     "add_lyrics_manual": "Saisir les paroles manuellement"
   },
   "add": {
-    "manual_entry": "Ajout manuel"
+    "manual_entry": "Ajout manuel",
+    "added": "« {{title}} » ajouté.",
+    "added_again": "« {{title}} » y était déjà : vous en avez maintenant {{quantity}}."
   },
   "no_collection": {
     "title": "Aucune collection",
