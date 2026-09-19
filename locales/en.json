@@ -1133,7 +1133,8 @@
     "instant_saving": "Adding this one…",
     "instant_blocked": "Something the form needs is missing here. Fill it in and add it.",
     "added": "“{{title}}” added.",
-    "added_again": "“{{title}}” was already there: you now have {{quantity}}."
+    "added_again": "“{{title}}” was already there: you now have {{quantity}}.",
+    "identifier_no_match": "Nothing found for {{code}}."
   },
   "no_collection": {
     "title": "No collection access",

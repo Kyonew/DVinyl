@@ -1133,7 +1133,8 @@
     "instant_saving": "Añadiendo…",
     "instant_blocked": "Falta un dato que el formulario necesita. Complétalo y añádelo.",
     "added": "«{{title}}» añadido.",
-    "added_again": "«{{title}}» ya estaba: ahora tienes {{quantity}}."
+    "added_again": "«{{title}}» ya estaba: ahora tienes {{quantity}}.",
+    "identifier_no_match": "No se ha encontrado nada para {{code}}."
   },
   "no_collection": {
     "title": "Sin acceso a colecciones",

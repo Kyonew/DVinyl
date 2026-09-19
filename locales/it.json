@@ -1133,7 +1133,8 @@
     "instant_saving": "Aggiunta in corso…",
     "instant_blocked": "Manca un dato richiesto dal modulo. Completalo e aggiungi.",
     "added": "«{{title}}» aggiunto.",
-    "added_again": "«{{title}}» c'era già: ora ne hai {{quantity}}."
+    "added_again": "«{{title}}» c'era già: ora ne hai {{quantity}}.",
+    "identifier_no_match": "Nessun risultato per {{code}}."
   },
   "no_collection": {
     "title": "Nessun accesso alle collezioni",

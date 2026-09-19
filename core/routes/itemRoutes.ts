@@ -69,6 +69,13 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       // Set only when this request resolved a barcode: the fallback below rewrites a
       // seller's product name, never what the user typed themselves.
       let resolvedTitle = '';
+      // Scan mode, and a query that names one exact item rather than describing it. Nobody
+      // corrects an ISBN by hand, so however this search turns out the box goes back empty:
+      // digits left in it are digits the next scan types itself onto the end of, and the
+      // scanner is across the room from the keyboard that would clear them.
+      const exactIdentifier = res.locals.settings?.instantAdd === true
+        && typeof plugin.instantAddQuery === 'function'
+        && plugin.instantAddQuery(rawQuery);
 
       try {
         // Scanned barcode: resolve to a product title via UPC lookup first
@@ -120,8 +127,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         // itself, rather than a list of one waiting to be clicked. Anything else - several
         // hits, none, or a query that merely describes what is wanted - falls through to
         // the list below, where a human settles it.
-        if (settings?.instantAdd === true && results.length === 1
-          && typeof plugin.instantAddQuery === 'function' && plugin.instantAddQuery(rawQuery)) {
+        if (exactIdentifier && results.length === 1) {
           const hit: any = results[0];
           const externalId = hit.id || hit.hardcover_id || hit.tmdb_id || hit.igdb_id;
           if (externalId) {
@@ -133,16 +139,23 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
 
         // What the search box shows on the way back. After a scan the digits are useless
         // there: on a hit it is the query that actually matched, and on a miss the whole
-        // product name, which is the thing the user has to correct.
-        const boxQuery = resolvedTitle
-          ? (results.length > 0 ? searchQuery : resolvedTitle)
+        // product name, which is the thing the user has to correct. An identifier is
+        // neither, and leaves the box empty: the code it stood for is named in the notice
+        // below instead, which is the only place it is still worth reading.
+        const boxQuery = exactIdentifier ? ''
+          : resolvedTitle ? (results.length > 0 ? searchQuery : resolvedTitle)
           : rawQuery;
 
         res.render('add', {
           results,
           // Nothing matched a product name the user never got to see: show it instead of
-          // the digits so it can be corrected, the barcode rides along with the form.
-          error: resolvedTitle && results.length === 0 ? req.t('add_vinyl.barcode_no_match') : undefined,
+          // the digits so it can be corrected, the barcode rides along with the form. A
+          // scanned identifier that found nothing has to say which one, the box it was
+          // typed into having been emptied for the next item.
+          error: results.length > 0 ? undefined
+            : exactIdentifier ? req.t('add.identifier_no_match', { code: rawQuery })
+            : resolvedTitle ? req.t('add_vinyl.barcode_no_match')
+            : undefined,
           searchType: type || plugin.id,
           searchQuery: boxQuery,
           scanned_barcode: scannedBarcode,
@@ -156,7 +169,9 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           results: [],
           error: req.t('errors.api_error', { provider: plugin.searchProvider!.name }),
           searchType: type || plugin.id,
-          searchQuery: rawQuery,
+          // Emptied here too: a provider that failed is a reason to scan the item again,
+          // which needs the box clear as much as a miss does.
+          searchQuery: exactIdentifier ? '' : rawQuery,
           scanned_barcode: scannedBarcode,
           user: res.locals.user,
           currentType: `add-${plugin.id}`,
