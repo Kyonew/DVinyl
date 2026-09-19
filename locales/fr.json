@@ -849,6 +849,8 @@
     "fastAdd_title": "Ajout rapide",
     "fastAdd_desc": "Si activé, le bouton \"Ajouter un élément\" redirige directement vers le formulaire choisi, sans passer par le menu de sélection.",
     "fastAdd_disabled": "Désactivé (modal)",
+    "instantAdd_title": "Mode scan",
+    "instantAdd_desc": "Un code qui désigne un article précis (un ISBN) est ajouté dès que la recherche ne renvoie qu'un seul résultat, sans passer par la page de confirmation. L'ajout revient ensuite au formulaire d'ajout plutôt qu'à la collection, prêt pour le suivant.",
     "card_aspect_ratio": "Rapport hauteur/largeur de la carte",
     "card_aspect_ratio_desc": "Forme des vignettes dans les grilles collection, accueil et wishlist. Chaque plugin garde son propre rapport sur ses fiches.",
     "modules": {
