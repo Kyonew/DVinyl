@@ -849,6 +849,8 @@
     "fastAdd_title": "Quick add",
     "fastAdd_desc": "If enabled, the \"Add an item\" button redirects directly to the chosen form, bypassing the selection menu.",
     "fastAdd_disabled": "Disabled (modal)",
+    "instantAdd_title": "Scan mode",
+    "instantAdd_desc": "A code that names one exact item (an ISBN) is added as soon as the search returns a single match, without the confirmation page. Adding then returns to the add page instead of the collection, ready for the next item.",
     "card_aspect_ratio": "Card aspect ratio",
     "card_aspect_ratio_desc": "Shape of the tiles in the collection, home and wishlist grids. Each plugin keeps its own ratio on its item pages.",
     "modules": {
@@ -1127,7 +1129,12 @@
     "add_lyrics_manual": "Add lyrics manually"
   },
   "add": {
-    "manual_entry": "Manual entry"
+    "manual_entry": "Manual entry",
+    "instant_saving": "Adding this one…",
+    "instant_blocked": "Something the form needs is missing here. Fill it in and add it.",
+    "added": "“{{title}}” added.",
+    "added_again": "“{{title}}” was already there: you now have {{quantity}}.",
+    "identifier_no_match": "Nothing found for {{code}}."
   },
   "no_collection": {
     "title": "No collection access",

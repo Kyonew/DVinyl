@@ -1,5 +1,5 @@
 import { PluginDefinition } from '../../core/types';
-import { HardcoverProvider } from './hardcover';
+import { HardcoverProvider, isIsbnQuery } from './hardcover';
 import { booksImporters } from './importers';
 import { escapeRegExp, fetchJson, PermanentRefreshError } from '../../core/helpers';
 import Item from '../../models/Item';
@@ -22,6 +22,7 @@ export const booksPlugin: PluginDefinition = {
   creatorField: 'author',
   extraSearchFields: ['isbn', 'publisher'],
   supportsBarcodeSearch: false,
+  instantAddQuery: isIsbnQuery,
   searchProvider: new HardcoverProvider(),
   imageSearchType: 'book',
   importers: booksImporters,

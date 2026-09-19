@@ -920,6 +920,8 @@
     "backHome": "Zurück nach Hause",
     "fastAdd_desc": "Wenn aktiviert, leitet die Schaltfläche „Element hinzufügen“ direkt zum ausgewählten Formular weiter und umgeht das Auswahlmenü.",
     "fastAdd_disabled": "Deaktiviert (modal)",
+    "instantAdd_title": "Scan-Modus",
+    "instantAdd_desc": "Ein Code, der genau einen Artikel bezeichnet (eine ISBN), wird hinzugefügt, sobald die Suche nur ein einziges Ergebnis liefert – ohne Bestätigungsseite. Nach dem Hinzufügen geht es zurück zum Hinzufügen-Formular statt zur Sammlung, bereit für den nächsten Artikel.",
     "fastAdd_title": "Schnell hinzufügen",
     "card_aspect_ratio": "Seitenverhältnis der Karte",
     "card_aspect_ratio_desc": "Form der Kacheln in den Rastern von Sammlung, Startseite und Wunschliste. Jedes Plugin behält auf seinen Detailseiten sein eigenes Verhältnis.",
@@ -1127,7 +1129,12 @@
     "add_lyrics_manual": "Songtext manuell hinzufügen"
   },
   "add": {
-    "manual_entry": "Manueller Eintrag"
+    "manual_entry": "Manueller Eintrag",
+    "instant_saving": "Wird hinzugefügt …",
+    "instant_blocked": "Hier fehlt eine Angabe, die das Formular benötigt. Bitte ergänzen und hinzufügen.",
+    "added": "„{{title}}“ hinzugefügt.",
+    "added_again": "„{{title}}“ war schon vorhanden: Sie haben jetzt {{quantity}}.",
+    "identifier_no_match": "Nichts gefunden für {{code}}."
   },
   "no_collection": {
     "title": "Kein Sammlungszugriff",

@@ -90,6 +90,14 @@ export interface PluginDefinition {
   // to sharpen the external search query. Plugin-specific (keeps the core agnostic).
   barcodeNoiseTerms?: string[];
 
+  // True when a query names one exact item rather than describing it: an ISBN, which the
+  // books provider looks the edition up by. A single hit for such a query is the item and
+  // not a guess, which is what lets the `instantAdd` setting save it without anyone
+  // looking first. Left unset by a plugin whose scanned code is resolved through a
+  // seller's product name (music, DVDs, games): there the first hit is a guess, however
+  // good, and has to be looked at.
+  instantAddQuery?(query: string): boolean;
+
   // CSS aspect-ratio class for the plugin's own pages (detail, add/edit forms),
   // e.g. 'aspect-square' for music. Default 'aspect-[2/3]'. The item grids follow
   // the collection-wide setting instead, see views/partials/albums-grid.ejs.

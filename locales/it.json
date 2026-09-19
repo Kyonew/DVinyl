@@ -920,6 +920,8 @@
     "backHome": "Ritorno a casa",
     "fastAdd_desc": "Se abilitato, il pulsante \"Aggiungi un articolo\" reindirizza direttamente al modulo prescelto, bypassando il menu di selezione.",
     "fastAdd_disabled": "Disabilitato (modale)",
+    "instantAdd_title": "Modalità scansione",
+    "instantAdd_desc": "Un codice che identifica un articolo preciso (un ISBN) viene aggiunto appena la ricerca restituisce un solo risultato, senza passare dalla pagina di conferma. Dopo l'aggiunta si torna al modulo di aggiunta invece che alla collezione, pronto per il successivo.",
     "fastAdd_title": "Aggiunta rapida",
     "card_aspect_ratio": "Rapporto d'aspetto della scheda",
     "card_aspect_ratio_desc": "Forma delle miniature nelle griglie di collezione, home e lista dei desideri. Ogni plugin mantiene il proprio rapporto nelle sue schede.",
@@ -1127,7 +1129,12 @@
     "add_lyrics_manual": "Aggiungi il testo manualmente"
   },
   "add": {
-    "manual_entry": "Inserimento manuale"
+    "manual_entry": "Inserimento manuale",
+    "instant_saving": "Aggiunta in corso…",
+    "instant_blocked": "Manca un dato richiesto dal modulo. Completalo e aggiungi.",
+    "added": "«{{title}}» aggiunto.",
+    "added_again": "«{{title}}» c'era già: ora ne hai {{quantity}}.",
+    "identifier_no_match": "Nessun risultato per {{code}}."
   },
   "no_collection": {
     "title": "Nessun accesso alle collezioni",

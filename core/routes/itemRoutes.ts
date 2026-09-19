@@ -15,6 +15,22 @@ import { buildFieldSuggestions } from '../fieldSuggestions';
 import { deleteItemsAndContents, moveContentsToWishlist } from '../../utils/itemHelpers';
 import { applyVisibilityFilter, applyShareScopeFilter, applyPluginKindFilter, isWithinShareScope } from '../../utils/visibilityHelper';
 
+/**
+ * Names what was just saved in the path an add comes back to, so the add page can say so.
+ * It is the one place that needs telling: the collection listing shows the new item itself,
+ * while the add page someone scanning is sent back to looks untouched otherwise.
+ *
+ * `qty` rides along only when the add landed on an item already there, which while working
+ * through a stack is the thing worth noticing.
+ */
+function withAddedNotice(path: string, title: string, mergedQuantity: number | null): string {
+  const [base, existingQuery] = path.split('?');
+  const params = new URLSearchParams(existingQuery || '');
+  params.set('added', title || '');
+  if (mergedQuantity && mergedQuantity > 1) params.set('qty', String(mergedQuantity));
+  return `${base}?${params.toString()}`;
+}
+
 export function createItemRoutes(plugin: PluginDefinition): Router {
   const router = express.Router();
 
@@ -27,6 +43,10 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         res.render('add', {
           results: null,
           searchType: formatParam || plugin.id,
+          // What the add this page was returned to saved (see withAddedNotice), since
+          // nothing else on the page would show it.
+          addedTitle: typeof req.query.added === 'string' ? req.query.added : '',
+          addedQuantity: parseInt(String(req.query.qty || ''), 10) || 0,
           user: res.locals.user,
           currentType: `add-${plugin.id}`,
           plugin
@@ -49,6 +69,13 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       // Set only when this request resolved a barcode: the fallback below rewrites a
       // seller's product name, never what the user typed themselves.
       let resolvedTitle = '';
+      // Scan mode, and a query that names one exact item rather than describing it. Nobody
+      // corrects an ISBN by hand, so however this search turns out the box goes back empty:
+      // digits left in it are digits the next scan types itself onto the end of, and the
+      // scanner is across the room from the keyboard that would clear them.
+      const exactIdentifier = res.locals.settings?.instantAdd === true
+        && typeof plugin.instantAddQuery === 'function'
+        && plugin.instantAddQuery(rawQuery);
 
       try {
         // Scanned barcode: resolve to a product title via UPC lookup first
@@ -95,18 +122,40 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           results = await runSearch(searchQuery);
         }
 
+        // Scan mode: the query named one exact item (an ISBN) and one thing came back, so
+        // there is nothing to choose between. Straight to the confirm page, which submits
+        // itself, rather than a list of one waiting to be clicked. Anything else - several
+        // hits, none, or a query that merely describes what is wanted - falls through to
+        // the list below, where a human settles it.
+        if (exactIdentifier && results.length === 1) {
+          const hit: any = results[0];
+          const externalId = hit.id || hit.hardcover_id || hit.tmdb_id || hit.igdb_id;
+          if (externalId) {
+            const params = new URLSearchParams({ instant: '1' });
+            if (type && type !== plugin.id) params.set('type', type);
+            return res.redirect(`/confirm-${plugin.id}/${externalId}?${params.toString()}`);
+          }
+        }
+
         // What the search box shows on the way back. After a scan the digits are useless
         // there: on a hit it is the query that actually matched, and on a miss the whole
-        // product name, which is the thing the user has to correct.
-        const boxQuery = resolvedTitle
-          ? (results.length > 0 ? searchQuery : resolvedTitle)
+        // product name, which is the thing the user has to correct. An identifier is
+        // neither, and leaves the box empty: the code it stood for is named in the notice
+        // below instead, which is the only place it is still worth reading.
+        const boxQuery = exactIdentifier ? ''
+          : resolvedTitle ? (results.length > 0 ? searchQuery : resolvedTitle)
           : rawQuery;
 
         res.render('add', {
           results,
           // Nothing matched a product name the user never got to see: show it instead of
-          // the digits so it can be corrected, the barcode rides along with the form.
-          error: resolvedTitle && results.length === 0 ? req.t('add_vinyl.barcode_no_match') : undefined,
+          // the digits so it can be corrected, the barcode rides along with the form. A
+          // scanned identifier that found nothing has to say which one, the box it was
+          // typed into having been emptied for the next item.
+          error: results.length > 0 ? undefined
+            : exactIdentifier ? req.t('add.identifier_no_match', { code: rawQuery })
+            : resolvedTitle ? req.t('add_vinyl.barcode_no_match')
+            : undefined,
           searchType: type || plugin.id,
           searchQuery: boxQuery,
           scanned_barcode: scannedBarcode,
@@ -120,7 +169,9 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           results: [],
           error: req.t('errors.api_error', { provider: plugin.searchProvider!.name }),
           searchType: type || plugin.id,
-          searchQuery: rawQuery,
+          // Emptied here too: a provider that failed is a reason to scan the item again,
+          // which needs the box clear as much as a miss does.
+          searchQuery: exactIdentifier ? '' : rawQuery,
           scanned_barcode: scannedBarcode,
           user: res.locals.user,
           currentType: `add-${plugin.id}`,
@@ -179,7 +230,12 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           currentType: plugin.collectionType,
           existingItems: existingItemsArray,
           plugin,
-          isManual: false
+          isManual: false,
+          // Scan mode sends every add back to the add page, whether it submitted itself or
+          // was finished by hand here; `instantAdd` is the search route saying this page was
+          // reached by a scan that resolved to one exact item and needs no clicking.
+          scanMode: res.locals.settings?.instantAdd === true,
+          instantAdd: res.locals.settings?.instantAdd === true && req.query.instant === '1'
         });
       } catch (err: any) {
         console.error(`Details fetch error for ${plugin.id} ID ${externalId}:`, err.message);
@@ -288,7 +344,11 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           currentType: plugin.collectionType,
           existingItems: [],
           plugin,
-          isManual: true
+          isManual: true,
+          // Typed in by hand rather than scanned, so nothing submits itself here; what scan
+          // mode still owes this form is landing back on the add page afterwards.
+          scanMode: res.locals.settings?.instantAdd === true,
+          instantAdd: false
         });
       } catch (err: any) {
         console.error(`Error loading manual add for ${plugin.id}:`, err.message);
@@ -309,6 +369,11 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       const adminId = req.user._id;
       const activeCollectionId = res.locals.activeCollectionId;
       const isWishlist = in_wishlist === 'true';
+      // Where an add goes next when the form asks for somewhere other than the collection:
+      // the add page it came from, in scan mode. Validated like any other path handed over
+      // by a form, and left out of the wishlist and edit cases, which have their own
+      // destination and did not come from a scan.
+      const afterAdd = safeReturnPath(req.body.after_add, req.get('host'));
       const isBarcodeLocked = barcode_locked === 'on' || barcode_locked === 'true' || barcode_locked === true;
 
       const { genres: parsedGenres, styles: parsedStyles } = parseGenresAndStyles(genres, styles);
@@ -428,12 +493,18 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           } catch (cleanupError) {
             console.warn('[ITEM IMAGE] Post-create cleanup failed:', cleanupError);
           }
-          return res.redirect(isWishlist ? '/wishlist' : `/collection?type=${plugin.collectionType}`);
+          if (isWishlist) return res.redirect('/wishlist');
+          return res.redirect(afterAdd
+            ? withAddedNotice(afterAdd, updateData.title, null)
+            : `/collection?type=${plugin.collectionType}`);
         }
       }
 
       let existingItem: any;
       let isEdit = false;
+      // Set only when this add landed on an item that was already there, whose quantity it
+      // bumped: the number the add page reports back.
+      let mergedQuantity: number | null = null;
 
       if (mongo_id) {
         // Scope the edit to the active collection so a stale mongo_id (e.g. from a
@@ -457,6 +528,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       if (existingItem) {
         const qtyToAdd = parseInt(quantity) || 1;
         const finalQty = isEdit ? qtyToAdd : (existingItem.quantity || 1) + qtyToAdd;
+        if (!isEdit) mergedQuantity = finalQty;
 
         let saveObj: any;
         if (isEdit) {
@@ -531,6 +603,10 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         res.redirect(`${plugin.routePrefix}/${existingItem._id}${origin}`);
       } else if (isWishlist) {
         res.redirect('/wishlist');
+      } else if (afterAdd) {
+        // Scan mode: back to the add page, which is where the next item is going in, with
+        // what just landed named in the query string since this page shows no list.
+        res.redirect(withAddedNotice(afterAdd, updateData.title, mergedQuantity));
       } else {
         res.redirect(`/collection?type=${plugin.collectionType}`);
       }
