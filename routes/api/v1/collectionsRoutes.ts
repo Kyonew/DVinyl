@@ -2,6 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcrypt';
 import multer from 'multer';
 import mongoose from 'mongoose';
+import QRCode from 'qrcode';
 import Item from '../../../models/Item';
 import Settings from '../../../models/Settings';
 import Collection from '../../../models/Collection';
@@ -20,6 +21,7 @@ import { requireApiAdmin, requireApiCollectionRole } from '../../../middleware/a
 import { generateShareToken, generateUniqueSlug, listUserCollectionsWithRole } from '../../../utils/collectionHelpers';
 import { resolveShelfItems } from '../../../utils/itemHelpers';
 import { applyVisibilityFilter, applyEnabledModulesFilter, applyContainedFilter } from '../../../utils/visibilityHelper';
+import { BASE_URL } from '../../../config/constants';
 
 const router = Router();
 
@@ -357,6 +359,25 @@ router.delete('/collections/:id/share-links/:token', requireApiCollectionRole('a
     return res.status(404).json({ success: false, error: 'Share link not found' });
   }
   res.status(200).json({ success: true });
+});
+
+router.get('/collections/:id/share-links/:token/qr.png', requireApiCollectionRole('admin'), async (req: any, res: any) => {
+  const coll = await Collection.findOne(
+    { _id: req.apiCollection._id, shareLinks: { $elemMatch: { token: req.params.token, enabled: true } } },
+    { _id: 1 }
+  );
+  if (!coll) {
+    return res.status(404).json({ success: false, error: 'Share link not found or disabled' });
+  }
+
+  // The API has no "public protocol" request context the way a browser request does
+  // (getPublicProtocol reads X-Forwarded-Proto); the share link itself is always
+  // reached over whatever scheme this DVinyl instance is actually served on, so the
+  // request's own protocol is correct here too.
+  const url = `${req.protocol}://${req.get('host')}${BASE_URL}/share/${req.params.token}`;
+  const png = await QRCode.toBuffer(url, { type: 'png', width: 320, margin: 1 });
+  res.set('Content-Type', 'image/png');
+  res.send(png);
 });
 
 router.get('/collections/:id/items', requireApiCollectionRole('viewer'), async (req: any, res: any) => {
