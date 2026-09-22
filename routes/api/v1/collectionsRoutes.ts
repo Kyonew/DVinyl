@@ -3,9 +3,12 @@ import mongoose from 'mongoose';
 import Item from '../../../models/Item';
 import Settings from '../../../models/Settings';
 import { registry } from '../../../core/registry';
-import { escapeRegExp, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback } from '../../../core/helpers';
+import { editStamp, escapeRegExp, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback } from '../../../core/helpers';
 import { toApiItem } from '../../../core/apiSerializers';
 import { buildFieldSuggestions } from '../../../core/fieldSuggestions';
+import { buildApiItemUpdateData } from '../../../core/apiItemPayload';
+import { getExtraFields, toFieldDefinitions } from '../../../core/pluginExtraFields';
+import { ItemImageValidationError } from '../../../core/itemImages';
 import { requireApiAuth } from '../../../middleware/authMiddleware';
 import { requireApiCollectionRole } from '../../../middleware/apiAuthMiddleware';
 import { listUserCollectionsWithRole } from '../../../utils/collectionHelpers';
@@ -187,6 +190,79 @@ router.get('/collections/:id/items/confirm', requireApiCollectionRole('editor'),
   } catch (err: any) {
     console.error(`API details fetch error for ${plugin.id} ID ${externalId}:`, err.message);
     res.status(502).json({ success: false, error: `Search provider error: ${err.message}` });
+  }
+});
+
+router.post('/collections/:id/items', requireApiCollectionRole('editor'), async (req: any, res: any) => {
+  const plugin = registry.get(String(req.body.pluginId || ''));
+  if (!plugin) {
+    return res.status(404).json({ success: false, error: 'Unknown plugin' });
+  }
+
+  try {
+    const activeCollectionId = req.apiCollection._id;
+    const settings: any = await getCollectionSettings(activeCollectionId);
+    const extraFieldDefs = toFieldDefinitions(getExtraFields(settings, plugin.id));
+    const updateData = buildApiItemUpdateData(plugin, req.body, extraFieldDefs);
+
+    if (typeof plugin.handleCreate === 'function') {
+      const handled = await plugin.handleCreate(updateData, {
+        body: req.body,
+        ownerId: req.user._id,
+        collectionId: activeCollectionId,
+        language: req.language
+      });
+      if (handled) {
+        return res.status(200).json({ success: true, handled: true });
+      }
+    }
+
+    let existingItem: any = null;
+    if (settings?.mergeDuplicates !== false) {
+      existingItem = await plugin.findDuplicate(activeCollectionId, req.body);
+    }
+
+    if (existingItem) {
+      const qtyToAdd = parseInt(req.body.quantity, 10) || 1;
+      const saveObj: Record<string, any> = { quantity: (existingItem.quantity || 1) + qtyToAdd };
+      const idField = plugin.externalIdField;
+      const backfillKeys = new Set<string>(['barcode', ...(plugin.backfillFields || [])]);
+      if (idField) backfillKeys.add(idField);
+      for (const key of backfillKeys) {
+        const incoming = updateData[key];
+        const existingEmpty = existingItem[key] === undefined || existingItem[key] === null || existingItem[key] === '';
+        if (incoming !== undefined && incoming !== null && incoming !== '' && existingEmpty) {
+          saveObj[key] = (key === idField && /^\d+$/.test(String(incoming))) ? parseInt(String(incoming), 10) : incoming;
+        }
+      }
+
+      const EditModel = mongoose.model(plugin.kind);
+      await EditModel.updateOne(
+        { _id: existingItem._id },
+        { $set: { ...saveObj, ...editStamp(req.user._id) } },
+        { strict: false }
+      );
+      const merged: any = await EditModel.findById(existingItem._id).lean();
+      return res.status(200).json({ item: toApiItem(merged, plugin), merged: true });
+    }
+
+    const Model = mongoose.model(plugin.kind);
+    const created = await Model.create({
+      ...updateData,
+      owner: req.user._id,
+      collection: activeCollectionId
+    });
+    res.status(201).json({ item: toApiItem(created.toObject(), plugin) });
+  } catch (err: any) {
+    if (err instanceof ItemImageValidationError) {
+      const tooLarge = err.code === 'too_large';
+      return res.status(tooLarge ? 413 : 400).json({
+        success: false,
+        error: tooLarge ? 'Images exceed the size limit' : 'Too many images'
+      });
+    }
+    console.error(`API create error for ${plugin.id}:`, err.message);
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
