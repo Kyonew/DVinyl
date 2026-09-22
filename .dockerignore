@@ -5,6 +5,13 @@ mongo_data
 mongo_data_test
 dist
 
+# Local/agent scratch and generated docs — never part of the runtime image.
+.claude
+.superpowers
+.opencode
+graphify-out
+docs/superpowers
+
 # Runtime uploads (avatars, item images). Kept out of the image so a local
 # `docker compose up --build` never bakes the builder's own files into it; every
 # writer recreates its directory on demand, and Compose mounts this path anyway.
