@@ -87,3 +87,41 @@ export const me = async (req: any, res: any) => {
     collections
   });
 };
+
+/**
+ * POST /api/v1/auth/refresh  { refreshToken }
+ * Rotation-on-use: the presented token is deleted and a fresh pair issued, so a
+ * leaked refresh token stops working the next time its rightful owner refreshes.
+ */
+export const refresh = async (req: any, res: any) => {
+  const { refreshToken } = req.body;
+  if (!refreshToken) {
+    return res.status(400).json({ success: false, error: 'refreshToken is required' });
+  }
+
+  const row = await RefreshToken.findOne({ tokenHash: hashToken(refreshToken) });
+  if (!row || row.expiresAt.getTime() < Date.now()) {
+    return res.status(401).json({ success: false, error: 'Invalid or expired refresh token' });
+  }
+
+  await RefreshToken.deleteOne({ _id: row._id });
+
+  const accessToken = signAccessToken(row.user);
+  const newRefreshToken = await issueRefreshToken(row.user, req);
+
+  res.status(200).json({ accessToken, refreshToken: newRefreshToken, expiresIn: ACCESS_TOKEN_TTL_SECONDS });
+};
+
+/**
+ * POST /api/v1/auth/logout  { refreshToken }
+ * Revokes only the calling device: deletes that one RefreshToken row. Web sessions
+ * and other mobile logins are untouched.
+ */
+export const logout = async (req: any, res: any) => {
+  const { refreshToken } = req.body;
+  if (!refreshToken) {
+    return res.status(400).json({ success: false, error: 'refreshToken is required' });
+  }
+  await RefreshToken.deleteOne({ tokenHash: hashToken(refreshToken) });
+  res.status(200).json({ success: true });
+};
