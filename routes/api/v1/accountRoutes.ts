@@ -5,8 +5,10 @@ import fs from 'fs';
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import User from '../../../models/User';
+import RefreshToken from '../../../models/RefreshToken';
 import { requireApiAuth } from '../../../middleware/authMiddleware';
 import { secondsBlocked, recordFailure, clearAttempts } from '../../../controllers/loginAttempts';
+import { isLocalLoginDisabled } from '../../../config/oidc';
 
 const router = Router();
 
@@ -169,6 +171,10 @@ router.post('/account/password', async (req: any, res: any) => {
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     await User.findByIdAndUpdate(req.user._id, { password: hashedPassword, lastChange: Date.now() });
+    // Changing the password must also kill every refresh token: otherwise a token
+    // stolen before the change keeps minting fresh access tokens afterwards.
+    // The caller's own token is revoked too; the client re-logs in with the new password.
+    await RefreshToken.deleteMany({ user: req.user._id });
     clearAttempts(attemptKey);
     res.status(200).json({ success: true });
   } catch (err: any) {
@@ -244,10 +250,11 @@ router.post('/account/avatar/import-gravatar', async (req: any, res: any) => {
 
 // Unlink the currently linked SSO (OIDC) identity. Refuses to strip the only
 // credential an account has: an SSO-only account (no local password) would be
-// locked out entirely if its oidc link were removed.
+// locked out entirely if its oidc link were removed — as would any account on
+// an instance where local login is disabled outright.
 router.post('/account/oidc/unlink', async (req: any, res: any) => {
   try {
-    if (!req.user.password) {
+    if (!req.user.password || isLocalLoginDisabled()) {
       return res.status(400).json({ success: false, error: 'Cannot unlink SSO from an account with no local password' });
     }
     await User.findByIdAndUpdate(req.user._id, { $unset: { oidc: 1 } });
