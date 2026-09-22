@@ -9,8 +9,8 @@ import { applyVisibilityFilter } from '../../../utils/visibilityHelper';
 import { toApiItem } from '../../../core/apiSerializers';
 import { getExtraFields, toFieldDefinitions } from '../../../core/pluginExtraFields';
 import { buildApiItemUpdateData } from '../../../core/apiItemPayload';
-import { editStamp } from '../../../core/helpers';
-import { ItemImageValidationError } from '../../../core/itemImages';
+import { editStamp, syncStamp } from '../../../core/helpers';
+import { alignImagesAfterRefresh, ItemImageValidationError } from '../../../core/itemImages';
 import { deleteItemsAndContents, moveContentsToWishlist } from '../../../utils/itemHelpers';
 
 const router = Router();
@@ -181,6 +181,31 @@ router.post('/items/:itemId/move-to-wishlist', requireApiAuth, async (req: any, 
     res.status(200).json({ success: true });
   } catch (err: any) {
     console.error(`API move-to-wishlist error for item ${req.params.itemId}:`, err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/items/:itemId/refresh-info', requireApiAuth, async (req: any, res: any) => {
+  const item = await loadEditableItem(req, res);
+  if (!item) return;
+
+  const plugin = registry.getByKind(item.kind);
+  if (!plugin || !plugin.refreshItem) {
+    return res.status(404).json({ success: false, error: 'This item type does not support metadata refresh' });
+  }
+
+  try {
+    const result = await plugin.refreshItem(item, req);
+    const update = { ...(result || {}) };
+    alignImagesAfterRefresh(item, update);
+    await Item.updateOne(
+      { _id: item._id, kind: plugin.kind },
+      { $set: { ...update, ...syncStamp() } }
+    );
+    const updated: any = await Item.findById(item._id).lean();
+    res.status(200).json({ item: toApiItem(updated, plugin) });
+  } catch (err: any) {
+    console.error(`API refresh error for item ${req.params.itemId}:`, err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 });
