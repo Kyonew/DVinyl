@@ -19,8 +19,13 @@ router.patch('/admin/instance-settings', async (req: any, res: any) => {
     const parsed = parseInt(req.body.maxCollectionsPerUser, 10);
     patch.maxCollectionsPerUser = Math.min(100, Math.max(1, isNaN(parsed) ? 1 : parsed));
   }
-  await saveInstanceSettings(patch);
-  res.status(200).json({ settings: await getInstanceSettings() });
+  try {
+    await saveInstanceSettings(patch);
+    res.status(200).json({ settings: await getInstanceSettings() });
+  } catch (err: any) {
+    console.error('API instance settings save error:', err.message);
+    res.status(500).json({ success: false, error: 'Failed to save instance settings' });
+  }
 });
 
 export = router;
