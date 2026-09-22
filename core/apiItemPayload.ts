@@ -1,6 +1,7 @@
 import { PluginDefinition, FieldDefinition } from './types';
 import { parseGenresAndStyles } from './helpers';
 import { imagesFromJson } from './itemImages';
+import { DEFAULT_PLACEHOLDER_IMAGE } from './placeholderImage';
 
 const CORE_FIELDS = new Set([
   'title', 'year', 'cover_image', 'user_image', 'images', 'in_wishlist', 'comments',
@@ -13,39 +14,59 @@ const CORE_FIELDS = new Set([
  * multipart-specific parsing ('on'/'true' strings, images_json), since the API body
  * already carries real JSON types. Shared by item creation (Task 4) and item edit
  * (Task 5) so this logic exists in exactly one place.
+ *
+ * `partial: true` (edit/PATCH) only emits keys the body actually carries, so omitted
+ * fields keep their stored values instead of being reset to the builder's defaults.
+ * A create sends the whole form and uses the defaults.
  */
 export function buildApiItemUpdateData(
   plugin: PluginDefinition,
   body: Record<string, any>,
-  extraFieldDefs: FieldDefinition[]
+  extraFieldDefs: FieldDefinition[],
+  options?: { partial?: boolean }
 ): Record<string, any> {
+  const partial = options?.partial === true;
+  const has = (key: string) => !partial || Object.prototype.hasOwnProperty.call(body, key);
+
   const { genres: parsedGenres, styles: parsedStyles } = parseGenresAndStyles(body.genres, body.styles);
-  const submittedImages = imagesFromJson(body);
+
+  // A cover left untouched posts back whatever the form displayed, i.e. the resolved
+  // placeholder. Storing it would freeze a copy of the plugin's default image on the
+  // item; kept empty instead, so the item follows that default if it ever changes.
+  const placeholder = plugin.placeholderImage || DEFAULT_PLACEHOLDER_IMAGE;
+  const submittedImages = imagesFromJson(body).filter(image =>
+    image !== placeholder && image !== DEFAULT_PLACEHOLDER_IMAGE
+  );
   const coverImage = submittedImages[0] || '';
   const secondaryImage = submittedImages[1] || '';
 
-  const updateData: Record<string, any> = {
-    title: body.title,
-    year: body.year,
-    cover_image: coverImage,
-    user_image: secondaryImage,
-    images: submittedImages,
-    in_wishlist: body.in_wishlist === true,
-    comments: body.comments || '',
-    location: body.location || '',
-    quantity: parseInt(body.quantity, 10) || 1,
-    genre: body.genre || (parsedGenres.length > 0 ? parsedGenres[0] : ''),
-    genres: parsedGenres,
-    styles: parsedStyles,
-    barcode: body.barcode || '',
-    barcode_locked: body.barcode_locked === true,
-    added_at: body.added_at ? new Date(body.added_at) : new Date(),
-    kind: plugin.kind
-  };
+  const updateData: Record<string, any> = {};
+
+  if (has('title')) updateData.title = body.title;
+  if (has('year')) updateData.year = body.year;
+  if (has('images')) {
+    updateData.cover_image = coverImage;
+    updateData.user_image = secondaryImage;
+    updateData.images = submittedImages;
+  }
+  if (has('in_wishlist')) updateData.in_wishlist = body.in_wishlist === true;
+  if (has('comments')) updateData.comments = body.comments || '';
+  if (has('location')) updateData.location = body.location || '';
+  if (has('quantity')) updateData.quantity = parseInt(body.quantity, 10) || 1;
+  if (has('genre')) updateData.genre = body.genre || (parsedGenres.length > 0 ? parsedGenres[0] : '');
+  if (has('genres')) updateData.genres = parsedGenres;
+  if (has('styles')) updateData.styles = parsedStyles;
+  if (has('barcode')) updateData.barcode = body.barcode || '';
+  if (has('barcode_locked')) updateData.barcode_locked = body.barcode_locked === true;
+  if (has('added_at')) updateData.added_at = body.added_at ? new Date(body.added_at) : new Date();
+  updateData.kind = plugin.kind;
 
   const extraValues: Record<string, any> = {};
   for (const field of [...plugin.formFields, ...extraFieldDefs]) {
     if (CORE_FIELDS.has(field.name)) continue;
+    // In a partial update an omitted field must be left alone, not reset to its
+    // type's zero value (a boolean would otherwise become false, a date null).
+    if (partial && !Object.prototype.hasOwnProperty.call(body, field.name)) continue;
 
     let value = body[field.name];
     if (field.type === 'number') {

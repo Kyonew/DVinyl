@@ -75,9 +75,9 @@ router.patch('/items/:itemId', requireApiAuth, async (req: any, res: any) => {
   try {
     const settings: any = await Settings.findOne({ collection: existingItem.collection }).lean();
     const extraFieldDefs = toFieldDefinitions(getExtraFields(settings, plugin.id));
-    const updateData = buildApiItemUpdateData(plugin, req.body, extraFieldDefs);
+    const updateData = buildApiItemUpdateData(plugin, req.body, extraFieldDefs, { partial: true });
 
-    const saveObj: Record<string, any> = { ...updateData, quantity: parseInt(req.body.quantity, 10) || 1 };
+    const saveObj: Record<string, any> = { ...updateData };
     if (!req.body.added_at) {
       saveObj.added_at = existingItem.added_at || new Date();
     }
