@@ -2,6 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcrypt';
 import User from '../../../models/User';
 import { requireApiAuth } from '../../../middleware/authMiddleware';
+import { secondsBlocked, recordFailure, clearAttempts } from '../../../controllers/loginAttempts';
 
 const router = Router();
 
@@ -96,13 +97,24 @@ router.post('/account/password', async (req: any, res: any) => {
       return res.status(400).json({ success: false, error: 'This account has no local password (SSO-only)' });
     }
 
+    const attemptKey = `pwchange:${req.user._id}`;
+    const blockedFor = secondsBlocked(attemptKey);
+    if (blockedFor) {
+      return res.status(429).json({ success: false, error: 'Too many failed attempts. Try again later.' });
+    }
+
     const isMatch = await bcrypt.compare(currentPassword || '', user.password);
     if (!isMatch) {
+      const { justBlocked } = recordFailure(attemptKey);
+      if (justBlocked) {
+        return res.status(429).json({ success: false, error: 'Too many failed attempts. Try again later.' });
+      }
       return res.status(400).json({ success: false, error: 'Current password is incorrect' });
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     await User.findByIdAndUpdate(req.user._id, { password: hashedPassword, lastChange: Date.now() });
+    clearAttempts(attemptKey);
     res.status(200).json({ success: true });
   } catch (err: any) {
     console.error('API change password error:', err);
