@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 import Item from '../../../models/Item';
 import Settings from '../../../models/Settings';
 import { registry } from '../../../core/registry';
-import { escapeRegExp } from '../../../core/helpers';
+import { escapeRegExp, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback } from '../../../core/helpers';
 import { toApiItem } from '../../../core/apiSerializers';
 import { requireApiAuth } from '../../../middleware/authMiddleware';
 import { requireApiCollectionRole } from '../../../middleware/apiAuthMiddleware';
@@ -98,6 +98,54 @@ router.get('/collections/:id/items', requireApiCollectionRole('viewer'), async (
     totalItems,
     totalPages: Math.ceil(totalItems / limit) || 1
   });
+});
+
+router.post('/collections/:id/items/search', requireApiCollectionRole('editor'), async (req: any, res: any) => {
+  const { pluginId, query, type, year, country, genre_filter, label_filter } = req.body;
+  const plugin = registry.get(pluginId);
+  if (!plugin || !plugin.searchProvider) {
+    return res.status(404).json({ success: false, error: 'Unknown or non-searchable plugin' });
+  }
+
+  const rawQuery = typeof query === 'string' ? query.trim() : '';
+  const postedBarcode = String(req.body.scanned_barcode || '');
+  let scannedBarcode = isBarcodeQuery(postedBarcode) ? postedBarcode.replace(/[- ]/g, '') : '';
+  let searchQuery = rawQuery;
+  let resolvedTitle = '';
+
+  try {
+    if (plugin.supportsBarcodeSearch && isBarcodeQuery(rawQuery)) {
+      const { barcode, title } = await lookupBarcodeTitle(rawQuery, plugin.barcodeNoiseTerms);
+      scannedBarcode = barcode;
+      if (!title) {
+        return res.status(200).json({ results: [], query: rawQuery, scannedBarcode: barcode, error: 'barcode_not_found' });
+      }
+      searchQuery = title;
+      resolvedTitle = title;
+    }
+
+    const settings = await getCollectionSettings(req.apiCollection._id);
+    const runSearch = (q: string) => plugin.searchProvider!.search(q, {
+      type: type || plugin.id,
+      year, country, genre_filter, label_filter,
+      language: req.language,
+      pluginSettings: settings?.pluginSettings?.[plugin.id] || {}
+    });
+
+    let results;
+    if (resolvedTitle) {
+      const attempt = await searchWithTitleFallback(resolvedTitle, runSearch);
+      results = attempt.results;
+      searchQuery = attempt.query;
+    } else {
+      results = await runSearch(searchQuery);
+    }
+
+    res.status(200).json({ results, query: searchQuery, scannedBarcode: scannedBarcode || undefined });
+  } catch (err: any) {
+    console.error(`API search error for ${plugin.id}:`, err.message);
+    res.status(502).json({ success: false, error: `Search provider error: ${err.message}` });
+  }
 });
 
 router.get('/collections/:id/stats', requireApiCollectionRole('viewer'), async (req: any, res: any) => {
