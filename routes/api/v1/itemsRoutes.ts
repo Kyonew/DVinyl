@@ -11,6 +11,7 @@ import { getExtraFields, toFieldDefinitions } from '../../../core/pluginExtraFie
 import { buildApiItemUpdateData } from '../../../core/apiItemPayload';
 import { editStamp } from '../../../core/helpers';
 import { ItemImageValidationError } from '../../../core/itemImages';
+import { deleteItemsAndContents } from '../../../utils/itemHelpers';
 
 const router = Router();
 
@@ -105,6 +106,31 @@ router.patch('/items/:itemId', requireApiAuth, async (req: any, res: any) => {
       });
     }
     console.error(`API edit error for item ${itemId}:`, err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.delete('/items/:itemId', requireApiAuth, async (req: any, res: any) => {
+  const { itemId } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(itemId)) {
+    return res.status(404).json({ success: false, error: 'Item not found' });
+  }
+
+  const item: any = await Item.findById(itemId).lean();
+  if (!item || !item.collection) {
+    return res.status(404).json({ success: false, error: 'Item not found' });
+  }
+
+  const { role } = await resolveMemberRole(req.user, item.collection);
+  if (!roleAtLeast(role, 'editor')) {
+    return res.status(403).json({ success: false, error: 'Forbidden' });
+  }
+
+  try {
+    const deleted = await deleteItemsAndContents([item._id]);
+    res.status(200).json({ success: true, deleted });
+  } catch (err: any) {
+    console.error(`API delete error for item ${itemId}:`, err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 });
