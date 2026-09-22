@@ -1,10 +1,21 @@
 import { Router } from 'express';
+import bcrypt from 'bcrypt';
+import mongoose from 'mongoose';
+import User from '../../../models/User';
+import Collection from '../../../models/Collection';
 import { requireApiAuth } from '../../../middleware/authMiddleware';
 import { requireApiAdmin } from '../../../middleware/apiAuthMiddleware';
 import { getInstanceSettings, saveInstanceSettings } from '../../../utils/instanceSettings';
 
 const router = Router();
 router.use('/admin', requireApiAuth, requireApiAdmin);
+
+const createPassword = (length = 12): string => {
+  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+';
+  let password = '';
+  for (let i = 0; i < length; i++) password += chars.charAt(Math.floor(Math.random() * chars.length));
+  return password;
+};
 
 router.get('/admin/instance-settings', async (req: any, res: any) => {
   res.status(200).json({ settings: await getInstanceSettings() });
@@ -26,6 +37,77 @@ router.patch('/admin/instance-settings', async (req: any, res: any) => {
     console.error('API instance settings save error:', err.message);
     res.status(500).json({ success: false, error: 'Failed to save instance settings' });
   }
+});
+
+router.get('/admin/users', async (req: any, res: any) => {
+  const users = await User.find().sort({ lastChange: -1 })
+    .select('username email isAdmin lastChange').lean();
+  res.status(200).json({
+    users: users.map((u: any) => ({
+      id: String(u._id), username: u.username, email: u.email,
+      isAdmin: u.isAdmin, lastChange: u.lastChange
+    }))
+  });
+});
+
+router.post('/admin/users', async (req: any, res: any) => {
+  const { username, email } = req.body;
+  if (!username || !email) {
+    return res.status(400).json({ success: false, error: 'username and email are required' });
+  }
+  try {
+    const password = createPassword();
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = await User.create({ username, email, password, lastChange: new Date() });
+    await User.updateOne({ _id: newUser._id }, { $set: { password: hashedPassword } });
+    console.log(`[API ADMIN] User created: ${username} <${email}> by ${req.user.email}`);
+    res.status(201).json({
+      user: { id: String(newUser._id), username, email, isAdmin: false },
+      generatedPassword: password
+    });
+  } catch (err: any) {
+    console.error('API user create error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/admin/users/:userId/reset-password', async (req: any, res: any) => {
+  const { userId } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(404).json({ success: false, error: 'User not found' });
+  }
+  const target = await User.findById(userId);
+  if (!target) {
+    return res.status(404).json({ success: false, error: 'User not found' });
+  }
+  // Instance admins are peers: none may reset another instance admin's password
+  // (would let them hijack the account). Resetting your own is still allowed.
+  if (target.isAdmin && String(target._id) !== String(req.user._id)) {
+    return res.status(403).json({ success: false, error: 'Cannot reset another admin\'s password' });
+  }
+
+  const password = createPassword();
+  const hashedPassword = await bcrypt.hash(password, 10);
+  await User.updateOne({ _id: userId }, { $set: { password: hashedPassword, lastChange: new Date() } });
+  res.status(200).json({ generatedPassword: password });
+});
+
+router.delete('/admin/users/:userId', async (req: any, res: any) => {
+  const { userId } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(404).json({ success: false, error: 'User not found' });
+  }
+  if (String(userId) === String(req.user._id)) {
+    return res.status(400).json({ success: false, error: 'Cannot delete your own account' });
+  }
+  const target = await User.findById(userId);
+  if (target?.isAdmin) {
+    return res.status(403).json({ success: false, error: 'Cannot delete another admin' });
+  }
+  await User.findByIdAndDelete(userId);
+  await Collection.updateMany({}, { $pull: { members: { user: userId } } });
+  console.log(`[API ADMIN] User deleted: ${userId} by ${req.user.email}`);
+  res.status(200).json({ success: true });
 });
 
 export = router;
