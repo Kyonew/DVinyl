@@ -100,4 +100,24 @@ router.get('/collections/:id/items', requireApiCollectionRole('viewer'), async (
   });
 });
 
+router.get('/collections/:id/stats', requireApiCollectionRole('viewer'), async (req: any, res: any) => {
+  const settings: any = await getCollectionSettings(req.apiCollection._id);
+  const isAdmin = req.apiCollectionRole === 'admin';
+
+  const query: any = { collection: req.apiCollection._id, in_wishlist: false };
+  applyVisibilityFilter(query, isAdmin, settings);
+  applyEnabledModulesFilter(query, settings);
+  applyContainedFilter(query);
+
+  const allItems = await Item.find(query).lean();
+  const stats: any = { total: allItems.reduce((acc: number, i: any) => acc + (i.quantity || 1), 0) };
+
+  for (const plugin of registry.getEnabled(settings)) {
+    const pluginItems = allItems.filter((i: any) => i.kind === plugin.kind);
+    Object.assign(stats, plugin.getStats(pluginItems));
+  }
+
+  res.status(200).json({ stats });
+});
+
 export = router;
