@@ -54,6 +54,12 @@ const invalidId = 'not-an-object-id';
 const unknownId = '64b7f9c2f1a2b3c4d5e6f7a8';
 
 describe('GET /api/v1/items/:itemId', () => {
+  test('401 without a bearer token', async () => {
+    const res = await request(app).get(`/api/v1/items/${unknownId}`);
+    assert.equal(res.status, 401);
+    assert.equal(res.body.success, false);
+  });
+
   test('200 returns item detail', async () => {
     const { item, token } = await seedItem();
     const res = await request(app).get(`/api/v1/items/${item._id}`).set(bearer(token));
@@ -67,12 +73,14 @@ describe('GET /api/v1/items/:itemId', () => {
     const { item, outsiderToken } = await seedWithViewer();
     const res = await request(app).get(`/api/v1/items/${item._id}`).set(bearer(outsiderToken));
     assert.equal(res.status, 403);
+    assert.equal(res.body.success, false);
   });
 
   test('404 for a malformed id', async () => {
     const { token } = await seedItem();
     const res = await request(app).get(`/api/v1/items/${invalidId}`).set(bearer(token));
     assert.equal(res.status, 404);
+    assert.equal(res.body.success, false);
     assert.equal(res.body.error, 'Item not found');
   });
 
@@ -80,6 +88,7 @@ describe('GET /api/v1/items/:itemId', () => {
     const { token } = await seedItem();
     const res = await request(app).get(`/api/v1/items/${unknownId}`).set(bearer(token));
     assert.equal(res.status, 404);
+    assert.equal(res.body.success, false);
   });
 
   test('404 for an item hidden by collection visibility', async () => {
@@ -87,6 +96,7 @@ describe('GET /api/v1/items/:itemId', () => {
     await makeSettings(collection, { visibility: { hiddenItems: [item._id] } });
     const res = await request(app).get(`/api/v1/items/${item._id}`).set(bearer(signAccessToken(user._id)));
     assert.equal(res.status, 404);
+    assert.equal(res.body.success, false);
   });
 });
 
@@ -109,12 +119,14 @@ describe('PATCH /api/v1/items/:itemId', () => {
       .set(bearer(viewerToken))
       .send({ title: 'Nope' });
     assert.equal(res.status, 403);
+    assert.equal(res.body.success, false);
   });
 
   test('404 for a malformed id', async () => {
     const { token } = await seedItem();
     const res = await request(app).patch(`/api/v1/items/${invalidId}`).set(bearer(token)).send({ title: 'X' });
     assert.equal(res.status, 404);
+    assert.equal(res.body.success, false);
   });
 });
 
@@ -131,12 +143,14 @@ describe('DELETE /api/v1/items/:itemId', () => {
     const { item, viewerToken } = await seedWithViewer();
     const res = await request(app).delete(`/api/v1/items/${item._id}`).set(bearer(viewerToken));
     assert.equal(res.status, 403);
+    assert.equal(res.body.success, false);
   });
 
   test('404 for an unknown id', async () => {
     const { token } = await seedItem();
     const res = await request(app).delete(`/api/v1/items/${unknownId}`).set(bearer(token));
     assert.equal(res.status, 404);
+    assert.equal(res.body.success, false);
   });
 });
 
@@ -163,12 +177,14 @@ describe('item move endpoints', () => {
     const { item, viewerToken } = await seedWithViewer();
     const res = await request(app).post(`/api/v1/items/${item._id}/move-to-wishlist`).set(bearer(viewerToken)).send({});
     assert.equal(res.status, 403);
+    assert.equal(res.body.success, false);
   });
 
   test('404 for a malformed id on move-to-collection', async () => {
     const { token } = await seedItem();
     const res = await request(app).post(`/api/v1/items/${invalidId}/move-to-collection`).set(bearer(token)).send({});
     assert.equal(res.status, 404);
+    assert.equal(res.body.success, false);
   });
 });
 
@@ -190,17 +206,20 @@ describe('POST /api/v1/items/:itemId/refresh-info', () => {
       .set(bearer(signAccessToken(user._id)))
       .send({});
     assert.equal(res.status, 404);
+    assert.equal(res.body.success, false);
   });
 
   test('403 for a viewer', async () => {
     const { item, viewerToken } = await seedWithViewer();
     const res = await request(app).post(`/api/v1/items/${item._id}/refresh-info`).set(bearer(viewerToken)).send({});
     assert.equal(res.status, 403);
+    assert.equal(res.body.success, false);
   });
 
   test('404 for an unknown id', async () => {
     const { token } = await seedItem();
     const res = await request(app).post(`/api/v1/items/${unknownId}/refresh-info`).set(bearer(token)).send({});
     assert.equal(res.status, 404);
+    assert.equal(res.body.success, false);
   });
 });

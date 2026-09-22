@@ -28,9 +28,11 @@ describe('admin access control', () => {
     const { user } = await makeUser();
     const denied = await request(app).get('/api/v1/admin/users').set(bearer(signAccessToken(user._id)));
     assert.equal(denied.status, 403);
+    assert.equal(denied.body.success, false);
 
     const unauth = await request(app).get('/api/v1/admin/users');
     assert.equal(unauth.status, 401);
+    assert.equal(unauth.body.success, false);
   });
 });
 
@@ -80,9 +82,11 @@ describe('users', () => {
       .set(bearer(token))
       .send({ username: 'created-user', email: 'created-user@example.com' });
     assert.equal(dup.status, 409);
+    assert.equal(dup.body.success, false);
 
     const bad = await request(app).post('/api/v1/admin/users').set(bearer(token)).send({ username: 'only-username' });
     assert.equal(bad.status, 400);
+    assert.equal(bad.body.success, false);
   });
 
   test('POST reset-password 200 for a normal user; 403 for another admin; 404 unknown', async () => {
@@ -96,9 +100,11 @@ describe('users', () => {
 
     const denied = await request(app).post(`/api/v1/admin/users/${otherAdmin._id}/reset-password`).set(bearer(token)).send({});
     assert.equal(denied.status, 403);
+    assert.equal(denied.body.success, false);
 
     const missing = await request(app).post(`/api/v1/admin/users/${unknownId}/reset-password`).set(bearer(token)).send({});
     assert.equal(missing.status, 404);
+    assert.equal(missing.body.success, false);
   });
 
   test('DELETE 200 removes a user; 400 self; 403 other admin; 404 unknown', async () => {
@@ -112,12 +118,15 @@ describe('users', () => {
 
     const self = await request(app).delete(`/api/v1/admin/users/${admin._id}`).set(bearer(token));
     assert.equal(self.status, 400);
+    assert.equal(self.body.success, false);
 
     const denied = await request(app).delete(`/api/v1/admin/users/${otherAdmin._id}`).set(bearer(token));
     assert.equal(denied.status, 403);
+    assert.equal(denied.body.success, false);
 
     const missing = await request(app).delete(`/api/v1/admin/users/${unknownId}`).set(bearer(token));
     assert.equal(missing.status, 404);
+    assert.equal(missing.body.success, false);
   });
 });
 
@@ -137,6 +146,7 @@ describe('blocked IPs', () => {
 
     const bad = await request(app).post('/api/v1/admin/blocked-ips').set(bearer(token)).send({});
     assert.equal(bad.status, 400);
+    assert.equal(bad.body.success, false);
   });
 
   test('DELETE 200 removes; 404 unknown and malformed', async () => {

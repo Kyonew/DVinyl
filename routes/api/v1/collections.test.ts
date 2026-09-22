@@ -6,18 +6,23 @@ import { startDb, stopDb, clearDb } from '../../../test/helpers/db';
 import { makeUser, makeCollection, makeSettings, makeItem, itemModel, allModulesOn } from '../../../test/helpers/factories';
 import { signAccessToken, bearer } from '../../../test/helpers/auth';
 import { loadPluginsOnce, registerTestPlugin, TEST_PLUGIN_KIND } from '../../../test/helpers/plugins';
+import { removeItemImageUrls } from '../../../test/helpers/files';
 import Collection from '../../../models/Collection';
 import InstanceSettings from '../../../models/InstanceSettings';
 import { invalidateInstanceSettingsCache } from '../../../utils/instanceSettings';
 
 const app = buildApiApp();
+const uploadedItemImages: string[] = [];
 
 before(async () => {
   loadPluginsOnce();
   registerTestPlugin();
   await startDb();
 });
-after(async () => { await stopDb(); });
+after(async () => {
+  removeItemImageUrls(uploadedItemImages);
+  await stopDb();
+});
 beforeEach(async () => { await clearDb(); });
 
 const invalidId = 'not-an-object-id';
@@ -58,10 +63,17 @@ describe('GET /api/v1/collections', () => {
   test('401 without a bearer token', async () => {
     const res = await request(app).get('/api/v1/collections');
     assert.equal(res.status, 401);
+    assert.equal(res.body.success, false);
   });
 });
 
 describe('POST /api/v1/collections', () => {
+  test('401 without a bearer token', async () => {
+    const res = await request(app).post('/api/v1/collections').send({ name: 'X' });
+    assert.equal(res.status, 401);
+    assert.equal(res.body.success, false);
+  });
+
   test('201 creates the collection with the creator as admin', async () => {
     const { user } = await makeUser({ isAdmin: true });
     const res = await request(app).post('/api/v1/collections').set(bearer(signAccessToken(user._id))).send({ name: 'My Shelf' });
@@ -74,12 +86,14 @@ describe('POST /api/v1/collections', () => {
     const { user } = await makeUser();
     const res = await request(app).post('/api/v1/collections').set(bearer(signAccessToken(user._id))).send({});
     assert.equal(res.status, 400);
+    assert.equal(res.body.success, false);
   });
 
   test('403 for a non-admin when member creation is disabled', async () => {
     const { user } = await makeUser();
     const res = await request(app).post('/api/v1/collections').set(bearer(signAccessToken(user._id))).send({ name: 'Nope' });
     assert.equal(res.status, 403);
+    assert.equal(res.body.success, false);
   });
 
   test('403 at quota when member creation is allowed', async () => {
@@ -93,6 +107,7 @@ describe('POST /api/v1/collections', () => {
     invalidateInstanceSettingsCache();
     const res = await request(app).post('/api/v1/collections').set(bearer(signAccessToken(user._id))).send({ name: 'Second' });
     assert.equal(res.status, 403);
+    assert.equal(res.body.success, false);
   });
 });
 
@@ -108,18 +123,21 @@ describe('PATCH /api/v1/collections/:id', () => {
     const ctx = await seedCollectionWithRoles();
     const res = await request(app).patch(`/api/v1/collections/${ctx.collection._id}`).set(bearer(ctx.ownerToken)).send({});
     assert.equal(res.status, 400);
+    assert.equal(res.body.success, false);
   });
 
   test('403 for a non-admin member', async () => {
     const ctx = await seedCollectionWithRoles();
     const res = await request(app).patch(`/api/v1/collections/${ctx.collection._id}`).set(bearer(ctx.editorToken)).send({ name: 'X' });
     assert.equal(res.status, 403);
+    assert.equal(res.body.success, false);
   });
 
   test('403 for a non-member', async () => {
     const ctx = await seedCollectionWithRoles();
     const res = await request(app).patch(`/api/v1/collections/${ctx.collection._id}`).set(bearer(ctx.outsiderToken)).send({ name: 'X' });
     assert.equal(res.status, 403);
+    assert.equal(res.body.success, false);
   });
 });
 
@@ -138,18 +156,21 @@ describe('DELETE /api/v1/collections/:id', () => {
     const collection = await makeCollection({ members: [{ user: admin, role: 'admin' }], isDefault: true });
     const res = await request(app).delete(`/api/v1/collections/${collection._id}`).set(bearer(signAccessToken(admin._id)));
     assert.equal(res.status, 400);
+    assert.equal(res.body.success, false);
   });
 
   test('403 for a collection admin who is not an instance admin', async () => {
     const ctx = await seedCollectionWithRoles();
     const res = await request(app).delete(`/api/v1/collections/${ctx.collection._id}`).set(bearer(ctx.ownerToken));
     assert.equal(res.status, 403);
+    assert.equal(res.body.success, false);
   });
 
   test('404 for an unknown id', async () => {
     const admin = (await makeUser({ isAdmin: true })).user;
     const res = await request(app).delete(`/api/v1/collections/${unknownId}`).set(bearer(signAccessToken(admin._id)));
     assert.equal(res.status, 404);
+    assert.equal(res.body.success, false);
   });
 });
 
@@ -166,6 +187,7 @@ describe('collection members', () => {
     const ctx = await seedCollectionWithRoles();
     const res = await request(app).get(`/api/v1/collections/${ctx.collection._id}/members`).set(bearer(ctx.editorToken));
     assert.equal(res.status, 403);
+    assert.equal(res.body.success, false);
   });
 
   test('POST 201 adds an existing user by identifier', async () => {
@@ -198,6 +220,7 @@ describe('collection members', () => {
       .set(bearer(ctx.ownerToken))
       .send({ identifier: 'missing@example.com' });
     assert.equal(res.status, 404);
+    assert.equal(res.body.success, false);
   });
 
   test('POST 409 for an existing member', async () => {
@@ -207,6 +230,7 @@ describe('collection members', () => {
       .set(bearer(ctx.ownerToken))
       .send({ identifier: ctx.viewer.email });
     assert.equal(res.status, 409);
+    assert.equal(res.body.success, false);
   });
 
   test('POST 400 without identifier or username+email', async () => {
@@ -216,6 +240,7 @@ describe('collection members', () => {
       .set(bearer(ctx.ownerToken))
       .send({});
     assert.equal(res.status, 400);
+    assert.equal(res.body.success, false);
   });
 
   test('PATCH 200 changes a member role', async () => {
@@ -237,6 +262,7 @@ describe('collection members', () => {
       .set(bearer(ctx.ownerToken))
       .send({ role: 'viewer' });
     assert.equal(res.status, 400);
+    assert.equal(res.body.success, false);
   });
 
   test('PATCH 400 when demoting the last admin', async () => {
@@ -248,6 +274,7 @@ describe('collection members', () => {
       .set(bearer(signAccessToken(admin._id)))
       .send({ role: 'viewer' });
     assert.equal(res.status, 400);
+    assert.equal(res.body.success, false);
   });
 
   test('PATCH 404 for a non-member', async () => {
@@ -257,6 +284,7 @@ describe('collection members', () => {
       .set(bearer(ctx.ownerToken))
       .send({ role: 'viewer' });
     assert.equal(res.status, 404);
+    assert.equal(res.body.success, false);
   });
 
   test('DELETE 200 removes a member', async () => {
@@ -273,6 +301,7 @@ describe('collection members', () => {
       .delete(`/api/v1/collections/${ctx.collection._id}/members/${invalidId}`)
       .set(bearer(ctx.ownerToken));
     assert.equal(res.status, 400);
+    assert.equal(res.body.success, false);
   });
 
   test('DELETE 400 when removing the last admin', async () => {
@@ -283,6 +312,7 @@ describe('collection members', () => {
       .delete(`/api/v1/collections/${collection._id}/members/${soleAdmin._id}`)
       .set(bearer(signAccessToken(admin._id)));
     assert.equal(res.status, 400);
+    assert.equal(res.body.success, false);
   });
 
   test('POST reset-password 200 for a member', async () => {
@@ -300,6 +330,7 @@ describe('collection members', () => {
       .post(`/api/v1/collections/${ctx.collection._id}/members/${ctx.outsider._id}/reset-password`)
       .set(bearer(ctx.ownerToken));
     assert.equal(res.status, 404);
+    assert.equal(res.body.success, false);
   });
 
   test('POST reset-password 403 when the member is in another collection', async () => {
@@ -311,6 +342,7 @@ describe('collection members', () => {
       .post(`/api/v1/collections/${ctx.collection._id}/members/${member._id}/reset-password`)
       .set(bearer(ctx.ownerToken));
     assert.equal(res.status, 403);
+    assert.equal(res.body.success, false);
   });
 });
 
@@ -338,6 +370,7 @@ describe('collection share links', () => {
 
     const denied = await request(app).get(`/api/v1/collections/${ctx.collection._id}/share-links`).set(bearer(ctx.viewerToken));
     assert.equal(denied.status, 403);
+    assert.equal(denied.body.success, false);
   });
 
   test('PATCH 200 updates enabled/label/scope', async () => {
@@ -369,12 +402,14 @@ describe('collection share links', () => {
       .set(bearer(ctx.ownerToken))
       .send({});
     assert.equal(empty.status, 400);
+    assert.equal(empty.body.success, false);
 
     const unknown = await request(app)
       .patch(`/api/v1/collections/${ctx.collection._id}/share-links/deadbeef`)
       .set(bearer(ctx.ownerToken))
       .send({ enabled: true });
     assert.equal(unknown.status, 404);
+    assert.equal(unknown.body.success, false);
   });
 
   test('regenerate 200 issues a new token; 404 for unknown', async () => {
@@ -388,12 +423,14 @@ describe('collection share links', () => {
       .post(`/api/v1/collections/${ctx.collection._id}/share-links/${token}/regenerate`)
       .set(bearer(ctx.ownerToken));
     assert.equal(res.status, 200);
+    assert.equal(typeof res.body.shareLink.token, 'string');
     assert.notEqual(res.body.shareLink.token, token);
 
     const unknown = await request(app)
       .post(`/api/v1/collections/${ctx.collection._id}/share-links/deadbeef/regenerate`)
       .set(bearer(ctx.ownerToken));
     assert.equal(unknown.status, 404);
+    assert.equal(unknown.body.success, false);
   });
 
   test('DELETE 200 removes a link; 404 for unknown', async () => {
@@ -412,6 +449,7 @@ describe('collection share links', () => {
       .delete(`/api/v1/collections/${ctx.collection._id}/share-links/${token}`)
       .set(bearer(ctx.ownerToken));
     assert.equal(unknown.status, 404);
+    assert.equal(unknown.body.success, false);
   });
 
   test('qr.png 200 returns a PNG; 404 for a disabled link', async () => {
@@ -434,6 +472,7 @@ describe('collection share links', () => {
       .get(`/api/v1/collections/${ctx.collection._id}/share-links/${token}/qr.png`)
       .set(bearer(ctx.ownerToken));
     assert.equal(disabled.status, 404);
+    assert.equal(disabled.body.success, false);
   });
 });
 
@@ -512,11 +551,13 @@ describe('GET /api/v1/collections/:id/items', () => {
       .get(`/api/v1/collections/${ctx.collection._id}/items`)
       .set(bearer(ctx.outsiderToken));
     assert.equal(outsider.status, 403);
+    assert.equal(outsider.body.success, false);
 
     const unknown = await request(app)
       .get(`/api/v1/collections/${unknownId}/items`)
       .set(bearer(ctx.viewerToken));
     assert.equal(unknown.status, 404);
+    assert.equal(unknown.body.success, false);
   });
 });
 
@@ -539,6 +580,7 @@ describe('POST /api/v1/collections/:id/items/search', () => {
       .set(bearer(ctx.editorToken))
       .send({ pluginId: 'ghost', query: 'x' });
     assert.equal(res.status, 404);
+    assert.equal(res.body.success, false);
   });
 
   test('403 for a viewer', async () => {
@@ -548,6 +590,7 @@ describe('POST /api/v1/collections/:id/items/search', () => {
       .set(bearer(ctx.viewerToken))
       .send({ pluginId: 'testkind', query: 'x' });
     assert.equal(res.status, 403);
+    assert.equal(res.body.success, false);
   });
 });
 
@@ -569,6 +612,7 @@ describe('GET /api/v1/collections/:id/items/confirm', () => {
       .get(`/api/v1/collections/${ctx.collection._id}/items/confirm?pluginId=testkind`)
       .set(bearer(ctx.editorToken));
     assert.equal(res.status, 400);
+    assert.equal(res.body.success, false);
   });
 
   test('404 for an unknown plugin', async () => {
@@ -577,6 +621,7 @@ describe('GET /api/v1/collections/:id/items/confirm', () => {
       .get(`/api/v1/collections/${ctx.collection._id}/items/confirm?pluginId=ghost&externalId=1`)
       .set(bearer(ctx.editorToken));
     assert.equal(res.status, 404);
+    assert.equal(res.body.success, false);
   });
 });
 
@@ -613,6 +658,7 @@ describe('POST /api/v1/collections/:id/items', () => {
       .set(bearer(ctx.editorToken))
       .send({ pluginId: 'ghost', title: 'X' });
     assert.equal(res.status, 404);
+    assert.equal(res.body.success, false);
   });
 
   test('403 for a viewer', async () => {
@@ -622,6 +668,7 @@ describe('POST /api/v1/collections/:id/items', () => {
       .set(bearer(ctx.viewerToken))
       .send({ pluginId: 'testkind', title: 'X' });
     assert.equal(res.status, 403);
+    assert.equal(res.body.success, false);
   });
 });
 
@@ -641,6 +688,7 @@ describe('POST /api/v1/collections/:id/item-images', () => {
     assert.equal(res.status, 201);
     assert.equal(res.body.success, true);
     assert.equal(typeof res.body.url, 'string');
+    uploadedItemImages.push(res.body.url);
   });
 
   test('400 for a non-JPEG upload', async () => {
@@ -650,6 +698,7 @@ describe('POST /api/v1/collections/:id/item-images', () => {
       .set(bearer(ctx.editorToken))
       .attach('image', Buffer.from('not an image'), { filename: 'x.png', contentType: 'image/png' });
     assert.equal(res.status, 400);
+    assert.equal(res.body.success, false);
   });
 
   test('413 for an oversized upload', async () => {
@@ -661,6 +710,48 @@ describe('POST /api/v1/collections/:id/item-images', () => {
       .set(bearer(ctx.editorToken))
       .attach('image', big, { filename: 'big.jpg', contentType: 'image/jpeg' });
     assert.equal(res.status, 413);
+    assert.equal(res.body.success, false);
+  });
+});
+
+describe('item listing filters', () => {
+  async function seedMixed() {
+    const ctx = await seedCollectionWithRoles();
+    await makeSettings(ctx.collection);
+    const visible = await makeItem(TEST_PLUGIN_KIND, { title: 'Visible', owner: ctx.owner._id, collection: ctx.collection._id });
+    const holder = await makeItem(TEST_PLUGIN_KIND, { title: 'Holder', owner: ctx.owner._id, collection: ctx.collection._id });
+    const seasonOne = await makeItem(TEST_PLUGIN_KIND, { title: 'Season 1', owner: ctx.owner._id, collection: ctx.collection._id, parent: holder._id });
+    const seasonTwo = await makeItem(TEST_PLUGIN_KIND, { title: 'Season 2', owner: ctx.owner._id, collection: ctx.collection._id, parent: holder._id });
+    const wishlisted = await makeItem(TEST_PLUGIN_KIND, { title: 'Wished', owner: ctx.owner._id, collection: ctx.collection._id, in_wishlist: true });
+    return { ...ctx, visible, holder, seasonOne, seasonTwo, wishlisted };
+  }
+
+  test('excludes wishlist items and contained items', async () => {
+    const ctx = await seedMixed();
+    const res = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/items`)
+      .set(bearer(ctx.viewerToken));
+    const titles = res.body.items.map((i: any) => i.title).sort();
+    assert.deepEqual(titles, ['Holder', 'Visible']);
+
+    const stats = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/stats`)
+      .set(bearer(ctx.viewerToken));
+    assert.equal(stats.body.stats.total, 2);
+  });
+
+  test('a disabled module hides its items from listing and stats', async () => {
+    const ctx = await seedMixed();
+    await makeSettings(ctx.collection, { modules: { ...allModulesOn(), testkind: false } });
+    const res = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/items`)
+      .set(bearer(ctx.viewerToken));
+    assert.equal(res.body.totalItems, 0);
+
+    const stats = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/stats`)
+      .set(bearer(ctx.viewerToken));
+    assert.equal(stats.body.stats.total, 0);
   });
 });
 
@@ -684,5 +775,6 @@ describe('GET /api/v1/collections/:id/stats', () => {
       .get(`/api/v1/collections/${ctx.collection._id}/stats`)
       .set(bearer(ctx.outsiderToken));
     assert.equal(res.status, 403);
+    assert.equal(res.body.success, false);
   });
 });

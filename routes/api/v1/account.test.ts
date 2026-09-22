@@ -67,10 +67,17 @@ describe('GET /api/v1/account/username-available', () => {
   test('401 without a token', async () => {
     const res = await request(app).get('/api/v1/account/username-available?username=x');
     assert.equal(res.status, 401);
+    assert.equal(res.body.success, false);
   });
 });
 
 describe('PATCH /api/v1/account', () => {
+  test('401 without a bearer token', async () => {
+    const res = await request(app).patch('/api/v1/account').send({ theme: 'light' });
+    assert.equal(res.status, 401);
+    assert.equal(res.body.success, false);
+  });
+
   test('200 updates theme, language and currency', async () => {
     const { token } = await seedAuthed();
     const res = await request(app).patch('/api/v1/account').set(bearer(token)).send({ theme: 'light', language: 'en', currency: 'GBP' });
@@ -89,6 +96,7 @@ describe('PATCH /api/v1/account', () => {
     const other = (await makeUser()).user;
     const dup = await request(app).patch('/api/v1/account').set(bearer(token)).send({ username: other.username });
     assert.equal(dup.status, 409);
+    assert.equal(dup.body.success, false);
   });
 
   test('400 for invalid values and empty bodies', async () => {
@@ -122,12 +130,14 @@ describe('POST /api/v1/account/password', () => {
     const { token } = await seedAuthed();
     const res = await request(app).post('/api/v1/account/password').set(bearer(token)).send({ currentPassword: password, newPassword: 'short' });
     assert.equal(res.status, 400);
+    assert.equal(res.body.success, false);
   });
 
   test('400 for a wrong current password', async () => {
     const { token } = await seedAuthed();
     const res = await request(app).post('/api/v1/account/password').set(bearer(token)).send({ currentPassword: 'wrongwrong', newPassword: 'newpassword123' });
     assert.equal(res.status, 400);
+    assert.equal(res.body.success, false);
   });
 
   test('429 after repeated wrong current passwords', async () => {
@@ -153,6 +163,7 @@ describe('POST /api/v1/account/password', () => {
       .set(bearer(signAccessToken(user._id)))
       .send({ currentPassword: 'x', newPassword: 'newpassword123' });
     assert.equal(res.status, 400);
+    assert.equal(res.body.success, false);
   });
 });
 
@@ -179,12 +190,14 @@ describe('account avatars', () => {
     const { token } = await seedAuthed();
     const none = await request(app).post('/api/v1/account/avatar').set(bearer(token));
     assert.equal(none.status, 400);
+    assert.equal(none.body.success, false);
 
     const bad = await request(app)
       .post('/api/v1/account/avatar')
       .set(bearer(token))
       .attach('avatar', Buffer.from('plain'), { filename: 'x.txt', contentType: 'text/plain' });
     assert.equal(bad.status, 400);
+    assert.equal(bad.body.success, false);
   });
 
   test('POST avatar 413 over 5 MB', async () => {
@@ -195,6 +208,7 @@ describe('account avatars', () => {
       .set(bearer(token))
       .attach('avatar', big, { filename: 'big.png', contentType: 'image/png' });
     assert.equal(res.status, 413);
+    assert.equal(res.body.success, false);
   });
 
   test('import-gravatar 200 writes the fetched image', async () => {
@@ -211,6 +225,7 @@ describe('account avatars', () => {
     stubFetch(async () => response(Buffer.alloc(0), { status: 404 }));
     const res = await request(app).post('/api/v1/account/avatar/import-gravatar').set(bearer(token));
     assert.equal(res.status, 404);
+    assert.equal(res.body.success, false);
   });
 
   test('import-gravatar 502 when the fetch rejects', async () => {
@@ -243,5 +258,6 @@ describe('POST /api/v1/account/oidc/unlink', () => {
     createdIds.push(String(user._id));
     const res = await request(app).post('/api/v1/account/oidc/unlink').set(bearer(signAccessToken(user._id))).send({});
     assert.equal(res.status, 400);
+    assert.equal(res.body.success, false);
   });
 });

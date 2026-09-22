@@ -17,3 +17,17 @@ export function removeAvatarFiles(userId: any): void {
     }
   }
 }
+
+const PUBLIC_DIR = path.join(__dirname, '../../public');
+
+/** Removes managed item-image files by the URL `storeItemImage()` returned. */
+export function removeItemImageUrls(urls: string[]): void {
+  for (const url of urls) {
+    if (!url) continue;
+    try {
+      fs.unlinkSync(path.join(PUBLIC_DIR, url.replace(/^\/+/, '')));
+    } catch {
+      // best-effort cleanup; a missing file is not a test failure
+    }
+  }
+}

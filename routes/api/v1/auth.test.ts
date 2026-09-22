@@ -94,6 +94,7 @@ describe('GET /api/v1/auth/me', () => {
   test('401 with a garbage token', async () => {
     const res = await request(app).get('/api/v1/auth/me').set(bearer('not-a-jwt'));
     assert.equal(res.status, 401);
+    assert.equal(res.body.success, false);
   });
 
   test('401 with a token older than user.lastChange', async () => {
@@ -102,6 +103,7 @@ describe('GET /api/v1/auth/me', () => {
     await User.updateOne({ _id: user._id }, { $set: { lastChange: new Date(Date.now() + 60_000) } });
     const res = await request(app).get('/api/v1/auth/me').set(bearer(token));
     assert.equal(res.status, 401);
+    assert.equal(res.body.success, false);
   });
 });
 
@@ -112,7 +114,12 @@ describe('POST /api/v1/auth/refresh', () => {
     const res = await request(app).post('/api/v1/auth/refresh').send({ refreshToken: token });
     assert.equal(res.status, 200);
     assert.equal(typeof res.body.accessToken, 'string');
+    assert.equal(typeof res.body.refreshToken, 'string');
     assert.notEqual(res.body.refreshToken, token);
+
+    // The rotated-in token must itself be usable.
+    const again = await request(app).post('/api/v1/auth/refresh').send({ refreshToken: res.body.refreshToken });
+    assert.equal(again.status, 200);
   });
 
   test('401 when the rotated-out token is reused', async () => {
@@ -121,11 +128,13 @@ describe('POST /api/v1/auth/refresh', () => {
     await request(app).post('/api/v1/auth/refresh').send({ refreshToken: token });
     const res = await request(app).post('/api/v1/auth/refresh').send({ refreshToken: token });
     assert.equal(res.status, 401);
+    assert.equal(res.body.success, false);
   });
 
   test('401 for an unknown token', async () => {
     const res = await request(app).post('/api/v1/auth/refresh').send({ refreshToken: 'deadbeef' });
     assert.equal(res.status, 401);
+    assert.equal(res.body.success, false);
   });
 
   test('401 for an expired token', async () => {
@@ -138,6 +147,7 @@ describe('POST /api/v1/auth/refresh', () => {
     });
     const res = await request(app).post('/api/v1/auth/refresh').send({ refreshToken: token });
     assert.equal(res.status, 401);
+    assert.equal(res.body.success, false);
   });
 
   test('400 without a refreshToken', async () => {
@@ -159,6 +169,7 @@ describe('POST /api/v1/auth/logout', () => {
 
     const reuse = await request(app).post('/api/v1/auth/refresh').send({ refreshToken: token });
     assert.equal(reuse.status, 401);
+    assert.equal(reuse.body.success, false);
 
     const stillValid = await request(app).post('/api/v1/auth/refresh').send({ refreshToken: other });
     assert.equal(stillValid.status, 200);
@@ -167,5 +178,6 @@ describe('POST /api/v1/auth/logout', () => {
   test('400 without a refreshToken', async () => {
     const res = await request(app).post('/api/v1/auth/logout').send({});
     assert.equal(res.status, 400);
+    assert.equal(res.body.success, false);
   });
 });
