@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import bcrypt from 'bcrypt';
 import multer from 'multer';
 import mongoose from 'mongoose';
 import Item from '../../../models/Item';
@@ -70,6 +71,14 @@ async function getCollectionSettings(collectionId: any) {
   ).lean();
 }
 
+const MEMBER_ROLES = ['admin', 'editor', 'viewer'];
+const createPassword = (length = 12): string => {
+  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+';
+  let password = '';
+  for (let i = 0; i < length; i++) password += chars.charAt(Math.floor(Math.random() * chars.length));
+  return password;
+};
+
 router.patch('/collections/:id', requireApiCollectionRole('admin'), async (req: any, res: any) => {
   const name = String(req.body.name || '').trim();
   if (!name) {
@@ -111,6 +120,67 @@ router.delete('/collections/:id', requireApiAdmin, async (req: any, res: any) =>
     res.status(200).json({ success: true });
   } catch (err: any) {
     console.error('API collection delete error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.get('/collections/:id/members', requireApiCollectionRole('admin'), async (req: any, res: any) => {
+  const coll: any = await Collection.findById(req.apiCollection._id)
+    .populate('members.user', 'username email img isAdmin')
+    .lean();
+  const members = (coll?.members || [])
+    .filter((m: any) => m.user)
+    .map((m: any) => ({
+      userId: String(m.user._id),
+      username: m.user.username,
+      email: m.user.email,
+      img: m.user.img,
+      role: m.role
+    }));
+  res.status(200).json({ members });
+});
+
+router.post('/collections/:id/members', requireApiCollectionRole('admin'), async (req: any, res: any) => {
+  const role = MEMBER_ROLES.includes(req.body.role) ? req.body.role : 'viewer';
+  const collectionId = req.apiCollection._id;
+
+  try {
+    if (req.body.identifier) {
+      const identifier = String(req.body.identifier).trim();
+      const target: any = await User.findOne({
+        $or: [{ email: identifier.toLowerCase() }, { username: identifier }]
+      });
+      if (!target) {
+        return res.status(404).json({ success: false, error: 'User not found' });
+      }
+      const already = await Collection.findOne({ _id: collectionId, 'members.user': target._id });
+      if (already) {
+        return res.status(409).json({ success: false, error: 'User is already a member' });
+      }
+      await Collection.updateOne({ _id: collectionId }, { $addToSet: { members: { user: target._id, role } } });
+      return res.status(201).json({
+        member: { userId: String(target._id), username: target.username, email: target.email, role }
+      });
+    }
+
+    if (req.body.username && req.body.email) {
+      const password = createPassword();
+      const hashedPassword = await bcrypt.hash(password, 10);
+      // The hash is written in the single create: the User schema has no save hook, so
+      // creating with the plaintext and overwriting it would store it in the clear
+      // between the two writes.
+      const newUser = await User.create({ username: req.body.username, email: req.body.email, password: hashedPassword, lastChange: new Date() });
+      await Collection.updateOne({ _id: collectionId }, { $addToSet: { members: { user: newUser._id, role } } });
+      await User.updateOne({ _id: newUser._id }, { $set: { lastActiveCollectionId: collectionId } });
+      return res.status(201).json({
+        member: { userId: String(newUser._id), username: newUser.username, email: newUser.email, role },
+        generatedPassword: password
+      });
+    }
+
+    res.status(400).json({ success: false, error: 'Provide either identifier, or username + email' });
+  } catch (err: any) {
+    console.error('API member add error:', err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 });
