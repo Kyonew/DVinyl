@@ -59,7 +59,13 @@ export function allModulesOn(): Record<string, boolean> {
 }
 
 export async function makeSettings(collection: any, overrides: Record<string, any> = {}): Promise<any> {
-  return Settings.create({ collection: collection._id, modules: allModulesOn(), ...overrides });
+  // Upsert, so a second call for the same collection updates rather than hitting
+  // the unique `collection` index (a collection has exactly one Settings row).
+  return Settings.findOneAndUpdate(
+    { collection: collection._id },
+    { $set: { modules: allModulesOn(), ...overrides } },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
 }
 
 export function itemModel(kind: string): mongoose.Model<any> {

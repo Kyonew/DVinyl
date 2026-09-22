@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import request from 'supertest';
 import { buildApiApp } from '../../../test/helpers/app';
 import { startDb, stopDb, clearDb } from '../../../test/helpers/db';
-import { makeUser, makeCollection, allModulesOn } from '../../../test/helpers/factories';
+import { makeUser, makeCollection, makeSettings, makeItem, itemModel, allModulesOn } from '../../../test/helpers/factories';
 import { signAccessToken, bearer } from '../../../test/helpers/auth';
-import { loadPluginsOnce, registerTestPlugin } from '../../../test/helpers/plugins';
+import { loadPluginsOnce, registerTestPlugin, TEST_PLUGIN_KIND } from '../../../test/helpers/plugins';
 import Collection from '../../../models/Collection';
 import InstanceSettings from '../../../models/InstanceSettings';
 import { invalidateInstanceSettingsCache } from '../../../utils/instanceSettings';
@@ -437,4 +437,252 @@ describe('collection share links', () => {
   });
 });
 
-export { seedCollectionWithRoles, app, allModulesOn };
+describe('GET /api/v1/collections/:id/items', () => {
+  async function seedItems() {
+    const ctx = await seedCollectionWithRoles();
+    await makeSettings(ctx.collection);
+    const items = [];
+    for (let i = 1; i <= 30; i++) {
+      items.push(await makeItem(TEST_PLUGIN_KIND, {
+        title: `Item ${String(i).padStart(2, '0')}`,
+        creator: i % 2 === 0 ? 'Even Creator' : 'Odd Creator',
+        owner: ctx.owner._id,
+        collection: ctx.collection._id,
+        added_at: new Date(Date.now() - i * 1000)
+      }));
+    }
+    return { ...ctx, items };
+  }
+
+  test('200 paginates and reports totals', async () => {
+    const ctx = await seedItems();
+    const res = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/items`)
+      .set(bearer(ctx.viewerToken));
+    assert.equal(res.status, 200);
+    assert.equal(res.body.totalItems, 30);
+    assert.equal(res.body.page, 1);
+    assert.equal(res.body.limit, 25);
+    assert.equal(res.body.items.length, 25);
+    assert.equal(res.body.totalPages, 2);
+  });
+
+  test('page 2 returns the remaining items', async () => {
+    const ctx = await seedItems();
+    const res = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/items?page=2`)
+      .set(bearer(ctx.viewerToken));
+    assert.equal(res.body.page, 2);
+    assert.equal(res.body.items.length, 5);
+  });
+
+  test('search narrows by title/creator', async () => {
+    const ctx = await seedItems();
+    const res = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/items?search=Even%20Creator`)
+      .set(bearer(ctx.viewerToken));
+    assert.equal(res.status, 200);
+    assert.equal(res.body.totalItems, 15);
+  });
+
+  test('type filter narrows to the plugin kind', async () => {
+    const ctx = await seedItems();
+    const res = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/items?type=testkind`)
+      .set(bearer(ctx.viewerToken));
+    assert.equal(res.body.totalItems, 30);
+    const none = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/items?type=music`)
+      .set(bearer(ctx.viewerToken));
+    assert.equal(none.body.totalItems, 0);
+  });
+
+  test('hides visibility-hidden items', async () => {
+    const ctx = await seedItems();
+    await makeSettings(ctx.collection, { visibility: { hiddenItems: [ctx.items[0]!._id] } });
+    const res = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/items`)
+      .set(bearer(ctx.viewerToken));
+    assert.equal(res.body.totalItems, 29);
+  });
+
+  test('403 for a non-member; 404 for an unknown collection', async () => {
+    const ctx = await seedItems();
+    const outsider = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/items`)
+      .set(bearer(ctx.outsiderToken));
+    assert.equal(outsider.status, 403);
+
+    const unknown = await request(app)
+      .get(`/api/v1/collections/${unknownId}/items`)
+      .set(bearer(ctx.viewerToken));
+    assert.equal(unknown.status, 404);
+  });
+});
+
+describe('POST /api/v1/collections/:id/items/search', () => {
+  test('200 maps fake provider results', async () => {
+    const ctx = await seedCollectionWithRoles();
+    const res = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/items/search`)
+      .set(bearer(ctx.editorToken))
+      .send({ pluginId: 'testkind', query: 'dune' });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.results[0].title, 'Result for dune');
+    assert.equal(res.body.query, 'dune');
+  });
+
+  test('404 for an unknown plugin', async () => {
+    const ctx = await seedCollectionWithRoles();
+    const res = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/items/search`)
+      .set(bearer(ctx.editorToken))
+      .send({ pluginId: 'ghost', query: 'x' });
+    assert.equal(res.status, 404);
+  });
+
+  test('403 for a viewer', async () => {
+    const ctx = await seedCollectionWithRoles();
+    const res = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/items/search`)
+      .set(bearer(ctx.viewerToken))
+      .send({ pluginId: 'testkind', query: 'x' });
+    assert.equal(res.status, 403);
+  });
+});
+
+describe('GET /api/v1/collections/:id/items/confirm', () => {
+  test('200 returns details, suggestions and duplicates', async () => {
+    const ctx = await seedCollectionWithRoles();
+    const res = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/items/confirm?pluginId=testkind&externalId=42`)
+      .set(bearer(ctx.editorToken));
+    assert.equal(res.status, 200);
+    assert.equal(res.body.item.test_external_id, '42');
+    assert.ok(Array.isArray(res.body.duplicates));
+    assert.ok(res.body.suggestions && typeof res.body.suggestions === 'object');
+  });
+
+  test('400 without externalId', async () => {
+    const ctx = await seedCollectionWithRoles();
+    const res = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/items/confirm?pluginId=testkind`)
+      .set(bearer(ctx.editorToken));
+    assert.equal(res.status, 400);
+  });
+
+  test('404 for an unknown plugin', async () => {
+    const ctx = await seedCollectionWithRoles();
+    const res = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/items/confirm?pluginId=ghost&externalId=1`)
+      .set(bearer(ctx.editorToken));
+    assert.equal(res.status, 404);
+  });
+});
+
+describe('POST /api/v1/collections/:id/items', () => {
+  test('201 creates an item', async () => {
+    const ctx = await seedCollectionWithRoles();
+    const res = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/items`)
+      .set(bearer(ctx.editorToken))
+      .send({ pluginId: 'testkind', title: 'Brand New', creator: 'New Creator' });
+    assert.equal(res.status, 201);
+    assert.equal(res.body.item.title, 'Brand New');
+  });
+
+  test('200 merges a duplicate and bumps quantity', async () => {
+    const ctx = await seedCollectionWithRoles();
+    const item = await makeItem(TEST_PLUGIN_KIND, {
+      title: 'Duplicate Me', creator: 'Creator', owner: ctx.owner._id, collection: ctx.collection._id, quantity: 1
+    });
+    const res = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/items`)
+      .set(bearer(ctx.editorToken))
+      .send({ pluginId: 'testkind', title: 'Duplicate Me', creator: 'Creator', quantity: 2 });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.merged, true);
+    const merged: any = await itemModel(TEST_PLUGIN_KIND).findById(item._id).lean();
+    assert.equal(merged.quantity, 3);
+  });
+
+  test('404 for an unknown plugin', async () => {
+    const ctx = await seedCollectionWithRoles();
+    const res = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/items`)
+      .set(bearer(ctx.editorToken))
+      .send({ pluginId: 'ghost', title: 'X' });
+    assert.equal(res.status, 404);
+  });
+
+  test('403 for a viewer', async () => {
+    const ctx = await seedCollectionWithRoles();
+    const res = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/items`)
+      .set(bearer(ctx.viewerToken))
+      .send({ pluginId: 'testkind', title: 'X' });
+    assert.equal(res.status, 403);
+  });
+});
+
+describe('POST /api/v1/collections/:id/item-images', () => {
+  // A tiny valid JPEG (SOI ... EOI) so isJpegBuffer() accepts it.
+  const jpeg = Buffer.from([
+    0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01,
+    0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0xFF, 0xD9
+  ]);
+
+  test('201 stores a JPEG', async () => {
+    const ctx = await seedCollectionWithRoles();
+    const res = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/item-images`)
+      .set(bearer(ctx.editorToken))
+      .attach('image', jpeg, { filename: 'cover.jpg', contentType: 'image/jpeg' });
+    assert.equal(res.status, 201);
+    assert.equal(res.body.success, true);
+    assert.equal(typeof res.body.url, 'string');
+  });
+
+  test('400 for a non-JPEG upload', async () => {
+    const ctx = await seedCollectionWithRoles();
+    const res = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/item-images`)
+      .set(bearer(ctx.editorToken))
+      .attach('image', Buffer.from('not an image'), { filename: 'x.png', contentType: 'image/png' });
+    assert.equal(res.status, 400);
+  });
+
+  test('413 for an oversized upload', async () => {
+    const ctx = await seedCollectionWithRoles();
+    const { MAX_ITEM_IMAGE_UPLOAD_BYTES } = await import('../../../core/itemImageStorage');
+    const big = Buffer.alloc(MAX_ITEM_IMAGE_UPLOAD_BYTES + 1, 0xFF);
+    const res = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/item-images`)
+      .set(bearer(ctx.editorToken))
+      .attach('image', big, { filename: 'big.jpg', contentType: 'image/jpeg' });
+    assert.equal(res.status, 413);
+  });
+});
+
+describe('GET /api/v1/collections/:id/stats', () => {
+  test('200 totals quantities and per-plugin counts', async () => {
+    const ctx = await seedCollectionWithRoles();
+    await makeSettings(ctx.collection);
+    await makeItem(TEST_PLUGIN_KIND, { title: 'One', owner: ctx.owner._id, collection: ctx.collection._id, quantity: 2 });
+    await makeItem(TEST_PLUGIN_KIND, { title: 'Two', owner: ctx.owner._id, collection: ctx.collection._id, quantity: 3 });
+    const res = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/stats`)
+      .set(bearer(ctx.viewerToken));
+    assert.equal(res.status, 200);
+    assert.equal(res.body.stats.total, 5);
+    assert.equal(res.body.stats.testkind, 2);
+  });
+
+  test('403 for a non-member', async () => {
+    const ctx = await seedCollectionWithRoles();
+    const res = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/stats`)
+      .set(bearer(ctx.outsiderToken));
+    assert.equal(res.status, 403);
+  });
+});
