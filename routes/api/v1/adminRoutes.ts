@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 import mongoose from 'mongoose';
 import User from '../../../models/User';
 import Collection from '../../../models/Collection';
+import BlockedIP from '../../../models/blockedIP';
 import { requireApiAuth } from '../../../middleware/authMiddleware';
 import { requireApiAdmin } from '../../../middleware/apiAuthMiddleware';
 import { getInstanceSettings, saveInstanceSettings } from '../../../utils/instanceSettings';
@@ -124,6 +125,55 @@ router.delete('/admin/users/:userId', async (req: any, res: any) => {
   } catch (err: any) {
     console.error('API user delete error:', err.message);
     res.status(500).json({ success: false, error: 'Failed to delete user' });
+  }
+});
+
+router.get('/admin/blocked-ips', async (req: any, res: any) => {
+  try {
+    const blockedIps = await BlockedIP.find().sort({ createdAt: -1 }).lean();
+    res.status(200).json({
+      blockedIps: blockedIps.map((b: any) => ({ id: String(b._id), ip: b.ip, createdAt: b.createdAt }))
+    });
+  } catch (err: any) {
+    console.error('API blocked IP list error:', err.message);
+    res.status(500).json({ success: false, error: 'Failed to list blocked IPs' });
+  }
+});
+
+router.post('/admin/blocked-ips', async (req: any, res: any) => {
+  const ip = String(req.body.ip || '').trim();
+  if (!ip) {
+    return res.status(400).json({ success: false, error: 'ip is required' });
+  }
+  try {
+    const existing = await BlockedIP.findOne({ ip });
+    if (existing) {
+      console.log(`[API ADMIN] IP already blocked: ${ip}`);
+      return res.status(200).json({ blockedIp: { id: String(existing._id), ip: existing.ip, createdAt: existing.createdAt } });
+    }
+    const created = await BlockedIP.create({ ip });
+    console.log(`[API ADMIN] IP blocked: ${ip} by ${req.user.email}`);
+    res.status(201).json({ blockedIp: { id: String(created._id), ip: created.ip, createdAt: created.createdAt } });
+  } catch (err: any) {
+    console.error('API blocked IP create error:', err.message);
+    res.status(500).json({ success: false, error: 'Failed to block IP' });
+  }
+});
+
+router.delete('/admin/blocked-ips/:id', async (req: any, res: any) => {
+  if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    return res.status(404).json({ success: false, error: 'Not found' });
+  }
+  try {
+    const deleted = await BlockedIP.findByIdAndDelete(req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ success: false, error: 'Not found' });
+    }
+    console.log(`[API ADMIN] IP unblocked: ${req.params.id} by ${req.user.email}`);
+    res.status(200).json({ success: true });
+  } catch (err: any) {
+    console.error('API blocked IP delete error:', err.message);
+    res.status(500).json({ success: false, error: 'Failed to unblock IP' });
   }
 });
 
