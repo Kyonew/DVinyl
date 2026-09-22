@@ -199,7 +199,16 @@ router.post('/account/avatar/import-gravatar', async (req: any, res: any) => {
     const hash = crypto.createHash('sha256').update(currentUser.email.trim().toLowerCase()).digest('hex');
     const gravatarUrl = `https://www.gravatar.com/avatar/${hash}?s=256&d=404`;
 
-    const gravatarRes = await fetch(gravatarUrl);
+    // fetch() rejects on DNS/connection/timeout failures; map those to the same 502 as
+    // an explicit non-ok response so an offline instance doesn't surface a 500.
+    let gravatarRes: any;
+    try {
+      gravatarRes = await fetch(gravatarUrl, { signal: AbortSignal.timeout(5000) });
+    } catch (fetchErr: any) {
+      console.error('API Gravatar fetch error:', fetchErr);
+      return res.status(502).json({ success: false, error: 'Gravatar fetch failed' });
+    }
+
     if (gravatarRes.status === 404) {
       return res.status(404).json({ success: false, error: 'No Gravatar found for this email' });
     }
@@ -207,9 +216,17 @@ router.post('/account/avatar/import-gravatar', async (req: any, res: any) => {
       return res.status(502).json({ success: false, error: 'Gravatar fetch failed' });
     }
 
+    const contentLength = gravatarRes.headers.get('content-length');
+    if (contentLength && Number(contentLength) > 5 * 1024 * 1024) {
+      return res.status(502).json({ success: false, error: 'Gravatar image too large' });
+    }
+
     const contentType = gravatarRes.headers.get('content-type') || 'image/jpeg';
     const ext = EXT_BY_CONTENT_TYPE[contentType] || '.jpg';
     const buffer = Buffer.from(await gravatarRes.arrayBuffer());
+    if (buffer.length > 5 * 1024 * 1024) {
+      return res.status(502).json({ success: false, error: 'Gravatar image too large' });
+    }
 
     if (!fs.existsSync(AVATARS_DIR)) fs.mkdirSync(AVATARS_DIR, { recursive: true });
     const filename = `avatar-${req.user._id}-${Date.now()}${ext}`;
