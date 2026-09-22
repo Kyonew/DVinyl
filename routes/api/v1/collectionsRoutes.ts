@@ -1,8 +1,13 @@
 import { Router } from 'express';
+import bcrypt from 'bcrypt';
 import multer from 'multer';
 import mongoose from 'mongoose';
+import QRCode from 'qrcode';
 import Item from '../../../models/Item';
 import Settings from '../../../models/Settings';
+import Collection from '../../../models/Collection';
+import PriceHistory from '../../../models/PriceHistory';
+import User from '../../../models/User';
 import { registry } from '../../../core/registry';
 import { editStamp, escapeRegExp, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback } from '../../../core/helpers';
 import { toApiItem } from '../../../core/apiSerializers';
@@ -10,12 +15,13 @@ import { buildFieldSuggestions } from '../../../core/fieldSuggestions';
 import { buildApiItemUpdateData } from '../../../core/apiItemPayload';
 import { getExtraFields, toFieldDefinitions } from '../../../core/pluginExtraFields';
 import { ItemImageValidationError } from '../../../core/itemImages';
-import { isJpegBuffer, MAX_ITEM_IMAGE_UPLOAD_BYTES, storeItemImage } from '../../../core/itemImageStorage';
+import { deleteUnusedManagedItemImages, isJpegBuffer, managedItemImagesForQuery, MAX_ITEM_IMAGE_UPLOAD_BYTES, storeItemImage } from '../../../core/itemImageStorage';
 import { requireApiAuth } from '../../../middleware/authMiddleware';
-import { requireApiCollectionRole } from '../../../middleware/apiAuthMiddleware';
-import { listUserCollectionsWithRole } from '../../../utils/collectionHelpers';
+import { requireApiAdmin, requireApiCollectionRole } from '../../../middleware/apiAuthMiddleware';
+import { generateShareToken, generateUniqueSlug, listUserCollectionsWithRole } from '../../../utils/collectionHelpers';
 import { resolveShelfItems } from '../../../utils/itemHelpers';
 import { applyVisibilityFilter, applyEnabledModulesFilter, applyContainedFilter } from '../../../utils/visibilityHelper';
+import { BASE_URL } from '../../../config/constants';
 
 const router = Router();
 
@@ -31,6 +37,28 @@ router.get('/collections', async (req: any, res: any) => {
   res.status(200).json({ collections });
 });
 
+router.post('/collections', requireApiAdmin, async (req: any, res: any) => {
+  const name = String(req.body.name || '').trim();
+  if (!name) {
+    return res.status(400).json({ success: false, error: 'name is required' });
+  }
+
+  try {
+    const slug = await generateUniqueSlug(name);
+    const created = await Collection.create({
+      name,
+      slug,
+      createdBy: req.user._id,
+      isDefault: false,
+      members: [{ user: req.user._id, role: 'admin' }]
+    });
+    res.status(201).json({ collection: { id: String(created._id), name: created.name, role: 'admin' } });
+  } catch (err: any) {
+    console.error('API collection create error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 /**
  * Settings are scoped per collection (models/Settings.ts). Fetched fresh here
  * rather than trusted from res.locals.settings, which middleware/settingsMiddleware.ts
@@ -44,6 +72,313 @@ async function getCollectionSettings(collectionId: any) {
     { upsert: true, new: true, setDefaultsOnInsert: true }
   ).lean();
 }
+
+const MEMBER_ROLES = ['admin', 'editor', 'viewer'];
+const createPassword = (length = 12): string => {
+  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+';
+  let password = '';
+  for (let i = 0; i < length; i++) password += chars.charAt(Math.floor(Math.random() * chars.length));
+  return password;
+};
+
+router.patch('/collections/:id', requireApiCollectionRole('admin'), async (req: any, res: any) => {
+  const name = String(req.body.name || '').trim();
+  if (!name) {
+    return res.status(400).json({ success: false, error: 'name is required' });
+  }
+  try {
+    await Collection.updateOne({ _id: req.apiCollection._id }, { $set: { name } });
+    res.status(200).json({ collection: { id: String(req.apiCollection._id), name } });
+  } catch (err: any) {
+    console.error('API collection rename error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.delete('/collections/:id', requireApiAdmin, async (req: any, res: any) => {
+  if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    return res.status(404).json({ success: false, error: 'Collection not found' });
+  }
+  const target = await Collection.findById(req.params.id);
+  if (!target) {
+    return res.status(404).json({ success: false, error: 'Collection not found' });
+  }
+  if (target.isDefault) {
+    return res.status(400).json({ success: false, error: 'The default collection cannot be deleted' });
+  }
+
+  try {
+    const itemImages = await managedItemImagesForQuery({ collection: target._id });
+    await Item.deleteMany({ collection: target._id });
+    await Settings.deleteMany({ collection: target._id });
+    await PriceHistory.deleteMany({ collection: target._id });
+    await User.updateMany({ lastActiveCollectionId: target._id }, { $set: { lastActiveCollectionId: null } });
+    await Collection.deleteOne({ _id: target._id });
+    try {
+      await deleteUnusedManagedItemImages(itemImages);
+    } catch (cleanupError) {
+      console.warn('[ITEM IMAGE] Collection cleanup failed:', cleanupError);
+    }
+    res.status(200).json({ success: true });
+  } catch (err: any) {
+    console.error('API collection delete error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.get('/collections/:id/members', requireApiCollectionRole('admin'), async (req: any, res: any) => {
+  const coll: any = await Collection.findById(req.apiCollection._id)
+    .populate('members.user', 'username email img isAdmin')
+    .lean();
+  const members = (coll?.members || [])
+    .filter((m: any) => m.user)
+    .map((m: any) => ({
+      userId: String(m.user._id),
+      username: m.user.username,
+      email: m.user.email,
+      img: m.user.img,
+      role: m.role
+    }));
+  res.status(200).json({ members });
+});
+
+router.post('/collections/:id/members', requireApiCollectionRole('admin'), async (req: any, res: any) => {
+  const role = MEMBER_ROLES.includes(req.body.role) ? req.body.role : 'viewer';
+  const collectionId = req.apiCollection._id;
+
+  try {
+    if (req.body.identifier) {
+      const identifier = String(req.body.identifier).trim();
+      const target: any = await User.findOne({
+        $or: [{ email: identifier.toLowerCase() }, { username: identifier }]
+      });
+      if (!target) {
+        return res.status(404).json({ success: false, error: 'User not found' });
+      }
+      const already = await Collection.findOne({ _id: collectionId, 'members.user': target._id });
+      if (already) {
+        return res.status(409).json({ success: false, error: 'User is already a member' });
+      }
+      await Collection.updateOne({ _id: collectionId }, { $addToSet: { members: { user: target._id, role } } });
+      return res.status(201).json({
+        member: { userId: String(target._id), username: target.username, email: target.email, role }
+      });
+    }
+
+    if (req.body.username && req.body.email) {
+      const password = createPassword();
+      const hashedPassword = await bcrypt.hash(password, 10);
+      // The hash is written in the single create: the User schema has no save hook, so
+      // creating with the plaintext and overwriting it would store it in the clear
+      // between the two writes.
+      const newUser = await User.create({ username: req.body.username, email: req.body.email, password: hashedPassword, lastChange: new Date() });
+      await Collection.updateOne({ _id: collectionId }, { $addToSet: { members: { user: newUser._id, role } } });
+      await User.updateOne({ _id: newUser._id }, { $set: { lastActiveCollectionId: collectionId } });
+      return res.status(201).json({
+        member: { userId: String(newUser._id), username: newUser.username, email: newUser.email, role },
+        generatedPassword: password
+      });
+    }
+
+    res.status(400).json({ success: false, error: 'Provide either identifier, or username + email' });
+  } catch (err: any) {
+    console.error('API member add error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/** True if the collection keeps at least one 'admin' member besides `excludedUserId`. */
+function hasAnotherCollectionAdmin(collectionDoc: any, excludedUserId: any): boolean {
+  return (collectionDoc?.members || []).some(
+    (m: any) => m.role === 'admin' && String(m.user) !== String(excludedUserId)
+  );
+}
+
+router.patch('/collections/:id/members/:userId', requireApiCollectionRole('admin'), async (req: any, res: any) => {
+  const { userId } = req.params;
+  const role = MEMBER_ROLES.includes(req.body.role) ? req.body.role : null;
+  if (!role || !mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({ success: false, error: 'Invalid role or userId' });
+  }
+  if (String(userId) === String(req.user._id)) {
+    return res.status(400).json({ success: false, error: 'Cannot change your own role' });
+  }
+
+  const coll: any = await Collection.findById(req.apiCollection._id);
+  const member = (coll?.members || []).find((m: any) => String(m.user) === String(userId));
+  if (!member) {
+    return res.status(404).json({ success: false, error: 'Member not found' });
+  }
+  if (member.role === 'admin' && role !== 'admin' && !hasAnotherCollectionAdmin(coll, userId)) {
+    return res.status(400).json({ success: false, error: 'Cannot demote the last admin' });
+  }
+
+  await Collection.updateOne(
+    { _id: req.apiCollection._id, 'members.user': userId },
+    { $set: { 'members.$.role': role } }
+  );
+  res.status(200).json({ success: true });
+});
+
+router.delete('/collections/:id/members/:userId', requireApiCollectionRole('admin'), async (req: any, res: any) => {
+  const { userId } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({ success: false, error: 'Invalid userId' });
+  }
+
+  const coll: any = await Collection.findById(req.apiCollection._id);
+  const member = (coll?.members || []).find((m: any) => String(m.user) === String(userId));
+  if (!member) {
+    return res.status(404).json({ success: false, error: 'Member not found' });
+  }
+  if (member.role === 'admin' && !hasAnotherCollectionAdmin(coll, userId)) {
+    return res.status(400).json({ success: false, error: 'Cannot remove the last admin' });
+  }
+
+  await Collection.updateOne({ _id: req.apiCollection._id }, { $pull: { members: { user: userId } } });
+  await User.updateOne(
+    { _id: userId, lastActiveCollectionId: req.apiCollection._id },
+    { $set: { lastActiveCollectionId: null } }
+  );
+  res.status(200).json({ success: true });
+});
+
+router.post('/collections/:id/members/:userId/reset-password', requireApiCollectionRole('admin'), async (req: any, res: any) => {
+  const { userId } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({ success: false, error: 'Invalid userId' });
+  }
+
+  const isMember = await Collection.findOne({ _id: req.apiCollection._id, 'members.user': userId });
+  const target: any = await User.findById(userId);
+  if (!isMember || !target || target.isAdmin) {
+    return res.status(404).json({ success: false, error: 'Member not found' });
+  }
+
+  const otherMembership = await Collection.findOne({
+    _id: { $ne: req.apiCollection._id },
+    'members.user': userId
+  });
+  if (otherMembership && !req.user.isAdmin) {
+    return res.status(403).json({ success: false, error: 'This member belongs to another collection too — only an instance admin can reset their password' });
+  }
+
+  const password = createPassword();
+  const hashedPassword = await bcrypt.hash(password, 10);
+  await User.updateOne({ _id: userId }, { $set: { password: hashedPassword, lastChange: new Date() } });
+  res.status(200).json({ generatedPassword: password });
+});
+
+/** Validates a JSON share scope against the registered plugins' real formats. */
+function validateShareScope(raw: any): { pluginId: string; formats: string[] }[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((entry: any) => {
+      const plugin = registry.get(String(entry?.pluginId || ''));
+      if (!plugin) return null;
+      const validFormats = new Set((plugin.formats || []).map((f: any) => f.value));
+      const formats = Array.isArray(entry.formats) ? entry.formats.filter((f: string) => validFormats.has(f)) : [];
+      return { pluginId: plugin.id, formats };
+    })
+    .filter((e): e is { pluginId: string; formats: string[] } => !!e);
+}
+
+/** The stored share link carries a Mongoose-injected _id on each scope entry; the API
+ *  shape is { pluginId, formats } only (matching what a client sends back). */
+function serializeShareLink(link: any) {
+  return {
+    token: link?.token,
+    label: link?.label || '',
+    enabled: link?.enabled !== false,
+    scope: (link?.scope || []).map((s: any) => ({ pluginId: s.pluginId, formats: s.formats || [] }))
+  };
+}
+
+router.get('/collections/:id/share-links', requireApiCollectionRole('admin'), async (req: any, res: any) => {
+  const coll: any = await Collection.findById(req.apiCollection._id).select('shareLinks').lean();
+  res.status(200).json({ shareLinks: (coll?.shareLinks || []).map(serializeShareLink) });
+});
+
+router.post('/collections/:id/share-links', requireApiCollectionRole('admin'), async (req: any, res: any) => {
+  const label = String(req.body.label || '').trim().slice(0, 60);
+  const scope = validateShareScope(req.body.scope);
+  const shareLink = { token: generateShareToken(), label, enabled: true, scope };
+
+  await Collection.updateOne({ _id: req.apiCollection._id }, { $push: { shareLinks: shareLink } });
+  res.status(201).json({ shareLink: serializeShareLink(shareLink) });
+});
+
+router.patch('/collections/:id/share-links/:token', requireApiCollectionRole('admin'), async (req: any, res: any) => {
+  const { token } = req.params;
+  const set: Record<string, any> = {};
+  if (typeof req.body.enabled === 'boolean') set['shareLinks.$.enabled'] = req.body.enabled;
+  if (typeof req.body.label === 'string') set['shareLinks.$.label'] = req.body.label.trim().slice(0, 60);
+  if (req.body.scope !== undefined) set['shareLinks.$.scope'] = validateShareScope(req.body.scope);
+
+  if (Object.keys(set).length === 0) {
+    return res.status(400).json({ success: false, error: 'Nothing to update' });
+  }
+
+  const result = await Collection.updateOne(
+    { _id: req.apiCollection._id, 'shareLinks.token': token },
+    { $set: set }
+  );
+  if (result.matchedCount === 0) {
+    return res.status(404).json({ success: false, error: 'Share link not found' });
+  }
+
+  const coll: any = await Collection.findOne(
+    { _id: req.apiCollection._id, 'shareLinks.token': token },
+    { 'shareLinks.$': 1 }
+  ).lean();
+  res.status(200).json({ shareLink: serializeShareLink(coll.shareLinks[0]) });
+});
+
+router.post('/collections/:id/share-links/:token/regenerate', requireApiCollectionRole('admin'), async (req: any, res: any) => {
+  const newToken = generateShareToken();
+  const result = await Collection.updateOne(
+    { _id: req.apiCollection._id, 'shareLinks.token': req.params.token },
+    { $set: { 'shareLinks.$.token': newToken, 'shareLinks.$.enabled': true } }
+  );
+  if (result.matchedCount === 0) {
+    return res.status(404).json({ success: false, error: 'Share link not found' });
+  }
+  const coll: any = await Collection.findOne(
+    { _id: req.apiCollection._id, 'shareLinks.token': newToken },
+    { 'shareLinks.$': 1 }
+  ).lean();
+  res.status(200).json({ shareLink: serializeShareLink(coll.shareLinks[0]) });
+});
+
+router.delete('/collections/:id/share-links/:token', requireApiCollectionRole('admin'), async (req: any, res: any) => {
+  const result = await Collection.updateOne(
+    { _id: req.apiCollection._id, 'shareLinks.token': req.params.token },
+    { $pull: { shareLinks: { token: req.params.token } } }
+  );
+  if (result.matchedCount === 0) {
+    return res.status(404).json({ success: false, error: 'Share link not found' });
+  }
+  res.status(200).json({ success: true });
+});
+
+router.get('/collections/:id/share-links/:token/qr.png', requireApiCollectionRole('admin'), async (req: any, res: any) => {
+  const coll = await Collection.findOne(
+    { _id: req.apiCollection._id, shareLinks: { $elemMatch: { token: req.params.token, enabled: true } } },
+    { _id: 1 }
+  );
+  if (!coll) {
+    return res.status(404).json({ success: false, error: 'Share link not found or disabled' });
+  }
+
+  // The API has no "public protocol" request context the way a browser request does
+  // (getPublicProtocol reads X-Forwarded-Proto); the share link itself is always
+  // reached over whatever scheme this DVinyl instance is actually served on, so the
+  // request's own protocol is correct here too.
+  const url = `${req.protocol}://${req.get('host')}${BASE_URL}/share/${req.params.token}`;
+  const png = await QRCode.toBuffer(url, { type: 'png', width: 320, margin: 1 });
+  res.set('Content-Type', 'image/png');
+  res.send(png);
+});
 
 router.get('/collections/:id/items', requireApiCollectionRole('viewer'), async (req: any, res: any) => {
   const settings: any = await getCollectionSettings(req.apiCollection._id);
