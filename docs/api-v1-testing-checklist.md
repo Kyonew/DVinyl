@@ -1,8 +1,10 @@
 # /api/v1 manual acceptance checklist
 
-No automated test suite in this project (see CLAUDE.md) — run this checklist by
-hand against a local `make dev` instance before merging any change to `/api/v1`.
-Replace `$BASE`, `you@example.com`/`yourpassword`, `$CID`, `$ITEMID` with real values.
+`/api/v1` now has an automated integration suite: run `npm test`. Use this page
+as the fallback checklist for what the suite cannot cover — the full-stack setup
+gate (`app.ts`'s 503 on a zero-user instance), IP blocking, and anything you want
+to confirm through a browser or a real mobile client. Replace `$BASE`,
+`you@example.com`/`yourpassword`, `$CID`, `$ITEMID` with real values.
 
 ## Setup
 ```bash
