@@ -11,7 +11,7 @@ import { getExtraFields, toFieldDefinitions } from '../../../core/pluginExtraFie
 import { buildApiItemUpdateData } from '../../../core/apiItemPayload';
 import { editStamp } from '../../../core/helpers';
 import { ItemImageValidationError } from '../../../core/itemImages';
-import { deleteItemsAndContents } from '../../../utils/itemHelpers';
+import { deleteItemsAndContents, moveContentsToWishlist } from '../../../utils/itemHelpers';
 
 const router = Router();
 
@@ -131,6 +131,56 @@ router.delete('/items/:itemId', requireApiAuth, async (req: any, res: any) => {
     res.status(200).json({ success: true, deleted });
   } catch (err: any) {
     console.error(`API delete error for item ${itemId}:`, err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/** Shared by both move routes: loads the item, checks editor role, returns it or sends the error response itself. */
+async function loadEditableItem(req: any, res: any): Promise<any | null> {
+  const { itemId } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(itemId)) {
+    res.status(404).json({ success: false, error: 'Item not found' });
+    return null;
+  }
+  const item: any = await Item.findById(itemId);
+  if (!item || !item.collection) {
+    res.status(404).json({ success: false, error: 'Item not found' });
+    return null;
+  }
+  const { role } = await resolveMemberRole(req.user, item.collection);
+  if (!roleAtLeast(role, 'editor')) {
+    res.status(403).json({ success: false, error: 'Forbidden' });
+    return null;
+  }
+  return item;
+}
+
+router.post('/items/:itemId/move-to-collection', requireApiAuth, async (req: any, res: any) => {
+  const item = await loadEditableItem(req, res);
+  if (!item) return;
+  try {
+    const stamp = editStamp(req.user._id);
+    item.set({ in_wishlist: false, added_at: new Date(), ...stamp });
+    await item.save();
+    await moveContentsToWishlist(item._id, false, stamp);
+    res.status(200).json({ success: true });
+  } catch (err: any) {
+    console.error(`API move-to-collection error for item ${req.params.itemId}:`, err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/items/:itemId/move-to-wishlist', requireApiAuth, async (req: any, res: any) => {
+  const item = await loadEditableItem(req, res);
+  if (!item) return;
+  try {
+    const stamp = editStamp(req.user._id);
+    item.set({ in_wishlist: true, added_at: new Date(), ...stamp });
+    await item.save();
+    await moveContentsToWishlist(item._id, true, stamp);
+    res.status(200).json({ success: true });
+  } catch (err: any) {
+    console.error(`API move-to-wishlist error for item ${req.params.itemId}:`, err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 });
