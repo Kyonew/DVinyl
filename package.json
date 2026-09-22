@@ -11,6 +11,7 @@
   "author": "Kyo'",
   "license": "ISC",
   "dependencies": {
+    "@scalar/express-api-reference": "^0.10.21",
     "bcrypt": "^5.1.1",
     "bwip-js": "^4.11.4",
     "cookie-parser": "^1.4.7",

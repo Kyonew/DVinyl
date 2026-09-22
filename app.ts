@@ -45,6 +45,7 @@ import backupRoutes from './routes/backupRoutes.js';
 import itemImageRoutes from './routes/itemImageRoutes.js';
 import oidcRoutes from './routes/oidcRoutes.js';
 import apiV1Routes from './routes/api/v1/index.js';
+import apiDocsRoutes from './routes/apiDocsRoutes.js';
 
 import dashboardRoute from './core/routes/dashboardRoute.js';
 import collectionRoute from './core/routes/collectionRoute.js';
@@ -116,6 +117,10 @@ app.use(BASE_URL, express.static(path.join(__dirname, 'public'), {
 }));
 // Mounted with the static assets: no session, no settings, no collection lookup needed
 app.use(BASE_URL + '/plugin-assets', pluginAssetRoutes);
+// Public API docs (Scalar UI + the OpenAPI document). Before the setup gate so a
+// fresh instance can read them; before the /api/v1 router so the spec path isn't
+// swallowed by its JSON 404 handling.
+app.use(BASE_URL, apiDocsRoutes);
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cookieParser());

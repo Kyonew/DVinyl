@@ -1,0 +1,3012 @@
+openapi: 3.1.0
+info:
+  title: DVinyl API
+  version: 1.0.0
+  license:
+    name: MIT
+    identifier: MIT
+  description: |
+    Mobile/native client API for a DVinyl instance, covering authentication,
+    collection and sharing management, the full item lifecycle, plugin metadata,
+    instance administration, and account settings.
+
+    All routes are mounted under `/api/v1`. Requests and responses are JSON
+    (`application/json`), except the two file-upload endpoints
+    (`multipart/form-data`) and the share-link QR endpoint (`image/png`).
+
+    Authentication is a JWT Bearer access token obtained from `POST /auth/login`.
+    Access tokens live 15 minutes (`expiresIn: 900`); use the rotating refresh
+    token from `POST /auth/refresh`. Collection-scoped routes are additionally
+    gated on the caller's role in the collection named in the path
+    (`viewer` < `editor` < `admin`); instance admins pass every collection role.
+    Admin routes require `isAdmin` on the account.
+
+    Error envelope: every failed response is `{ "success": false, "error": "..." }`
+    with the HTTP status appropriate to the cause. Success responses are
+    resource-shaped (e.g. `{ "item": ... }`, `{ "items": [...], "page": ... }`).
+
+    On an instance that has not completed first-run setup, every `/api/v1`
+    request returns `503` with `{ "success": false, "error": "Instance not set up yet" }`.
+servers:
+  - url: /api/v1
+    description: DVinyl instance, API v1
+security:
+  - bearerAuth: []
+tags:
+  - name: Auth
+    description: Login, token refresh/rotation, current account, logout.
+  - name: Collections
+    description: Collections, members, share links and browsing/statistics.
+  - name: Items
+    description: Single-item detail and item lifecycle operations.
+  - name: Plugins
+    description: Plugin metadata describing item types and their form fields.
+  - name: Admin
+    description: Instance-admin-only settings, users, blocked IPs and login logs.
+  - name: Account
+    description: Settings of the authenticated account (profile, password, avatar, SSO).
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      operationId: login
+      summary: Exchange email and password for a token pair
+      description: |
+        Authenticates a local (password) account and returns an access token plus a
+        rotating refresh token. Body must be JSON. Brute-force limited per email
+        (same gate as the web login); a temporarily blocked email returns 429.
+        Returns 403 when local login is disabled instance-wide (SSO enforced).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: you@example.com
+              password: correct horse battery staple
+      responses:
+        '200':
+          description: Authenticated. New access/refresh token pair.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokens'
+              example:
+                accessToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                refreshToken: 9f2c1d...e4a7
+                expiresIn: 900
+        '400':
+          description: Missing fields, or invalid credentials.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                missing:
+                  value: { success: false, error: 'email and password are required' }
+                invalid:
+                  value: { success: false, error: 'Invalid email or password' }
+        '403':
+          description: Local login is disabled on this instance.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'Local login is disabled on this instance' }
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /auth/me:
+    get:
+      tags: [Auth]
+      operationId: getCurrentUser
+      summary: Get the authenticated account and its collections
+      description: |
+        Returns the account profile and every collection the caller can access,
+        each with the caller's role. For an instance admin, `collections` lists
+        all collections with role `admin`.
+      responses:
+        '200':
+          description: Current account and its collections.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [user, collections]
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+                  collections:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Collection'
+              example:
+                user:
+                  id: 64f1c2a9e13b2a0012ab34cd
+                  username: siebe
+                  email: siebe@example.com
+                  isAdmin: true
+                  img: /uploads/avatars/avatar-64f1c2a9e13b2a0012ab34cd-1700000000000.jpg
+                  theme: dark
+                  language: en
+                  currency: EUR
+                  hasLocalPassword: true
+                  oidcLinked: false
+                collections:
+                  - { id: 64f1c2a9e13b2a0012ab34ce, name: Vinyl, role: admin }
+                  - { id: 64f1c2a9e13b2a0012ab34cf, name: Books, role: viewer }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      operationId: refreshToken
+      summary: Rotate a refresh token into a fresh token pair
+      description: |
+        Rotates on use: the presented refresh token is deleted and a new pair
+        issued, so a leaked token stops working after the rightful owner refreshes.
+        Body must be JSON. Does not require the Bearer access token.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+            example:
+              refreshToken: 9f2c1d...e4a7
+      responses:
+        '200':
+          description: New token pair.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokens'
+              example:
+                accessToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                refreshToken: 1a2b3c...9f8e
+                expiresIn: 900
+        '400':
+          description: refreshToken missing.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'refreshToken is required' }
+        '401':
+          description: Refresh token unknown, already rotated out, or expired.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'Invalid or expired refresh token' }
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logout
+      summary: Revoke one refresh token (this device)
+      description: |
+        Deletes the single refresh-token row matching the supplied token. Other
+        devices and web sessions are untouched. Idempotent. Body must be JSON.
+        Does not require the Bearer access token.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+            example:
+              refreshToken: 9f2c1d...e4a7
+      responses:
+        '200':
+          description: Token revoked (or already absent).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success]
+                properties:
+                  success: { type: boolean, enum: [true] }
+              example: { success: true }
+        '400':
+          description: refreshToken missing.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'refreshToken is required' }
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /collections:
+    get:
+      tags: [Collections]
+      operationId: listCollections
+      summary: List collections the caller can access
+      description: |
+        Every collection the caller is a member of, with the caller's role. For an
+        instance admin, all collections are returned with role `admin`.
+      responses:
+        '200':
+          description: Collections accessible to the caller.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [collections]
+                properties:
+                  collections:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Collection'
+              example:
+                collections:
+                  - { id: 64f1c2a9e13b2a0012ab34ce, name: Vinyl, role: admin }
+                  - { id: 64f1c2a9e13b2a0012ab34cf, name: Books, role: viewer }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    post:
+      tags: [Collections]
+      operationId: createCollection
+      summary: Create a new collection
+      description: |
+        Creates a collection owned by the caller, who becomes its `admin` member.
+        Subject to instance settings: non-admin users need member collection
+        creation enabled and must be under the per-user collection quota. Body
+        must be JSON. Returns 403 when disallowed or over quota, 400 for a blank name.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCollectionRequest'
+            example:
+              name: My Vinyls
+      responses:
+        '201':
+          description: Collection created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [collection]
+                properties:
+                  collection:
+                    $ref: '#/components/schemas/Collection'
+              example:
+                collection:
+                  id: 64f1c2a9e13b2a0012ab34ce
+                  name: My Vinyls
+                  role: admin
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Creating collections is not allowed, or the collection limit is reached.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                forbidden:
+                  value: { success: false, error: 'Creating collections is not allowed' }
+                quota:
+                  value: { success: false, error: 'Collection limit reached' }
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /collections/{id}:
+    patch:
+      tags: [Collections]
+      operationId: renameCollection
+      summary: Rename a collection
+      description: Requires `admin` role on the collection. Body must be JSON.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RenameCollectionRequest'
+            example:
+              name: 12-inch singles
+      responses:
+        '200':
+          description: Renamed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [collection]
+                properties:
+                  collection:
+                    type: object
+                    properties:
+                      id: { type: string }
+                      name: { type: string }
+              example:
+                collection: { id: 64f1c2a9e13b2a0012ab34ce, name: 12-inch singles }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    delete:
+      tags: [Collections]
+      operationId: deleteCollection
+      summary: Delete a collection and all of its contents
+      description: |
+        Instance-admin-only. Deletes the collection's items, settings, price
+        history and the collection itself, and clears any user's last-active
+        pointer to it. The default collection cannot be deleted (400).
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+      responses:
+        '200':
+          description: Deleted.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success]
+                properties:
+                  success: { type: boolean, enum: [true] }
+              example: { success: true }
+        '400':
+          description: The default collection cannot be deleted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'The default collection cannot be deleted' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /collections/{id}/members:
+    get:
+      tags: [Collections]
+      operationId: listCollectionMembers
+      summary: List a collection's members
+      description: Requires `admin` role on the collection.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+      responses:
+        '200':
+          description: Members with their roles.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [members]
+                properties:
+                  members:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CollectionMember'
+              example:
+                members:
+                  - userId: 64f1c2a9e13b2a0012ab34cd
+                    username: siebe
+                    email: siebe@example.com
+                    img: /ressources/no-pp.jpg
+                    role: admin
+                  - userId: 64f1c2a9e13b2a0012ab34c0
+                    username: guest
+                    email: guest@example.com
+                    img: /ressources/no-pp.jpg
+                    role: viewer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    post:
+      tags: [Collections]
+      operationId: addCollectionMember
+      summary: Add an existing user, or create a user and add them
+      description: |
+        Requires `admin` role on the collection. Body must be JSON. Two modes:
+
+        - `{ identifier }` — an existing user's username or email. Added with the
+          given `role` (default `viewer`).
+        - `{ username, email }` — creates a brand-new user with a server-generated
+          random password, which is returned as `generatedPassword` (show it to the
+          admin once; it is not stored in clear).
+
+        Returns 409 if the user is already a member, the identifier matches nobody
+        (404), or username/email collide.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberInviteRequest'
+            examples:
+              existing:
+                value: { identifier: 'guest@example.com', role: viewer }
+              newUser:
+                value: { username: guest, email: guest@example.com, role: editor }
+      responses:
+        '201':
+          description: Member added; `generatedPassword` only present for a newly created user.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [member]
+                properties:
+                  member:
+                    $ref: '#/components/schemas/CollectionMember'
+                  generatedPassword:
+                    type: string
+                    description: Present only when a new user was created.
+              examples:
+                existing:
+                  value:
+                    member:
+                      userId: 64f1c2a9e13b2a0012ab34c0
+                      username: guest
+                      email: guest@example.com
+                      role: viewer
+                newUser:
+                  value:
+                    member:
+                      userId: 64f1c2a9e13b2a0012ab34c1
+                      username: guest
+                      email: guest@example.com
+                      role: editor
+                    generatedPassword: 'k7@Rn2pQ!aZ4'
+        '400':
+          description: Neither identifier nor username+email supplied, or invalid input.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                missing:
+                  value: { success: false, error: 'Provide either identifier, or username + email' }
+                invalid:
+                  value: { success: false, error: 'Invalid username or email' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: No user matches the identifier.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'User not found' }
+        '409':
+          description: Already a member, or a user with that username/email exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                member:
+                  value: { success: false, error: 'User is already a member' }
+                user:
+                  value: { success: false, error: 'A user with that username or email already exists' }
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /collections/{id}/members/{userId}:
+    patch:
+      tags: [Collections]
+      operationId: updateCollectionMemberRole
+      summary: Change a member's role
+      description: |
+        Requires `admin` role on the collection. Body must be JSON. Refuses to
+        change your own role and to demote the last remaining admin.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberRoleRequest'
+            example:
+              role: editor
+      responses:
+        '200':
+          description: Role updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success]
+                properties:
+                  success: { type: boolean, enum: [true] }
+              example: { success: true }
+        '400':
+          description: Invalid role/userId, self-change, or demoting the last admin.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalid:
+                  value: { success: false, error: 'Invalid role or userId' }
+                self:
+                  value: { success: false, error: 'Cannot change your own role' }
+                lastAdmin:
+                  value: { success: false, error: 'Cannot demote the last admin' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Member not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'Member not found' }
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    delete:
+      tags: [Collections]
+      operationId: removeCollectionMember
+      summary: Remove a member from a collection
+      description: |
+        Requires `admin` role on the collection. Refuses to remove the last
+        remaining admin.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Member removed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success]
+                properties:
+                  success: { type: boolean, enum: [true] }
+              example: { success: true }
+        '400':
+          description: Invalid userId, or removing the last admin.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalid:
+                  value: { success: false, error: 'Invalid userId' }
+                lastAdmin:
+                  value: { success: false, error: 'Cannot remove the last admin' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Member not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'Member not found' }
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /collections/{id}/members/{userId}/reset-password:
+    post:
+      tags: [Collections]
+      operationId: resetCollectionMemberPassword
+      summary: Reset a collection member's password
+      description: |
+        Requires `admin` role on the collection. Generates a new random password
+        for the member and returns it once. Instance admins cannot be reset this
+        way (404). If the member also belongs to another collection, only an
+        instance admin may reset them (403).
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: New password generated and returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [generatedPassword]
+                properties:
+                  generatedPassword: { type: string }
+              example: { generatedPassword: 'g8#Lm2vQ!xW1' }
+        '400':
+          description: Invalid userId.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'Invalid userId' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Member belongs to another collection and caller is not an instance admin.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'This member belongs to another collection too — only an instance admin can reset their password' }
+        '404':
+          description: Member not found, or target is an instance admin.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'Member not found' }
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /collections/{id}/share-links:
+    get:
+      tags: [Collections]
+      operationId: listShareLinks
+      summary: List a collection's public share links
+      description: Requires `admin` role on the collection.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+      responses:
+        '200':
+          description: Share links.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [shareLinks]
+                properties:
+                  shareLinks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ShareLink'
+              example:
+                shareLinks:
+                  - token: 3f9a...c21b
+                    label: Vinyls only
+                    enabled: true
+                    scope:
+                      - pluginId: music
+                        formats: [vinyl, cd]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    post:
+      tags: [Collections]
+      operationId: createShareLink
+      summary: Create a share link
+      description: |
+        Requires `admin` role on the collection. Body must be JSON. A token is
+        generated server-side; the link is enabled by default. `scope` entries
+        naming unknown plugins or format values are dropped.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShareLinkRequest'
+            example:
+              label: Vinyls only
+              scope:
+                - pluginId: music
+                  formats: [vinyl, cd]
+      responses:
+        '201':
+          description: Share link created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [shareLink]
+                properties:
+                  shareLink:
+                    $ref: '#/components/schemas/ShareLink'
+              example:
+                shareLink:
+                  token: 3f9a...c21b
+                  label: Vinyls only
+                  enabled: true
+                  scope:
+                    - pluginId: music
+                      formats: [vinyl, cd]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /collections/{id}/share-links/{token}:
+    patch:
+      tags: [Collections]
+      operationId: updateShareLink
+      summary: Update a share link's label, enabled flag or scope
+      description: |
+        Requires `admin` role on the collection. Body must be JSON; only the keys
+        present are applied. Schema invalidity means `scope` is replaced with the
+        filtered valid entries. Returns 400 when no updatable key is present.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+        - $ref: '#/components/parameters/ShareToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShareLinkUpdateRequest'
+            example:
+              enabled: false
+              label: Books only
+      responses:
+        '200':
+          description: Updated share link.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [shareLink]
+                properties:
+                  shareLink:
+                    $ref: '#/components/schemas/ShareLink'
+              example:
+                shareLink:
+                  token: 3f9a...c21b
+                  label: Books only
+                  enabled: false
+                  scope: []
+        '400':
+          description: Nothing to update.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'Nothing to update' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Share link not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'Share link not found' }
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    delete:
+      tags: [Collections]
+      operationId: deleteShareLink
+      summary: Delete a share link
+      description: Requires `admin` role on the collection.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+        - $ref: '#/components/parameters/ShareToken'
+      responses:
+        '200':
+          description: Deleted.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success]
+                properties:
+                  success: { type: boolean, enum: [true] }
+              example: { success: true }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Share link not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'Share link not found' }
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /collections/{id}/share-links/{token}/regenerate:
+    post:
+      tags: [Collections]
+      operationId: regenerateShareLink
+      summary: Regenerate a share link's token and re-enable it
+      description: |
+        Requires `admin` role on the collection. Invalidates the old URL by
+        replacing the token and setting `enabled` back to true.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+        - $ref: '#/components/parameters/ShareToken'
+      responses:
+        '200':
+          description: Share link with its new token.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [shareLink]
+                properties:
+                  shareLink:
+                    $ref: '#/components/schemas/ShareLink'
+              example:
+                shareLink:
+                  token: 7b2e...d90a
+                  label: Vinyls only
+                  enabled: true
+                  scope: []
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Share link not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'Share link not found' }
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /collections/{id}/share-links/{token}/qr.png:
+    get:
+      tags: [Collections]
+      operationId: getShareLinkQr
+      summary: Render a share link as a PNG QR code
+      description: |
+        Requires `admin` role on the collection. Returns a 320px PNG QR code
+        encoding the public share URL. Only enabled links resolve.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+        - $ref: '#/components/parameters/ShareToken'
+      responses:
+        '200':
+          description: PNG QR code.
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Share link not found or disabled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'Share link not found or disabled' }
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /collections/{id}/items:
+    get:
+      tags: [Collections]
+      operationId: listCollectionItems
+      summary: Browse a collection's items
+      description: |
+        Requires at least `viewer` role on the collection. Returns non-wishlist
+        items newest-first, applying the collection's visibility and enabled-module
+        settings. `type` filters to one plugin kind (accepts a plugin id; `all` or
+        empty means everything). `search` case-insensitively matches title,
+        barcode, each plugin's creator field, and an exact item id.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+        - name: page
+          in: query
+          required: false
+          description: 1-based page number.
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: limit
+          in: query
+          required: false
+          description: Items per page (1-200).
+          schema: { type: integer, minimum: 1, maximum: 200, default: 25 }
+        - name: type
+          in: query
+          required: false
+          description: Plugin id to narrow to, or `all`.
+          schema: { type: string }
+        - name: search
+          in: query
+          required: false
+          description: Title/barcode/creator/id substring.
+          schema: { type: string }
+      responses:
+        '200':
+          description: Paginated items.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemPage'
+              example:
+                items:
+                  - id: 64f1c2a9e13b2a0012ab3500
+                    kind: music
+                    title: Discovery
+                    artist: Daft Punk
+                    year: '2001'
+                    cover_image: https://img.discogs.com/...
+                    quantity: 1
+                    in_wishlist: false
+                page: 1
+                limit: 25
+                totalItems: 42
+                totalPages: 2
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    post:
+      tags: [Items]
+      operationId: createItem
+      summary: Save (create) an item
+      description: |
+        Requires at least `editor` role on the collection. Body must be JSON — do
+        not send form-encoded data. When collection settings enable duplicate
+        merging, a matching existing item is merged (quantity added, empty fields
+        backfilled) and 200 returned with `merged: true`; otherwise 201 with the
+        new item. Plugins that own multi-document creation (e.g. TV shows) may
+        return 200 with `handled: true` instead. Image validation failures return
+        400 (`too many images`) or 413 (`images exceed the size limit`).
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateItemRequest'
+            example:
+              pluginId: music
+              title: Discovery
+              artist: Daft Punk
+              year: '2001'
+              quantity: 1
+              genres: [Electronic]
+              images: [https://img.discogs.com/...]
+      responses:
+        '200':
+          description: Item merged into an existing one, or handled by the plugin.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    required: [item]
+                    properties:
+                      item:
+                        $ref: '#/components/schemas/Item'
+                      merged: { type: boolean, enum: [true] }
+                  - type: object
+                    required: [success, handled]
+                    properties:
+                      success: { type: boolean, enum: [true] }
+                      handled: { type: boolean, enum: [true] }
+              examples:
+                merged:
+                  value:
+                    item:
+                      id: 64f1c2a9e13b2a0012ab3500
+                      kind: music
+                      title: Discovery
+                      artist: Daft Punk
+                      quantity: 2
+                    merged: true
+                handled:
+                  value: { success: true, handled: true }
+        '201':
+          description: Item created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [item]
+                properties:
+                  item:
+                    $ref: '#/components/schemas/Item'
+              example:
+                item:
+                  id: 64f1c2a9e13b2a0012ab3500
+                  kind: music
+                  title: Discovery
+                  artist: Daft Punk
+                  year: '2001'
+                  quantity: 1
+        '400':
+          description: Invalid body, or too many images.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'Too many images' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Unknown plugin.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'Unknown plugin' }
+        '413':
+          description: Images exceed the size limit.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'Images exceed the size limit' }
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /collections/{id}/items/search:
+    post:
+      tags: [Items]
+      operationId: searchItems
+      summary: Search an external provider for items to add
+      description: |
+        Requires at least `editor` role on the collection. Body must be JSON.
+        Dispatches to the named plugin's search provider. When the plugin supports
+        barcode search and `query` looks like a barcode, it is resolved to a title
+        first; an unresolvable barcode returns 200 with `results: []` and
+        `error: 'barcode_not_found'`. Provider failures return 502.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ItemSearchRequest'
+            example:
+              pluginId: music
+              query: Daft Punk Discovery
+              type: vinyl
+      responses:
+        '200':
+          description: Provider results (possibly empty).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [results, query]
+                properties:
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SearchResult'
+                  query: { type: string }
+                  scannedBarcode:
+                    type: string
+                    description: Present when a barcode was resolved.
+                  error:
+                    type: string
+                    description: Set to `barcode_not_found` when a barcode could not be resolved.
+              examples:
+                results:
+                  value:
+                    results:
+                      - id: '249504'
+                        title: Discovery
+                        creator: Daft Punk
+                        year: '2001'
+                    query: Daft Punk Discovery
+                barcodeNotFound:
+                  value:
+                    results: []
+                    query: '0190758926516'
+                    scannedBarcode: '0190758926516'
+                    error: barcode_not_found
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Unknown or non-searchable plugin.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'Unknown or non-searchable plugin' }
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /collections/{id}/items/confirm:
+    get:
+      tags: [Items]
+      operationId: confirmItem
+      summary: Fetch provider details for a search result (pre-save confirm)
+      description: |
+        Requires at least `editor` role on the collection. Resolves one provider
+        result by `externalId` and returns the item fields, suggested field values
+        drawn from the collection's existing data, and any potential duplicates.
+        Plugin-specific query parameters are forwarded to the provider. Provider
+        failures return 502.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+        - name: pluginId
+          in: query
+          required: true
+          description: Plugin id (must be searchable).
+          schema: { type: string }
+        - name: externalId
+          in: query
+          required: true
+          description: Provider-specific result id.
+          schema: { type: string }
+        - name: barcode
+          in: query
+          required: false
+          description: Barcode to attach to the resolved item.
+          schema: { type: string }
+      responses:
+        '200':
+          description: Resolved item details, field suggestions and duplicates.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [item, suggestions, duplicates]
+                properties:
+                  item:
+                    description: Provider detail fields plus common item fields.
+                    type: object
+                    additionalProperties: true
+                  suggestions:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items: { type: string }
+                  duplicates:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Item'
+              example:
+                item:
+                  title: Discovery
+                  artist: Daft Punk
+                  year: '2001'
+                  external_id: '249504'
+                suggestions:
+                  genres: [Electronic, House]
+                duplicates: []
+        '400':
+          description: externalId missing.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'externalId is required' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Unknown or non-searchable plugin.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'Unknown or non-searchable plugin' }
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /collections/{id}/item-images:
+    post:
+      tags: [Items]
+      operationId: uploadItemImage
+      summary: Upload a JPEG item image
+      description: |
+        Requires at least `editor` role on the collection. Multipart upload with a
+        single file part named `image`. Only JPEG is accepted (verified by content,
+        not just MIME type); max 5 MB. Returns the managed URL to reference in a
+        subsequent item create/edit.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image:
+                  type: string
+                  format: binary
+                  description: JPEG file, max 5 MB.
+      responses:
+        '201':
+          description: Image stored.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, url]
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  url: { type: string }
+              example:
+                success: true
+                url: /uploads/items/7f3a9c21.jpg
+        '400':
+          description: Invalid upload or a non-JPEG file.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalid:
+                  value: { success: false, error: 'Invalid upload' }
+                notJpeg:
+                  value: { success: false, error: 'Only JPEG images are accepted' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '413':
+          description: File exceeds 5 MB.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'Image too large' }
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /collections/{id}/stats:
+    get:
+      tags: [Collections]
+      operationId: getCollectionStats
+      summary: Get aggregate statistics for a collection
+      description: |
+        Requires at least `viewer` role on the collection. Counts non-wishlist
+        items (summing quantities) and merges each enabled plugin's own statistics
+        into the `stats` object.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+      responses:
+        '200':
+          description: Collection statistics.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [stats]
+                properties:
+                  stats:
+                    $ref: '#/components/schemas/Stats'
+              example:
+                stats:
+                  total: 42
+                  music: 30
+                  books: 12
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /items/{itemId}:
+    get:
+      tags: [Items]
+      operationId: getItem
+      summary: Get a single item
+      description: |
+        Requires an authenticated user with at least `viewer` role on the item's
+        collection. An item hidden by the collection's visibility settings returns
+        404, matching the listing endpoints.
+      parameters:
+        - $ref: '#/components/parameters/ItemId'
+      responses:
+        '200':
+          description: Full item detail.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [item]
+                properties:
+                  item:
+                    $ref: '#/components/schemas/Item'
+              example:
+                item:
+                  id: 64f1c2a9e13b2a0012ab3500
+                  kind: music
+                  title: Discovery
+                  artist: Daft Punk
+                  year: '2001'
+                  cover_image: https://img.discogs.com/...
+                  quantity: 1
+                  in_wishlist: false
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not a member of the item's collection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'Forbidden' }
+        '404':
+          description: Item not found, or hidden by collection visibility settings.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'Item not found' }
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    patch:
+      tags: [Items]
+      operationId: updateItem
+      summary: Edit an item
+      description: |
+        Requires at least `editor` role on the item's collection. Body must be
+        JSON. Partial: only keys present are written, so omitted fields keep their
+        stored values. Image validation failures return 400 or 413.
+      parameters:
+        - $ref: '#/components/parameters/ItemId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateItemRequest'
+            example:
+              title: Discovery (remaster)
+              quantity: 2
+              comments: Bought at the flea market
+      responses:
+        '200':
+          description: Updated item.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [item]
+                properties:
+                  item:
+                    $ref: '#/components/schemas/Item'
+              example:
+                item:
+                  id: 64f1c2a9e13b2a0012ab3500
+                  kind: music
+                  title: Discovery (remaster)
+                  quantity: 2
+                  comments: Bought at the flea market
+        '400':
+          description: Too many images.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'Too many images' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not at least an editor on the item's collection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'Forbidden' }
+        '404':
+          description: Item not found, or its type is not a registered plugin.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'Item not found' }
+        '413':
+          description: Images exceed the size limit.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'Images exceed the size limit' }
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    delete:
+      tags: [Items]
+      operationId: deleteItem
+      summary: Delete an item and its contents
+      description: Requires at least `editor` role on the item's collection.
+      parameters:
+        - $ref: '#/components/parameters/ItemId'
+      responses:
+        '200':
+          description: Deleted; `deleted` is the number of documents removed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, deleted]
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  deleted: { type: integer }
+              example: { success: true, deleted: 1 }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not at least an editor on the item's collection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'Forbidden' }
+        '404':
+          description: Item not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'Item not found' }
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /items/{itemId}/move-to-collection:
+    post:
+      tags: [Items]
+      operationId: moveItemToCollection
+      summary: Move an item out of the wishlist into the collection
+      description: |
+        Requires at least `editor` role on the item's collection. Clears
+        `in_wishlist`, re-dates the item and moves its contained items too.
+      parameters:
+        - $ref: '#/components/parameters/ItemId'
+      responses:
+        '200':
+          description: Moved.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success]
+                properties:
+                  success: { type: boolean, enum: [true] }
+              example: { success: true }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not at least an editor on the item's collection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'Forbidden' }
+        '404':
+          description: Item not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'Item not found' }
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /items/{itemId}/move-to-wishlist:
+    post:
+      tags: [Items]
+      operationId: moveItemToWishlist
+      summary: Move an item from the collection into the wishlist
+      description: |
+        Requires at least `editor` role on the item's collection. Sets
+        `in_wishlist`, re-dates the item and moves its contained items too.
+      parameters:
+        - $ref: '#/components/parameters/ItemId'
+      responses:
+        '200':
+          description: Moved.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success]
+                properties:
+                  success: { type: boolean, enum: [true] }
+              example: { success: true }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not at least an editor on the item's collection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'Forbidden' }
+        '404':
+          description: Item not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'Item not found' }
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /items/{itemId}/refresh-info:
+    post:
+      tags: [Items]
+      operationId: refreshItemInfo
+      summary: Re-fetch an item's metadata from its provider
+      description: |
+        Requires at least `editor` role on the item's collection. Only available
+        for plugins that implement metadata refresh; others return 404. On
+        success the item's cover image is kept aligned in the gallery.
+      parameters:
+        - $ref: '#/components/parameters/ItemId'
+      responses:
+        '200':
+          description: Refreshed item.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [item]
+                properties:
+                  item:
+                    $ref: '#/components/schemas/Item'
+              example:
+                item:
+                  id: 64f1c2a9e13b2a0012ab3500
+                  kind: music
+                  title: Discovery
+                  artist: Daft Punk
+                  cover_image: https://img.discogs.com/...
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not at least an editor on the item's collection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'Forbidden' }
+        '404':
+          description: Item not found, or the type does not support refresh.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                item:
+                  value: { success: false, error: 'Item not found' }
+                unsupported:
+                  value: { success: false, error: 'This item type does not support metadata refresh' }
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /plugins:
+    get:
+      tags: [Plugins]
+      operationId: listPlugins
+      summary: List plugin metadata
+      description: |
+        Returns one entry per registered plugin (all media types) with the fields
+        a client needs to render add/edit/search UIs: form fields, formats, creator
+        and external-id field names, and capability flags. No per-plugin code is
+        needed client-side.
+      responses:
+        '200':
+          description: Registered plugins.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [plugins]
+                properties:
+                  plugins:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Plugin'
+              example:
+                plugins:
+                  - id: music
+                    kind: music
+                    label: Music
+                    icon: disc
+                    routePrefix: music
+                    collectionType: music
+                    creatorField: artist
+                    externalIdField: discogs_id
+                    externalIdLabel: Discogs ID
+                    externalIdHint: Numeric Discogs release id
+                    supportsBarcodeSearch: true
+                    supportsPriceEstimate: true
+                    formats:
+                      - { value: vinyl, label: Vinyl, color: '#1f2937' }
+                      - { value: cd, label: CD, color: '#6b7280' }
+                    formFields:
+                      - name: title
+                        label: Title
+                        type: text
+                        required: true
+                        showIn: [add, edit, confirm]
+                        group: main
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /admin/instance-settings:
+    get:
+      tags: [Admin]
+      operationId: getInstanceSettings
+      summary: Get instance-wide settings
+      description: Requires an instance-admin account.
+      responses:
+        '200':
+          description: Current instance settings.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [settings]
+                properties:
+                  settings:
+                    $ref: '#/components/schemas/InstanceSettings'
+              example:
+                settings:
+                  allowMemberCollectionCreation: false
+                  maxCollectionsPerUser: 1
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    patch:
+      tags: [Admin]
+      operationId: updateInstanceSettings
+      summary: Update instance-wide settings
+      description: |
+        Requires an instance-admin account. Body must be JSON. Only recognized
+        keys are applied; `maxCollectionsPerUser` is clamped to 1-100.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InstanceSettingsUpdateRequest'
+            example:
+              allowMemberCollectionCreation: true
+              maxCollectionsPerUser: 3
+      responses:
+        '200':
+          description: Updated settings.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [settings]
+                properties:
+                  settings:
+                    $ref: '#/components/schemas/InstanceSettings'
+              example:
+                settings:
+                  allowMemberCollectionCreation: true
+                  maxCollectionsPerUser: 3
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /admin/users:
+    get:
+      tags: [Admin]
+      operationId: listUsers
+      summary: List all users
+      description: Requires an instance-admin account. Sorted by last change, newest first.
+      responses:
+        '200':
+          description: All users.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [users]
+                properties:
+                  users:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AdminUser'
+              example:
+                users:
+                  - id: 64f1c2a9e13b2a0012ab34cd
+                    username: siebe
+                    email: siebe@example.com
+                    isAdmin: true
+                    lastChange: '2026-09-01T12:00:00.000Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    post:
+      tags: [Admin]
+      operationId: createUser
+      summary: Create a user
+      description: |
+        Requires an instance-admin account. Body must be JSON. Creates a
+        non-admin user with a server-generated random password returned as
+        `generatedPassword`. 409 on a username/email collision.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreateRequest'
+            example:
+              username: guest
+              email: guest@example.com
+      responses:
+        '201':
+          description: User created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [user, generatedPassword]
+                properties:
+                  user:
+                    $ref: '#/components/schemas/AdminUser'
+                  generatedPassword: { type: string }
+              example:
+                user:
+                  id: 64f1c2a9e13b2a0012ab34c1
+                  username: guest
+                  email: guest@example.com
+                  isAdmin: false
+                generatedPassword: 'k7@Rn2pQ!aZ4'
+        '400':
+          description: Missing fields or invalid username/email.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                missing:
+                  value: { success: false, error: 'username and email are required' }
+                invalid:
+                  value: { success: false, error: 'Invalid username or email' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: Username or email already exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'A user with that username or email already exists' }
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /admin/users/{userId}/reset-password:
+    post:
+      tags: [Admin]
+      operationId: resetUserPassword
+      summary: Reset a user's password
+      description: |
+        Requires an instance-admin account. Generates and returns a new random
+        password. Instance admins may reset their own password but not another
+        admin's (403).
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: New password generated and returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [generatedPassword]
+                properties:
+                  generatedPassword: { type: string }
+              example: { generatedPassword: 'g8#Lm2vQ!xW1' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Target is another instance admin.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: "Cannot reset another admin's password" }
+        '404':
+          description: User not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'User not found' }
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /admin/users/{userId}:
+    delete:
+      tags: [Admin]
+      operationId: deleteUser
+      summary: Delete a user
+      description: |
+        Requires an instance-admin account. Refuses to delete your own account
+        (400) or another instance admin (403). Also removes the user from every
+        collection's membership list.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: User deleted.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success]
+                properties:
+                  success: { type: boolean, enum: [true] }
+              example: { success: true }
+        '400':
+          description: Attempt to delete your own account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'Cannot delete your own account' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Target is another instance admin.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'Cannot delete another admin' }
+        '404':
+          description: User not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'User not found' }
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /admin/blocked-ips:
+    get:
+      tags: [Admin]
+      operationId: listBlockedIps
+      summary: List blocked IP addresses
+      description: Requires an instance-admin account. Newest first.
+      responses:
+        '200':
+          description: Blocked IPs.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [blockedIps]
+                properties:
+                  blockedIps:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BlockedIp'
+              example:
+                blockedIps:
+                  - id: 64f1c2a9e13b2a0012ab3600
+                    ip: 203.0.113.7
+                    createdAt: '2026-09-10T08:30:00.000Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    post:
+      tags: [Admin]
+      operationId: blockIp
+      summary: Block an IP address
+      description: |
+        Requires an instance-admin account. Body must be JSON. Blocking an
+        already-blocked IP returns 200 with the existing entry; otherwise 201.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BlockedIpRequest'
+            example:
+              ip: 203.0.113.7
+      responses:
+        '200':
+          description: IP was already blocked.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [blockedIp]
+                properties:
+                  blockedIp:
+                    $ref: '#/components/schemas/BlockedIp'
+              example:
+                blockedIp:
+                  id: 64f1c2a9e13b2a0012ab3600
+                  ip: 203.0.113.7
+                  createdAt: '2026-09-10T08:30:00.000Z'
+        '201':
+          description: IP blocked.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [blockedIp]
+                properties:
+                  blockedIp:
+                    $ref: '#/components/schemas/BlockedIp'
+              example:
+                blockedIp:
+                  id: 64f1c2a9e13b2a0012ab3601
+                  ip: 198.51.100.4
+                  createdAt: '2026-09-11T09:15:00.000Z'
+        '400':
+          description: ip missing.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'ip is required' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /admin/blocked-ips/{id}:
+    delete:
+      tags: [Admin]
+      operationId: unblockIp
+      summary: Unblock an IP address
+      description: Requires an instance-admin account.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Blocked-IP document id.
+          schema: { type: string }
+      responses:
+        '200':
+          description: IP unblocked.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success]
+                properties:
+                  success: { type: boolean, enum: [true] }
+              example: { success: true }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'Not found' }
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /admin/login-logs:
+    get:
+      tags: [Admin]
+      operationId: listLoginLogs
+      summary: List recent login attempts
+      description: Requires an instance-admin account. Newest first, capped at 200.
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: Maximum entries to return (1-200).
+          schema: { type: integer, minimum: 1, maximum: 200, default: 20 }
+      responses:
+        '200':
+          description: Login log entries.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [logs]
+                properties:
+                  logs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/LoginLog'
+              example:
+                logs:
+                  - id: 64f1c2a9e13b2a0012ab3700
+                    username: siebe
+                    email: siebe@example.com
+                    ip: 198.51.100.4
+                    country: Belgium
+                    city: Ghent
+                    userAgent: Mozilla/5.0 ...
+                    status: success
+                    timestamp: '2026-09-11T09:15:00.000Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    delete:
+      tags: [Admin]
+      operationId: deleteLoginLogs
+      summary: Delete the most recent login log entries
+      description: |
+        Requires an instance-admin account. Deletes the `count` newest entries.
+        `count` is required, must be at least 1, and cannot exceed 10000.
+      parameters:
+        - name: count
+          in: query
+          required: true
+          description: Number of newest entries to delete (1-10000).
+          schema: { type: integer, minimum: 1, maximum: 10000 }
+      responses:
+        '200':
+          description: Entries deleted.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deleted]
+                properties:
+                  deleted: { type: integer }
+              example: { deleted: 20 }
+        '400':
+          description: Missing, non-positive, or over-cap count.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                required:
+                  value: { success: false, error: 'count is required and must be >= 1' }
+                tooHigh:
+                  value: { success: false, error: 'count must be <= 10000' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /account:
+    patch:
+      tags: [Account]
+      operationId: updateAccountProfile
+      summary: Update the account's profile fields
+      description: |
+        Updates the caller's own account. Body must be JSON; only the keys present
+        are applied. `theme` is `light` or `dark`; `language` is one of
+        `fr`, `en`, `de`, `es`, `it`; `currency` is `EUR`, `USD` or `GBP`. A taken
+        username returns 409; an empty/invalid value or no recognized key returns 400.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileUpdateRequest'
+            example:
+              username: siebe
+              theme: dark
+              language: en
+              currency: EUR
+      responses:
+        '200':
+          description: Updated profile subset.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [user]
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+              example:
+                user:
+                  username: siebe
+                  theme: dark
+                  language: en
+                  currency: EUR
+        '400':
+          description: Invalid value, empty username, or nothing to update.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                empty:
+                  value: { success: false, error: 'username cannot be empty' }
+                theme:
+                  value: { success: false, error: 'Invalid theme' }
+                language:
+                  value: { success: false, error: 'Invalid language' }
+                currency:
+                  value: { success: false, error: 'Unsupported currency' }
+                nothing:
+                  value: { success: false, error: 'Nothing to update' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Username already taken.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'Username already taken' }
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /account/username-available:
+    get:
+      tags: [Account]
+      operationId: checkUsernameAvailable
+      summary: Check whether a username is free
+      description: |
+        Returns whether `username` is available for the caller. The caller's own
+        current username always reports available.
+      parameters:
+        - name: username
+          in: query
+          required: true
+          description: Username to check.
+          schema: { type: string }
+      responses:
+        '200':
+          description: Availability result.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [available]
+                properties:
+                  available: { type: boolean }
+              example: { available: true }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /account/password:
+    post:
+      tags: [Account]
+      operationId: changeAccountPassword
+      summary: Change the account's local password
+      description: |
+        Body must be JSON. `newPassword` must be at least 8 characters.
+        `currentPassword` is verified and wrong attempts are rate-limited per
+        account (429 once blocked). SSO-only accounts have no local password and
+        return 400. On success every refresh token for the account is revoked,
+        including the caller's, so the client must re-login with the new password.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordChangeRequest'
+            example:
+              currentPassword: correct horse battery staple
+              newPassword: new correct horse battery
+      responses:
+        '200':
+          description: Password changed; all refresh tokens revoked.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success]
+                properties:
+                  success: { type: boolean, enum: [true] }
+              example: { success: true }
+        '400':
+          description: New password too short, current password wrong, or SSO-only account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                short:
+                  value: { success: false, error: 'newPassword must be at least 8 characters' }
+                wrong:
+                  value: { success: false, error: 'Current password is incorrect' }
+                sso:
+                  value: { success: false, error: 'This account has no local password (SSO-only)' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /account/avatar:
+    post:
+      tags: [Account]
+      operationId: uploadAccountAvatar
+      summary: Upload an avatar image
+      description: |
+        Multipart upload with a single file part named `avatar`. Accepted types
+        are JPEG, PNG, GIF and WEBP; max 5 MB. Replaces and deletes any previous
+        uploaded avatar.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [avatar]
+              properties:
+                avatar:
+                  type: string
+                  format: binary
+                  description: JPEG, PNG, GIF or WEBP file, max 5 MB.
+      responses:
+        '200':
+          description: Avatar updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [avatarPath]
+                properties:
+                  avatarPath: { type: string }
+              example: { avatarPath: /uploads/avatars/avatar-64f1c2a9e13b2a0012ab34cd-1700000000000.jpg }
+        '400':
+          description: No file, or unsupported format.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'No file uploaded, or unsupported format' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '413':
+          description: File exceeds 5 MB.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'File too large (max 5MB)' }
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    delete:
+      tags: [Account]
+      operationId: removeAccountAvatar
+      summary: Remove the account's uploaded avatar
+      description: Deletes any uploaded avatar file and resets the account to the default image.
+      responses:
+        '200':
+          description: Avatar removed; default path returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [avatarPath]
+                properties:
+                  avatarPath: { type: string }
+              example: { avatarPath: /ressources/no-pp.jpg }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /account/avatar/import-gravatar:
+    post:
+      tags: [Account]
+      operationId: importGravatar
+      summary: Import the account's Gravatar as its avatar
+      description: |
+        Looks up a Gravatar for the account's email (SHA-256, 256px,
+        `d=404`). Returns 404 when no Gravatar exists, 502 when the lookup fails
+        or the image is too large, 500 on an internal failure.
+      responses:
+        '200':
+          description: Avatar imported from Gravatar.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [avatarPath]
+                properties:
+                  avatarPath: { type: string }
+              example: { avatarPath: /uploads/avatars/avatar-64f1c2a9e13b2a0012ab34cd-1700000000000.jpg }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: No Gravatar found for this email.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'No Gravatar found for this email' }
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '502':
+          description: Gravatar lookup failed or image too large.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                failed:
+                  value: { success: false, error: 'Gravatar fetch failed' }
+                tooLarge:
+                  value: { success: false, error: 'Gravatar image too large' }
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /account/oidc/unlink:
+    post:
+      tags: [Account]
+      operationId: unlinkOidc
+      summary: Unlink the account's SSO (OIDC) identity
+      description: |
+        Refuses (400) when the account has no local password or when local login
+        is disabled instance-wide, since either would lock the account out.
+      responses:
+        '200':
+          description: SSO identity unlinked.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success]
+                properties:
+                  success: { type: boolean, enum: [true] }
+              example: { success: true }
+        '400':
+          description: Account has no local password, or local login is disabled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'Cannot unlink SSO from an account with no local password' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Access token from `POST /auth/login` (15-minute lifetime).
+  parameters:
+    CollectionId:
+      name: id
+      in: path
+      required: true
+      description: Collection id (Mongo ObjectId).
+      schema: { type: string }
+    ItemId:
+      name: itemId
+      in: path
+      required: true
+      description: Item id (Mongo ObjectId).
+      schema: { type: string }
+    UserId:
+      name: userId
+      in: path
+      required: true
+      description: User id (Mongo ObjectId).
+      schema: { type: string }
+    ShareToken:
+      name: token
+      in: path
+      required: true
+      description: Share-link token.
+      schema: { type: string }
+  responses:
+    BadRequest:
+      description: Invalid or missing request data.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example: { success: false, error: 'name is required' }
+    Unauthorized:
+      description: Missing, invalid or expired Bearer token.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            missing:
+              value: { success: false, error: 'Missing bearer token' }
+            invalid:
+              value: { success: false, error: 'Invalid or expired token' }
+    Forbidden:
+      description: Authenticated, but lacking the required role or instance-admin flag.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example: { success: false, error: 'Forbidden' }
+    NotFound:
+      description: The named resource does not exist.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example: { success: false, error: 'Collection not found' }
+    TooManyRequests:
+      description: Rate-limited after repeated failed attempts.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example: { success: false, error: 'Too many failed attempts. Try again later.' }
+    BadGateway:
+      description: An upstream provider (search/metadata/Gravatar) failed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example: { success: false, error: 'Search provider error: upstream timeout' }
+    InternalServerError:
+      description: Unexpected server error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example: { success: false, error: 'Internal server error' }
+    ServiceUnavailable:
+      description: The instance has not completed first-run setup; all `/api/v1` routes return this.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example: { success: false, error: 'Instance not set up yet' }
+  schemas:
+    Error:
+      type: object
+      required: [success, error]
+      properties:
+        success: { type: boolean, enum: [false] }
+        error: { type: string }
+        code:
+          type: string
+          description: Optional machine-readable code; not used by every handler.
+      example: { success: false, error: 'Invalid email or password' }
+    AuthTokens:
+      type: object
+      required: [accessToken, refreshToken, expiresIn]
+      properties:
+        accessToken:
+          type: string
+          description: JWT Bearer access token.
+        refreshToken:
+          type: string
+          description: Opaque rotating refresh token.
+        expiresIn:
+          type: integer
+          description: Access-token lifetime in seconds (900).
+          example: 900
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, format: password }
+    RefreshRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken: { type: string }
+    LogoutRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken: { type: string }
+    User:
+      type: object
+      description: Account profile; subsets are returned by some endpoints.
+      properties:
+        id: { type: string }
+        username: { type: string }
+        email: { type: string, format: email }
+        isAdmin: { type: boolean }
+        img: { type: string }
+        theme: { type: string, enum: [light, dark] }
+        language: { type: string, enum: [fr, en, de, es, it] }
+        currency: { type: string, enum: [EUR, USD, GBP] }
+        hasLocalPassword: { type: boolean }
+        oidcLinked: { type: boolean }
+    AdminUser:
+      type: object
+      properties:
+        id: { type: string }
+        username: { type: string }
+        email: { type: string, format: email }
+        isAdmin: { type: boolean }
+        lastChange: { type: string, format: date-time }
+    Collection:
+      type: object
+      required: [id, name, role]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        role:
+          type: string
+          enum: [admin, editor, viewer]
+          description: The caller's role on this collection.
+    CollectionMember:
+      type: object
+      required: [userId, username, email, role]
+      properties:
+        userId: { type: string }
+        username: { type: string }
+        email: { type: string, format: email }
+        img: { type: string }
+        role: { type: string, enum: [admin, editor, viewer] }
+    ShareScopeEntry:
+      type: object
+      required: [pluginId, formats]
+      properties:
+        pluginId: { type: string }
+        formats:
+          type: array
+          items: { type: string }
+          description: Format values within the plugin; empty means all formats.
+    ShareLink:
+      type: object
+      required: [token, label, enabled, scope]
+      properties:
+        token: { type: string }
+        label: { type: string }
+        enabled: { type: boolean }
+        scope:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShareScopeEntry'
+    FormField:
+      type: object
+      properties:
+        name: { type: string }
+        label: { type: string }
+        type:
+          type: string
+          enum: [text, number, select, radio-cards, boolean, rating, hidden, tags, textarea, date, custom]
+        required: { type: boolean }
+        options:
+          type: array
+          items:
+            type: object
+            properties:
+              value: { type: string }
+              label: { type: string }
+              icon: { type: string }
+        default: {}
+        showIn:
+          type: array
+          items: { type: string, enum: [edit, add, confirm, detail, manual] }
+        group: { type: string, enum: [main, metadata, status, hidden] }
+        placeholder: { type: string }
+        hint: { type: string }
+    PluginFormat:
+      type: object
+      properties:
+        value: { type: string }
+        label: { type: string }
+        color: { type: string }
+    Plugin:
+      type: object
+      required: [id, kind, label, formFields]
+      properties:
+        id: { type: string }
+        kind: { type: string }
+        label: { type: string }
+        icon: { type: string }
+        routePrefix: { type: string }
+        collectionType: { type: string }
+        formFields:
+          type: array
+          items:
+            $ref: '#/components/schemas/FormField'
+        formats:
+          type: array
+          items:
+            $ref: '#/components/schemas/PluginFormat'
+        creatorField: { type: string }
+        externalIdField: { type: string }
+        externalIdLabel: { type: string }
+        externalIdHint: { type: string }
+        supportsBarcodeSearch: { type: boolean }
+        supportsPriceEstimate: { type: boolean }
+    Item:
+      type: object
+      description: |
+        Plugin-shaped item, as produced by the plugin's `formatForView`.
+        Always carries `id` and `kind`; the remaining fields depend on the
+        plugin (e.g. `artist` for music, `author` for books). Only the common
+        core fields are enumerated here.
+      required: [id, kind]
+      additionalProperties: true
+      properties:
+        id: { type: string }
+        kind: { type: string }
+        title: { type: string }
+        year: { type: string }
+        cover_image: { type: string }
+        user_image: { type: string }
+        images:
+          type: array
+          items: { type: string }
+        comments: { type: string }
+        location: { type: string }
+        quantity: { type: integer, minimum: 1 }
+        genre: { type: string }
+        genres:
+          type: array
+          items: { type: string }
+        styles:
+          type: array
+          items: { type: string }
+        barcode: { type: string }
+        barcode_locked: { type: boolean }
+        in_wishlist: { type: boolean }
+        added_at: { type: string, format: date-time }
+        modified_at: { type: string, format: date-time }
+        synced_at: { type: string, format: date-time }
+        extra:
+          type: object
+          additionalProperties: true
+    ItemPage:
+      type: object
+      required: [items, page, limit, totalItems, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Item'
+        page: { type: integer }
+        limit: { type: integer }
+        totalItems: { type: integer }
+        totalPages: { type: integer }
+    SearchResult:
+      type: object
+      required: [id, title]
+      additionalProperties: true
+      properties:
+        id: { type: string }
+        title: { type: string }
+        creator: { type: string }
+        year: { type: string }
+        cover_image: { type: string }
+        images:
+          type: array
+          items: { type: string }
+    Stats:
+      type: object
+      description: Free-form aggregate counts; `total` plus one key per enabled plugin.
+      additionalProperties: true
+      properties:
+        total: { type: integer }
+    BlockedIp:
+      type: object
+      required: [id, ip]
+      properties:
+        id: { type: string }
+        ip: { type: string }
+        createdAt: { type: string, format: date-time }
+    LoginLog:
+      type: object
+      properties:
+        id: { type: string }
+        username: { type: string }
+        email: { type: string }
+        ip: { type: string }
+        country: { type: string }
+        city: { type: string }
+        userAgent: { type: string }
+        status: { type: string }
+        timestamp: { type: string, format: date-time }
+    InstanceSettings:
+      type: object
+      required: [allowMemberCollectionCreation, maxCollectionsPerUser]
+      properties:
+        allowMemberCollectionCreation: { type: boolean }
+        maxCollectionsPerUser: { type: integer, minimum: 1, maximum: 100 }
+    CreateCollectionRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1 }
+    RenameCollectionRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1 }
+    MemberInviteRequest:
+      type: object
+      description: Provide either `identifier`, or both `username` and `email`.
+      properties:
+        identifier:
+          type: string
+          description: Existing user's username or email.
+        username:
+          type: string
+          description: New user's username (with `email`).
+        email:
+          type: string
+          format: email
+          description: New user's email (with `username`).
+        role:
+          type: string
+          enum: [admin, editor, viewer]
+          default: viewer
+    MemberRoleRequest:
+      type: object
+      required: [role]
+      properties:
+        role: { type: string, enum: [admin, editor, viewer] }
+    ShareLinkRequest:
+      type: object
+      properties:
+        label: { type: string, maxLength: 60 }
+        scope:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShareScopeEntry'
+    ShareLinkUpdateRequest:
+      type: object
+      description: At least one of `label`, `enabled` or `scope`.
+      properties:
+        label: { type: string, maxLength: 60 }
+        enabled: { type: boolean }
+        scope:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShareScopeEntry'
+    ItemSearchRequest:
+      type: object
+      required: [pluginId, query]
+      properties:
+        pluginId: { type: string }
+        query: { type: string }
+        type: { type: string }
+        year: { type: string }
+        country: { type: string }
+        genre_filter: { type: string }
+        label_filter: { type: string }
+        scanned_barcode: { type: string }
+      additionalProperties: true
+    CreateItemRequest:
+      type: object
+      required: [pluginId]
+      description: |
+        JSON body. `pluginId` selects the plugin; the remaining recognized fields
+        are the shared core fields plus any of the plugin's `formFields` names
+        (`additionalProperties` allowed). Not form-encoded.
+      additionalProperties: true
+      properties:
+        pluginId: { type: string }
+        title: { type: string }
+        year: { type: string }
+        quantity: { type: integer, minimum: 1, default: 1 }
+        comments: { type: string }
+        location: { type: string }
+        genre: { type: string }
+        genres:
+          type: array
+          items: { type: string }
+        styles:
+          type: array
+          items: { type: string }
+        barcode: { type: string }
+        barcode_locked: { type: boolean, default: false }
+        in_wishlist: { type: boolean, default: false }
+        images:
+          type: array
+          items: { type: string }
+          description: Ordered image URLs (max 50; 8 MB total stored bytes).
+        added_at: { type: string, format: date-time }
+    UpdateItemRequest:
+      type: object
+      description: |
+        JSON body; partial. Only keys present are written. Accepts the same fields
+        as `CreateItemRequest` minus `pluginId` (the kind comes from the item).
+      additionalProperties: true
+      properties:
+        title: { type: string }
+        year: { type: string }
+        quantity: { type: integer, minimum: 1 }
+        comments: { type: string }
+        location: { type: string }
+        genre: { type: string }
+        genres:
+          type: array
+          items: { type: string }
+        styles:
+          type: array
+          items: { type: string }
+        barcode: { type: string }
+        barcode_locked: { type: boolean }
+        in_wishlist: { type: boolean }
+        images:
+          type: array
+          items: { type: string }
+        added_at: { type: string, format: date-time }
+    ProfileUpdateRequest:
+      type: object
+      description: At least one recognized field.
+      properties:
+        username: { type: string, minLength: 1 }
+        theme: { type: string, enum: [light, dark] }
+        language: { type: string, enum: [fr, en, de, es, it] }
+        currency: { type: string, enum: [EUR, USD, GBP] }
+    PasswordChangeRequest:
+      type: object
+      required: [newPassword]
+      properties:
+        currentPassword:
+          type: string
+          description: Verified against the stored hash; omit only if not known, it will fail.
+        newPassword: { type: string, minLength: 8 }
+    UserCreateRequest:
+      type: object
+      required: [username, email]
+      properties:
+        username: { type: string }
+        email: { type: string, format: email }
+    BlockedIpRequest:
+      type: object
+      required: [ip]
+      properties:
+        ip: { type: string }
+    InstanceSettingsUpdateRequest:
+      type: object
+      properties:
+        allowMemberCollectionCreation: { type: boolean }
+        maxCollectionsPerUser:
+          type: integer
+          minimum: 1
+          maximum: 100
+          description: Clamped to 1-100 server-side.
