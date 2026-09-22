@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import bcrypt from 'bcrypt';
 import User from '../../../models/User';
 import { requireApiAuth } from '../../../middleware/authMiddleware';
 
@@ -76,6 +77,36 @@ router.patch('/account', async (req: any, res: any) => {
       return res.status(409).json({ success: false, error: 'Username already taken' });
     }
     res.status(500).json({ success: false, error: 'Failed to update account' });
+  }
+});
+
+router.post('/account/password', async (req: any, res: any) => {
+  try {
+    const { currentPassword, newPassword } = req.body || {};
+    if (typeof newPassword !== 'string' || newPassword.length < 8) {
+      return res.status(400).json({ success: false, error: 'newPassword must be at least 8 characters' });
+    }
+    if (currentPassword !== undefined && typeof currentPassword !== 'string') {
+      return res.status(400).json({ success: false, error: 'Current password is incorrect' });
+    }
+
+    const user: any = await User.findById(req.user._id);
+    if (!user.password) {
+      // SSO-only account (provisioned through the IdP) — no local password to change.
+      return res.status(400).json({ success: false, error: 'This account has no local password (SSO-only)' });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword || '', user.password);
+    if (!isMatch) {
+      return res.status(400).json({ success: false, error: 'Current password is incorrect' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await User.findByIdAndUpdate(req.user._id, { password: hashedPassword, lastChange: Date.now() });
+    res.status(200).json({ success: true });
+  } catch (err: any) {
+    console.error('API change password error:', err);
+    res.status(500).json({ success: false, error: 'Failed to change password' });
   }
 });
 
