@@ -17,7 +17,7 @@ import { ItemImageValidationError } from '../../../core/itemImages';
 import { deleteUnusedManagedItemImages, isJpegBuffer, managedItemImagesForQuery, MAX_ITEM_IMAGE_UPLOAD_BYTES, storeItemImage } from '../../../core/itemImageStorage';
 import { requireApiAuth } from '../../../middleware/authMiddleware';
 import { requireApiAdmin, requireApiCollectionRole } from '../../../middleware/apiAuthMiddleware';
-import { generateUniqueSlug, listUserCollectionsWithRole } from '../../../utils/collectionHelpers';
+import { generateShareToken, generateUniqueSlug, listUserCollectionsWithRole } from '../../../utils/collectionHelpers';
 import { resolveShelfItems } from '../../../utils/itemHelpers';
 import { applyVisibilityFilter, applyEnabledModulesFilter, applyContainedFilter } from '../../../utils/visibilityHelper';
 
@@ -265,6 +265,45 @@ router.post('/collections/:id/members/:userId/reset-password', requireApiCollect
   const hashedPassword = await bcrypt.hash(password, 10);
   await User.updateOne({ _id: userId }, { $set: { password: hashedPassword, lastChange: new Date() } });
   res.status(200).json({ generatedPassword: password });
+});
+
+/** Validates a JSON share scope against the registered plugins' real formats. */
+function validateShareScope(raw: any): { pluginId: string; formats: string[] }[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((entry: any) => {
+      const plugin = registry.get(String(entry?.pluginId || ''));
+      if (!plugin) return null;
+      const validFormats = new Set((plugin.formats || []).map((f: any) => f.value));
+      const formats = Array.isArray(entry.formats) ? entry.formats.filter((f: string) => validFormats.has(f)) : [];
+      return { pluginId: plugin.id, formats };
+    })
+    .filter((e): e is { pluginId: string; formats: string[] } => !!e);
+}
+
+/** The stored share link carries a Mongoose-injected _id on each scope entry; the API
+ *  shape is { pluginId, formats } only (matching what a client sends back). */
+function serializeShareLink(link: any) {
+  return {
+    token: link?.token,
+    label: link?.label || '',
+    enabled: link?.enabled !== false,
+    scope: (link?.scope || []).map((s: any) => ({ pluginId: s.pluginId, formats: s.formats || [] }))
+  };
+}
+
+router.get('/collections/:id/share-links', requireApiCollectionRole('admin'), async (req: any, res: any) => {
+  const coll: any = await Collection.findById(req.apiCollection._id).select('shareLinks').lean();
+  res.status(200).json({ shareLinks: (coll?.shareLinks || []).map(serializeShareLink) });
+});
+
+router.post('/collections/:id/share-links', requireApiCollectionRole('admin'), async (req: any, res: any) => {
+  const label = String(req.body.label || '').trim().slice(0, 60);
+  const scope = validateShareScope(req.body.scope);
+  const shareLink = { token: generateShareToken(), label, enabled: true, scope };
+
+  await Collection.updateOne({ _id: req.apiCollection._id }, { $push: { shareLinks: shareLink } });
+  res.status(201).json({ shareLink: serializeShareLink(shareLink) });
 });
 
 router.get('/collections/:id/items', requireApiCollectionRole('viewer'), async (req: any, res: any) => {
