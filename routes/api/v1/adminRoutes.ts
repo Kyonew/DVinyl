@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import User from '../../../models/User';
 import Collection from '../../../models/Collection';
 import BlockedIP from '../../../models/blockedIP';
+import LoginLog from '../../../models/LoginLog';
 import { requireApiAuth } from '../../../middleware/authMiddleware';
 import { requireApiAdmin } from '../../../middleware/apiAuthMiddleware';
 import { getInstanceSettings, saveInstanceSettings } from '../../../utils/instanceSettings';
@@ -174,6 +175,39 @@ router.delete('/admin/blocked-ips/:id', async (req: any, res: any) => {
   } catch (err: any) {
     console.error('API blocked IP delete error:', err.message);
     res.status(500).json({ success: false, error: 'Failed to unblock IP' });
+  }
+});
+
+router.get('/admin/login-logs', async (req: any, res: any) => {
+  try {
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string) || 20));
+    const logs = await LoginLog.find().sort({ timestamp: -1 }).limit(limit).lean();
+    res.status(200).json({
+      logs: logs.map((l: any) => ({
+        id: String(l._id), username: l.username, email: l.email, ip: l.ip,
+        country: l.country, city: l.city, userAgent: l.userAgent,
+        status: l.status, timestamp: l.timestamp
+      }))
+    });
+  } catch (err: any) {
+    console.error('API login log list error:', err.message);
+    res.status(500).json({ success: false, error: 'Failed to list login logs' });
+  }
+});
+
+router.delete('/admin/login-logs', async (req: any, res: any) => {
+  const n = parseInt(req.query.count as string, 10);
+  if (!n || n < 1) {
+    return res.status(400).json({ success: false, error: 'count is required and must be >= 1' });
+  }
+  try {
+    const logs = await LoginLog.find().sort({ timestamp: -1 }).limit(n).select('_id');
+    const ids = logs.map((l: any) => l._id);
+    const result = await LoginLog.deleteMany({ _id: { $in: ids } });
+    res.status(200).json({ deleted: result.deletedCount });
+  } catch (err: any) {
+    console.error('API login log delete error:', err.message);
+    res.status(500).json({ success: false, error: 'Failed to delete login logs' });
   }
 });
 
