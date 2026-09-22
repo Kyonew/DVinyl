@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import bcrypt from 'bcrypt';
+import crypto from 'crypto';
 import mongoose from 'mongoose';
 import User from '../../../models/User';
 import Collection from '../../../models/Collection';
@@ -12,10 +13,12 @@ import { getInstanceSettings, saveInstanceSettings } from '../../../utils/instan
 const router = Router();
 router.use('/admin', requireApiAuth, requireApiAdmin);
 
+const MAX_LOGIN_LOG_DELETE_COUNT = 10000;
+
 const createPassword = (length = 12): string => {
   const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+';
   let password = '';
-  for (let i = 0; i < length; i++) password += chars.charAt(Math.floor(Math.random() * chars.length));
+  for (let i = 0; i < length; i++) password += chars.charAt(crypto.randomInt(chars.length));
   return password;
 };
 
@@ -75,8 +78,14 @@ router.post('/admin/users', async (req: any, res: any) => {
       generatedPassword: password
     });
   } catch (err: any) {
-    console.error('API user create error:', err.message);
-    res.status(500).json({ success: false, error: err.message });
+    console.error('API user create error:', err);
+    if (err?.code === 11000) {
+      return res.status(409).json({ success: false, error: 'A user with that username or email already exists' });
+    }
+    if (err?.name === 'ValidationError') {
+      return res.status(400).json({ success: false, error: 'Invalid username or email' });
+    }
+    res.status(500).json({ success: false, error: 'Failed to create user' });
   }
 });
 
@@ -116,7 +125,10 @@ router.delete('/admin/users/:userId', async (req: any, res: any) => {
   }
   try {
     const target = await User.findById(userId);
-    if (target?.isAdmin) {
+    if (!target) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+    if (target.isAdmin) {
       return res.status(403).json({ success: false, error: 'Cannot delete another admin' });
     }
     await User.findByIdAndDelete(userId);
@@ -199,6 +211,9 @@ router.delete('/admin/login-logs', async (req: any, res: any) => {
   const n = parseInt(req.query.count as string, 10);
   if (!n || n < 1) {
     return res.status(400).json({ success: false, error: 'count is required and must be >= 1' });
+  }
+  if (n > MAX_LOGIN_LOG_DELETE_COUNT) {
+    return res.status(400).json({ success: false, error: `count must be <= ${MAX_LOGIN_LOG_DELETE_COUNT}` });
   }
   try {
     const logs = await LoginLog.find().sort({ timestamp: -1 }).limit(n).select('_id');
