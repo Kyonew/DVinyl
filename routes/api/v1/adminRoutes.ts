@@ -24,10 +24,10 @@ router.get('/admin/instance-settings', async (req: any, res: any) => {
 
 router.patch('/admin/instance-settings', async (req: any, res: any) => {
   const patch: Record<string, any> = {};
-  if (typeof req.body.allowMemberCollectionCreation === 'boolean') {
+  if (typeof req.body?.allowMemberCollectionCreation === 'boolean') {
     patch.allowMemberCollectionCreation = req.body.allowMemberCollectionCreation;
   }
-  if (req.body.maxCollectionsPerUser !== undefined) {
+  if (req.body?.maxCollectionsPerUser !== undefined) {
     const parsed = parseInt(req.body.maxCollectionsPerUser, 10);
     patch.maxCollectionsPerUser = Math.min(100, Math.max(1, isNaN(parsed) ? 1 : parsed));
   }
@@ -57,7 +57,7 @@ router.get('/admin/users', async (req: any, res: any) => {
 });
 
 router.post('/admin/users', async (req: any, res: any) => {
-  const { username, email } = req.body;
+  const { username, email } = req.body || {};
   if (!username || !email) {
     return res.status(400).json({ success: false, error: 'username and email are required' });
   }
@@ -141,11 +141,11 @@ router.get('/admin/blocked-ips', async (req: any, res: any) => {
 });
 
 router.post('/admin/blocked-ips', async (req: any, res: any) => {
-  const ip = String(req.body.ip || '').trim();
-  if (!ip) {
-    return res.status(400).json({ success: false, error: 'ip is required' });
-  }
   try {
+    const ip = String(req.body?.ip ?? '').trim();
+    if (!ip) {
+      return res.status(400).json({ success: false, error: 'ip is required' });
+    }
     const existing = await BlockedIP.findOne({ ip });
     if (existing) {
       console.log(`[API ADMIN] IP already blocked: ${ip}`);
