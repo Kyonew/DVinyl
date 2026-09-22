@@ -306,6 +306,59 @@ router.post('/collections/:id/share-links', requireApiCollectionRole('admin'), a
   res.status(201).json({ shareLink: serializeShareLink(shareLink) });
 });
 
+router.patch('/collections/:id/share-links/:token', requireApiCollectionRole('admin'), async (req: any, res: any) => {
+  const { token } = req.params;
+  const set: Record<string, any> = {};
+  if (typeof req.body.enabled === 'boolean') set['shareLinks.$.enabled'] = req.body.enabled;
+  if (typeof req.body.label === 'string') set['shareLinks.$.label'] = req.body.label.trim().slice(0, 60);
+  if (req.body.scope !== undefined) set['shareLinks.$.scope'] = validateShareScope(req.body.scope);
+
+  if (Object.keys(set).length === 0) {
+    return res.status(400).json({ success: false, error: 'Nothing to update' });
+  }
+
+  const result = await Collection.updateOne(
+    { _id: req.apiCollection._id, 'shareLinks.token': token },
+    { $set: set }
+  );
+  if (result.matchedCount === 0) {
+    return res.status(404).json({ success: false, error: 'Share link not found' });
+  }
+
+  const coll: any = await Collection.findOne(
+    { _id: req.apiCollection._id, 'shareLinks.token': token },
+    { 'shareLinks.$': 1 }
+  ).lean();
+  res.status(200).json({ shareLink: serializeShareLink(coll.shareLinks[0]) });
+});
+
+router.post('/collections/:id/share-links/:token/regenerate', requireApiCollectionRole('admin'), async (req: any, res: any) => {
+  const newToken = generateShareToken();
+  const result = await Collection.updateOne(
+    { _id: req.apiCollection._id, 'shareLinks.token': req.params.token },
+    { $set: { 'shareLinks.$.token': newToken, 'shareLinks.$.enabled': true } }
+  );
+  if (result.matchedCount === 0) {
+    return res.status(404).json({ success: false, error: 'Share link not found' });
+  }
+  const coll: any = await Collection.findOne(
+    { _id: req.apiCollection._id, 'shareLinks.token': newToken },
+    { 'shareLinks.$': 1 }
+  ).lean();
+  res.status(200).json({ shareLink: serializeShareLink(coll.shareLinks[0]) });
+});
+
+router.delete('/collections/:id/share-links/:token', requireApiCollectionRole('admin'), async (req: any, res: any) => {
+  const result = await Collection.updateOne(
+    { _id: req.apiCollection._id, 'shareLinks.token': req.params.token },
+    { $pull: { shareLinks: { token: req.params.token } } }
+  );
+  if (result.matchedCount === 0) {
+    return res.status(404).json({ success: false, error: 'Share link not found' });
+  }
+  res.status(200).json({ success: true });
+});
+
 router.get('/collections/:id/items', requireApiCollectionRole('viewer'), async (req: any, res: any) => {
   const settings: any = await getCollectionSettings(req.apiCollection._id);
   const isAdmin = req.apiCollectionRole === 'admin';
