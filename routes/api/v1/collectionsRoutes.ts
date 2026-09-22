@@ -185,6 +185,88 @@ router.post('/collections/:id/members', requireApiCollectionRole('admin'), async
   }
 });
 
+/** True if the collection keeps at least one 'admin' member besides `excludedUserId`. */
+function hasAnotherCollectionAdmin(collectionDoc: any, excludedUserId: any): boolean {
+  return (collectionDoc?.members || []).some(
+    (m: any) => m.role === 'admin' && String(m.user) !== String(excludedUserId)
+  );
+}
+
+router.patch('/collections/:id/members/:userId', requireApiCollectionRole('admin'), async (req: any, res: any) => {
+  const { userId } = req.params;
+  const role = MEMBER_ROLES.includes(req.body.role) ? req.body.role : null;
+  if (!role || !mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({ success: false, error: 'Invalid role or userId' });
+  }
+  if (String(userId) === String(req.user._id)) {
+    return res.status(400).json({ success: false, error: 'Cannot change your own role' });
+  }
+
+  const coll: any = await Collection.findById(req.apiCollection._id);
+  const member = (coll?.members || []).find((m: any) => String(m.user) === String(userId));
+  if (!member) {
+    return res.status(404).json({ success: false, error: 'Member not found' });
+  }
+  if (member.role === 'admin' && role !== 'admin' && !hasAnotherCollectionAdmin(coll, userId)) {
+    return res.status(400).json({ success: false, error: 'Cannot demote the last admin' });
+  }
+
+  await Collection.updateOne(
+    { _id: req.apiCollection._id, 'members.user': userId },
+    { $set: { 'members.$.role': role } }
+  );
+  res.status(200).json({ success: true });
+});
+
+router.delete('/collections/:id/members/:userId', requireApiCollectionRole('admin'), async (req: any, res: any) => {
+  const { userId } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({ success: false, error: 'Invalid userId' });
+  }
+
+  const coll: any = await Collection.findById(req.apiCollection._id);
+  const member = (coll?.members || []).find((m: any) => String(m.user) === String(userId));
+  if (!member) {
+    return res.status(404).json({ success: false, error: 'Member not found' });
+  }
+  if (member.role === 'admin' && !hasAnotherCollectionAdmin(coll, userId)) {
+    return res.status(400).json({ success: false, error: 'Cannot remove the last admin' });
+  }
+
+  await Collection.updateOne({ _id: req.apiCollection._id }, { $pull: { members: { user: userId } } });
+  await User.updateOne(
+    { _id: userId, lastActiveCollectionId: req.apiCollection._id },
+    { $set: { lastActiveCollectionId: null } }
+  );
+  res.status(200).json({ success: true });
+});
+
+router.post('/collections/:id/members/:userId/reset-password', requireApiCollectionRole('admin'), async (req: any, res: any) => {
+  const { userId } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({ success: false, error: 'Invalid userId' });
+  }
+
+  const isMember = await Collection.findOne({ _id: req.apiCollection._id, 'members.user': userId });
+  const target: any = await User.findById(userId);
+  if (!isMember || !target || target.isAdmin) {
+    return res.status(404).json({ success: false, error: 'Member not found' });
+  }
+
+  const otherMembership = await Collection.findOne({
+    _id: { $ne: req.apiCollection._id },
+    'members.user': userId
+  });
+  if (otherMembership && !req.user.isAdmin) {
+    return res.status(403).json({ success: false, error: 'This member belongs to another collection too — only an instance admin can reset their password' });
+  }
+
+  const password = createPassword();
+  const hashedPassword = await bcrypt.hash(password, 10);
+  await User.updateOne({ _id: userId }, { $set: { password: hashedPassword, lastChange: new Date() } });
+  res.status(200).json({ generatedPassword: password });
+});
+
 router.get('/collections/:id/items', requireApiCollectionRole('viewer'), async (req: any, res: any) => {
   const settings: any = await getCollectionSettings(req.apiCollection._id);
   const isAdmin = req.apiCollectionRole === 'admin';
