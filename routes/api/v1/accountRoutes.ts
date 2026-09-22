@@ -26,7 +26,10 @@ router.patch('/account', async (req: any, res: any) => {
     const set: Record<string, any> = {};
 
     if (username !== undefined) {
-      const trimmed = String(username).trim();
+      if (typeof username !== 'string') {
+        return res.status(400).json({ success: false, error: 'Invalid username' });
+      }
+      const trimmed = username.trim();
       if (!trimmed) {
         return res.status(400).json({ success: false, error: 'username cannot be empty' });
       }
@@ -62,13 +65,16 @@ router.patch('/account', async (req: any, res: any) => {
       return res.status(400).json({ success: false, error: 'Nothing to update' });
     }
 
-    await User.findByIdAndUpdate(req.user._id, set);
+    await User.findByIdAndUpdate(req.user._id, set, { runValidators: true, context: 'query' });
     const updated: any = await User.findById(req.user._id)
       .select('username theme language currency')
       .lean();
     res.status(200).json({ user: updated });
   } catch (err: any) {
     console.error('API account update error:', err);
+    if (err?.code === 11000) {
+      return res.status(409).json({ success: false, error: 'Username already taken' });
+    }
     res.status(500).json({ success: false, error: 'Failed to update account' });
   }
 });
