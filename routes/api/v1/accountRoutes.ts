@@ -1,4 +1,8 @@
 import { Router } from 'express';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import User from '../../../models/User';
 import { requireApiAuth } from '../../../middleware/authMiddleware';
@@ -7,6 +11,57 @@ import { secondsBlocked, recordFailure, clearAttempts } from '../../../controlle
 const router = Router();
 
 router.use('/account', requireApiAuth);
+
+const AVATARS_DIR = path.join(__dirname, '../../../public/uploads/avatars');
+const DEFAULT_AVATAR = '/ressources/no-pp.jpg';
+
+const removeAvatarFile = (avatarPath?: string | null) => {
+  if (!avatarPath || avatarPath.includes('no-pp.jpg')) return;
+  const absolutePath = path.join(__dirname, '../../../public', avatarPath);
+  if (fs.existsSync(absolutePath)) fs.unlinkSync(absolutePath);
+};
+
+const EXT_BY_CONTENT_TYPE: Record<string, string> = {
+  'image/jpeg': '.jpg', 'image/png': '.png', 'image/gif': '.gif', 'image/webp': '.webp'
+};
+
+const avatarStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    if (!fs.existsSync(AVATARS_DIR)) fs.mkdirSync(AVATARS_DIR, { recursive: true });
+    cb(null, AVATARS_DIR);
+  },
+  filename: (req, file, cb) => {
+    // Derive the extension from the (fileFilter-validated) mimetype, never from the
+    // attacker-controlled client filename: express.static picks Content-Type from the
+    // extension under nosniff, so a spoofed name could otherwise be served as HTML.
+    const ext = EXT_BY_CONTENT_TYPE[file.mimetype] || '.jpg';
+    const userId = (req as any).user ? (req as any).user._id : 'unknown';
+    cb(null, `avatar-${userId}-${Date.now()}${ext}`);
+  }
+});
+const uploadAvatar = multer({
+  storage: avatarStorage,
+  fileFilter: (req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (allowed.includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Unsupported format (JPG, PNG, GIF, WEBP only)'));
+  },
+  limits: { fileSize: 5 * 1024 * 1024 }
+});
+
+// Multer reports its failures by calling back with an error; turn those into the JSON
+// error envelope instead of letting Express' default HTML error page leak out.
+const uploadAvatarMiddleware = (req: any, res: any, next: any) => {
+  uploadAvatar.single('avatar')(req, res, (err: any) => {
+    if (err) {
+      if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(413).json({ success: false, error: 'File too large (max 5MB)' });
+      }
+      return res.status(400).json({ success: false, error: 'No file uploaded, or unsupported format' });
+    }
+    next();
+  });
+};
 
 router.get('/account/username-available', async (req: any, res: any) => {
   try {
@@ -119,6 +174,66 @@ router.post('/account/password', async (req: any, res: any) => {
   } catch (err: any) {
     console.error('API change password error:', err);
     res.status(500).json({ success: false, error: 'Failed to change password' });
+  }
+});
+
+router.post('/account/avatar', uploadAvatarMiddleware, async (req: any, res: any) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, error: 'No file uploaded, or unsupported format' });
+  }
+  try {
+    const currentUser = await User.findById(req.user._id);
+    removeAvatarFile(currentUser?.img);
+    const newAvatarPath = `/uploads/avatars/${req.file.filename}`;
+    await User.findByIdAndUpdate(req.user._id, { img: newAvatarPath });
+    res.status(200).json({ avatarPath: newAvatarPath });
+  } catch (err: any) {
+    console.error('API avatar upload error:', err);
+    res.status(500).json({ success: false, error: 'Failed to update avatar' });
+  }
+});
+
+router.post('/account/avatar/import-gravatar', async (req: any, res: any) => {
+  try {
+    const currentUser: any = await User.findById(req.user._id);
+    const hash = crypto.createHash('sha256').update(currentUser.email.trim().toLowerCase()).digest('hex');
+    const gravatarUrl = `https://www.gravatar.com/avatar/${hash}?s=256&d=404`;
+
+    const gravatarRes = await fetch(gravatarUrl);
+    if (gravatarRes.status === 404) {
+      return res.status(404).json({ success: false, error: 'No Gravatar found for this email' });
+    }
+    if (!gravatarRes.ok) {
+      return res.status(502).json({ success: false, error: 'Gravatar fetch failed' });
+    }
+
+    const contentType = gravatarRes.headers.get('content-type') || 'image/jpeg';
+    const ext = EXT_BY_CONTENT_TYPE[contentType] || '.jpg';
+    const buffer = Buffer.from(await gravatarRes.arrayBuffer());
+
+    if (!fs.existsSync(AVATARS_DIR)) fs.mkdirSync(AVATARS_DIR, { recursive: true });
+    const filename = `avatar-${req.user._id}-${Date.now()}${ext}`;
+    fs.writeFileSync(path.join(AVATARS_DIR, filename), buffer);
+
+    removeAvatarFile(currentUser.img);
+    const newAvatarPath = `/uploads/avatars/${filename}`;
+    await User.findByIdAndUpdate(req.user._id, { img: newAvatarPath });
+    res.status(200).json({ avatarPath: newAvatarPath });
+  } catch (err: any) {
+    console.error('API Gravatar import error:', err);
+    res.status(500).json({ success: false, error: 'Failed to import Gravatar' });
+  }
+});
+
+router.delete('/account/avatar', async (req: any, res: any) => {
+  try {
+    const currentUser = await User.findById(req.user._id);
+    removeAvatarFile(currentUser?.img);
+    await User.findByIdAndUpdate(req.user._id, { img: DEFAULT_AVATAR });
+    res.status(200).json({ avatarPath: DEFAULT_AVATAR });
+  } catch (err: any) {
+    console.error('API avatar remove error:', err);
+    res.status(500).json({ success: false, error: 'Failed to remove avatar' });
   }
 });
 
