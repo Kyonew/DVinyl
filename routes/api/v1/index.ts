@@ -15,4 +15,10 @@ router.use(collectionsRoutes);
 router.use(itemsRoutes);
 router.use(pluginsRoutes);
 
+router.use((err: any, req: any, res: any, next: any) => {
+  console.error('[API] unhandled error:', err);
+  if (res.headersSent) return next(err);
+  res.status(500).json({ success: false, error: 'Internal server error' });
+});
+
 export = router;

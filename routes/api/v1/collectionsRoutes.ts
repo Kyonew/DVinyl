@@ -9,7 +9,7 @@ import Collection from '../../../models/Collection';
 import PriceHistory from '../../../models/PriceHistory';
 import User from '../../../models/User';
 import { registry } from '../../../core/registry';
-import { editStamp, escapeRegExp, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback } from '../../../core/helpers';
+import { editStamp, escapeRegExp, getPublicProtocol, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback } from '../../../core/helpers';
 import { toApiItem } from '../../../core/apiSerializers';
 import { buildFieldSuggestions } from '../../../core/fieldSuggestions';
 import { buildApiItemUpdateData } from '../../../core/apiItemPayload';
@@ -20,6 +20,7 @@ import { requireApiAuth } from '../../../middleware/authMiddleware';
 import { requireApiAdmin, requireApiCollectionRole } from '../../../middleware/apiAuthMiddleware';
 import { generateShareToken, generateUniqueSlug, listUserCollectionsWithRole } from '../../../utils/collectionHelpers';
 import { resolveShelfItems } from '../../../utils/itemHelpers';
+import { checkCollectionCreation } from '../../../utils/instanceSettings';
 import { applyVisibilityFilter, applyEnabledModulesFilter, applyContainedFilter } from '../../../utils/visibilityHelper';
 import { BASE_URL } from '../../../config/constants';
 
@@ -37,10 +38,16 @@ router.get('/collections', async (req: any, res: any) => {
   res.status(200).json({ collections });
 });
 
-router.post('/collections', requireApiAdmin, async (req: any, res: any) => {
-  const name = String(req.body.name || '').trim();
+router.post('/collections', async (req: any, res: any) => {
+  const body = req.body || {};
+  const name = String(body.name || '').trim();
   if (!name) {
     return res.status(400).json({ success: false, error: 'name is required' });
+  }
+
+  const verdict = await checkCollectionCreation(req.user);
+  if (verdict !== 'ok') {
+    return res.status(403).json({ success: false, error: verdict === 'quota' ? 'Collection limit reached' : 'Creating collections is not allowed' });
   }
 
   try {
@@ -82,7 +89,8 @@ const createPassword = (length = 12): string => {
 };
 
 router.patch('/collections/:id', requireApiCollectionRole('admin'), async (req: any, res: any) => {
-  const name = String(req.body.name || '').trim();
+  const body = req.body || {};
+  const name = String(body.name || '').trim();
   if (!name) {
     return res.status(400).json({ success: false, error: 'name is required' });
   }
@@ -143,12 +151,13 @@ router.get('/collections/:id/members', requireApiCollectionRole('admin'), async 
 });
 
 router.post('/collections/:id/members', requireApiCollectionRole('admin'), async (req: any, res: any) => {
-  const role = MEMBER_ROLES.includes(req.body.role) ? req.body.role : 'viewer';
+  const body = req.body || {};
+  const role = MEMBER_ROLES.includes(body.role) ? body.role : 'viewer';
   const collectionId = req.apiCollection._id;
 
   try {
-    if (req.body.identifier) {
-      const identifier = String(req.body.identifier).trim();
+    if (body.identifier) {
+      const identifier = String(body.identifier).trim();
       const target: any = await User.findOne({
         $or: [{ email: identifier.toLowerCase() }, { username: identifier }]
       });
@@ -165,13 +174,13 @@ router.post('/collections/:id/members', requireApiCollectionRole('admin'), async
       });
     }
 
-    if (req.body.username && req.body.email) {
+    if (body.username && body.email) {
       const password = createPassword();
       const hashedPassword = await bcrypt.hash(password, 10);
       // The hash is written in the single create: the User schema has no save hook, so
       // creating with the plaintext and overwriting it would store it in the clear
       // between the two writes.
-      const newUser = await User.create({ username: req.body.username, email: req.body.email, password: hashedPassword, lastChange: new Date() });
+      const newUser = await User.create({ username: body.username, email: body.email, password: hashedPassword, lastChange: new Date() });
       await Collection.updateOne({ _id: collectionId }, { $addToSet: { members: { user: newUser._id, role } } });
       await User.updateOne({ _id: newUser._id }, { $set: { lastActiveCollectionId: collectionId } });
       return res.status(201).json({
@@ -182,8 +191,14 @@ router.post('/collections/:id/members', requireApiCollectionRole('admin'), async
 
     res.status(400).json({ success: false, error: 'Provide either identifier, or username + email' });
   } catch (err: any) {
-    console.error('API member add error:', err.message);
-    res.status(500).json({ success: false, error: err.message });
+    console.error('API member add error:', err);
+    if (err?.code === 11000) {
+      return res.status(409).json({ success: false, error: 'A user with that username or email already exists' });
+    }
+    if (err?.name === 'ValidationError') {
+      return res.status(400).json({ success: false, error: 'Invalid username or email' });
+    }
+    res.status(500).json({ success: false, error: 'Failed to add member' });
   }
 });
 
@@ -196,7 +211,8 @@ function hasAnotherCollectionAdmin(collectionDoc: any, excludedUserId: any): boo
 
 router.patch('/collections/:id/members/:userId', requireApiCollectionRole('admin'), async (req: any, res: any) => {
   const { userId } = req.params;
-  const role = MEMBER_ROLES.includes(req.body.role) ? req.body.role : null;
+  const body = req.body || {};
+  const role = MEMBER_ROLES.includes(body.role) ? body.role : null;
   if (!role || !mongoose.Types.ObjectId.isValid(userId)) {
     return res.status(400).json({ success: false, error: 'Invalid role or userId' });
   }
@@ -300,8 +316,9 @@ router.get('/collections/:id/share-links', requireApiCollectionRole('admin'), as
 });
 
 router.post('/collections/:id/share-links', requireApiCollectionRole('admin'), async (req: any, res: any) => {
-  const label = String(req.body.label || '').trim().slice(0, 60);
-  const scope = validateShareScope(req.body.scope);
+  const body = req.body || {};
+  const label = String(body.label || '').trim().slice(0, 60);
+  const scope = validateShareScope(body.scope);
   const shareLink = { token: generateShareToken(), label, enabled: true, scope };
 
   await Collection.updateOne({ _id: req.apiCollection._id }, { $push: { shareLinks: shareLink } });
@@ -310,10 +327,11 @@ router.post('/collections/:id/share-links', requireApiCollectionRole('admin'), a
 
 router.patch('/collections/:id/share-links/:token', requireApiCollectionRole('admin'), async (req: any, res: any) => {
   const { token } = req.params;
+  const body = req.body || {};
   const set: Record<string, any> = {};
-  if (typeof req.body.enabled === 'boolean') set['shareLinks.$.enabled'] = req.body.enabled;
-  if (typeof req.body.label === 'string') set['shareLinks.$.label'] = req.body.label.trim().slice(0, 60);
-  if (req.body.scope !== undefined) set['shareLinks.$.scope'] = validateShareScope(req.body.scope);
+  if (typeof body.enabled === 'boolean') set['shareLinks.$.enabled'] = body.enabled;
+  if (typeof body.label === 'string') set['shareLinks.$.label'] = body.label.trim().slice(0, 60);
+  if (body.scope !== undefined) set['shareLinks.$.scope'] = validateShareScope(body.scope);
 
   if (Object.keys(set).length === 0) {
     return res.status(400).json({ success: false, error: 'Nothing to update' });
@@ -370,11 +388,7 @@ router.get('/collections/:id/share-links/:token/qr.png', requireApiCollectionRol
     return res.status(404).json({ success: false, error: 'Share link not found or disabled' });
   }
 
-  // The API has no "public protocol" request context the way a browser request does
-  // (getPublicProtocol reads X-Forwarded-Proto); the share link itself is always
-  // reached over whatever scheme this DVinyl instance is actually served on, so the
-  // request's own protocol is correct here too.
-  const url = `${req.protocol}://${req.get('host')}${BASE_URL}/share/${req.params.token}`;
+  const url = `${getPublicProtocol(req)}://${req.get('host')}${BASE_URL}/share/${req.params.token}`;
   const png = await QRCode.toBuffer(url, { type: 'png', width: 320, margin: 1 });
   res.set('Content-Type', 'image/png');
   res.send(png);
@@ -447,14 +461,15 @@ router.get('/collections/:id/items', requireApiCollectionRole('viewer'), async (
 });
 
 router.post('/collections/:id/items/search', requireApiCollectionRole('editor'), async (req: any, res: any) => {
-  const { pluginId, query, type, year, country, genre_filter, label_filter } = req.body;
+  const body = req.body || {};
+  const { pluginId, query, type, year, country, genre_filter, label_filter } = body;
   const plugin = registry.get(pluginId);
   if (!plugin || !plugin.searchProvider) {
     return res.status(404).json({ success: false, error: 'Unknown or non-searchable plugin' });
   }
 
   const rawQuery = typeof query === 'string' ? query.trim() : '';
-  const postedBarcode = String(req.body.scanned_barcode || '');
+  const postedBarcode = String(body.scanned_barcode || '');
   let scannedBarcode = isBarcodeQuery(postedBarcode) ? postedBarcode.replace(/[- ]/g, '') : '';
   let searchQuery = rawQuery;
   let resolvedTitle = '';
@@ -536,7 +551,8 @@ router.get('/collections/:id/items/confirm', requireApiCollectionRole('editor'),
 });
 
 router.post('/collections/:id/items', requireApiCollectionRole('editor'), async (req: any, res: any) => {
-  const plugin = registry.get(String(req.body.pluginId || ''));
+  const body = req.body || {};
+  const plugin = registry.get(String(body.pluginId || ''));
   if (!plugin) {
     return res.status(404).json({ success: false, error: 'Unknown plugin' });
   }
@@ -545,11 +561,11 @@ router.post('/collections/:id/items', requireApiCollectionRole('editor'), async 
     const activeCollectionId = req.apiCollection._id;
     const settings: any = await getCollectionSettings(activeCollectionId);
     const extraFieldDefs = toFieldDefinitions(getExtraFields(settings, plugin.id));
-    const updateData = buildApiItemUpdateData(plugin, req.body, extraFieldDefs);
+    const updateData = buildApiItemUpdateData(plugin, body, extraFieldDefs);
 
     if (typeof plugin.handleCreate === 'function') {
       const handled = await plugin.handleCreate(updateData, {
-        body: req.body,
+        body: body,
         ownerId: req.user._id,
         collectionId: activeCollectionId,
         language: req.language
@@ -561,11 +577,11 @@ router.post('/collections/:id/items', requireApiCollectionRole('editor'), async 
 
     let existingItem: any = null;
     if (settings?.mergeDuplicates !== false) {
-      existingItem = await plugin.findDuplicate(activeCollectionId, req.body);
+      existingItem = await plugin.findDuplicate(activeCollectionId, body);
     }
 
     if (existingItem) {
-      const qtyToAdd = parseInt(req.body.quantity, 10) || 1;
+      const qtyToAdd = parseInt(body.quantity, 10) || 1;
       const saveObj: Record<string, any> = { quantity: (existingItem.quantity || 1) + qtyToAdd };
       const idField = plugin.externalIdField;
       const backfillKeys = new Set<string>(['barcode', ...(plugin.backfillFields || [])]);
