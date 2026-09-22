@@ -242,6 +242,22 @@ router.post('/account/avatar/import-gravatar', async (req: any, res: any) => {
   }
 });
 
+// Unlink the currently linked SSO (OIDC) identity. Refuses to strip the only
+// credential an account has: an SSO-only account (no local password) would be
+// locked out entirely if its oidc link were removed.
+router.post('/account/oidc/unlink', async (req: any, res: any) => {
+  try {
+    if (!req.user.password) {
+      return res.status(400).json({ success: false, error: 'Cannot unlink SSO from an account with no local password' });
+    }
+    await User.findByIdAndUpdate(req.user._id, { $unset: { oidc: 1 } });
+    res.status(200).json({ success: true });
+  } catch (err: any) {
+    console.error('API OIDC unlink error:', err);
+    res.status(500).json({ success: false, error: 'Failed to unlink SSO' });
+  }
+});
+
 router.delete('/account/avatar', async (req: any, res: any) => {
   try {
     const currentUser = await User.findById(req.user._id);
