@@ -82,7 +82,13 @@ export const me = async (req: any, res: any) => {
       id: String(req.user._id),
       username: req.user.username,
       email: req.user.email,
-      isAdmin: req.user.isAdmin
+      isAdmin: req.user.isAdmin,
+      img: req.user.img,
+      theme: req.user.theme,
+      language: req.user.language,
+      currency: req.user.currency,
+      hasLocalPassword: !!req.user.password,
+      oidcLinked: !!req.user.oidc?.sub
     },
     collections
   });
