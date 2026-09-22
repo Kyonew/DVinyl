@@ -76,22 +76,27 @@ export const login = async (req: any, res: any) => {
 
 /** GET /api/v1/auth/me — requires requireApiAuth. */
 export const me = async (req: any, res: any) => {
-  const collections = await listUserCollectionsWithRole(req.user);
-  res.status(200).json({
-    user: {
-      id: String(req.user._id),
-      username: req.user.username,
-      email: req.user.email,
-      isAdmin: req.user.isAdmin,
-      img: req.user.img,
-      theme: req.user.theme,
-      language: req.user.language,
-      currency: req.user.currency,
-      hasLocalPassword: !!req.user.password,
-      oidcLinked: !!req.user.oidc?.sub
-    },
-    collections
-  });
+  try {
+    const collections = await listUserCollectionsWithRole(req.user);
+    res.status(200).json({
+      user: {
+        id: String(req.user._id),
+        username: req.user.username,
+        email: req.user.email,
+        isAdmin: req.user.isAdmin,
+        img: req.user.img,
+        theme: req.user.theme,
+        language: req.user.language,
+        currency: req.user.currency,
+        hasLocalPassword: !!req.user.password,
+        oidcLinked: !!req.user.oidc?.sub
+      },
+      collections
+    });
+  } catch (err: any) {
+    console.error('API me error:', err);
+    res.status(500).json({ success: false, error: 'Failed to load account' });
+  }
 };
 
 /**
