@@ -5,6 +5,7 @@ import Settings from '../../../models/Settings';
 import { registry } from '../../../core/registry';
 import { escapeRegExp, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback } from '../../../core/helpers';
 import { toApiItem } from '../../../core/apiSerializers';
+import { buildFieldSuggestions } from '../../../core/fieldSuggestions';
 import { requireApiAuth } from '../../../middleware/authMiddleware';
 import { requireApiCollectionRole } from '../../../middleware/apiAuthMiddleware';
 import { listUserCollectionsWithRole } from '../../../utils/collectionHelpers';
@@ -144,6 +145,47 @@ router.post('/collections/:id/items/search', requireApiCollectionRole('editor'),
     res.status(200).json({ results, query: searchQuery, scannedBarcode: scannedBarcode || undefined });
   } catch (err: any) {
     console.error(`API search error for ${plugin.id}:`, err.message);
+    res.status(502).json({ success: false, error: `Search provider error: ${err.message}` });
+  }
+});
+
+router.get('/collections/:id/items/confirm', requireApiCollectionRole('editor'), async (req: any, res: any) => {
+  const { pluginId, externalId } = req.query;
+  const plugin = registry.get(String(pluginId || ''));
+  if (!plugin || !plugin.searchProvider) {
+    return res.status(404).json({ success: false, error: 'Unknown or non-searchable plugin' });
+  }
+  if (!externalId) {
+    return res.status(400).json({ success: false, error: 'externalId is required' });
+  }
+
+  try {
+    const details = await plugin.searchProvider.getDetails(String(externalId), {
+      ...req.query,
+      language: req.language
+    });
+
+    if (details.creator !== undefined && details[plugin.creatorField] === undefined) {
+      details[plugin.creatorField] = details.creator;
+    }
+    if (req.query.barcode) {
+      details.barcode = String(req.query.barcode);
+    }
+
+    const collectionId = req.apiCollection._id;
+    const suggestions = await buildFieldSuggestions(plugin, collectionId, details);
+
+    let duplicates: any[];
+    if (plugin.findPotentialDuplicates) {
+      duplicates = await plugin.findPotentialDuplicates(collectionId, details);
+    } else {
+      const exact = await plugin.findDuplicate(collectionId, details);
+      duplicates = exact ? [exact] : [];
+    }
+
+    res.status(200).json({ item: details, suggestions, duplicates });
+  } catch (err: any) {
+    console.error(`API details fetch error for ${plugin.id} ID ${externalId}:`, err.message);
     res.status(502).json({ success: false, error: `Search provider error: ${err.message}` });
   }
 });
