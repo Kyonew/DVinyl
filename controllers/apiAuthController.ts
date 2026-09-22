@@ -1,0 +1,89 @@
+import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import User from '../models/User';
+import RefreshToken from '../models/RefreshToken';
+import { isLocalLoginDisabled } from '../config/oidc';
+import { secondsBlocked, recordFailure, clearAttempts, MAX_ATTEMPTS } from './loginAttempts';
+import { listUserCollectionsWithRole } from '../utils/collectionHelpers';
+
+const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
+const REFRESH_TOKEN_TTL_MS = 60 * 24 * 60 * 60 * 1000; // 60 days
+
+function signAccessToken(userId: any): string {
+  const passjwt = process.env.PASSJWT;
+  if (!passjwt) throw new Error("PASSJWT environment variable is missing");
+  return jwt.sign({ id: userId }, passjwt, { expiresIn: ACCESS_TOKEN_TTL_SECONDS });
+}
+
+function hashToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+export async function issueRefreshToken(userId: any, req: any): Promise<string> {
+  const token = crypto.randomBytes(32).toString('hex');
+  await RefreshToken.create({
+    user: userId,
+    tokenHash: hashToken(token),
+    deviceLabel: String(req.headers['user-agent'] || 'Unknown device').slice(0, 200),
+    expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL_MS)
+  });
+  return token;
+}
+
+export { hashToken, signAccessToken, ACCESS_TOKEN_TTL_SECONDS };
+
+/**
+ * POST /api/v1/auth/login  { email, password }
+ * Same brute-force gate as the web login (controllers/loginAttempts.ts), keyed by
+ * email so a client can't dodge the block by switching between /login and this route.
+ */
+export const login = async (req: any, res: any) => {
+  if (isLocalLoginDisabled()) {
+    return res.status(403).json({ success: false, error: 'Local login is disabled on this instance' });
+  }
+
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ success: false, error: 'email and password are required' });
+  }
+
+  const blockedSeconds = secondsBlocked(email);
+  if (blockedSeconds !== null) {
+    return res.status(429).json({
+      success: false,
+      error: `Too many attempts. Try again in ${blockedSeconds}s.`
+    });
+  }
+
+  try {
+    const user = await (User as any).login(email, password);
+    clearAttempts(email);
+
+    const accessToken = signAccessToken(user._id);
+    const refreshToken = await issueRefreshToken(user._id, req);
+
+    res.status(200).json({ accessToken, refreshToken, expiresIn: ACCESS_TOKEN_TTL_SECONDS });
+  } catch (err) {
+    const { count, justBlocked } = recordFailure(email);
+    if (justBlocked) {
+      console.warn(`[API AUTH] ${email} temporarily blocked after ${count} failed attempts`);
+      return res.status(429).json({ success: false, error: 'Too many failed attempts. Try again later.' });
+    }
+    console.warn(`[API AUTH] Login failed for ${email} (attempt ${count}/${MAX_ATTEMPTS})`);
+    res.status(400).json({ success: false, error: 'Invalid email or password' });
+  }
+};
+
+/** GET /api/v1/auth/me — requires requireApiAuth. */
+export const me = async (req: any, res: any) => {
+  const collections = await listUserCollectionsWithRole(req.user);
+  res.status(200).json({
+    user: {
+      id: String(req.user._id),
+      username: req.user.username,
+      email: req.user.email,
+      isAdmin: req.user.isAdmin
+    },
+    collections
+  });
+};

@@ -32,6 +32,37 @@ export const requireAuth = async (req: Record<string, any>, res: any, next: any)
   }
 };
 
+/**
+ * JSON counterpart to requireAuth for the /api/v1 mobile surface: reads a Bearer
+ * access token instead of the jwt cookie, and every failure is a 401 JSON body -
+ * never res.redirect, which a native client has nowhere useful to follow.
+ */
+export const requireApiAuth = async (req: any, res: any, next: any) => {
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+
+  if (!token) {
+    return res.status(401).json({ success: false, error: 'Missing bearer token' });
+  }
+
+  const passjwt: string | undefined = process.env.PASSJWT;
+  if (!passjwt) {
+    throw new Error("The environement variable PASSJWT is missing.");
+  }
+
+  jwt.verify(token, passjwt, async (err: any, decodedToken: any) => {
+    if (err) {
+      return res.status(401).json({ success: false, error: 'Invalid or expired token' });
+    }
+    const user = await User.findById(decodedToken.id);
+    if (!user || (user.lastChange && decodedToken.iat * 1000 < user.lastChange.getTime())) {
+      return res.status(401).json({ success: false, error: 'Invalid or expired token' });
+    }
+    req.user = user;
+    next();
+  });
+};
+
 
 /**
  * Gates a read-only route reachable either by a signed-in member or by a valid

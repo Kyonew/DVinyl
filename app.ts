@@ -44,6 +44,7 @@ import settingsRoutes from './routes/settingsRoutes.js';
 import backupRoutes from './routes/backupRoutes.js';
 import itemImageRoutes from './routes/itemImageRoutes.js';
 import oidcRoutes from './routes/oidcRoutes.js';
+import apiV1Routes from './routes/api/v1/index.js';
 
 import dashboardRoute from './core/routes/dashboardRoute.js';
 import collectionRoute from './core/routes/collectionRoute.js';
@@ -245,6 +246,9 @@ app.use(async (req, res, next) => {
   try {
     const count = await User.countDocuments();
     if (count === 0) {
+      if (req.path.startsWith(BASE_URL + '/api/v1')) {
+        return res.status(503).json({ success: false, error: 'Instance not set up yet' });
+      }
       return res.redirect(BASE_URL + '/setup');
     }
   } catch (e) {
@@ -293,6 +297,7 @@ if (isOidcEnabled()) {
   app.use(BASE_URL, oidcRoutes);
 }
 
+app.use(BASE_URL + '/api/v1', apiV1Routes);
 app.use(BASE_URL, dashboardRoute);
 app.use(BASE_URL, collectionRoute);
 app.use(BASE_URL, searchRoute);
