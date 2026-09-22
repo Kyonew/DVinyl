@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import multer from 'multer';
 import mongoose from 'mongoose';
 import Item from '../../../models/Item';
 import Settings from '../../../models/Settings';
@@ -9,6 +10,7 @@ import { buildFieldSuggestions } from '../../../core/fieldSuggestions';
 import { buildApiItemUpdateData } from '../../../core/apiItemPayload';
 import { getExtraFields, toFieldDefinitions } from '../../../core/pluginExtraFields';
 import { ItemImageValidationError } from '../../../core/itemImages';
+import { isJpegBuffer, MAX_ITEM_IMAGE_UPLOAD_BYTES, storeItemImage } from '../../../core/itemImageStorage';
 import { requireApiAuth } from '../../../middleware/authMiddleware';
 import { requireApiCollectionRole } from '../../../middleware/apiAuthMiddleware';
 import { listUserCollectionsWithRole } from '../../../utils/collectionHelpers';
@@ -16,6 +18,11 @@ import { resolveShelfItems } from '../../../utils/itemHelpers';
 import { applyVisibilityFilter, applyEnabledModulesFilter, applyContainedFilter } from '../../../utils/visibilityHelper';
 
 const router = Router();
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { files: 1, fileSize: MAX_ITEM_IMAGE_UPLOAD_BYTES }
+});
 
 router.use(requireApiAuth);
 
@@ -264,6 +271,28 @@ router.post('/collections/:id/items', requireApiCollectionRole('editor'), async 
     console.error(`API create error for ${plugin.id}:`, err.message);
     res.status(500).json({ success: false, error: err.message });
   }
+});
+
+router.post('/collections/:id/item-images', requireApiCollectionRole('editor'), (req: any, res: any) => {
+  upload.single('image')(req, res, async (uploadError: any) => {
+    if (uploadError) {
+      const tooLarge = uploadError instanceof multer.MulterError && uploadError.code === 'LIMIT_FILE_SIZE';
+      return res.status(tooLarge ? 413 : 400).json({
+        success: false,
+        error: tooLarge ? 'Image too large' : 'Invalid upload'
+      });
+    }
+    if (!req.file || req.file.mimetype !== 'image/jpeg' || !isJpegBuffer(req.file.buffer)) {
+      return res.status(400).json({ success: false, error: 'Only JPEG images are accepted' });
+    }
+    try {
+      const url = await storeItemImage(req.file.buffer);
+      res.status(201).json({ success: true, url });
+    } catch (err: any) {
+      console.error('[API ITEM IMAGE] Upload failed:', err);
+      res.status(500).json({ success: false, error: 'Upload failed' });
+    }
+  });
 });
 
 router.get('/collections/:id/stats', requireApiCollectionRole('viewer'), async (req: any, res: any) => {
