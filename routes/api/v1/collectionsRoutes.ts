@@ -4,6 +4,8 @@ import mongoose from 'mongoose';
 import Item from '../../../models/Item';
 import Settings from '../../../models/Settings';
 import Collection from '../../../models/Collection';
+import PriceHistory from '../../../models/PriceHistory';
+import User from '../../../models/User';
 import { registry } from '../../../core/registry';
 import { editStamp, escapeRegExp, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback } from '../../../core/helpers';
 import { toApiItem } from '../../../core/apiSerializers';
@@ -11,7 +13,7 @@ import { buildFieldSuggestions } from '../../../core/fieldSuggestions';
 import { buildApiItemUpdateData } from '../../../core/apiItemPayload';
 import { getExtraFields, toFieldDefinitions } from '../../../core/pluginExtraFields';
 import { ItemImageValidationError } from '../../../core/itemImages';
-import { isJpegBuffer, MAX_ITEM_IMAGE_UPLOAD_BYTES, storeItemImage } from '../../../core/itemImageStorage';
+import { deleteUnusedManagedItemImages, isJpegBuffer, managedItemImagesForQuery, MAX_ITEM_IMAGE_UPLOAD_BYTES, storeItemImage } from '../../../core/itemImageStorage';
 import { requireApiAuth } from '../../../middleware/authMiddleware';
 import { requireApiAdmin, requireApiCollectionRole } from '../../../middleware/apiAuthMiddleware';
 import { generateUniqueSlug, listUserCollectionsWithRole } from '../../../utils/collectionHelpers';
@@ -67,6 +69,51 @@ async function getCollectionSettings(collectionId: any) {
     { upsert: true, new: true, setDefaultsOnInsert: true }
   ).lean();
 }
+
+router.patch('/collections/:id', requireApiCollectionRole('admin'), async (req: any, res: any) => {
+  const name = String(req.body.name || '').trim();
+  if (!name) {
+    return res.status(400).json({ success: false, error: 'name is required' });
+  }
+  try {
+    await Collection.updateOne({ _id: req.apiCollection._id }, { $set: { name } });
+    res.status(200).json({ collection: { id: String(req.apiCollection._id), name } });
+  } catch (err: any) {
+    console.error('API collection rename error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.delete('/collections/:id', requireApiAdmin, async (req: any, res: any) => {
+  if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    return res.status(404).json({ success: false, error: 'Collection not found' });
+  }
+  const target = await Collection.findById(req.params.id);
+  if (!target) {
+    return res.status(404).json({ success: false, error: 'Collection not found' });
+  }
+  if (target.isDefault) {
+    return res.status(400).json({ success: false, error: 'The default collection cannot be deleted' });
+  }
+
+  try {
+    const itemImages = await managedItemImagesForQuery({ collection: target._id });
+    await Item.deleteMany({ collection: target._id });
+    await Settings.deleteMany({ collection: target._id });
+    await PriceHistory.deleteMany({ collection: target._id });
+    await User.updateMany({ lastActiveCollectionId: target._id }, { $set: { lastActiveCollectionId: null } });
+    await Collection.deleteOne({ _id: target._id });
+    try {
+      await deleteUnusedManagedItemImages(itemImages);
+    } catch (cleanupError) {
+      console.warn('[ITEM IMAGE] Collection cleanup failed:', cleanupError);
+    }
+    res.status(200).json({ success: true });
+  } catch (err: any) {
+    console.error('API collection delete error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 router.get('/collections/:id/items', requireApiCollectionRole('viewer'), async (req: any, res: any) => {
   const settings: any = await getCollectionSettings(req.apiCollection._id);
