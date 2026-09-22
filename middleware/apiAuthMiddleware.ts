@@ -11,6 +11,19 @@ import { resolveMemberRole, roleAtLeast } from '../utils/collectionHelpers';
  * for visibility filtering, which needs to know if THIS collection's role is admin -
  * not whatever collection happens to be active in the user's web session).
  */
+/**
+ * Stateless counterpart to requireAdmin (middleware/authMiddleware.ts), which reads
+ * res.locals.user - never populated for an API request. Instance-admin-only actions
+ * (create/delete a collection, user management, IP blocking, login logs, instance
+ * settings) check req.user.isAdmin directly instead.
+ */
+export const requireApiAdmin = (req: any, res: any, next: any) => {
+  if (!req.user?.isAdmin) {
+    return res.status(403).json({ success: false, error: 'Forbidden' });
+  }
+  next();
+};
+
 export const requireApiCollectionRole = (minRole: 'viewer' | 'editor' | 'admin', idParam: string = 'id') => {
   return async (req: any, res: any, next: any) => {
     const collectionId = req.params[idParam];

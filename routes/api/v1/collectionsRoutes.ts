@@ -3,6 +3,7 @@ import multer from 'multer';
 import mongoose from 'mongoose';
 import Item from '../../../models/Item';
 import Settings from '../../../models/Settings';
+import Collection from '../../../models/Collection';
 import { registry } from '../../../core/registry';
 import { editStamp, escapeRegExp, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback } from '../../../core/helpers';
 import { toApiItem } from '../../../core/apiSerializers';
@@ -12,8 +13,8 @@ import { getExtraFields, toFieldDefinitions } from '../../../core/pluginExtraFie
 import { ItemImageValidationError } from '../../../core/itemImages';
 import { isJpegBuffer, MAX_ITEM_IMAGE_UPLOAD_BYTES, storeItemImage } from '../../../core/itemImageStorage';
 import { requireApiAuth } from '../../../middleware/authMiddleware';
-import { requireApiCollectionRole } from '../../../middleware/apiAuthMiddleware';
-import { listUserCollectionsWithRole } from '../../../utils/collectionHelpers';
+import { requireApiAdmin, requireApiCollectionRole } from '../../../middleware/apiAuthMiddleware';
+import { generateUniqueSlug, listUserCollectionsWithRole } from '../../../utils/collectionHelpers';
 import { resolveShelfItems } from '../../../utils/itemHelpers';
 import { applyVisibilityFilter, applyEnabledModulesFilter, applyContainedFilter } from '../../../utils/visibilityHelper';
 
@@ -29,6 +30,28 @@ router.use(requireApiAuth);
 router.get('/collections', async (req: any, res: any) => {
   const collections = await listUserCollectionsWithRole(req.user);
   res.status(200).json({ collections });
+});
+
+router.post('/collections', requireApiAdmin, async (req: any, res: any) => {
+  const name = String(req.body.name || '').trim();
+  if (!name) {
+    return res.status(400).json({ success: false, error: 'name is required' });
+  }
+
+  try {
+    const slug = await generateUniqueSlug(name);
+    const created = await Collection.create({
+      name,
+      slug,
+      createdBy: req.user._id,
+      isDefault: false,
+      members: [{ user: req.user._id, role: 'admin' }]
+    });
+    res.status(201).json({ collection: { id: String(created._id), name: created.name, role: 'admin' } });
+  } catch (err: any) {
+    console.error('API collection create error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 /**
