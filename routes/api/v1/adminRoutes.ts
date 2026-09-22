@@ -40,14 +40,19 @@ router.patch('/admin/instance-settings', async (req: any, res: any) => {
 });
 
 router.get('/admin/users', async (req: any, res: any) => {
-  const users = await User.find().sort({ lastChange: -1 })
-    .select('username email isAdmin lastChange').lean();
-  res.status(200).json({
-    users: users.map((u: any) => ({
-      id: String(u._id), username: u.username, email: u.email,
-      isAdmin: u.isAdmin, lastChange: u.lastChange
-    }))
-  });
+  try {
+    const users = await User.find().sort({ lastChange: -1 })
+      .select('username email isAdmin lastChange').lean();
+    res.status(200).json({
+      users: users.map((u: any) => ({
+        id: String(u._id), username: u.username, email: u.email,
+        isAdmin: u.isAdmin, lastChange: u.lastChange
+      }))
+    });
+  } catch (err: any) {
+    console.error('API user list error:', err.message);
+    res.status(500).json({ success: false, error: 'Failed to list users' });
+  }
 });
 
 router.post('/admin/users', async (req: any, res: any) => {
@@ -57,9 +62,11 @@ router.post('/admin/users', async (req: any, res: any) => {
   }
   try {
     const password = createPassword();
+    // Hash before the single create: the User schema has no save hook, so
+    // creating with the plaintext and overwriting it would store it in the clear
+    // between the two writes (same reasoning as collectionsRoutes' member add).
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = await User.create({ username, email, password, lastChange: new Date() });
-    await User.updateOne({ _id: newUser._id }, { $set: { password: hashedPassword } });
+    const newUser = await User.create({ username, email, password: hashedPassword, lastChange: new Date() });
     console.log(`[API ADMIN] User created: ${username} <${email}> by ${req.user.email}`);
     res.status(201).json({
       user: { id: String(newUser._id), username, email, isAdmin: false },
@@ -76,20 +83,25 @@ router.post('/admin/users/:userId/reset-password', async (req: any, res: any) =>
   if (!mongoose.Types.ObjectId.isValid(userId)) {
     return res.status(404).json({ success: false, error: 'User not found' });
   }
-  const target = await User.findById(userId);
-  if (!target) {
-    return res.status(404).json({ success: false, error: 'User not found' });
-  }
-  // Instance admins are peers: none may reset another instance admin's password
-  // (would let them hijack the account). Resetting your own is still allowed.
-  if (target.isAdmin && String(target._id) !== String(req.user._id)) {
-    return res.status(403).json({ success: false, error: 'Cannot reset another admin\'s password' });
-  }
+  try {
+    const target = await User.findById(userId);
+    if (!target) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+    // Instance admins are peers: none may reset another instance admin's password
+    // (would let them hijack the account). Resetting your own is still allowed.
+    if (target.isAdmin && String(target._id) !== String(req.user._id)) {
+      return res.status(403).json({ success: false, error: 'Cannot reset another admin\'s password' });
+    }
 
-  const password = createPassword();
-  const hashedPassword = await bcrypt.hash(password, 10);
-  await User.updateOne({ _id: userId }, { $set: { password: hashedPassword, lastChange: new Date() } });
-  res.status(200).json({ generatedPassword: password });
+    const password = createPassword();
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await User.updateOne({ _id: userId }, { $set: { password: hashedPassword, lastChange: new Date() } });
+    res.status(200).json({ generatedPassword: password });
+  } catch (err: any) {
+    console.error('API user password reset error:', err.message);
+    res.status(500).json({ success: false, error: 'Failed to reset password' });
+  }
 });
 
 router.delete('/admin/users/:userId', async (req: any, res: any) => {
@@ -100,14 +112,19 @@ router.delete('/admin/users/:userId', async (req: any, res: any) => {
   if (String(userId) === String(req.user._id)) {
     return res.status(400).json({ success: false, error: 'Cannot delete your own account' });
   }
-  const target = await User.findById(userId);
-  if (target?.isAdmin) {
-    return res.status(403).json({ success: false, error: 'Cannot delete another admin' });
+  try {
+    const target = await User.findById(userId);
+    if (target?.isAdmin) {
+      return res.status(403).json({ success: false, error: 'Cannot delete another admin' });
+    }
+    await User.findByIdAndDelete(userId);
+    await Collection.updateMany({}, { $pull: { members: { user: userId } } });
+    console.log(`[API ADMIN] User deleted: ${userId} by ${req.user.email}`);
+    res.status(200).json({ success: true });
+  } catch (err: any) {
+    console.error('API user delete error:', err.message);
+    res.status(500).json({ success: false, error: 'Failed to delete user' });
   }
-  await User.findByIdAndDelete(userId);
-  await Collection.updateMany({}, { $pull: { members: { user: userId } } });
-  console.log(`[API ADMIN] User deleted: ${userId} by ${req.user.email}`);
-  res.status(200).json({ success: true });
 });
 
 export = router;
