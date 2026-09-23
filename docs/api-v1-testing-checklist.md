@@ -25,6 +25,8 @@ BASE=http://localhost:3000
 ## Collections
 - [x] `GET $BASE/api/v1/collections` → 200, list includes every collection the user belongs to, each with the correct `role`
 - [x] `GET $BASE/api/v1/collections/$CID/items` → 200, paginated list; `totalItems`/`totalPages` match the web collection page's count
+- [x] `GET $BASE/api/v1/collections/$CID/wishlist` → 200, paginated wishlist items only (owned and contained items excluded); `?type=`/`?search=` filter as on the collection listing
+- [x] `GET $BASE/api/v1/collections/$CID/wishlist/stats` → 200; `stats.total` counts wishlist quantities only, matching the web wishlist
 - [x] `?type=<a real plugin id>` narrows results to that kind only
 - [x] `?search=<a real title substring>` returns only matching items
 - [x] `?page=2` (with more than one page of items) returns the second page, not a repeat of page 1

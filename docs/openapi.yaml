@@ -7,8 +7,8 @@ info:
     identifier: MIT
   description: |
     Mobile/native client API for a DVinyl instance, covering authentication,
-    collection and sharing management, the full item lifecycle, plugin metadata,
-    instance administration, and account settings.
+    collection, wishlist and sharing management, the full item lifecycle, plugin
+    metadata, instance administration, and account settings.
 
     All routes are mounted under `/api/v1`. Requests and responses are JSON
     (`application/json`), except the two file-upload endpoints
@@ -36,7 +36,7 @@ tags:
   - name: Auth
     description: Login, token refresh/rotation, current account, logout.
   - name: Collections
-    description: Collections, members, share links and browsing/statistics.
+    description: Collections, members, share links and browsing/statistics (collection and wishlist).
   - name: Items
     description: Single-item detail and item lifecycle operations.
   - name: Plugins
@@ -1371,6 +1371,111 @@ paths:
                   total: 42
                   music: 30
                   books: 12
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /collections/{id}/wishlist:
+    get:
+      tags: [Collections]
+      operationId: listWishlistItems
+      summary: Browse a collection's wishlist
+      description: |
+        Requires at least `viewer` role on the collection. Returns the collection's
+        wishlist items (`in_wishlist: true`) newest-first, applying the collection's
+        visibility and enabled-module settings and excluding contained items (the same
+        shelf rule as the collection listing). `type` filters to one plugin kind
+        (accepts a plugin id; `all` or empty means everything). `search`
+        case-insensitively matches title, barcode, each plugin's creator field, and an
+        exact item id. This is the wishlist half of the shelf that
+        `GET /collections/{id}/items` covers for owned items.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+        - name: page
+          in: query
+          required: false
+          description: 1-based page number.
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: limit
+          in: query
+          required: false
+          description: Items per page (1-200).
+          schema: { type: integer, minimum: 1, maximum: 200, default: 25 }
+        - name: type
+          in: query
+          required: false
+          description: Plugin id to narrow to, or `all`.
+          schema: { type: string }
+        - name: search
+          in: query
+          required: false
+          description: Title/barcode/creator/id substring.
+          schema: { type: string }
+      responses:
+        '200':
+          description: Paginated wishlist items.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemPage'
+              example:
+                items:
+                  - id: 64f1c2a9e13b2a0012ab3500
+                    kind: music
+                    title: Discovery
+                    artist: Daft Punk
+                    year: '2001'
+                    in_wishlist: true
+                page: 1
+                limit: 25
+                totalItems: 3
+                totalPages: 1
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /collections/{id}/wishlist/stats:
+    get:
+      tags: [Collections]
+      operationId: getWishlistStats
+      summary: Get aggregate statistics for a collection's wishlist
+      description: |
+        Requires at least `viewer` role on the collection. Counts wishlist items
+        (summing quantities) and merges each enabled plugin's own statistics into the
+        `stats` object, applying the same visibility, enabled-module and contained-item
+        rules as the listing. This is the wishlist half of the shelf that
+        `GET /collections/{id}/stats` covers for owned items.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+      responses:
+        '200':
+          description: Wishlist statistics.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [stats]
+                properties:
+                  stats:
+                    $ref: '#/components/schemas/Stats'
+              example:
+                stats:
+                  total: 3
+                  music: 2
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

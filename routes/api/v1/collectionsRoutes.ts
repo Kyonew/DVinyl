@@ -394,7 +394,12 @@ router.get('/collections/:id/share-links/:token/qr.png', requireApiCollectionRol
   res.send(png);
 });
 
-router.get('/collections/:id/items', requireApiCollectionRole('viewer'), async (req: any, res: any) => {
+/**
+ * The collection and the wishlist are the same listing over two halves of the same
+ * shelf, so `/collections/:id/items` and `/collections/:id/wishlist` share this and
+ * differ only on `inWishlist` - mirroring core/routes/collectionRoute.ts's buildShelfView.
+ */
+async function listShelfItems(req: any, res: any, inWishlist: boolean) {
   const settings: any = await getCollectionSettings(req.apiCollection._id);
   const isAdmin = req.apiCollectionRole === 'admin';
   const enabledPlugins = registry.getEnabled(settings);
@@ -402,7 +407,7 @@ router.get('/collections/:id/items', requireApiCollectionRole('viewer'), async (
   const page = Math.max(1, parseInt(req.query.page as string) || 1);
   const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string) || 25));
 
-  const query: any = { collection: req.apiCollection._id, in_wishlist: false };
+  const query: any = { collection: req.apiCollection._id, in_wishlist: inWishlist };
   applyVisibilityFilter(query, isAdmin, settings);
   applyEnabledModulesFilter(query, settings);
   applyContainedFilter(query);
@@ -458,7 +463,11 @@ router.get('/collections/:id/items', requireApiCollectionRole('viewer'), async (
     totalItems,
     totalPages: Math.ceil(totalItems / limit) || 1
   });
-});
+}
+
+router.get('/collections/:id/items', requireApiCollectionRole('viewer'), (req: any, res: any) => listShelfItems(req, res, false));
+
+router.get('/collections/:id/wishlist', requireApiCollectionRole('viewer'), (req: any, res: any) => listShelfItems(req, res, true));
 
 router.post('/collections/:id/items/search', requireApiCollectionRole('editor'), async (req: any, res: any) => {
   const body = req.body || {};
@@ -646,11 +655,12 @@ router.post('/collections/:id/item-images', requireApiCollectionRole('editor'), 
   });
 });
 
-router.get('/collections/:id/stats', requireApiCollectionRole('viewer'), async (req: any, res: any) => {
+/** Shared by `/stats` and `/wishlist/stats`; the two differ only on `inWishlist`. */
+async function shelfStats(req: any, res: any, inWishlist: boolean) {
   const settings: any = await getCollectionSettings(req.apiCollection._id);
   const isAdmin = req.apiCollectionRole === 'admin';
 
-  const query: any = { collection: req.apiCollection._id, in_wishlist: false };
+  const query: any = { collection: req.apiCollection._id, in_wishlist: inWishlist };
   applyVisibilityFilter(query, isAdmin, settings);
   applyEnabledModulesFilter(query, settings);
   applyContainedFilter(query);
@@ -664,6 +674,10 @@ router.get('/collections/:id/stats', requireApiCollectionRole('viewer'), async (
   }
 
   res.status(200).json({ stats });
-});
+}
+
+router.get('/collections/:id/stats', requireApiCollectionRole('viewer'), (req: any, res: any) => shelfStats(req, res, false));
+
+router.get('/collections/:id/wishlist/stats', requireApiCollectionRole('viewer'), (req: any, res: any) => shelfStats(req, res, true));
 
 export = router;

@@ -5,7 +5,7 @@ import { buildApiApp } from '../../../test/helpers/app';
 import { startDb, stopDb, clearDb } from '../../../test/helpers/db';
 import { makeUser, makeCollection, makeSettings, makeItem, itemModel, allModulesOn } from '../../../test/helpers/factories';
 import { signAccessToken, bearer } from '../../../test/helpers/auth';
-import { loadPluginsOnce, registerTestPlugin, TEST_PLUGIN_KIND } from '../../../test/helpers/plugins';
+import { loadPluginsOnce, registerTestPlugin, TEST_PLUGIN_ID, TEST_PLUGIN_KIND } from '../../../test/helpers/plugins';
 import { removeItemImageUrls } from '../../../test/helpers/files';
 import Collection from '../../../models/Collection';
 import InstanceSettings from '../../../models/InstanceSettings';
@@ -773,6 +773,91 @@ describe('GET /api/v1/collections/:id/stats', () => {
     const ctx = await seedCollectionWithRoles();
     const res = await request(app)
       .get(`/api/v1/collections/${ctx.collection._id}/stats`)
+      .set(bearer(ctx.outsiderToken));
+    assert.equal(res.status, 403);
+    assert.equal(res.body.success, false);
+  });
+});
+
+describe('wishlist listing', () => {
+  /**
+   * One owned item, a wishlist holder with two contained seasons, and a wanted item
+   * with quantity 2. Two seasons (not one) so the holder keeps its place on the shelf
+   * rather than being replaced by its single child (see resolveShelfItems).
+   */
+  async function seedWishlist() {
+    const ctx = await seedCollectionWithRoles();
+    await makeSettings(ctx.collection);
+    const owned = await makeItem(TEST_PLUGIN_KIND, { title: 'Owned', owner: ctx.owner._id, collection: ctx.collection._id });
+    const holder = await makeItem(TEST_PLUGIN_KIND, { title: 'Wish Holder', owner: ctx.owner._id, collection: ctx.collection._id, in_wishlist: true });
+    const seasonOne = await makeItem(TEST_PLUGIN_KIND, { title: 'Wish Season 1', owner: ctx.owner._id, collection: ctx.collection._id, in_wishlist: true, parent: holder._id });
+    const seasonTwo = await makeItem(TEST_PLUGIN_KIND, { title: 'Wish Season 2', owner: ctx.owner._id, collection: ctx.collection._id, in_wishlist: true, parent: holder._id });
+    const wanted = await makeItem(TEST_PLUGIN_KIND, { title: 'Wanted', owner: ctx.owner._id, collection: ctx.collection._id, in_wishlist: true, quantity: 2 });
+    return { ...ctx, owned, holder, seasonOne, seasonTwo, wanted };
+  }
+
+  test('200 returns only wishlist items, excluding owned and contained items', async () => {
+    const ctx = await seedWishlist();
+    const res = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/wishlist`)
+      .set(bearer(ctx.viewerToken));
+    assert.equal(res.status, 200);
+    const titles = res.body.items.map((i: any) => i.title).sort();
+    assert.deepEqual(titles, ['Wanted', 'Wish Holder']);
+    assert.equal(res.body.totalItems, 2);
+  });
+
+  test('200 filters by type and search like the collection listing', async () => {
+    const ctx = await seedWishlist();
+    const bySearch = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/wishlist?search=Wanted`)
+      .set(bearer(ctx.viewerToken));
+    assert.deepEqual(bySearch.body.items.map((i: any) => i.title), ['Wanted']);
+
+    const byType = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/wishlist?type=${TEST_PLUGIN_ID}`)
+      .set(bearer(ctx.viewerToken));
+    assert.equal(byType.body.totalItems, 2);
+  });
+
+  test('401 without a bearer token', async () => {
+    const ctx = await seedWishlist();
+    const res = await request(app).get(`/api/v1/collections/${ctx.collection._id}/wishlist`);
+    assert.equal(res.status, 401);
+    assert.equal(res.body.success, false);
+  });
+
+  test('403 for a non-member', async () => {
+    const ctx = await seedWishlist();
+    const res = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/wishlist`)
+      .set(bearer(ctx.outsiderToken));
+    assert.equal(res.status, 403);
+    assert.equal(res.body.success, false);
+  });
+});
+
+describe('GET /api/v1/collections/:id/wishlist/stats', () => {
+  test('200 totals wishlist quantities, excluding owned and contained items', async () => {
+    const ctx = await seedCollectionWithRoles();
+    await makeSettings(ctx.collection);
+    await makeItem(TEST_PLUGIN_KIND, { title: 'Owned', owner: ctx.owner._id, collection: ctx.collection._id, quantity: 5 });
+    const holder = await makeItem(TEST_PLUGIN_KIND, { title: 'Wish Holder', owner: ctx.owner._id, collection: ctx.collection._id, in_wishlist: true });
+    await makeItem(TEST_PLUGIN_KIND, { title: 'Wish Season', owner: ctx.owner._id, collection: ctx.collection._id, in_wishlist: true, parent: holder._id });
+    await makeItem(TEST_PLUGIN_KIND, { title: 'Wanted', owner: ctx.owner._id, collection: ctx.collection._id, in_wishlist: true, quantity: 2 });
+
+    const res = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/wishlist/stats`)
+      .set(bearer(ctx.viewerToken));
+    assert.equal(res.status, 200);
+    assert.equal(res.body.stats.total, 3);
+    assert.equal(res.body.stats.testkind, 2);
+  });
+
+  test('403 for a non-member', async () => {
+    const ctx = await seedCollectionWithRoles();
+    const res = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/wishlist/stats`)
       .set(bearer(ctx.outsiderToken));
     assert.equal(res.status, 403);
     assert.equal(res.body.success, false);
