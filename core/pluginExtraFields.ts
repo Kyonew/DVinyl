@@ -1,6 +1,11 @@
 import { PluginDefinition, FieldDefinition } from './types';
 import { CustomFieldConfig } from './customPlugin';
 import { RESERVED_FIELD_NAMES, FIELD_NAME_RE, FIELD_TYPES, cleanText, slugify } from './customPluginStore';
+import {
+  createExtraFieldKey,
+  EXTRA_FIELD_KEY_VERSION,
+  isManagedExtraFieldKey
+} from './extraFieldIdentity';
 
 /**
  * Per-collection user-defined fields added on top of a plugin's own fields, for
@@ -17,7 +22,10 @@ import { RESERVED_FIELD_NAMES, FIELD_NAME_RE, FIELD_TYPES, cleanText, slugify } 
  * raw) and definitions ride inside the Settings documents.
  */
 
-export type ExtraFieldConfig = CustomFieldConfig;
+export type ExtraFieldConfig = CustomFieldConfig & {
+  /** Versioned marker distinguishing generated identities from legacy label slugs. */
+  keyVersion?: number;
+};
 
 export const MAX_EXTRA_FIELDS_PER_PLUGIN = 15;
 
@@ -235,20 +243,30 @@ export function reviveExtraDates(item: any, dateFields: Set<string>): void {
  * the i18n keys of what went wrong. Mirrors the custom-plugin field rules so both
  * editors accept exactly the same shapes.
  */
-export function sanitizeExtraFields(raw: any, plugin: PluginDefinition): { fields: ExtraFieldConfig[]; errors: string[] } {
+export function sanitizeExtraFields(
+  raw: any,
+  plugin: PluginDefinition,
+  existing: ExtraFieldConfig[] = []
+): { fields: ExtraFieldConfig[]; errors: string[] } {
   const errors: string[] = [];
   const fields: ExtraFieldConfig[] = [];
   const taken = reservedNamesFor(plugin);
   const seen = new Set<string>();
+  const existingByName = new Map(existing.map(field => [field.name, field]));
+  const unavailable = new Set([...taken, ...existingByName.keys()]);
 
   for (const item of Array.isArray(raw) ? raw.slice(0, MAX_EXTRA_FIELDS_PER_PLUGIN) : []) {
     const label = cleanText(item?.label, 40);
     if (!label) continue; // ignore empty builder rows
 
-    // An existing field keeps its stored name so renaming its label never orphans
-    // the values already saved under the old key.
+    // Only a name already present in Settings identifies an existing field. A crafted
+    // client cannot choose the storage key of a new field, and changing the label of an
+    // existing one never moves its data.
     const submitted = cleanText(item?.name, 30);
-    const name = FIELD_NAME_RE.test(submitted) ? submitted : slugify(label).replace(/-/g, '_');
+    const previous = existingByName.get(submitted);
+    const name = previous
+      ? previous.name
+      : createExtraFieldKey(new Set([...unavailable, ...seen]));
     if (!FIELD_NAME_RE.test(name)) { errors.push('create_plugin.err_bad_field_name'); continue; }
     if (taken.has(name)) { errors.push('create_plugin.err_reserved_field'); continue; }
     if (seen.has(name)) { errors.push('create_plugin.err_duplicate_field'); continue; }
@@ -262,6 +280,9 @@ export function sanitizeExtraFields(raw: any, plugin: PluginDefinition): { field
       required: item?.required === true || item?.required === 'true',
       group: item?.group === 'main' ? 'main' : 'metadata'
     };
+    if (!previous || isManagedExtraFieldKey(previous.name, previous.keyVersion)) {
+      field.keyVersion = EXTRA_FIELD_KEY_VERSION;
+    }
 
     const placeholder = cleanText(item?.placeholder, 60);
     if (placeholder) field.placeholder = placeholder;

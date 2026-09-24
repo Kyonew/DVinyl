@@ -162,7 +162,8 @@ router.post('/customize/:pluginId', async (req: any, res: any) => {
     // key, so a caller that only changes the icon never touches the declared fields.
     let extraUpdate: { set?: any; unset?: string } | null = null;
     if (req.body.extraFields !== undefined) {
-      const { fields, errors } = sanitizeExtraFields(req.body.extraFields, plugin);
+      const existingFields = getExtraFields(res.locals.settings, plugin.id);
+      const { fields, errors } = sanitizeExtraFields(req.body.extraFields, plugin, existingFields);
       if (errors.length > 0) {
         return res.status(400).json({ success: false, error: errors.map(e => req.t(e)).join(' ') });
       }

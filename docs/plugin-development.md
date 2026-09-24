@@ -62,6 +62,9 @@ do **not** redeclare them in your schema:
 `location`, `quantity`, `genre`, `genres`, `styles`, `barcode`, `added_at`.
 
 Your `schemaDefinition` only adds the fields that are specific to your type.
+Names beginning with `custom_` are reserved for the collision-proof identities of fields
+created from the per-collection customization screen. A code plugin must not declare that
+prefix in either `schemaDefinition` or `formFields`; the plugin loader rejects it.
 
 ## Level 1: a minimal plugin
 

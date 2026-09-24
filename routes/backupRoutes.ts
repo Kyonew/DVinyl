@@ -22,6 +22,7 @@ import { importableFields, fieldValue, ImportTargetField } from '../core/csvMapp
 // Read from package.json rather than copied, which is how it came to say 3.1.0 on 3.1.1.
 const pkg = require('../package.json');
 import { migrateDatabase, normalizeThemePresets } from '../utils/migrate';
+import { migrateExtraFieldIdentities } from '../utils/migrateExtraFieldIdentities';
 import { seedFurnitureFromLocations } from '../core/shelfStore';
 import { collectionInfoFromBackup, collectionInfoOf } from '../core/collectionInfo';
 import { applyCustomPluginsFromDB } from '../core/customPluginSync';
@@ -318,6 +319,7 @@ const importInstanceBackup = async (req: any, res: any) => {
         // Reconcile no-code plugins with the freshly imported DB: re-materialize the
         // plugins/<id>/ folders and hot-register them, pruning any from the old instance.
         await applyCustomPluginsFromDB();
+        await migrateExtraFieldIdentities();
 
         // A JSON restore can keep paths already present on this installation, while a ZIP
         // restore has already rewritten its files to fresh paths. In both cases, remove only
@@ -647,6 +649,10 @@ const importCollectionBackup = async (req: any, res: any) => {
             await Settings.deleteMany({ collection: activeCollectionId });
             await Settings.create(clean);
         }
+
+        // Collection restores do not run the whole boot migration. Apply the same
+        // custom-field identity upgrade explicitly before the restored data is used.
+        await migrateExtraFieldIdentities({ collectionId: activeCollectionId });
 
         try {
             await deleteUnusedManagedItemImages(replacedImagePaths);
