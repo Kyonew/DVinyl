@@ -157,6 +157,12 @@ async function loadInstanceAdminData(): Promise<InstanceAdminData> {
   };
 }
 
+// The message keys a redirect reports a failure with, so the banner is drawn as
+// an error instead of a success.
+function isErrorMessageKey(key: string | undefined): boolean {
+  return !!key && (key.startsWith("error_") || key.endsWith("_error"));
+}
+
 // COLLECTION ADMIN PAGE (GET /admin) - gated on the active collection's admin role
 router.get("/", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
   try {
@@ -169,6 +175,7 @@ router.get("/", requireAuth, requireCollectionRole("admin"), async (req: any, re
       ...data,
       user: res.locals.user,
       successMessage: msgKey ? req.t(`messages.${msgKey}`) : null,
+      messageIsError: isErrorMessageKey(msgKey),
       newPassword: null,
       // Share links must show a full, absolute URL (scheme + host) - a bare
       // baseUrl-relative path is not something you can scan/paste elsewhere.
@@ -192,6 +199,7 @@ router.get("/instance", requireAuth, requireAdmin, async (req: any, res: any) =>
       ...data,
       user: res.locals.user,
       successMessage: msgKey ? req.t(`messages.${msgKey}`) : null,
+      messageIsError: isErrorMessageKey(msgKey),
       newPassword: null,
       apiKeyStatus: registry.getApiKeyStatus(),
     });
@@ -200,6 +208,16 @@ router.get("/instance", requireAuth, requireAdmin, async (req: any, res: any) =>
     res.status(500).send(req.t("errors.generic_server_error"));
   }
 });
+
+// Names why an account could not be created: a duplicate key names the field
+// already in use, anything else falls back to a generic failure.
+function userCreationErrorKey(err: any): string {
+  if (err?.code === 11000) {
+    return err.keyPattern?.username ? "error_username_taken" : "error_email_taken";
+  }
+  if (err?.name === "ValidationError") return "error_user_invalid";
+  return "error_user_create";
+}
 
 // Add user at the INSTANCE level (POST) - creates a global account with no
 // collection membership; collection admins attach members from their own page.
@@ -235,7 +253,7 @@ router.post("/add-user", requireAuth, requireAdmin, async (req: any, res: any) =
     });
   } catch (err) {
     console.error("[ADMIN] User creation error:", err);
-    res.redirect("/admin/instance?msg=user_created");
+    res.redirect(`/admin/instance?msg=${userCreationErrorKey(err)}`);
   }
 });
 
@@ -517,7 +535,7 @@ router.post("/members/create", requireAuth, requireCollectionRole("admin"), asyn
     });
   } catch (err) {
     console.error("Member creation error:", err);
-    res.redirect("/admin?msg=error_member");
+    res.redirect(`/admin?msg=${userCreationErrorKey(err)}`);
   }
 });
 

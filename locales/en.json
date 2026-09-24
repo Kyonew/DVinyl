@@ -151,7 +151,11 @@
     "share_link_created": "Share link created.",
     "share_link_deleted": "Share link deleted.",
     "error_share": "Could not update sharing.",
-    "home_collection_updated": "Default collection updated."
+    "home_collection_updated": "Default collection updated.",
+    "error_email_taken": "An account already uses this email.",
+    "error_username_taken": "An account already uses this username.",
+    "error_user_invalid": "Check the username and email, the account was not created.",
+    "error_user_create": "The account could not be created."
   },
   "media": {
     "vinyl": "Vinyl",
@@ -917,7 +921,9 @@
     "local_disabled": "This instance only accepts single sign-on.",
     "error_oidc_unlinked": "No account is linked to this SSO identity. Sign in with your password first, then link your account from Settings.",
     "error_oidc_forbidden": "Your account is not allowed to access this instance.",
-    "error_oidc_unavailable": "SSO sign-in is currently unavailable. Please try again or use your password."
+    "error_oidc_unavailable": "SSO sign-in is currently unavailable. Please try again or use your password.",
+    "identifier_label": "Email or username",
+    "identifier_placeholder": "example@email.com or username"
   },
   "setup": {
     "title": "DVinyl Setup",

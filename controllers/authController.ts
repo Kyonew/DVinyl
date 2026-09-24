@@ -151,7 +151,10 @@ export const login_post = async (req: any, res: any) => {
     return res.status(403).json({ errors: { login: req.t('login.local_disabled') } });
   }
 
-  const { email, password } = req.body;
+  // The field is still posted as `email`, but it holds an email or a username.
+  // Keyed lowercased so the same identifier cannot dodge the lockout by casing.
+  const { password } = req.body;
+  const email = String(req.body.email || '').trim().toLowerCase();
   const now = Date.now();
 
   // Check whether this email is temporarily blocked due to repeated failures.
@@ -163,7 +166,7 @@ export const login_post = async (req: any, res: any) => {
   }
 
   try {
-    const user = await (User as any).login(email, password);
+    const user = await (User as any).login(req.body.email, password);
 
     // Clear failed attempts on successful login.
     if (loginAttempts[email]) delete loginAttempts[email];

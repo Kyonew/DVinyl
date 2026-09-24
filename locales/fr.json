@@ -151,7 +151,11 @@
     "share_link_created": "Lien de partage créé.",
     "share_link_deleted": "Lien de partage supprimé.",
     "error_share": "Impossible de mettre à jour le partage.",
-    "home_collection_updated": "Collection par défaut mise à jour."
+    "home_collection_updated": "Collection par défaut mise à jour.",
+    "error_email_taken": "Un compte utilise déjà cet email.",
+    "error_username_taken": "Un compte utilise déjà ce nom d'utilisateur.",
+    "error_user_invalid": "Vérifiez le nom d'utilisateur et l'email, le compte n'a pas été créé.",
+    "error_user_create": "Le compte n'a pas pu être créé."
   },
   "media": {
     "vinyl": "Vinyle",
@@ -917,7 +921,9 @@
     "local_disabled": "Cette instance n'accepte que l'authentification unique.",
     "error_oidc_unlinked": "Aucun compte n'est lié à cette identité SSO. Connectez-vous d'abord avec votre mot de passe, puis liez votre compte depuis les paramètres.",
     "error_oidc_forbidden": "Votre compte n'est pas autorisé à accéder à cette instance.",
-    "error_oidc_unavailable": "La connexion SSO est momentanément indisponible. Réessayez ou utilisez votre mot de passe."
+    "error_oidc_unavailable": "La connexion SSO est momentanément indisponible. Réessayez ou utilisez votre mot de passe.",
+    "identifier_label": "Email ou nom d'utilisateur",
+    "identifier_placeholder": "exemple@email.com ou nom d'utilisateur"
   },
   "setup": {
     "title": "Installation DVinyl",

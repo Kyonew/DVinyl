@@ -889,7 +889,9 @@
     "local_disabled": "Esta instancia solo acepta el inicio de sesión único.",
     "error_oidc_unlinked": "Ninguna cuenta está vinculada a esta identidad SSO. Inicia sesión primero con tu contraseña y luego vincula tu cuenta desde Ajustes.",
     "error_oidc_forbidden": "Tu cuenta no tiene permiso para acceder a esta instancia.",
-    "error_oidc_unavailable": "El inicio de sesión SSO no está disponible en este momento. Inténtalo de nuevo o usa tu contraseña."
+    "error_oidc_unavailable": "El inicio de sesión SSO no está disponible en este momento. Inténtalo de nuevo o usa tu contraseña.",
+    "identifier_label": "Correo electrónico o nombre de usuario",
+    "identifier_placeholder": "ejemplo@correo.com o nombre de usuario"
   },
   "media": {
     "4k": "4K Ultra HD",
@@ -987,7 +989,11 @@
     "share_link_created": "Enlace para compartir creado.",
     "share_link_deleted": "Enlace para compartir eliminado.",
     "error_share": "No se ha podido actualizar el uso compartido.",
-    "home_collection_updated": "Recopilación predeterminada actualizada."
+    "home_collection_updated": "Recopilación predeterminada actualizada.",
+    "error_email_taken": "Ya existe una cuenta con este correo electrónico.",
+    "error_username_taken": "Ya existe una cuenta con este nombre de usuario.",
+    "error_user_invalid": "Revisa el nombre de usuario y el correo, la cuenta no se ha creado.",
+    "error_user_create": "No se ha podido crear la cuenta."
   },
   "modal": {
     "add_hub_subtitle": "Seleccione el tipo de medios para agregar a su colección",

@@ -48,7 +48,14 @@
             </div>
         </div>
 
-        <% if (locals.successMessage && !locals.newPassword) { %>
+        <% if (locals.successMessage && !locals.newPassword && locals.messageIsError) { %>
+            <div class="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 p-4 rounded-2xl text-center mb-6 transition-colors">
+                <p class="text-sm font-bold text-red-600 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-circle-exclamation"></i>
+                    <%= successMessage %>
+                </p>
+            </div>
+        <% } else if (locals.successMessage && !locals.newPassword) { %>
             <div class="bg-primary-theme/10 border border-primary-theme/30 p-4 rounded-2xl text-center mb-6 transition-colors">
                 <p class="text-sm font-bold text-primary-theme flex items-center justify-center gap-2">
                     <i class="fa-solid fa-check-circle"></i>

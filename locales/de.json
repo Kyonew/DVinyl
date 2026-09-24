@@ -889,7 +889,9 @@
     "local_disabled": "Diese Instanz akzeptiert nur Single Sign-On.",
     "error_oidc_unlinked": "Diesem SSO-Konto ist kein Benutzerkonto zugeordnet. Melden Sie sich zunächst mit Ihrem Passwort an und verknüpfen Sie Ihr Konto dann in den Einstellungen.",
     "error_oidc_forbidden": "Ihr Konto ist nicht berechtigt, auf diese Instanz zuzugreifen.",
-    "error_oidc_unavailable": "Die SSO-Anmeldung ist derzeit nicht verfügbar. Versuchen Sie es erneut oder verwenden Sie Ihr Passwort."
+    "error_oidc_unavailable": "Die SSO-Anmeldung ist derzeit nicht verfügbar. Versuchen Sie es erneut oder verwenden Sie Ihr Passwort.",
+    "identifier_label": "E-Mail oder Benutzername",
+    "identifier_placeholder": "example@email.com oder Benutzername"
   },
   "media": {
     "4k": "4K Ultra HD",
@@ -987,7 +989,11 @@
     "share_link_created": "Freigabelink erstellt.",
     "share_link_deleted": "Freigabelink gelöscht.",
     "error_share": "Die Freigabe konnte nicht aktualisiert werden.",
-    "home_collection_updated": "Standardsammlung aktualisiert."
+    "home_collection_updated": "Standardsammlung aktualisiert.",
+    "error_email_taken": "Ein Konto verwendet diese E-Mail-Adresse bereits.",
+    "error_username_taken": "Ein Konto verwendet diesen Benutzernamen bereits.",
+    "error_user_invalid": "Benutzername und E-Mail prüfen, das Konto wurde nicht erstellt.",
+    "error_user_create": "Das Konto konnte nicht erstellt werden."
   },
   "modal": {
     "add_hub_subtitle": "Wählen Sie den Medientyp aus, den Sie Ihrer Sammlung hinzufügen möchten",

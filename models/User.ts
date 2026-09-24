@@ -112,8 +112,14 @@ userSchema.index({ 'oidc.sub': 1 }, { unique: true, sparse: true });
  * @param {string} password
  * @returns {Promise<mongoose.Document>} Resolves with the user document on success
  */
-userSchema.statics.login = async function (email, password) {
-    const user = await this.findOne({ email });
+// Accepts the email or the username. Emails are stored lowercased, so the typed
+// address is too; an email match wins over a username spelled like an address.
+userSchema.statics.login = async function (identifier, password) {
+    const id = String(identifier || '').trim();
+    const user = id && (
+        await this.findOne({ email: id.toLowerCase() }) ||
+        await this.findOne({ username: id })
+    );
     if (user) {
         // SSO-only accounts have no local password: reject the password login
         // path cleanly instead of letting bcrypt.compare throw on an undefined

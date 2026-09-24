@@ -889,7 +889,9 @@
     "local_disabled": "Questa istanza accetta solo l'accesso Single Sign-On.",
     "error_oidc_unlinked": "Nessun account è collegato a questa identità SSO. Accedi prima con la tua password, poi collega il tuo account dalle Impostazioni.",
     "error_oidc_forbidden": "Il tuo account non è autorizzato ad accedere a questa istanza.",
-    "error_oidc_unavailable": "L'accesso SSO non è al momento disponibile. Riprova oppure usa la tua password."
+    "error_oidc_unavailable": "L'accesso SSO non è al momento disponibile. Riprova oppure usa la tua password.",
+    "identifier_label": "E-mail o nome utente",
+    "identifier_placeholder": "esempio@email.com o nome utente"
   },
   "media": {
     "4k": "4K UltraHD",
@@ -987,7 +989,11 @@
     "share_link_created": "Link di condivisione creato.",
     "share_link_deleted": "Link di condivisione eliminato.",
     "error_share": "Impossibile aggiornare la condivisione.",
-    "home_collection_updated": "Collezione predefinita aggiornata."
+    "home_collection_updated": "Collezione predefinita aggiornata.",
+    "error_email_taken": "Esiste già un account con questa e-mail.",
+    "error_username_taken": "Esiste già un account con questo nome utente.",
+    "error_user_invalid": "Controlla nome utente ed e-mail, l'account non è stato creato.",
+    "error_user_create": "Impossibile creare l'account."
   },
   "modal": {
     "add_hub_subtitle": "Seleziona il tipo di media da aggiungere alla tua raccolta",
