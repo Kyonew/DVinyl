@@ -33,7 +33,7 @@
                     </button>
                     <span class="opacity-30">|</span>
                 <% } %>
-                <% const scanPlugins = registry.getEnabled(settings).filter(p => p.searchProvider); %>
+                <% const scanPlugins = registry.getEnabled(settings).filter(p => hasBarcodeScan(p)); %>
                 <% if (locals.canEditCollection && scanPlugins.length > 0) { %>
                     <% if (scanPlugins.length === 1) { %>
                         <a href="<%= baseUrl %>/add-<%= scanPlugins[0].id %>?scan=1" class="inline-flex items-center gap-2 hover:text-primary-theme transition-colors">

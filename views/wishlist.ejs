@@ -14,7 +14,7 @@
         // hub asks. It also carries the fast-add shortcut, so the entry points here behave
         // exactly like the dashboard one.
         const canAdd = locals.canEditCollection && registry.getEnabled(settings).length > 0;
-        const scanPlugins = registry.getEnabled(settings).filter(p => p.searchProvider);
+        const scanPlugins = registry.getEnabled(settings).filter(p => hasBarcodeScan(p));
         const canScan = locals.canEditCollection && scanPlugins.length > 0;
         const scanHref = scanPlugins.length === 1 ? (baseUrl + '/add-' + scanPlugins[0].id + '?scan=1') : null;
     %>

@@ -5,9 +5,11 @@
     <nav class="flex items-center justify-between gap-4 mb-6 text-sm transition-colors">
         <%# A plain href here would land back on an empty search form: the results only
             ever exist as the response to the POST that made them, so going "back" has to
-            mean the browser's own back navigation, not a fresh GET. The href stays as a
-            fallback for opening in a new tab or with JS disabled. %>
-        <a href="<%= baseUrl %>/add-<%= plugin.id %>" onclick="if (window.history.length > 1) { history.back(); return false; }" class="opacity-60 hover:opacity-100 transition-opacity flex items-center py-2">
+            mean the browser's own back navigation, not a fresh GET. Only when the previous
+            page is that result list, though: a history entry alone could be another site
+            or a blank tab. The href covers every other case. %>
+        <a href="<%= baseUrl %>/add-<%= plugin.id %>" data-search-url="<%= baseUrl %>/search-<%= plugin.id %>"
+            onclick="if (document.referrer === location.origin + this.dataset.searchUrl) { history.back(); return false; }" class="opacity-60 hover:opacity-100 transition-opacity flex items-center py-2">
             <i class="fa-solid fa-arrow-left mr-2"></i> <%= t('common.back_to_search') %>
         </a>
         <button type="submit" form="confirm-form" name="in_wishlist" value="false"

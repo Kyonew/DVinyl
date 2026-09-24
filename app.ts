@@ -34,7 +34,7 @@ import { importableFields } from './core/csvMapping.js';
 import { MAX_ITEM_IMAGES, MAX_ITEM_IMAGE_BYTES } from './core/itemImages.js';
 import { cleanupStaleItemImageUploads, ITEM_IMAGE_SWEEP_INTERVAL_MS, itemImageUrl } from './core/itemImageStorage.js';
 import { isCollectionInfoVisible } from './core/collectionInfo.js';
-import { externalLinkFor, hasSearch, requiredEnvKeysFor, canRefresh, sourceStatusFor, searchableSources } from './core/sources';
+import { externalLinkFor, hasSearch, hasBarcodeScan, requiredEnvKeysFor, canRefresh, sourceStatusFor, searchableSources } from './core/sources';
 
 // Routes imports
 import setupRoutes from './routes/setupRoutes.js';
@@ -116,6 +116,7 @@ app.locals.isCollectionInfoVisible = isCollectionInfoVisible;
 // answers about its sources rather than about a single provider hanging off it.
 app.locals.externalLinkFor = externalLinkFor;
 app.locals.hasSearch = hasSearch;
+app.locals.hasBarcodeScan = hasBarcodeScan;
 app.locals.requiredEnvKeysFor = requiredEnvKeysFor;
 app.locals.canRefresh = canRefresh;
 app.locals.sourceStatusFor = sourceStatusFor;

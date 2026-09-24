@@ -437,6 +437,7 @@
   },
   "collection": {
     "add": "Hinzufügen",
+    "scan": "Scannen",
     "share_view_banner": "Du siehst eine geteilte Sammlung - schreibgeschützt.",
     "filter_placeholder": "Filter...",
     "view_grid": "Raster",
@@ -852,6 +853,7 @@
     "hero_subtitle": "Etwas Neues in der Sammlung?",
     "nav_add_full": "Fügen Sie einen Artikel hinzu",
     "nav_add_short": "Hinzufügen",
+    "nav_scan_full": "Barcode scannen",
     "nav_view_all": "Alle anzeigen",
     "search_placeholder": "Suchen...",
     "section_latest": "Neueste Ergänzungen",
@@ -1156,6 +1158,7 @@
     "confirm_move": "Großartig! Möchten Sie dieses Album in Ihre offizielle Sammlung verschieben?",
     "empty_msg": "Ihre Wunschliste ist leer.",
     "search_link": "Fügen Sie Ihren ersten Artikel hinzu",
+    "scan_link": "Oder scannen Sie einen Barcode",
     "title": "Meine Wunschliste"
   },
   "add_game": {

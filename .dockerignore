@@ -5,11 +5,6 @@ mongo_data
 mongo_data_test
 dist
 
-# Worktrees carry their own full checkout (mongo_data included) - never needed in the
-# build context, and an unreadable file inside one (e.g. Mongo's own journal dir) fails
-# the whole build otherwise since the top-level mongo_data rule above doesn't reach in.
-.claude/worktrees
-
 # Runtime uploads (avatars, item images). Kept out of the image so a local
 # `docker compose up --build` never bakes the builder's own files into it; every
 # writer recreates its directory on demand, and Compose mounts this path anyway.

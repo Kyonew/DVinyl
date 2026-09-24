@@ -437,6 +437,7 @@
   },
   "collection": {
     "add": "Agregar",
+    "scan": "Escanear",
     "share_view_banner": "Estás viendo una colección compartida - solo lectura.",
     "filter_placeholder": "Filtrar...",
     "view_grid": "Cuadrícula",
@@ -852,6 +853,7 @@
     "hero_subtitle": "¿Algo nuevo en la colección?",
     "nav_add_full": "Agregar un artículo",
     "nav_add_short": "Agregar",
+    "nav_scan_full": "Escanear un código de barras",
     "nav_view_all": "Ver todo",
     "search_placeholder": "Buscar...",
     "section_latest": "Últimas incorporaciones",
@@ -1156,6 +1158,7 @@
     "confirm_move": "¡Excelente! ¿Quieres mover este álbum a tu colección oficial?",
     "empty_msg": "Tu lista de deseos está vacía.",
     "search_link": "Añade tu primer elemento",
+    "scan_link": "O escanea un código de barras",
     "title": "Mi lista de deseos"
   },
   "add_game": {

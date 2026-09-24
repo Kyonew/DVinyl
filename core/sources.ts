@@ -156,6 +156,15 @@ export function hasSearch(plugin: PluginDefinition): boolean {
 }
 
 /**
+ * Whether the plugin's add page offers the barcode scanner, which every "scan" shortcut
+ * links straight into. A search is required to have an add page at all, and a plugin
+ * whose search ignores barcodes opts out with `noBarcodeScan`.
+ */
+export function hasBarcodeScan(plugin: PluginDefinition): boolean {
+  return hasSearch(plugin) && !plugin.noBarcodeScan;
+}
+
+/**
  * The source a request means, by id, falling back to the plugin's first configured one.
  *
  * Unknown ids fall back rather than fail: an id reaches here from a query string and
