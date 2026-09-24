@@ -26,6 +26,7 @@ router.get('/wishlist', requireAuth, async (req: any, res: any) => {
   const data = await buildShelfView(req, res, true);
   if (!data) return;
   if (isPartialRequest(req)) return renderShelfPartial(res, data, true);
+  res.vary('X-Requested-With');
   res.render('wishlist', data);
 });
 
@@ -33,19 +34,24 @@ router.get('/collection', requireAuthOrShareView, async (req: any, res: any) => 
   const data = await buildShelfView(req, res, false);
   if (!data) return;
   if (isPartialRequest(req)) return renderShelfPartial(res, data, false);
+  res.vary('X-Requested-With');
   res.render('collection', data);
 });
 
 // Live search (see albums-filters.ejs's liveSearchReload) asks for just the results
-// fragment instead of the whole page, via this header - never set by a normal
-// navigation, so a bookmarked or shared link always gets real HTML.
+// fragment instead of the whole page, through this header. A normal navigation never
+// sets it, so a bookmarked or shared link always gets real HTML.
 function isPartialRequest(req: any): boolean {
   return req.get('X-Requested-With') === 'fetch';
 }
 
-// Renders only what a live filter change needs to replace - the results grid/pager and
-// the active-filter pills - as JSON, instead of the full document.
+// Renders only what a live filter change needs to replace (the active view with its
+// pager, and the active-filter pills) as JSON, instead of the full document.
+// The JSON answers the very URL the page then moves to, so it is kept out of the
+// browser cache: a back navigation to that URL would otherwise show the raw JSON.
 function renderShelfPartial(res: any, data: Record<string, any>, isWishlist: boolean) {
+  res.set('Cache-Control', 'no-store');
+  res.vary('X-Requested-With');
   res.render('partials/shelf-results', { ...data, isWishlist }, (err: any, html: string) => {
     if (err) {
       console.error('Shelf partial render error:', err.message);

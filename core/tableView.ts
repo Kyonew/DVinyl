@@ -14,5 +14,6 @@ export const TABLE_VIEW: CollectionView = {
   icon: 'fa-table-list',
   order: 15,
   partial: 'partials/albums-table',
-  paginates: 'items'
+  paginates: 'items',
+  liveRedraw: true
 };

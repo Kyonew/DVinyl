@@ -1,7 +1,6 @@
-<%# Active-filter pill bar. Split out from albums-filters.ejs so the live-search AJAX
-    response (see collectionRoute.ts's renderShelfPartial) can re-render just this piece
-    -  the pills need to follow querySearch as it changes -  without duplicating the
-    label/formatting logic in client JS. %>
+<%# Active-filter pill bar, a partial of its own so the live-search response (see
+    collectionRoute.ts's renderShelfPartial) can re-render just this piece: the pills
+    follow querySearch as it changes, without duplicating the label logic in client JS. %>
 <%
     const activePills = [];
     if (locals.querySearch) activePills.push({ key: 'search', label: t('collection.filter_placeholder') + ': "' + locals.querySearch + '"' });

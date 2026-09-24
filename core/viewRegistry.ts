@@ -13,7 +13,8 @@ const GRID_VIEW: CollectionView = {
   icon: 'fa-table-cells',
   order: 10,
   partial: 'partials/albums-grid',
-  paginates: 'items'
+  paginates: 'items',
+  liveRedraw: true
 };
 
 /**

@@ -1,9 +1,12 @@
-<%# Item grid + pager fragment shared by the collection and wishlist pages. Factored out
-    (rather than the two inline includes each page used to have) so the live-search AJAX
-    response (see collectionRoute.ts's renderShelfPartial) re-renders exactly this piece
-    -  no full page reload, no duplicated markup to drift out of sync.
+<%# Whatever the active view draws, plus the pager under it, shared by the collection
+    and the wishlist pages. Kept in one partial so the live-search response (see
+    collectionRoute.ts's renderShelfPartial) re-renders exactly what the page shows.
+    What is drawn is up to the active view (core/viewRegistry.ts). The params are what
+    the item grid reads; a view that has no use for them ignores them and works off
+    what its own buildData put in the page. A view names its partial from views/, and
+    includes resolve from this file's own folder, hence the '../'.
     Params: albums, isWishlist %>
-<%- include('albums-grid', locals.isWishlist
+<%- include('../' + activeView.partial, locals.isWishlist
     ? { albums, size: 'wishlist', wishlist: true, badgeSize: 'compact' }
     : { albums, size: 'collection', gridId: 'albumGrid', selectable: locals.canEditCollection }) %>
 <%- include('albums-page-changer') %>

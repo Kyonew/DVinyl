@@ -500,6 +500,12 @@ export interface CollectionView {
   // 'none' means the view pages over something of its own and hides both.
   paginates: 'items' | 'none';
 
+  // The partial can be rendered on its own and swapped into the page without its
+  // scripts running again, which is what lets the search follow the typing. A view
+  // whose partial sets itself up with inline scripts leaves it off, and its search
+  // applies on Enter through a full page load.
+  liveRedraw?: boolean;
+
   // Merged into the page's view model, and only when this view is the active one:
   // a view nobody is looking at must not cost a query. `base` is what the page has
   // built so far, so a view can read the filters that were already resolved.
