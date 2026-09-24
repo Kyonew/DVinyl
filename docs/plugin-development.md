@@ -285,7 +285,13 @@ sources: [bggSource],
 The module stays usable as long as **one** of its searchable sources is configured, and the
 add page grows a source picker by itself as soon as there are two. Each item records which
 source answered, in `source` and `source_id`, so it can be traced back and refreshed against
-the right database later on.
+the right database later on. Both names belong to the core: don't declare either in your own
+schema.
+
+Items saved before your plugin had sources are credited to its first searchable source, from
+the id in your `externalIdField`. If that field does not hold an id the source's `getDetails`
+accepts (books keep Hardcover's slug, while Hardcover is queried by numeric id), say which one
+does with `legacyIdField`, or `legacyIdField: null` to leave those items without a pair.
 
 `sourceFromProvider` is a convenience for a class you already wrote. A source is a plain
 object and it only implements the capabilities it has: `search` + `getDetails` to be

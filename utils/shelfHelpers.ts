@@ -30,11 +30,16 @@ export function normalizeLocationName(value: unknown): string {
 /**
  * The spelling a shelf keeps when several of them turn out to be the same shelf. The
  * one used by the most items wins, on the grounds that it is the one that was typed
- * on purpose; ties are broken alphabetically so a re-run picks the same name.
+ * on purpose. On a tie, a spelling with no stray spaces beats one that has some, those
+ * being the accident rather than the choice; what is still tied after that is broken
+ * alphabetically, so a re-run picks the same name.
  */
 export function pickDisplayName(variants: { name: string; count: number }[]): string {
+  const isClean = (name: string) => normalizeLocationName(name) === name;
   const ordered = [...variants].sort((a, b) =>
-    b.count - a.count || a.name.localeCompare(b.name)
+    b.count - a.count
+    || Number(isClean(b.name)) - Number(isClean(a.name))
+    || normalizeLocationName(a.name).localeCompare(normalizeLocationName(b.name))
   );
   const mostUsed = ordered[0];
   return mostUsed ? normalizeLocationName(mostUsed.name) : '';

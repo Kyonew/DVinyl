@@ -29,6 +29,8 @@ function escapeHtml(value: string): string {
  * The address of a link, or null when it is not one of the three shapes worth linking:
  * an absolute http(s) address, a mail address, or a path inside this instance. Anything
  * else (javascript:, data:, protocol-relative //host) loses its link and keeps its text.
+ * That includes /\host: browsers read a backslash as a slash in a web address, so it
+ * would leave the instance exactly like //host does.
  *
  * The value arrives already HTML-escaped, so a quote inside it cannot close the
  * attribute this ends up in.
@@ -38,7 +40,7 @@ function safeHref(url: string): string | null {
   if (!href) return null;
   if (/^https?:\/\/[^/\s]/i.test(href)) return href;
   if (/^mailto:[^\s@]+@[^\s@]+$/i.test(href)) return href;
-  if (/^\/(?!\/)/.test(href)) return href;
+  if (/^\/(?![/\\])/.test(href)) return href;
   return null;
 }
 

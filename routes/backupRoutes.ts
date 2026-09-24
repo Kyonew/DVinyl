@@ -197,11 +197,15 @@ const importInstanceBackup = async (req: any, res: any) => {
         if (hasCollections && Array.isArray(data.furniture) && data.furniture.length > 0) {
             const toId = (v: any) => (typeof v === 'string' && mongoose.Types.ObjectId.isValid(v))
                 ? new mongoose.Types.ObjectId(v) : v;
+            // Cast back to their BSON types like the items below: the native insert skips the
+            // schema, and `created_at` orders the pieces of one collection after `order`.
             await Furniture.collection.insertMany(data.furniture.map((piece: any) => ({
                 ...piece,
                 _id: toId(piece._id),
                 collection: toId(piece.collection),
-                createdBy: piece.createdBy ? toId(piece.createdBy) : undefined
+                createdBy: piece.createdBy ? toId(piece.createdBy) : undefined,
+                ...(piece.created_at ? { created_at: new Date(piece.created_at) } : {}),
+                ...(piece.updated_at ? { updated_at: new Date(piece.updated_at) } : {})
             })));
         }
 
@@ -336,7 +340,7 @@ const importInstanceBackup = async (req: any, res: any) => {
         // Reconcile no-code plugins with the freshly imported DB: re-materialize the
         // plugins/<id>/ folders and hot-register them, pruning any from the old instance.
         await applyCustomPluginsFromDB();
-        await migrateExtraFieldIdentities();
+        await upgradeRestoredExtraFields();
 
         // A JSON restore can keep paths already present on this installation, while a ZIP
         // restore has already rewritten its files to fresh paths. In both cases, remove only
@@ -569,6 +573,20 @@ router.get('/collection/export-csv', requireAuth, requireCollectionRole('admin')
 });
 
 /**
+ * The custom-field identity upgrade, run on data a restore has just finished writing.
+ * Logged rather than thrown: the restore itself went through, and reporting it as failed
+ * would also release the images the archive brought in for it. The migration is
+ * idempotent, so the next boot takes it up again.
+ */
+async function upgradeRestoredExtraFields(options: { collectionId?: any } = {}): Promise<void> {
+    try {
+        await migrateExtraFieldIdentities(options);
+    } catch (err) {
+        console.error('[BACKUP] Custom field identity migration failed after the restore:', err);
+    }
+}
+
+/**
  * The furniture a collection restore puts back as it is, or null when the shelves have
  * to be rebuilt from the restored items' locations instead.
  *
@@ -737,7 +755,7 @@ const importCollectionBackup = async (req: any, res: any) => {
 
         // Collection restores do not run the whole boot migration. Apply the same
         // custom-field identity upgrade explicitly before the restored data is used.
-        await migrateExtraFieldIdentities({ collectionId: activeCollectionId });
+        await upgradeRestoredExtraFields({ collectionId: activeCollectionId });
 
         try {
             await deleteUnusedManagedItemImages(replacedImagePaths);

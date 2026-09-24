@@ -151,8 +151,8 @@
                         }
                     });
                     // Written below as a pair when the details came from a source. A plugin
-                    // that also declares `source` in its schema (books) would otherwise post
-                    // it twice, and the save handler would store both values joined.
+                    // that also declares `source` in its own schema would otherwise post it
+                    // twice, and the save handler would store both values joined.
                     const postsSourcePair = !!(item.source && item.source_id);
                     Object.keys(plugin.schemaDefinition).forEach(k => {
                         if (visibleNames.has(k) || hiddenInputs.includes(k)) return;

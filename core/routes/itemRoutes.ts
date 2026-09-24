@@ -1,4 +1,5 @@
 import express, { Router } from 'express';
+import crypto from 'crypto';
 import mongoose from 'mongoose';
 import QRCode from 'qrcode';
 import { PluginDefinition } from '../types';
@@ -31,6 +32,30 @@ function withAddedNotice(path: string, title: string, mergedQuantity: number | n
   params.set('added', title || '');
   if (mergedQuantity && mergedQuantity > 1) params.set('qty', String(mergedQuantity));
   return `${base}?${params.toString()}`;
+}
+
+// How long the search's go-ahead for a self-submitting confirm page stays valid: the
+// redirect is followed at once, so anything slower is not that redirect.
+const INSTANT_ADD_TTL_MS = 2 * 60 * 1000;
+
+/**
+ * Lets exactly one confirm page submit itself, the one this session's own search just
+ * redirected to. A self-submitting page is an add nobody clicks, so reaching it has to take
+ * more than a URL: without the token, any other site could send a signed-in user to a
+ * confirm link asking for it and have the item added under their name.
+ */
+function issueInstantAddToken(req: any, pluginId: string): string {
+  const token = crypto.randomBytes(16).toString('hex');
+  if (req.session) req.session.instantAdd = { token, pluginId, expires: Date.now() + INSTANT_ADD_TTL_MS };
+  return token;
+}
+
+/** True once per token issued above, for the plugin it was issued for. */
+function consumeInstantAddToken(req: any, pluginId: string, token: unknown): boolean {
+  const issued = req.session?.instantAdd;
+  if (!issued || typeof token !== 'string' || !token) return false;
+  delete req.session.instantAdd;
+  return issued.token === token && issued.pluginId === pluginId && Date.now() <= issued.expires;
 }
 
 export function createItemRoutes(plugin: PluginDefinition): Router {
@@ -177,7 +202,8 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         const onlyHit = results.length === 1 ? results[0] : undefined;
         if (exactIdentifier && !resolvedTitle && onlyHit?.confirmPath) {
           const path = onlyHit.confirmPath;
-          return res.redirect(`${path}${path.includes('?') ? '&' : '?'}instant=1`);
+          const token = issueInstantAddToken(req, plugin.id);
+          return res.redirect(`${path}${path.includes('?') ? '&' : '?'}instant=${token}`);
         }
 
         res.render('add', {
@@ -285,9 +311,10 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           isManual: false,
           // Scan mode sends every add back to the add page, whether it submitted itself or
           // was finished by hand here; `instantAdd` is the search route saying this page was
-          // reached by a scan that resolved to one exact item and needs no clicking.
+          // reached by a scan that resolved to one exact item and needs no clicking, which
+          // only its own one-time token can say.
           scanMode: res.locals.settings?.instantAdd === true,
-          instantAdd: res.locals.settings?.instantAdd === true && req.query.instant === '1'
+          instantAdd: res.locals.settings?.instantAdd === true && consumeInstantAddToken(req, plugin.id, req.query.instant)
         });
       } catch (err: any) {
         console.error(`Details fetch error for ${plugin.id} ID ${externalId}:`, err.message);

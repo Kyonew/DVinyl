@@ -7,12 +7,19 @@ import Item from '../../models/Item';
 
 const hardcoverProvider = new HardcoverProvider();
 
-// The database this plugin has always searched. The migration attributes every item
-// saved before sources existed to this id, so it must never change.
+// The database this plugin has always searched, and the id stored on every item it fills
+// in, so it must never change.
+//
+// Hardcover is looked up by its numeric book id, which is what an item added through it
+// records as `source_id`. Books saved before sources existed only kept the slug
+// (hardcover_slug), which that lookup does not accept, so there is no older field to
+// credit them from: they keep no pair and refresh through refreshItem, which reads the
+// slug. No itemUrl either: Hardcover's pages are addressed by slug, and externalLink
+// already links every book that has one.
 const hardcover = sourceFromProvider(hardcoverProvider, {
   id: 'hardcover',
   requiredEnvKeys: ['HARDCOVER_API_KEY'],
-  itemUrl: (id: string) => `https://hardcover.app/books/${id}`,
+  legacyIdField: null,
   // A bare ISBN-10 or ISBN-13 is searched as an edition lookup, never as text (see
   // HardcoverProvider.search), so a single hit is that book.
   exactQuery: (query: string) => normalizeIsbn(query) !== ''
@@ -97,7 +104,6 @@ export const booksPlugin: PluginDefinition = {
   schemaDefinition: {
     author: { type: String, required: true },
     hardcover_slug: { type: String, default: '' },
-    source: { type: String, enum: ['hardcover', 'goodreads', 'manual'], default: 'manual' },
     publisher: String,
     isbn: String,
     pages: Number,

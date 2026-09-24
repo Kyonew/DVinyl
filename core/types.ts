@@ -331,6 +331,13 @@ export interface ExternalSource {
   // because that one only knows the plugin's historical provider.
   itemUrl?(externalId: string): string | null;
 
+  // The item path that holds this source's record id on items saved before sources
+  // existed, which is how the boot migration gives them their `source`/`source_id` pair.
+  // Defaults to the plugin's externalIdField. `null` when no stored path holds an id this
+  // source's getDetails accepts: such items keep no pair and refresh through the plugin's
+  // own hook, rather than carrying an id the source cannot look up.
+  legacyIdField?: string | null;
+
   // What this source can answer. A source implements the capabilities it has and no
   // more, and the core asks before it calls: a database of cover art has no item to
   // hand over and nothing to attribute, and forcing it to pretend otherwise would put

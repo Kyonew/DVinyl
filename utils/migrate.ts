@@ -6,7 +6,7 @@ import { registry } from '../core/registry';
 import { buildSortTitle } from '../core/helpers';
 import { findOrCreateDefaultCollection } from './collectionHelpers';
 import { seedFurnitureFromLocations } from '../core/shelfStore';
-import { legacySource } from '../core/sources';
+import { legacySource, legacyIdFieldFor } from '../core/sources';
 
 /**
  * Legacy Settings could store theme.<key>.preset as an object (e.g. { default: 'default' })
@@ -291,9 +291,32 @@ export const migrateDatabase = async () => {
         // to describe a record, which is the one that historically filled that field. The typed path is left
         // exactly as it is: it is what the price estimates, the duplicate lookups and the
         // external links have always read.
+        //
+        // The `source` name predates the pair, though: books stored where an entry came
+        // from under it (hardcover, goodreads, manual). The core always writes `source`
+        // together with `source_id`, so a value naming none of the plugin's sources and
+        // never paired with an id is that older meaning, not a reference. It is cleared,
+        // which hands the item to the attribution like any other. Only for plugins written
+        // for sources: one still declaring a bare searchProvider keeps whatever it stores.
         for (const plugin of registry.getAll()) {
-            const field = plugin.externalIdField;
+            if (!plugin.sources || plugin.sources.length === 0) continue;
+            const declared = plugin.sources.map(s => s.id);
+            const cleared = await Item.collection.updateMany(
+                {
+                    kind: plugin.kind,
+                    source: { $nin: ['', null, ...declared] },
+                    $or: [{ source_id: { $exists: false } }, { source_id: { $in: ['', null] } }]
+                },
+                { $set: { source: '' } }
+            );
+            if (cleared.modifiedCount > 0) {
+                console.log(`[MIGRATION] ${cleared.modifiedCount} ${plugin.kind} item(s) held a "source" naming none of the plugin's sources; cleared.`);
+            }
+        }
+
+        for (const plugin of registry.getAll()) {
             const source = legacySource(plugin);
+            const field = legacyIdFieldFor(plugin, source);
             if (!field || !source) continue;
 
             const unattributed = await Item.collection

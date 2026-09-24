@@ -60,6 +60,10 @@ export class IGDBProvider implements SearchProvider {
   }
 
   async getDetails(id: string, options: any): Promise<ConfirmData> {
+    // Written into both queries below, and it can come straight from a URL. IGDB ids are
+    // integers: anything else would be read by IGDB as more query.
+    if (!/^\d+$/.test(String(id))) throw new Error(`Invalid IGDB id: ${id}`);
+
     // The completion times live on their own endpoint, so they cannot be asked for in the
     // same query. Both calls are fired together rather than one after the other: they are
     // independent, and waiting for the second one doubles how long the confirm page hangs.

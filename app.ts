@@ -172,10 +172,14 @@ for (const name of ['PASSJWT', 'SESSION_SECRET'] as const) {
 }
 
 const session_secret = process.env.SESSION_SECRET!;
+// Sessions live in memory and their cookie has no maxAge, so an entry is only dropped when
+// the process restarts. Stored only once something is written to them (the collection a
+// signed-in browser is on, an OIDC round trip): a share visitor, a crawler or a health
+// check would otherwise leave one behind per request made without a cookie.
 app.use(session({
   secret: session_secret,
   resave: false,
-  saveUninitialized: true,
+  saveUninitialized: false,
   cookie: { secure: process.env.PROD === 'true', httpOnly: true },
 }));
 
@@ -345,7 +349,13 @@ connectDB()
     console.log('[BOOT] Syncing custom plugins...');
     await syncCustomPluginsOnBoot();
     console.log('[BOOT] Migrating custom field identities...');
-    await migrateExtraFieldIdentities();
+    // Never fatal, like migrateDatabase(): a failure here would otherwise stop the server
+    // from ever listening. It is idempotent, so the next boot picks up where it stopped.
+    try {
+      await migrateExtraFieldIdentities();
+    } catch (err) {
+      console.error('[BOOT] Custom field identity migration failed:', err);
+    }
     const sweepAbandonedItemImages = async (label: string) => {
       try {
         const removed = await cleanupStaleItemImageUploads();

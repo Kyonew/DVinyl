@@ -25,6 +25,7 @@ export function sourceFromProvider(
     id: string;
     requiredEnvKeys?: string[];
     itemUrl?(externalId: string): string | null;
+    legacyIdField?: string | null;
     // A service that answers both questions declares its image side here rather than
     // being split into two sources wearing the same name.
     searchImages?(query: string, options?: { language?: string }): Promise<string[]>;
@@ -86,6 +87,17 @@ export function isSearchable(source: ExternalSource): source is SearchableSource
  */
 export function legacySource(plugin: PluginDefinition): SearchableSource | undefined {
   return pluginSources(plugin).find(isSearchable);
+}
+
+/**
+ * The item path that carries a source's id on items older than the sources, or null when
+ * none does (see ExternalSource.legacyIdField). Read by the boot migration and by the
+ * refresh fallback, so both credit an old item to its source from the same field.
+ */
+export function legacyIdFieldFor(plugin: PluginDefinition, source: ExternalSource | undefined): string | null {
+  if (!source) return null;
+  if (source.legacyIdField !== undefined) return source.legacyIdField;
+  return plugin.externalIdField || null;
 }
 
 /**
@@ -259,14 +271,16 @@ export async function refreshPatchFor(
   req?: any
 ): Promise<Record<string, any>> {
   if (plugin.mergeRefresh) {
-    // The stored pair first. Failing that, the plugin's own id field read against its
-    // default source, which is the same attribution the boot migration makes: a document
+    // The stored pair first. Failing that, the id its default source has always been
+    // stored under, which is the same attribution the boot migration makes: a document
     // restored from an old backup carries the id without the pair until that migration
     // runs, and it has to stay refreshable in between.
     const stored = sourceForItem(plugin, item);
-    const legacyId = plugin.externalIdField ? item[plugin.externalIdField] : undefined;
+    const fallback = legacySource(plugin);
+    const legacyField = legacyIdFieldFor(plugin, fallback);
+    const legacyId = legacyField ? item[legacyField] : undefined;
 
-    const source = (stored && item.source_id) ? stored : (legacyId ? legacySource(plugin) : undefined);
+    const source = (stored && item.source_id) ? stored : (legacyId ? fallback : undefined);
     const externalId = (stored && item.source_id) ? item.source_id : legacyId;
 
     if (source && externalId && typeof source.getDetails === 'function') {
