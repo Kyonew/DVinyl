@@ -14,19 +14,32 @@ const RESOLVES_PLACEHOLDER = Symbol('resolvesPlaceholder');
  * `item[field.name]`, and the extra fields are declared with a plain name, so
  * without this every one of them would render empty.
  *
- * Done once at registration rather than in each of the plugins' formatForView, and
- * spread under the plugin's own output so a plugin path always wins over a stale
- * extra value carrying the same name.
+ * Done once at registration rather than in each of the plugins' formatForView.
+ * An extra value whose key is a native field name is never lifted, not even when the
+ * native value is empty: such a key is a leftover from before a plugin declared that
+ * field, and lifting it would show it, prefill the edit form with it, and write it
+ * into the native path on the next save.
  */
 function flattenExtraValues(plugin: PluginDefinition): void {
   if ((plugin as any)[FLATTENS_EXTRA]) return;
   const original = plugin.formatForView.bind(plugin);
+  const nativeNames = new Set<string>([
+    ...Object.keys(Item.schema.paths).map(p => p.split('.')[0]!),
+    ...Object.keys(plugin.schemaDefinition || {}),
+    ...(plugin.formFields || []).map(f => f.name)
+  ]);
+  if (plugin.creatorField) nativeNames.add(plugin.creatorField);
+  if (plugin.externalIdField) nativeNames.add(plugin.externalIdField);
   plugin.formatForView = function (item: any): any {
     const view = original(item);
     if (!view || typeof view !== 'object') return view;
     const extra = view.extra;
     if (!extra || typeof extra !== 'object' || Array.isArray(extra)) return view;
-    return { ...extra, ...view };
+    const lifted: Record<string, any> = {};
+    for (const [key, value] of Object.entries(extra)) {
+      if (!nativeNames.has(key)) lifted[key] = value;
+    }
+    return { ...lifted, ...view };
   };
   (plugin as any)[FLATTENS_EXTRA] = true;
 }

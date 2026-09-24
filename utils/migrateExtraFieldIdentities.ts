@@ -3,6 +3,7 @@ import Settings from '../models/Settings';
 import CustomPlugin from '../models/CustomPlugin';
 import { registry } from '../core/registry';
 import { ExtraFieldConfig, ExtraFieldMap, reservedNamesFor } from '../core/pluginExtraFields';
+import { FIELD_NAME_RE } from '../core/customPluginStore';
 import {
   EXTRA_FIELD_KEY_VERSION,
   isManagedExtraFieldKey,
@@ -19,6 +20,10 @@ export interface ExtraFieldIdentityMigrationSummary {
 interface FieldRename {
   from: string;
   to: string;
+}
+
+interface LegacyValueCleanup extends FieldRename {
+  kind: string;
 }
 
 /** Rewrites the only persisted UI references to extra-field technical names. */
@@ -89,9 +94,11 @@ async function candidateHasConflictingValue(
 /**
  * Moves every legacy per-collection field onto a stable generated identity.
  *
- * The value is copied before Settings starts pointing at the new key. The legacy
- * value is deliberately retained as recovery data: it is no longer rendered or
- * accepted by forms, while an interrupted migration remains safe to repeat.
+ * The value is copied before Settings starts pointing at the new key, and the legacy
+ * key is only removed afterwards, from the items whose copy holds exactly the same
+ * value. A run interrupted before that last step leaves the legacy key behind, which
+ * is harmless: nothing reads an undeclared extra key, and formatForView never lifts
+ * one carrying a native field name.
  */
 export async function migrateExtraFieldIdentities(
   options: { collectionId?: any } = {}
@@ -122,6 +129,7 @@ export async function migrateExtraFieldIdentities(
     const nextMap: ExtraFieldMap = { ...originalMap };
     let nextCustomization = settings.pluginCustomization || {};
     let settingsChanged = false;
+    const cleanups: LegacyValueCleanup[] = [];
 
     for (const [pluginId, storedFields] of Object.entries(originalMap)) {
       if (!Array.isArray(storedFields) || storedFields.length === 0) continue;
@@ -160,6 +168,14 @@ export async function migrateExtraFieldIdentities(
           nextFields.push(field);
           continue;
         }
+        // The name ends up in dotted Mongo paths below. The editors never stored anything
+        // else, so a name outside that shape comes from a hand-edited backup.
+        if (!FIELD_NAME_RE.test(field.name)) {
+          nextFields.push(field);
+          summary.skipped += 1;
+          console.warn(`[EXTRA FIELD MIGRATION] ${pluginId}: field #${ordinal + 1} has an invalid name; skipped.`);
+          continue;
+        }
 
         let attempt = 0;
         let candidate: string;
@@ -189,6 +205,7 @@ export async function migrateExtraFieldIdentities(
 
         nextFields.push({ ...field, name: candidate, keyVersion: EXTRA_FIELD_KEY_VERSION });
         renames.push({ from: field.name, to: candidate });
+        cleanups.push({ kind, from: field.name, to: candidate });
         summary.fields += 1;
         summary.values += copied.modifiedCount;
         settingsChanged = true;
@@ -211,6 +228,21 @@ export async function migrateExtraFieldIdentities(
         { _id: settings._id },
         { $set: { pluginExtraFields: nextMap, pluginCustomization: nextCustomization } }
       );
+
+      for (const { kind, from, to } of cleanups) {
+        const removed = await Item.collection.updateMany(
+          {
+            collection: settings.collection,
+            kind,
+            [`extra.${from}`]: { $exists: true },
+            $expr: { $eq: [`$extra.${from}`, `$extra.${to}`] }
+          },
+          { $unset: { [`extra.${from}`]: '' } }
+        );
+        if (removed.modifiedCount > 0) {
+          console.log(`[EXTRA FIELD MIGRATION] ${from}: legacy key removed from ${removed.modifiedCount} item(s).`);
+        }
+      }
     }
   }
 

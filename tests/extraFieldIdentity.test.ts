@@ -11,6 +11,7 @@ import { sanitizeExtraFields } from '../core/pluginExtraFields';
 import { rewriteExtraFieldReferences } from '../utils/migrateExtraFieldIdentities';
 import { loadPluginFromDir, PLUGINS_DIR } from '../core/loadPlugins';
 import { buildConfigFromSubmission } from '../core/customPluginStore';
+import { registry } from '../core/registry';
 
 const plugin: any = {
   id: 'games',
@@ -106,4 +107,21 @@ test('new no-code plugin fields cannot claim the generated namespace', () => {
 
   assert.ok(result.errors.includes('create_plugin.err_reserved_field'));
   assert.equal(result.config, undefined);
+});
+
+test('a leftover extra value never surfaces under a native field name', () => {
+  const loaded = loadPluginFromDir('games');
+  assert.ok(loaded.plugin, loaded.errors.join(', '));
+  registry.register(loaded.plugin);
+  try {
+    const view = loaded.plugin.formatForView({
+      kind: 'Game',
+      title: 'No native platform',
+      extra: { platform: 'Legacy custom value', custom_0123456789ab: 'Current value' }
+    });
+    assert.equal(view.platform, undefined);
+    assert.equal(view.custom_0123456789ab, 'Current value');
+  } finally {
+    registry.unregister('games');
+  }
 });

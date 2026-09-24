@@ -128,7 +128,10 @@ test('legacy custom fields migrate without overwriting data and remain idempoten
   assert.equal(firstItem.extra[textareaField.name], 'A multiline-safe note');
   assert.equal(secondItem.platform, 'Another native value');
   assert.equal(secondItem.extra[platformField.name], 'Second custom value');
-  assert.equal(firstItem.extra.platform, 'Custom platform value');
+  // The legacy keys are dropped once their copy is in place
+  assert.equal(firstItem.extra.platform, undefined);
+  assert.equal(firstItem.extra.playtime, undefined);
+  assert.equal(secondItem.extra.platform, undefined);
 
   const snapshot = JSON.stringify({ settings: migratedSettings, firstItem, secondItem });
   const secondRun = await migrateExtraFieldIdentities({ collectionId });
@@ -213,4 +216,20 @@ test('legacy custom fields migrate without overwriting data and remain idempoten
   assert.notEqual(otherKey, playtimeField.name);
   assert.equal(otherItem.extra[otherKey], 5);
   assert.equal(firstItem.extra[playtimeField.name], 42);
+
+  // A name that could not have come from the editors never reaches a Mongo path
+  const invalidCollectionId = new mongoose.Types.ObjectId();
+  const invalidSettingsId = new mongoose.Types.ObjectId();
+  await Settings.collection.insertOne({
+    _id: invalidSettingsId,
+    collection: invalidCollectionId,
+    pluginExtraFields: {
+      games: [{ name: 'bad.name', label: 'Bad', type: 'text', group: 'metadata' }]
+    },
+    pluginCustomization: {}
+  } as any);
+  const invalidRun = await migrateExtraFieldIdentities({ collectionId: invalidCollectionId });
+  assert.deepEqual(invalidRun, { fields: 0, values: 0, references: 0, skipped: 1 });
+  const invalidSettings: any = await Settings.collection.findOne({ _id: invalidSettingsId });
+  assert.equal(invalidSettings.pluginExtraFields.games[0].name, 'bad.name');
 });
