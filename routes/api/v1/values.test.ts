@@ -148,6 +148,24 @@ describe('GET /api/v1/items/:itemId/estimate — real music plugin', () => {
     assert.equal(res.status, 502);
     assert.equal(res.body.success, false);
   });
+
+  test('200 with estimate null when Discogs has no price', async () => {
+    const { item, token } = await seedMusicItem();
+    globalThis.fetch = (async () => ({ ok: true, status: 200, json: async () => ({}) })) as any;
+
+    const res = await request(app).get(`/api/v1/items/${item._id}/estimate`).set(bearer(token));
+    assert.equal(res.status, 200);
+    assert.equal(res.body.estimate, null);
+    assert.equal(res.body.reason, 'unavailable');
+  });
+
+  test('502 when Discogs rate-limits (429)', async () => {
+    const { item, token } = await seedMusicItem();
+    globalThis.fetch = (async () => ({ ok: false, status: 429, json: async () => ({}) })) as any;
+
+    const res = await request(app).get(`/api/v1/items/${item._id}/estimate`).set(bearer(token));
+    assert.equal(res.status, 502);
+  });
 });
 
 describe('GET /api/v1/collections/:id/value-history', () => {

@@ -12,9 +12,11 @@ import { getValueEstimateJob, startValueEstimate } from '../../../utils/valueEst
 
 const router = Router();
 
+router.use(requireApiAuth);
+
 const MAX_CONDITION_LENGTH = 20;
 
-router.get('/items/:itemId/estimate', requireApiAuth, async (req: any, res: any) => {
+router.get('/items/:itemId/estimate', async (req: any, res: any) => {
   const { itemId } = req.params;
   if (!mongoose.Types.ObjectId.isValid(itemId)) {
     return res.status(404).json({ success: false, error: 'Item not found' });

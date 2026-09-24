@@ -41,9 +41,9 @@ interface DiscogsPrice {
  * The two Discogs plans, shared by the web estimate route and the API's estimatePrice.
  * Plan A is an active marketplace listing, Plan B a price suggestion by grade.
  *
- * Returns null when Discogs answered but had no usable price. Throws only when every
- * attempt errored (network/HTTP failure), which callers surface differently: the web
- * route as "unavailable", the API as a 502.
+ * Returns null when Discogs answered without a usable price. Throws when a request
+ * failed — a network error or a 429/5xx response — so callers can tell "no price" from
+ * "provider unavailable": the web route reports the latter as unavailable, the API as 502.
  */
 async function fetchDiscogsPrice(
   discogsId: string,
@@ -51,30 +51,31 @@ async function fetchDiscogsPrice(
 ): Promise<DiscogsPrice | null> {
   const token = process.env.DISCOGS_TOKEN;
   const currency = opts.currency || 'USD';
-  let responded = false;
-  let lastError: any = null;
+  let providerFailed: any = null;
 
   // PLAN A: Active marketplace prices
   try {
     const statsRes = await fetch(`https://api.discogs.com/marketplace/stats/${discogsId}?curr_abbr=${currency}&token=${token}`, {
       headers: { 'User-Agent': 'DVinylApp/1.0' }
     });
-    responded = true;
-    if (statsRes.ok) {
+    if (statsRes.status === 429 || statsRes.status >= 500) {
+      providerFailed = providerFailed || new Error(`Discogs HTTP ${statsRes.status}`);
+    } else if (statsRes.ok) {
       const statsData = await statsRes.json() as any;
       if (statsData.lowest_price && statsData.lowest_price.value > 0) {
         return { source: 'market', price: statsData.lowest_price, numForSale: statsData.num_for_sale };
       }
     }
-  } catch (e) { lastError = e; }
+  } catch (e) { providerFailed = providerFailed || e; }
 
   // PLAN B: Price suggestions / historical fallback
   try {
     const suggRes = await fetch(`https://api.discogs.com/marketplace/price_suggestions/${discogsId}?token=${token}`, {
       headers: { 'User-Agent': 'DVinylApp/1.0' }
     });
-    responded = true;
-    if (suggRes.ok) {
+    if (suggRes.status === 429 || suggRes.status >= 500) {
+      providerFailed = providerFailed || new Error(`Discogs HTTP ${suggRes.status}`);
+    } else if (suggRes.ok) {
       const suggData = await suggRes.json() as any;
       const keys = Object.keys(suggData);
 
@@ -122,9 +123,9 @@ async function fetchDiscogsPrice(
         return { source: 'history', price: bestPrice, gradeLabel };
       }
     }
-  } catch (e) { lastError = e; }
+  } catch (e) { providerFailed = providerFailed || e; }
 
-  if (!responded) throw lastError || new Error('Discogs unreachable');
+  if (providerFailed) throw providerFailed;
   return null;
 }
 
