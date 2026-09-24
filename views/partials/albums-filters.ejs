@@ -41,14 +41,26 @@
             <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                 <i class="fa-solid fa-search opacity-40"></i>
             </div>
+            <%# Scanning finds the item carrying a code, which a share link has no use for. %>
+            <% const filterScan = !locals.isShareView; %>
+            <% const searchIcons = (locals.querySearch ? 1 : 0) + (filterScan ? 1 : 0); %>
             <input type="text" id="filterInput"
-                class="filter-input-textbox block w-full p-2.5 pl-10 <%= locals.querySearch ? 'pr-8' : '' %> text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme placeholder-opacity-50 transition-shadow"
+                class="filter-input-textbox block w-full p-2.5 pl-10 <%= searchIcons === 2 ? 'pr-14' : searchIcons === 1 ? 'pr-8' : '' %> text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme placeholder-opacity-50 transition-shadow"
                 value="<%= locals.querySearch || '' %>" placeholder="<%= t('collection.filter_placeholder') %>">
-            <% if (locals.querySearch) { %>
-                <button id="searchClearBtn" type="button" onclick="clearSearchLive()" class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-red-500 transition-colors">
-                    <i class="fa-solid fa-circle-xmark"></i>
-                </button>
-            <% } %>
+            <div id="searchActions" class="absolute inset-y-0 right-0 flex items-center gap-3 pr-3">
+                <% if (locals.querySearch) { %>
+                    <button id="searchClearBtn" type="button" onclick="clearSearchLive()" class="flex items-center text-gray-400 hover:text-red-500 transition-colors">
+                        <i class="fa-solid fa-circle-xmark"></i>
+                    </button>
+                <% } %>
+                <% if (filterScan) { %>
+                    <button id="filterScanBtn" type="button" onclick="scanIntoFilter()"
+                        title="<%= t('collection.scan') %>" aria-label="<%= t('collection.scan') %>"
+                        class="flex items-center opacity-40 hover:opacity-100 hover:text-primary-theme transition">
+                        <i class="fa-solid fa-barcode"></i>
+                    </button>
+                <% } %>
+            </div>
         </div>
 
         <%# Not for a share link: see SHARE_HIDDEN_FIELDS in core/cardFields.ts. %>
@@ -541,20 +553,49 @@
         }
 
         function updateSearchClearButton(hasValue) {
-            filterInput.classList.toggle('pr-8', hasValue);
+            // Room on the right for every icon sitting over the input: clear, and scan.
+            const icons = (hasValue ? 1 : 0) + (document.getElementById('filterScanBtn') ? 1 : 0);
+            filterInput.classList.remove('pr-8', 'pr-14');
+            if (icons) filterInput.classList.add(icons === 2 ? 'pr-14' : 'pr-8');
             let btn = document.getElementById('searchClearBtn');
             if (hasValue && !btn) {
                 btn = document.createElement('button');
                 btn.id = 'searchClearBtn';
                 btn.type = 'button';
                 btn.onclick = clearSearchLive;
-                btn.className = 'absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-red-500 transition-colors';
+                btn.className = 'flex items-center text-gray-400 hover:text-red-500 transition-colors';
                 btn.innerHTML = '<i class="fa-solid fa-circle-xmark"></i>';
-                filterInput.parentElement.appendChild(btn);
+                document.getElementById('searchActions').prepend(btn);
             } else if (!hasValue && btn) {
                 btn.remove();
             }
         }
+
+        // Looks the code up across the whole shelf rather than inside the current filters:
+        // a type or a location left selected would hide the very item being looked for.
+        // The server opens the item straight away when the code names exactly one.
+        function scanIntoFilter() {
+            DVScanner.start({
+                onCode(code) {
+                    const url = new URL(window.location.origin + window.location.pathname);
+                    url.searchParams.set('search', code);
+                    url.searchParams.set('scanned', '1');
+                    window.location.href = url.toString();
+                }
+            }).catch(err => {
+                console.error('Error starting scan', err);
+                alert(<%- JSON.stringify(t('add_vinyl.scan_error')) %>);
+            });
+        }
+
+        // A scan that did not land on a single item shows its matches here. The marker is
+        // dropped from the address so a reload or a shared link is a plain search.
+        (() => {
+            const params = new URLSearchParams(window.location.search);
+            if (!params.has('scanned')) return;
+            params.delete('scanned');
+            history.replaceState(history.state, '', window.location.pathname + '?' + params.toString());
+        })();
 
         function clearSearchLive() {
             if (!filterInput) return;
@@ -885,3 +926,6 @@
             reloadPage();
         }
 </script>
+<% if (!locals.isShareView) { %>
+    <%- include('barcode-scanner') %>
+<% } %>

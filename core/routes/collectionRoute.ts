@@ -285,6 +285,17 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
 
     const totalItems = await Item.countDocuments(query);
 
+    // A code scanned from the filter bar names one item more often than not: open it
+    // rather than showing a list of one. Anything else falls through to the list.
+    if (req.query.scanned && totalItems === 1 && !isPartialRequest(req)) {
+      const hit: any = await Item.findOne(query).select('_id kind').lean();
+      const hitPlugin = hit ? registry.getByKind(hit.kind) : undefined;
+      if (hit && hitPlugin) {
+        res.redirect(`${hitPlugin.routePrefix}/${hit._id}`);
+        return null;
+      }
+    }
+
     // BUILD SORT OBJECT
     const buildSortObj = () => {
       const extraSort = parseExtraSort(sort as string, extraDefs);

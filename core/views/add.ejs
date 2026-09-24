@@ -1,16 +1,5 @@
 <%- include('../../views/partials/header') %>
 
-<%# ZXing rather than html5-qrcode: the latter hands its decoder a canvas sized to the
-    CSS width of the viewfinder, so on a phone an EAN-13 arrives at roughly 2 pixels per
-    bar and never decodes (issue #121). ZXing decodes the camera frame at its native
-    resolution instead. Served from the instance, with the version in the filename: the
-    scanner is reached from a phone on the local network, which is exactly where outbound
-    access to a CDN is least certain, and a publish upstream can no longer change what
-    every instance runs without a commit here. %>
-<% if (!plugin.noBarcodeScan) { %>
-    <script src="<%= baseUrl %>/vendor/zxing-0.23.0.umd.min.js"></script>
-<% } %>
-
 <div class="max-w-screen-lg mx-auto pb-20 px-4">
     
     <div class="text-center mb-8 md:mb-12 pt-4 md:pt-8">
@@ -113,19 +102,8 @@
             <% } %>
         </div>
 
-        <%# The video element is ours rather than the library's: ZXing only ever reads the
-            frames, so how big it looks on screen no longer has anything to do with what
-            the decoder sees. Fixed full-viewport rather than inline: an inline preview
-            sits below the fold on a phone (worse still with the keyboard still open from
-            the search box), so scanning must take over the screen to be visible at all. %>
         <% if (!plugin.noBarcodeScan) { %>
-            <div id="reader" class="hidden fixed inset-0 z-[100] bg-black">
-                <button type="button" id="reader-close" class="absolute top-4 right-4 z-10 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center backdrop-blur-sm">
-                    <i class="fa-solid fa-xmark text-xl"></i>
-                </button>
-                <video id="reader-video" class="w-full h-full block object-cover" muted playsinline></video>
-                <p id="scan-hint" class="hidden absolute bottom-6 inset-x-4 text-center text-xs text-white/80 max-w-md mx-auto leading-relaxed"></p>
-            </div>
+            <%- include('../../views/partials/barcode-scanner') %>
         <% } %>
     </form>
 
@@ -243,117 +221,49 @@
         init: '<i class="fa-solid fa-spinner fa-spin text-xl"></i> <span><%= t("add_vinyl.scan_init") %></span>',
         stop: '<i class="fa-solid fa-xmark text-xl"></i> <span><%= t("add_vinyl.scan_stop") %></span>',
         found: '<i class="fa-solid fa-check text-xl"></i> <span><%= t("add_vinyl.scan_found") %></span>',
-        error: <%- JSON.stringify(t("add_vinyl.scan_error")) %>,
-        hint: <%- JSON.stringify(t("add_vinyl.scan_hint")) %>
+        error: <%- JSON.stringify(t("add_vinyl.scan_error")) %>
     };
 
-    // Restricted to the retail symbologies an item can actually carry: a decoder asked
-    // for fewer formats rejects a bad read faster and misreads less often.
-    const scanHints = new Map();
-    scanHints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-        ZXing.BarcodeFormat.EAN_13,
-        ZXing.BarcodeFormat.EAN_8,
-        ZXing.BarcodeFormat.UPC_A,
-        ZXing.BarcodeFormat.UPC_E
-    ]);
-    // Costs more work per frame, and earns it here: the frames come from a hand-held
-    // camera, where a barcode is rarely square to the lens.
-    scanHints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-
-    const codeReader = new ZXing.BrowserMultiFormatReader(scanHints);
-    // Left at its default of 0, the reader re-decodes a full frame the instant the
-    // previous one failed, which pins a phone's CPU for nothing. Roughly the 10fps the
-    // scanner used to run at.
-    codeReader.timeBetweenDecodingAttempts = 100;
-
     const scanButton = document.getElementById('start-scan');
-    const readerDiv = document.getElementById('reader');
-    const readerCloseBtn = document.getElementById('reader-close');
-    const videoEl = document.getElementById('reader-video');
-    const hintEl = document.getElementById('scan-hint');
     const searchInput = document.querySelector('input[name="query"]');
     const form = document.querySelector('form[action="<%= baseUrl %>/search-<%= plugin.id %>"]');
     let isScanning = false;
-    let foundCode = false;
-    let hintTimer = null;
 
-    // A camera that opens and never decodes says nothing about why. After a while of
-    // neither a result nor an error, offer what actually helps instead of leaving
-    // someone to wonder whether the scanner is even running.
-    const SCAN_HINT_DELAY_MS = 12000;
-
-    function stopScan() {
-        codeReader.reset();
-        clearTimeout(hintTimer);
-        readerDiv.classList.add('hidden');
-        hintEl.classList.add('hidden');
+    function resetScanButton(label) {
         scanButton.classList.remove('bg-red-600', 'hover:bg-red-500', 'text-white');
         scanButton.classList.add('bg-black/5', 'dark:bg-white/5', 'hover:bg-black/10', 'dark:hover:bg-white/10');
+        scanButton.innerHTML = label;
         isScanning = false;
     }
 
     scanButton.addEventListener('click', () => {
-        // Whether it was auto-focused or the user tapped it themselves, an open
-        // keyboard has no reason to still be up once the camera takes the screen.
-        if (document.activeElement) document.activeElement.blur();
-
         if (isScanning) {
-            stopScan();
-            scanButton.innerHTML = scanTranslations.btnDefault;
+            DVScanner.stop();
+            resetScanButton(scanTranslations.btnDefault);
             return;
         }
 
-        foundCode = false;
-        readerDiv.classList.remove('hidden');
         scanButton.innerHTML = scanTranslations.init;
 
-        // Asking for the largest frame the camera will give is the whole point of this
-        // path: ZXing decodes the frame at the resolution it arrives in, so the stream
-        // is what decides whether a barcode is readable, not how big the preview looks.
-        // `ideal` rather than `exact` everywhere, so a laptop with no rear camera and a
-        // phone that cannot do 1080p both fall back instead of failing to open.
-        codeReader.decodeFromConstraints({
-            video: {
-                facingMode: { ideal: 'environment' },
-                width: { ideal: 1920 },
-                height: { ideal: 1080 }
-            }
-        }, videoEl, (result) => {
-            // The error argument fires on every single frame that holds no code, which
-            // is the normal state of a scanner, so only a result is worth reacting to.
-            if (!result || foundCode) return;
-            foundCode = true;
-            stopScan();
-            scanButton.innerHTML = scanTranslations.found;
-            searchInput.value = result.getText();
-            form.submit();
-        }).then(() => {
-            if (foundCode) return;
+        DVScanner.start({
+            onCode(code) {
+                resetScanButton(scanTranslations.found);
+                searchInput.value = code;
+                form.submit();
+            },
+            // The overlay's own close button: the camera is already stopped.
+            onClose: () => resetScanButton(scanTranslations.btnDefault)
+        }).then(running => {
+            if (!running) return;
             isScanning = true;
             scanButton.innerHTML = scanTranslations.stop;
-
             scanButton.classList.remove('bg-black/5', 'dark:bg-white/5', 'hover:bg-black/10', 'dark:hover:bg-white/10');
             scanButton.classList.add('bg-red-600', 'hover:bg-red-500', 'text-white');
-
-            hintTimer = setTimeout(() => {
-                hintEl.textContent = scanTranslations.hint;
-                hintEl.classList.remove('hidden');
-            }, SCAN_HINT_DELAY_MS);
         }).catch(err => {
             console.error("Error starting scan", err);
-            stopScan();
-            scanButton.innerHTML = scanTranslations.error;
+            resetScanButton(scanTranslations.error);
         });
     });
-
-    // A stream left running holds the camera open, and its indicator light on, after
-    // someone has already navigated away.
-    window.addEventListener('pagehide', () => codeReader.reset());
-
-    // The close button sits on the fullscreen overlay, on top of the start/stop button
-    // it's replacing (that one is still there, just visually covered) - so it drives
-    // the same toggle rather than duplicating stopScan's cleanup and label reset.
-    readerCloseBtn.addEventListener('click', () => scanButton.click());
 
     // Reached via a scan shortcut elsewhere (the add-hub picker, or a single-module
     // collection's shortcut button): skip the form and go straight to the camera. The
