@@ -545,21 +545,35 @@ export const musicPlugin: PluginDefinition = {
     // cached lyrics) onto the fresh Discogs tracklist. Match by position+title,
     // then title alone (Discogs sometimes renumbers positions), then position
     // alone (the user may have corrected a title locally).
+    //
+    // Each pass runs over the whole list before the next one starts, and an old track
+    // is handed to one new track at most: two "Interlude"s renumbered by Discogs must not
+    // both take the first one's data, nor its id.
     const userFields = ['rating', 'tags', 'notes', 'bpm', 'key', 'lyrics'];
     const norm = (s: any) => String(s || '').trim().toLowerCase();
     const oldTracks: any[] = (item.tracklist || []).map((t: any) => t.toObject ? t.toObject() : t);
-    const byPosTitle = new Map<string, any>();
-    const byTitle = new Map<string, any>();
-    const byPos = new Map<string, any>();
-    for (const t of oldTracks) {
-      byPosTitle.set(`${norm(t.position)}|${norm(t.title)}`, t);
-      if (!byTitle.has(norm(t.title))) byTitle.set(norm(t.title), t);
-      if (norm(t.position) && !byPos.has(norm(t.position))) byPos.set(norm(t.position), t);
+    const freshTracks: any[] = data.tracklist || [];
+    const claimed = new Set<any>();
+    const matchOf: any[] = new Array(freshTracks.length).fill(null);
+    const passes: ((t: any) => string)[] = [
+      t => `${norm(t.position)}|${norm(t.title)}`,
+      t => norm(t.title),
+      t => norm(t.position)
+    ];
+    for (const keyOf of passes) {
+      freshTracks.forEach((t, i) => {
+        if (matchOf[i]) return;
+        const key = keyOf(t);
+        if (!key || key === '|') return;
+        const old = oldTracks.find(o => !claimed.has(o) && keyOf(o) === key);
+        if (old) {
+          claimed.add(old);
+          matchOf[i] = old;
+        }
+      });
     }
-    const mergedTracklist = (data.tracklist || []).map((t: any) => {
-      const old = byPosTitle.get(`${norm(t.position)}|${norm(t.title)}`)
-        || byTitle.get(norm(t.title))
-        || byPos.get(norm(t.position));
+    const mergedTracklist = freshTracks.map((t: any, i: number) => {
+      const old = matchOf[i];
       if (!old) return t;
       // The track keeps its id as well: a playlist points at it by that id, and a
       // fresh one on every refresh would silently empty every playlist holding it.

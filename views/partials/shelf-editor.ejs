@@ -78,7 +78,7 @@
     const shelfEditor = (function () {
         const baseUrl = '<%= baseUrl %>';
         const furnitureId = '<%= activeFurniture._id %>';
-        const otherFurniture = <%- JSON.stringify(furnitureList.filter(p => String(p._id) !== String(activeFurniture._id)).map(p => ({ id: String(p._id), name: p.name }))) %>;
+        const otherFurniture = <%- JSON.stringify(furnitureList.filter(p => String(p._id) !== String(activeFurniture._id)).map(p => ({ id: String(p._id), name: p.name }))).replace(/</g, '\\u003c') %>;
         const text = <%- JSON.stringify({
             capacity: t('collection.shelf_capacity'),
             namePlaceholder: t('collection.shelf_name_placeholder'),
@@ -98,7 +98,7 @@
         // What the furniture holds, as the page was served. `from` is the key each shelf
         // had then, which is what lets the server tell a rename from a removal plus an
         // addition. Kept untouched so closing the panel really does discard the edits.
-        const pristine = <%- JSON.stringify(shelfCells.map(c => ({ from: c.key, name: c.name, capacity: c.capacity, count: c.count }))) %>;
+        const pristine = <%- JSON.stringify(shelfCells.map(c => ({ from: c.key, name: c.name, capacity: c.capacity, count: c.count }))).replace(/</g, '\\u003c') %>;
         let shelves = [];
 
         const list = document.getElementById('shelfEditorList');
@@ -147,8 +147,14 @@
                 if (otherFurniture.length > 0 && shelf.from) {
                     const move = document.createElement('select');
                     move.className = 'w-40 bg-transparent border border-black/10 dark:border-white/10 rounded-md text-sm p-2 outline-none cursor-pointer';
-                    move.innerHTML = '<option value="">' + text.moveTo + '</option>' +
-                        otherFurniture.map(p => '<option value="' + p.id + '">' + p.name + '</option>').join('');
+                    // Built node by node: a furniture name is free text and must never be
+                    // parsed as markup.
+                    [{ id: '', name: text.moveTo }, ...otherFurniture].forEach(p => {
+                        const option = document.createElement('option');
+                        option.value = p.id;
+                        option.textContent = p.name;
+                        move.appendChild(option);
+                    });
                     move.addEventListener('change', () => { if (move.value) moveShelf(shelf.from, move.value); });
                     row.appendChild(move);
                 }

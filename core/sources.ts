@@ -80,6 +80,15 @@ export function isSearchable(source: ExternalSource): source is SearchableSource
 }
 
 /**
+ * The source an item saved before sources existed is credited to: the first one that can
+ * describe a record. An image-only source listed ahead of it has no records to point at,
+ * and an item tied to one could never be linked out to or refreshed again.
+ */
+export function legacySource(plugin: PluginDefinition): SearchableSource | undefined {
+  return pluginSources(plugin).find(isSearchable);
+}
+
+/**
  * Builds a source that only knows where pictures are.
  *
  * A service can have cover art for a record it cannot describe: iTunes hands out artwork
@@ -257,7 +266,7 @@ export async function refreshPatchFor(
     const stored = sourceForItem(plugin, item);
     const legacyId = plugin.externalIdField ? item[plugin.externalIdField] : undefined;
 
-    const source = (stored && item.source_id) ? stored : (legacyId ? pluginSources(plugin)[0] : undefined);
+    const source = (stored && item.source_id) ? stored : (legacyId ? legacySource(plugin) : undefined);
     const externalId = (stored && item.source_id) ? item.source_id : legacyId;
 
     if (source && externalId && typeof source.getDetails === 'function') {

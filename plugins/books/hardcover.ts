@@ -135,7 +135,8 @@ export class HardcoverProvider implements SearchProvider {
   async search(query: string, options: SearchOptions): Promise<SearchResult[]> {
     const apiKey = process.env.HARDCOVER_API_KEY || '';
     const cleanQuery = query.replace(/[- ]/g, '');
-    const isIsbn = /^\d{10,13}$/.test(cleanQuery);
+    // An ISBN-10 may end in an X check digit, which normalizeIsbn accepts and uppercases
+    const isIsbn = normalizeIsbn(cleanQuery) !== '';
 
     let graphqlQuery = '';
     let variables: any = {};
@@ -155,7 +156,7 @@ export class HardcoverProvider implements SearchProvider {
           }
         }
       `;
-      variables = { isbn: cleanQuery };
+      variables = { isbn: normalizeIsbn(cleanQuery) };
     } else {
       graphqlQuery = `
         query SearchByTitle($searchTerm: String!) {

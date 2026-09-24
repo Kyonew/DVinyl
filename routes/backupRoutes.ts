@@ -206,7 +206,9 @@ const importInstanceBackup = async (req: any, res: any) => {
                 collection: toId(piece.collection),
                 createdBy: piece.createdBy ? toId(piece.createdBy) : undefined
             })));
-        } else if (hasCollections) {
+        } else if (hasCollections && !Array.isArray(data.furniture)) {
+            // Only a dump that predates the shelves: one that carries an empty list is a
+            // collection whose furniture was taken down on purpose, and stays that way.
             await Collection.updateMany({}, { $set: { shelvesSeeded: false } });
         }
 
@@ -653,7 +655,7 @@ const importCollectionBackup = async (req: any, res: any) => {
                 order: typeof piece.order === 'number' ? piece.order : 100 + index,
                 createdBy: req.user._id
             })));
-        } else {
+        } else if (!Array.isArray(data.furniture)) {
             // A dump from before the shelves still says where each item is kept, in the
             // free text of the era. Rebuilt into furniture the same way the boot migration
             // does it, so an older backup does not restore into a collection whose every

@@ -6,7 +6,7 @@ import { registry } from '../core/registry';
 import { buildSortTitle } from '../core/helpers';
 import { findOrCreateDefaultCollection } from './collectionHelpers';
 import { seedFurnitureFromLocations } from '../core/shelfStore';
-import { pluginSources } from '../core/sources';
+import { legacySource } from '../core/sources';
 
 /**
  * Legacy Settings could store theme.<key>.preset as an object (e.g. { default: 'default' })
@@ -287,13 +287,13 @@ export const migrateDatabase = async () => {
         // search several, an id alone no longer identifies anything: two databases number
         // unrelated records the same way.
         //
-        // Everything already saved is attributed to the plugin's first declared source,
-        // which is the one that historically filled that field. The typed path is left
+        // Everything already saved is attributed to the plugin's first declared source able
+        // to describe a record, which is the one that historically filled that field. The typed path is left
         // exactly as it is: it is what the price estimates, the duplicate lookups and the
         // external links have always read.
         for (const plugin of registry.getAll()) {
             const field = plugin.externalIdField;
-            const source = pluginSources(plugin)[0];
+            const source = legacySource(plugin);
             if (!field || !source) continue;
 
             const unattributed = await Item.collection

@@ -58,6 +58,7 @@ export type ResolvedTrackEntry = ResolvedItemEntry & {
  * The lines of a list, read against what the collection holds today. An entry whose
  * item was deleted, or whose track was edited out of its item, has nothing left to show:
  * it is dropped here and removed from the list, so the next visit does not look again.
+ * Only a missing item or track counts: anything else is skipped and kept.
  */
 export async function resolveListEntries(list: any, collectionId: any): Promise<(ResolvedItemEntry | ResolvedTrackEntry)[]> {
   const entries: any[] = list.entries || [];
@@ -72,11 +73,14 @@ export async function resolveListEntries(list: any, collectionId: any): Promise<
 
   for (const entry of entries) {
     const raw: any = byId.get(String(entry.item));
-    const plugin = raw ? registry.getByKind(raw.kind) : null;
-    if (!raw || !plugin) {
+    if (!raw) {
       dangling.push(entry._id);
       continue;
     }
+    // An item whose plugin is not loaded right now (a custom one being rebuilt, a folder
+    // that failed at boot) still exists: it is left out of this reading, not the list.
+    const plugin = registry.getByKind(raw.kind);
+    if (!plugin) continue;
 
     let track: any = null;
     if (list.kind === 'tracks') {

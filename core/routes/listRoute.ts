@@ -324,8 +324,14 @@ router.post('/api/lists/:id/reorder', requireAuth, requireCollectionRole('editor
     const sameSet = order.length === byId.size && new Set(order).size === order.length && order.every(id => byId.has(id));
     if (!sameSet) return res.status(409).json({ success: false, error: req.t('lists.err_stale') });
 
-    list.entries = order.map(id => byId.get(id));
-    await list.save();
+    // Written only if the list still holds exactly these lines: an add or a removal that
+    // landed since it was read makes this match nothing, instead of being overwritten.
+    const ids = order.map(id => new mongoose.Types.ObjectId(id));
+    const result = await List.updateOne(
+      { _id: list._id, entries: { $size: ids.length }, 'entries._id': { $all: ids } },
+      { $set: { entries: order.map(id => (byId.get(id) as any).toObject()) } }
+    );
+    if (result.matchedCount === 0) return res.status(409).json({ success: false, error: req.t('lists.err_stale') });
     res.json({ success: true });
   } catch (err: any) {
     console.error('[ERR] List reorder:', err.message);

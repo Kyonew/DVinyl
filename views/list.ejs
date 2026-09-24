@@ -360,13 +360,20 @@
     if (!rowsEl) return;
 
     const rows = () => [...rowsEl.querySelectorAll('.list-row')];
-    function renumber() {
-        rows().forEach((row, i) => {
+    // `data-order` is each line's place in the arranged order, whatever order a playlist
+    // is being shown in. It is read back from the page only after a move, which is only
+    // offered while the page shows the arranged order; a removal just closes the gap.
+    function renumber(fromPage) {
+        const arranged = fromPage
+            ? rows()
+            : rows().sort((a, b) => Number(a.dataset.order) - Number(b.dataset.order));
+        arranged.forEach((row, i) => {
             const rank = row.querySelector('.list-rank');
             if (rank) rank.textContent = i + 1;
             row.dataset.order = i;
         });
-        if (countEl) countEl.textContent = rows().length;
+        if (countEl) countEl.textContent = arranged.length;
+        return arranged;
     }
 
     async function post(path, body) {
@@ -393,7 +400,7 @@
             try {
                 await post('remove', { entryId: row.dataset.entry });
                 row.remove();
-                renumber();
+                renumber(false);
                 if (rows().length === 0) location.reload();
             } catch (err) {
                 button.disabled = false;
@@ -407,12 +414,12 @@
         if (!sibling) return;
         const before = rows();
         if (up) rowsEl.insertBefore(row, sibling); else rowsEl.insertBefore(sibling, row);
-        renumber();
+        const arranged = renumber(true);
         try {
-            await post('reorder', { order: rows().map(r => r.dataset.entry) });
+            await post('reorder', { order: arranged.map(r => r.dataset.entry) });
         } catch (err) {
             before.forEach(r => rowsEl.appendChild(r));
-            renumber();
+            renumber(true);
             if (err.message !== 'stale') alert(err.message);
         }
     });

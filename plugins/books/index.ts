@@ -15,7 +15,7 @@ const hardcover = sourceFromProvider(hardcoverProvider, {
   itemUrl: (id: string) => `https://hardcover.app/books/${id}`,
   // A bare ISBN-10 or ISBN-13 is searched as an edition lookup, never as text (see
   // HardcoverProvider.search), so a single hit is that book.
-  exactQuery: (query: string) => /^(\d{10}|\d{13})$/.test(query.replace(/[- ]/g, ''))
+  exactQuery: (query: string) => normalizeIsbn(query) !== ''
 });
 
 // Covers only, and from a different service than the metadata: books are described by

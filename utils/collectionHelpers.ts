@@ -127,6 +127,10 @@ export function sessionActiveCollectionId(req: any): any {
 export async function setActiveCollection(req: any, collectionId: any): Promise<void> {
     if (req.session) {
         req.session.activeCollection = { user: String(req.user._id), collection: String(collectionId) };
+        // A collection chosen in this session outranks the home one: the switcher and the
+        // creation both land on '/' afterwards, which would otherwise put the session
+        // back on its home collection the first time it passes there.
+        req.session.homeAppliedFor = String(req.user._id);
     }
     if (String(req.user.lastActiveCollectionId) !== String(collectionId)) {
         await User.updateOne({ _id: req.user._id }, { $set: { lastActiveCollectionId: collectionId } });
