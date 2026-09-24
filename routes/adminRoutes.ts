@@ -9,7 +9,7 @@ import Settings from "../models/Settings";
 import Collection from "../models/Collection";
 import { requireAuth, requireAdmin, requireCollectionRole } from "../middleware/authMiddleware";
 import { generateUniqueSlug, generateShareToken } from "../utils/collectionHelpers";
-import { BASE_URL } from "../config/constants";
+import { BASE_URL, SUPPORTED_LANGUAGES } from "../config/constants";
 import { getInstanceSettings, saveInstanceSettings, InstanceSettingsData } from "../utils/instanceSettings";
 import PRESETS from "../config/themes";
 import Item from "../models/Item";
@@ -29,6 +29,7 @@ import {
   MAX_COLLECTION_INFO_TITLE,
 } from "../core/collectionInfo";
 import { renderMarkdown } from "../core/markdown";
+import { nativeLookalikesByPlugin } from "../core/pluginExtraFields";
 import { alignImagesAfterRefresh } from "../core/itemImages";
 
 const router = express.Router();
@@ -171,8 +172,22 @@ router.get("/", requireAuth, requireCollectionRole("admin"), async (req: any, re
     // Read optional message key from query and translate in the view.
     const msgKey = req.query.msg as string | undefined;
 
+    // User-defined fields that now look like a plugin's own field, typically one the
+    // plugin gained in an update. Surfaced here since nothing else would say so until
+    // someone opened that plugin's customization.
+    const lookalikes = nativeLookalikesByPlugin(
+      res.locals.settings,
+      registry.getEnabled(res.locals.settings),
+      (key) => SUPPORTED_LANGUAGES.map((lng) => req.t(key, { lng })),
+    );
+    const fieldLookalikes = Object.entries(lookalikes).map(([pluginId, fields]) => ({
+      pluginLabel: req.t(registry.get(pluginId)!.label),
+      fields: fields.map((f) => ({ name: f.name, label: f.label, nativeLabel: req.t(f.nativeLabel) })),
+    }));
+
     res.render("admin", {
       ...data,
+      fieldLookalikes,
       user: res.locals.user,
       successMessage: msgKey ? req.t(`messages.${msgKey}`) : null,
       messageIsError: isErrorMessageKey(msgKey),

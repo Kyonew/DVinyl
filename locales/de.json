@@ -431,6 +431,13 @@
       "collection": "Sammlung",
       "imports": "Importe",
       "maintenance": "Wartung"
+    },
+    "field_lookalikes": {
+      "title": "Einige eigene Felder ähneln integrierten Feldern",
+      "item": "{{plugin}}: „{{custom}}“ ähnelt dem integrierten Feld „{{native}}“",
+      "hint": "Oft ein Feld, das das Plugin mit einem Update erhalten hat. Enthalten beide dasselbe, ist das integrierte Feld das, das bleiben sollte; beide zu behalten ist ebenfalls möglich.",
+      "review": "Prüfen",
+      "later": "Später"
     }
   },
   "auth": {
@@ -1376,7 +1383,9 @@
     "corner_taken": "Die Ecke oben rechts ist vom Format-Badge belegt.",
     "default_color": "Standardfarbe",
     "reset": "Zurücksetzen",
-    "customized": "Angepasst"
+    "customized": "Angepasst",
+    "field_lookalike": "Ähnelt dem integrierten Feld „{{native}}“. Behalte beide nur, wenn sie Unterschiedliches enthalten.",
+    "fields_to_review": "Zu prüfende Felder: {{count}}"
   },
   "add_lego": {
     "title": "LEGO-Set hinzufügen",

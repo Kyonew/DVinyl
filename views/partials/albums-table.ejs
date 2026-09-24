@@ -10,6 +10,9 @@
 <%
     const tr = s => isTranslationKey(s) ? t(s, { defaultValue: s }) : s;
     const lineText = l => l.translateValue ? tr(l.value) : l.value;
+    // The collection's search term lights up in the values; labels are never what it matched.
+    const hit = s => highlightMatches(s, locals.querySearch);
+    const lineHtml = l => (l.showLabel ? highlightMatches(tr(l.label), '') + ' : ' : '') + hit(lineText(l));
     const showWishlistAction = locals.wishlist === true && locals.canEditCollection;
 %>
 <div class="card-theme rounded-2xl overflow-hidden shadow-lg transition-colors">
@@ -31,6 +34,7 @@
                         const routePrefix = itemPlugin ? itemPlugin.routePrefix : '/album';
                         const cardLines = getCardLines(itemPlugin, album, { lang: currentLng, isShareView: locals.isShareView === true });
                         const infoText = cardLines.map(l => (l.showLabel ? tr(l.label) + ' : ' : '') + lineText(l)).join(' · ');
+                        const infoHtml = cardLines.map(lineHtml).join(' · ');
                     %>
                     <tr class="album-card even:bg-black/[0.045] dark:even:bg-white/[0.045] hover:bg-black/[0.09] dark:hover:bg-white/[0.09] transition-colors"
                         <% if (locals.selectable) { %>data-id="<%= album._id %>"<% } %>>
@@ -43,19 +47,19 @@
                             </td>
                         <% } %>
                         <td class="px-4 py-2 align-middle w-full max-w-0 sm:w-auto sm:max-w-xs">
-                            <a href="<%= baseUrl + routePrefix %>/<%= album._id %>" class="font-bold truncate block hover:text-primary-theme transition-colors" title="<%= album.title %>"><%= album.title %></a>
+                            <a href="<%= baseUrl + routePrefix %>/<%= album._id %>" class="font-bold truncate block hover:text-primary-theme transition-colors" title="<%= album.title %>"><%- hit(album.title) %></a>
                             <% if (album.containsLabel) { %>
                                 <p class="text-[10px] font-bold text-primary-theme truncate"><%= t(album.containsLabel.key, album.containsLabel.params) %></p>
                             <% } %>
                             <%# On a phone the info and location columns would scroll off screen, so they read under the title instead. %>
-                            <% const mobileInfo = [infoText, locals.isShareView ? '' : album.location].filter(Boolean).join(' · '); %>
+                            <% const mobileInfo = [infoHtml, locals.isShareView ? '' : highlightMatches(album.location, '')].filter(Boolean).join(' · '); %>
                             <% if (mobileInfo) { %>
-                                <p class="sm:hidden text-xs opacity-60 truncate"><%= mobileInfo %></p>
+                                <p class="sm:hidden text-xs opacity-60 truncate"><%- mobileInfo %></p>
                             <% } %>
                         </td>
                         <td class="hidden sm:table-cell px-4 py-2 align-middle opacity-70 max-w-sm">
                             <% if (infoText) { %>
-                                <span class="truncate block" title="<%= infoText %>"><%= infoText %></span>
+                                <span class="truncate block" title="<%= infoText %>"><%- infoHtml %></span>
                             <% } %>
                         </td>
                         <% if (!locals.isShareView) { %>

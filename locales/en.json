@@ -664,6 +664,13 @@
       "collection": "Collection",
       "imports": "Imports",
       "maintenance": "Maintenance"
+    },
+    "field_lookalikes": {
+      "title": "Some custom fields look like built-in ones",
+      "item": "{{plugin}}: \"{{custom}}\" looks like the built-in \"{{native}}\" field",
+      "hint": "Often a field the plugin gained in an update. If both hold the same thing, the built-in one is the one to keep; keeping both is fine too.",
+      "review": "Review",
+      "later": "Later"
     }
   },
   "collection": {
@@ -1376,7 +1383,9 @@
     "corner_taken": "The top-right corner is taken by the format badge.",
     "default_color": "Default color",
     "reset": "Reset",
-    "customized": "Customized"
+    "customized": "Customized",
+    "field_lookalike": "Looks like the built-in \"{{native}}\" field. Keep both only if they hold different things.",
+    "fields_to_review": "Fields to review: {{count}}"
   },
   "add_lego": {
     "title": "Add a LEGO set",

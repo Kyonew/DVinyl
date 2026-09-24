@@ -664,6 +664,13 @@
       "collection": "Collection",
       "imports": "Imports",
       "maintenance": "Maintenance"
+    },
+    "field_lookalikes": {
+      "title": "Des champs personnalisés ressemblent à des champs intégrés",
+      "item": "{{plugin}} : « {{custom}} » ressemble au champ intégré « {{native}} »",
+      "hint": "Souvent un champ que le plugin a gagné dans une mise à jour. S'ils contiennent la même chose, c'est le champ intégré qu'il faut garder ; garder les deux est aussi possible.",
+      "review": "Vérifier",
+      "later": "Plus tard"
     }
   },
   "collection": {
@@ -1376,7 +1383,9 @@
     "corner_taken": "Le coin haut-droite est occupé par le badge de format.",
     "default_color": "Couleur par défaut",
     "reset": "Réinitialiser",
-    "customized": "Personnalisé"
+    "customized": "Personnalisé",
+    "field_lookalike": "Ressemble au champ intégré « {{native}} ». Ne gardez les deux que s'ils contiennent des choses différentes.",
+    "fields_to_review": "Champs à vérifier : {{count}}"
   },
   "add_lego": {
     "title": "Ajouter un set LEGO",

@@ -431,6 +431,13 @@
       "collection": "Colección",
       "imports": "Importaciones",
       "maintenance": "Mantenimiento"
+    },
+    "field_lookalikes": {
+      "title": "Algunos campos personalizados se parecen a campos integrados",
+      "item": "{{plugin}}: «{{custom}}» se parece al campo integrado «{{native}}»",
+      "hint": "Suele ser un campo que el plugin ha ganado en una actualización. Si contienen lo mismo, conviene quedarse con el integrado; también puedes conservar ambos.",
+      "review": "Revisar",
+      "later": "Más tarde"
     }
   },
   "auth": {
@@ -1376,7 +1383,9 @@
     "corner_taken": "La esquina superior derecha la ocupa la insignia de formato.",
     "default_color": "Color por defecto",
     "reset": "Restablecer",
-    "customized": "Personalizado"
+    "customized": "Personalizado",
+    "field_lookalike": "Se parece al campo integrado «{{native}}». Conserva ambos solo si contienen cosas distintas.",
+    "fields_to_review": "Campos por revisar: {{count}}"
   },
   "add_lego": {
     "title": "Añadir un set LEGO",

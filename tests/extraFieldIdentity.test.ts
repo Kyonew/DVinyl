@@ -125,3 +125,36 @@ test('a leftover extra value never surfaces under a native field name', () => {
     registry.unregister('games');
   }
 });
+
+test('flags user-defined fields that look like one of the plugin\'s own fields', async () => {
+  const { findNativeLookalikes } = await import('../core/pluginExtraFields');
+  const plugin: any = {
+    id: 'demo',
+    formFields: [
+      { name: 'studio', label: 'demo.field_studio', type: 'text' },
+      { name: 'user_rating', label: 'demo.field_rating', type: 'number' },
+      { name: 'season_picker', label: 'demo.field_studio_picker', type: 'custom' },
+      { name: 'secret', label: 'demo.field_secret', type: 'text', group: 'hidden' },
+      { name: 'custom_aaaaaaaaaaaa', label: 'Signed by', type: 'text', extraField: true }
+    ]
+  };
+  const labels: Record<string, string[]> = {
+    'demo.field_studio': ['Studio', 'Studio'],
+    'demo.field_rating': ['Note', 'Rating'],
+    'demo.field_secret': ['Secret']
+  };
+  const defs: any[] = [
+    { name: 'custom_111111111111', label: 'STUDIO' },
+    { name: 'custom_222222222222', label: 'User rating' },
+    { name: 'custom_333333333333', label: 'Noté' },
+    { name: 'custom_444444444444', label: 'Signed by' },
+    { name: 'custom_555555555555', label: 'Secret' },
+    { name: 'custom_666666666666', label: 'Zone perso' }
+  ];
+  const found = findNativeLookalikes(plugin, defs, key => labels[key] || [key]);
+  assert.deepEqual(found.map(f => [f.label, f.nativeName]), [
+    ['STUDIO', 'studio'],
+    ['User rating', 'user_rating'],
+    ['Noté', 'user_rating']
+  ]);
+});

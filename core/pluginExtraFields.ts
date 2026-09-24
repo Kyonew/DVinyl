@@ -50,6 +50,69 @@ export function reservedNamesFor(plugin: PluginDefinition): Set<string> {
   return taken;
 }
 
+/** Lowercased, accents and punctuation dropped: "Signed by" and "signed_by" compare equal. */
+function comparableName(value: unknown): string {
+  return String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+export type NativeLookalike = {
+  /** The user-defined field's key and label. */
+  name: string;
+  label: string;
+  /** The plugin's own field it looks like, its label still an i18n key. */
+  nativeName: string;
+  nativeLabel: string;
+};
+
+/**
+ * User-defined fields that look like one of the plugin's own fields: the same name or
+ * label once case, accents and punctuation are ignored. Their keys can no longer
+ * collide (see extraFieldIdentity.ts), but a field added by hand before the plugin
+ * shipped its own is then filled in twice. Only reported, never changed: keeping both
+ * can be deliberate.
+ *
+ * `labelsFor` gives every reading of a native label key (one per language), since a
+ * field may have been named in another language than the one the admin reads.
+ */
+export function findNativeLookalikes(
+  plugin: PluginDefinition,
+  defs: ExtraFieldConfig[],
+  labelsFor: (key: string) => string[]
+): NativeLookalike[] {
+  const natives = (plugin.formFields || []).filter(f =>
+    !f.extraField && f.type !== 'custom' && f.group !== 'hidden'
+  );
+  const found: NativeLookalike[] = [];
+  for (const def of defs) {
+    const wanted = comparableName(def.label);
+    if (!wanted) continue;
+    const match = natives.find(f =>
+      comparableName(f.name) === wanted ||
+      labelsFor(f.label).some(l => comparableName(l) === wanted)
+    );
+    if (match) found.push({ name: def.name, label: def.label, nativeName: match.name, nativeLabel: match.label });
+  }
+  return found;
+}
+
+/** findNativeLookalikes over every plugin given, keyed by plugin id, leaving out the clean ones. */
+export function nativeLookalikesByPlugin(
+  settings: any,
+  plugins: PluginDefinition[],
+  labelsFor: (key: string) => string[]
+): Record<string, NativeLookalike[]> {
+  const out: Record<string, NativeLookalike[]> = {};
+  for (const plugin of plugins) {
+    const found = findNativeLookalikes(plugin, getExtraFields(settings, plugin.id), labelsFor);
+    if (found.length > 0) out[plugin.id] = found;
+  }
+  return out;
+}
+
 /** Turns stored definitions into form fields the generic views already know how to render. */
 export function toFieldDefinitions(defs: ExtraFieldConfig[]): FieldDefinition[] {
   return defs.map(f => {

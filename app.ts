@@ -30,6 +30,7 @@ import { syncCustomPluginsOnBoot } from './core/customPluginSync.js';
 import { mountPluginRoutes, pluginDispatcher } from './core/pluginRuntime.js';
 import { applyPluginCustomization } from './core/pluginCustomization.js';
 import { getCardLines, getCornerBadge, isTranslationKey, CORNER_POSITIONS, DEFAULT_CORNER_POSITION, SHARE_HIDDEN_FIELDS } from './core/cardFields.js';
+import { highlightMatches } from './core/searchHighlight.js';
 import { importableFields } from './core/csvMapping.js';
 import { MAX_ITEM_IMAGES, MAX_ITEM_IMAGE_BYTES } from './core/itemImages.js';
 import { cleanupStaleItemImageUploads, ITEM_IMAGE_SWEEP_INTERVAL_MS, itemImageUrl } from './core/itemImageStorage.js';
@@ -94,6 +95,8 @@ app.set('views', [path.join(__dirname, 'views'), path.join(__dirname, 'core/view
 app.locals.getCardLines = getCardLines;
 app.locals.getCornerBadge = getCornerBadge;
 app.locals.isTranslationKey = isTranslationKey;
+// Lights up the searched text on the cards and table rows it brought back
+app.locals.highlightMatches = highlightMatches;
 app.locals.CORNER_POSITIONS = CORNER_POSITIONS;
 app.locals.DEFAULT_CORNER_POSITION = DEFAULT_CORNER_POSITION;
 // A share visitor is shown the collection, not the home around it: the item page reads

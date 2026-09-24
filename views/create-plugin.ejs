@@ -42,6 +42,10 @@
                         <% if (isCustomized) { %>
                             <div class="text-[11px] opacity-50"><i class="fa-solid fa-palette mr-1"></i><%= t('create_plugin.customized') %></div>
                         <% } %>
+                        <% const lookalikeCount = Object.keys(p.lookalikes || {}).length; %>
+                        <% if (lookalikeCount > 0) { %>
+                            <div class="text-[11px] font-bold text-yellow-600"><i class="fa-solid fa-triangle-exclamation mr-1"></i><%= t('create_plugin.fields_to_review', { count: lookalikeCount }) %></div>
+                        <% } %>
                     </div>
                     <button type="button" onclick="openCustomize('<%= p.id %>')" title="<%= t('create_plugin.customize') %>"
                         class="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-primary-theme hover:text-white transition-all shrink-0">
@@ -68,6 +72,10 @@
                     <div class="min-w-0 flex-1">
                         <div class="font-bold text-sm truncate"><%= cp.config.label %></div>
                         <div class="text-[11px] opacity-50 font-mono">/<%= cp.config.id %> · <%= cp.itemCount %> <%= t('common.items') %></div>
+                        <% const cpLookalikes = Object.keys((customizablePlugins.find(c => c.id === cp.config.id) || {}).lookalikes || {}).length; %>
+                        <% if (cpLookalikes > 0) { %>
+                            <div class="text-[11px] font-bold text-yellow-600"><i class="fa-solid fa-triangle-exclamation mr-1"></i><%= t('create_plugin.fields_to_review', { count: cpLookalikes }) %></div>
+                        <% } %>
                     </div>
                     <div class="flex items-center gap-1 shrink-0">
                         <button type="button" onclick="openCustomize('<%= cp.config.id %>')" title="<%= t('create_plugin.customize') %>"
@@ -480,6 +488,7 @@
         pvQuantity: t('confirm_vinyl.field_quantity'),
         pvTitleField: t('confirm_vinyl.field_title'),
         coverTooBig: t('create_plugin.default_cover_too_big'),
+        lookalike: t('create_plugin.field_lookalike', { native: '__NATIVE__' }),
         noFormat: t('common.no_format')
     };
     %>
@@ -1050,6 +1059,17 @@
         type.addEventListener('change', syncOptionsVisibility);
         syncOptionsVisibility();
 
+        // Names the plugin's own field this one looks like, so the admin can decide
+        // whether both are wanted.
+        if (data.lookalike) {
+            const note = document.createElement('p');
+            note.className = 'text-xs font-bold text-yellow-600';
+            const icon = document.createElement('i');
+            icon.className = 'fa-solid fa-triangle-exclamation mr-1';
+            note.append(icon, document.createTextNode(i18n.lookalike.replace('__NATIVE__', data.lookalike)));
+            row.appendChild(note);
+        }
+
         $('czFields').appendChild(row);
     }
 
@@ -1154,7 +1174,7 @@
         czSyncIcons();
 
         $('czFields').innerHTML = '';
-        (data.extraFields || []).forEach(f => czAddFieldRow(f));
+        (data.extraFields || []).forEach(f => czAddFieldRow({ ...f, lookalike: (data.lookalikes || {})[f.name] }));
 
         czRenderCardFields(data);
         czRenderCornerField(data);

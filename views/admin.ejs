@@ -60,6 +60,47 @@
             </div>
             <% } %>
 
+        <%# User-defined fields a plugin now covers itself. A warning, not an error: keeping
+            both can be deliberate, so it can be put away, and only comes back once the list
+            changes. %>
+        <% if ((locals.fieldLookalikes || []).length > 0) { %>
+            <% const lookalikeKey = fieldLookalikes.map(p => p.fields.map(f => f.name).join(',')).join(';'); %>
+            <div id="fieldLookalikes" data-key="<%= lookalikeKey %>"
+                class="bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/20 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-start gap-3 transition-colors">
+                <i class="fa-solid fa-triangle-exclamation text-yellow-600 mt-0.5"></i>
+                <div class="flex-1 min-w-0 text-sm">
+                    <p class="font-bold"><%= t('admin.field_lookalikes.title') %></p>
+                    <ul class="mt-1 space-y-0.5 opacity-80">
+                        <% fieldLookalikes.forEach(p => { %>
+                            <% p.fields.forEach(f => { %>
+                                <li><%= t('admin.field_lookalikes.item', { plugin: p.pluginLabel, custom: f.label, native: f.nativeLabel, interpolation: { escapeValue: false } }) %></li>
+                            <% }) %>
+                        <% }) %>
+                    </ul>
+                    <p class="mt-1 text-xs opacity-60"><%= t('admin.field_lookalikes.hint') %></p>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                    <a href="<%= baseUrl %>/create-plugin"
+                        class="text-xs font-bold px-3 py-2 rounded-lg bg-yellow-600 text-white hover:brightness-110 transition-all"><%= t('admin.field_lookalikes.review') %></a>
+                    <button type="button" id="fieldLookalikesDismiss"
+                        class="text-xs font-bold px-3 py-2 rounded-lg bg-black/5 dark:bg-white/10 hover:brightness-110 transition-all"><%= t('admin.field_lookalikes.later') %></button>
+                </div>
+            </div>
+            <script>
+                (function () {
+                    const box = document.getElementById('fieldLookalikes');
+                    const storageKey = 'fieldLookalikesDismissed';
+                    try {
+                        if (localStorage.getItem(storageKey) === box.dataset.key) return box.remove();
+                    } catch (e) { /* storage unavailable: the notice simply stays */ }
+                    document.getElementById('fieldLookalikesDismiss').addEventListener('click', function () {
+                        try { localStorage.setItem(storageKey, box.dataset.key); } catch (e) { }
+                        box.remove();
+                    });
+                })();
+            </script>
+        <% } %>
+
         <%- include('partials/settings-tabs', { tabs: [
             { id: 'settings', icon: 'sliders', label: t('admin.tabs.settings') },
             { id: 'members', icon: 'users', label: t('admin.tabs.members'), count: (locals.members || []).length },
