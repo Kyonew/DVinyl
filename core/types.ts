@@ -341,6 +341,12 @@ export interface ExternalSource {
   // gathered rather than chosen from one place: a vinyl's front cover lives on one
   // service and the scan of its inner sleeve on another.
   searchImages?(query: string, options?: { language?: string }): Promise<string[]>;
+
+  // True when this source's search reads the query as one exact item rather than a
+  // description (an ISBN for Hardcover), so a single hit is the item and not a guess.
+  // What lets scan mode (settings.instantAdd) save it without the confirm page being
+  // looked at. Left unset by any source whose search is fuzzy.
+  exactQuery?(query: string): boolean;
 }
 
 export interface PluginApiRoute {

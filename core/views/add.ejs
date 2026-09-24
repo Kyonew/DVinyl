@@ -21,6 +21,24 @@
         <p class="opacity-60 mt-2"><%= t('add_' + plugin.i18nKey + '.desc', { defaultValue: t('add_vinyl.desc') }) %></p>
     </div>
 
+    <%# What the last add saved, when it came back here instead of to the collection (scan
+        mode). The escaping is EJS's: a title arrives from the query string and carries
+        whatever punctuation a title carries, so i18next is told to leave it alone rather
+        than have both escape it. %>
+    <% if (locals.addedTitle) { %>
+        <div role="status"
+            class="max-w-2xl mx-auto mb-6 p-4 rounded-2xl bg-green-500/10 text-green-700 dark:text-green-400 text-sm font-bold flex items-center gap-3">
+            <i class="fa-solid fa-circle-check text-base"></i>
+            <span>
+                <% if (locals.addedQuantity > 1) { %>
+                    <%= t('add.added_again', { title: addedTitle, quantity: addedQuantity, interpolation: { escapeValue: false } }) %>
+                <% } else { %>
+                    <%= t('add.added', { title: addedTitle, interpolation: { escapeValue: false } }) %>
+                <% } %>
+            </span>
+        </div>
+    <% } %>
+
     <form action="<%= baseUrl %>/search-<%= plugin.id %>" method="POST" class="max-w-2xl mx-auto mb-10">
         <% if (plugin.searchFormPartial && plugin.partialsPath) { %>
             <%- include('../../' + plugin.partialsPath + '/' + plugin.searchFormPartial, { zone: 'top', searchType: locals.searchType }) %>
@@ -81,7 +99,13 @@
             <% } %>
 
             <% if (plugin.getManualDefaults) { %>
-                <a href="<%= baseUrl %>/add-<%= plugin.id %>/manual"
+                <%# The code this search ran on travels to the manual form, which is where
+                    someone goes when a provider has never heard of it. The identifier of an
+                    exact-match search first, then a scanned barcode: either is the number
+                    printed on the item in hand, and typing it twice is the one thing the
+                    manual form should not ask for. %>
+                <% const manualCode = locals.identifierCode || locals.scanned_barcode || ''; %>
+                <a href="<%= baseUrl %>/add-<%= plugin.id %>/manual<%- manualCode ? '?barcode=' + encodeURIComponent(manualCode) : '' %>"
                     class="text-xs text-primary-theme hover:underline font-bold transition-all flex items-center gap-1.5 mt-2">
                     <i class="fa-solid fa-keyboard"></i>
                     <%= t('add_' + plugin.i18nKey + '.manual_entry', { defaultValue: t('add_vinyl.manual_entry') }) %>
@@ -112,11 +136,25 @@
         </div>
 
         <% if (results.length === 0) { %>
-            <div class="text-center py-12 card-theme bg-opacity-50 rounded-xl border-dashed opacity-70 transition-colors">
-                <i class="fa-solid <%= locals.error ? 'fa-barcode' : 'fa-ghost' %> text-4xl mb-3 opacity-50"></i>
-                <%# An empty list and a failed lookup read the same to the user unless we say so %>
-                <p><%= locals.error || t('add_' + plugin.i18nKey + '.no_results', { defaultValue: t('add_vinyl.no_results') }) %></p>
-            </div>
+            <%# An empty list and a failed lookup read the same to the user unless we say so.
+                A lookup that failed gets the loud box: it is read from wherever the scanner
+                is rather than from in front of the keyboard, and it is the one thing on the
+                page standing between two items of a stack. An empty shelf keeps the quiet
+                one, having nothing to announce. %>
+            <% if (locals.error) { %>
+                <div role="status"
+                    class="flex flex-col items-center text-center gap-4 py-10 px-6 rounded-2xl bg-amber-500/10 border-2 border-amber-500/40 text-amber-700 dark:text-amber-400 shadow-sm transition-colors">
+                    <div class="w-16 h-16 rounded-full bg-amber-500/20 flex items-center justify-center">
+                        <i class="fa-solid fa-barcode text-3xl"></i>
+                    </div>
+                    <p class="text-lg font-bold leading-snug max-w-xl"><%= error %></p>
+                </div>
+            <% } else { %>
+                <div class="text-center py-12 card-theme bg-opacity-50 rounded-xl border-dashed opacity-70 transition-colors">
+                    <i class="fa-solid fa-ghost text-4xl mb-3 opacity-50"></i>
+                    <p><%= t('add_' + plugin.i18nKey + '.no_results', { defaultValue: t('add_vinyl.no_results') }) %></p>
+                </div>
+            <% } %>
         <% } else { %>
             <% 
                 const aspect = plugin.aspectRatioClass || 'aspect-[2/3]';

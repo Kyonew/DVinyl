@@ -107,7 +107,31 @@
                 <!-- Duplicate warning banner -->
                 <%- include('partials/duplicate-warning') %>
 
+                <% if (locals.instantAdd) { %>
+                    <%# Both start hidden and are shown by the script at the foot of this page:
+                        it is the one thing that knows whether the form is on its way or is
+                        waiting for something only a person can fill in. Without JS neither
+                        appears, and the form is the ordinary one. %>
+                    <div id="instant-add-saving" role="status"
+                        class="hidden mb-6 p-4 rounded-xl bg-primary-theme/10 text-primary-theme text-sm font-bold flex items-center gap-3">
+                        <i class="fa-solid fa-spinner fa-spin"></i>
+                        <%= t('add.instant_saving') %>
+                    </div>
+                    <div id="instant-add-blocked" role="status"
+                        class="hidden mb-6 p-4 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 text-sm font-bold flex items-center gap-3">
+                        <i class="fa-solid fa-circle-exclamation"></i>
+                        <%= t('add.instant_blocked') %>
+                    </div>
+                <% } %>
+
                 <form id="confirm-form" action="<%= baseUrl %>/save-<%= plugin.id %>" method="POST" class="space-y-6">
+                    <% if (locals.scanMode) { %>
+                        <%# Scan mode: an add comes back to the add page instead of the
+                            collection, so the next item goes straight in. Read by the save
+                            handler for a collection add only: "add to wishlist" is a
+                            deliberate detour and lands on the wishlist, as it always has. %>
+                        <input type="hidden" name="after_add" value="<%= baseUrl %>/add-<%= plugin.id %>">
+                    <% } %>
                     <%
                     // Everything the API provided must reach the save handler, even without a visible input:
                     // 1. formFields hidden by showCondition (manual-only in API mode and vice versa)
@@ -217,6 +241,51 @@
 </div>
 
 <%- include('partials/item-images-js', { plugin }) %>
+
+<% if (locals.instantAdd) { %>
+<script>
+    // Reached by a scan the search resolved to a single exact match, so this form holds
+    // exactly what clicking through would have submitted, unedited: it submits itself and
+    // the page is only ever seen in passing.
+    (() => {
+        function submitNow() {
+            const form = document.querySelector('form[action="<%= baseUrl %>/save-<%= plugin.id %>"]');
+            // Which button submits matters: "add to collection" and "add to wishlist" are two
+            // submitters on this one form, and a submit with neither would post no in_wishlist
+            // at all. Named explicitly rather than left to a default.
+            const submitter = form && form.querySelector('button[name="in_wishlist"][value="false"]');
+            if (!form || !submitter) return;
+
+            // Coming back with Back, or reloading, re-runs the script on a page that already
+            // submitted once, which would add the item a second time. A restore from the
+            // back/forward cache re-runs nothing at all.
+            const navigation = performance.getEntriesByType('navigation')[0];
+            if (navigation && (navigation.type === 'back_forward' || navigation.type === 'reload')) return;
+
+            // What the provider returned is short of something the form insists on (a book
+            // with no author). Nothing to submit; say so and let the required field be filled
+            // in, which still lands back on the add page afterwards.
+            if (!form.checkValidity()) {
+                document.getElementById('instant-add-blocked').classList.remove('hidden');
+                form.reportValidity();
+                return;
+            }
+
+            document.getElementById('instant-add-saving').classList.remove('hidden');
+            form.requestSubmit(submitter);
+        }
+
+        // Waits for the page the other partials set themselves up on: what an editor of
+        // theirs writes into the form on submit (the tracklist) is registered there, and
+        // submitting before that would post the form without it.
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', submitNow, { once: true });
+        } else {
+            submitNow();
+        }
+    })();
+</script>
+<% } %>
 
 <style>
     .custom-scrollbar::-webkit-scrollbar { width: 4px; }

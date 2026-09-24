@@ -1018,6 +1018,8 @@
     "backHome": "Volver al inicio",
     "fastAdd_desc": "Si está habilitado, el botón \"Agregar un elemento\" redirige directamente al formulario elegido, sin pasar por el menú de selección.",
     "fastAdd_disabled": "Deshabilitado (modal)",
+    "instantAdd_title": "Modo escáner",
+    "instantAdd_desc": "Un código que identifica un artículo concreto (un ISBN) se añade en cuanto la búsqueda devuelve un único resultado, sin pasar por la página de confirmación. Después de añadir se vuelve al formulario de añadir en lugar de a la colección, listo para el siguiente.",
     "fastAdd_title": "Agregar rápido",
     "card_aspect_ratio": "Relación de aspecto de la tarjeta",
     "card_aspect_ratio_desc": "Forma de las miniaturas en las cuadrículas de colección, inicio y lista de deseos. Cada plugin conserva su propia relación en sus fichas.",
@@ -1242,7 +1244,12 @@
     "add_lyrics_manual": "Añadir la letra manualmente"
   },
   "add": {
-    "manual_entry": "Entrada manual"
+    "manual_entry": "Entrada manual",
+    "instant_saving": "Añadiendo…",
+    "instant_blocked": "Falta un dato que el formulario necesita. Complétalo y añádelo.",
+    "added": "«{{title}}» añadido.",
+    "added_again": "«{{title}}» ya estaba: ahora tienes {{quantity}}.",
+    "identifier_no_match": "No se ha encontrado nada para {{code}}."
   },
   "no_collection": {
     "title": "Sin acceso a colecciones",

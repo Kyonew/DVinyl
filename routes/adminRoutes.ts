@@ -1048,6 +1048,7 @@ router.post(
         navbarShortcuts: shortcuts,
         statsWidgets: stats,
         fastAdd: fastAdd,
+        instantAdd: req.body.instantAdd === "on",
       };
       for (const p of registry.getAll()) {
         const preset = req.body[`${p.collectionType}Preset`];
