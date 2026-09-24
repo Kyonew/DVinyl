@@ -1,8 +1,9 @@
 import mongoose from 'mongoose';
-import { PluginApiRoute } from '../../core/types';
+import { PluginApiRoute, PriceEstimate } from '../../core/types';
 import Item from '../../models/Item';
 import PriceHistory from '../../models/PriceHistory';
 import { editStamp } from '../../core/helpers';
+import { readEstimateHistory } from '../../utils/priceHistory';
 
 const fetchJson = async (url: string, options?: RequestInit): Promise<any> => {
   const response = await fetch(url, options);
@@ -29,103 +30,138 @@ async function getCollectionIds(req: any, res: any) {
   }
 }
 
-// ESTIMATE ROUTE (Discogs API)
+interface DiscogsPrice {
+  source: 'market' | 'history';
+  price: { value: number; currency: string };
+  numForSale?: number;
+  gradeLabel?: string;
+}
+
+/**
+ * The two Discogs plans, shared by the web estimate route and the API's estimatePrice.
+ * Plan A is an active marketplace listing, Plan B a price suggestion by grade.
+ *
+ * Returns null when Discogs answered without a usable price. Throws when a request
+ * failed — a network error or a 429/5xx response — so callers can tell "no price" from
+ * "provider unavailable": the web route reports the latter as unavailable, the API as 502.
+ */
+async function fetchDiscogsPrice(
+  discogsId: string,
+  opts: { condition?: string; currency?: string } = {}
+): Promise<DiscogsPrice | null> {
+  const token = process.env.DISCOGS_TOKEN;
+  const currency = opts.currency || 'USD';
+  let providerFailed: any = null;
+
+  // PLAN A: Active marketplace prices
+  try {
+    const statsRes = await fetch(`https://api.discogs.com/marketplace/stats/${discogsId}?curr_abbr=${currency}&token=${token}`, {
+      headers: { 'User-Agent': 'DVinylApp/1.0' }
+    });
+    if (statsRes.status === 429 || statsRes.status >= 500) {
+      providerFailed = providerFailed || new Error(`Discogs HTTP ${statsRes.status}`);
+    } else if (statsRes.ok) {
+      const statsData = await statsRes.json() as any;
+      if (statsData.lowest_price && statsData.lowest_price.value > 0) {
+        return { source: 'market', price: statsData.lowest_price, numForSale: statsData.num_for_sale };
+      }
+    }
+  } catch (e) { providerFailed = providerFailed || e; }
+
+  // PLAN B: Price suggestions / historical fallback
+  try {
+    const suggRes = await fetch(`https://api.discogs.com/marketplace/price_suggestions/${discogsId}?token=${token}`, {
+      headers: { 'User-Agent': 'DVinylApp/1.0' }
+    });
+    if (suggRes.status === 429 || suggRes.status >= 500) {
+      providerFailed = providerFailed || new Error(`Discogs HTTP ${suggRes.status}`);
+    } else if (suggRes.ok) {
+      const suggData = await suggRes.json() as any;
+      const keys = Object.keys(suggData);
+
+      const condition = (opts.condition || '').toUpperCase();
+      let targetKey = '';
+
+      if (condition && condition !== 'GENERIC') {
+        if (condition === 'M') {
+          targetKey = keys.find(k => k.toLowerCase().includes('mint (m)')) || '';
+        } else if (condition === 'NM') {
+          targetKey = keys.find(k => k.toLowerCase().includes('near mint')) || '';
+        } else if (condition === 'VG+') {
+          targetKey = keys.find(k => k.toLowerCase().includes('very good plus')) || '';
+        } else if (condition === 'VG') {
+          targetKey = keys.find(k => k.toLowerCase().includes('very good (vg)')) || '';
+        } else if (condition === 'G+') {
+          targetKey = keys.find(k => k.toLowerCase().includes('good plus')) || '';
+        } else if (condition === 'G') {
+          targetKey = keys.find(k => k.toLowerCase().includes('good (g)')) || '';
+        } else if (condition === 'F') {
+          targetKey = keys.find(k => k.toLowerCase().includes('fair (f)')) || '';
+        } else if (condition === 'P') {
+          targetKey = keys.find(k => k.toLowerCase().includes('poor (p)')) || '';
+        }
+      }
+
+      if (!targetKey) {
+        const vgKey = keys.find(k => k.toLowerCase().includes('very good plus'));
+        const mintKey = keys.find(k => k.toLowerCase().includes('mint (m)'));
+        targetKey = vgKey || mintKey || keys[0] || '';
+      }
+
+      const bestPrice = targetKey ? suggData[targetKey] : null;
+
+      if (bestPrice && bestPrice.value > 0) {
+        let gradeLabel = 'VG+';
+        if (targetKey.toLowerCase().includes('near mint')) gradeLabel = 'NM';
+        else if (targetKey.toLowerCase().includes('mint (m)')) gradeLabel = 'M';
+        else if (targetKey.toLowerCase().includes('very good (vg)')) gradeLabel = 'VG';
+        else if (targetKey.toLowerCase().includes('good plus')) gradeLabel = 'G+';
+        else if (targetKey.toLowerCase().includes('good (g)')) gradeLabel = 'G';
+        else if (targetKey.toLowerCase().includes('fair (f)')) gradeLabel = 'F';
+        else if (targetKey.toLowerCase().includes('poor (p)')) gradeLabel = 'P';
+
+        return { source: 'history', price: bestPrice, gradeLabel };
+      }
+    }
+  } catch (e) { providerFailed = providerFailed || e; }
+
+  if (providerFailed) throw providerFailed;
+  return null;
+}
+
+/** PluginDefinition.estimatePrice implementation (server-side, no localization). */
+export async function estimateMusicPrice(
+  externalId: string,
+  opts: { condition?: string; currency?: string } = {}
+): Promise<PriceEstimate | null> {
+  const found = await fetchDiscogsPrice(externalId, opts);
+  if (!found) return null;
+  return {
+    source: found.source,
+    price: found.price,
+    details: found.source === 'market'
+      ? `${found.numForSale ?? 0} for sale`
+      : `Based on historical data (${found.gradeLabel})`
+  };
+}
+
+// ESTIMATE ROUTE (Discogs API) — the web handler; shares fetchDiscogsPrice with the API.
 async function getEstimate(req: any, res: any) {
   try {
-    const discogsId = req.params.discogsId;
-    const token = process.env.DISCOGS_TOKEN;
-    const userCurrency = res.locals.user.currency || 'USD';
+    const currency = res.locals.user.currency || 'USD';
+    const found = await fetchDiscogsPrice(req.params.discogsId, { condition: req.query.condition, currency });
 
-    // PLAN A: Active marketplace prices
-    try {
-      const statsRes = await fetch(`https://api.discogs.com/marketplace/stats/${discogsId}?curr_abbr=${userCurrency}&token=${token}`, {
-        headers: { 'User-Agent': 'DVinylApp/1.0' }
-      });
-
-      if (statsRes.ok) {
-        const statsData = await statsRes.json() as any;
-
-        // Verify there's a non-zero lowest price
-        if (statsData.lowest_price && statsData.lowest_price.value > 0) {
-          return res.json({
-            success: true,
-            source: 'market',
-            price: statsData.lowest_price,
-            details: `${statsData.num_for_sale} ${req.t('detail.for_sale')}`
-          });
-        }
-      }
-    } catch (e) {
-      // ignore
+    if (!found) {
+      return res.json({ success: false, error: 'Unavailable' });
     }
-
-    // PLAN B: Price suggestions / historical fallback
-    try {
-      const suggRes = await fetch(`https://api.discogs.com/marketplace/price_suggestions/${discogsId}?token=${token}`, {
-        headers: { 'User-Agent': 'DVinylApp/1.0' }
-      });
-
-      if (suggRes.ok) {
-        const suggData = await suggRes.json() as any;
-        const keys = Object.keys(suggData);
-
-        const condition = ((req.query.condition as string) || '').toUpperCase();
-        let targetKey = '';
-
-        if (condition && condition !== 'GENERIC') {
-          if (condition === 'M') {
-            targetKey = keys.find(k => k.toLowerCase().includes('mint (m)')) || '';
-          } else if (condition === 'NM') {
-            targetKey = keys.find(k => k.toLowerCase().includes('near mint')) || '';
-          } else if (condition === 'VG+') {
-            targetKey = keys.find(k => k.toLowerCase().includes('very good plus')) || '';
-          } else if (condition === 'VG') {
-            targetKey = keys.find(k => k.toLowerCase().includes('very good (vg)')) || '';
-          } else if (condition === 'G+') {
-            targetKey = keys.find(k => k.toLowerCase().includes('good plus')) || '';
-          } else if (condition === 'G') {
-            targetKey = keys.find(k => k.toLowerCase().includes('good (g)')) || '';
-          } else if (condition === 'F') {
-            targetKey = keys.find(k => k.toLowerCase().includes('fair (f)')) || '';
-          } else if (condition === 'P') {
-            targetKey = keys.find(k => k.toLowerCase().includes('poor (p)')) || '';
-          }
-        }
-
-        if (!targetKey) {
-          const vgKey = keys.find(k => k.toLowerCase().includes('very good plus'));
-          const mintKey = keys.find(k => k.toLowerCase().includes('mint (m)'));
-          targetKey = vgKey || mintKey || keys[0] || '';
-        }
-
-        const bestPrice = targetKey ? suggData[targetKey] : null;
-
-        if (bestPrice && bestPrice.value > 0) {
-          let gradeLabel = 'VG+';
-          if (targetKey.toLowerCase().includes('near mint')) gradeLabel = 'NM';
-          else if (targetKey.toLowerCase().includes('mint (m)')) gradeLabel = 'M';
-          else if (targetKey.toLowerCase().includes('very good (vg)')) gradeLabel = 'VG';
-          else if (targetKey.toLowerCase().includes('good plus')) gradeLabel = 'G+';
-          else if (targetKey.toLowerCase().includes('good (g)')) gradeLabel = 'G';
-          else if (targetKey.toLowerCase().includes('fair (f)')) gradeLabel = 'F';
-          else if (targetKey.toLowerCase().includes('poor (p)')) gradeLabel = 'P';
-
-          return res.json({
-            success: true,
-            source: 'history',
-            price: bestPrice,
-            details: `Based on historical data (${gradeLabel})`
-          });
-        }
-      }
-    } catch (e) {
-      // ignore
-    }
-
-    res.json({ success: false, error: "Unavailable" });
+    const details = found.source === 'market'
+      ? `${found.numForSale} ${req.t('detail.for_sale')}`
+      : `Based on historical data (${found.gradeLabel})`;
+    res.json({ success: true, source: found.source, price: found.price, details });
   } catch (err: any) {
-    console.error("Estimation server error:", err.message);
-    res.json({ success: false, error: "Server error" });
+    // Preserves the old behaviour: a failed provider call reads as unavailable on the web.
+    console.error('Estimation server error:', err.message);
+    res.json({ success: false, error: 'Unavailable' });
   }
 }
 
@@ -166,26 +202,9 @@ async function saveEstimateSnapshot(req: any, res: any) {
 // COLLECTION VALUE HISTORY (chart data source)
 async function getEstimateHistory(req: any, res: any) {
   try {
-    // History is collection-scoped but the estimate runs in the currency of whoever asked
-    // for it, so a collection whose members differ on that holds several series at once.
-    // Only the reader's own is returned: nothing here converts between currencies, and
-    // drawing them as one line would invent a trend that never happened.
     const currency = res.locals.user.currency || 'USD';
-    const collection = res.locals.activeCollectionId;
-
-    const snapshots = await PriceHistory.find({ collection, currency })
-      .sort({ capturedAt: 1 })
-      .select('capturedAt value minValue maxValue currency itemCount -_id')
-      .lean();
-
-    // What the scope above left out, so the page can say the history exists in another
-    // currency instead of the "run it twice" invitation meant for a collection with none.
-    const otherCurrencies = await PriceHistory.distinct('currency', {
-      collection,
-      currency: { $ne: currency }
-    });
-
-    res.json({ success: true, currency, snapshots, otherCurrencies });
+    const data = await readEstimateHistory(res.locals.activeCollectionId, currency);
+    res.json({ success: true, ...data });
   } catch (err: any) {
     console.error('[ERR] getEstimateHistory:', err.message);
     res.status(500).json({ success: false, error: 'server_error' });

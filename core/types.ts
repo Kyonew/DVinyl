@@ -1,5 +1,13 @@
 import mongoose from 'mongoose';
 
+/** A provider's price lookup result. `source` mirrors the Discogs plans: `market`
+ *  is an active marketplace listing price, `history` a price suggestion. */
+export interface PriceEstimate {
+  source: 'market' | 'history';
+  price: { value: number; currency: string };
+  details: string;
+}
+
 export interface PluginDefinition {
   id: string;
   kind: string;
@@ -48,6 +56,10 @@ export interface PluginDefinition {
 
   // Shows the price estimate block on the detail page (needs externalIdField + an /api/estimate apiRoute)
   supportsPriceEstimate?: boolean;
+
+  // Server-side price lookup for the collection-value estimator. Resolves null when the
+  // provider has no price; throws when the provider call itself failed.
+  estimatePrice?(externalId: string, opts: { condition?: string; currency?: string }): Promise<PriceEstimate | null>;
 
   // Format badge shown on cards (collection/wishlist/dashboard).
   // If absent, the core derives label+color from `formats` and the item's format.

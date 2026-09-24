@@ -1487,6 +1487,164 @@ paths:
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
 
+  /collections/{id}/value-history:
+    get:
+      tags: [Collections]
+      operationId: getCollectionValueHistory
+      summary: Get a collection's value-estimate history
+      description: |
+        Requires at least `viewer` role on the collection. Returns the recorded
+        value snapshots (`PriceHistory`) for the caller's own currency, oldest
+        first. Values are never converted between currencies; `otherCurrencies`
+        lists currencies the collection also has history in, so a client can
+        explain an empty chart.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+      responses:
+        '200':
+          description: The caller's value history.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValueHistory'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /collections/{id}/value-estimate:
+    post:
+      tags: [Collections]
+      operationId: startCollectionValueEstimate
+      summary: Start a collection value estimate
+      description: |
+        Requires at least `editor` role (the run records a history snapshot). Starts
+        a background Discogs pricing run over the collection's enabled,
+        estimate-capable items and returns `202` immediately. Poll
+        `GET /collections/{id}/value-estimate/{jobId}` for progress and the result.
+        Only one run may be active per collection; a second start returns `409` with
+        the active job.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+      responses:
+        '202':
+          description: The run started.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [estimate]
+                properties:
+                  estimate:
+                    $ref: '#/components/schemas/ValueEstimateJob'
+        '400':
+          description: No enabled estimate-capable items in the collection.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { success: false, error: 'No estimable items' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: A run is already active for this collection.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, error, estimate]
+                properties:
+                  success: { type: boolean, enum: [false] }
+                  error: { type: string }
+                  estimate:
+                    $ref: '#/components/schemas/ValueEstimateJob'
+        '500': { $ref: '#/components/responses/InternalServerError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /collections/{id}/value-estimate/{jobId}:
+    get:
+      tags: [Collections]
+      operationId: getCollectionValueEstimate
+      summary: Poll a collection value estimate
+      description: |
+        Requires at least `viewer` role on the collection and that the caller
+        started the run (anyone else gets `404`). Returns the run's status and
+        progress; once `done`, `result` carries the totals and whether a history
+        snapshot was saved. An unknown, expired, other-collection or other-user job
+        is `404`.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+        - name: jobId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Current run state.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [estimate]
+                properties:
+                  estimate:
+                    $ref: '#/components/schemas/ValueEstimateJob'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: Unknown, expired, other-collection or other-user job.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { success: false, error: 'Estimate not found' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /items/{itemId}/estimate:
+    get:
+      tags: [Items]
+      operationId: estimateItemPrice
+      summary: Estimate one item's price
+      description: |
+        Requires at least `viewer` role on the item's collection. Returns a single
+        Discogs price for the item's external id. `condition` is optional and falls
+        back server-side to VG+ when unrecognised. `estimate` is `null` with
+        `reason: unavailable` when the provider has no price; a provider failure is
+        `502`.
+      parameters:
+        - $ref: '#/components/parameters/ItemId'
+        - name: condition
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: A price, or `null` when none is available.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  estimate:
+                    oneOf:
+                      - $ref: '#/components/schemas/PriceEstimate'
+                      - type: 'null'
+                  reason: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: Unknown/non-visible item, or its type has no price provider.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '502':
+          description: The price provider failed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
   /items/{itemId}:
     get:
       tags: [Items]
@@ -3115,3 +3273,58 @@ components:
           minimum: 1
           maximum: 100
           description: Clamped to 1-100 server-side.
+    ValueSnapshot:
+      type: object
+      properties:
+        capturedAt: { type: string, format: date-time }
+        value: { type: number }
+        minValue: { type: number }
+        maxValue: { type: number }
+        itemCount: { type: integer }
+    ValueHistory:
+      type: object
+      required: [currency, snapshots, otherCurrencies]
+      properties:
+        currency: { type: string, enum: [EUR, USD, GBP] }
+        snapshots:
+          type: array
+          items: { $ref: '#/components/schemas/ValueSnapshot' }
+        otherCurrencies:
+          type: array
+          items: { type: string }
+    PriceEstimate:
+      type: object
+      required: [source, price, details]
+      properties:
+        source: { type: string, enum: [market, history] }
+        price:
+          type: object
+          required: [value, currency]
+          properties:
+            value: { type: number }
+            currency: { type: string }
+        details: { type: string }
+    ValueEstimateJob:
+      type: object
+      required: [id, status, progress]
+      properties:
+        id: { type: string }
+        status: { type: string, enum: [running, done, error] }
+        progress:
+          type: object
+          required: [processed, total]
+          properties:
+            processed: { type: integer }
+            total: { type: integer }
+        result:
+          type: object
+          properties:
+            value: { type: number }
+            minValue: { type: number }
+            maxValue: { type: number }
+            itemCount: { type: integer }
+            currency: { type: string }
+            pricedCount: { type: integer }
+            failedCount: { type: integer }
+            saved: { type: boolean }
+        error: { type: string }
