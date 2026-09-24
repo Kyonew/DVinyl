@@ -170,13 +170,15 @@
         <% } %>
 
         <% if (locals.canEditCollection) { %>
-            <div class="ml-auto flex gap-2">
+            <%# On a phone the chips and the buttons never fit on one line, so the buttons
+                take a row of their own and share it evenly instead of hanging off the right. %>
+            <div class="w-full sm:w-auto sm:ml-auto flex gap-2">
                 <button type="button" onclick="shelfEditor.open()"
-                    class="px-4 py-2 card-theme border rounded-lg text-xs font-bold uppercase tracking-widest hover:text-primary-theme hover:border-primary-theme transition-all">
+                    class="flex-1 sm:flex-none whitespace-nowrap px-4 py-2 card-theme border rounded-lg text-xs font-bold uppercase tracking-wider sm:tracking-widest hover:text-primary-theme hover:border-primary-theme transition-all">
                     <i class="fa-solid fa-sliders mr-1.5"></i><%= t('collection.shelf_arrange') %>
                 </button>
                 <button type="button" onclick="shelfEditor.createFurniture()"
-                    class="px-4 py-2 card-theme border rounded-lg text-xs font-bold uppercase tracking-widest hover:text-primary-theme hover:border-primary-theme transition-all">
+                    class="flex-1 sm:flex-none whitespace-nowrap px-4 py-2 card-theme border rounded-lg text-xs font-bold uppercase tracking-wider sm:tracking-widest hover:text-primary-theme hover:border-primary-theme transition-all">
                     <i class="fa-solid fa-plus mr-1.5"></i><%= t('collection.shelf_new_furniture') %>
                 </button>
             </div>
