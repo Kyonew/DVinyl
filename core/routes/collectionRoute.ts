@@ -7,12 +7,11 @@ import { shelfChoices } from '../shelfStore';
 import { CollectionViewContext } from '../types';
 import Item from '../../models/Item';
 import Collection from '../../models/Collection';
-import User from '../../models/User';
 import { BASE_URL } from '../../config/constants';
 import { requireAuth, requireAuthOrShareView, requireCollectionRole } from '../../middleware/authMiddleware';
 import { applyVisibilityFilter, applyEnabledModulesFilter, applyContainedFilter, applyShareScopeFilter } from '../../utils/visibilityHelper';
 import { escapeRegExp, getPublicProtocol, generateBarcodeDataUrl } from '../helpers';
-import { generateUniqueSlug } from '../../utils/collectionHelpers';
+import { generateUniqueSlug, setActiveCollection } from '../../utils/collectionHelpers';
 import { resolveShelfItems, deleteItemsAndContents } from '../../utils/itemHelpers';
 import { checkCollectionCreation } from '../../utils/instanceSettings';
 import {
@@ -698,10 +697,7 @@ router.post('/collection/create', requireAuth, async (req: any, res: any) => {
 
     // Land the user in the collection they just created rather than leaving them on
     // whatever they were browsing (for a first-time user, on the no-collection page).
-    await User.updateOne(
-      { _id: req.user._id },
-      { $set: { lastActiveCollectionId: collection._id } }
-    );
+    await setActiveCollection(req, collection._id);
 
     console.log(`[COLLECTION] ${req.user.email} created "${collection.name}" (${collection._id})`);
     res.redirect('/?msg=collection_created');
@@ -729,10 +725,7 @@ router.post('/collection/switch', requireAuth, async (req: any, res: any) => {
       return res.redirect(back);
     }
 
-    await User.updateOne(
-      { _id: req.user._id },
-      { $set: { lastActiveCollectionId: target._id } }
-    );
+    await setActiveCollection(req, target._id);
 
     console.log(`[COLLECTION] ${req.user.email} switched to "${target.name}" (${target._id})`);
 

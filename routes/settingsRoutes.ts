@@ -287,11 +287,7 @@ router.post('/update-home', requireAuth, async (req: any, res) => {
         // Move there now instead of waiting for the next launch: picking a home
         // collection and watching the header keep the old one reads as a setting that
         // did not save.
-        await applyHomeCollection({
-            _id: userId,
-            homeCollectionId,
-            lastActiveCollectionId: req.user.lastActiveCollectionId
-        });
+        await applyHomeCollection(req, homeCollectionId);
 
         res.redirect('/settings');
     } catch (error) {

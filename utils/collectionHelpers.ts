@@ -105,3 +105,31 @@ export async function resolveActiveCollectionForUser(user: any): Promise<any> {
     }
     return fallback;
 }
+
+/**
+ * The collection this browser session is on, or null when the session has not picked
+ * one yet. Each device keeps its own, so switching on a phone leaves a desktop where it
+ * was. The entry is tied to the user it was set for: a browser that signs in as somebody
+ * else starts from that person's own last collection rather than inheriting an id.
+ */
+export function sessionActiveCollectionId(req: any): any {
+    const entry = req.session?.activeCollection;
+    if (!entry || !req.user || String(entry.user) !== String(req.user._id)) return null;
+    return entry.collection || null;
+}
+
+/**
+ * Puts the current session on a collection. The user's lastActiveCollectionId follows
+ * along, but only as the starting point for sessions that have not chosen yet (a new
+ * device, a browser relaunch, a server restart): the session value wins everywhere else.
+ * Membership is the caller's to check.
+ */
+export async function setActiveCollection(req: any, collectionId: any): Promise<void> {
+    if (req.session) {
+        req.session.activeCollection = { user: String(req.user._id), collection: String(collectionId) };
+    }
+    if (String(req.user.lastActiveCollectionId) !== String(collectionId)) {
+        await User.updateOne({ _id: req.user._id }, { $set: { lastActiveCollectionId: collectionId } });
+        req.user.lastActiveCollectionId = collectionId;
+    }
+}

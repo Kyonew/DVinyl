@@ -1,5 +1,5 @@
 import Collection from '../models/Collection';
-import User from '../models/User';
+import { sessionActiveCollectionId, setActiveCollection } from './collectionHelpers';
 
 // The pages a user may land on, in the order the settings selector offers them.
 export const HOME_PAGES = ['dashboard', 'collection', 'wishlist'] as const;
@@ -28,7 +28,7 @@ export function homePathFor(user: any): string {
 }
 
 /**
- * Moves the user into their chosen home collection, if they still belong to it.
+ * Moves this session into the user's chosen home collection, if they still belong to it.
  * Called when the app is opened (once per session, see the landing route) and when the
  * choice is made, so it visibly takes effect. Nowhere else: the switcher has to stay
  * free to take the user anywhere for as long as they keep browsing.
@@ -36,22 +36,18 @@ export function homePathFor(user: any): string {
  * Never throws: a home that cannot be resolved leaves the user wherever they already
  * were, which is the same thing an unset preference does.
  */
-export async function applyHomeCollection(user: any): Promise<void> {
-    if (!user?.homeCollectionId) return;
-    if (String(user.lastActiveCollectionId) === String(user.homeCollectionId)) return;
+export async function applyHomeCollection(req: any, homeCollectionId: any = req.user?.homeCollectionId): Promise<void> {
+    if (!homeCollectionId) return;
+    if (String(sessionActiveCollectionId(req)) === String(homeCollectionId)) return;
 
     try {
         const home = await Collection.findOne({
-            _id: user.homeCollectionId,
-            'members.user': user._id
+            _id: homeCollectionId,
+            'members.user': req.user._id
         }).select('_id');
         if (!home) return;
 
-        await User.updateOne(
-            { _id: user._id },
-            { $set: { lastActiveCollectionId: home._id } }
-        );
-        user.lastActiveCollectionId = home._id;
+        await setActiveCollection(req, home._id);
     } catch (err) {
         console.error('[HOME] Could not apply the home collection:', err);
     }

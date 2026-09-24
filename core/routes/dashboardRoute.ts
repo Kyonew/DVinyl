@@ -23,7 +23,7 @@ router.get('/', requireAuth, async (req: any, res: any) => {
   const userId = String(req.user._id);
   if (req.session && req.session.homeAppliedFor !== userId) {
     req.session.homeAppliedFor = userId;
-    await applyHomeCollection(req.user);
+    await applyHomeCollection(req);
   }
 
   const target = homePathFor(req.user);
