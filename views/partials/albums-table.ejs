@@ -17,10 +17,10 @@
         <table class="w-full text-left text-sm" <% if (locals.gridId) { %>id="<%= locals.gridId %>"<% } %>>
             <thead class="bg-black/5 dark:bg-white/5 text-xs uppercase opacity-70 transition-colors">
                 <tr>
-                    <% if (locals.selectable) { %><th class="w-10 px-3 py-3"></th><% } %>
+                    <% if (locals.selectable) { %><th class="p-0"></th><% } %>
                     <th class="px-4 py-3"><%= t('collection.table_col_title') %></th>
-                    <th class="px-4 py-3"><%= t('collection.table_col_info') %></th>
-                    <% if (!locals.isShareView) { %><th class="px-4 py-3"><%= t('common.location') %></th><% } %>
+                    <th class="hidden sm:table-cell px-4 py-3"><%= t('collection.table_col_info') %></th>
+                    <% if (!locals.isShareView) { %><th class="hidden sm:table-cell px-4 py-3"><%= t('common.location') %></th><% } %>
                     <% if (showWishlistAction) { %><th class="px-4 py-3"></th><% } %>
                 </tr>
             </thead>
@@ -35,25 +35,31 @@
                     <tr class="album-card hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
                         <% if (locals.selectable) { %>data-id="<%= album._id %>"<% } %>>
                         <% if (locals.selectable) { %>
-                            <td class="px-3 py-2 align-middle">
-                                <span class="select-checkbox-overlay hidden items-center justify-center w-5 h-5">
+                            <%# The padding sits on the checkbox, so the column takes no room outside select mode. %>
+                            <td class="p-0 align-middle">
+                                <span class="select-checkbox-overlay hidden items-center justify-center w-5 h-5 ml-3">
                                     <input type="checkbox" class="album-select-checkbox w-4 h-4 accent-primary-theme cursor-pointer">
                                 </span>
                             </td>
                         <% } %>
-                        <td class="px-4 py-2 align-middle max-w-xs">
+                        <td class="px-4 py-2 align-middle w-full max-w-0 sm:w-auto sm:max-w-xs">
                             <a href="<%= baseUrl + routePrefix %>/<%= album._id %>" class="font-bold truncate block hover:text-primary-theme transition-colors" title="<%= album.title %>"><%= album.title %></a>
                             <% if (album.containsLabel) { %>
                                 <p class="text-[10px] font-bold text-primary-theme truncate"><%= t(album.containsLabel.key, album.containsLabel.params) %></p>
                             <% } %>
+                            <%# On a phone the info and location columns would scroll off screen, so they read under the title instead. %>
+                            <% const mobileInfo = [infoText, locals.isShareView ? '' : album.location].filter(Boolean).join(' · '); %>
+                            <% if (mobileInfo) { %>
+                                <p class="sm:hidden text-xs opacity-60 truncate"><%= mobileInfo %></p>
+                            <% } %>
                         </td>
-                        <td class="px-4 py-2 align-middle opacity-70 max-w-sm">
+                        <td class="hidden sm:table-cell px-4 py-2 align-middle opacity-70 max-w-sm">
                             <% if (infoText) { %>
                                 <span class="truncate block" title="<%= infoText %>"><%= infoText %></span>
                             <% } %>
                         </td>
                         <% if (!locals.isShareView) { %>
-                            <td class="px-4 py-2 align-middle opacity-70 truncate"><%= album.location || '' %></td>
+                            <td class="hidden sm:table-cell px-4 py-2 align-middle opacity-70 truncate"><%= album.location || '' %></td>
                         <% } %>
                         <% if (showWishlistAction) { %>
                             <td class="px-4 py-2 align-middle text-right">

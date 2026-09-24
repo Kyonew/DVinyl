@@ -16,7 +16,7 @@
     const cardSize = locals.size || 'collection';
     const showReceived = locals.wishlist === true && locals.canEditCollection;
 %>
-<div class="grid <%= gridClass %> gap-4 md:gap-6" <% if (locals.gridId) { %>id="<%= locals.gridId %>"<% } %>>
+<div class="grid <%= gridClass %> gap-3 md:gap-6" <% if (locals.gridId) { %>id="<%= locals.gridId %>"<% } %>>
     <% albums.forEach(album => { %>
         <%
             const itemPlugin = registry.getByKind(album.kind);
