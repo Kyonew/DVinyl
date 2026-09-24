@@ -4,8 +4,10 @@ import Item from '../../../models/Item';
 import Settings from '../../../models/Settings';
 import { registry } from '../../../core/registry';
 import { requireApiAuth } from '../../../middleware/authMiddleware';
+import { requireApiCollectionRole } from '../../../middleware/apiAuthMiddleware';
 import { resolveMemberRole, roleAtLeast } from '../../../utils/collectionHelpers';
 import { applyVisibilityFilter } from '../../../utils/visibilityHelper';
+import { readEstimateHistory } from '../../../utils/priceHistory';
 
 const router = Router();
 
@@ -62,6 +64,11 @@ router.get('/items/:itemId/estimate', requireApiAuth, async (req: any, res: any)
     console.error(`API price estimate error for item ${itemId}:`, err.message);
     res.status(502).json({ success: false, error: `Price provider error: ${err.message}` });
   }
+});
+
+router.get('/collections/:id/value-history', requireApiCollectionRole('viewer'), async (req: any, res: any) => {
+  const currency = req.user.currency || 'USD';
+  res.status(200).json(await readEstimateHistory(req.apiCollection._id, currency));
 });
 
 export = router;

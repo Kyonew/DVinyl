@@ -9,6 +9,7 @@ import {
   loadPluginsOnce, registerTestPlugin, registerEstimatePlugin,
   ESTIMATE_PLUGIN_KIND, TEST_PLUGIN_KIND, estimatePluginState
 } from '../../../test/helpers/plugins';
+import PriceHistory from '../../../models/PriceHistory';
 
 const app = buildApiApp();
 
@@ -144,5 +145,56 @@ describe('GET /api/v1/items/:itemId/estimate — real music plugin', () => {
     const res = await request(app).get(`/api/v1/items/${item._id}/estimate`).set(bearer(token));
     assert.equal(res.status, 502);
     assert.equal(res.body.success, false);
+  });
+});
+
+describe('GET /api/v1/collections/:id/value-history', () => {
+  async function seedHistory(currency: 'EUR' | 'USD' = 'EUR') {
+    const { user } = await makeUser();
+    user.currency = currency;
+    await user.save();
+    const collection = await makeCollection({ members: [{ user, role: 'viewer' }] });
+    await PriceHistory.create({ collection: collection._id, value: 100, minValue: 100, maxValue: 130, currency: 'EUR', itemCount: 5, capturedAt: new Date('2026-01-01') });
+    await PriceHistory.create({ collection: collection._id, value: 120, minValue: 120, maxValue: 156, currency: 'EUR', itemCount: 5, capturedAt: new Date('2026-02-01') });
+    await PriceHistory.create({ collection: collection._id, value: 99, minValue: 99, maxValue: 129, currency: 'USD', itemCount: 5, capturedAt: new Date('2026-01-15') });
+    return { user, collection, token: signAccessToken(user._id) };
+  }
+
+  test('401 without a bearer token', async () => {
+    const { collection } = await seedHistory();
+    const res = await request(app).get(`/api/v1/collections/${collection._id}/value-history`);
+    assert.equal(res.status, 401);
+  });
+
+  test('200 returns only the reader currency, oldest first, plus otherCurrencies', async () => {
+    const { collection, token } = await seedHistory('EUR');
+    const res = await request(app).get(`/api/v1/collections/${collection._id}/value-history`).set(bearer(token));
+    assert.equal(res.status, 200);
+    assert.equal(res.body.currency, 'EUR');
+    assert.equal(res.body.snapshots.length, 2);
+    assert.equal(res.body.snapshots[0].value, 100);
+    assert.equal(res.body.snapshots[1].value, 120);
+    assert.deepEqual(res.body.otherCurrencies, ['USD']);
+  });
+
+  test('200 empty when the collection has no history', async () => {
+    const { user } = await makeUser();
+    const collection = await makeCollection({ members: [{ user, role: 'viewer' }] });
+    const res = await request(app).get(`/api/v1/collections/${collection._id}/value-history`).set(bearer(signAccessToken(user._id)));
+    assert.equal(res.status, 200);
+    assert.deepEqual(res.body.snapshots, []);
+  });
+
+  test('403 for a non-member', async () => {
+    const { collection } = await seedHistory();
+    const outsider = (await makeUser()).user;
+    const res = await request(app).get(`/api/v1/collections/${collection._id}/value-history`).set(bearer(signAccessToken(outsider._id)));
+    assert.equal(res.status, 403);
+  });
+
+  test('404 for an unknown collection', async () => {
+    const { user } = await makeUser();
+    const res = await request(app).get(`/api/v1/collections/${unknownId}/value-history`).set(bearer(signAccessToken(user._id)));
+    assert.equal(res.status, 404);
   });
 });
