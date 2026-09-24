@@ -7,7 +7,14 @@
     language, format when the edition's own format maps cleanly onto ours, and the main
     cover through the image manager's own swap hook when the edition has one of its own). %>
 <% if (Array.isArray(item.editions) && item.editions.length > 1) { %>
-    <% const editions = item.editions; %>
+    <%
+        const editions = item.editions;
+        // Preselected by getDetails() when the search named an ISBN, with that edition's
+        // cover already in the main slot: a later switch replaces it rather than stacking.
+        const initialCover = editions[0].cover_image && editions[0].cover_image === item.cover_image
+            ? editions[0].cover_image
+            : null;
+    %>
     <div>
         <label class="block mb-2 text-sm font-bold uppercase tracking-widest opacity-60">
             <%= t('confirm_book.field_edition') %>
@@ -19,7 +26,8 @@
                         edition.publisher || t('confirm_book.edition_unknown_publisher'),
                         edition.physical_format || edition.edition_format,
                         edition.year,
-                        edition.pages ? `${edition.pages}p` : ''
+                        edition.pages ? `${edition.pages}p` : '',
+                        edition.isbn
                     ].filter(Boolean);
                 %>
                 <option value="<%= index %>"><%= parts.join(' · ') %></option>
@@ -30,7 +38,7 @@
 
     <script>
         (function () {
-            const editions = <%- JSON.stringify(editions) %>;
+            const editions = <%- JSON.stringify(editions).replace(/</g, '\\u003c') %>;
             const select = document.getElementById('editionPicker');
             const form = select.closest('form');
             // Physical formats Hardcover reports vary in wording ("Trade Paperback", "Mass
@@ -48,10 +56,10 @@
 
             // What this picker itself last put in the gallery's main slot, so a second
             // switch can replace that exact image rather than just piling another one on
-            // top of it. Stays null until an edition with its own cover is actually picked,
-            // so a book whose editions have no cover art of their own never touches the
-            // gallery at all.
-            let lastAppliedCover = null;
+            // top of it. Starts on the preselected edition's cover when the page opened with
+            // it, otherwise stays null until an edition with its own cover is picked, so a
+            // book whose editions have no cover art of their own never touches the gallery.
+            let lastAppliedCover = <%- JSON.stringify(initialCover).replace(/</g, '\\u003c') %>;
 
             function applyEdition(edition) {
                 if (!edition) return;
@@ -59,16 +67,22 @@
                     const field = fieldByName(name);
                     if (field && value) field.value = value;
                 };
-                setIfPresent('publisher', edition.publisher);
+                // Details that belong to one print only. An edition that lacks one empties
+                // the input: the previous edition's ISBN or publisher would be wrong here.
+                const setOrClear = (name, value) => {
+                    const field = fieldByName(name);
+                    if (field) field.value = value || '';
+                };
+                setOrClear('publisher', edition.publisher);
                 setIfPresent('year', edition.year);
-                setIfPresent('pages', edition.pages);
-                setIfPresent('language', edition.language);
+                setOrClear('pages', edition.pages);
+                setOrClear('language', edition.language);
                 // The visible ISBN input and the hidden `isbn` field the save handler reads
                 // both start out holding the same default edition's value; both must move
                 // together or normalizeForSave() only fills the empty one back in from the
                 // other, leaving the two out of sync.
-                setIfPresent('barcode', edition.isbn);
-                setIfPresent('isbn', edition.isbn);
+                setOrClear('barcode', edition.isbn);
+                setOrClear('isbn', edition.isbn);
 
                 const physical = String(edition.physical_format || '').toLowerCase();
                 const match = FORMAT_MATCHERS.find(([needle]) => physical.includes(needle));

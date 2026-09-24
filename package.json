@@ -5,7 +5,7 @@
   "main": "app.ts",
   "scripts": {
     "start": "node --env-file=.env --import tsx app.ts",
-    "test": "node --import tsx --test tests/extraFieldIdentity.test.ts",
+    "test": "node --import tsx --test tests/extraFieldIdentity.test.ts tests/hardcoverEditions.test.ts",
     "test:integration": "node --import tsx --test tests/extraFieldMigration.integration.test.ts",
     "build:css": "npx tailwindcss -i ./website/src/input.css -o ./website/public/styles/tailwind.css --watch"
   },

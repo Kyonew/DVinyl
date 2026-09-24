@@ -116,8 +116,13 @@
                             hiddenInputs.push(f.name);
                         }
                     });
+                    // Written below as a pair when the details came from a source. A plugin
+                    // that also declares `source` in its schema (books) would otherwise post
+                    // it twice, and the save handler would store both values joined.
+                    const postsSourcePair = !!(item.source && item.source_id);
                     Object.keys(plugin.schemaDefinition).forEach(k => {
                         if (visibleNames.has(k) || hiddenInputs.includes(k)) return;
+                        if (postsSourcePair && (k === 'source' || k === 'source_id')) return;
                         const v = item[k];
                         if (v === undefined || v === null) return;
                         // Scalars and string arrays (genres, styles...) are submitted; other objects (tracklist) have dedicated inputs

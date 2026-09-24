@@ -1,6 +1,6 @@
 import { PluginDefinition } from '../../core/types';
 import { sourceFromProvider, imageSourceFrom } from '../../core/sources';
-import { HardcoverProvider } from './hardcover';
+import { HardcoverProvider, normalizeIsbn, editionsQuery, preferPickedEdition } from './hardcover';
 import { booksImporters } from './importers';
 import { escapeRegExp, fetchJson, PermanentRefreshError } from '../../core/helpers';
 import Item from '../../models/Item';
@@ -458,8 +458,12 @@ export const booksPlugin: PluginDefinition = {
     }
 
     const apiKey = process.env.HARDCOVER_API_KEY;
+    // The item's own ISBN says which print it is: the one picked on the confirm page or
+    // typed in by hand, not necessarily the book's most read edition.
+    const isbn = normalizeIsbn(item.isbn || item.barcode);
+    const editions = editionsQuery(isbn);
     const graphqlQuery = {
-      query: `query bookBySlug($slug: String!) {
+      query: `query bookBySlug($slug: String!${editions.variables}) {
         books(where: { slug: { _eq: $slug } }, limit: 1) {
           id
           slug
@@ -472,17 +476,10 @@ export const booksPlugin: PluginDefinition = {
           taggings {
             tag { tag }
           }
-          editions(limit: 5, order_by: { users_count: desc }) {
-            isbn_13
-            isbn_10
-            publisher { name }
-            language { language }
-            pages
-            reading_format_id
-          }
+          ${editions.selection}
         }
       }`,
-      variables: { slug: item.hardcover_slug }
+      variables: isbn ? { slug: item.hardcover_slug, isbn } : { slug: item.hardcover_slug }
     };
 
     const dataRes = await fetchJson('https://api.hardcover.app/v1/graphql', {
@@ -504,23 +501,32 @@ export const booksPlugin: PluginDefinition = {
       throw new Error('Not found on Hardcover API');
     }
 
+    const matchedIsbn = preferPickedEdition(bookData);
     const provider = new HardcoverProvider();
     const formatted = (provider as any).formatHardcoverBook(bookData);
     if (!formatted) {
       throw new Error('Formatting failed');
     }
 
-    return {
-      cover_image: formatted.cover_image,
+    const patch: Record<string, any> = {
+      cover_image: (matchedIsbn && bookData.editions[0]?.image?.url) || formatted.cover_image,
       description: formatted.description,
       genres: formatted.genres,
-      genre: formatted.genres[0] || '',
-      pages: formatted.pages,
-      language: formatted.language,
-      isbn: item.barcode_locked ? item.isbn : formatted.isbn,
-      barcode: item.barcode_locked ? item.barcode : formatted.isbn,
-      publisher: formatted.publisher
+      genre: formatted.genres[0] || ''
     };
+    // Edition details come from the item's own edition, or from the most read one when
+    // the item names none. An ISBN Hardcover does not know keeps what the item holds:
+    // another print's publisher and page count would be wrong for it.
+    if (matchedIsbn || !isbn) {
+      Object.assign(patch, {
+        pages: formatted.pages,
+        language: formatted.language,
+        isbn: item.barcode_locked ? item.isbn : formatted.isbn,
+        barcode: item.barcode_locked ? item.barcode : formatted.isbn,
+        publisher: formatted.publisher
+      });
+    }
+    return patch;
   }
 };
 

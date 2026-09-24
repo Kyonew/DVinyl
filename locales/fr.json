@@ -1000,7 +1000,7 @@
     "field_status": "Statut",
     "field_rating": "Note (sur 5)",
     "field_edition": "Édition",
-    "edition_hint": "Différentes impressions de ce titre — choisissez-en une pour remplir l'éditeur, l'ISBN, le nombre de pages et le format.",
+    "edition_hint": "Autres impressions de ce titre. En choisir une remplit son éditeur, son année, son ISBN, son nombre de pages et sa langue.",
     "edition_unknown_publisher": "Éditeur inconnu",
     "comments_hint": "(État du livre, édition spéciale, dédicace...)",
     "btn_collection": "Ajouter à la Bibliothèque",
