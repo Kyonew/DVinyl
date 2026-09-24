@@ -8,6 +8,7 @@ import { requireApiCollectionRole } from '../../../middleware/apiAuthMiddleware'
 import { resolveMemberRole, roleAtLeast } from '../../../utils/collectionHelpers';
 import { applyVisibilityFilter } from '../../../utils/visibilityHelper';
 import { readEstimateHistory } from '../../../utils/priceHistory';
+import { getValueEstimateJob, startValueEstimate } from '../../../utils/valueEstimates';
 
 const router = Router();
 
@@ -69,6 +70,67 @@ router.get('/items/:itemId/estimate', requireApiAuth, async (req: any, res: any)
 router.get('/collections/:id/value-history', requireApiCollectionRole('viewer'), async (req: any, res: any) => {
   const currency = req.user.currency || 'USD';
   res.status(200).json(await readEstimateHistory(req.apiCollection._id, currency));
+});
+
+/** Settings are per collection; fetched fresh (self-heals a missing row), like collectionsRoutes. */
+async function getCollectionSettings(collectionId: any) {
+  return Settings.findOneAndUpdate(
+    { collection: collectionId },
+    { $setOnInsert: { collection: collectionId } },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  ).lean();
+}
+
+/** The client-facing subset of a job: no userId/collectionId/currency bookkeeping. */
+function serializeJob(job: any) {
+  const out: any = {
+    id: job.id,
+    status: job.status,
+    progress: { processed: job.processed, total: job.total }
+  };
+  if (job.status === 'done') {
+    out.result = {
+      value: job.value,
+      minValue: job.minValue,
+      maxValue: job.maxValue,
+      itemCount: job.total,
+      currency: job.currency,
+      pricedCount: job.pricedCount,
+      failedCount: job.failedCount,
+      saved: job.saved
+    };
+  }
+  if (job.status === 'error') out.error = job.error;
+  return out;
+}
+
+router.post('/collections/:id/value-estimate', requireApiCollectionRole('editor'), async (req: any, res: any) => {
+  const settings = await getCollectionSettings(req.apiCollection._id);
+  const outcome = await startValueEstimate({
+    collectionId: req.apiCollection._id,
+    user: req.user,
+    settings
+  });
+
+  if (outcome.error === 'running') {
+    return res.status(409).json({
+      success: false,
+      error: 'An estimate is already running',
+      estimate: serializeJob(outcome.activeJob)
+    });
+  }
+  if (outcome.error === 'no_items') {
+    return res.status(400).json({ success: false, error: 'No estimable items' });
+  }
+  res.status(202).json({ estimate: serializeJob(outcome.job) });
+});
+
+router.get('/collections/:id/value-estimate/:jobId', requireApiCollectionRole('viewer'), async (req: any, res: any) => {
+  const job = getValueEstimateJob(req.params.jobId);
+  if (!job || job.collectionId !== String(req.apiCollection._id) || job.userId !== String(req.user._id)) {
+    return res.status(404).json({ success: false, error: 'Estimate not found' });
+  }
+  res.status(200).json({ estimate: serializeJob(job) });
 });
 
 export = router;

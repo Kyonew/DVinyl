@@ -3,13 +3,14 @@ import assert from 'node:assert/strict';
 import request from 'supertest';
 import { buildApiApp } from '../../../test/helpers/app';
 import { startDb, stopDb, clearDb } from '../../../test/helpers/db';
-import { makeUser, makeCollection, makeSettings, makeItem } from '../../../test/helpers/factories';
+import { makeUser, makeCollection, makeSettings, makeItem, itemModel } from '../../../test/helpers/factories';
 import { signAccessToken, bearer } from '../../../test/helpers/auth';
 import {
   loadPluginsOnce, registerTestPlugin, registerEstimatePlugin,
   ESTIMATE_PLUGIN_KIND, TEST_PLUGIN_KIND, estimatePluginState
 } from '../../../test/helpers/plugins';
 import PriceHistory from '../../../models/PriceHistory';
+import { resetValueEstimateJobs } from '../../../utils/valueEstimates';
 
 const app = buildApiApp();
 
@@ -25,6 +26,7 @@ beforeEach(async () => {
   estimatePluginState.outcomes = [];
   estimatePluginState.calls = [];
   estimatePluginState.delayMs = 0;
+  resetValueEstimateJobs();
 });
 
 const invalidId = 'not-an-object-id';
@@ -196,5 +198,135 @@ describe('GET /api/v1/collections/:id/value-history', () => {
     const { user } = await makeUser();
     const res = await request(app).get(`/api/v1/collections/${unknownId}/value-history`).set(bearer(signAccessToken(user._id)));
     assert.equal(res.status, 404);
+  });
+});
+
+async function waitForJob(token: string, collectionId: any, jobId: string, timeoutMs = 4000) {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    const res = await request(app)
+      .get(`/api/v1/collections/${collectionId}/value-estimate/${jobId}`)
+      .set(bearer(token));
+    if (res.body?.estimate?.status !== 'running') return res.body.estimate;
+    await new Promise(r => setTimeout(r, 20));
+  }
+  throw new Error('estimate job did not finish in time');
+}
+
+describe('value estimate job', () => {
+  async function seedItems(count: number, role: 'editor' | 'viewer' = 'editor') {
+    const { user } = await makeUser();
+    const collection = await makeCollection({ members: [{ user, role }] });
+    await makeSettings(collection);
+    const items = [];
+    for (let i = 0; i < count; i++) {
+      items.push(await makeItem(ESTIMATE_PLUGIN_KIND, {
+        title: `Item ${i}`, owner: user._id, collection: collection._id, test_external_id: `ext-${i}`
+      }));
+    }
+    return { user, collection, items, token: signAccessToken(user._id) };
+  }
+
+  test('403 when the caller is only a viewer', async () => {
+    const { collection, token } = await seedItems(1, 'viewer');
+    const res = await request(app).post(`/api/v1/collections/${collection._id}/value-estimate`).set(bearer(token)).send({});
+    assert.equal(res.status, 403);
+  });
+
+  test('400 when there are no estimable items', async () => {
+    const { user } = await makeUser();
+    const collection = await makeCollection({ members: [{ user, role: 'editor' }] });
+    await makeSettings(collection);
+    const res = await request(app)
+      .post(`/api/v1/collections/${collection._id}/value-estimate`)
+      .set(bearer(signAccessToken(user._id))).send({});
+    assert.equal(res.status, 400);
+    assert.equal(res.body.error, 'No estimable items');
+  });
+
+  test('202 then done with summed totals and a saved snapshot', async () => {
+    const { collection, items, token } = await seedItems(2);
+    await itemModel(ESTIMATE_PLUGIN_KIND).updateOne({ _id: items[1]._id }, { $set: { quantity: 3 } });
+
+    const start = await request(app).post(`/api/v1/collections/${collection._id}/value-estimate`).set(bearer(token)).send({});
+    assert.equal(start.status, 202);
+    assert.equal(start.body.estimate.status, 'running');
+    assert.equal(start.body.estimate.progress.total, 2);
+
+    const job = await waitForJob(token, collection._id, start.body.estimate.id);
+    assert.equal(job.status, 'done');
+    assert.equal(job.result.value, 40);      // 10*1 + 10*3
+    assert.equal(job.result.minValue, 40);
+    assert.equal(job.result.maxValue, 80);   // * maxMultiplier 2
+    assert.equal(job.result.pricedCount, 2);
+    assert.equal(job.result.failedCount, 0);
+    assert.equal(job.result.saved, true);
+    assert.equal(await PriceHistory.countDocuments({ collection: collection._id }), 1);
+  });
+
+  test('does not save a snapshot below the 50% priced guard', async () => {
+    const { collection, token } = await seedItems(4);
+    estimatePluginState.outcomes = ['ok', 'null', 'null', 'null'];
+
+    const start = await request(app).post(`/api/v1/collections/${collection._id}/value-estimate`).set(bearer(token)).send({});
+    const job = await waitForJob(token, collection._id, start.body.estimate.id);
+    assert.equal(job.result.pricedCount, 1);
+    assert.equal(job.result.saved, false);
+    assert.equal(await PriceHistory.countDocuments({ collection: collection._id }), 0);
+  });
+
+  test('counts a throwing provider as failed and still finishes done', async () => {
+    const { collection, token } = await seedItems(2);
+    estimatePluginState.outcomes = ['throw', 'throw'];
+
+    const start = await request(app).post(`/api/v1/collections/${collection._id}/value-estimate`).set(bearer(token)).send({});
+    const job = await waitForJob(token, collection._id, start.body.estimate.id);
+    assert.equal(job.status, 'done');
+    assert.equal(job.result.pricedCount, 0);
+    assert.equal(job.result.failedCount, 2);
+    assert.equal(job.result.saved, false);
+  });
+
+  test('409 while a run is active, returning the active job', async () => {
+    const { collection, token } = await seedItems(3);
+    estimatePluginState.delayMs = 30;
+
+    const first = await request(app).post(`/api/v1/collections/${collection._id}/value-estimate`).set(bearer(token)).send({});
+    assert.equal(first.status, 202);
+
+    const second = await request(app).post(`/api/v1/collections/${collection._id}/value-estimate`).set(bearer(token)).send({});
+    assert.equal(second.status, 409);
+    assert.equal(second.body.estimate.id, first.body.estimate.id);
+
+    await waitForJob(token, collection._id, first.body.estimate.id);
+  });
+
+  test('404 for an unknown job id', async () => {
+    const { collection, token } = await seedItems(1);
+    const res = await request(app)
+      .get(`/api/v1/collections/${collection._id}/value-estimate/${unknownId}`)
+      .set(bearer(token));
+    assert.equal(res.status, 404);
+    assert.equal(res.body.error, 'Estimate not found');
+  });
+
+  test("404 polling another user's job", async () => {
+    const owner = (await makeUser()).user;
+    const other = (await makeUser()).user;
+    const collection = await makeCollection({ members: [{ user: owner, role: 'editor' }, { user: other, role: 'viewer' }] });
+    await makeSettings(collection);
+    await makeItem(ESTIMATE_PLUGIN_KIND, { title: 'A', owner: owner._id, collection: collection._id, test_external_id: 'ext-1' });
+    const ownerToken = signAccessToken(owner._id);
+    const otherToken = signAccessToken(other._id);
+
+    const start = await request(app).post(`/api/v1/collections/${collection._id}/value-estimate`).set(bearer(ownerToken)).send({});
+    assert.equal(start.status, 202);
+
+    const res = await request(app)
+      .get(`/api/v1/collections/${collection._id}/value-estimate/${start.body.estimate.id}`)
+      .set(bearer(otherToken));
+    assert.equal(res.status, 404);
+
+    await waitForJob(ownerToken, collection._id, start.body.estimate.id);
   });
 });
