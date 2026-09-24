@@ -53,6 +53,7 @@ import dashboardRoute from './core/routes/dashboardRoute.js';
 import collectionRoute from './core/routes/collectionRoute.js';
 import collectionInfoRoute from './core/routes/collectionInfoRoute.js';
 import shelfRoute from './core/routes/shelfRoute.js';
+import listRoute from './core/routes/listRoute.js';
 import searchRoute from './core/routes/searchRoute.js';
 import manualAddRoute from './core/routes/manualAddRoute.js';
 import csvImportRoute from './core/routes/csvImportRoute.js';
@@ -317,6 +318,7 @@ app.use(BASE_URL, dashboardRoute);
 app.use(BASE_URL, collectionRoute);
 app.use(BASE_URL, collectionInfoRoute);
 app.use(BASE_URL, shelfRoute);
+app.use(BASE_URL, listRoute);
 app.use(BASE_URL, searchRoute);
 app.use(BASE_URL, manualAddRoute);
 // Before the plugin dispatcher, which also serves /import/:id routes

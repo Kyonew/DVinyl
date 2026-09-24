@@ -561,7 +561,9 @@ export const musicPlugin: PluginDefinition = {
         || byTitle.get(norm(t.title))
         || byPos.get(norm(t.position));
       if (!old) return t;
-      const merged: any = { ...t };
+      // The track keeps its id as well: a playlist points at it by that id, and a
+      // fresh one on every refresh would silently empty every playlist holding it.
+      const merged: any = { ...t, _id: old._id };
       for (const f of userFields) {
         if (old[f] !== undefined && old[f] !== null) merged[f] = old[f];
       }

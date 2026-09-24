@@ -1,0 +1,124 @@
+<%- include('partials/header') %>
+
+<div class="max-w-screen-xl mx-auto px-1.5 sm:px-0 pb-16">
+
+    <div class="pt-6 mb-6 flex items-center justify-between gap-4">
+        <h1 class="text-3xl font-bold transition-colors flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
+            <span><%= t('lists.title') %></span>
+            <span class="px-3 md:mt-1.5 py-1 bg-black/5 dark:bg-white/10 rounded-full text-sm font-medium opacity-70 w-fit">
+                <%= lists.length %>
+            </span>
+        </h1>
+        <% if (locals.canEditCollection) { %>
+            <button type="button" onclick="toggleNewListModal(true)"
+                class="flex-shrink-0 w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center gap-2 group"
+                title="<%= t('lists.new') %>">
+                <i class="fa-solid fa-plus group-hover:scale-110 transition-transform"></i>
+                <span class="hidden md:inline text-xs font-bold uppercase tracking-widest"><%= t('lists.new') %></span>
+            </button>
+        <% } %>
+    </div>
+
+    <% if (lists.length === 0) { %>
+        <div class="card-theme rounded-3xl p-10 text-center shadow-sm">
+            <i class="fa-solid fa-list-check text-4xl text-primary-theme opacity-60 mb-4"></i>
+            <p class="font-bold mb-1"><%= t('lists.empty_title') %></p>
+            <p class="text-sm opacity-60 max-w-md mx-auto"><%= t('lists.empty_hint') %></p>
+        </div>
+    <% } else { %>
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-5">
+            <% lists.forEach(list => { %>
+                <a href="<%= baseUrl %>/lists/<%= list.id %>"
+                    class="group card-theme rounded-2xl overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-1 hover:border-primary-theme transition-all duration-300">
+                    <%# What the list holds, on its cover: four covers make a 2x2 grid, two or three
+                        split it in halves, one fills it, and an empty list shows its kind. %>
+                    <% const shown = list.covers.length >= 4 ? list.covers.slice(0, 4) : list.covers.slice(0, 2); %>
+                    <div class="aspect-square bg-black/5 dark:bg-white/5 grid <%= shown.length === 4 ? 'grid-cols-2 grid-rows-2' : shown.length === 2 ? 'grid-cols-2' : '' %> overflow-hidden">
+                        <% if (shown.length === 0) { %>
+                            <div class="flex items-center justify-center text-primary-theme opacity-40">
+                                <i class="fa-solid <%= list.kind === 'tracks' ? 'fa-music' : 'fa-list-ul' %> text-4xl"></i>
+                            </div>
+                        <% } %>
+                        <% shown.forEach(cover => { %>
+                            <img src="<%= itemImageUrl(cover) %>" alt="" loading="lazy" class="w-full h-full object-cover">
+                        <% }) %>
+                    </div>
+                    <div class="p-3">
+                        <h3 class="font-bold text-sm truncate group-hover:text-primary-theme transition-colors"><%= list.name %></h3>
+                        <p class="text-xs opacity-60 flex items-center gap-1.5">
+                            <i class="fa-solid <%= list.kind === 'tracks' ? 'fa-music' : 'fa-list-ul' %> text-[10px]"></i>
+                            <%= t(list.kind === 'tracks' ? 'lists.tracks_count' : 'lists.entries_count', { count: list.count }) %>
+                        </p>
+                        <% if (list.description) { %>
+                            <p class="text-[11px] opacity-50 mt-1 line-clamp-2"><%= list.description %></p>
+                        <% } %>
+                    </div>
+                </a>
+            <% }) %>
+        </div>
+    <% } %>
+</div>
+
+<% if (locals.canEditCollection) { %>
+    <div id="newListModal" class="fixed inset-0 z-50 hidden bg-black/70 backdrop-blur-sm items-center justify-center p-4">
+        <form action="<%= baseUrl %>/lists" method="POST" class="card-theme w-full max-w-md rounded-2xl shadow-2xl p-6 space-y-5">
+            <h3 class="text-lg font-bold"><%= t('lists.new') %></h3>
+
+            <div>
+                <label for="newListName" class="block mb-2 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('lists.field_name') %></label>
+                <input type="text" id="newListName" name="name" required maxlength="60" autocomplete="off"
+                    placeholder="<%= t('lists.new_placeholder') %>"
+                    class="w-full bg-black/5 dark:bg-white/5 rounded-lg text-sm p-3 outline-none focus:ring-1 focus:ring-primary-theme">
+            </div>
+
+            <%# Chosen once: a playlist and a list of items are not drawn the same way. %>
+            <div>
+                <span class="block mb-2 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('lists.field_kind') %></span>
+                <div class="grid <%= canMakePlaylists ? 'grid-cols-2' : 'grid-cols-1' %> gap-2">
+                    <label class="cursor-pointer">
+                        <input type="radio" name="kind" value="items" checked class="peer sr-only">
+                        <div class="p-3 rounded-xl border-2 border-black/10 dark:border-white/10 peer-checked:border-primary-theme peer-checked:bg-primary-theme/10 transition-all">
+                            <div class="text-sm font-bold"><i class="fa-solid fa-list-ul mr-2 text-primary-theme"></i><%= t('lists.kind_items') %></div>
+                            <div class="text-[11px] opacity-60 mt-1"><%= t('lists.kind_items_hint') %></div>
+                        </div>
+                    </label>
+                    <% if (canMakePlaylists) { %>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="kind" value="tracks" class="peer sr-only">
+                            <div class="p-3 rounded-xl border-2 border-black/10 dark:border-white/10 peer-checked:border-primary-theme peer-checked:bg-primary-theme/10 transition-all">
+                                <div class="text-sm font-bold"><i class="fa-solid fa-music mr-2 text-primary-theme"></i><%= t('lists.kind_tracks') %></div>
+                                <div class="text-[11px] opacity-60 mt-1"><%= t('lists.kind_tracks_hint') %></div>
+                            </div>
+                        </label>
+                    <% } %>
+                </div>
+            </div>
+
+            <div>
+                <label for="newListDescription" class="block mb-2 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('lists.field_description') %></label>
+                <textarea id="newListDescription" name="description" rows="2" maxlength="500"
+                    class="w-full bg-black/5 dark:bg-white/5 rounded-lg text-sm p-3 outline-none focus:ring-1 focus:ring-primary-theme resize-y"></textarea>
+            </div>
+
+            <div class="flex justify-end gap-2">
+                <button type="button" onclick="toggleNewListModal(false)"
+                    class="px-4 py-2 bg-black/5 dark:bg-white/10 rounded-lg text-sm font-bold hover:brightness-110 transition-all"><%= t('common.cancel') %></button>
+                <button type="submit"
+                    class="px-4 py-2 bg-primary-theme text-white rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all"><%= t('lists.create') %></button>
+            </div>
+        </form>
+    </div>
+    <script>
+        function toggleNewListModal(open) {
+            const modal = document.getElementById('newListModal');
+            modal.classList.toggle('hidden', !open);
+            modal.classList.toggle('flex', open);
+            if (open) document.getElementById('newListName').focus();
+        }
+        document.getElementById('newListModal').addEventListener('click', event => {
+            if (event.target.id === 'newListModal') toggleNewListModal(false);
+        });
+    </script>
+<% } %>
+
+<%- include('partials/footer') %>

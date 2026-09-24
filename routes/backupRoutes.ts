@@ -12,6 +12,7 @@ import CustomPlugin from '../models/CustomPlugin';
 import PriceHistory from '../models/PriceHistory';
 import InstanceSettings from '../models/InstanceSettings';
 import Furniture from '../models/Furniture';
+import List from '../models/List';
 import { invalidateInstanceSettingsCache } from '../utils/instanceSettings';
 import { requireAuth, requireAdmin, requireCollectionRole } from '../middleware/authMiddleware';
 import { registry } from '../core/registry';
@@ -95,6 +96,7 @@ async function buildInstanceBackup(): Promise<any> {
         settings: await Settings.find({}).lean(),
         collections: await Collection.find({}).lean(),
         furniture: await Furniture.find({}).lean(),
+        lists: await List.find({}).lean(),
         customPlugins: await CustomPlugin.find({}).lean(),
         priceHistory: await PriceHistory.find({}).lean(),
         instanceSettings: await InstanceSettings.findOne({ key: 'instance' }).lean(),
@@ -177,6 +179,7 @@ const importInstanceBackup = async (req: any, res: any) => {
             Settings.deleteMany({}),
             Collection.deleteMany({}),
             Furniture.deleteMany({}),
+            List.deleteMany({}),
             CustomPlugin.deleteMany({}),
             PriceHistory.deleteMany({}),
             InstanceSettings.deleteMany({})
@@ -205,6 +208,13 @@ const importInstanceBackup = async (req: any, res: any) => {
             })));
         } else if (hasCollections) {
             await Collection.updateMany({}, { $set: { shelvesSeeded: false } });
+        }
+
+        // Lists name items by id, and a whole-instance restore keeps every id as it was,
+        // so they come back untouched. Inserted through the model so the ids a JSON dump
+        // carries as strings are cast back to ObjectIds.
+        if (hasCollections && Array.isArray(data.lists) && data.lists.length > 0) {
+            await List.insertMany(data.lists);
         }
 
         if (data.users && data.users.length > 0) {
@@ -387,10 +397,18 @@ async function buildCollectionBackup(activeCollectionId: any, collection: any): 
         return rest;
     });
 
+    // Kept with the item ids they point at: the import draws new ids for the items and
+    // rewrites these against them, like it does for a season and its show.
+    const lists = (await List.find({ collection: activeCollectionId }).lean()).map((list: any) => {
+        const { _id, __v, collection: owner, createdBy, ...rest } = list;
+        return rest;
+    });
+
     return {
         collectionName: collection?.name || 'Collection',
         albums,
         furniture,
+        lists,
         // The collection's own page travels with it: it is written about these items,
         // and its pictures are picked up by the archive alongside theirs.
         info: collectionInfoOf(collection),
@@ -571,6 +589,9 @@ const importCollectionBackup = async (req: any, res: any) => {
         const replacedImagePaths = await managedItemImagesForQuery({ collection: activeCollectionId });
         await Item.deleteMany({ collection: activeCollectionId });
 
+        // Old item id -> new one, filled below. Read again by the lists once the items are in.
+        const idMap = new Map<string, mongoose.Types.ObjectId>();
+
         if (data.albums.length > 0) {
             const legacyKind = registry.getAll().find(p => p.matchesLegacyItems)?.kind || 'Music';
             const extraDateFields = collectExtraDateFields(
@@ -580,7 +601,6 @@ const importCollectionBackup = async (req: any, res: any) => {
             // collections), which would leave every "contained in" pointing at an item that
             // no longer exists. So the new ids are drawn up front and the links rewritten
             // against them, keeping a show and its seasons together through the restore.
-            const idMap = new Map<string, mongoose.Types.ObjectId>();
             for (const album of data.albums) {
                 if (album._id) idMap.set(String(album._id), new mongoose.Types.ObjectId());
             }
@@ -603,6 +623,24 @@ const importCollectionBackup = async (req: any, res: any) => {
                 return fixed;
             });
             await Item.insertMany(cleanAlbums);
+        }
+
+        // Replacement semantics for the lists too. A line whose item did not come back with
+        // the dump has nothing to point at and is left out; tracks keep their own ids
+        // through the restore, so only the item half of a playlist line is rewritten.
+        await List.deleteMany({ collection: activeCollectionId });
+        if (Array.isArray(data.lists) && data.lists.length > 0) {
+            await List.insertMany(data.lists.map((list: any) => {
+                const { _id, __v, collection: _owner, createdBy: _by, ...rest } = list;
+                return {
+                    ...rest,
+                    collection: activeCollectionId,
+                    createdBy: req.user._id,
+                    entries: (rest.entries || [])
+                        .filter((entry: any) => idMap.has(String(entry.item)))
+                        .map((entry: any) => ({ ...entry, item: idMap.get(String(entry.item)) }))
+                };
+            }));
         }
 
         // Replacement semantics again: the collection's own furniture goes with its items.

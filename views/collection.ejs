@@ -44,6 +44,14 @@
                     </span>
                 </a>
             <% } %>
+            <% if (!locals.isShareView) { %>
+                <a href="<%= baseUrl %>/lists"
+                    class="flex-shrink-0 w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center gap-2 group"
+                    title="<%= t('lists.title') %>">
+                    <i class="fa-solid fa-list-check group-hover:scale-110 transition-transform"></i>
+                    <span class="hidden md:inline text-xs font-bold uppercase tracking-widest"><%= t('lists.title') %></span>
+                </a>
+            <% } %>
             <% if (locals.canEditCollection) { %>
                 <%
                     // Add button target: external-search page if the plugin has one, else manual entry
@@ -124,6 +132,10 @@
                 class="px-4 py-2 bg-primary-theme text-white rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all">
                 <i class="fa-solid fa-inbox mr-2"></i><%= t('collection.shelf_move_btn') %>
             </button>
+            <button type="button" onclick="addSelectionToList()"
+                class="px-4 py-2 bg-primary-theme text-white rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all">
+                <i class="fa-solid fa-list-check mr-2"></i><%= t('lists.add_to_list') %>
+            </button>
             <button type="button" onclick="printSelectedLabels('qr')"
                 class="px-4 py-2 bg-primary-theme text-white rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all">
                 <i class="fa-solid fa-qrcode mr-2"></i><%= t('collection.print_selected_qr') %>
@@ -143,6 +155,7 @@
         </div>
     </div>
     <form id="labelPrintForm" method="POST" action="<%= baseUrl %>/collection/labels" target="_blank" class="hidden"></form>
+    <%- include('partials/list-picker') %>
 
     <%# Where to put what is selected. Offers the collection's shelves, and lets one be
         invented on the spot; core/shelfStore.ts decides what that name becomes. %>
@@ -365,6 +378,11 @@
             return [...document.querySelectorAll('.album-select-checkbox:checked')]
                 .map(cb => cb.closest('[data-id]')?.dataset.id)
                 .filter(Boolean);
+        }
+
+        function addSelectionToList() {
+            const ids = selectedItemIds();
+            if (ids.length > 0) openListPicker({ kind: 'items', items: ids });
         }
 
         function openShelfMoveModal() {

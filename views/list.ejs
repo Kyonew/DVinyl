@@ -1,0 +1,476 @@
+<%- include('partials/header') %>
+
+<%
+    const isPlaylist = list.kind === 'tracks';
+    const canEdit = locals.canEditCollection === true;
+    const tr = s => isTranslationKey(s) ? t(s, { defaultValue: s }) : s;
+%>
+
+<div class="max-w-screen-xl mx-auto px-1.5 sm:px-0 pb-16">
+
+    <div class="pt-6 mb-6 flex items-start justify-between gap-4">
+        <div class="min-w-0">
+            <a href="<%= baseUrl %>/lists" class="text-[10px] font-black uppercase tracking-widest opacity-50 hover:opacity-100 hover:text-primary-theme transition-colors">
+                <i class="fa-solid fa-arrow-left mr-1"></i><%= t('lists.title') %>
+            </a>
+            <h1 class="text-3xl font-bold transition-colors flex flex-col md:flex-row md:items-center gap-2 md:gap-3 mt-1">
+                <span class="break-words"><%= list.name %></span>
+                <span id="listCount" class="px-3 md:mt-1.5 py-1 bg-black/5 dark:bg-white/10 rounded-full text-sm font-medium opacity-70 w-fit whitespace-nowrap">
+                    <i class="fa-solid <%= isPlaylist ? 'fa-music' : 'fa-list-ul' %> text-xs mr-1"></i><span data-count><%= lines.length %></span>
+                </span>
+            </h1>
+            <% if (list.description) { %>
+                <p class="text-sm opacity-70 mt-2 whitespace-pre-line max-w-2xl"><%= list.description %></p>
+            <% } %>
+        </div>
+        <% if (canEdit) { %>
+            <div class="flex gap-2 shrink-0">
+                <button type="button" onclick="openListAdd()"
+                    class="w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center gap-2"
+                    title="<%= t('lists.add') %>">
+                    <i class="fa-solid fa-plus"></i>
+                    <span class="hidden md:inline text-xs font-bold uppercase tracking-widest"><%= t('lists.add') %></span>
+                </button>
+                <button type="button" onclick="toggleEditListModal(true)"
+                    class="w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center gap-2"
+                    title="<%= t('common.edit') %>">
+                    <i class="fa-solid fa-pen"></i>
+                    <span class="hidden md:inline text-xs font-bold uppercase tracking-widest"><%= t('common.edit') %></span>
+                </button>
+                <form action="<%= baseUrl %>/lists/<%= list.id %>/delete" method="POST"
+                    onsubmit="return confirm(<%= JSON.stringify(t('lists.delete_confirm', { name: list.name, interpolation: { escapeValue: false } })) %>)">
+                    <button type="submit"
+                        class="w-10 h-10 md:w-auto md:px-4 card-theme text-red-600 hover:border-red-500 rounded-lg transition-all shadow-sm flex items-center justify-center gap-2"
+                        title="<%= t('common.delete') %>">
+                        <i class="fa-solid fa-trash"></i>
+                        <span class="hidden md:inline text-xs font-bold uppercase tracking-widest"><%= t('common.delete') %></span>
+                    </button>
+                </form>
+            </div>
+        <% } %>
+    </div>
+
+    <% if (lines.length === 0) { %>
+        <div class="card-theme rounded-3xl p-10 text-center shadow-sm">
+            <i class="fa-solid <%= isPlaylist ? 'fa-music' : 'fa-list-ul' %> text-4xl text-primary-theme opacity-60 mb-4"></i>
+            <p class="text-sm opacity-60 max-w-md mx-auto"><%= t(isPlaylist ? 'lists.empty_list_tracks' : 'lists.empty_list_items') %></p>
+            <% if (canEdit) { %>
+                <button type="button" onclick="openListAdd()"
+                    class="mt-5 px-5 py-2.5 bg-primary-theme text-white rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all">
+                    <i class="fa-solid fa-plus mr-2"></i><%= t(isPlaylist ? 'lists.add_tracks' : 'lists.add_items') %>
+                </button>
+            <% } %>
+        </div>
+    <% } else if (!isPlaylist) { %>
+
+        <%# A list of items reads as rows: its order is the point, which a grid of covers
+            would hide. %>
+        <div id="listRows" class="card-theme rounded-2xl overflow-hidden shadow-sm divide-y divide-black/5 dark:divide-white/5">
+            <% lines.forEach((line, index) => { %>
+                <div class="list-row flex items-center gap-3 px-3 py-2 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors" data-entry="<%= line.entryId %>">
+                    <span class="list-rank w-6 text-center text-xs font-mono opacity-40 shrink-0"><%= index + 1 %></span>
+                    <a href="<%= baseUrl + line.plugin.routePrefix %>/<%= line.item._id %>" class="flex items-center gap-3 flex-1 min-w-0 group">
+                        <img src="<%= itemImageUrl(line.cover) %>" alt="" loading="lazy"
+                            class="w-12 h-12 rounded-lg object-cover bg-black/5 dark:bg-white/5 shrink-0">
+                        <div class="min-w-0">
+                            <div class="font-bold text-sm truncate group-hover:text-primary-theme transition-colors"><%= line.item.title %></div>
+                            <div class="text-xs opacity-60 truncate">
+                                <%= [line.creator, line.item.year].filter(Boolean).join(' · ') %>
+                            </div>
+                        </div>
+                    </a>
+                    <div class="hidden sm:flex items-center gap-1.5 shrink-0">
+                        <% if (line.item.in_wishlist) { %>
+                            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-pink-500/10 text-pink-600"><i class="fa-solid fa-heart mr-1"></i><%= t('nav.wishlist') %></span>
+                        <% } %>
+                        <span class="text-[10px] opacity-60 bg-black/5 dark:bg-white/10 px-1.5 py-0.5 rounded"><%= tr(line.plugin.label) %></span>
+                    </div>
+                    <% if (canEdit) { %>
+                        <%- include('partials/list-row-controls') %>
+                    <% } %>
+                </div>
+            <% }) %>
+        </div>
+
+    <% } else { %>
+
+        <%# A playlist: filtered and sorted in the page, since it is read whole anyway. The
+            arranged order is the default; any other sort only changes how it is shown. %>
+        <div class="flex flex-wrap items-end gap-2 mb-3">
+            <div class="relative flex-1 min-w-[200px]">
+                <i class="fa-solid fa-search opacity-40 absolute left-3 top-1/2 -translate-y-1/2 text-sm"></i>
+                <input type="text" id="plFilter" placeholder="<%= t('lists.filter_placeholder') %>"
+                    class="w-full p-2.5 pl-9 text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme outline-none">
+            </div>
+            <select id="plRating" class="p-2.5 text-sm card-theme rounded-lg border outline-none focus:ring-1 focus:ring-primary-theme">
+                <option value="0" class="bg-white dark:bg-[#1a1a1a]"><%= t('lists.filter_any_rating') %></option>
+                <% for (let s = 1; s <= 5; s++) { %>
+                    <option value="<%= s %>" class="bg-white dark:bg-[#1a1a1a]"><%= '★'.repeat(s) %>+</option>
+                <% } %>
+            </select>
+            <div class="flex items-center gap-1">
+                <input type="number" id="plBpmMin" min="1" max="1000" placeholder="<%= t('lists.bpm_min') %>"
+                    class="w-24 p-2.5 text-sm card-theme rounded-lg border outline-none focus:ring-1 focus:ring-primary-theme font-mono">
+                <span class="opacity-40">–</span>
+                <input type="number" id="plBpmMax" min="1" max="1000" placeholder="<%= t('lists.bpm_max') %>"
+                    class="w-24 p-2.5 text-sm card-theme rounded-lg border outline-none focus:ring-1 focus:ring-primary-theme font-mono">
+            </div>
+        </div>
+
+        <div class="card-theme rounded-2xl overflow-hidden shadow-sm">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-black/5 dark:bg-white/5 text-xs uppercase opacity-70">
+                        <tr>
+                            <th class="px-3 py-3 w-10"><button type="button" class="pl-sort" data-sort="order">#</button></th>
+                            <th class="px-3 py-3"><button type="button" class="pl-sort" data-sort="title"><%= t('confirm_vinyl.field_title') %></button></th>
+                            <th class="hidden md:table-cell px-3 py-3"><button type="button" class="pl-sort" data-sort="album"><%= t('lists.col_album') %></button></th>
+                            <th class="px-3 py-3"><button type="button" class="pl-sort" data-sort="rating"><%= t('tracklist.rating') %></button></th>
+                            <th class="hidden sm:table-cell px-3 py-3 text-right"><button type="button" class="pl-sort" data-sort="bpm"><%= t('tracklist.bpm') %></button></th>
+                            <th class="hidden sm:table-cell px-3 py-3"><button type="button" class="pl-sort" data-sort="key"><%= t('tracklist.key') %></button></th>
+                            <th class="hidden lg:table-cell px-3 py-3 text-right"><button type="button" class="pl-sort" data-sort="duration"><%= t('lists.col_duration') %></button></th>
+                            <% if (canEdit) { %><th class="px-3 py-3"></th><% } %>
+                        </tr>
+                    </thead>
+                    <tbody id="listRows" class="divide-y divide-black/5 dark:divide-white/5">
+                        <% lines.forEach((line, index) => { %>
+                            <% const track = line.track; %>
+                            <tr class="list-row even:bg-black/[0.03] dark:even:bg-white/[0.03] hover:bg-black/[0.06] dark:hover:bg-white/[0.06] transition-colors"
+                                data-entry="<%= line.entryId %>"
+                                data-order="<%= index %>"
+                                data-title="<%= track.title || '' %>"
+                                data-album="<%= line.item.title || '' %>"
+                                data-search="<%= [track.title, line.item.title, line.creator, track.key, ...(track.tags || [])].filter(Boolean).join(' ').toLowerCase() %>"
+                                data-rating="<%= track.rating || 0 %>"
+                                data-bpm="<%= track.bpm || '' %>"
+                                data-key="<%= track.key || '' %>"
+                                data-duration="<%= track.duration || '' %>">
+                                <td class="list-rank px-3 py-2 text-xs font-mono opacity-40 align-top"><%= index + 1 %></td>
+                                <td class="px-3 py-2 align-top">
+                                    <div class="font-bold"><%= track.title %></div>
+                                    <a href="<%= baseUrl + line.plugin.routePrefix %>/<%= line.item._id %>" class="md:hidden text-xs opacity-60 hover:text-primary-theme"><%= line.item.title %><%= line.creator ? ' · ' + line.creator : '' %></a>
+                                    <% if ((track.tags || []).length > 0) { %>
+                                        <div class="flex flex-wrap gap-1 mt-1">
+                                            <% track.tags.forEach(tag => { %>
+                                                <span class="px-1.5 py-px bg-primary-theme/10 text-primary-theme rounded text-[10px] font-medium"><%= tag %></span>
+                                            <% }) %>
+                                        </div>
+                                    <% } %>
+                                </td>
+                                <td class="hidden md:table-cell px-3 py-2 align-top">
+                                    <a href="<%= baseUrl + line.plugin.routePrefix %>/<%= line.item._id %>" class="flex items-center gap-2 group min-w-0">
+                                        <img src="<%= itemImageUrl(line.cover) %>" alt="" loading="lazy" class="w-8 h-8 rounded object-cover shrink-0">
+                                        <span class="min-w-0">
+                                            <span class="block truncate text-xs font-bold group-hover:text-primary-theme transition-colors"><%= line.item.title %></span>
+                                            <span class="block truncate text-[11px] opacity-60"><%= line.creator %></span>
+                                        </span>
+                                    </a>
+                                </td>
+                                <td class="px-3 py-2 align-top whitespace-nowrap">
+                                    <% if (track.rating) { %>
+                                        <span class="text-amber-400 text-[10px] tracking-tight"><% for (let s = 0; s < track.rating; s++) { %><i class="fa-solid fa-star"></i><% } %></span>
+                                    <% } %>
+                                </td>
+                                <td class="hidden sm:table-cell px-3 py-2 align-top text-right font-mono text-xs"><%= track.bpm || '' %></td>
+                                <td class="hidden sm:table-cell px-3 py-2 align-top font-mono text-xs"><%= track.key || '' %></td>
+                                <td class="hidden lg:table-cell px-3 py-2 align-top text-right font-mono text-xs opacity-70"><%= track.duration || '' %></td>
+                                <% if (canEdit) { %>
+                                    <td class="px-3 py-2 align-top"><%- include('partials/list-row-controls') %></td>
+                                <% } %>
+                            </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            </div>
+            <p id="plNoMatch" class="hidden p-6 text-center text-sm opacity-50"><%= t('lists.filter_no_match') %></p>
+        </div>
+
+    <% } %>
+</div>
+
+<% if (canEdit) { %>
+    <%# Search the collection and add from the list itself. Whatever is added shows once
+        the search is closed, which reloads the list in its arranged order. %>
+    <div id="listAddModal" class="fixed inset-0 z-50 hidden bg-black/70 backdrop-blur-sm items-end sm:items-start justify-center p-0 sm:p-4 sm:pt-[10vh]">
+        <div class="card-theme w-full sm:max-w-lg max-h-[85vh] sm:max-h-[75vh] rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+            <div class="flex items-center gap-3 px-4 pt-4 pb-3">
+                <div class="relative flex-1">
+                    <i class="fa-solid fa-search opacity-40 absolute left-3 top-1/2 -translate-y-1/2 text-sm"></i>
+                    <input type="text" id="listAddSearch" autocomplete="off"
+                        placeholder="<%= t(isPlaylist ? 'lists.add_search_tracks' : 'lists.add_search_items') %>"
+                        class="w-full p-2.5 pl-9 text-sm bg-black/5 dark:bg-white/5 rounded-lg outline-none focus:ring-1 focus:ring-primary-theme">
+                </div>
+                <button type="button" onclick="closeListAdd()" class="opacity-40 hover:opacity-100 transition-opacity p-1 shrink-0" aria-label="<%= t('common.cancel') %>">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div id="listAddResults" class="overflow-y-auto custom-scrollbar px-2 pb-3 space-y-0.5 min-h-[4rem]"></div>
+        </div>
+    </div>
+
+    <div id="editListModal" class="fixed inset-0 z-50 hidden bg-black/70 backdrop-blur-sm items-center justify-center p-4">
+        <form action="<%= baseUrl %>/lists/<%= list.id %>/edit" method="POST" class="card-theme w-full max-w-md rounded-2xl shadow-2xl p-6 space-y-5">
+            <h3 class="text-lg font-bold"><%= t('lists.edit') %></h3>
+            <div>
+                <label for="editListName" class="block mb-2 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('lists.field_name') %></label>
+                <input type="text" id="editListName" name="name" required maxlength="60" value="<%= list.name %>"
+                    class="w-full bg-black/5 dark:bg-white/5 rounded-lg text-sm p-3 outline-none focus:ring-1 focus:ring-primary-theme">
+            </div>
+            <div>
+                <label for="editListDescription" class="block mb-2 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('lists.field_description') %></label>
+                <textarea id="editListDescription" name="description" rows="3" maxlength="500"
+                    class="w-full bg-black/5 dark:bg-white/5 rounded-lg text-sm p-3 outline-none focus:ring-1 focus:ring-primary-theme resize-y"><%= list.description %></textarea>
+            </div>
+            <div class="flex justify-end gap-2">
+                <button type="button" onclick="toggleEditListModal(false)"
+                    class="px-4 py-2 bg-black/5 dark:bg-white/10 rounded-lg text-sm font-bold hover:brightness-110 transition-all"><%= t('common.cancel') %></button>
+                <button type="submit"
+                    class="px-4 py-2 bg-primary-theme text-white rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all"><%= t('common.save') %></button>
+            </div>
+        </form>
+    </div>
+<% } %>
+
+<script>
+(function () {
+    const base = '<%= baseUrl %>';
+    const listId = '<%= list.id %>';
+    const rowsEl = document.getElementById('listRows');
+    const countEl = document.querySelector('#listCount [data-count]');
+    const errorText = <%- JSON.stringify(t('errors.generic_server_error')) %>;
+    const staleText = <%- JSON.stringify(t('lists.err_stale')) %>;
+
+    window.toggleEditListModal = function (open) {
+        const modal = document.getElementById('editListModal');
+        if (!modal) return;
+        modal.classList.toggle('hidden', !open);
+        modal.classList.toggle('flex', open);
+    };
+    document.getElementById('editListModal')?.addEventListener('click', event => {
+        if (event.target.id === 'editListModal') toggleEditListModal(false);
+    });
+
+    <% if (canEdit) { %>
+    // "Add": search the collection, add with one click, see the list once closed.
+    const addModal = document.getElementById('listAddModal');
+    const addSearch = document.getElementById('listAddSearch');
+    const addResults = document.getElementById('listAddResults');
+    const addText = <%- JSON.stringify({
+        hint: t(isPlaylist ? 'lists.add_hint_tracks' : 'lists.add_hint_items'),
+        none: t('lists.add_no_match'),
+        add: t('lists.picker_add'),
+        inList: t('lists.add_in_list')
+    }).replace(/</g, '\\u003c') %>;
+    let addedSomething = false;
+    let searchTimer = null;
+    let searchSeq = 0;
+
+    function message(textContent) {
+        addResults.innerHTML = '';
+        const p = document.createElement('p');
+        p.className = 'px-3 py-6 text-center text-sm opacity-50';
+        p.textContent = textContent;
+        addResults.appendChild(p);
+    }
+
+    function resultRow(result) {
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors';
+        const img = document.createElement('img');
+        img.src = result.cover;
+        img.alt = '';
+        img.className = 'w-10 h-10 rounded object-cover bg-black/5 dark:bg-white/5 shrink-0';
+        const info = document.createElement('div');
+        info.className = 'flex-1 min-w-0';
+        const title = document.createElement('div');
+        title.className = 'text-sm font-bold truncate';
+        title.textContent = result.track ? result.trackTitle : result.title;
+        const sub = document.createElement('div');
+        sub.className = 'text-xs opacity-60 truncate';
+        sub.textContent = result.track
+            ? [result.title, result.creator, result.details].filter(Boolean).join(' · ')
+            : [result.creator, result.details].filter(Boolean).join(' · ');
+        info.append(title, sub);
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        const markInList = () => {
+            button.disabled = true;
+            button.textContent = addText.inList;
+            button.className = 'shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold text-green-600';
+        };
+        button.className = 'shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold bg-primary-theme/10 text-primary-theme hover:bg-primary-theme hover:text-white transition-all';
+        button.textContent = addText.add;
+        if (result.inList) markInList();
+        button.addEventListener('click', async () => {
+            button.disabled = true;
+            try {
+                await post('add', result.track ? { item: result.item, track: result.track } : { items: [result.item] });
+                addedSomething = true;
+                markInList();
+            } catch (err) {
+                button.disabled = false;
+                if (err.message !== 'stale') alert(err.message);
+            }
+        });
+        row.append(img, info, button);
+        return row;
+    }
+
+    async function runSearch() {
+        const q = addSearch.value.trim();
+        if (!q) return message(addText.hint);
+        const seq = ++searchSeq;
+        try {
+            const res = await fetch(`${base}/api/lists/${listId}/candidates?q=${encodeURIComponent(q)}`, { headers: { 'Accept': 'application/json' } });
+            const data = await res.json();
+            // A slower answer to an older query must not replace a newer one.
+            if (seq !== searchSeq) return;
+            if (!data.success) throw new Error(data.error || errorText);
+            if (data.results.length === 0) return message(addText.none);
+            addResults.innerHTML = '';
+            data.results.forEach(result => addResults.appendChild(resultRow(result)));
+        } catch (err) {
+            if (seq === searchSeq) message(err.message || errorText);
+        }
+    }
+
+    window.openListAdd = function () {
+        addModal.classList.remove('hidden');
+        addModal.classList.add('flex');
+        addSearch.value = '';
+        message(addText.hint);
+        addSearch.focus();
+    };
+    window.closeListAdd = function () {
+        addModal.classList.add('hidden');
+        addModal.classList.remove('flex');
+        if (addedSomething) location.reload();
+    };
+    addSearch.addEventListener('input', () => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(runSearch, 250);
+    });
+    addModal.addEventListener('click', event => { if (event.target === addModal) closeListAdd(); });
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && !addModal.classList.contains('hidden')) closeListAdd();
+    });
+    <% } %>
+
+    if (!rowsEl) return;
+
+    const rows = () => [...rowsEl.querySelectorAll('.list-row')];
+    function renumber() {
+        rows().forEach((row, i) => {
+            const rank = row.querySelector('.list-rank');
+            if (rank) rank.textContent = i + 1;
+            row.dataset.order = i;
+        });
+        if (countEl) countEl.textContent = rows().length;
+    }
+
+    async function post(path, body) {
+        const res = await fetch(`${base}/api/lists/${listId}/${path}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 409) { alert(staleText); location.reload(); throw new Error('stale'); }
+        if (!res.ok || !data.success) throw new Error(data.error || errorText);
+        return data;
+    }
+
+    // Moves a line one step and saves the whole order. The page moves first and puts the
+    // line back if the save fails, so a click never waits on the network.
+    rowsEl.addEventListener('click', async event => {
+        const button = event.target.closest('[data-list-move], [data-list-remove]');
+        if (!button) return;
+        const row = button.closest('.list-row');
+
+        if (button.hasAttribute('data-list-remove')) {
+            button.disabled = true;
+            try {
+                await post('remove', { entryId: row.dataset.entry });
+                row.remove();
+                renumber();
+                if (rows().length === 0) location.reload();
+            } catch (err) {
+                button.disabled = false;
+                if (err.message !== 'stale') alert(err.message);
+            }
+            return;
+        }
+
+        const up = button.dataset.listMove === 'up';
+        const sibling = up ? row.previousElementSibling : row.nextElementSibling;
+        if (!sibling) return;
+        const before = rows();
+        if (up) rowsEl.insertBefore(row, sibling); else rowsEl.insertBefore(sibling, row);
+        renumber();
+        try {
+            await post('reorder', { order: rows().map(r => r.dataset.entry) });
+        } catch (err) {
+            before.forEach(r => rowsEl.appendChild(r));
+            renumber();
+            if (err.message !== 'stale') alert(err.message);
+        }
+    });
+
+    <% if (isPlaylist && lines.length > 0) { %>
+    // Playlist filters and sorts, all in the page.
+    const filter = document.getElementById('plFilter');
+    const rating = document.getElementById('plRating');
+    const bpmMin = document.getElementById('plBpmMin');
+    const bpmMax = document.getElementById('plBpmMax');
+    const noMatch = document.getElementById('plNoMatch');
+    let sortKey = 'order';
+    let sortDir = 1;
+
+    function applyFilters() {
+        const q = filter.value.trim().toLowerCase();
+        const minRating = Number(rating.value) || 0;
+        const lo = Number(bpmMin.value) || 0;
+        const hi = Number(bpmMax.value) || Infinity;
+        let shown = 0;
+        rows().forEach(row => {
+            const bpm = Number(row.dataset.bpm);
+            const ok = (!q || row.dataset.search.includes(q))
+                && Number(row.dataset.rating) >= minRating
+                && ((lo === 0 && hi === Infinity) || (bpm && bpm >= lo && bpm <= hi));
+            row.classList.toggle('hidden', !ok);
+            if (ok) shown++;
+        });
+        noMatch.classList.toggle('hidden', shown > 0);
+    }
+    [filter, rating, bpmMin, bpmMax].forEach(el => el.addEventListener('input', applyFilters));
+
+    const durationSeconds = s => (s || '').split(':').reduce((acc, part) => acc * 60 + (Number(part) || 0), 0);
+    const sortValue = (row, key) => {
+        if (key === 'order' || key === 'rating' || key === 'bpm') return Number(row.dataset[key]) || 0;
+        if (key === 'duration') return durationSeconds(row.dataset.duration);
+        return (row.dataset[key] || '').toLowerCase();
+    };
+
+    document.querySelectorAll('.pl-sort').forEach(button => {
+        button.classList.add('uppercase', 'font-bold', 'hover:text-primary-theme', 'transition-colors');
+        button.addEventListener('click', () => {
+            const key = button.dataset.sort;
+            sortDir = key === sortKey ? -sortDir : 1;
+            sortKey = key;
+            const sorted = rows().sort((a, b) => {
+                const va = sortValue(a, key), vb = sortValue(b, key);
+                return (va > vb ? 1 : va < vb ? -1 : 0) * sortDir;
+            });
+            sorted.forEach(row => rowsEl.appendChild(row));
+            // Moving a line one step only means something in the arranged order.
+            const arranged = key === 'order' && sortDir === 1;
+            document.querySelectorAll('[data-list-move]').forEach(b => b.classList.toggle('invisible', !arranged));
+            document.querySelectorAll('.pl-sort').forEach(b => b.classList.toggle('text-primary-theme', b === button));
+        });
+    });
+    <% } %>
+})();
+</script>
+
+<%- include('partials/footer') %>
