@@ -287,6 +287,19 @@ class ImportPace {
 }
 
 /**
+ * The row's code when the source reads it as one exact item (an ISBN for Hardcover), or
+ * an empty string. Read after the plugin's own normalization, so a file that only filled
+ * the ISBN column still counts: books copy it into the barcode on save.
+ */
+function exactLookupFor(plugin: PluginDefinition, source: SearchableSource | null, data: Record<string, any>): string {
+  if (!source?.exactQuery) return '';
+  const probe = { ...data };
+  plugin.normalizeForSave?.(probe);
+  const code = String(probe.barcode || '').trim();
+  return code && source.exactQuery(code) ? code : '';
+}
+
+/**
  * Looks one item up on the plugin's own search provider and returns its details, or
  * null when nothing matches (a lookup failure never fails the import).
  *
@@ -300,11 +313,12 @@ async function fetchEnrichment(
   query: string,
   options: Record<string, any>,
   target: MatchTarget,
+  exact: boolean,
   pace?: ImportPace
 ): Promise<Record<string, any> | null> {
   for (let attempt = 0; attempt <= RATE_LIMIT_BACKOFF_MS.length; attempt++) {
     try {
-      return await enrichOnce(plugin, source, query, options, target);
+      return await enrichOnce(plugin, source, query, options, target, exact);
     } catch (err: any) {
       if (err?.status !== 429) {
         console.error(`[${plugin.id}] Enrichment failed for "${query}":`, err.message);
@@ -331,12 +345,18 @@ async function enrichOnce(
   source: SearchableSource,
   query: string,
   options: Record<string, any>,
-  target: MatchTarget
+  target: MatchTarget,
+  exact: boolean
 ): Promise<Record<string, any> | null> {
   {
     const search = (q: string) => withTimeout(source.search(q, options), ENRICH_TIMEOUT_MS);
 
     let { match, sure } = pickBestMatch(await search(query), target);
+
+    // The source answered the identifier itself, so whatever it returned is that item
+    // and nothing else is worth trying: a code it does not know, looked up again by
+    // title, only ever lands on some other work that happens to share the words.
+    if (exact) sure = true;
 
     // The bare title is what most providers match on: TMDB returns nothing at all for
     // "Inception Christopher Nolan". It is ambiguous on a generic title though, so when
@@ -349,7 +369,10 @@ async function enrichOnce(
     }
     if (!match) return null;
 
-    const details = await withTimeout(source.getDetails(String(match.id), options), ENRICH_TIMEOUT_MS);
+    // Handed back to getDetails() the way the confirm page does, so the details describe
+    // the exact hit (the edition carrying the searched ISBN) rather than the work at large.
+    const detailOptions = { ...(match.confirmQuery || {}), ...options };
+    const details = await withTimeout(source.getDetails(String(match.id), detailOptions), ENRICH_TIMEOUT_MS);
     return { ...match, ...details, source: source.id, source_id: String(match.id) };
   }
 }
@@ -423,7 +446,10 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
       const data = await spec.mapRow(row, ctx);
       if (!data || !data.title) return 'skipped';
 
-      const query = spec.searchQuery ? spec.searchQuery(row, data) : data.title;
+      // A code the source resolves exactly is the only lookup worth making: a text query
+      // would happily settle for a different book with a similar title.
+      const exactCode = canEnrich ? exactLookupFor(plugin, enrichSource, data) : '';
+      const query = exactCode || (spec.searchQuery ? spec.searchQuery(row, data) : data.title);
       const searchOptions = { language: req.language, ...(spec.searchOptions ? spec.searchOptions(row, data) : {}) };
 
       // What the row claims about the item, so the right hit can be told apart from the
@@ -448,7 +474,7 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
         // and metadata rather than being skipped outright.
         if (!canEnrich || !query) return 'skipped';
 
-        const enriched = await fetchEnrichment(plugin, enrichSource!, query, searchOptions, target, pace);
+        const enriched = await fetchEnrichment(plugin, enrichSource!, query, searchOptions, target, !!exactCode, pace);
         await pace.wait();
         if (!enriched) {
           totalUnenriched++;
@@ -475,7 +501,7 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
       }
 
       if (canEnrich && query) {
-        const enriched = await fetchEnrichment(plugin, enrichSource!, query, searchOptions, target, pace);
+        const enriched = await fetchEnrichment(plugin, enrichSource!, query, searchOptions, target, !!exactCode, pace);
         if (enriched) fillEmptyFields(data, enriched, allowed);
         else totalUnenriched++;
         await pace.wait();
