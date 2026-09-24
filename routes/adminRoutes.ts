@@ -349,6 +349,7 @@ router.post("/collections/create", requireAuth, requireAdmin, async (req: any, r
       slug,
       createdBy: req.user._id,
       isDefault: false,
+      shelvesSeeded: true,
       members: [{ user: req.user._id, role: "admin" }],
     });
 

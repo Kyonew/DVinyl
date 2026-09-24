@@ -131,6 +131,10 @@ export function createShelfLocationResolver(collectionId: any): (raw: unknown) =
  *
  * Used by the boot migration for collections that predate the furniture, and again by a
  * per-collection restore, whose dump may carry locations but no furniture at all.
+ *
+ * Safe on a collection that already has furniture: a place one of its shelves already
+ * holds is not built a second time (the unique index on the shelf key would refuse the
+ * whole piece), its items are only moved onto that shelf's spelling.
  */
 export async function seedFurnitureFromLocations(
   collectionId: any,
@@ -141,6 +145,13 @@ export async function seedFurnitureFromLocations(
     { $match: { collection: collectionId, location: { $nin: ['', null] } } },
     { $group: { _id: '$location', count: { $sum: 1 } } }
   ]).toArray();
+
+  // Shelf key -> the spelling the furniture holds, for the shelves that already exist.
+  const existing = new Map<string, string>();
+  const furnitureList = await Furniture.find({ collection: collectionId }).select('cells.name cells.key').lean();
+  for (const piece of furnitureList as any[]) {
+    for (const cell of piece.cells || []) existing.set(cell.key, cell.name);
+  }
 
   const groups = new Map<string, { name: string; count: number }[]>();
   let blanked = 0;
@@ -163,8 +174,9 @@ export async function seedFurnitureFromLocations(
   const shelves: { name: string; key: string }[] = [];
   let renamed = 0;
   for (const [key, variants] of groups) {
-    const name = pickDisplayName(variants);
-    shelves.push({ name, key });
+    const shelved = existing.get(key);
+    const name = shelved ?? pickDisplayName(variants);
+    if (shelved === undefined) shelves.push({ name, key });
     for (const variant of variants) {
       if (variant.name === name) continue;
       const merged = await Item.updateMany(

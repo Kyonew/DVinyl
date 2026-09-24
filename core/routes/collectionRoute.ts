@@ -714,6 +714,7 @@ router.post('/collection/create', requireAuth, async (req: any, res: any) => {
       slug: await generateUniqueSlug(name),
       createdBy: req.user._id,
       isDefault: false,
+      shelvesSeeded: true,
       members: [{ user: req.user._id, role: 'admin' }]
     });
 

@@ -25,6 +25,7 @@ const pkg = require('../package.json');
 import { migrateDatabase, normalizeThemePresets } from '../utils/migrate';
 import { migrateExtraFieldIdentities } from '../utils/migrateExtraFieldIdentities';
 import { seedFurnitureFromLocations } from '../core/shelfStore';
+import { findDuplicateCellKey } from '../utils/shelfHelpers';
 import { collectionInfoFromBackup, collectionInfoOf } from '../core/collectionInfo';
 import { applyCustomPluginsFromDB } from '../core/customPluginSync';
 import { collectExtraDateFields, reviveExtraDates } from '../core/pluginExtraFields';
@@ -193,10 +194,6 @@ const importInstanceBackup = async (req: any, res: any) => {
         }
 
         // Furniture belongs to a collection, so it only means anything alongside them.
-        // A dump from before the shelves carries none: their collections come back
-        // flagged as already seeded, which would leave every restored item saying where
-        // it is kept with nothing to say it to. Clearing the flag hands them to the
-        // migration below, which rebuilds the shelves from those very locations.
         if (hasCollections && Array.isArray(data.furniture) && data.furniture.length > 0) {
             const toId = (v: any) => (typeof v === 'string' && mongoose.Types.ObjectId.isValid(v))
                 ? new mongoose.Types.ObjectId(v) : v;
@@ -206,10 +203,18 @@ const importInstanceBackup = async (req: any, res: any) => {
                 collection: toId(piece.collection),
                 createdBy: piece.createdBy ? toId(piece.createdBy) : undefined
             })));
-        } else if (hasCollections && !Array.isArray(data.furniture)) {
-            // Only a dump that predates the shelves: one that carries an empty list is a
-            // collection whose furniture was taken down on purpose, and stays that way.
-            await Collection.updateMany({}, { $set: { shelvesSeeded: false } });
+        }
+
+        // Whether the migration below still has free-text locations to turn into shelves.
+        // A dump that carries a furniture list, even an empty one, comes from an instance
+        // where that already happened: its collections hold the shelves they want, and an
+        // empty list is furniture taken down on purpose, which stays that way. Whatever
+        // flag each collection was dumped with is not trusted for this, since one created
+        // after its instance's last boot could carry it unset. A dump from before the
+        // shelves carries no list at all: its collections are handed to the migration,
+        // which rebuilds the shelves from those very locations.
+        if (hasCollections) {
+            await Collection.updateMany({}, { $set: { shelvesSeeded: Array.isArray(data.furniture) } });
         }
 
         // Lists name items by id, and a whole-instance restore keeps every id as it was,
@@ -564,6 +569,43 @@ router.get('/collection/export-csv', requireAuth, requireCollectionRole('admin')
 });
 
 /**
+ * The furniture a collection restore puts back as it is, or null when the shelves have
+ * to be rebuilt from the restored items' locations instead.
+ *
+ * Rebuilt when the dump has no furniture of this collection to offer: one from before
+ * the shelves, or a whole-instance dump, whose pieces belong to several collections and
+ * can name the same shelf twice once poured into one. Rebuilt too when the pieces would
+ * not pass the model or claim one shelf twice (a file edited by hand): the insert would
+ * only refuse them after the collection's items were already replaced.
+ *
+ * An empty list comes back empty: that collection had its furniture taken down on purpose.
+ */
+function restorableFurniture(data: any, collectionId: any, userId: any): any[] | null {
+    if (!Array.isArray(data.furniture) || Array.isArray(data.collections)) return null;
+
+    const pieces = data.furniture.map((piece: any, index: number) => {
+        // The export strips these already. A file that still carries them must not bring
+        // back an id this instance may hold for another piece.
+        const { _id, __v, collection: _owner, createdBy: _by, created_at, updated_at, ...rest } = piece || {};
+        return {
+            ...rest,
+            collection: collectionId,
+            order: typeof rest.order === 'number' ? rest.order : 100 + index,
+            createdBy: userId
+        };
+    });
+
+    const cells = pieces.flatMap((piece: any) => (Array.isArray(piece.cells) ? piece.cells : []));
+    const duplicate = findDuplicateCellKey(cells);
+    const invalid = pieces.find((piece: any) => new Furniture(piece).validateSync());
+    if (duplicate || invalid) {
+        console.warn(`[BACKUP] The dump's furniture cannot be restored as it is (${duplicate ? `shelf "${duplicate}" appears twice` : 'invalid piece'}); rebuilding the shelves from the item locations.`);
+        return null;
+    }
+    return pieces;
+}
+
+/**
  * POST /collection/import - replaces the ACTIVE collection's items (and settings,
  * when present in the file) with the backup's content. Accepts both per-collection
  * dumps (albums pre-stripped) and whole-instance dumps (albums re-stamped here).
@@ -586,6 +628,10 @@ const importCollectionBackup = async (req: any, res: any) => {
             await cleanupImportedImages(req);
             return res.status(400).json({ error: "Backup file missing required fields" });
         }
+
+        // Settled before anything is wiped, so furniture that cannot go back as it is
+        // turns into a rebuild rather than an error halfway through the replacement.
+        const furnitureToRestore = restorableFurniture(data, activeCollectionId, req.user._id);
 
         // Replacement semantics: the collection's current items are wiped first.
         const replacedImagePaths = await managedItemImagesForQuery({ collection: activeCollectionId });
@@ -648,18 +694,12 @@ const importCollectionBackup = async (req: any, res: any) => {
         // Replacement semantics again: the collection's own furniture goes with its items.
         await Furniture.deleteMany({ collection: activeCollectionId });
 
-        if (Array.isArray(data.furniture) && data.furniture.length > 0) {
-            await Furniture.insertMany(data.furniture.map((piece: any, index: number) => ({
-                ...piece,
-                collection: activeCollectionId,
-                order: typeof piece.order === 'number' ? piece.order : 100 + index,
-                createdBy: req.user._id
-            })));
-        } else if (!Array.isArray(data.furniture)) {
-            // A dump from before the shelves still says where each item is kept, in the
-            // free text of the era. Rebuilt into furniture the same way the boot migration
-            // does it, so an older backup does not restore into a collection whose every
-            // item is unsorted.
+        if (furnitureToRestore) {
+            if (furnitureToRestore.length > 0) await Furniture.insertMany(furnitureToRestore);
+        } else {
+            // The restored items still say where each one is kept. Rebuilt into furniture
+            // the same way the boot migration does it, so the restore does not land a
+            // collection whose every item is unsorted.
             const seeded = await seedFurnitureFromLocations(
                 activeCollectionId,
                 res.locals.activeCollection?.name || 'Collection'
@@ -668,6 +708,11 @@ const importCollectionBackup = async (req: any, res: any) => {
                 console.log(`[BACKUP] ${seeded.shelves} shelf/shelves rebuilt from the restored locations.`);
             }
         }
+
+        // The collection's shelves are now whatever this restore made of them, so the boot
+        // migration has nothing left to convert here, and must not rebuild pieces its
+        // owners take down from now on.
+        await Collection.updateOne({ _id: activeCollectionId }, { $set: { shelvesSeeded: true } });
 
         // The info page is replaced like everything else, and the pictures the previous
         // one held are released once the new page is in place (nothing else points at

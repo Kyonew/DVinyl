@@ -329,14 +329,22 @@ export const migrateDatabase = async () => {
         // mapping, the exports and the backups working untouched.
         const collectionsToSeed = await Collection.find({ shelvesSeeded: { $ne: true } }, '_id name').lean();
         for (const coll of collectionsToSeed) {
-            const seeded = await seedFurnitureFromLocations(coll._id, coll.name);
+            // One collection at a time: a failure here leaves that collection unmarked, to
+            // be tried again on the next boot, without holding back the others.
+            let seeded;
+            try {
+                seeded = await seedFurnitureFromLocations(coll._id, coll.name);
+            } catch (err) {
+                console.error(`[MIGRATION] Shelves could not be seeded for collection "${coll.name}":`, err);
+                continue;
+            }
 
             // Marked even when the collection had no location at all: this converts what
             // the free-text era left behind, once. Shelves created from now on come from
             // the shelf editor, not from here.
             await Collection.updateOne({ _id: coll._id }, { $set: { shelvesSeeded: true } });
 
-            if (seeded.shelves > 0) {
+            if (seeded.shelves > 0 || seeded.renamed > 0 || seeded.blanked > 0) {
                 console.log(`[MIGRATION] ${seeded.shelves} shelf/shelves seeded for collection "${coll.name}"` +
                     (seeded.renamed > 0 ? `, ${seeded.renamed} item(s) moved onto a merged spelling` : '') +
                     (seeded.blanked > 0 ? `, ${seeded.blanked} blank location(s) cleared` : '') + '.');

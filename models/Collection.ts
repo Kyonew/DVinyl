@@ -40,7 +40,10 @@ const collectionSchema = new mongoose.Schema({
     // Set once the boot migration has turned this collection's free-text `location`
     // values into shelves. Its own flag rather than "has no furniture yet", so
     // deleting every piece of furniture on purpose does not bring the seeded ones
-    // back on the next restart.
+    // back on the next restart. A collection created from the app starts with it set:
+    // it has no free-text past, every shelf it gets comes from the shelf store. Left
+    // unset only where there can be one, the default collection the migration builds
+    // around a pre-collection install's items.
     shelvesSeeded: {
         type: Boolean,
         default: false
