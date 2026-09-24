@@ -258,6 +258,7 @@ describe('value estimate job', () => {
     assert.equal(job.result.value, 40);      // 10*1 + 10*3
     assert.equal(job.result.minValue, 40);
     assert.equal(job.result.maxValue, 80);   // * maxMultiplier 2
+    assert.equal(job.result.itemCount, 2);
     assert.equal(job.result.pricedCount, 2);
     assert.equal(job.result.failedCount, 0);
     assert.equal(job.result.saved, true);
@@ -299,6 +300,20 @@ describe('value estimate job', () => {
     assert.equal(second.body.estimate.id, first.body.estimate.id);
 
     await waitForJob(token, collection._id, first.body.estimate.id);
+  });
+
+  test('only one run starts when two requests race', async () => {
+    const { collection, token } = await seedItems(3);
+    estimatePluginState.delayMs = 30;
+
+    const [a, b] = await Promise.all([
+      request(app).post(`/api/v1/collections/${collection._id}/value-estimate`).set(bearer(token)).send({}),
+      request(app).post(`/api/v1/collections/${collection._id}/value-estimate`).set(bearer(token)).send({})
+    ]);
+    assert.deepEqual([a.status, b.status].sort(), [202, 409]);
+
+    const started = a.status === 202 ? a : b;
+    await waitForJob(token, collection._id, started.body.estimate.id);
   });
 
   test('404 for an unknown job id', async () => {

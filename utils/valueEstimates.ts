@@ -161,16 +161,15 @@ export async function startValueEstimate(opts: {
   const existing = activeJobForCollection(collectionId);
   if (existing) return { error: 'running', activeJob: existing };
 
-  const entries = await collectEntries(opts.settings, opts.collectionId);
-  if (entries.length === 0) return { error: 'no_items' };
-
+  // Reserve the slot synchronously, before the item query yields, so two simultaneous
+  // POSTs cannot both pass the active-check above and start a run for one collection.
   const job: ValueEstimateJob = {
     id: crypto.randomBytes(16).toString('hex'),
     collectionId,
     userId: String(opts.user._id),
     status: 'running',
     processed: 0,
-    total: entries.length,
+    total: 0,
     pricedCount: 0,
     failedCount: 0,
     value: 0,
@@ -180,9 +179,15 @@ export async function startValueEstimate(opts: {
     saved: false,
     startedAt: new Date()
   };
-
   evictIfFull();
   jobs.set(job.id, job);
+
+  const entries = await collectEntries(opts.settings, opts.collectionId);
+  if (entries.length === 0) {
+    jobs.delete(job.id);
+    return { error: 'no_items' };
+  }
+  job.total = entries.length;
 
   // Fire and forget, like POST /admin/refresh-all: the response is sent first, then the
   // loop runs. Jobs are process-local and lost on restart (a poll then 404s).
