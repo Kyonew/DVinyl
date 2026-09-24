@@ -32,7 +32,7 @@
                         const cardLines = getCardLines(itemPlugin, album, { lang: currentLng, isShareView: locals.isShareView === true });
                         const infoText = cardLines.map(l => (l.showLabel ? tr(l.label) + ' : ' : '') + lineText(l)).join(' · ');
                     %>
-                    <tr class="album-card hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                    <tr class="album-card even:bg-black/[0.045] dark:even:bg-white/[0.045] hover:bg-black/[0.09] dark:hover:bg-white/[0.09] transition-colors"
                         <% if (locals.selectable) { %>data-id="<%= album._id %>"<% } %>>
                         <% if (locals.selectable) { %>
                             <%# The padding sits on the checkbox, so the column takes no room outside select mode. %>
