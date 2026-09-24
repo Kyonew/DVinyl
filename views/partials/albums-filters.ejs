@@ -305,6 +305,19 @@
                                             <% } %>
                                     </button>
                                     <% } %>
+                            <% (locals.pluginSortOptions || []).forEach(po => {
+                                const poActive = currentSort.startsWith(po.key + '_');
+                                const poDir = poActive ? (currentSort.endsWith('_asc') ? 'asc' : 'desc') : 'asc';
+                            %>
+                                <button onclick="handleSort('<%= po.key %>', '<%= poDir %>', false)"
+                                    class="w-full flex items-center justify-between gap-2 p-2.5 text-sm rounded-lg transition-all cursor-pointer
+                                    <%= poActive ? 'bg-primary-theme/10 text-primary-theme font-semibold' : 'hover:bg-black/5 dark:hover:bg-white/5 opacity-70 hover:opacity-100' %>">
+                                    <span class="truncate"><%= po.label %></span>
+                                    <% if (poActive) { %>
+                                        <i class="fa-solid fa-arrow-<%= poDir === 'asc' ? 'up' : 'down' %> text-[11px]"></i>
+                                    <% } %>
+                                </button>
+                            <% }) %>
                             <% (locals.extraFilters || []).forEach(xf => {
                                 const xfActive = currentSort.startsWith(xf.sortKey + '_');
                                 const xfDir = xfActive ? (currentSort.endsWith('_asc') ? 'asc' : 'desc') : 'asc';

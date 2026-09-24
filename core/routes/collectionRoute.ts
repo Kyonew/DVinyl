@@ -301,6 +301,16 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
         'year_asc': { year: 1 },
       };
 
+      // An option the selected type declares for itself (see PluginDefinition.sortOptions).
+      const own = sort && selectedPlugin ? sort.match(/^(.*)_(asc|desc)$/) : null;
+      const ownOption = own ? selectedPlugin?.sortOptions?.find(o => o.key === own[1]) : undefined;
+      if (own && ownOption) {
+        const dir = own[2] === 'asc' ? 1 : -1;
+        const ownSort: Record<string, 1 | -1> = {};
+        for (const field of ownOption.fields) ownSort[field] = dir;
+        return { ...ownSort, sort_title: dir, title: dir };
+      }
+
       if (sort && sort.startsWith('artist')) {
         const dir = sort === 'artist_asc' ? 1 : -1;
         // No single creator field spans every type, so "all" falls back to the title, and
@@ -500,6 +510,7 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
       platforms,
       hasYear,
       creatorFilterLabel,
+      pluginSortOptions: (selectedPlugin?.sortOptions || []).map(o => ({ key: o.key, label: req.t(o.label) })),
       extraFilters,
       extraAny: EXTRA_ANY,
       extraNone: EXTRA_NONE,

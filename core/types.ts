@@ -81,6 +81,11 @@ export interface PluginDefinition {
 
   extraSearchFields?: string[];
 
+  // Extra entries of the collection's sort menu, offered while this type is the one
+  // selected. Each sorts on its fields in order, then on the title, all in the direction
+  // picked: books order a run of volumes by series, then volume number.
+  sortOptions?: PluginSortOption[];
+
   // The plugin's single historical provider. Superseded by `sources`, and still read
   // when a plugin declares no source of its own: it is then treated as one source
   // bearing the plugin's own id, so third-party plugins keep working untouched.
@@ -347,6 +352,12 @@ export interface ExternalSource {
   // What lets scan mode (settings.instantAdd) save it without the confirm page being
   // looked at. Left unset by any source whose search is fuzzy.
   exactQuery?(query: string): boolean;
+}
+
+export interface PluginSortOption {
+  key: string;   // sent as `${key}_asc` / `${key}_desc` in the sort parameter
+  label: string; // i18n key
+  fields: string[];
 }
 
 export interface PluginApiRoute {
