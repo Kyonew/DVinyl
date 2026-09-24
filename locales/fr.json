@@ -999,6 +999,9 @@
     "reading_tracking": "Suivi de lecture",
     "field_status": "Statut",
     "field_rating": "Note (sur 5)",
+    "field_edition": "Édition",
+    "edition_hint": "Différentes impressions de ce titre — choisissez-en une pour remplir l'éditeur, l'ISBN, le nombre de pages et le format.",
+    "edition_unknown_publisher": "Éditeur inconnu",
     "comments_hint": "(État du livre, édition spéciale, dédicace...)",
     "btn_collection": "Ajouter à la Bibliothèque",
     "cover_preview": "Aperçu de la couverture"

@@ -68,7 +68,10 @@ export class HardcoverProvider implements SearchProvider {
       creator: authors,
       author: authors,
       publisher: bestEdition?.publisher?.name || '',
-      year: String(book.release_year || ''),
+      // The edition's own print year where it's known (getDetails() fetches it), so the
+      // year shown here matches the edition the other fields (publisher, ISBN, pages)
+      // already came from, instead of the original work's first-ever publication year.
+      year: (bestEdition?.release_date || '').slice(0, 4) || String(book.release_year || ''),
       isbn: bestEdition?.isbn_13 || bestEdition?.isbn_10 || '',
       barcode: bestEdition?.isbn_13 || bestEdition?.isbn_10 || '',
       pages: bestEdition?.pages || book.pages || 0,
@@ -142,6 +145,27 @@ export class HardcoverProvider implements SearchProvider {
     return rawResults.map(b => this.formatHardcoverBook(b)).filter(Boolean);
   }
 
+  // A book's own editions, formatted for the confirm page's edition picker: what
+  // differs between prints of the "same" book (publisher, format, page count, ISBN),
+  // in the order Hardcover considers most likely to be the one someone owns. Index 0
+  // is also what formatHardcoverBook() falls back to when nobody picks one.
+  private formatEditionOptions(editions: any[]): any[] {
+    return (editions || []).map((e: any) => ({
+      id: e.id,
+      isbn: e.isbn_13 || e.isbn_10 || '',
+      publisher: e.publisher?.name || '',
+      language: e.language?.language || '',
+      pages: e.pages || null,
+      year: (e.release_date || '').slice(0, 4) || '',
+      physical_format: e.physical_format || '',
+      edition_format: e.edition_format || '',
+      // Not every edition has its own cover on Hardcover; left empty rather than falling
+      // back to the book's, so the picker knows not to touch the gallery when there's
+      // nothing edition-specific to show.
+      cover_image: e.image?.url || ''
+    })).filter((e: any) => e.id);
+  }
+
   async getDetails(id: string, options: any): Promise<ConfirmData> {
     const apiKey = process.env.HARDCOVER_API_KEY || '';
 
@@ -159,13 +183,17 @@ export class HardcoverProvider implements SearchProvider {
           taggings {
             tag { tag }
           }
-          editions(limit: 5, order_by: { users_count: desc }) {
+          editions(limit: 20, order_by: { users_count: desc }) {
+            id
             isbn_13
             isbn_10
             publisher { name }
             language { language }
             pages
-            reading_format_id
+            release_date
+            edition_format
+            physical_format
+            image { url }
           }
         }
       }
@@ -190,6 +218,14 @@ export class HardcoverProvider implements SearchProvider {
     const formatted = this.formatHardcoverBook(dataRes.data.books_by_pk);
     if (!formatted) {
       throw new Error("Formatting failed");
+    }
+
+    // Offered on the confirm page only when there is an actual choice to make; a
+    // single-edition book (or one Hardcover has no edition rows for at all) picks
+    // nothing different by showing a picker with one option in it.
+    const editionOptions = this.formatEditionOptions(dataRes.data.books_by_pk.editions);
+    if (editionOptions.length > 1) {
+      formatted.editions = editionOptions;
     }
 
     return formatted;

@@ -160,6 +160,17 @@ export const booksPlugin: PluginDefinition = {
       showIn: ['edit', 'confirm', 'detail', 'manual'],
       group: 'main'
     },
+    // Offered only on the API-sourced confirm page (edition-picker.ejs no-ops without
+    // item.editions, which only getDetails() ever sets), between the main fields and
+    // the metadata group it live-updates (publisher, year, ISBN, pages, language).
+    {
+      name: 'edition',
+      label: 'confirm_book.field_edition',
+      type: 'custom',
+      partial: 'edition-picker',
+      showIn: ['confirm'],
+      group: 'main'
+    },
     {
       name: 'publisher',
       label: 'confirm_book.field_publisher',

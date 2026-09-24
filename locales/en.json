@@ -999,6 +999,9 @@
     "reading_tracking": "Reading tracking",
     "field_status": "Status",
     "field_rating": "Rating (out of 5)",
+    "field_edition": "Edition",
+    "edition_hint": "Different prints of this title — pick one to fill in its publisher, ISBN, page count and format.",
+    "edition_unknown_publisher": "Unknown publisher",
     "comments_hint": "(Book condition, special edition, signed...)",
     "btn_collection": "Add to Library",
     "cover_preview": "Cover Preview"
