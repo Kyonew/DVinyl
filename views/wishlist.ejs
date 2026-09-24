@@ -30,7 +30,7 @@
                         <%= t('wishlist.title') %>
                     </span>
                 </span>
-                <span
+                <span id="totalItemsBadge"
                     class="px-3 md:mt-1.5 py-1 bg-black/5 dark:bg-white/10 rounded-full text-sm font-medium opacity-70 w-fit">
                     <%= totalItems %>
                         <%= t('common.items') %>
@@ -99,8 +99,9 @@
             </div>
             <% } else { %>
                 <%- include('partials/albums-filters') %>
-                <%- include(activeView.partial, { albums, size: 'wishlist', wishlist: true, badgeSize: 'compact' }) %>
-                <%- include('partials/albums-page-changer') %>
+                <div id="shelfResults" class="transition-opacity duration-150">
+                    <%- include('partials/shelf-results', { albums, isWishlist: true }) %>
+                </div>
                 <% } %>
     </div>
 

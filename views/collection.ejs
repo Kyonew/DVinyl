@@ -25,7 +25,7 @@
                 <span>
                     <%= t('collection.title') %>
                 </span>
-                <span
+                <span id="totalItemsBadge"
                     class="px-3 md:mt-1.5 py-1 bg-black/5 dark:bg-white/10 rounded-full text-sm font-medium opacity-70 w-fit">
                     <%= totalItems %>
                         <%= t('common.items') %>
@@ -107,11 +107,9 @@
         </div>
 
         <%- include('partials/albums-filters') %>
-        <%# What is drawn here is up to the active view (core/viewRegistry.ts). The
-            params are what the item grid reads; a view that has no use for them
-            ignores them and works off what its own buildData put in the page. %>
-        <%- include(activeView.partial, { albums, size: 'collection', gridId: 'albumGrid', selectable: locals.canEditCollection }) %>
-        <%- include('partials/albums-page-changer') %>
+        <div id="shelfResults" class="transition-opacity duration-150">
+            <%- include('partials/shelf-results', { albums, isWishlist: false }) %>
+        </div>
     </div>
 
     <% if (locals.canEditCollection) { %>
@@ -315,6 +313,19 @@
             updateSelectedCount();
         }
 
+        // Live search brought in new cards, drawn as outside select mode. A selection
+        // only covers what is on screen, so it starts over on the new results.
+        document.addEventListener('shelf-results:replaced', () => {
+            if (!selectMode) return;
+            document.querySelectorAll('.select-checkbox-overlay').forEach(el => {
+                el.classList.remove('hidden');
+                el.classList.add('flex');
+            });
+            lastSelectedIndex = null;
+            document.getElementById('albumGrid')?.classList.add('select-none');
+            updateSelectedCount();
+        });
+
         function cancelSelectMode() {
             if (selectMode) toggleSelectMode();
         }
@@ -476,8 +487,9 @@
         }
 
         // Single entry point for both views: the checkbox carries no inline handler,
-        // so a click on it lands here like any other click on the card.
-        document.getElementById('albumGrid')?.addEventListener('click', (e) => {
+        // so a click on it lands here like any other click on the card. Listened for on
+        // the results wrapper rather than the grid, which live search replaces.
+        document.getElementById('shelfResults')?.addEventListener('click', (e) => {
             if (!selectMode) return;
             const card = e.target.closest('.album-card');
             if (!card) return;

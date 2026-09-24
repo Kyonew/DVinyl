@@ -45,7 +45,7 @@
                 class="filter-input-textbox block w-full p-2.5 pl-10 <%= locals.querySearch ? 'pr-8' : '' %> text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme placeholder-opacity-50 transition-shadow"
                 value="<%= locals.querySearch || '' %>" placeholder="<%= t('collection.filter_placeholder') %>">
             <% if (locals.querySearch) { %>
-                <button onclick="clearFilterParam('search')" class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-red-500 transition-colors">
+                <button id="searchClearBtn" type="button" onclick="clearSearchLive()" class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-red-500 transition-colors">
                     <i class="fa-solid fa-circle-xmark"></i>
                 </button>
             <% } %>
@@ -402,52 +402,9 @@
     <% } %>
 
     <!-- Active Filter Badges/Pills -->
-    <%
-        const activePills = [];
-        if (locals.querySearch) activePills.push({ key: 'search', label: t('collection.filter_placeholder') + ': "' + locals.querySearch + '"' });
-        if (locals.queryLocation) activePills.push({ key: 'location', label: t('common.location') + ': "' + locals.queryLocation + '"' });
-        if (locals.queryArtist) activePills.push({ key: 'artist', label: (locals.creatorFilterLabel || t('collection.artist_filter')) + ': "' + locals.queryArtist + '"' });
-        
-        if (locals.queryDecade) {
-            activePills.push({ key: 'decade', label: t('collection.decade_filter') + ': ' + locals.queryDecade.split(',').map(d => d + 's').join(', ') });
-        }
-        if (locals.queryGenre) {
-            activePills.push({ key: 'genre', label: t('confirm_vinyl.field_genres') + ': ' + locals.queryGenre.split(',').join(', ') });
-        }
-        if (locals.queryStyle) {
-            activePills.push({ key: 'style', label: t('collection.styles_filter') + ': ' + locals.queryStyle.split(',').join(', ') });
-        }
-        if (locals.queryPlatform) {
-            activePills.push({ key: 'platform', label: t('collection.platform_filter') + ': ' + locals.queryPlatform.split(',').join(', ') });
-        }
-
-        // One pill per active user-defined filter; a range contributes one per bound
-        xFilters.forEach(xf => {
-            const readable = (v) => v === locals.extraAny ? t('collection.xf_any')
-                : v === locals.extraNone ? t('collection.xf_none')
-                : v === 'true' ? t('common.yes')
-                : v === 'false' ? t('common.no')
-                : t(v, { defaultValue: v });
-            if (xf.value) activePills.push({ key: xf.param, label: xf.label + ': ' + readable(xf.value) });
-            if (xf.from) activePills.push({ key: xf.paramFrom, label: xf.label + ' ≥ ' + xf.from });
-            if (xf.to) activePills.push({ key: xf.paramTo, label: xf.label + ' ≤ ' + xf.to });
-        });
-    %>
-
-    <% if (activePills.length > 0) { %>
-        <div class="flex flex-wrap items-center gap-2 mt-4 text-xs animate-in fade-in duration-200">
-            <span class="opacity-60 font-semibold"><%= t('collection.active_filters') %></span>
-            <% activePills.forEach(pill => { %>
-                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary-theme/10 text-primary-theme font-semibold border border-primary-theme/20 shadow-sm transition-all hover:bg-primary-theme/20">
-                    <%= pill.label %>
-                    <button onclick="clearFilterParam('<%= pill.key %>')" class="hover:text-red-500 font-bold ml-1 text-sm focus:outline-none transition-colors" title="<%= t('common.delete') %>">&times;</button>
-                </span>
-            <% }) %>
-            <button onclick="clearAllFilters()" class="text-xs text-red-500 hover:text-red-600 font-bold ml-2 underline transition-colors cursor-pointer">
-                <%= t('collection.clear_all') %>
-            </button>
-        </div>
-    <% } %>
+    <div id="activeFilterPills">
+        <%- include('active-filter-pills') %>
+    </div>
 </div>
 
 <script>
@@ -463,8 +420,16 @@
         let currentStyle = '<%= locals.queryStyle || "" %>';
         let currentFilterMode = '<%= locals.queryFilterMode || "show" %>';
         let currentView = '<%= locals.activeView ? activeView.id : "" %>';
+        let searchDebounceTimer;
+        // Only a view that can be redrawn in place follows the search as it is typed
+        // (see CollectionView.liveRedraw); any other one applies it on Enter.
+        const liveSearchEnabled = <%= !!(locals.activeView && activeView.liveRedraw) %>;
+        const itemsLabel = <%- JSON.stringify(t('common.items')) %>;
 
-        function reloadPage() {
+        // Builds the URL for the current filter state without navigating. reloadPage()
+        // (every filter control except live search) navigates to it directly; live
+        // search fetches it instead so typing updates the page in place.
+        function buildFilterUrl() {
             const url = new URL(window.location.origin + window.location.pathname);
 
             validateAndSetUrlSearchParamString('type', currentType);
@@ -511,13 +476,80 @@
             validateAndSetUrlSearchParamString('view', currentView);
 
             url.searchParams.set('page', 1);
-            window.location.href = url.toString();
+            return url;
 
             function validateAndSetUrlSearchParamString(key, value) {
                 if (value === null || value === undefined || (typeof value === "string" && value.trim() === "")) return;
                 if ((typeof value === "string")) value = value.trim();
                 url.searchParams.set(key, value);
             }
+        }
+
+        function reloadPage() {
+            window.location.href = buildFilterUrl().toString();
+        }
+
+        // Live search: fetches and swaps in the results fragment instead of navigating,
+        // so typing filters the page with no visible reload. Falls back to a real
+        // navigation if the fetch fails for any reason: correctness over smoothness.
+        let searchRequestController = null;
+        async function liveSearchReload() {
+            const url = buildFilterUrl();
+            if (searchRequestController) searchRequestController.abort();
+            searchRequestController = new AbortController();
+
+            const resultsEl = document.getElementById('shelfResults');
+            try {
+                const res = await fetch(url.toString(), {
+                    headers: { 'X-Requested-With': 'fetch' },
+                    signal: searchRequestController.signal
+                });
+                if (!res.ok) throw new Error('bad response: ' + res.status);
+                const data = await res.json();
+                if (!data.success) throw new Error('partial render failed');
+
+                if (resultsEl) resultsEl.innerHTML = data.html;
+                // Scripts inside the new markup do not run, so a page that keeps state
+                // on the results (the selection mode) re-applies it from here.
+                document.dispatchEvent(new CustomEvent('shelf-results:replaced'));
+
+                const pillsEl = document.getElementById('activeFilterPills');
+                if (pillsEl) pillsEl.innerHTML = data.pillsHtml;
+
+                const badge = document.getElementById('totalItemsBadge');
+                if (badge) badge.textContent = data.totalItems + ' ' + itemsLabel;
+
+                updateSearchClearButton(!!filterInput.value.trim());
+                history.replaceState(null, '', url.toString());
+            } catch (e) {
+                if (e.name === 'AbortError') return;
+                window.location.href = url.toString();
+            }
+        }
+
+        function updateSearchClearButton(hasValue) {
+            filterInput.classList.toggle('pr-8', hasValue);
+            let btn = document.getElementById('searchClearBtn');
+            if (hasValue && !btn) {
+                btn = document.createElement('button');
+                btn.id = 'searchClearBtn';
+                btn.type = 'button';
+                btn.onclick = clearSearchLive;
+                btn.className = 'absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-red-500 transition-colors';
+                btn.innerHTML = '<i class="fa-solid fa-circle-xmark"></i>';
+                filterInput.parentElement.appendChild(btn);
+            } else if (!hasValue && btn) {
+                btn.remove();
+            }
+        }
+
+        function clearSearchLive() {
+            if (!filterInput) return;
+            filterInput.value = '';
+            clearTimeout(searchDebounceTimer);
+            if (!liveSearchEnabled) return reloadPage();
+            liveSearchReload();
+            filterInput.focus();
         }
 
         function setFilterMode(mode) {
@@ -554,11 +586,28 @@
         }
 
         document.querySelectorAll('.filter-input-textbox').forEach(element => {
+            // The search box gets its own live-update handling below
+            if (element === filterInput && liveSearchEnabled) return;
             element.addEventListener('keydown', (e) => {
                 if (e.key !== 'Enter') return;
                 reloadPage();
             });
         });
+
+        // Live search: updates in place shortly after typing pauses, no Enter needed
+        // and no page reload (see liveSearchReload). Debounced so a fetch isn't fired
+        // on every keystroke.
+        if (filterInput && liveSearchEnabled) {
+            filterInput.addEventListener('input', () => {
+                clearTimeout(searchDebounceTimer);
+                searchDebounceTimer = setTimeout(() => liveSearchReload(), 350);
+            });
+            filterInput.addEventListener('keydown', (e) => {
+                if (e.key !== 'Enter') return;
+                clearTimeout(searchDebounceTimer);
+                liveSearchReload();
+            });
+        }
 
         // A date/number input fires 'change' once the value is complete, so applying
         // right away does not reload half-typed bounds.

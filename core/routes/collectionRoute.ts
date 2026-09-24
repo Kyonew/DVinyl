@@ -24,13 +24,42 @@ const router = express.Router();
 
 router.get('/wishlist', requireAuth, async (req: any, res: any) => {
   const data = await buildShelfView(req, res, true);
-  if (data) res.render('wishlist', data);
+  if (!data) return;
+  if (isPartialRequest(req)) return renderShelfPartial(res, data, true);
+  res.render('wishlist', data);
 });
 
 router.get('/collection', requireAuthOrShareView, async (req: any, res: any) => {
   const data = await buildShelfView(req, res, false);
-  if (data) res.render('collection', data);
+  if (!data) return;
+  if (isPartialRequest(req)) return renderShelfPartial(res, data, false);
+  res.render('collection', data);
 });
+
+// Live search (see albums-filters.ejs's liveSearchReload) asks for just the results
+// fragment instead of the whole page, via this header - never set by a normal
+// navigation, so a bookmarked or shared link always gets real HTML.
+function isPartialRequest(req: any): boolean {
+  return req.get('X-Requested-With') === 'fetch';
+}
+
+// Renders only what a live filter change needs to replace - the results grid/pager and
+// the active-filter pills - as JSON, instead of the full document.
+function renderShelfPartial(res: any, data: Record<string, any>, isWishlist: boolean) {
+  res.render('partials/shelf-results', { ...data, isWishlist }, (err: any, html: string) => {
+    if (err) {
+      console.error('Shelf partial render error:', err.message);
+      return res.status(500).json({ success: false });
+    }
+    res.render('partials/active-filter-pills', data, (pillsErr: any, pillsHtml: string) => {
+      if (pillsErr) {
+        console.error('Filter pills render error:', pillsErr.message);
+        return res.status(500).json({ success: false });
+      }
+      res.json({ success: true, html, pillsHtml, totalItems: data.totalItems });
+    });
+  });
+}
 
 // The collection and the wishlist are the same page over two halves of the same
 // shelf, so they share everything below and differ only on `inWishlist`.
