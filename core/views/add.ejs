@@ -38,7 +38,7 @@
                 </div>
                 <input type="text" name="query" value="<%= locals.searchQuery || '' %>"
                     class="block w-full p-4 pl-12 text-base bg-black/5 dark:bg-white/5 border border-transparent focus:border-primary-theme rounded-2xl focus:ring-2 focus:ring-primary-theme/50 placeholder-opacity-50 transition-all outline-none"
-                    placeholder="<%= t('add_' + plugin.i18nKey + '.search_placeholder', { defaultValue: t('add_vinyl.search_placeholder') }) %>" autofocus required>
+                    placeholder="<%= t('add_' + plugin.i18nKey + '.search_placeholder', { defaultValue: t('add_vinyl.search_placeholder') }) %>" required>
             </div>
             <button type="submit"
                 class="bg-primary-theme hover:brightness-110 text-white font-bold px-8 py-4 rounded-2xl shadow-lg shadow-primary-theme/20 transition-all active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap">
@@ -91,12 +91,17 @@
 
         <%# The video element is ours rather than the library's: ZXing only ever reads the
             frames, so how big it looks on screen no longer has anything to do with what
-            the decoder sees. %>
+            the decoder sees. Fixed full-viewport rather than inline: an inline preview
+            sits below the fold on a phone (worse still with the keyboard still open from
+            the search box), so scanning must take over the screen to be visible at all. %>
         <% if (!plugin.noBarcodeScan) { %>
-            <div id="reader" class="hidden mt-6 rounded-2xl overflow-hidden shadow-lg border border-black/10 dark:border-white/10">
-                <video id="reader-video" class="w-full block bg-black" muted playsinline></video>
+            <div id="reader" class="hidden fixed inset-0 z-[100] bg-black">
+                <button type="button" id="reader-close" class="absolute top-4 right-4 z-10 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center backdrop-blur-sm">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+                <video id="reader-video" class="w-full h-full block object-cover" muted playsinline></video>
+                <p id="scan-hint" class="hidden absolute bottom-6 inset-x-4 text-center text-xs text-white/80 max-w-md mx-auto leading-relaxed"></p>
             </div>
-            <p id="scan-hint" class="hidden mt-3 text-center text-xs opacity-60 max-w-md mx-auto leading-relaxed"></p>
         <% } %>
     </form>
 
@@ -201,6 +206,15 @@
     <% } %>
 </div>
 
+<script>
+    // Autofocus pops the on-screen keyboard and pushes the Scan button below the fold
+    // before anyone asked for anything - only worth it on a device with a real keyboard.
+    // Outside the scanner script, which a plugin without barcode scan never gets.
+    if (!window.matchMedia('(pointer: coarse)').matches) {
+        document.querySelector('input[name="query"]').focus();
+    }
+</script>
+
 <% if (!plugin.noBarcodeScan) { %>
 <script>
     const scanTranslations = {
@@ -233,6 +247,7 @@
 
     const scanButton = document.getElementById('start-scan');
     const readerDiv = document.getElementById('reader');
+    const readerCloseBtn = document.getElementById('reader-close');
     const videoEl = document.getElementById('reader-video');
     const hintEl = document.getElementById('scan-hint');
     const searchInput = document.querySelector('input[name="query"]');
@@ -257,6 +272,10 @@
     }
 
     scanButton.addEventListener('click', () => {
+        // Whether it was auto-focused or the user tapped it themselves, an open
+        // keyboard has no reason to still be up once the camera takes the screen.
+        if (document.activeElement) document.activeElement.blur();
+
         if (isScanning) {
             stopScan();
             scanButton.innerHTML = scanTranslations.btnDefault;
@@ -309,6 +328,22 @@
     // A stream left running holds the camera open, and its indicator light on, after
     // someone has already navigated away.
     window.addEventListener('pagehide', () => codeReader.reset());
+
+    // The close button sits on the fullscreen overlay, on top of the start/stop button
+    // it's replacing (that one is still there, just visually covered) - so it drives
+    // the same toggle rather than duplicating stopScan's cleanup and label reset.
+    readerCloseBtn.addEventListener('click', () => scanButton.click());
+
+    // Reached via a scan shortcut elsewhere (the add-hub picker, or a single-module
+    // collection's shortcut button): skip the form and go straight to the camera. The
+    // parameter is dropped once used, so a reload shows the plain form again.
+    const pageParams = new URLSearchParams(window.location.search);
+    if (pageParams.has('scan')) {
+        pageParams.delete('scan');
+        const rest = pageParams.toString();
+        history.replaceState(history.state, '', window.location.pathname + (rest ? '?' + rest : '') + window.location.hash);
+        scanButton.click();
+    }
 </script>
 <% } %>
 

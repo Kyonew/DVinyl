@@ -14,6 +14,9 @@
         // hub asks. It also carries the fast-add shortcut, so the entry points here behave
         // exactly like the dashboard one.
         const canAdd = locals.canEditCollection && registry.getEnabled(settings).length > 0;
+        const scanPlugins = registry.getEnabled(settings).filter(p => p.searchProvider);
+        const canScan = locals.canEditCollection && scanPlugins.length > 0;
+        const scanHref = scanPlugins.length === 1 ? (baseUrl + '/add-' + scanPlugins[0].id + '?scan=1') : null;
     %>
 
     <div class="max-w-screen-xl mx-auto px-1 md:px-0 pb-12">
@@ -37,7 +40,7 @@
             <div class="flex gap-2">
 
                 <% if (canAdd) { %>
-                    <button type="button" onclick="toggleAddModal()"
+                    <button type="button" onclick="openAddModal()"
                         class="flex-shrink-0 w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center gap-2 group"
                         title="<%= t('collection.add') %>">
                         <i class="fa-solid fa-plus group-hover:scale-110 transition-transform"></i>
@@ -45,6 +48,16 @@
                             <%= t('collection.add') %>
                         </span>
                     </button>
+                    <% } %>
+                    <% if (canScan) { %>
+                    <a href="<%= scanHref || '#' %>" <%- scanHref ? '' : 'onclick="openScanPicker(); return false;"' %>
+                        class="flex-shrink-0 w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center gap-2 group"
+                        title="<%= t('collection.scan') %>">
+                        <i class="fa-solid fa-barcode group-hover:scale-110 transition-transform"></i>
+                        <span class="hidden md:inline text-xs font-bold uppercase tracking-widest">
+                            <%= t('collection.scan') %>
+                        </span>
+                    </a>
                     <% } %>
 
                         <% wishlistActions.forEach(action => { %>
@@ -71,10 +84,17 @@
                     <%= t('wishlist.empty_msg') %>
                 </p>
                 <% if (canAdd) { %>
-                    <button type="button" onclick="toggleAddModal()"
+                    <button type="button" onclick="openAddModal()"
                         class="text-primary-theme hover:underline mt-2 inline-block font-medium transition-colors">
                         <%= t('wishlist.search_link') %>
                     </button>
+                    <% } %>
+                    <% if (canScan) { %>
+                    <span class="opacity-30 mx-2">|</span>
+                    <a href="<%= scanHref || '#' %>" <%- scanHref ? '' : 'onclick="openScanPicker(); return false;"' %>
+                        class="text-primary-theme hover:underline mt-2 inline-block font-medium transition-colors">
+                        <%= t('wishlist.scan_link') %>
+                    </a>
                     <% } %>
             </div>
             <% } else { %>
