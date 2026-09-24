@@ -62,7 +62,7 @@ const settingsSchema = new mongoose.Schema({
         default: () => ({})
     },
     fastAdd: { type: String, default: '' },
-    // Scan mode. A search whose query names one exact item (a plugin's `instantAddQuery`,
+    // Scan mode. A search whose query names one exact item (a source's `exactQuery`,
     // i.e. an ISBN today) and returns a single hit is saved without the confirm page being
     // waited on, and adding then comes back to the add page instead of the collection.
     // Useful for barcode scanners.

@@ -231,6 +231,37 @@ export async function searchWithTitleFallback<T>(
 }
 
 /**
+ * Path (without BASE_URL) of the confirm page for one search result, or '' when the
+ * result carries no id. Shared by the result cards and the scan mode redirect, so a
+ * result opened either way asks the same source for the same details.
+ */
+export function confirmPathFor(
+  pluginId: string,
+  item: any,
+  opts: { searchType?: string; scannedBarcode?: string } = {}
+): string {
+  const externalId = item?.id || item?.hardcover_id || item?.tmdb_id || item?.igdb_id;
+  if (!externalId) return '';
+
+  const params = new URLSearchParams();
+  if (opts.searchType && opts.searchType !== pluginId) params.set('type', opts.searchType);
+  if (opts.scannedBarcode) params.set('barcode', opts.scannedBarcode);
+  // The id belongs to the database that returned it; the confirm page has to ask that
+  // same one for the details.
+  if (item.source) params.set('source', String(item.source));
+  // Whatever the provider needs back to narrow the details down to this exact result
+  // (the searched ISBN's edition for books), forwarded to getDetails() as is.
+  if (item.confirmQuery && typeof item.confirmQuery === 'object') {
+    for (const [key, value] of Object.entries(item.confirmQuery)) {
+      if (['type', 'barcode', 'source'].includes(key) || value === undefined || value === null) continue;
+      params.set(key, String(value));
+    }
+  }
+  const qs = params.toString();
+  return `/confirm-${pluginId}/${externalId}${qs ? '?' + qs : ''}`;
+}
+
+/**
  * Returns true when a search query looks like a scanned product barcode.
  */
 export function isBarcodeQuery(query: string): boolean {

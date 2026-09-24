@@ -6,7 +6,7 @@ import Item from '../../models/Item';
 import User from '../../models/User';
 import { BASE_URL } from '../../config/constants';
 import { requireAuth, requireAuthOrShareView, requireCollectionRole } from '../../middleware/authMiddleware';
-import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback, editStamp, syncStamp, safeReturnPath, getPublicProtocol, generateBarcodeDataUrl } from '../helpers';
+import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback, editStamp, syncStamp, safeReturnPath, confirmPathFor, getPublicProtocol, generateBarcodeDataUrl } from '../helpers';
 import { DEFAULT_PLACEHOLDER_IMAGE } from '../placeholderImage';
 import { alignImagesAfterRefresh, imagesForItem, imagesFromForm, ItemImageValidationError, MAX_ITEM_IMAGES, MAX_ITEM_IMAGE_BYTES } from '../itemImages';
 import { deleteUnusedManagedItemImages } from '../itemImageStorage';
@@ -77,13 +77,11 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       // Set only when this request resolved a barcode: the fallback below rewrites a
       // seller's product name, never what the user typed themselves.
       let resolvedTitle = '';
-      // Scan mode, and a query that names one exact item rather than describing it. Nobody
-      // corrects an ISBN by hand, so however this search turns out the box goes back empty:
-      // digits left in it are digits the next scan types itself onto the end of, and the
-      // scanner is across the room from the keyboard that would clear them.
+      // Scan mode, and a query the chosen source reads as one exact item (an ISBN for
+      // Hardcover) rather than a description. However the search turns out the box goes
+      // back empty, so the next scan does not type itself onto the end of this one.
       const exactIdentifier = res.locals.settings?.instantAdd === true
-        && typeof plugin.instantAddQuery === 'function'
-        && plugin.instantAddQuery(rawQuery);
+        && !!source?.exactQuery?.(rawQuery);
       // The same code, kept for the manual entry link: a provider that has never heard of
       // this ISBN is the usual reason to type a book in by hand, and the number is the one
       // field on that form nobody can look up. Stored without the hyphens it may have been
@@ -154,21 +152,6 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           results = await runSearch(searchQuery);
         }
 
-        // Scan mode: the query named one exact item (an ISBN) and one thing came back, so
-        // there is nothing to choose between. Straight to the confirm page, which submits
-        // itself, rather than a list of one waiting to be clicked. Anything else - several
-        // hits, none, or a query that merely describes what is wanted - falls through to
-        // the list below, where a human settles it.
-        if (exactIdentifier && results.length === 1) {
-          const hit: any = results[0];
-          const externalId = hit.id || hit.hardcover_id || hit.tmdb_id || hit.igdb_id;
-          if (externalId) {
-            const params = new URLSearchParams({ instant: '1' });
-            if (type && type !== plugin.id) params.set('type', type);
-            return res.redirect(`/confirm-${plugin.id}/${externalId}?${params.toString()}`);
-          }
-        }
-
         // What the search box shows on the way back. After a scan the digits are useless
         // there: on a hit it is the query that actually matched, and on a miss the whole
         // product name, which is the thing the user has to correct. An identifier is
@@ -181,7 +164,21 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         // The id a result carries only means something next to the database that handed
         // it out, so it travels with it: the confirm link needs to ask the same source
         // for the details, and the item ends up storing the pair.
-        for (const result of results) result.source = source.id;
+        for (const result of results) {
+          result.source = source.id;
+          result.confirmPath = confirmPathFor(plugin.id, result, { searchType: type, scannedBarcode });
+        }
+
+        // Scan mode: the query named one exact item and one thing came back, so there is
+        // nothing to choose between. Straight to the confirm page, which submits itself.
+        // Never after a barcode was resolved to a product name: that hit is a guess. The
+        // path carries the source and the provider's confirmQuery like a result card does,
+        // which is what makes the searched ISBN's edition the one saved.
+        const onlyHit = results.length === 1 ? results[0] : undefined;
+        if (exactIdentifier && !resolvedTitle && onlyHit?.confirmPath) {
+          const path = onlyHit.confirmPath;
+          return res.redirect(`${path}${path.includes('?') ? '&' : '?'}instant=1`);
+        }
 
         res.render('add', {
           results,

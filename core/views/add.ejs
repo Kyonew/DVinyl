@@ -161,24 +161,7 @@
             %>
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 <% results.forEach(item => { %>
-                    <%
-                        const confirmParams = [];
-                        if (locals.searchType && locals.searchType !== plugin.id) confirmParams.push('type=' + encodeURIComponent(searchType));
-                        if (locals.scanned_barcode) confirmParams.push('barcode=' + encodeURIComponent(scanned_barcode));
-                        // The id below belongs to the database that returned it; the confirm
-                        // page has to ask that same one for the details.
-                        if (item.source) confirmParams.push('source=' + encodeURIComponent(item.source));
-                        // Whatever the provider needs back to narrow the details down to
-                        // this exact result, forwarded to getDetails() as is.
-                        if (item.confirmQuery && typeof item.confirmQuery === 'object') {
-                            Object.entries(item.confirmQuery).forEach(([key, value]) => {
-                                if (['type', 'barcode', 'source'].includes(key) || value === undefined || value === null) return;
-                                confirmParams.push(encodeURIComponent(key) + '=' + encodeURIComponent(String(value)));
-                            });
-                        }
-                        const confirmQs = confirmParams.length ? '?' + confirmParams.join('&') : '';
-                    %>
-                    <a href="<%= baseUrl %>/confirm-<%= plugin.id %>/<%= item.id || item.hardcover_id || item.tmdb_id || item.igdb_id %><%- confirmQs %>" class="card-theme rounded-xl overflow-hidden hover:border-primary-theme transition-all group flex flex-col hover:shadow-lg hover:-translate-y-1">
+                    <a href="<%= baseUrl %><%= item.confirmPath %>" class="card-theme rounded-xl overflow-hidden hover:border-primary-theme transition-all group flex flex-col hover:shadow-lg hover:-translate-y-1">
                         <div class="relative <%= aspect %> bg-black/5 dark:bg-white/5">
                             <% if (item.cover_image && !item.cover_image.includes('spacer.gif')) { %>
                                 <img src="<%= item.cover_image %>" onerror="this.onerror=null; this.src='<%= baseUrl %>/ressources/logo.png';" class="w-full h-full object-cover">

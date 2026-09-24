@@ -28,6 +28,7 @@ export function sourceFromProvider(
     // A service that answers both questions declares its image side here rather than
     // being split into two sources wearing the same name.
     searchImages?(query: string, options?: { language?: string }): Promise<string[]>;
+    exactQuery?(query: string): boolean;
   }
 ): SearchableSource {
   return {
