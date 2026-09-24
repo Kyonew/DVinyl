@@ -1,4 +1,4 @@
-import { describe, test, before, after, beforeEach } from 'node:test';
+import { describe, test, before, after, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import request from 'supertest';
 import { buildApiApp } from '../../../test/helpers/app';
@@ -104,5 +104,45 @@ describe('GET /api/v1/items/:itemId/estimate', () => {
     const { token } = await seedEstimable();
     const res = await request(app).get(`/api/v1/items/${invalidId}/estimate`).set(bearer(token));
     assert.equal(res.status, 404);
+  });
+});
+
+const originalFetch = globalThis.fetch;
+
+describe('GET /api/v1/items/:itemId/estimate — real music plugin', () => {
+  afterEach(() => { globalThis.fetch = originalFetch; });
+
+  async function seedMusicItem() {
+    const { user } = await makeUser();
+    const collection = await makeCollection({ members: [{ user, role: 'viewer' }] });
+    await makeSettings(collection);
+    const item = await makeItem('Music', {
+      title: 'Discovery', artist: 'Daft Punk', discogs_id: 12345, owner: user._id, collection: collection._id
+    });
+    return { item, token: signAccessToken(user._id) };
+  }
+
+  test('200 prices through the extracted Discogs logic without network', async () => {
+    const { item, token } = await seedMusicItem();
+    let calledUrl = '';
+    globalThis.fetch = (async (url: any) => {
+      calledUrl = String(url);
+      return { ok: true, json: async () => ({ lowest_price: { value: 24.99, currency: 'EUR' }, num_for_sale: 7 }) };
+    }) as any;
+
+    const res = await request(app).get(`/api/v1/items/${item._id}/estimate`).set(bearer(token));
+    assert.equal(res.status, 200);
+    assert.equal(res.body.estimate.source, 'market');
+    assert.equal(res.body.estimate.price.value, 24.99);
+    assert.match(calledUrl, /marketplace\/stats\/12345/);
+  });
+
+  test('502 when Discogs is unreachable', async () => {
+    const { item, token } = await seedMusicItem();
+    globalThis.fetch = (async () => { throw new Error('network down'); }) as any;
+
+    const res = await request(app).get(`/api/v1/items/${item._id}/estimate`).set(bearer(token));
+    assert.equal(res.status, 502);
+    assert.equal(res.body.success, false);
   });
 });
