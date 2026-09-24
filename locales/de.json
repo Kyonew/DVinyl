@@ -275,7 +275,14 @@
       "allow_member_creation": "Mitgliedern erlauben, eine eigene Sammlung zu erstellen",
       "allow_member_creation_desc": "Jeder Benutzer der Instanz (lokales Konto oder SSO) kann eine eigene Sammlung erstellen und wird deren Administrator, ganz ohne dein Zutun. Ist die Option aus, erstellt nur der Instanz-Administrator Sammlungen.",
       "max_collections": "Maximale Anzahl Sammlungen pro Benutzer",
-      "max_collections_desc": "Zählt nur Sammlungen, die der Benutzer selbst erstellt hat; mit ihm geteilte Sammlungen zählen nicht. Instanz-Administratoren sind nicht begrenzt."
+      "max_collections_desc": "Zählt nur Sammlungen, die der Benutzer selbst erstellt hat; mit ihm geteilte Sammlungen zählen nicht. Instanz-Administratoren sind nicht begrenzt.",
+      "tabs": {
+        "collections": "Sammlungen",
+        "users": "Benutzer",
+        "backup": "Sicherung",
+        "security": "Sicherheit",
+        "logs": "Protokolle"
+      }
     },
     "logs_delete_last": {
       "count_placeholder": "Anzahl",
@@ -417,6 +424,13 @@
       "missing": "Fehlt {{keys}}",
       "move_up": "Nach oben",
       "move_down": "Nach unten"
+    },
+    "tabs": {
+      "settings": "Einstellungen",
+      "members": "Mitglieder",
+      "collection": "Sammlung",
+      "imports": "Importe",
+      "maintenance": "Wartung"
     }
   },
   "auth": {

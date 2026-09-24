@@ -275,7 +275,14 @@
       "allow_member_creation": "Consenti ai membri di creare la propria collezione",
       "allow_member_creation_desc": "Qualsiasi utente dell'istanza (account locale o SSO) potrà creare la propria collezione e diventarne amministratore, senza alcun intervento da parte tua. Se disattivato, solo l'amministratore dell'istanza crea le collezioni.",
       "max_collections": "Numero massimo di collezioni per utente",
-      "max_collections_desc": "Conta solo le collezioni create dall'utente; quelle semplicemente condivise con lui non contano. Gli amministratori dell'istanza non hanno limiti."
+      "max_collections_desc": "Conta solo le collezioni create dall'utente; quelle semplicemente condivise con lui non contano. Gli amministratori dell'istanza non hanno limiti.",
+      "tabs": {
+        "collections": "Collezioni",
+        "users": "Utenti",
+        "backup": "Backup",
+        "security": "Sicurezza",
+        "logs": "Log"
+      }
     },
     "logs_delete_last": {
       "count_placeholder": "Numero",
@@ -417,6 +424,13 @@
       "missing": "Manca {{keys}}",
       "move_up": "Su",
       "move_down": "Giù"
+    },
+    "tabs": {
+      "settings": "Impostazioni",
+      "members": "Membri",
+      "collection": "Collezione",
+      "imports": "Importazioni",
+      "maintenance": "Manutenzione"
     }
   },
   "auth": {

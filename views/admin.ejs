@@ -27,197 +27,6 @@
             </div>
         </div>
 
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <h1 class="text-2xl md:text-3xl font-bold flex items-center gap-3 transition-colors">
-                <i class="fa-solid fa-puzzle-piece text-primary-theme"></i>
-                <%= t('admin.modules') %>
-            </h1>
-            <a href="<%= baseUrl %>/create-plugin"
-                class="flex items-center gap-2 text-xs font-black uppercase tracking-widest bg-primary-theme text-white hover:brightness-110 hover:scale-105 px-5 py-2.5 rounded-full transition-all w-fit shadow-lg shadow-primary-theme/20">
-                <i class="fa-solid fa-wand-magic-sparkles"></i>
-                <%= t('create_plugin.title') %>
-            </a>
-        </div>
-
-        <section class="card-theme rounded-3xl p-6 shadow-sm mb-10 transition-colors">
-            <div class="flex flex-col gap-8">
-                <div class="flex items-center gap-4">
-                    <div
-                        class="w-12 h-12 rounded-2xl bg-primary-theme/10 text-primary-theme flex items-center justify-center shrink-0">
-                        <i class="fa-solid fa-cubes-stacked text-xl"></i>
-                    </div>
-                    <div>
-                        <h2 class="text-sm font-black uppercase tracking-widest opacity-80">
-                            <%= t('perso.modules.title') %>
-                        </h2>
-                        <p class="text-xs opacity-50">
-                            <%= t('admin.modules_description') %>
-                        </p>
-                    </div>
-                </div>
-
-                <form action="<%= baseUrl %>/admin/modules/save" method="POST" class="space-y-6">
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                        <%
-                        const mods = registry.getAll().map(p => ({
-                            key: p.collectionType,
-                            pluginId: p.id,
-                            label: t(p.label),
-                            icon: 'fa-' + p.icon,
-                            needsKey: requiredEnvKeysFor(p).length > 0,
-                            settings: p.settings || [],
-                            sources: sourceStatusFor(p, settings)
-                        }));
-                        %>
-                            <% mods.forEach((mod)=> { %>
-                                <div class="flex flex-col gap-2">
-                                    <label
-                                        class="group flex items-center justify-between p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-transparent hover:border-primary-theme/30 has-[:checked]:bg-green-500/10 has-[:checked]:border-green-500/30 transition-all cursor-pointer">
-                                        <div class="flex items-center gap-3">
-                                            <div
-                                                class="w-10 h-10 rounded-xl flex items-center justify-center bg-white dark:bg-black/20 shadow-sm group-hover:text-primary-theme group-has-[:checked]:bg-green-500 group-has-[:checked]:text-white transition-colors">
-                                                <i class="fa-solid <%= mod.icon %> text-sm"></i>
-                                            </div>
-                                            <span
-                                                class="text-sm font-bold opacity-70 group-hover:opacity-100 group-has-[:checked]:opacity-100 transition-opacity">
-                                                <%= mod.label %>
-                                            </span>
-                                        </div>
-                                        <div class="flex items-center gap-2">
-                                            <% if (mod.settings.length > 0 || mod.sources.length > 0) { %>
-                                                <span role="button" tabindex="0"
-                                                    onclick="event.preventDefault(); document.getElementById('opts-<%= mod.pluginId %>').classList.toggle('hidden');"
-                                                    onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); document.getElementById('opts-<%= mod.pluginId %>').classList.toggle('hidden');}"
-                                                    class="w-8 h-8 rounded-lg flex items-center justify-center bg-white dark:bg-black/20 shadow-sm opacity-60 hover:opacity-100 hover:text-primary-theme transition-all cursor-pointer"
-                                                    title="<%= t('admin.module_settings') %>">
-                                                    <i class="fa-solid fa-gear text-xs"></i>
-                                                </span>
-                                            <% } %>
-                                            <div class="relative inline-flex items-center cursor-pointer">
-                                                <input type="checkbox" name="<%= mod.key %>Active" <%=settings.modules &&
-                                                    settings.modules[mod.key] ? 'checked' : '' %> class="sr-only peer">
-                                                <div
-                                                    class="w-11 h-6 bg-black/10 dark:bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500">
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </label>
-
-                                    <% if (mod.settings.length > 0 || mod.sources.length > 0) { %>
-                                        <div id="opts-<%= mod.pluginId %>" class="hidden p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 space-y-3">
-                                            <%# Where the module looks things up, in the order it tries them. Each row
-                                                says what the service answers and, when it answers nothing yet, which
-                                                variable it is waiting for: with several services behind one module,
-                                                "an API key is missing" no longer names anything actionable. %>
-                                            <% if (mod.sources.length > 0) { %>
-                                                <div data-source-list="<%= mod.pluginId %>">
-                                                    <p class="text-xs font-bold opacity-80"><%= t('admin.sources.title') %></p>
-                                                    <p class="text-[10px] opacity-50 mt-0.5 mb-2 leading-snug"><%= t('admin.sources.hint') %></p>
-                                                    <input type="hidden" name="sourceOrder_<%= mod.pluginId %>" value="<%= mod.sources.map(src => src.id).join(',') %>">
-                                                    <ul class="space-y-1.5">
-                                                        <% mod.sources.forEach((src, index) => { %>
-                                                            <li data-source-id="<%= src.id %>" class="flex items-center gap-2 p-2 rounded-xl bg-white/60 dark:bg-black/20">
-                                                                <div class="flex flex-col gap-0.5">
-                                                                    <button type="button" data-source-move="up" aria-label="<%= t('admin.sources.move_up') %>"
-                                                                        class="w-4 h-3 flex items-center justify-center opacity-40 hover:opacity-100 hover:text-primary-theme transition-opacity disabled:opacity-10 disabled:hover:opacity-10"
-                                                                        <%= index === 0 ? 'disabled' : '' %>><i class="fa-solid fa-chevron-up text-[8px]"></i></button>
-                                                                    <button type="button" data-source-move="down" aria-label="<%= t('admin.sources.move_down') %>"
-                                                                        class="w-4 h-3 flex items-center justify-center opacity-40 hover:opacity-100 hover:text-primary-theme transition-opacity disabled:opacity-10 disabled:hover:opacity-10"
-                                                                        <%= index === mod.sources.length - 1 ? 'disabled' : '' %>><i class="fa-solid fa-chevron-down text-[8px]"></i></button>
-                                                                </div>
-                                                                <span class="text-xs font-bold truncate"><%= src.name %></span>
-                                                                <div class="flex items-center gap-1 ml-auto shrink-0">
-                                                                    <% if (src.searchable) { %>
-                                                                        <span class="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-primary-theme/10 text-primary-theme"><%= t('admin.sources.cap_search') %></span>
-                                                                    <% } %>
-                                                                    <% if (src.images) { %>
-                                                                        <span class="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-black/10 dark:bg-white/10 opacity-70"><%= t('admin.sources.cap_images') %></span>
-                                                                    <% } %>
-                                                                    <% if (src.missingKeys.length > 0) { %>
-                                                                        <span class="text-[9px] font-bold text-red-500 truncate" title="<%= src.missingKeys.join(', ') %>">
-                                                                            <i class="fa-solid fa-circle-exclamation"></i>
-                                                                            <%= t('admin.sources.missing', { keys: src.missingKeys.join(', ') }) %>
-                                                                        </span>
-                                                                    <% } else { %>
-                                                                        <span class="text-[9px] font-bold text-green-500"><i class="fa-solid fa-circle-check"></i> <%= t('admin.sources.ready') %></span>
-                                                                    <% } %>
-                                                                </div>
-                                                            </li>
-                                                        <% }) %>
-                                                    </ul>
-                                                </div>
-                                            <% } %>
-                                            <% mod.settings.forEach(opt => {
-                                                const current = registry.getPluginSetting(settings, mod.pluginId, opt.key);
-                                            %>
-                                                <label class="flex items-start justify-between gap-3 cursor-pointer">
-                                                    <div>
-                                                        <span class="text-xs font-bold opacity-80"><%= t(opt.label, { defaultValue: opt.label }) %></span>
-                                                        <% if (opt.description) { %>
-                                                            <p class="text-[10px] opacity-50 mt-0.5"><%= t(opt.description, { defaultValue: opt.description }) %></p>
-                                                        <% } %>
-                                                    </div>
-                                                    <div class="relative inline-flex items-center shrink-0 mt-0.5">
-                                                        <input type="checkbox" name="pluginSetting_<%= mod.pluginId %>_<%= opt.key %>" <%= current ? 'checked' : '' %> class="sr-only peer">
-                                                        <div class="w-9 h-5 bg-black/10 dark:bg-white/10 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500"></div>
-                                                    </div>
-                                                </label>
-                                            <% }) %>
-                                        </div>
-                                    <% } %>
-                                    <% if (mod.needsKey) { %>
-                                        <div id="error-<%= mod.key %>"
-                                            class="hidden p-3 bg-red-500/10 border border-red-500/20 rounded-xl animate-in fade-in slide-in-from-top-1 duration-300">
-                                            <p class="text-[10px] text-red-500 font-bold flex items-center gap-2">
-                                                <i class="fa-solid fa-circle-exclamation"></i>
-                                                <%= t('admin.errors.missing_api_key') %>
-                                            </p>
-                                            <a href="https://github.com/Kyonew/DVinyl/blob/main/docs/api-keys.md"
-                                                target="_blank"
-                                                class="text-[9px] text-primary-theme underline mt-1 block font-bold uppercase tracking-tighter">
-                                                <%= t('admin.errors.help_link') %>
-                                            </a>
-                                        </div>
-                                        <% } %>
-                                </div>
-                                <% }) %>
-                    </div>
-                    <label
-                        class="flex items-start justify-between gap-4 p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 cursor-pointer">
-                        <div class="flex items-start gap-3">
-                            <div
-                                class="w-10 h-10 rounded-xl flex items-center justify-center bg-white dark:bg-black/20 shadow-sm shrink-0">
-                                <i class="fa-solid fa-layer-group text-sm"></i>
-                            </div>
-                            <div>
-                                <span class="text-sm font-bold opacity-80">
-                                    <%= t('admin.merge_duplicates') %>
-                                </span>
-                                <p class="text-xs opacity-50 mt-0.5">
-                                    <%= t('admin.merge_duplicates_desc') %>
-                                </p>
-                            </div>
-                        </div>
-                        <div class="relative inline-flex items-center shrink-0 mt-2">
-                            <input type="checkbox" name="mergeDuplicates" <%= settings.mergeDuplicates !== false ?
-                                'checked' : '' %> class="sr-only peer">
-                            <div
-                                class="w-11 h-6 bg-black/10 dark:bg-white/10 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500">
-                            </div>
-                        </div>
-                    </label>
-
-                    <div class="flex justify-end pt-2">
-                        <button type="submit"
-                            class="w-full sm:w-auto bg-primary-theme text-white text-xs font-black uppercase tracking-widest px-10 py-4 rounded-2xl hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-primary-theme/20 flex items-center justify-center gap-3">
-                            <i class="fa-solid fa-save"></i>
-                            <%= t('perso.save') %>
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </section>
-
         <% if (locals.successMessage && !locals.newPassword) { %>
             <div class="bg-primary-theme/10 border border-primary-theme/30 p-4 rounded-2xl text-center mb-6 transition-colors">
                 <p class="text-sm font-bold text-primary-theme flex items-center justify-center gap-2">
@@ -243,10 +52,211 @@
                 </div>
             </div>
             <% } %>
-            
-                <%- include('partials/admin-visibility') %>
 
-                <section>
+        <%- include('partials/settings-tabs', { tabs: [
+            { id: 'settings', icon: 'sliders', label: t('admin.tabs.settings') },
+            { id: 'members', icon: 'users', label: t('admin.tabs.members'), count: (locals.members || []).length },
+            { id: 'collection', icon: 'layer-group', label: t('admin.tabs.collection') },
+            { id: 'imports', icon: 'cloud-arrow-down', label: t('admin.tabs.imports') },
+            { id: 'maintenance', icon: 'wrench', label: t('admin.tabs.maintenance') }
+        ] }) %>
+
+        <div data-tab-panel="settings" class="space-y-10">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <h1 class="text-2xl md:text-3xl font-bold flex items-center gap-3 transition-colors">
+                    <i class="fa-solid fa-puzzle-piece text-primary-theme"></i>
+                    <%= t('admin.modules') %>
+                </h1>
+                <a href="<%= baseUrl %>/create-plugin"
+                    class="flex items-center gap-2 text-xs font-black uppercase tracking-widest bg-primary-theme text-white hover:brightness-110 hover:scale-105 px-5 py-2.5 rounded-full transition-all w-fit shadow-lg shadow-primary-theme/20">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    <%= t('create_plugin.title') %>
+                </a>
+            </div>
+
+            <section class="card-theme rounded-3xl p-6 shadow-sm mb-10 transition-colors">
+                <div class="flex flex-col gap-8">
+                    <div class="flex items-center gap-4">
+                        <div
+                            class="w-12 h-12 rounded-2xl bg-primary-theme/10 text-primary-theme flex items-center justify-center shrink-0">
+                            <i class="fa-solid fa-cubes-stacked text-xl"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-sm font-black uppercase tracking-widest opacity-80">
+                                <%= t('perso.modules.title') %>
+                            </h2>
+                            <p class="text-xs opacity-50">
+                                <%= t('admin.modules_description') %>
+                            </p>
+                        </div>
+                    </div>
+
+                    <form action="<%= baseUrl %>/admin/modules/save" method="POST" class="space-y-6">
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                            <%
+                            const mods = registry.getAll().map(p => ({
+                                key: p.collectionType,
+                                pluginId: p.id,
+                                label: t(p.label),
+                                icon: 'fa-' + p.icon,
+                                needsKey: requiredEnvKeysFor(p).length > 0,
+                                settings: p.settings || [],
+                                sources: sourceStatusFor(p, settings)
+                            }));
+                            %>
+                                <% mods.forEach((mod)=> { %>
+                                    <div class="flex flex-col gap-2">
+                                        <label
+                                            class="group flex items-center justify-between p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-transparent hover:border-primary-theme/30 has-[:checked]:bg-green-500/10 has-[:checked]:border-green-500/30 transition-all cursor-pointer">
+                                            <div class="flex items-center gap-3">
+                                                <div
+                                                    class="w-10 h-10 rounded-xl flex items-center justify-center bg-white dark:bg-black/20 shadow-sm group-hover:text-primary-theme group-has-[:checked]:bg-green-500 group-has-[:checked]:text-white transition-colors">
+                                                    <i class="fa-solid <%= mod.icon %> text-sm"></i>
+                                                </div>
+                                                <span
+                                                    class="text-sm font-bold opacity-70 group-hover:opacity-100 group-has-[:checked]:opacity-100 transition-opacity">
+                                                    <%= mod.label %>
+                                                </span>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <% if (mod.settings.length > 0 || mod.sources.length > 0) { %>
+                                                    <span role="button" tabindex="0"
+                                                        onclick="event.preventDefault(); document.getElementById('opts-<%= mod.pluginId %>').classList.toggle('hidden');"
+                                                        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); document.getElementById('opts-<%= mod.pluginId %>').classList.toggle('hidden');}"
+                                                        class="w-8 h-8 rounded-lg flex items-center justify-center bg-white dark:bg-black/20 shadow-sm opacity-60 hover:opacity-100 hover:text-primary-theme transition-all cursor-pointer"
+                                                        title="<%= t('admin.module_settings') %>">
+                                                        <i class="fa-solid fa-gear text-xs"></i>
+                                                    </span>
+                                                <% } %>
+                                                <div class="relative inline-flex items-center cursor-pointer">
+                                                    <input type="checkbox" name="<%= mod.key %>Active" <%=settings.modules &&
+                                                        settings.modules[mod.key] ? 'checked' : '' %> class="sr-only peer">
+                                                    <div
+                                                        class="w-11 h-6 bg-black/10 dark:bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </label>
+
+                                        <% if (mod.settings.length > 0 || mod.sources.length > 0) { %>
+                                            <div id="opts-<%= mod.pluginId %>" class="hidden p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 space-y-3">
+                                                <%# Where the module looks things up, in the order it tries them. Each row
+                                                    says what the service answers and, when it answers nothing yet, which
+                                                    variable it is waiting for: with several services behind one module,
+                                                    "an API key is missing" no longer names anything actionable. %>
+                                                <% if (mod.sources.length > 0) { %>
+                                                    <div data-source-list="<%= mod.pluginId %>">
+                                                        <p class="text-xs font-bold opacity-80"><%= t('admin.sources.title') %></p>
+                                                        <p class="text-[10px] opacity-50 mt-0.5 mb-2 leading-snug"><%= t('admin.sources.hint') %></p>
+                                                        <input type="hidden" name="sourceOrder_<%= mod.pluginId %>" value="<%= mod.sources.map(src => src.id).join(',') %>">
+                                                        <ul class="space-y-1.5">
+                                                            <% mod.sources.forEach((src, index) => { %>
+                                                                <li data-source-id="<%= src.id %>" class="flex items-center gap-2 p-2 rounded-xl bg-white/60 dark:bg-black/20">
+                                                                    <div class="flex flex-col gap-0.5">
+                                                                        <button type="button" data-source-move="up" aria-label="<%= t('admin.sources.move_up') %>"
+                                                                            class="w-4 h-3 flex items-center justify-center opacity-40 hover:opacity-100 hover:text-primary-theme transition-opacity disabled:opacity-10 disabled:hover:opacity-10"
+                                                                            <%= index === 0 ? 'disabled' : '' %>><i class="fa-solid fa-chevron-up text-[8px]"></i></button>
+                                                                        <button type="button" data-source-move="down" aria-label="<%= t('admin.sources.move_down') %>"
+                                                                            class="w-4 h-3 flex items-center justify-center opacity-40 hover:opacity-100 hover:text-primary-theme transition-opacity disabled:opacity-10 disabled:hover:opacity-10"
+                                                                            <%= index === mod.sources.length - 1 ? 'disabled' : '' %>><i class="fa-solid fa-chevron-down text-[8px]"></i></button>
+                                                                    </div>
+                                                                    <span class="text-xs font-bold truncate"><%= src.name %></span>
+                                                                    <div class="flex items-center gap-1 ml-auto shrink-0">
+                                                                        <% if (src.searchable) { %>
+                                                                            <span class="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-primary-theme/10 text-primary-theme"><%= t('admin.sources.cap_search') %></span>
+                                                                        <% } %>
+                                                                        <% if (src.images) { %>
+                                                                            <span class="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-black/10 dark:bg-white/10 opacity-70"><%= t('admin.sources.cap_images') %></span>
+                                                                        <% } %>
+                                                                        <% if (src.missingKeys.length > 0) { %>
+                                                                            <span class="text-[9px] font-bold text-red-500 truncate" title="<%= src.missingKeys.join(', ') %>">
+                                                                                <i class="fa-solid fa-circle-exclamation"></i>
+                                                                                <%= t('admin.sources.missing', { keys: src.missingKeys.join(', ') }) %>
+                                                                            </span>
+                                                                        <% } else { %>
+                                                                            <span class="text-[9px] font-bold text-green-500"><i class="fa-solid fa-circle-check"></i> <%= t('admin.sources.ready') %></span>
+                                                                        <% } %>
+                                                                    </div>
+                                                                </li>
+                                                            <% }) %>
+                                                        </ul>
+                                                    </div>
+                                                <% } %>
+                                                <% mod.settings.forEach(opt => {
+                                                    const current = registry.getPluginSetting(settings, mod.pluginId, opt.key);
+                                                %>
+                                                    <label class="flex items-start justify-between gap-3 cursor-pointer">
+                                                        <div>
+                                                            <span class="text-xs font-bold opacity-80"><%= t(opt.label, { defaultValue: opt.label }) %></span>
+                                                            <% if (opt.description) { %>
+                                                                <p class="text-[10px] opacity-50 mt-0.5"><%= t(opt.description, { defaultValue: opt.description }) %></p>
+                                                            <% } %>
+                                                        </div>
+                                                        <div class="relative inline-flex items-center shrink-0 mt-0.5">
+                                                            <input type="checkbox" name="pluginSetting_<%= mod.pluginId %>_<%= opt.key %>" <%= current ? 'checked' : '' %> class="sr-only peer">
+                                                            <div class="w-9 h-5 bg-black/10 dark:bg-white/10 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500"></div>
+                                                        </div>
+                                                    </label>
+                                                <% }) %>
+                                            </div>
+                                        <% } %>
+                                        <% if (mod.needsKey) { %>
+                                            <div id="error-<%= mod.key %>"
+                                                class="hidden p-3 bg-red-500/10 border border-red-500/20 rounded-xl animate-in fade-in slide-in-from-top-1 duration-300">
+                                                <p class="text-[10px] text-red-500 font-bold flex items-center gap-2">
+                                                    <i class="fa-solid fa-circle-exclamation"></i>
+                                                    <%= t('admin.errors.missing_api_key') %>
+                                                </p>
+                                                <a href="https://github.com/Kyonew/DVinyl/blob/main/docs/api-keys.md"
+                                                    target="_blank"
+                                                    class="text-[9px] text-primary-theme underline mt-1 block font-bold uppercase tracking-tighter">
+                                                    <%= t('admin.errors.help_link') %>
+                                                </a>
+                                            </div>
+                                            <% } %>
+                                    </div>
+                                    <% }) %>
+                        </div>
+                        <label
+                            class="flex items-start justify-between gap-4 p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 cursor-pointer">
+                            <div class="flex items-start gap-3">
+                                <div
+                                    class="w-10 h-10 rounded-xl flex items-center justify-center bg-white dark:bg-black/20 shadow-sm shrink-0">
+                                    <i class="fa-solid fa-layer-group text-sm"></i>
+                                </div>
+                                <div>
+                                    <span class="text-sm font-bold opacity-80">
+                                        <%= t('admin.merge_duplicates') %>
+                                    </span>
+                                    <p class="text-xs opacity-50 mt-0.5">
+                                        <%= t('admin.merge_duplicates_desc') %>
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="relative inline-flex items-center shrink-0 mt-2">
+                                <input type="checkbox" name="mergeDuplicates" <%= settings.mergeDuplicates !== false ?
+                                    'checked' : '' %> class="sr-only peer">
+                                <div
+                                    class="w-11 h-6 bg-black/10 dark:bg-white/10 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500">
+                                </div>
+                            </div>
+                        </label>
+
+                        <div class="flex justify-end pt-2">
+                            <button type="submit"
+                                class="w-full sm:w-auto bg-primary-theme text-white text-xs font-black uppercase tracking-widest px-10 py-4 rounded-2xl hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-primary-theme/20 flex items-center justify-center gap-3">
+                                <i class="fa-solid fa-save"></i>
+                                <%= t('perso.save') %>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <%- include('partials/admin-visibility') %>
+        </div>
+
+                <section data-tab-panel="members">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between py-6 gap-4 mb-4">
                         <h1 class="text-2xl md:text-3xl font-bold flex items-center gap-3 transition-colors">
                             <i class="fa-solid fa-users text-neutral-400 dark:text-neutral-500"></i>
@@ -368,7 +378,7 @@
                     </div>
                 </section>
 
-                <section>
+                <section data-tab-panel="collection">
                     <div class="flex items-center gap-4 mb-6">
                         <h2 class="text-xl font-bold flex items-center gap-2 transition-colors whitespace-nowrap">
                             <i class="fa-solid fa-layer-group text-primary-theme"></i>
@@ -566,7 +576,7 @@
                     </div>
                 </section>
 
-                <section>
+                <section data-tab-panel="imports">
                     <div class="flex items-center gap-4 mb-6">
                         <h2 class="text-xl font-bold flex items-center gap-2 transition-colors whitespace-nowrap">
                             <i class="fa-solid fa-cloud-arrow-down text-primary-theme"></i>
@@ -582,7 +592,7 @@
                     <%- include('partials/admin-imports') %>
                 </section>
 
-                <section>
+                <section data-tab-panel="maintenance">
                     <div class="flex items-center gap-4 mb-6">
                         <h2 class="text-lg sm:text-xl font-bold flex items-center gap-2 whitespace-nowrap">
                             <i class="fa-solid fa-clock-rotate-left text-red-500"></i>
@@ -647,7 +657,7 @@
                     </div>
                 </section>
 
-                <section>
+                <section data-tab-panel="maintenance">
                     <div class="flex items-center gap-4 mb-6">
                         <h2 class="text-xl font-bold flex items-center gap-2 transition-colors whitespace-nowrap">
                             <i class="fa-solid fa-wrench text-primary-theme"></i>
@@ -792,6 +802,7 @@
             // while the link that was just created is far below. Come back to the panel.
             const adminMsg = new URLSearchParams(window.location.search).get('msg') || '';
             if (adminMsg.startsWith('share') || adminMsg === 'error_share') {
+                window.showSettingsTab?.('collection');
                 document.getElementById('shareLinks')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
 

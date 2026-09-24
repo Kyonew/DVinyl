@@ -275,7 +275,14 @@
       "allow_member_creation": "Permitir que los miembros creen su propia colección",
       "allow_member_creation_desc": "Cualquier usuario de la instancia (cuenta local o SSO) podrá crear su propia colección y convertirse en su administrador, sin que tengas que intervenir. Si se desactiva, solo el administrador de la instancia crea colecciones.",
       "max_collections": "Número máximo de colecciones por usuario",
-      "max_collections_desc": "Solo cuenta las colecciones creadas por el usuario; las que simplemente se comparten con él no cuentan. Los administradores de la instancia no tienen límite."
+      "max_collections_desc": "Solo cuenta las colecciones creadas por el usuario; las que simplemente se comparten con él no cuentan. Los administradores de la instancia no tienen límite.",
+      "tabs": {
+        "collections": "Colecciones",
+        "users": "Usuarios",
+        "backup": "Copia de seguridad",
+        "security": "Seguridad",
+        "logs": "Registros"
+      }
     },
     "logs_delete_last": {
       "count_placeholder": "Cantidad",
@@ -417,6 +424,13 @@
       "missing": "Falta {{keys}}",
       "move_up": "Subir",
       "move_down": "Bajar"
+    },
+    "tabs": {
+      "settings": "Configuración",
+      "members": "Miembros",
+      "collection": "Colección",
+      "imports": "Importaciones",
+      "maintenance": "Mantenimiento"
     }
   },
   "auth": {

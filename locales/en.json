@@ -504,7 +504,14 @@
       "allow_member_creation": "Allow members to create their own collection",
       "allow_member_creation_desc": "Any user of the instance (local or SSO account) will be able to create their own collection and become its administrator, with no action from you. When off, only the instance administrator creates collections.",
       "max_collections": "Maximum collections per user",
-      "max_collections_desc": "Only counts collections the user created; collections merely shared with them don't count. Instance administrators are not limited."
+      "max_collections_desc": "Only counts collections the user created; collections merely shared with them don't count. Instance administrators are not limited.",
+      "tabs": {
+        "collections": "Collections",
+        "users": "Users",
+        "backup": "Backup",
+        "security": "Security",
+        "logs": "Logs"
+      }
     },
     "logs_delete_last": {
       "count_placeholder": "Count",
@@ -646,6 +653,13 @@
       "missing": "Missing {{keys}}",
       "move_up": "Move up",
       "move_down": "Move down"
+    },
+    "tabs": {
+      "settings": "Settings",
+      "members": "Members",
+      "collection": "Collection",
+      "imports": "Imports",
+      "maintenance": "Maintenance"
     }
   },
   "collection": {

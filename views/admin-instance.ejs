@@ -74,8 +74,16 @@
             </div>
             <% } %>
 
+        <%- include('partials/settings-tabs', { tabs: [
+            { id: 'collections', icon: 'layer-group', label: t('admin.instance.tabs.collections'), count: (locals.collections || []).length },
+            { id: 'users', icon: 'users', label: t('admin.instance.tabs.users'), count: users.length },
+            { id: 'backup', icon: 'database', label: t('admin.instance.tabs.backup') },
+            { id: 'security', icon: 'ban', label: t('admin.instance.tabs.security'), count: blockedIps.length },
+            { id: 'logs', icon: 'satellite-dish', label: t('admin.instance.tabs.logs') }
+        ] }) %>
+
                 <!-- ============ COLLECTIONS ============ -->
-                <section>
+                <section data-tab-panel="collections">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between py-6 gap-4 mb-2">
                         <h2 class="text-xl md:text-2xl font-bold flex items-center gap-3 transition-colors">
                             <i class="fa-solid fa-layer-group text-primary-theme"></i>
@@ -156,7 +164,7 @@
                 </section>
 
                 <!-- ============ SELF-SERVICE COLLECTIONS (instance policy) ============ -->
-                <section>
+                <section data-tab-panel="users">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between py-6 gap-4 mb-2">
                         <h2 class="text-xl md:text-2xl font-bold flex items-center gap-3 transition-colors">
                             <i class="fa-solid fa-user-plus text-primary-theme"></i>
@@ -208,7 +216,7 @@
                 </section>
 
                 <!-- ============ USERS ============ -->
-                <section>
+                <section data-tab-panel="users">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between py-6 gap-4 mb-4">
                         <h2 class="text-xl md:text-2xl font-bold flex items-center gap-3 transition-colors">
                             <i class="fa-solid fa-users text-primary-theme"></i>
@@ -411,7 +419,7 @@
                 </section>
 
                 <!-- ============ INSTANCE BACKUP (whole instance, not a single collection) ============ -->
-                <section>
+                <section data-tab-panel="backup">
                     <div class="flex items-center gap-4 mb-6">
                         <h2 class="text-xl font-bold flex items-center gap-2 transition-colors whitespace-nowrap">
                             <i class="fa-solid fa-database text-primary-theme"></i>
@@ -458,7 +466,7 @@
                 </section>
 
                 <!-- ============ BLOCKED IPS ============ -->
-                <section>
+                <section data-tab-panel="security">
                     <h2 class="text-xl font-bold mb-6 flex items-center gap-2 transition-colors">
                         <i class="fa-solid fa-ban text-red-500"></i>
                         <%= t('admin.blocked_ips_title', { count: blockedIps.length }) %>
@@ -498,7 +506,7 @@
                 </section>
 
                 <!-- ============ LOGIN LOGS ============ -->
-                <section>
+                <section data-tab-panel="logs">
                     <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
                         <h2 class="text-xl font-bold flex items-center gap-2 transition-colors">
                             <i class="fa-solid fa-satellite-dish text-primary-theme"></i>

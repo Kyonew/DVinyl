@@ -55,7 +55,9 @@
             <!-- Genres -->
             <div>
                 <h3 class="text-sm font-bold opacity-80 mb-3"><%= t('admin.visibility.hidden_genres') || 'Hidden Genres' %></h3>
-                <div class="max-h-60 overflow-y-auto p-4 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 space-y-4">
+                <%# relative: the sr-only checkboxes are absolutely positioned; without a positioned
+                    ancestor here they escape the scroll box and stretch the page below the footer. %>
+                <div class="relative max-h-60 overflow-y-auto p-4 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 space-y-4">
                     <% const enabledKinds = registry.getEnabled(settings).map(p => p.kind); %>
                     <% Object.keys(allGenres).filter(kind => enabledKinds.includes(kind)).forEach(kind => { %>
                         <div>

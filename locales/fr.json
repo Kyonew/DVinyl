@@ -504,7 +504,14 @@
       "allow_member_creation": "Autoriser les membres à créer leur propre collection",
       "allow_member_creation_desc": "Tout utilisateur de l'instance (compte local ou SSO) pourra créer sa propre collection et en devenir administrateur, sans intervention de votre part. Désactivé, seul l'administrateur de l'instance crée des collections.",
       "max_collections": "Nombre de collections maximum par utilisateur",
-      "max_collections_desc": "Ne compte que les collections dont l'utilisateur est le créateur ; celles qui lui sont simplement partagées ne comptent pas. Les administrateurs de l'instance ne sont pas limités."
+      "max_collections_desc": "Ne compte que les collections dont l'utilisateur est le créateur ; celles qui lui sont simplement partagées ne comptent pas. Les administrateurs de l'instance ne sont pas limités.",
+      "tabs": {
+        "collections": "Collections",
+        "users": "Utilisateurs",
+        "backup": "Sauvegarde",
+        "security": "Sécurité",
+        "logs": "Journaux"
+      }
     },
     "logs_delete_last": {
       "count_placeholder": "Nombre",
@@ -646,6 +653,13 @@
       "missing": "Manque {{keys}}",
       "move_up": "Monter",
       "move_down": "Descendre"
+    },
+    "tabs": {
+      "settings": "Configuration",
+      "members": "Membres",
+      "collection": "Collection",
+      "imports": "Imports",
+      "maintenance": "Maintenance"
     }
   },
   "collection": {
