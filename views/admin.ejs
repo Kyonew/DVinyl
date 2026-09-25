@@ -208,21 +208,29 @@
                                                                             class="w-4 h-3 flex items-center justify-center opacity-40 hover:opacity-100 hover:text-primary-theme transition-opacity disabled:opacity-10 disabled:hover:opacity-10"
                                                                             <%= index === mod.sources.length - 1 ? 'disabled' : '' %>><i class="fa-solid fa-chevron-down text-[8px]"></i></button>
                                                                     </div>
-                                                                    <span class="text-xs font-bold truncate"><%= src.name %></span>
-                                                                    <div class="flex items-center gap-1 ml-auto shrink-0">
-                                                                        <% if (src.searchable) { %>
-                                                                            <span class="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-primary-theme/10 text-primary-theme"><%= t('admin.sources.cap_search') %></span>
-                                                                        <% } %>
-                                                                        <% if (src.images) { %>
-                                                                            <span class="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-black/10 dark:bg-white/10 opacity-70"><%= t('admin.sources.cap_images') %></span>
-                                                                        <% } %>
+                                                                    <%# The variables a source waits for get a line of their own under its
+                                                                        name: sharing one line, a long list of them crushed the name to
+                                                                        nothing, and they are the part the admin has to read in full. %>
+                                                                    <div class="min-w-0 flex-1">
+                                                                        <div class="flex items-center gap-2">
+                                                                            <span class="text-xs font-bold truncate"><%= src.name %></span>
+                                                                            <div class="flex items-center gap-1 ml-auto shrink-0">
+                                                                                <% if (src.searchable) { %>
+                                                                                    <span class="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-primary-theme/10 text-primary-theme"><%= t('admin.sources.cap_search') %></span>
+                                                                                <% } %>
+                                                                                <% if (src.images) { %>
+                                                                                    <span class="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-black/10 dark:bg-white/10 opacity-70"><%= t('admin.sources.cap_images') %></span>
+                                                                                <% } %>
+                                                                                <% if (src.missingKeys.length === 0) { %>
+                                                                                    <span class="text-[9px] font-bold text-green-500"><i class="fa-solid fa-circle-check"></i> <%= t('admin.sources.ready') %></span>
+                                                                                <% } %>
+                                                                            </div>
+                                                                        </div>
                                                                         <% if (src.missingKeys.length > 0) { %>
-                                                                            <span class="text-[9px] font-bold text-red-500 truncate" title="<%= src.missingKeys.join(', ') %>">
+                                                                            <p class="mt-1 text-[9px] font-bold text-red-500 leading-snug break-words">
                                                                                 <i class="fa-solid fa-circle-exclamation"></i>
                                                                                 <%= t('admin.sources.missing', { keys: src.missingKeys.join(', ') }) %>
-                                                                            </span>
-                                                                        <% } else { %>
-                                                                            <span class="text-[9px] font-bold text-green-500"><i class="fa-solid fa-circle-check"></i> <%= t('admin.sources.ready') %></span>
+                                                                            </p>
                                                                         <% } %>
                                                                     </div>
                                                                 </li>
