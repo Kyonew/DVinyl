@@ -139,7 +139,7 @@
                         </div>
                     </div>
 
-                    <form action="<%= baseUrl %>/admin/modules/save" method="POST" class="space-y-6">
+                    <form action="<%= baseUrl %>/admin/modules/save" method="POST" data-save-bar class="space-y-6">
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
                             <%
                             const mods = registry.getAll().map(p => ({

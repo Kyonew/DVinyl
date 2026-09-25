@@ -26,7 +26,7 @@
                     <i class="fa-solid fa-pen-to-square text-primary-theme"></i> <%= t('edit_' + plugin.i18nKey + '.title', { defaultValue: t('generic.edit_title') }) %>
                 </h1>
 
-                <form action="<%= baseUrl %>/save-<%= plugin.id %>" method="POST" class="space-y-6">
+                <form action="<%= baseUrl %>/save-<%= plugin.id %>" method="POST" data-save-bar class="space-y-6">
                     <%# Where to land once saved, handed over by the item page. %>
                     <% if (locals.backUrl) { %>
                         <input type="hidden" name="return_to" value="<%= backUrl %>">
