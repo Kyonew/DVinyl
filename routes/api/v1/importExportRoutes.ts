@@ -246,6 +246,66 @@ router.post('/collections/:id/imports/csv', requireApiCollectionRole('admin'), a
   });
 });
 
+// ============ PLUGIN IMPORTER JOBS (collection editor, admin importers admin-only) ============
+
+function findImporter(settings: any, importerId: string): { plugin: any; importer: any } | null {
+  for (const plugin of registry.getEnabled(settings)) {
+    const importer = (plugin.importers || []).find((i: any) => i.id === importerId);
+    if (importer) return { plugin, importer };
+  }
+  return null;
+}
+
+function missingImporterFields(importer: any, body: any): string | null {
+  const fields = importer.ui?.fields || [];
+  const missing = fields
+    .filter((f: any) => f.required)
+    .filter((f: any) => {
+      const value = body?.[f.name];
+      return value === undefined || value === null || value === '';
+    })
+    .map((f: any) => f.label);
+  return missing.length > 0 ? `Missing required fields: ${missing.join(', ')}` : null;
+}
+
+router.post('/collections/:id/imports/:importerId', requireApiCollectionRole('editor'), async (req: any, res: any) => {
+  const settings = await getCollectionSettings(req.apiCollection._id);
+  const found = findImporter(settings, String(req.params.importerId));
+  if (!found) {
+    return res.status(404).json({ success: false, error: 'Importer not found' });
+  }
+
+  const requiresAdmin = !!found.importer.requireAdmin;
+  if (requiresAdmin && req.apiCollectionRole !== 'admin') {
+    return res.status(403).json({ success: false, error: 'Forbidden' });
+  }
+
+  const missing = missingImporterFields(found.importer, req.body);
+  if (missing) {
+    return res.status(400).json({ success: false, error: missing });
+  }
+
+  const scopeKey = `collection:${req.apiCollection._id}`;
+  if (runningConflict(res, scopeKey)) return;
+
+  const job = createImportJob({
+    kind: 'importer',
+    collectionId: req.apiCollection._id,
+    userId: req.user._id,
+    minRole: requiresAdmin ? 'admin' : 'editor',
+    importerId: found.importer.id,
+    pluginId: found.plugin.id
+  });
+  res.status(202).json({ job: serializeJob(job) });
+  startImportJob({
+    req,
+    res,
+    job,
+    collection: req.apiCollection,
+    run: (r, s) => found.importer.handler(r, s)
+  });
+});
+
 // ============ JOB POLLING (any member at the job's role) ============
 
 router.get('/collections/:id/imports/:jobId', requireApiCollectionRole('editor'), (req: any, res: any) => {

@@ -293,3 +293,59 @@ describe('CSV preview and import', () => {
     await waitForJob(token, `/api/v1/collections/${collection._id}/imports/${first.body.job.id}`);
   });
 });
+
+describe('plugin importer jobs', () => {
+  test('an editor can run a non-admin importer to completion', async () => {
+    const { collection, token } = await seed('editor');
+    const start = await request(app)
+      .post(`/api/v1/collections/${collection._id}/imports/${IMPORTER_ID}`)
+      .set(bearer(token))
+      .send({ titles: ['One', 'Two'], collectionId: String(collection._id) });
+    assert.equal(start.status, 202);
+    assert.equal(start.body.job.kind, 'importer');
+    assert.equal(start.body.job.importerId, IMPORTER_ID);
+    assert.equal(start.body.job.pluginId, IMPORTER_PLUGIN_ID);
+
+    const done = await waitForJob(token, `/api/v1/collections/${collection._id}/imports/${start.body.job.id}`);
+    assert.equal(done.body.job.status, 'finished');
+    assert.equal(done.body.job.result.imported, 2);
+    assert.equal(done.body.job.current, 2);
+    assert.equal(await itemCount(IMPORTER_PLUGIN_KIND, collection._id), 2);
+  });
+
+  test('an editor cannot run an admin-only importer', async () => {
+    const { collection, token } = await seed('editor');
+    const res = await request(app)
+      .post(`/api/v1/collections/${collection._id}/imports/${ADMIN_IMPORTER_ID}`)
+      .set(bearer(token))
+      .send({ token: 'x' });
+    assert.equal(res.status, 403);
+  });
+
+  test('an admin can run an admin-only importer; required fields are checked', async () => {
+    const { collection, token } = await seed('admin');
+    const missing = await request(app)
+      .post(`/api/v1/collections/${collection._id}/imports/${ADMIN_IMPORTER_ID}`)
+      .set(bearer(token))
+      .send({});
+    assert.equal(missing.status, 400);
+    assert.match(missing.body.error, /Missing required fields/);
+
+    const ok = await request(app)
+      .post(`/api/v1/collections/${collection._id}/imports/${ADMIN_IMPORTER_ID}`)
+      .set(bearer(token))
+      .send({ token: 'x', titles: ['Admin One'], collectionId: String(collection._id) });
+    assert.equal(ok.status, 202);
+    const done = await waitForJob(token, `/api/v1/collections/${collection._id}/imports/${ok.body.job.id}`);
+    assert.equal(done.body.job.status, 'finished');
+  });
+
+  test('404 for an unknown importer', async () => {
+    const { collection, token } = await seed();
+    const res = await request(app)
+      .post(`/api/v1/collections/${collection._id}/imports/does-not-exist`)
+      .set(bearer(token))
+      .send({});
+    assert.equal(res.status, 404);
+  });
+});
