@@ -2774,6 +2774,99 @@ paths:
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
 
+  /collections/{id}/settings:
+    get:
+      tags: [Collections]
+      operationId: getCollectionSettings
+      summary: Get a collection's settings
+      description: |
+        Requires `admin` role on the collection. Returns modules, visibility,
+        personalisation and plugin settings as one JSON resource. `theme` is a
+        `collectionType`/`home` -> preset-key map, and `modules`/`theme` always cover
+        every registered plugin.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+      responses:
+        '200':
+          description: The collection's settings.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [settings]
+                properties:
+                  settings: { $ref: '#/components/schemas/CollectionSettings' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    patch:
+      tags: [Collections]
+      operationId: patchCollectionSettings
+      summary: Update a collection's settings
+      description: |
+        Requires `admin` role. Partial update: send only the keys to change. `modules`,
+        `theme`, `pluginSettings` and `visibility` shallow-merge; arrays and scalars
+        replace. Validation happens before any write, so a rejected request changes
+        nothing. Returns the full updated resource.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CollectionSettings' }
+      responses:
+        '200':
+          description: The updated settings.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [settings]
+                properties:
+                  settings: { $ref: '#/components/schemas/CollectionSettings' }
+        '400':
+          description: Invalid or empty patch.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { success: false, error: 'Unknown module: vinyl' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /collections/{id}/settings/options:
+    get:
+      tags: [Collections]
+      operationId: getCollectionSettingsOptions
+      summary: Get the choices for a collection's settings
+      description: |
+        Requires `admin` role. Returns the catalog the admin screens render: available
+        modules and their plugin-settings schema, theme presets, aspect ratios, navbar
+        shortcuts, stats widgets and quick-add options. Labels are raw i18n keys
+        (except theme presets), matching `GET /plugins`.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+      responses:
+        '200':
+          description: The option catalog.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [options]
+                properties:
+                  options: { $ref: '#/components/schemas/CollectionSettingsOptions' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -3328,3 +3421,118 @@ components:
             failedCount: { type: integer }
             saved: { type: boolean }
         error: { type: string }
+
+    CollectionSettings:
+      type: object
+      properties:
+        modules:
+          type: object
+          description: One entry per registered plugin's collectionType.
+          additionalProperties: { type: boolean }
+        mergeDuplicates: { type: boolean }
+        pluginSettings:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties: true
+        visibility:
+          type: object
+          properties:
+            applyToAdmin: { type: boolean }
+            hiddenItems:
+              type: array
+              items: { type: string }
+            hiddenGenres:
+              type: array
+              items: { type: string }
+            hiddenTypes:
+              type: array
+              description: Plugin `kind`s (e.g. `Music`), not collectionTypes.
+              items: { type: string }
+        theme:
+          type: object
+          description: '`home` or a collectionType, mapped to a preset key.'
+          additionalProperties: { type: string }
+        aspectRatioClass: { type: string }
+        navbarShortcuts:
+          type: array
+          items: { type: string }
+        statsWidgets:
+          type: array
+          items: { type: string }
+        fastAdd: { type: string }
+
+    CollectionSettingsOptionGroups:
+      type: array
+      items:
+        type: object
+        required: [group, options]
+        properties:
+          group: { type: string }
+          pluginId: { type: string }
+          options:
+            type: array
+            items:
+              type: object
+              required: [id, label]
+              properties:
+                id: { type: string }
+                label: { type: string }
+                kind: { type: string, enum: [count, top] }
+
+    CollectionSettingsOptions:
+      type: object
+      properties:
+        modules:
+          type: array
+          items:
+            type: object
+            required: [pluginId, collectionType, label, settings]
+            properties:
+              pluginId: { type: string }
+              collectionType: { type: string }
+              label: { type: string }
+              icon: { type: string }
+              enabledByDefault: { type: boolean }
+              apiKeysReady: { type: boolean }
+              settings:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    key: { type: string }
+                    label: { type: string }
+                    type: { type: string }
+                    default: {}
+                    description: { type: string }
+        themePresets:
+          type: array
+          items:
+            type: object
+            required: [value, label]
+            properties:
+              value: { type: string }
+              label: { type: string }
+        aspectRatios:
+          type: array
+          items:
+            type: object
+            required: [value, label]
+            properties:
+              value: { type: string }
+              label: { type: string }
+        navbarShortcuts:
+          $ref: '#/components/schemas/CollectionSettingsOptionGroups'
+        statsWidgets:
+          $ref: '#/components/schemas/CollectionSettingsOptionGroups'
+        fastAdd:
+          type: array
+          items:
+            type: object
+            required: [value, label]
+            properties:
+              value: { type: string }
+              label: { type: string }
+              icon: { type: string }
+              color: { type: string }
+              pluginId: { type: string }
