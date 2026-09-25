@@ -3535,4 +3535,5 @@ components:
               label: { type: string }
               icon: { type: string }
               color: { type: string }
+              url: { type: string }
               pluginId: { type: string }

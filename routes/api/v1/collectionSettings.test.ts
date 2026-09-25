@@ -379,6 +379,36 @@ describe('PATCH /api/v1/collections/:id/settings', () => {
     assert.deepEqual(b.body.settings.visibility, a.body.settings.visibility);
     assert.deepEqual(b.body.settings.statsWidgets, a.body.settings.statsWidgets);
   });
+
+  test('module activity mirrors enabledByDefault when a stored doc predates a plugin', async () => {
+    const { collection, token } = await seed();
+    // Simulate a Settings doc written before `music` (enabledByDefault: true) existed.
+    await Settings.collection.updateOne({ collection: collection._id }, { $unset: { 'modules.music': '' } });
+    const storedModules: Record<string, boolean> = {};
+    for (const p of registry.getAll()) {
+      if (p.collectionType !== 'music') storedModules[p.collectionType] = false;
+    }
+    const res = await patch(token, collection, { modules: storedModules });
+    assert.equal(res.status, 200); // music is absent from the doc but enabled by default
+    assert.equal(res.body.settings.modules.music, true);
+  });
+
+  test('400 for a mixed valid+invalid payload writes nothing', async () => {
+    const { collection, token } = await seed();
+    const res = await patch(token, collection, { mergeDuplicates: false, modules: { nope: true } });
+    assert.equal(res.status, 400);
+    assert.equal(res.body.success, false);
+    const after = await request(app).get(`/api/v1/collections/${collection._id}/settings`).set(bearer(token));
+    assert.equal(after.body.settings.mergeDuplicates, true);
+  });
+
+  test('404 for a malformed or unknown collection on PATCH', async () => {
+    const { token } = await seed();
+    const malformed = await request(app).patch('/api/v1/collections/not-an-id/settings').set(bearer(token)).send({ mergeDuplicates: false });
+    assert.equal(malformed.status, 404);
+    const unknown = await request(app).patch(`/api/v1/collections/${unknownId}/settings`).set(bearer(token)).send({ mergeDuplicates: false });
+    assert.equal(unknown.status, 404);
+  });
 });
 
 describe('GET /api/v1/collections/:id/settings/options', () => {

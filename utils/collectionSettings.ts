@@ -51,7 +51,7 @@ export function serializeCollectionSettings(settings: any) {
     const stored = mapGet(settings?.pluginSettings, plugin.id) || {};
     const bucket: Record<string, any> = {};
     for (const def of declared) {
-      bucket[def.key] = stored[def.key] !== undefined ? stored[def.key] : def.default;
+      bucket[def.key] = stored[def.key] != null ? stored[def.key] : def.default;
     }
     pluginSettings[plugin.id] = bucket;
   }
@@ -124,7 +124,10 @@ export async function buildSettingsUpdate(
   if ('modules' in body) {
     if (!isPlainObject(body.modules)) return { error: 'modules must be an object' };
     const merged: Record<string, boolean> = {};
-    for (const p of plugins) merged[p.collectionType] = !!mapGet(current?.modules, p.collectionType);
+    for (const p of plugins) {
+      const stored = mapGet(current?.modules, p.collectionType);
+      merged[p.collectionType] = stored === undefined ? p.enabledByDefault === true : !!stored;
+    }
     for (const [ct, val] of Object.entries(body.modules)) {
       if (!plugins.some(p => p.collectionType === ct)) return { error: `Unknown module: ${ct}` };
       if (typeof val !== 'boolean') return { error: `Module ${ct} must be a boolean` };
