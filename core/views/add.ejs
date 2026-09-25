@@ -142,7 +142,7 @@
                     <a href="<%= baseUrl %><%= item.confirmPath %>" class="card-theme rounded-xl overflow-hidden hover:border-primary-theme transition-all group flex flex-col hover:shadow-lg hover:-translate-y-1">
                         <div class="relative <%= aspect %> bg-black/5 dark:bg-white/5">
                             <% if (item.cover_image && !item.cover_image.includes('spacer.gif')) { %>
-                                <img src="<%= item.cover_image %>" onerror="this.onerror=null; this.src='<%= baseUrl %>/ressources/logo.png';" class="w-full h-full object-cover">
+                                <img src="<%= item.cover_image %>" loading="lazy" onerror="this.onerror=null; this.src='<%= baseUrl %>/ressources/logo.png';" class="w-full h-full object-cover">
                             <% } else { %>
                                 <div class="w-full h-full flex items-center justify-center opacity-30">
                                     <i class="fa-solid fa-<%= plugin.icon %> text-3xl"></i>
@@ -156,7 +156,9 @@
                             <% if (creatorLine) { %>
                                 <p class="opacity-60 text-xs mb-1 transition-colors line-clamp-1"><%= creatorLine %></p>
                             <% } %>
-                            <p class="opacity-40 text-[10px] mb-2 transition-colors"><%= item.country ? item.country + ' • ' : '' %><%= item.year %></p>
+                            <%# Where the release is from, or what it runs on for a game: one title is
+                                often several results that only this tells apart. %>
+                            <p class="opacity-40 text-[10px] mb-2 transition-colors line-clamp-1"><%= [item.country || item.platforms_text, item.year].filter(Boolean).join(' • ') %></p>
 
                             <%# Where the result came from, so two databases answering the same
                                 query stay tellable apart. Pointless when only one can answer. %>

@@ -1,6 +1,7 @@
 import { PluginDefinition } from '../../core/types';
 import { sourceFromProvider, imageSourceFrom } from '../../core/sources';
 import { IGDBProvider } from './igdb';
+import { ScreenScraperProvider, screenScraperMediaRoute } from './screenscraper';
 import { gamesImporters } from './importers';
 import { escapeRegExp, fetchJson } from '../../core/helpers';
 import { igdbRequest } from './igdbHelper';
@@ -35,6 +36,17 @@ const igdb = sourceFromProvider(igdbProvider, {
       return r;
     });
   }
+});
+
+// The retro side of the catalogue: MS-DOS, arcade and the 8 and 16-bit consoles, which
+// ScreenScraper documents far better than IGDB. Second in line, so IGDB stays the default
+// and the add page offers the choice once both are configured. Only the developer pair is
+// required; the member account in SCREENSCRAPER_USER / SCREENSCRAPER_PASSWORD is what
+// raises the daily quota (see screenscraper.ts).
+const screenscraper = sourceFromProvider(new ScreenScraperProvider(), {
+  id: 'screenscraper',
+  requiredEnvKeys: ['SCREENSCRAPER_DEV_ID', 'SCREENSCRAPER_DEV_PASSWORD'],
+  itemUrl: (id: string) => `https://www.screenscraper.fr/gameinfos.php?gameid=${encodeURIComponent(id)}`
 });
 
 // A game's box art is often on TMDB, which knows the film adaptations and the covers
@@ -93,7 +105,12 @@ export const gamesPlugin: PluginDefinition = {
   extraSearchFields: ['platform', 'publisher'],
   supportsBarcodeSearch: true,
   barcodeNoiseTerms: ['Nintendo', 'PlayStation', 'Xbox', 'PS2', 'PS3', 'PS4', 'PS5', 'Switch', 'Wii U', 'Wii', 'Series X', 'Series S', 'One'],
-  sources: [igdb, tmdbImages, itunesSoftware],
+  sources: [igdb, screenscraper, tmdbImages, itunesSoftware],
+  // Relays ScreenScraper thumbnails to the add page: their own addresses carry the
+  // instance's credentials and must never reach a browser.
+  apiRoutes: [
+    { method: 'get', path: '/api/games/screenscraper/media', requireEditor: true, handler: screenScraperMediaRoute }
+  ],
   imageSearchType: 'game',
   duplicateCheckFields: ['platform', 'region', 'format'],
   aspectRatioClass: 'aspect-[2/3]',
@@ -462,9 +479,14 @@ export const gamesPlugin: PluginDefinition = {
 
   mergeRefresh(item: any, details: any): Record<string, any> {
     const genres = details.genres || [];
+    // A source with no box to offer (or a download that failed) keeps the one the item
+    // has, rather than replacing it with nothing or with the generic logo IGDB falls back to.
+    const freshCover = details.cover_image && details.cover_image !== '/ressources/logo.png'
+      ? details.cover_image
+      : '';
 
     return {
-      cover_image: details.cover_image,
+      cover_image: freshCover || item.cover_image,
       genres,
       genre: genres[0] || '',
       year: details.year,
