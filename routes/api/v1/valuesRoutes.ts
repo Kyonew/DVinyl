@@ -6,6 +6,7 @@ import { registry } from '../../../core/registry';
 import { requireApiAuth } from '../../../middleware/authMiddleware';
 import { requireApiCollectionRole } from '../../../middleware/apiAuthMiddleware';
 import { resolveMemberRole, roleAtLeast } from '../../../utils/collectionHelpers';
+import { getCollectionSettings } from '../../../utils/collectionSettings';
 import { applyVisibilityFilter } from '../../../utils/visibilityHelper';
 import { readEstimateHistory } from '../../../utils/priceHistory';
 import { getValueEstimateJob, startValueEstimate } from '../../../utils/valueEstimates';
@@ -73,15 +74,6 @@ router.get('/collections/:id/value-history', requireApiCollectionRole('viewer'),
   const currency = req.user.currency || 'USD';
   res.status(200).json(await readEstimateHistory(req.apiCollection._id, currency));
 });
-
-/** Settings are per collection; fetched fresh (self-heals a missing row), like collectionsRoutes. */
-async function getCollectionSettings(collectionId: any) {
-  return Settings.findOneAndUpdate(
-    { collection: collectionId },
-    { $setOnInsert: { collection: collectionId } },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
-  ).lean();
-}
 
 /** The client-facing subset of a job: no userId/collectionId/currency bookkeeping. */
 function serializeJob(job: any) {

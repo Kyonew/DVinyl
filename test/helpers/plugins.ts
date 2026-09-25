@@ -207,3 +207,78 @@ export function registerEstimatePlugin(): PluginDefinition {
   registry.register(estimatePlugin);
   return estimatePlugin;
 }
+
+export const OPTIONS_PLUGIN_ID = 'testoptions';
+export const OPTIONS_PLUGIN_KIND = 'TestOptions';
+export const OPTIONS_PLUGIN_TYPE = 'testoptions';
+export const OPTIONS_SETTING_KEY = 'betaMode';
+export const OPTIONS_NAVBAR_IDS = ['testoptions_all', 'testoptions_new', 'testoptions_top', 'testoptions_random'];
+export const OPTIONS_WIDGET_ID = 'testoptions_count';
+export const OPTIONS_FAST_ADD = 'testoptions';
+
+let optionsPlugin: PluginDefinition | undefined;
+
+/**
+ * Declares settings / navbar shortcuts / stats widgets / fastAdd options so the
+ * settings endpoints have a deterministic, network-free catalog to expose.
+ */
+export function registerOptionsPlugin(): PluginDefinition {
+  if (optionsPlugin) return optionsPlugin;
+
+  optionsPlugin = {
+    id: OPTIONS_PLUGIN_ID,
+    kind: OPTIONS_PLUGIN_KIND,
+    label: 'Test Options',
+    icon: 'fa-sliders',
+    routePrefix: '/testoptions',
+    collectionType: OPTIONS_PLUGIN_TYPE,
+    i18nKey: 'testoptions',
+    creatorField: 'creator',
+    externalIdField: 'test_external_id',
+    enabledByDefault: false,
+    supportsBarcodeSearch: false,
+    schemaDefinition: {
+      creator: { type: String, default: '' },
+      test_external_id: { type: String, default: '' }
+    },
+    formFields: [
+      { name: 'title', label: 'Title', type: 'text', required: true, showIn: ['add', 'edit'] }
+    ],
+    formats: [{ value: 'standard', label: 'Standard' }],
+    settings: [
+      {
+        key: OPTIONS_SETTING_KEY,
+        label: 'testoptions.beta',
+        type: 'boolean',
+        default: false,
+        description: 'testoptions.beta_desc'
+      }
+    ],
+    navbarShortcuts: OPTIONS_NAVBAR_IDS.map(id => ({
+      id,
+      label: `testoptions.${id}`,
+      url: `/collection?type=${OPTIONS_PLUGIN_TYPE}`
+    })),
+    statsWidgets: [
+      { id: OPTIONS_WIDGET_ID, label: 'testoptions.count', icon: 'fa-flask', color: 'bg-primary-theme/20', kind: 'count' }
+    ],
+    fastAddOptions: [
+      { value: OPTIONS_FAST_ADD, label: 'testoptions.fast_add', icon: 'fa-flask', color: 'peer-checked:bg-blue-500', url: '/testoptions/add' }
+    ],
+    getStats(items: any[]) {
+      return { [OPTIONS_WIDGET_ID]: items.length };
+    },
+    formatForView(item: any) {
+      return { _id: item._id, title: item.title };
+    },
+    async findDuplicate() {
+      return null;
+    },
+    async getVariants() {
+      return [];
+    }
+  };
+
+  registry.register(optionsPlugin);
+  return optionsPlugin;
+}

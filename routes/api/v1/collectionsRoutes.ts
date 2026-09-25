@@ -19,6 +19,7 @@ import { deleteUnusedManagedItemImages, isJpegBuffer, managedItemImagesForQuery,
 import { requireApiAuth } from '../../../middleware/authMiddleware';
 import { requireApiAdmin, requireApiCollectionRole } from '../../../middleware/apiAuthMiddleware';
 import { generateShareToken, generateUniqueSlug, listUserCollectionsWithRole } from '../../../utils/collectionHelpers';
+import { getCollectionSettings } from '../../../utils/collectionSettings';
 import { resolveShelfItems } from '../../../utils/itemHelpers';
 import { checkCollectionCreation } from '../../../utils/instanceSettings';
 import { applyVisibilityFilter, applyEnabledModulesFilter, applyContainedFilter } from '../../../utils/visibilityHelper';
@@ -65,20 +66,6 @@ router.post('/collections', async (req: any, res: any) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
-
-/**
- * Settings are scoped per collection (models/Settings.ts). Fetched fresh here
- * rather than trusted from res.locals.settings, which middleware/settingsMiddleware.ts
- * only ever populates for the session's active collection - not necessarily the :id
- * this request is about. Mirrors settingsMiddleware's own upsert pattern exactly.
- */
-async function getCollectionSettings(collectionId: any) {
-  return Settings.findOneAndUpdate(
-    { collection: collectionId },
-    { $setOnInsert: { collection: collectionId } },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
-  ).lean();
-}
 
 const MEMBER_ROLES = ['admin', 'editor', 'viewer'];
 const createPassword = (length = 12): string => {
