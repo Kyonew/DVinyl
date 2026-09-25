@@ -80,8 +80,16 @@ describe('import job registry', () => {
     assert.equal(getImportJob(job.id), job);
   });
 
-  test('an expired job is dropped, and is no longer found as running', () => {
+  test('a running job past the TTL is retained and still guards its scope', () => {
     const job = createImportJob({ kind: 'csv', collectionId: 'abc', userId: 'u1', minRole: 'admin' });
+    job.updatedAt = new Date(Date.now() - IMPORT_JOB_TTL_MS - 1000);
+    assert.equal(getImportJob(job.id), job);
+    assert.equal(findRunningJob('collection:abc'), job);
+  });
+
+  test('a terminal job past the TTL is dropped and no longer found as running', () => {
+    const job = createImportJob({ kind: 'csv', collectionId: 'abc', userId: 'u1', minRole: 'admin' });
+    finishImportJob(job, { imported: 1 });
     job.updatedAt = new Date(Date.now() - IMPORT_JOB_TTL_MS - 1000);
     assert.equal(getImportJob(job.id), undefined);
     assert.equal(findRunningJob('collection:abc'), undefined);

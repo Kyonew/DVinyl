@@ -50,7 +50,7 @@ export interface CreateImportJobInput {
   pluginId?: string | null;
 }
 
-/** How long a finished/failed job stays pollable, measured from its last update. */
+/** How long a terminal (finished/failed) job stays pollable, measured from its last update. */
 export const IMPORT_JOB_TTL_MS = 60 * 60 * 1000;
 
 const jobs = new Map<string, ImportJob>();
@@ -60,6 +60,10 @@ export function scopeKeyFor(collectionId?: any): string {
 }
 
 function isExpired(job: ImportJob, now: number): boolean {
+  // A running job is never reclaimed: the backup importers emit no progress, so a long
+  // destructive restore would otherwise be swept mid-flight, freeing the one-import-per-scope
+  // guard and letting a second restore start.
+  if (job.status === 'running') return false;
   return now - job.updatedAt.getTime() > IMPORT_JOB_TTL_MS;
 }
 
