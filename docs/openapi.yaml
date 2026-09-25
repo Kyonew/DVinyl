@@ -3212,6 +3212,75 @@ paths:
               example: { success: false, error: 'Import job not found' }
         '500': { $ref: '#/components/responses/InternalServerError' }
         '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    post:
+      tags: [Collections]
+      operationId: startPluginImporterJob
+      summary: Start a plugin importer job
+      description: |
+        Requires at least `editor` role on the collection, or `admin` when the resolved
+        importer declares `requireAdmin: true`. The final path segment is the importer id
+        from `GET /collections/{id}/importers` (the same segment carries a job id in the
+        `GET` above). The JSON body is passed to the importer unchanged; when the
+        importer declares `ui.fields`, each field marked `required` must be non-empty.
+        Starts a background job and answers `202`; poll `GET /collections/{id}/imports/{jobId}`
+        with the returned id.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+        - name: jobId
+          in: path
+          required: true
+          description: 'For `POST`: the importer id. For `GET`: the job id.'
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: 'Importer inputs; the properties follow the resolved importer''s `ui.fields`.'
+              additionalProperties: true
+      responses:
+        '202':
+          description: The import job started.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [job]
+                properties:
+                  job: { $ref: '#/components/schemas/ImportJob' }
+        '400':
+          description: A field declared `required` by the importer's `ui.fields` is missing.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { success: false, error: 'Missing required fields: Discogs URL' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: The importer requires `admin` and the caller is not an admin.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { success: false, error: 'Forbidden' }
+        '404':
+          description: Unknown importer id.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { success: false, error: 'Importer not found' }
+        '409':
+          description: An import is already running for this collection.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, error, code, job]
+                properties:
+                  success: { type: boolean, enum: [false] }
+                  error: { type: string }
+                  code: { type: string, enum: [import_running] }
+                  job: { $ref: '#/components/schemas/ImportJob' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
 
   /admin/backup/export:
     get:
