@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { requireApiAuth } from '../../../middleware/authMiddleware';
 import { requireApiCollectionRole } from '../../../middleware/apiAuthMiddleware';
 import Settings from '../../../models/Settings';
-import { buildSettingsUpdate, getCollectionSettings, serializeCollectionSettings } from '../../../utils/collectionSettings';
+import { buildSettingsOptions, buildSettingsUpdate, getCollectionSettings, serializeCollectionSettings } from '../../../utils/collectionSettings';
 
 const router = Router();
 
@@ -27,6 +27,10 @@ router.patch('/collections/:id/settings', requireApiCollectionRole('admin'), asy
     { upsert: true, new: true, setDefaultsOnInsert: true }
   ).lean();
   res.status(200).json({ settings: serializeCollectionSettings(updated) });
+});
+
+router.get('/collections/:id/settings/options', requireApiCollectionRole('admin'), async (req: any, res: any) => {
+  res.status(200).json({ options: buildSettingsOptions() });
 });
 
 export = router;

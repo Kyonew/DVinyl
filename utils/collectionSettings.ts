@@ -264,3 +264,81 @@ export async function buildSettingsUpdate(
   if (Object.keys(update).length === 0) return { error: 'Nothing to update' };
   return { update };
 }
+
+const ASPECT_RATIO_LABELS: Record<string, string> = {
+  'aspect-[2/3]': 'create_plugin.shape_poster',
+  'aspect-square': 'create_plugin.shape_square',
+  'aspect-[16/9]': 'create_plugin.shape_screen'
+};
+
+/**
+ * The choices the admin screens render, as data. Derived entirely from the registry
+ * and config (no collection state), so a client can render a full settings screen
+ * without hardcoding the plugin catalog. Labels are raw i18n keys, except theme
+ * presets whose labels are literal strings in config/themes.ts.
+ */
+export function buildSettingsOptions() {
+  const keyStatus = registry.getApiKeyStatus();
+
+  const modules = registry.getAll().map(p => ({
+    pluginId: p.id,
+    collectionType: p.collectionType,
+    label: p.label,
+    icon: p.icon,
+    enabledByDefault: p.enabledByDefault === true,
+    apiKeysReady: keyStatus[p.collectionType] !== false,
+    settings: (p.settings || []).map(s => ({
+      key: s.key,
+      label: s.label,
+      type: s.type,
+      default: s.default,
+      description: s.description
+    }))
+  }));
+
+  const themePresets = Object.entries(PRESETS).map(([value, def]: [string, any]) => ({
+    value,
+    label: def.label
+  }));
+
+  const aspectRatios = CARD_ASPECT_RATIOS.map(value => ({
+    value,
+    label: ASPECT_RATIO_LABELS[value] || value
+  }));
+
+  const navbarShortcuts = [
+    { group: 'global', options: GLOBAL_NAVBAR_SHORTCUTS },
+    ...registry.getAll()
+      .filter(p => (p.navbarShortcuts || []).length > 0)
+      .map(p => ({
+        group: p.collectionType,
+        pluginId: p.id,
+        options: (p.navbarShortcuts || []).map(s => ({ id: s.id, label: s.label }))
+      }))
+  ];
+
+  const statsWidgets = [
+    { group: 'global', options: GLOBAL_STATS_WIDGETS },
+    ...registry.getAll()
+      .filter(p => (p.statsWidgets || []).length > 0)
+      .map(p => ({
+        group: p.collectionType,
+        pluginId: p.id,
+        options: (p.statsWidgets || []).map(w => ({ id: w.id, label: w.label, kind: w.kind }))
+      }))
+  ];
+
+  const fastAdd = [
+    { value: '', label: 'perso.fastAdd_disabled', icon: 'fa-xmark', color: 'peer-checked:bg-gray-500' },
+    ...registry.getAll().flatMap(p => (p.fastAddOptions || []).map(o => ({
+      value: o.value,
+      label: o.label,
+      icon: o.icon,
+      color: o.color,
+      url: o.url,
+      pluginId: p.id
+    })))
+  ];
+
+  return { modules, themePresets, aspectRatios, navbarShortcuts, statsWidgets, fastAdd };
+}

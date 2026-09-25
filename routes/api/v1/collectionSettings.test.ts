@@ -2,6 +2,7 @@ import { describe, test, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import request from 'supertest';
 import Settings from '../../../models/Settings';
+import { buildSettingsOptions } from '../../../utils/collectionSettings';
 import { buildApiApp } from '../../../test/helpers/app';
 import { startDb, stopDb, clearDb } from '../../../test/helpers/db';
 import { makeUser, makeCollection, makeSettings, makeItem } from '../../../test/helpers/factories';
@@ -377,5 +378,100 @@ describe('PATCH /api/v1/collections/:id/settings', () => {
     assert.equal(b.status, 200);
     assert.deepEqual(b.body.settings.visibility, a.body.settings.visibility);
     assert.deepEqual(b.body.settings.statsWidgets, a.body.settings.statsWidgets);
+  });
+});
+
+describe('GET /api/v1/collections/:id/settings/options', () => {
+  test('401 without a bearer token', async () => {
+    const { collection } = await seed();
+    const res = await request(app).get(`/api/v1/collections/${collection._id}/settings/options`);
+    assert.equal(res.status, 401);
+  });
+
+  test('403 for a viewer', async () => {
+    const { collection, token } = await seed('viewer');
+    const res = await request(app).get(`/api/v1/collections/${collection._id}/settings/options`).set(bearer(token));
+    assert.equal(res.status, 403);
+  });
+
+  test('404 for an unknown collection', async () => {
+    const { token } = await seed();
+    const res = await request(app).get(`/api/v1/collections/${unknownId}/settings/options`).set(bearer(token));
+    assert.equal(res.status, 404);
+  });
+
+  test('200 exposes every registered plugin as a module with its settings schema', async () => {
+    const { collection, token } = await seed();
+    const res = await request(app).get(`/api/v1/collections/${collection._id}/settings/options`).set(bearer(token));
+    assert.equal(res.status, 200);
+    const options = res.body.options;
+    const ids = options.modules.map((m: any) => m.pluginId);
+    assert.ok(ids.includes('music'));
+    assert.ok(ids.includes(OPTIONS_PLUGIN_ID));
+
+    const ours = options.modules.find((m: any) => m.pluginId === OPTIONS_PLUGIN_ID);
+    assert.equal(ours.collectionType, OPTIONS_PLUGIN_TYPE);
+    assert.equal(ours.enabledByDefault, false);
+    assert.equal(ours.apiKeysReady, true);
+    assert.equal(ours.settings[0].key, OPTIONS_SETTING_KEY);
+    assert.equal(ours.settings[0].type, 'boolean');
+  });
+
+  test('200 exposes theme presets including default', async () => {
+    const { collection, token } = await seed();
+    const res = await request(app).get(`/api/v1/collections/${collection._id}/settings/options`).set(bearer(token));
+    const presets = res.body.options.themePresets;
+    assert.ok(presets.some((p: any) => p.value === 'default'));
+    assert.equal(typeof presets[0].label, 'string');
+  });
+
+  test('200 exposes exactly the allowed aspect ratios', async () => {
+    const { collection, token } = await seed();
+    const res = await request(app).get(`/api/v1/collections/${collection._id}/settings/options`).set(bearer(token));
+    assert.deepEqual(
+      res.body.options.aspectRatios.map((a: any) => a.value),
+      [...CARD_ASPECT_RATIOS]
+    );
+  });
+
+  test('200 exposes global and plugin navbar shortcut groups', async () => {
+    const { collection, token } = await seed();
+    const res = await request(app).get(`/api/v1/collections/${collection._id}/settings/options`).set(bearer(token));
+    const groups = res.body.options.navbarShortcuts;
+    assert.equal(groups[0].group, 'global');
+    assert.ok(groups[0].options.some((o: any) => o.id === 'global_home' && o.label === 'nav.home'));
+    const ours = groups.find((g: any) => g.pluginId === OPTIONS_PLUGIN_ID);
+    assert.deepEqual(ours.options.map((o: any) => o.id), OPTIONS_NAVBAR_IDS);
+  });
+
+  test('200 exposes stats widgets with their kind', async () => {
+    const { collection, token } = await seed();
+    const res = await request(app).get(`/api/v1/collections/${collection._id}/settings/options`).set(bearer(token));
+    const groups = res.body.options.statsWidgets;
+    const global = groups[0];
+    assert.equal(global.group, 'global');
+    assert.equal(global.options[0].id, 'total');
+    assert.equal(global.options[0].kind, 'count');
+    const ours = groups.find((g: any) => g.pluginId === OPTIONS_PLUGIN_ID);
+    assert.deepEqual(ours.options.map((w: any) => w.id), [OPTIONS_WIDGET_ID]);
+  });
+
+  test('200 exposes the disabled fastAdd entry plus plugin options', async () => {
+    const { collection, token } = await seed();
+    const res = await request(app).get(`/api/v1/collections/${collection._id}/settings/options`).set(bearer(token));
+    const fastAdd = res.body.options.fastAdd;
+    assert.equal(fastAdd[0].value, '');
+    const ours = fastAdd.find((o: any) => o.value === OPTIONS_FAST_ADD);
+    assert.equal(ours.pluginId, OPTIONS_PLUGIN_ID);
+  });
+
+  test('the builder is pure and needs no collection document', async () => {
+    const options = buildSettingsOptions();
+    assert.ok(Array.isArray(options.modules));
+    assert.ok(Array.isArray(options.themePresets));
+    assert.ok(Array.isArray(options.aspectRatios));
+    assert.ok(Array.isArray(options.navbarShortcuts));
+    assert.ok(Array.isArray(options.statsWidgets));
+    assert.ok(Array.isArray(options.fastAdd));
   });
 });
