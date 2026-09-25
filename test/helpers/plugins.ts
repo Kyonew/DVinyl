@@ -282,3 +282,83 @@ export function registerOptionsPlugin(): PluginDefinition {
   registry.register(optionsPlugin);
   return optionsPlugin;
 }
+
+export const IMPORTER_PLUGIN_ID = 'testimporter';
+export const IMPORTER_PLUGIN_KIND = 'TestImporter';
+export const IMPORTER_PLUGIN_TYPE = 'testimporter';
+export const IMPORTER_ID = 'test-import';
+export const ADMIN_IMPORTER_ID = 'test-import-admin';
+
+/** Importer that runs to completion on its own, emitting the same events as the real ones. */
+export const importerState = {
+  created: [] as string[]
+};
+
+export function registerImporterPlugin(): PluginDefinition {
+  const existing = registry.get(IMPORTER_PLUGIN_ID);
+  if (existing) return existing;
+
+  const handler = async (req: any) => {
+    const titles: string[] = Array.isArray(req.body?.titles) ? req.body.titles : ['Imported One'];
+    req.io.emit('import_progress', { current: 0, total: titles.length });
+    for (let i = 0; i < titles.length; i++) {
+      await mongoose.model(IMPORTER_PLUGIN_KIND).create({
+        title: titles[i],
+        creator: 'Imported',
+        owner: req.user._id,
+        // The web handlers read res.locals.activeCollectionId; the runner sets it. The
+        // fake reads req.body.collectionId instead so its assertions are self-contained.
+        collection: req.body.collectionId
+      });
+      importerState.created.push(String(titles[i]));
+      req.io.emit('import_progress', { current: i + 1, total: titles.length });
+    }
+    req.io.emit('import_finished', { count: titles.length });
+  };
+
+  const plugin: PluginDefinition = {
+    id: IMPORTER_PLUGIN_ID,
+    kind: IMPORTER_PLUGIN_KIND,
+    label: 'Test Importer',
+    icon: 'fa-flask',
+    routePrefix: '/testimporter',
+    collectionType: IMPORTER_PLUGIN_TYPE,
+    i18nKey: 'testimporter',
+    creatorField: 'creator',
+    schemaDefinition: { creator: { type: String, default: '' } },
+    formFields: [
+      { name: 'title', label: 'Title', type: 'text', required: true, showIn: ['add', 'edit'] }
+    ],
+    formats: [{ value: 'standard', label: 'Standard' }],
+    getStats(items: any[]) { return { testimporter: items.length }; },
+    formatForView(item: any) { return { _id: item._id, title: item.title, creator: item.creator }; },
+    async findDuplicate() { return null; },
+    async getVariants() { return []; },
+    importers: [
+      {
+        id: IMPORTER_ID,
+        handler,
+        ui: {
+          label: 'Test import',
+          icon: 'fa-file-import',
+          fields: [{ name: 'titles', label: 'Titles', type: 'text' }],
+          submitLabel: 'Import'
+        }
+      },
+      {
+        id: ADMIN_IMPORTER_ID,
+        requireAdmin: true,
+        handler,
+        ui: {
+          label: 'Test admin import',
+          icon: 'fa-file-import',
+          fields: [{ name: 'token', label: 'Token', type: 'text', required: true }],
+          submitLabel: 'Import'
+        }
+      }
+    ]
+  };
+
+  registry.register(plugin);
+  return plugin;
+}

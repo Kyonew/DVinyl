@@ -6,6 +6,9 @@ import { buildCollectionBackup, buildCollectionCsv } from '../../../utils/backup
 import { sendBackupArchive } from '../../../core/backupArchive';
 import { ImportJob, findRunningJob } from '../../../utils/importJobs';
 import { GenericCsvFailure } from '../../../core/genericCsvImport';
+import { registry } from '../../../core/registry';
+import { importableFields } from '../../../core/csvMapping';
+import { CSV_DELIMITERS } from '../../../core/helpers';
 
 /**
  * Import and export over /api/v1.
@@ -110,6 +113,85 @@ router.get('/collections/:id/export.zip', requireApiCollectionRole('admin'), asy
     if (!res.headersSent) res.status(500).json({ success: false, error: 'Export failed' });
     else res.destroy(err as Error);
   }
+});
+
+// ============ IMPORTER CATALOG (collection editor) ============
+
+function serializeImporter(importer: any, plugin: any) {
+  const ui = importer.ui;
+  return {
+    id: importer.id,
+    pluginId: plugin.id,
+    pluginLabel: plugin.label,
+    requiresAdmin: !!importer.requireAdmin,
+    generic: false,
+    ui: ui ? {
+      label: ui.label,
+      icon: ui.icon,
+      description: ui.description ?? null,
+      color: ui.color ?? null,
+      help: ui.help ?? [],
+      warning: ui.warning ?? null,
+      submitLabel: ui.submitLabel,
+      fields: (ui.fields || []).map((f: any) => ({
+        name: f.name,
+        label: f.label,
+        type: f.type,
+        required: !!f.required,
+        placeholder: f.placeholder ?? null,
+        hint: f.hint ?? null,
+        accept: f.accept ?? null,
+        fileEncoding: f.fileEncoding ?? null,
+        default: f.default ?? null,
+        options: f.options ?? null
+      }))
+    } : null
+  };
+}
+
+function genericCsvImporter(enabled: any[], t: any) {
+  return {
+    id: 'csv',
+    pluginId: null,
+    pluginLabel: null,
+    requiresAdmin: true,
+    generic: true,
+    ui: {
+      label: 'admin.csv_import.title',
+      icon: 'fa-file-csv',
+      description: t('admin.csv_import.subtitle'),
+      color: null,
+      help: [],
+      warning: null,
+      submitLabel: 'admin.csv_import.btn_import',
+      fields: [
+        { name: 'csv', label: 'admin.csv_import.file_label', type: 'file', required: true, accept: '.csv', fileEncoding: 'text', placeholder: null, hint: null, default: null, options: null },
+        { name: 'plugin', label: 'admin.csv_import.module_label', type: 'select', required: true, placeholder: null, hint: 'admin.csv_import.module_hint', accept: null, fileEncoding: null, default: null, options: enabled.map((p: any) => ({ value: p.id, label: p.label })) },
+        { name: 'delimiter', label: 'admin.csv_import.delimiter_label', type: 'select', required: false, placeholder: null, hint: 'admin.csv_import.delimiter_hint', accept: null, fileEncoding: null, default: 'auto', options: CSV_DELIMITERS.map(d => ({ value: d, label: d })) },
+        { name: 'type', label: 'admin.csv_import.target_label', type: 'select', required: false, placeholder: null, hint: null, accept: null, fileEncoding: null, default: 'collection', options: [ { value: 'collection', label: 'admin.csv_import.target_collection' }, { value: 'wishlist', label: 'admin.csv_import.target_wishlist' } ] },
+        { name: 'enrich', label: 'admin.csv_import.enrich_label', type: 'select', required: false, placeholder: null, hint: 'admin.csv_import.enrich_hint', accept: null, fileEncoding: null, default: 'false', options: [ { value: 'false', label: 'common.no' }, { value: 'true', label: 'common.yes' } ] }
+      ]
+    }
+  };
+}
+
+router.get('/collections/:id/importers', requireApiCollectionRole('editor'), async (req: any, res: any) => {
+  const settings = await getCollectionSettings(req.apiCollection._id);
+  const enabled = registry.getEnabled(settings);
+  const importers = enabled.flatMap(p => (p.importers || []).map(i => serializeImporter(i, p)));
+  importers.push(genericCsvImporter(enabled, req.t));
+  res.status(200).json({
+    importers,
+    csv: {
+      delimiters: [...CSV_DELIMITERS],
+      targets: enabled.map(p => ({
+        pluginId: p.id,
+        collectionType: p.collectionType,
+        label: p.label,
+        fields: importableFields(p, settings, req.t)
+      }))
+    }
+  });
 });
 
 export = router;

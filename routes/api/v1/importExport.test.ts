@@ -8,18 +8,22 @@ import { signAccessToken, bearer } from '../../../test/helpers/auth';
 import {
   loadPluginsOnce, registerTestPlugin, TEST_PLUGIN_KIND, TEST_PLUGIN_TYPE
 } from '../../../test/helpers/plugins';
+import {
+  registerImporterPlugin, IMPORTER_ID, ADMIN_IMPORTER_ID,
+  IMPORTER_PLUGIN_ID, IMPORTER_PLUGIN_KIND, IMPORTER_PLUGIN_TYPE
+} from '../../../test/helpers/plugins';
 
 const app = buildApiApp();
 const unknownId = '64b7f9c2f1a2b3c4d5e6f7a8';
 
-before(async () => { loadPluginsOnce(); registerTestPlugin(); await startDb(); });
+before(async () => { loadPluginsOnce(); registerTestPlugin(); registerImporterPlugin(); await startDb(); });
 after(async () => { await stopDb(); });
 beforeEach(async () => { await clearDb(); });
 
 async function seed(role: 'admin' | 'editor' | 'viewer' = 'admin', items = 0) {
   const { user } = await makeUser();
   const collection = await makeCollection({ members: [{ user, role }] });
-  await makeSettings(collection, { modules: { [TEST_PLUGIN_TYPE]: true } });
+  await makeSettings(collection, { modules: { [TEST_PLUGIN_TYPE]: true, [IMPORTER_PLUGIN_TYPE]: true } });
   for (let i = 0; i < items; i++) {
     await makeItem(TEST_PLUGIN_KIND, { title: `Item ${i}`, creator: 'Ann', owner: user._id, collection: collection._id });
   }
@@ -89,5 +93,58 @@ describe('GET /api/v1/collections/:id/export.zip', () => {
     assert.equal(res.status, 200);
     assert.match(res.headers['content-type']!, /application\/zip/);
     assert.equal((res.body as Buffer).subarray(0, 2).toString('binary'), 'PK');
+  });
+});
+
+describe('GET /api/v1/collections/:id/importers', () => {
+  test('401 without a token and 403 for a viewer', async () => {
+    const { collection } = await seed();
+    assert.equal((await request(app).get(`/api/v1/collections/${collection._id}/importers`)).status, 401);
+    const viewer = await seed('viewer');
+    const res = await request(app)
+      .get(`/api/v1/collections/${viewer.collection._id}/importers`)
+      .set(bearer(viewer.token));
+    assert.equal(res.status, 403);
+  });
+
+  test('lists enabled importers with their ui and role flag', async () => {
+    const { collection, token } = await seed();
+    const res = await request(app)
+      .get(`/api/v1/collections/${collection._id}/importers`)
+      .set(bearer(token));
+    assert.equal(res.status, 200);
+    const test = res.body.importers.find((i: any) => i.id === IMPORTER_ID);
+    assert.ok(test);
+    assert.equal(test.pluginId, IMPORTER_PLUGIN_ID);
+    assert.equal(test.requiresAdmin, false);
+    assert.equal(typeof test.ui.label, 'string');
+    const admin = res.body.importers.find((i: any) => i.id === ADMIN_IMPORTER_ID);
+    assert.equal(admin.requiresAdmin, true);
+    const generic = res.body.importers.find((i: any) => i.generic === true);
+    assert.equal(generic.id, 'csv');
+    assert.equal(generic.requiresAdmin, true);
+  });
+
+  test('omits importers of a disabled module', async () => {
+    const { user } = await makeUser();
+    const collection = await makeCollection({ members: [{ user, role: 'admin' }] });
+    await makeSettings(collection, { modules: { [TEST_PLUGIN_TYPE]: true } });
+    const res = await request(app)
+      .get(`/api/v1/collections/${collection._id}/importers`)
+      .set(bearer(signAccessToken(user._id)));
+    assert.equal(res.status, 200);
+    assert.equal(res.body.importers.some((i: any) => i.id === IMPORTER_ID), false);
+  });
+
+  test('exposes csv targets with importable fields for enabled plugins', async () => {
+    const { collection, token } = await seed();
+    const res = await request(app)
+      .get(`/api/v1/collections/${collection._id}/importers`)
+      .set(bearer(token));
+    assert.ok(res.body.csv.delimiters.includes(','));
+    assert.ok(res.body.csv.delimiters.includes(';'));
+    const target = res.body.csv.targets.find((t: any) => t.pluginId === IMPORTER_PLUGIN_ID);
+    assert.ok(target);
+    assert.ok(target.fields.some((f: any) => f.name === 'title'));
   });
 });
