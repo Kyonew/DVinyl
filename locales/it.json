@@ -529,6 +529,8 @@
     "deselect_all": "Deseleziona tutto",
     "cancel_select": "Annulla",
     "selected_count_suffix": "selezionato/i",
+    "hide_select_bar": "Nascondi la barra di selezione",
+    "show_select_bar": "Mostra la barra di selezione",
     "print_selected_qr": "Stampa i codici QR",
     "print_selected_barcode": "Stampa i codici a barre",
     "delete_selected": "Elimina selezionati",

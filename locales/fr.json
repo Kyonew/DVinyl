@@ -747,6 +747,8 @@
     "deselect_all": "Tout désélectionner",
     "cancel_select": "Annuler",
     "selected_count_suffix": "sélectionné(s)",
+    "hide_select_bar": "Masquer la barre de sélection",
+    "show_select_bar": "Afficher la barre de sélection",
     "print_selected_qr": "Imprimer les QR codes",
     "print_selected_barcode": "Imprimer les codes-barres",
     "delete_selected": "Supprimer la sélection",

@@ -121,8 +121,16 @@
     </div>
 
     <% if (locals.canEditCollection) { %>
-    <div id="bulkActionBar" class="hidden fixed bottom-6 inset-x-0 z-40 flex justify-center px-4">
-        <div class="card-theme border rounded-2xl shadow-2xl px-5 py-3 flex flex-wrap items-center justify-center gap-3">
+    <div id="bulkActionBar" class="hidden fixed bottom-0 md:bottom-6 inset-x-0 z-40 flex flex-col items-center md:px-4 pointer-events-none">
+        <%# Folds the bar down to this tab so it stops covering the last cards; the
+            count moves onto the tab while the bar is folded. %>
+        <button type="button" id="bulkBarToggle" onclick="toggleBulkBarCollapsed()"
+            class="card-theme border border-b-0 rounded-t-xl -mb-px relative z-10 px-4 py-1 flex items-center gap-2 text-xs font-bold shadow-lg pointer-events-auto"
+            title="<%= t('collection.hide_select_bar') %>" aria-label="<%= t('collection.hide_select_bar') %>" aria-expanded="true">
+            <i id="bulkBarToggleIcon" class="fa-solid fa-chevron-down"></i>
+            <span id="bulkTabCount" class="hidden opacity-80"></span>
+        </button>
+        <div id="bulkBarPanel" class="card-theme border w-full md:w-auto rounded-t-2xl md:rounded-2xl shadow-2xl px-5 py-3 flex flex-wrap items-center justify-center gap-3 pointer-events-auto">
             <span id="bulkSelectedCount" class="text-sm font-bold opacity-80">0 <%= t('collection.selected_count_suffix') %></span>
             <button type="button" id="selectAllBtn" onclick="toggleSelectAll()"
                 class="px-4 py-2 bg-black/5 dark:bg-white/10 rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all">
@@ -318,6 +326,8 @@
             lastSelectedIndex = null;
             const bar = document.getElementById('bulkActionBar');
             if (bar) bar.classList.toggle('hidden', !selectMode);
+            // Each select session opens with the bar unfolded.
+            setBulkBarCollapsed(false);
             const btn = document.getElementById('selectModeBtn');
             if (btn) btn.classList.toggle('bg-primary-theme', selectMode);
             if (btn) btn.classList.toggle('text-white', selectMode);
@@ -343,11 +353,42 @@
             if (selectMode) toggleSelectMode();
         }
 
+        const hideSelectBarLabel = <%- JSON.stringify(t('collection.hide_select_bar')) %>;
+        const showSelectBarLabel = <%- JSON.stringify(t('collection.show_select_bar')) %>;
+        let bulkBarCollapsed = false;
+
+        function setBulkBarCollapsed(collapsed) {
+            bulkBarCollapsed = collapsed;
+            document.getElementById('bulkBarPanel')?.classList.toggle('hidden', collapsed);
+            const toggle = document.getElementById('bulkBarToggle');
+            if (toggle) {
+                const label = collapsed ? showSelectBarLabel : hideSelectBarLabel;
+                toggle.title = label;
+                toggle.setAttribute('aria-label', label);
+                toggle.setAttribute('aria-expanded', String(!collapsed));
+                // Folded on a wide screen, the tab floats alone and needs all its corners.
+                toggle.classList.toggle('md:rounded-b-xl', collapsed);
+                toggle.classList.toggle('md:border-b', collapsed);
+            }
+            const icon = document.getElementById('bulkBarToggleIcon');
+            if (icon) {
+                icon.classList.toggle('fa-chevron-down', !collapsed);
+                icon.classList.toggle('fa-chevron-up', collapsed);
+            }
+            document.getElementById('bulkTabCount')?.classList.toggle('hidden', !collapsed);
+        }
+
+        function toggleBulkBarCollapsed() {
+            setBulkBarCollapsed(!bulkBarCollapsed);
+        }
+
         function updateSelectedCount() {
             const checkboxes = document.querySelectorAll('.album-select-checkbox');
             const count = document.querySelectorAll('.album-select-checkbox:checked').length;
             const countEl = document.getElementById('bulkSelectedCount');
             if (countEl) countEl.textContent = count + ' ' + selectedCountSuffix;
+            const tabCountEl = document.getElementById('bulkTabCount');
+            if (tabCountEl) tabCountEl.textContent = count + ' ' + selectedCountSuffix;
 
             const selectAllBtn = document.getElementById('selectAllBtn');
             if (selectAllBtn) {

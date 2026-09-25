@@ -747,6 +747,8 @@
     "deselect_all": "Deselect all",
     "cancel_select": "Cancel",
     "selected_count_suffix": "selected",
+    "hide_select_bar": "Hide the selection bar",
+    "show_select_bar": "Show the selection bar",
     "print_selected_qr": "Print QR labels",
     "print_selected_barcode": "Print barcode labels",
     "delete_selected": "Delete selected",

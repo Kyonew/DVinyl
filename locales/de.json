@@ -529,6 +529,8 @@
     "deselect_all": "Auswahl aufheben",
     "cancel_select": "Abbrechen",
     "selected_count_suffix": "ausgewählt",
+    "hide_select_bar": "Auswahlleiste ausblenden",
+    "show_select_bar": "Auswahlleiste einblenden",
     "print_selected_qr": "QR-Etiketten drucken",
     "print_selected_barcode": "Barcode-Etiketten drucken",
     "delete_selected": "Auswahl löschen",
