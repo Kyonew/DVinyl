@@ -181,16 +181,17 @@ describe('GET /api/v1/collections/:id/importers', () => {
   });
 });
 
-async function waitForJob(token: string, path: string, timeoutMs = 15000) {
+async function waitForJob(token: string, path: string, timeoutMs = 15000, retryOn401 = false) {
   const deadline = Date.now() + timeoutMs;
   let last: any = null;
   while (Date.now() < deadline) {
     const res = await request(app).get(path).set(bearer(token));
     // An instance restore wipes and rebuilds the users table, so a poll issued while
     // that runs authenticates against a momentarily empty User collection and 401s.
-    // The account (same _id, same lastChange) is back when the job finishes, so retry
-    // until the deadline instead of treating the 401 as the job's terminal answer.
-    if (res.status === 401) {
+    // Only the instance round-trip opts into retrying (the account, same _id/lastChange,
+    // is back when the job finishes); every other caller keeps the strict contract so a
+    // genuine auth failure still surfaces as the 401 it is.
+    if (retryOn401 && res.status === 401) {
       await new Promise(resolve => setTimeout(resolve, 20));
       continue;
     }
@@ -508,7 +509,7 @@ describe('instance backup', () => {
     assert.equal(start.status, 202);
     assert.equal(start.body.job.kind, 'instance_backup');
 
-    const done = await waitForJob(token, `/api/v1/admin/backup/imports/${start.body.job.id}`, 10000);
+    const done = await waitForJob(token, `/api/v1/admin/backup/imports/${start.body.job.id}`, 10000, true);
     assert.equal(done.body.job.status, 'finished');
     assert.equal(await itemCount(TEST_PLUGIN_KIND, collection._id), 1);
   });
