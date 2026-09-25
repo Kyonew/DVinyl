@@ -14,6 +14,7 @@ import {
   registerImporterPlugin, IMPORTER_ID, ADMIN_IMPORTER_ID,
   IMPORTER_PLUGIN_ID, IMPORTER_PLUGIN_KIND, IMPORTER_PLUGIN_TYPE
 } from '../../../test/helpers/plugins';
+import User from '../../../models/User';
 
 const app = buildApiApp();
 const unknownId = '64b7f9c2f1a2b3c4d5e6f7a8';
@@ -185,6 +186,14 @@ async function waitForJob(token: string, path: string, timeoutMs = 15000) {
   let last: any = null;
   while (Date.now() < deadline) {
     const res = await request(app).get(path).set(bearer(token));
+    // An instance restore wipes and rebuilds the users table, so a poll issued while
+    // that runs authenticates against a momentarily empty User collection and 401s.
+    // The account (same _id, same lastChange) is back when the job finishes, so retry
+    // until the deadline instead of treating the 401 as the job's terminal answer.
+    if (res.status === 401) {
+      await new Promise(resolve => setTimeout(resolve, 20));
+      continue;
+    }
     if (res.status !== 200) return res;
     last = res.body.job;
     if (last.status !== 'running') return res;
@@ -195,6 +204,10 @@ async function waitForJob(token: string, path: string, timeoutMs = 15000) {
 
 function itemCount(kind: string, collectionId: any): Promise<number> {
   return itemModel(kind).countDocuments({ collection: collectionId });
+}
+
+function countUsers(): Promise<number> {
+  return User.countDocuments();
 }
 
 describe('CSV preview and import', () => {
@@ -421,5 +434,82 @@ describe('collection backup import', () => {
     const titles = (await itemModel(TEST_PLUGIN_KIND)
       .find({ collection: collection._id }).lean()).map((i: any) => i.title).sort();
     assert.deepEqual(titles, ['Fresh One', 'Fresh Two']);
+  });
+});
+
+describe('instance backup', () => {
+  test('401 without a token and 403 for a non-admin user', async () => {
+    assert.equal((await request(app).get('/api/v1/admin/backup/export')).status, 401);
+    const { user } = await makeUser();
+    const token = signAccessToken(user._id);
+    assert.equal((await request(app).get('/api/v1/admin/backup/export').set(bearer(token))).status, 403);
+  });
+
+  test('an instance admin gets the instance dump and its zip', async () => {
+    const { user } = await makeUser({ isAdmin: true });
+    const token = signAccessToken(user._id);
+    const json = await request(app).get('/api/v1/admin/backup/export').set(bearer(token));
+    assert.equal(json.status, 200);
+    assert.ok(Array.isArray(json.body.users));
+    assert.ok(Array.isArray(json.body.albums));
+
+    const zip = await request(app)
+      .get('/api/v1/admin/backup/export.zip')
+      .set(bearer(token))
+      .buffer(true)
+      .parse((r, cb) => {
+        const chunks: Buffer[] = [];
+        r.on('data', (c: Buffer) => chunks.push(c));
+        r.on('end', () => cb(null, Buffer.concat(chunks)));
+      });
+    assert.equal(zip.status, 200);
+    assert.equal((zip.body as Buffer).subarray(0, 2).toString('binary'), 'PK');
+  });
+
+  test('400 when the import archive is missing; 403 for a non-admin', async () => {
+    const { user } = await makeUser({ isAdmin: true });
+    const token = signAccessToken(user._id);
+    const missing = await request(app).post('/api/v1/admin/backup/import').set(bearer(token));
+    assert.equal(missing.status, 400);
+
+    const { user: plain } = await makeUser();
+    const forbidden = await request(app)
+      .post('/api/v1/admin/backup/import')
+      .set(bearer(signAccessToken(plain._id)))
+      .attach('backup', Buffer.from('{}'), 'dump.json');
+    assert.equal(forbidden.status, 403);
+  });
+
+  test('a 400 dump does not wipe the instance', async () => {
+    const { user } = await makeUser({ isAdmin: true });
+    const token = signAccessToken(user._id);
+    const res = await request(app)
+      .post('/api/v1/admin/backup/import')
+      .set(bearer(token))
+      .attach('backup', Buffer.from(JSON.stringify({ not: 'a dump' })), 'dump.json');
+    assert.equal(res.status, 202);
+    const done = await waitForJob(token, `/api/v1/admin/backup/imports/${res.body.job.id}`);
+    assert.equal(done.body.job.status, 'failed');
+    assert.equal(await countUsers(), 1, 'the user is still there');
+  });
+
+  test('round-trips an instance dump through the job API', async () => {
+    const { user } = await makeUser({ isAdmin: true });
+    const collection = await makeCollection({ members: [{ user, role: 'admin' }] });
+    await makeSettings(collection);
+    await makeItem(TEST_PLUGIN_KIND, { title: 'Kept', creator: 'Ann', owner: user._id, collection: collection._id });
+    const token = signAccessToken(user._id);
+
+    const dump = (await request(app).get('/api/v1/admin/backup/export').set(bearer(token))).body;
+    const start = await request(app)
+      .post('/api/v1/admin/backup/import')
+      .set(bearer(token))
+      .attach('backup', Buffer.from(JSON.stringify(dump)), 'dump.json');
+    assert.equal(start.status, 202);
+    assert.equal(start.body.job.kind, 'instance_backup');
+
+    const done = await waitForJob(token, `/api/v1/admin/backup/imports/${start.body.job.id}`, 10000);
+    assert.equal(done.body.job.status, 'finished');
+    assert.equal(await itemCount(TEST_PLUGIN_KIND, collection._id), 1);
   });
 });

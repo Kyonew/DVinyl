@@ -1,11 +1,13 @@
 import { Router } from 'express';
 import { requireApiAuth } from '../../../middleware/authMiddleware';
-import { requireApiCollectionRole } from '../../../middleware/apiAuthMiddleware';
+import { requireApiAdmin, requireApiCollectionRole } from '../../../middleware/apiAuthMiddleware';
 import { getCollectionSettings } from '../../../utils/collectionSettings';
 import {
   buildCollectionBackup,
   buildCollectionCsv,
+  buildInstanceBackup,
   importCollectionBackup,
+  importInstanceBackup,
   loadBackupArchive,
   receiveBackupArchive
 } from '../../../utils/backupOperations';
@@ -351,6 +353,57 @@ router.get('/collections/:id/imports/:jobId', requireApiCollectionRole('editor')
   }
   if (job.minRole === 'admin' && req.apiCollectionRole !== 'admin') {
     return res.status(403).json({ success: false, error: 'Forbidden' });
+  }
+  res.status(200).json({ job: serializeJob(job) });
+});
+
+// ============ INSTANCE BACKUP (instance admin) ============
+
+router.get('/admin/backup/export', requireApiAdmin, async (req: any, res: any) => {
+  try {
+    const data = await buildInstanceBackup();
+    res.setHeader('Content-disposition', `attachment; filename=dvinyl_instance_${fileNameDate()}.json`);
+    res.setHeader('Content-type', 'application/json');
+    res.send(JSON.stringify(data, null, 2));
+  } catch (err: any) {
+    console.error('[API] Instance export failed:', err);
+    res.status(500).json({ success: false, error: 'Export failed' });
+  }
+});
+
+router.get('/admin/backup/export.zip', requireApiAdmin, async (req: any, res: any) => {
+  try {
+    const data = await buildInstanceBackup();
+    await sendBackupArchive(res, data, `dvinyl_instance_${fileNameDate()}.zip`);
+  } catch (err: any) {
+    console.error('[API] Instance archive export failed:', err);
+    if (!res.headersSent) res.status(500).json({ success: false, error: 'Export failed' });
+    else res.destroy(err as Error);
+  }
+});
+
+router.post(
+  '/admin/backup/import',
+  requireApiAdmin,
+  receiveBackupArchive,
+  loadBackupArchive,
+  (req: any, res: any) => {
+    if (runningConflict(res, 'instance')) return;
+    const job = createImportJob({
+      kind: 'instance_backup',
+      collectionId: null,
+      userId: req.user._id,
+      minRole: 'admin'
+    });
+    res.status(202).json({ job: serializeJob(job) });
+    startImportJob({ req, res, job, run: (r, s) => importInstanceBackup(r, s) });
+  }
+);
+
+router.get('/admin/backup/imports/:jobId', requireApiAdmin, (req: any, res: any) => {
+  const job = getImportJob(String(req.params.jobId));
+  if (!job || job.scopeKey !== 'instance') {
+    return res.status(404).json({ success: false, error: 'Import job not found' });
   }
   res.status(200).json({ job: serializeJob(job) });
 });
