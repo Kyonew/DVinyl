@@ -1,7 +1,9 @@
 import { describe, test, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
+import express from 'express';
 import request from 'supertest';
 import { buildApiApp } from '../../../test/helpers/app';
+import apiV1Routes from './index';
 import { startDb, stopDb, clearDb } from '../../../test/helpers/db';
 import { makeUser, makeCollection, makeSettings, makeItem, itemModel } from '../../../test/helpers/factories';
 import { signAccessToken, bearer } from '../../../test/helpers/auth';
@@ -15,6 +17,22 @@ import {
 
 const app = buildApiApp();
 const unknownId = '64b7f9c2f1a2b3c4d5e6f7a8';
+
+// Same shim as test/helpers/app.ts, but with a translator that actually rewrites
+// keys, so a response that leaked translated labels would be visible.
+function buildTranslatingApp(): express.Express {
+  const translatingApp = express();
+  translatingApp.use(express.json({ limit: '50mb' }));
+  translatingApp.use(express.urlencoded({ limit: '50mb', extended: true }));
+  translatingApp.use((req: any, res: any, next: any) => {
+    req.t = (key: string) => `TR:${key}`;
+    req.io = { emit() {}, to() { return { emit() {} }; } };
+    res.locals = {};
+    next();
+  });
+  translatingApp.use('/api/v1', apiV1Routes);
+  return translatingApp;
+}
 
 before(async () => { loadPluginsOnce(); registerTestPlugin(); registerImporterPlugin(); await startDb(); });
 after(async () => { await stopDb(); });
@@ -146,5 +164,18 @@ describe('GET /api/v1/collections/:id/importers', () => {
     const target = res.body.csv.targets.find((t: any) => t.pluginId === IMPORTER_PLUGIN_ID);
     assert.ok(target);
     assert.ok(target.fields.some((f: any) => f.name === 'title'));
+  });
+
+  test('returns raw i18n keys even when req.t translates', async () => {
+    const { collection, token } = await seed();
+    const res = await request(buildTranslatingApp())
+      .get(`/api/v1/collections/${collection._id}/importers`)
+      .set(bearer(token));
+    assert.equal(res.status, 200);
+    const generic = res.body.importers.find((i: any) => i.generic === true);
+    assert.equal(generic.ui.description, 'admin.csv_import.subtitle');
+    const target = res.body.csv.targets.find((t: any) => t.pluginId === IMPORTER_PLUGIN_ID);
+    const title = target.fields.find((f: any) => f.name === 'title');
+    assert.equal(title.label, 'admin.csv_import.field.title');
   });
 });

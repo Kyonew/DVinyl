@@ -117,6 +117,10 @@ router.get('/collections/:id/export.zip', requireApiCollectionRole('admin'), asy
 
 // ============ IMPORTER CATALOG (collection editor) ============
 
+// The API returns raw i18n keys (the client localizes), so never route catalog
+// labels through the request translator.
+const rawLabel = (key: string) => key;
+
 function serializeImporter(importer: any, plugin: any) {
   const ui = importer.ui;
   return {
@@ -149,7 +153,7 @@ function serializeImporter(importer: any, plugin: any) {
   };
 }
 
-function genericCsvImporter(enabled: any[], t: any) {
+function genericCsvImporter(enabled: any[]) {
   return {
     id: 'csv',
     pluginId: null,
@@ -159,7 +163,7 @@ function genericCsvImporter(enabled: any[], t: any) {
     ui: {
       label: 'admin.csv_import.title',
       icon: 'fa-file-csv',
-      description: t('admin.csv_import.subtitle'),
+      description: 'admin.csv_import.subtitle',
       color: null,
       help: [],
       warning: null,
@@ -179,7 +183,7 @@ router.get('/collections/:id/importers', requireApiCollectionRole('editor'), asy
   const settings = await getCollectionSettings(req.apiCollection._id);
   const enabled = registry.getEnabled(settings);
   const importers = enabled.flatMap(p => (p.importers || []).map(i => serializeImporter(i, p)));
-  importers.push(genericCsvImporter(enabled, req.t));
+  importers.push(genericCsvImporter(enabled));
   res.status(200).json({
     importers,
     csv: {
@@ -188,7 +192,7 @@ router.get('/collections/:id/importers', requireApiCollectionRole('editor'), asy
         pluginId: p.id,
         collectionType: p.collectionType,
         label: p.label,
-        fields: importableFields(p, settings, req.t)
+        fields: importableFields(p, settings, rawLabel)
       }))
     }
   });
