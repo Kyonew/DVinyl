@@ -349,3 +349,77 @@ describe('plugin importer jobs', () => {
     assert.equal(res.status, 404);
   });
 });
+
+describe('collection backup import', () => {
+  test('401 without a token and 403 for an editor', async () => {
+    const { collection } = await seed();
+    const noToken = await request(app)
+      .post(`/api/v1/collections/${collection._id}/imports/backup`)
+      .attach('backup', Buffer.from('{}'), 'dump.json');
+    assert.equal(noToken.status, 401);
+    const editor = await seed('editor');
+    const forbidden = await request(app)
+      .post(`/api/v1/collections/${editor.collection._id}/imports/backup`)
+      .set(bearer(editor.token))
+      .attach('backup', Buffer.from('{}'), 'dump.json');
+    assert.equal(forbidden.status, 403);
+  });
+
+  test('400 when the archive is missing', async () => {
+    const { collection, token } = await seed();
+    const res = await request(app)
+      .post(`/api/v1/collections/${collection._id}/imports/backup`)
+      .set(bearer(token));
+    assert.equal(res.status, 400);
+    assert.equal(res.body.success, false);
+  });
+
+  test('400 for an unparseable JSON dump, without wiping', async () => {
+    const { collection, token } = await seed('admin', 2);
+    const res = await request(app)
+      .post(`/api/v1/collections/${collection._id}/imports/backup`)
+      .set(bearer(token))
+      .attach('backup', Buffer.from('not json'), 'dump.json');
+    assert.equal(res.status, 400);
+    assert.equal(res.body.success, false);
+    assert.equal(await itemCount(TEST_PLUGIN_KIND, collection._id), 2);
+  });
+
+  test('a valid JSON object missing the albums array fails the job without wiping', async () => {
+    const { collection, token } = await seed('admin', 2);
+    const start = await request(app)
+      .post(`/api/v1/collections/${collection._id}/imports/backup`)
+      .set(bearer(token))
+      .attach('backup', Buffer.from(JSON.stringify({ users: [] })), 'dump.json');
+    assert.equal(start.status, 202);
+    const done = await waitForJob(token, `/api/v1/collections/${collection._id}/imports/${start.body.job.id}`);
+    assert.equal(done.body.job.status, 'failed');
+    assert.equal(await itemCount(TEST_PLUGIN_KIND, collection._id), 2);
+  });
+
+  test('a JSON dump replaces the collection items and reports a job', async () => {
+    const { collection, token } = await seed('admin', 2);
+    const dump = {
+      collectionName: collection.name,
+      albums: [
+        { title: 'Fresh One', creator: 'Ann', kind: TEST_PLUGIN_KIND },
+        { title: 'Fresh Two', creator: 'Bob', kind: TEST_PLUGIN_KIND }
+      ],
+      settings: null,
+      metadata: { version: 'test', type: 'collection' }
+    };
+    const start = await request(app)
+      .post(`/api/v1/collections/${collection._id}/imports/backup`)
+      .set(bearer(token))
+      .attach('backup', Buffer.from(JSON.stringify(dump)), 'dump.json');
+    assert.equal(start.status, 202);
+    assert.equal(start.body.job.kind, 'collection_backup');
+
+    const done = await waitForJob(token, `/api/v1/collections/${collection._id}/imports/${start.body.job.id}`);
+    assert.equal(done.body.job.status, 'finished');
+    assert.equal(await itemCount(TEST_PLUGIN_KIND, collection._id), 2);
+    const titles = (await itemModel(TEST_PLUGIN_KIND)
+      .find({ collection: collection._id }).lean()).map((i: any) => i.title).sort();
+    assert.deepEqual(titles, ['Fresh One', 'Fresh Two']);
+  });
+});

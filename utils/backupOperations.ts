@@ -34,20 +34,27 @@ export const receiveBackupArchive = (req: any, res: any, next: any) => {
     backupArchiveUpload.single('backup')(req, res, (err: any) => {
         if (!err) return next();
         const tooLarge = err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE';
-        return res.status(tooLarge ? 413 : 400).json({ error: tooLarge ? 'Backup archive too large' : 'Invalid backup archive' });
+        return res.status(tooLarge ? 413 : 400).json({ success: false, error: tooLarge ? 'Backup archive too large' : 'Invalid backup archive' });
     });
 };
 
 export const loadBackupArchive = async (req: any, res: any, next: any) => {
-    if (!req.file?.path) return res.status(400).json({ error: 'Backup archive missing' });
+    if (!req.file?.path) return res.status(400).json({ success: false, error: 'Backup archive missing' });
     try {
-        const imported = await readBackupArchive(req.file.path);
-        req.body = imported.data;
-        req.importedManagedImagePaths = imported.importedImages;
+        const bytes = await fs.readFile(req.file.path);
+        if (bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 0x03 && bytes[3] === 0x04) {
+            const imported = await readBackupArchive(req.file.path);
+            req.body = imported.data;
+            req.importedManagedImagePaths = imported.importedImages;
+        } else {
+            // A plain .json dump is the same payload without the archive wrapper.
+            req.body = JSON.parse(bytes.toString('utf8'));
+            req.importedManagedImagePaths = [];
+        }
         next();
     } catch (err) {
         console.warn('[BACKUP] Invalid archive:', err);
-        res.status(400).json({ error: 'Backup archive corrupted or invalid' });
+        res.status(400).json({ success: false, error: 'Backup archive corrupted or invalid' });
     } finally {
         try {
             await fs.unlink(req.file.path);

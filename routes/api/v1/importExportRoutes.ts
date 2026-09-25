@@ -2,7 +2,13 @@ import { Router } from 'express';
 import { requireApiAuth } from '../../../middleware/authMiddleware';
 import { requireApiCollectionRole } from '../../../middleware/apiAuthMiddleware';
 import { getCollectionSettings } from '../../../utils/collectionSettings';
-import { buildCollectionBackup, buildCollectionCsv } from '../../../utils/backupOperations';
+import {
+  buildCollectionBackup,
+  buildCollectionCsv,
+  importCollectionBackup,
+  loadBackupArchive,
+  receiveBackupArchive
+} from '../../../utils/backupOperations';
 import { sendBackupArchive } from '../../../core/backupArchive';
 import { ImportJob, createImportJob, findRunningJob, getImportJob } from '../../../utils/importJobs';
 import { GenericCsvFailure, buildGenericCsvSpec, previewCsv } from '../../../core/genericCsvImport';
@@ -267,6 +273,36 @@ function missingImporterFields(importer: any, body: any): string | null {
     .map((f: any) => f.label);
   return missing.length > 0 ? `Missing required fields: ${missing.join(', ')}` : null;
 }
+
+// ============ COLLECTION BACKUP IMPORT (collection admin) ============
+
+router.post(
+  '/collections/:id/imports/backup',
+  requireApiCollectionRole('admin'),
+  receiveBackupArchive,
+  loadBackupArchive,
+  (req: any, res: any) => {
+    const scopeKey = `collection:${req.apiCollection._id}`;
+    if (runningConflict(res, scopeKey)) return;
+
+    const job = createImportJob({
+      kind: 'collection_backup',
+      collectionId: req.apiCollection._id,
+      userId: req.user._id,
+      minRole: 'admin'
+    });
+    res.status(202).json({ job: serializeJob(job) });
+    startImportJob({
+      req,
+      res,
+      job,
+      collection: req.apiCollection,
+      run: (r, s) => importCollectionBackup(r, s)
+    });
+  }
+);
+
+// ============ PLUGIN IMPORTER JOBS (collection editor, admin importers admin-only) ============
 
 router.post('/collections/:id/imports/:importerId', requireApiCollectionRole('editor'), async (req: any, res: any) => {
   const settings = await getCollectionSettings(req.apiCollection._id);
