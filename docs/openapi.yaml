@@ -3043,7 +3043,8 @@ paths:
         Requires `admin` role. Validates `plugin` against the collection's enabled
         modules and `mapping` against that module's importable fields, then starts a
         background job and answers `202`. Poll `GET /collections/{id}/imports/{jobId}`.
-        Only one import may run per collection at a time.
+        Only one import may run per collection at a time. `mapping` is required only
+        when the selected module has required fields.
       parameters:
         - $ref: '#/components/parameters/CollectionId'
       requestBody:
@@ -3052,13 +3053,15 @@ paths:
           application/json:
             schema:
               type: object
-              required: [csv, plugin, mapping]
+              required: [csv, plugin]
               properties:
                 csv: { type: string, description: Raw CSV text. }
                 plugin: { type: string, description: 'Enabled module id, e.g. `music`.' }
                 mapping:
                   type: object
-                  description: 'Per target field: `{ source: "column", column: "Title" }` or a constant value.'
+                  description: >
+                    Per target field: `{ source: "column", column: "Title" }` or a constant
+                    value. Required only when the selected module has required fields.
                 delimiter: { type: string }
                 type:
                   type: string
@@ -3421,8 +3424,16 @@ paths:
       description: |
         Requires an instance admin. Returns the job's status, progress and, once
         terminal, its result or error. A job that is unknown, expired or belongs to a
-        collection import is `404`. Jobs live in memory and expire one hour after their
-        last update.
+        collection import is `404`.
+
+        A `401` is not necessarily terminal here: while a running whole-instance restore
+        has replaced and not yet re-inserted the user records, the caller's token cannot
+        be resolved and this endpoint transiently answers `401`. Clients polling an
+        instance-restore job must retry a `401` until the job reaches a terminal status
+        rather than treating it as an auth failure.
+
+        Jobs live in memory and are reclaimed one hour after the last update, but only
+        once terminal — a running job never expires.
       parameters:
         - name: jobId
           in: path
@@ -3439,7 +3450,20 @@ paths:
                 required: [job]
                 properties:
                   job: { $ref: '#/components/schemas/ImportJob' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
+        '401':
+          description: >
+            Missing, invalid or expired Bearer token. May also be returned transiently
+            while a running whole-instance restore has replaced the user table; retry
+            until the job is terminal instead of treating it as terminal.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                missing:
+                  value: { success: false, error: 'Missing bearer token' }
+                invalid:
+                  value: { success: false, error: 'Invalid or expired token' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404':
           description: Unknown, expired or non-instance job.

@@ -254,28 +254,6 @@ router.post('/collections/:id/imports/csv', requireApiCollectionRole('admin'), a
   });
 });
 
-// ============ PLUGIN IMPORTER JOBS (collection editor, admin importers admin-only) ============
-
-function findImporter(settings: any, importerId: string): { plugin: any; importer: any } | null {
-  for (const plugin of registry.getEnabled(settings)) {
-    const importer = (plugin.importers || []).find((i: any) => i.id === importerId);
-    if (importer) return { plugin, importer };
-  }
-  return null;
-}
-
-function missingImporterFields(importer: any, body: any): string | null {
-  const fields = importer.ui?.fields || [];
-  const missing = fields
-    .filter((f: any) => f.required)
-    .filter((f: any) => {
-      const value = body?.[f.name];
-      return value === undefined || value === null || value === '';
-    })
-    .map((f: any) => f.label);
-  return missing.length > 0 ? `Missing required fields: ${missing.join(', ')}` : null;
-}
-
 // ============ COLLECTION BACKUP IMPORT (collection admin) ============
 
 router.post(
@@ -305,6 +283,26 @@ router.post(
 );
 
 // ============ PLUGIN IMPORTER JOBS (collection editor, admin importers admin-only) ============
+
+function findImporter(settings: any, importerId: string): { plugin: any; importer: any } | null {
+  for (const plugin of registry.getEnabled(settings)) {
+    const importer = (plugin.importers || []).find((i: any) => i.id === importerId);
+    if (importer) return { plugin, importer };
+  }
+  return null;
+}
+
+function missingImporterFields(importer: any, body: any): string | null {
+  const fields = importer.ui?.fields || [];
+  const missing = fields
+    .filter((f: any) => f.required)
+    .filter((f: any) => {
+      const value = body?.[f.name];
+      return value === undefined || value === null || value === '';
+    })
+    .map((f: any) => f.label);
+  return missing.length > 0 ? `Missing required fields: ${missing.join(', ')}` : null;
+}
 
 router.post('/collections/:id/imports/:importerId', requireApiCollectionRole('editor'), async (req: any, res: any) => {
   const settings = await getCollectionSettings(req.apiCollection._id);
