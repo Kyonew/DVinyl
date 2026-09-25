@@ -4,8 +4,10 @@ import { requireApiCollectionRole } from '../../../middleware/apiAuthMiddleware'
 import { getCollectionSettings } from '../../../utils/collectionSettings';
 import { buildCollectionBackup, buildCollectionCsv } from '../../../utils/backupOperations';
 import { sendBackupArchive } from '../../../core/backupArchive';
-import { ImportJob, findRunningJob } from '../../../utils/importJobs';
-import { GenericCsvFailure } from '../../../core/genericCsvImport';
+import { ImportJob, createImportJob, findRunningJob, getImportJob } from '../../../utils/importJobs';
+import { GenericCsvFailure, buildGenericCsvSpec, previewCsv } from '../../../core/genericCsvImport';
+import { runCsvImport } from '../../../core/csvImport';
+import { startImportJob } from '../../../utils/apiImportRunner';
 import { registry } from '../../../core/registry';
 import { importableFields } from '../../../core/csvMapping';
 import { CSV_DELIMITERS } from '../../../core/helpers';
@@ -196,6 +198,65 @@ router.get('/collections/:id/importers', requireApiCollectionRole('editor'), asy
       }))
     }
   });
+});
+
+// ============ GENERIC CSV IMPORT (collection admin) ============
+//
+// Route order in this file is load-bearing: the literal `csv`, `csv/preview` and
+// `backup` paths must be registered before `:importerId`, or Express reads them as
+// an importer id.
+
+router.post('/collections/:id/imports/csv/preview', requireApiCollectionRole('admin'), (req: any, res: any) => {
+  const result = previewCsv(req.body?.csv, req.body?.delimiter);
+  if ('error' in result) {
+    return res.status(400).json({ success: false, error: csvErrorText(result) });
+  }
+  res.status(200).json(result.preview);
+});
+
+router.post('/collections/:id/imports/csv', requireApiCollectionRole('admin'), async (req: any, res: any) => {
+  const settings = await getCollectionSettings(req.apiCollection._id);
+  const built = buildGenericCsvSpec({
+    body: req.body,
+    settings,
+    enabledPlugins: registry.getEnabled(settings),
+    t: req.t
+  });
+  if ('error' in built) {
+    return res.status(400).json({ success: false, error: csvErrorText(built) });
+  }
+
+  const scopeKey = `collection:${req.apiCollection._id}`;
+  if (runningConflict(res, scopeKey)) return;
+
+  const job = createImportJob({
+    kind: 'csv',
+    collectionId: req.apiCollection._id,
+    userId: req.user._id,
+    minRole: 'admin',
+    pluginId: built.target.plugin.id
+  });
+  res.status(202).json({ job: serializeJob(job) });
+  startImportJob({
+    req,
+    res,
+    job,
+    collection: req.apiCollection,
+    run: (r, s) => runCsvImport(r, s, built.target.spec)
+  });
+});
+
+// ============ JOB POLLING (any member at the job's role) ============
+
+router.get('/collections/:id/imports/:jobId', requireApiCollectionRole('editor'), (req: any, res: any) => {
+  const job = getImportJob(String(req.params.jobId));
+  if (!job || job.collectionId !== String(req.apiCollection._id)) {
+    return res.status(404).json({ success: false, error: 'Import job not found' });
+  }
+  if (job.minRole === 'admin' && req.apiCollectionRole !== 'admin') {
+    return res.status(403).json({ success: false, error: 'Forbidden' });
+  }
+  res.status(200).json({ job: serializeJob(job) });
 });
 
 export = router;

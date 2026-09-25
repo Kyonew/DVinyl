@@ -8,7 +8,7 @@ import { startDb, stopDb, clearDb } from '../../../test/helpers/db';
 import { makeUser, makeCollection, makeSettings, makeItem, itemModel } from '../../../test/helpers/factories';
 import { signAccessToken, bearer } from '../../../test/helpers/auth';
 import {
-  loadPluginsOnce, registerTestPlugin, TEST_PLUGIN_KIND, TEST_PLUGIN_TYPE
+  loadPluginsOnce, registerTestPlugin, TEST_PLUGIN_ID, TEST_PLUGIN_KIND, TEST_PLUGIN_TYPE
 } from '../../../test/helpers/plugins';
 import {
   registerImporterPlugin, IMPORTER_ID, ADMIN_IMPORTER_ID,
@@ -177,5 +177,119 @@ describe('GET /api/v1/collections/:id/importers', () => {
     const target = res.body.csv.targets.find((t: any) => t.pluginId === IMPORTER_PLUGIN_ID);
     const title = target.fields.find((f: any) => f.name === 'title');
     assert.equal(title.label, 'admin.csv_import.field.title');
+  });
+});
+
+async function waitForJob(token: string, path: string, timeoutMs = 15000) {
+  const deadline = Date.now() + timeoutMs;
+  let last: any = null;
+  while (Date.now() < deadline) {
+    const res = await request(app).get(path).set(bearer(token));
+    if (res.status !== 200) return res;
+    last = res.body.job;
+    if (last.status !== 'running') return res;
+    await new Promise(resolve => setTimeout(resolve, 20));
+  }
+  throw new Error(`job did not finish: ${JSON.stringify(last)}`);
+}
+
+function itemCount(kind: string, collectionId: any): Promise<number> {
+  return itemModel(kind).countDocuments({ collection: collectionId });
+}
+
+describe('CSV preview and import', () => {
+  test('preview returns columns and samples', async () => {
+    const { collection, token } = await seed();
+    const res = await request(app)
+      .post(`/api/v1/collections/${collection._id}/imports/csv/preview`)
+      .set(bearer(token))
+      .send({ csv: 'Title,Creator\nAlpha,Ann' });
+    assert.equal(res.status, 200);
+    assert.deepEqual(res.body.columns, ['Title', 'Creator']);
+    assert.equal(res.body.total, 1);
+  });
+
+  test('preview 400 on an empty file', async () => {
+    const { collection, token } = await seed();
+    const res = await request(app)
+      .post(`/api/v1/collections/${collection._id}/imports/csv/preview`)
+      .set(bearer(token))
+      .send({ csv: '' });
+    assert.equal(res.status, 400);
+    assert.equal(res.body.success, false);
+  });
+
+  test('starts a job, creates items, and finishes with a normalized result', async () => {
+    const { collection, token } = await seed();
+    const start = await request(app)
+      .post(`/api/v1/collections/${collection._id}/imports/csv`)
+      .set(bearer(token))
+      .send({
+        csv: 'Title,Creator\nAlpha,Ann\nBeta,Bob',
+        plugin: TEST_PLUGIN_ID,
+        mapping: { title: { source: 'column', column: 'Title' }, creator: { source: 'column', column: 'Creator' } }
+      });
+    assert.equal(start.status, 202);
+    assert.equal(start.body.job.status, 'running');
+    assert.equal(start.body.job.pluginId, TEST_PLUGIN_ID);
+
+    const done = await waitForJob(token, `/api/v1/collections/${collection._id}/imports/${start.body.job.id}`);
+    assert.equal(done.body.job.status, 'finished');
+    assert.equal(done.body.job.result.imported, 2);
+    assert.equal(await itemCount(TEST_PLUGIN_KIND, collection._id), 2);
+  });
+
+  test('creates no job for an unknown module', async () => {
+    const { collection, token } = await seed();
+    const res = await request(app)
+      .post(`/api/v1/collections/${collection._id}/imports/csv`)
+      .set(bearer(token))
+      .send({ csv: 'Title\nA', plugin: 'nope', mapping: {} });
+    assert.equal(res.status, 400);
+    assert.match(res.body.error, /Unknown module: nope/);
+  });
+
+  test('creates no job when a required field is unmapped', async () => {
+    const { collection, token } = await seed();
+    const res = await request(app)
+      .post(`/api/v1/collections/${collection._id}/imports/csv`)
+      .set(bearer(token))
+      .send({ csv: 'Creator\nAnn', plugin: TEST_PLUGIN_ID, mapping: { creator: { source: 'column', column: 'Creator' } } });
+    assert.equal(res.status, 400);
+    assert.match(res.body.error, /Missing required fields/);
+  });
+
+  test('job poll 404 for an unknown id, and 403 for a viewer', async () => {
+    const { collection, token } = await seed();
+    assert.equal((await request(app).get(`/api/v1/collections/${collection._id}/imports/deadbeef`).set(bearer(token))).status, 404);
+    const viewer = await seed('viewer');
+    assert.equal((await request(app).get(`/api/v1/collections/${viewer.collection._id}/imports/deadbeef`).set(bearer(viewer.token))).status, 403);
+  });
+
+  test('job poll 404 when the job belongs to another collection', async () => {
+    const first = await seed();
+    const start = await request(app)
+      .post(`/api/v1/collections/${first.collection._id}/imports/csv`)
+      .set(bearer(first.token))
+      .send({ csv: 'Title\nA', plugin: TEST_PLUGIN_ID, mapping: { title: { source: 'column', column: 'Title' } } });
+    await waitForJob(first.token, `/api/v1/collections/${first.collection._id}/imports/${start.body.job.id}`);
+    const second = await seed();
+    const res = await request(app)
+      .get(`/api/v1/collections/${second.collection._id}/imports/${start.body.job.id}`)
+      .set(bearer(second.token));
+    assert.equal(res.status, 404);
+  });
+
+  test('a second import on the same collection is 409 with the running job', async () => {
+    const { collection, token } = await seed();
+    const rows = Array.from({ length: 500 }, (_, i) => `Row ${i}`).join('\n');
+    const body = { csv: `Title\n${rows}`, plugin: TEST_PLUGIN_ID, mapping: { title: { source: 'column', column: 'Title' } } };
+    const first = await request(app).post(`/api/v1/collections/${collection._id}/imports/csv`).set(bearer(token)).send(body);
+    assert.equal(first.status, 202);
+    const second = await request(app).post(`/api/v1/collections/${collection._id}/imports/csv`).set(bearer(token)).send(body);
+    assert.equal(second.status, 409);
+    assert.equal(second.body.code, 'import_running');
+    assert.equal(second.body.job.id, first.body.job.id);
+    await waitForJob(token, `/api/v1/collections/${collection._id}/imports/${first.body.job.id}`);
   });
 });
