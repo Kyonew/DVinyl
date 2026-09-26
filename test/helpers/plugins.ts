@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { registry } from '../../core/registry';
 import { loadPlugins } from '../../core/loadPlugins';
 import { PluginDefinition } from '../../core/types';
+import { PermanentRefreshError } from '../../core/helpers';
 
 let loaded = false;
 export function loadPluginsOnce(): void {
@@ -361,4 +362,74 @@ export function registerImporterPlugin(): PluginDefinition {
 
   registry.register(plugin);
   return plugin;
+}
+
+export const REFRESH_PLUGIN_ID = 'testrefresh';
+export const REFRESH_PLUGIN_KIND = 'TestRefresh';
+export const REFRESH_PLUGIN_TYPE = 'testrefresh';
+
+/**
+ * Scriptable, network-free state for the fake refresh provider. `outcomes` is consumed one
+ * entry per `refreshItem` call (default `'ok'`), so a test can force a mixed run; `delayMs`
+ * keeps a run in flight long enough to exercise the 409 guard.
+ */
+export const refreshPluginState = {
+  outcomes: [] as ('ok' | 'transient' | 'permanent')[],
+  calls: [] as string[],
+  delayMs: 0
+};
+
+let refreshPlugin: PluginDefinition | undefined;
+
+/** Deterministic refresh-capable plugin; nothing here touches the network. */
+export function registerRefreshPlugin(): PluginDefinition {
+  if (refreshPlugin) return refreshPlugin;
+
+  refreshPlugin = {
+    id: REFRESH_PLUGIN_ID,
+    kind: REFRESH_PLUGIN_KIND,
+    label: 'Test Refresh',
+    icon: 'fa-rotate',
+    routePrefix: '/testrefresh',
+    collectionType: REFRESH_PLUGIN_TYPE,
+    i18nKey: 'testrefresh',
+    creatorField: 'creator',
+    externalIdField: 'test_external_id',
+    bulkRefreshDelayMs: 0,
+    supportsBarcodeSearch: false,
+    schemaDefinition: {
+      creator: { type: String, default: '' },
+      test_external_id: { type: String, default: '' }
+    },
+    formFields: [
+      { name: 'title', label: 'Title', type: 'text', required: true, showIn: ['add', 'edit'] },
+      { name: 'creator', label: 'Creator', type: 'text', showIn: ['add', 'edit'] }
+    ],
+    formats: [{ value: 'standard', label: 'Standard' }],
+    async refreshItem(item: any) {
+      refreshPluginState.calls.push(String(item._id));
+      if (refreshPluginState.delayMs > 0) {
+        await new Promise(r => setTimeout(r, refreshPluginState.delayMs));
+      }
+      const outcome = refreshPluginState.outcomes.shift() ?? 'ok';
+      if (outcome === 'permanent') throw new PermanentRefreshError('permanent test failure');
+      if (outcome === 'transient') throw new Error('transient test failure');
+      return { creator: 'Refreshed Creator', genre: 'Rock', genres: ['Rock'], styles: ['Indie'] };
+    },
+    getStats(items: any[]) {
+      return { testrefresh: items.length };
+    },
+    formatForView(item: any) {
+      return { _id: item._id, title: item.title, creator: item.creator };
+    },
+    async findDuplicate() {
+      return null;
+    },
+    async getVariants() {
+      return [];
+    }
+  };
+
+  registry.register(refreshPlugin);
+  return refreshPlugin;
 }
