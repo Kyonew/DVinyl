@@ -9,7 +9,7 @@ need the keys for the media types you actually plan to use, and **every key is f
 | Books | Hardcover | `HARDCOVER_API_KEY` | Books, manga, comics |
 | Movies | TMDB | `TMDB_API_KEY` | Blu-ray, 4K, DVD, VHS |
 | Games | IGDB (Twitch) | `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET` | Video games |
-| Games | ScreenScraper (optional) | `SCREENSCRAPER_DEV_ID`, `SCREENSCRAPER_DEV_PASSWORD`, optionally `SCREENSCRAPER_USER`, `SCREENSCRAPER_PASSWORD` | Retro, arcade and MS-DOS games |
+| Games | ScreenScraper (optional) | Built into the official image; optionally `SCREENSCRAPER_USER`, `SCREENSCRAPER_PASSWORD` | Retro, arcade and MS-DOS games |
 | LEGO | Rebrickable | `REBRICKABLE_API_KEY` | LEGO sets |
 | Board games | BoardGameGeek | `BGG_API_KEY` | Board games |
 
@@ -72,9 +72,10 @@ add page offers a choice between the two, and the admin panel sets which one com
 ScreenScraper asks for two pairs of credentials:
 
 - **The developer pair** (`SCREENSCRAPER_DEV_ID`, `SCREENSCRAPER_DEV_PASSWORD`) identifies the
-  software. ScreenScraper issues it to the people who publish a scraper, on their
-  [developer forum](https://www.screenscraper.fr/forumsujets.php?frub=12&numpage=0), and not to
-  each of its users. The source stays off until both are set.
+  software. The official Docker image already carries DVinyl's own, so there is nothing to set.
+  Only a build of your own (from source, or a fork) needs a pair, which ScreenScraper issues on
+  its [developer forum](https://www.screenscraper.fr/forumsujets.php?frub=12&numpage=0). A pair
+  set in `.env` always takes precedence over the built-in one.
 - **Your member account** (`SCREENSCRAPER_USER`, `SCREENSCRAPER_PASSWORD`) is optional: it is the
   login of a free [screenscraper.fr](https://www.screenscraper.fr/) account. ScreenScraper counts
   its quotas per member, so without one every lookup draws on the smallest allowance there is.

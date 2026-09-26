@@ -16,3 +16,6 @@ CLAUDE.md
 /docs/roadmap.md
 /docs/superpowers
 /.superpowers
+
+# ScreenScraper developer pair, written into the official image by CI only
+/plugins/games/screenscraper.dev.json

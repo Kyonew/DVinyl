@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { SearchProvider, SearchOptions, SearchResult, ConfirmData } from '../../core/types';
 import { BASE_URL } from '../../config/constants';
 import { isJpegBuffer, storeItemImage, MAX_ITEM_IMAGE_UPLOAD_BYTES } from '../../core/itemImageStorage';
@@ -23,7 +25,9 @@ const pkg = require('../../package.json');
 
 const API_BASE = 'https://api.screenscraper.fr/api2';
 const SOFT_NAME = `DVinyl-${pkg.version}`;
-const REQUEST_TIMEOUT_MS = 15000;
+// jeuRecherche routinely takes 10 to 20 seconds to answer, so anything shorter cuts off
+// searches that were about to succeed.
+const REQUEST_TIMEOUT_MS = 45000;
 const MEDIA_TIMEOUT_MS = 20000;
 // jeuRecherche answers up to 30 games ranked by likelihood. Each shown result costs a
 // thumbnail request against the member's quota, and past the first dozen the ranking has
@@ -57,6 +61,28 @@ export function languagePriorities(language?: string): string[] {
   const own = (language || '').slice(0, 2);
   return [...new Set([own, 'en', 'fr'].filter(Boolean))];
 }
+
+// The official image carries DVinyl's own developer pair, written at build time from the
+// repository's CI secrets. It only fills in what the environment leaves unset, so an
+// instance with a pair of its own keeps using it, and a build without the secrets (a fork,
+// a local `docker build`, a run from source) simply has no file here.
+const BUNDLED_DEV_CREDENTIALS = path.join(__dirname, 'screenscraper.dev.json');
+
+function loadBundledDevCredentials(): void {
+  if (process.env.SCREENSCRAPER_DEV_ID && process.env.SCREENSCRAPER_DEV_PASSWORD) return;
+  try {
+    const { id, password } = JSON.parse(fs.readFileSync(BUNDLED_DEV_CREDENTIALS, 'utf8'));
+    if (typeof id === 'string' && id && typeof password === 'string' && password) {
+      process.env.SCREENSCRAPER_DEV_ID = id;
+      process.env.SCREENSCRAPER_DEV_PASSWORD = password;
+    }
+  } catch {
+    // No bundled pair: the source stays off unless the environment provides one.
+  }
+}
+
+// Before the registry first asks whether the source's keys are set.
+loadBundledDevCredentials();
 
 /** True when the developer pair this source cannot run without is set. */
 export function isScreenScraperConfigured(): boolean {

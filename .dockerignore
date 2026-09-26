@@ -9,3 +9,6 @@ dist
 # `docker compose up --build` never bakes the builder's own files into it; every
 # writer recreates its directory on demand, and Compose mounts this path anyway.
 public/uploads
+
+# ScreenScraper developer pair: only the CI build may write it into an image
+plugins/games/screenscraper.dev.json
