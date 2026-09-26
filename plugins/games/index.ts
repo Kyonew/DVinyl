@@ -510,7 +510,7 @@ export const gamesPlugin: PluginDefinition = {
       year: details.year,
       developer: details.developer || item.developer,
       publisher: details.publisher || item.publisher,
-      // `description` holds the provider's summary shown on the detail page — persist it on refresh too
+      // `description` holds the provider's summary shown on the detail page, so a refresh keeps it too
       description: details.description || item.description,
       // Fall back to what is already stored: a transient miss on the time-to-beat lookup
       // must not wipe out an estimate fetched earlier.
