@@ -7,7 +7,7 @@ import Item from '../../models/Item';
 import User from '../../models/User';
 import { BASE_URL } from '../../config/constants';
 import { requireAuth, requireAuthOrShareView, requireCollectionRole } from '../../middleware/authMiddleware';
-import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback, editStamp, syncStamp, safeReturnPath, confirmPathFor, getPublicProtocol, generateBarcodeDataUrl } from '../helpers';
+import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback, editStamp, syncStamp, safeReturnPath, confirmPathFor, getPublicProtocol, generateBarcodeDataUrl, escapeRegExp } from '../helpers';
 import { DEFAULT_PLACEHOLDER_IMAGE } from '../placeholderImage';
 import { alignImagesAfterRefresh, imagesForItem, imagesFromForm, ItemImageValidationError, MAX_ITEM_IMAGES, MAX_ITEM_IMAGE_BYTES } from '../itemImages';
 import { deleteUnusedManagedItemImages } from '../itemImageStorage';
@@ -860,16 +860,36 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       // What this item holds, if anything: the seasons of a show. Kept out of every
       // listing, so this page is the only way to them, which is also why deleting the
       // holder takes them along.
+      const containedQuery: any = { parent: item._id };
+      applyVisibilityFilter(containedQuery, res.locals.isCollectionAdmin, res.locals.settings);
+      const contained = await Item.find(containedQuery).lean();
+
       // Where this page was opened from, so leaving it, editing or deleting comes back to
       // the very page someone was on rather than the first one. The explicit parameter
       // wins: after saving an edit the header points at the form, while the parameter
       // still carries the listing that started the whole thing.
+      //
+      // The Referer fallback must not be another item detail page. This page links to
+      // several of its own kind - the seasons it holds, the other formats/variants listed
+      // at the bottom - none of which carry a ?from origin, so following one lands here
+      // with that page as the Referer. Trusting it makes "back to collection" point at the
+      // sibling just left, and since that page's own back points here in turn, the two
+      // trap each other in a loop with no way out but Home. A detail page is never a
+      // listing anyway, so it is not a place "back" should ever lead.
+      //
+      // A detail page reads as `<BASE_URL><routePrefix>/<24-hex-id>`; its listings live at
+      // other paths. When the Referer is one of those detail pages there is nothing left
+      // to trust, and the view falls through to the canonical collection URL it builds.
+      // safeReturnPath keeps BASE_URL on the path it returns, so the pattern allows the
+      // optional base prefix before the plugin's route (an instance served under a sub-path).
+      const refererPath = safeReturnPath(req.get('Referer'), req.get('host'));
+      const detailPagePattern = new RegExp(
+        `^${escapeRegExp(BASE_URL)}${escapeRegExp(plugin.routePrefix)}/[a-f0-9]{24}(?:$|[?#])`,
+        'i'
+      );
+      const refererIsDetailPage = !!refererPath && detailPagePattern.test(refererPath);
       const backUrl = safeReturnPath(req.query.from, req.get('host'))
-        || safeReturnPath(req.get('Referer'), req.get('host'));
-
-      const containedQuery: any = { parent: item._id };
-      applyVisibilityFilter(containedQuery, res.locals.isCollectionAdmin, res.locals.settings);
-      const contained = await Item.find(containedQuery).lean();
+        || (refererIsDetailPage ? '' : refererPath);
 
       // And what holds this one, if anything: a season is absent from every listing, so
       // "back to the collection" would send its page nowhere useful. The show it belongs
