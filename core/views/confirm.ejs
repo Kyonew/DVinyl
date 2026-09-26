@@ -143,6 +143,19 @@
                         return true;
                     }).map(f => f.name));
 
+                    // Custom fields render their own inputs (a select, checkboxes, a JSON
+                    // blob...) under their field name. Emitting a hidden input for the same
+                    // schema key would post the value twice — Express then hands the save
+                    // handler an array like ['plex',''] and the string cast fails. This
+                    // surfaces when the form is pre-seeded with real values (rather than a
+                    // blank manual add), so exclude custom-field names from the hidden loop.
+                    const customNames = new Set(plugin.formFields.filter(f => {
+                        if (f.type !== 'custom' || !f.showIn.includes('confirm')) return false;
+                        if (f.showCondition === 'manual-only' && !isManual) return false;
+                        if (f.showCondition === 'api-only' && isManual) return false;
+                        return true;
+                    }).map(f => f.name));
+
                     const hiddenInputs = [];
                     plugin.formFields.forEach(f => {
                         if (!f.showIn.includes('confirm') || f.type === 'custom' || visibleNames.has(f.name)) return;
@@ -155,7 +168,7 @@
                     // twice, and the save handler would store both values joined.
                     const postsSourcePair = !!(item.source && item.source_id);
                     Object.keys(plugin.schemaDefinition).forEach(k => {
-                        if (visibleNames.has(k) || hiddenInputs.includes(k)) return;
+                        if (visibleNames.has(k) || hiddenInputs.includes(k) || customNames.has(k)) return;
                         if (postsSourcePair && (k === 'source' || k === 'source_id')) return;
                         const v = item[k];
                         if (v === undefined || v === null) return;
