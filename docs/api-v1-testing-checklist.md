@@ -43,3 +43,14 @@ BASE=http://localhost:3000
 
 ## Fresh-instance edge case
 - [ ] On an instance with zero users (before `/setup`), `POST $BASE/api/v1/auth/login` → 503 JSON (not an HTML redirect) — not re-run this pass (would require wiping the shared local test DB); confirmed by reading the code instead: `app.ts:249-250` gates every `/api/v1` request behind the same `setupRequired` check with a `503 {success:false,...}` JSON body.
+
+## Maintenance
+
+- [ ] `POST $BASE/api/v1/collections/$CID/refresh-all` `{"pluginId":"music"}` → 202, `{job:{status:"running",pluginId:"music",mode:"all"}}`
+- [ ] `GET $BASE/api/v1/collections/$CID/refresh-jobs/$JOBID` (the id above) → 200; polling reaches `status:"finished"` with `result.refreshed + result.failed == result.total`
+- [ ] A second `refresh-all` for the same plugin while one runs → 409 `{code:"refresh_running", job}`
+- [ ] A `refresh-all` for a different plugin while one runs → 202
+- [ ] `POST …/refresh-all` with `{"pluginId":"nope"}` → 404; with a plugin that has no refresh → 400
+- [ ] `POST $BASE/api/v1/collections/$CID/delete-last-items` `{"count":1,"pluginId":"music"}` → 200 `{success:true,deleted}`
+- [ ] `…/delete-last-items` with `count:10001` → 400 `{error:"Invalid count"}`; with `{"pluginId":"nope"}` → 400 `{error:"Unknown plugin"}`
+- [ ] `DELETE $BASE/api/v1/admin/login-logs?count=1` → 200 `{deleted:1}` (already covered in `routes/api/v1/admin.test.ts`)

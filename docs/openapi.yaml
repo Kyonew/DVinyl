@@ -3285,6 +3285,173 @@ paths:
         '500': { $ref: '#/components/responses/InternalServerError' }
         '503': { $ref: '#/components/responses/ServiceUnavailable' }
 
+  /collections/{id}/refresh-all:
+    post:
+      tags: [Collections]
+      operationId: startRefreshAll
+      summary: Start a metadata refresh for one plugin's items
+      description: |
+        Requires `admin` role on the collection. Starts a background refresh over the
+        collection's items of the named plugin that carry an external id. Returns `202`
+        immediately; poll `GET /collections/{id}/refresh-jobs/{jobId}`. Only one refresh
+        may be active per collection and plugin; a second start returns `409` with the
+        active job. A refresh over zero matching items still returns `202` and finishes
+        immediately with `total: 0`.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pluginId]
+              properties:
+                pluginId:
+                  type: string
+                  description: Plugin id from `GET /plugins` (e.g. `music`).
+                mode:
+                  type: string
+                  enum: [all, missing]
+                  default: all
+                  description: '`missing` backfills only genre metadata; `all` applies the whole refresh.'
+      responses:
+        '202':
+          description: The refresh started.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [job]
+                properties:
+                  job: { $ref: '#/components/schemas/RefreshJob' }
+        '400':
+          description: The plugin cannot be refreshed, or `mode` is invalid.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                unsupported:
+                  value: { success: false, error: 'Plugin does not support refresh' }
+                badMode:
+                  value: { success: false, error: 'Invalid mode' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: Unknown collection or plugin id.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { success: false, error: 'Plugin not found' }
+        '409':
+          description: A refresh is already running for this collection and plugin.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, error, code, job]
+                properties:
+                  success: { type: boolean, enum: [false] }
+                  error: { type: string }
+                  code: { type: string, enum: [refresh_running] }
+                  job: { $ref: '#/components/schemas/RefreshJob' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /collections/{id}/refresh-jobs/{jobId}:
+    get:
+      tags: [Collections]
+      operationId: getRefreshJob
+      summary: Poll a metadata refresh
+      description: |
+        Requires `admin` role on the collection. Returns the refresh job's status,
+        progress and, once terminal, its result or error. An unknown, expired or
+        other-collection job is `404`. Jobs live in memory and expire one hour after
+        they reach a terminal state.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+        - name: jobId
+          in: path
+          required: true
+          description: Job id returned by the starting `POST`.
+          schema: { type: string }
+      responses:
+        '200':
+          description: Current job state.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [job]
+                properties:
+                  job: { $ref: '#/components/schemas/RefreshJob' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: Unknown, expired or other-collection job.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { success: false, error: 'Job not found' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /collections/{id}/delete-last-items:
+    post:
+      tags: [Collections]
+      operationId: deleteLastItems
+      summary: Delete the most recent items of one plugin
+      description: |
+        Requires `admin` role on the collection. Deletes up to `count` of the newest
+        top-level items of the named plugin, newest first by `added_at` then `_id`.
+        Contained items (e.g. a show's seasons) and their managed images go with their
+        parent, so `deleted` counts every document actually removed and can exceed
+        `count`. Legacy items with no `kind` are not matched.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [count, pluginId]
+              properties:
+                count:
+                  type: integer
+                  minimum: 1
+                  maximum: 10000
+                  description: Number of newest top-level items to delete.
+                pluginId:
+                  type: string
+                  description: Plugin id from `GET /plugins` (e.g. `music`).
+      responses:
+        '200':
+          description: Items deleted.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, deleted]
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  deleted: { type: integer }
+        '400':
+          description: Invalid count or unknown plugin.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                badCount:
+                  value: { success: false, error: 'Invalid count' }
+                unknownPlugin:
+                  value: { success: false, error: 'Unknown plugin' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
   /admin/backup/export:
     get:
       tags: [Admin]
@@ -4156,6 +4323,20 @@ components:
         status: { type: string, enum: [running, finished, failed] }
         current: { type: integer }
         total: { type: integer }
+        result: { type: [object, "null"] }
+        error: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    RefreshJob:
+      type: object
+      properties:
+        id: { type: string }
+        pluginId: { type: string }
+        mode: { type: string, enum: [all, missing] }
+        status: { type: string, enum: [running, finished, failed] }
+        current: { type: integer }
+        total: { type: integer }
+        currentTitle: { type: [string, "null"] }
         result: { type: [object, "null"] }
         error: { type: [string, "null"] }
         createdAt: { type: string, format: date-time }
