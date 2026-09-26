@@ -275,6 +275,30 @@ export function escapeRegExp(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+// The named entities external databases actually send in their texts.
+const HTML_ENTITIES: Record<string, string> = {
+  nbsp: ' ', mdash: '—', ndash: '–', hellip: '…',
+  lsquo: '‘', rsquo: '’', ldquo: '“', rdquo: '”',
+  amp: '&', lt: '<', gt: '>', quot: '"', apos: "'"
+};
+
+/**
+ * Turns the HTML entities of a text an external database sent already escaped (`&quot;`,
+ * `&#10;`) back into the characters they stand for. The views escape what they print,
+ * so a text stored still escaped would reach the reader as `&quot;` in plain sight.
+ * One pass only: `&amp;quot;` becomes `&quot;`, never a quote.
+ */
+export function decodeHtmlEntities(text: string): string {
+  return text.replace(/&(?:#(\d+)|#x([0-9a-fA-F]+)|([a-z]+));/g, (entity, dec, hex, name) => {
+    if (dec || hex) {
+      const code = parseInt(dec || hex, dec ? 10 : 16);
+      // Past the last code point there is no character to give back.
+      return code <= 0x10ffff ? String.fromCodePoint(code) : entity;
+    }
+    return HTML_ENTITIES[name] ?? entity;
+  });
+}
+
 /** Separators a CSV export in the wild may use, in detection order. */
 export const CSV_DELIMITERS = [',', ';', '\t', '|'] as const;
 

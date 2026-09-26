@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { SearchProvider, SearchOptions, SearchResult, ConfirmData } from '../../core/types';
 import { BASE_URL } from '../../config/constants';
+import { decodeHtmlEntities } from '../../core/helpers';
 import { isJpegBuffer, storeItemImage, MAX_ITEM_IMAGE_UPLOAD_BYTES } from '../../core/itemImageStorage';
 
 // Read from package.json so ScreenScraper can tell one release from the next, which is
@@ -389,7 +390,8 @@ function systemName(system: ScreenScraperSystem, language?: string): string {
 
 // ---------------------------------------------------------------------------------------
 // Reading a game. Names, dates and media come as lists tagged by region, the synopsis and
-// genre names as lists tagged by language: each is read in the reader's own order.
+// genre names as lists tagged by language: each is read in the reader's own order. Their
+// texts arrive HTML-escaped (`&quot;Tails&quot;`) and are decoded as they are read.
 
 type Tagged = { region?: string; langue?: string; text?: string };
 
@@ -398,9 +400,9 @@ export function pickTagged(list: unknown, key: 'region' | 'langue', order: strin
   const entries = list.filter((e: any) => e && typeof e.text === 'string' && e.text.trim()) as Tagged[];
   for (const wanted of order) {
     const hit = entries.find(e => e[key] === wanted);
-    if (hit) return hit.text!.trim();
+    if (hit) return decodeHtmlEntities(hit.text!.trim());
   }
-  return entries[0]?.text?.trim() || '';
+  return decodeHtmlEntities(entries[0]?.text?.trim() || '');
 }
 
 /** The media name to ask mediaJeu.php for, for the best cover the game has. */
@@ -416,7 +418,28 @@ export function coverMediaName(medias: unknown, regions: string[]): string | nul
 }
 
 const text = (value: any): string =>
-  value && typeof value === 'object' ? String(value.text ?? '').trim() : String(value ?? '').trim();
+  decodeHtmlEntities(value && typeof value === 'object' ? String(value.text ?? '').trim() : String(value ?? '').trim());
+
+/**
+ * What to send jeuRecherche for a title. Its search reads a colon glued to the word
+ * before it as part of that word: "Zelda: A Link to the Past" finds nothing where
+ * "Zelda : A Link to the Past" finds the game, which is how imported titles and most
+ * typed ones are written.
+ */
+export function screenScraperQuery(title: string): string {
+  return title.trim().replace(/\s*:\s*/g, ' : ');
+}
+
+/**
+ * The name a title carries before its subtitle ("Street Fighter II" for "Street Fighter
+ * II: The World Warrior"), or '' when it has none. ScreenScraper files many games
+ * under a shorter or differently worded name than the box, so a search the full title
+ * finds nothing for is tried once more with it.
+ */
+export function mainTitle(title: string): string {
+  const head = title.split(/\s*:\s*|\s+[-–]\s+/)[0]!.trim();
+  return head.length >= 3 && head !== title.trim() ? head : '';
+}
 
 /**
  * A ScreenScraper game in the shape the add and confirm pages read. Never copies any of
@@ -468,11 +491,18 @@ export class ScreenScraperProvider implements SearchProvider {
   async search(query: string, options: SearchOptions): Promise<SearchResult[]> {
     // The system picked on the add page, or the platform an imported row carries.
     const systemId = await systemIdFor(options.platform);
-    const response = systemId
-      ? await requestJson('jeuRecherche.php', { recherche: query, systemeid: systemId })
-      : await requestJson('jeuRecherche.php', { recherche: query }, SEARCH_ALL_SYSTEMS_TIMEOUT_MS);
-    // An empty search answers with a single empty game rather than an empty list.
-    const games = (Array.isArray(response?.jeux) ? response.jeux : []).filter((g: any) => g && g.id);
+    const find = async (recherche: string): Promise<any[]> => {
+      const response = systemId
+        ? await requestJson('jeuRecherche.php', { recherche, systemeid: systemId })
+        : await requestJson('jeuRecherche.php', { recherche }, SEARCH_ALL_SYSTEMS_TIMEOUT_MS);
+      // An empty search answers with a single empty game rather than an empty list.
+      return (Array.isArray(response?.jeux) ? response.jeux : []).filter((g: any) => g && g.id);
+    };
+
+    let games = await find(screenScraperQuery(query));
+    // Only when the full title found nothing, so a search that works costs one request.
+    const shorter = games.length === 0 ? mainTitle(query) : '';
+    if (shorter) games = await find(screenScraperQuery(shorter));
     const regions = regionPriorities(options.language);
 
     return games.slice(0, MAX_RESULTS).map((game: any) => {
@@ -530,7 +560,8 @@ export async function screenScraperMediaRoute(req: any, res: any): Promise<void>
       res.status(404).end();
       return;
     }
-    res.set('Content-Type', image.contentType);
+    // Asked for as JPEG, and sent as one whatever ScreenScraper's header says.
+    res.set('Content-Type', isJpegBuffer(image.buffer) ? 'image/jpeg' : image.contentType);
     res.set('X-Content-Type-Options', 'nosniff');
     // The same result card comes back on every search for the same words.
     res.set('Cache-Control', 'private, max-age=86400');

@@ -8,8 +8,9 @@ process.env.SCREENSCRAPER_PASSWORD = 'member-secret';
 
 import {
   ScreenScraperProvider, formatScreenScraperGame, coverMediaName, pickTagged, regionPriorities,
-  parseSystems, matchSystem
+  parseSystems, matchSystem, screenScraperQuery, mainTitle
 } from '../plugins/games/screenscraper';
+import { decodeHtmlEntities } from '../core/helpers';
 
 // The shape jeuInfos / jeuRecherche answer with in JSON. Media addresses carry the
 // credentials, exactly as the real API writes them.
@@ -174,6 +175,43 @@ test('an imported platform name is looked up in a system list fetched once', asy
   const searches = calls.filter(url => url.pathname.endsWith('jeuRecherche.php'));
   assert.equal(lists.length, 1);
   assert.deepEqual(searches.map(url => url.searchParams.get('systemeid')), ['1', '135', null]);
+});
+
+test('spaces a title\'s colons, and falls back on its main title once when it finds nothing', async () => {
+  assert.equal(screenScraperQuery('The Legend of Zelda: A Link to the Past'), 'The Legend of Zelda : A Link to the Past');
+  assert.equal(screenScraperQuery(' Sonic 2 '), 'Sonic 2');
+  assert.equal(mainTitle('Street Fighter II: The World Warrior'), 'Street Fighter II');
+  assert.equal(mainTitle('Castlevania - Symphony of the Night'), 'Castlevania');
+  assert.equal(mainTitle('Sonic the Hedgehog 2'), '');
+  assert.equal(mainTitle('X: Beyond the Frontier'), '', 'too short a name to search on');
+
+  const calls = stubFetch(url => json({
+    response: { jeux: url.searchParams.get('recherche') === 'Street Fighter II' ? [game] : [{}] }
+  }));
+  const results = await new ScreenScraperProvider().search('Street Fighter II: The World Warrior', { platform: '1' });
+  assert.equal(results.length, 1);
+  assert.deepEqual(calls.map(url => url.searchParams.get('recherche')), ['Street Fighter II : The World Warrior', 'Street Fighter II']);
+  assert.ok(calls.every(url => url.searchParams.get('systemeid') === '1'), 'the retry stays in the system asked for');
+
+  const once = stubFetch(() => json({ response: { jeux: [game] } }));
+  await new ScreenScraperProvider().search('Sonic: The Hedgehog', { platform: '1' });
+  assert.equal(once.length, 1, 'a search that finds something is not repeated');
+});
+
+test('decodes the HTML entities ScreenScraper escapes its texts with', () => {
+  const escaped = {
+    ...game,
+    noms: [{ region: 'eu', text: 'Tom &amp; Jerry' }],
+    synopsis: [{ langue: 'fr', text: 'Son ami &quot;Tails&quot; l&#039;accompagne&#8230;' }],
+    developpeur: { id: '2', text: 'Brøderbund &amp; Co' }
+  };
+  const fr = formatScreenScraperGame(escaped, 'fr')!;
+  assert.equal(fr.title, 'Tom & Jerry');
+  assert.equal(fr.description, "Son ami \"Tails\" l'accompagne…");
+  assert.equal(fr.developer, 'Brøderbund & Co');
+
+  assert.equal(decodeHtmlEntities('&amp;quot;'), '&quot;', 'one pass only');
+  assert.equal(decodeHtmlEntities('&#x1F3AE; &#99999999; &unknown;'), '🎮 &#99999999; &unknown;');
 });
 
 test('stops asking once the day\'s quota is spent', async () => {
