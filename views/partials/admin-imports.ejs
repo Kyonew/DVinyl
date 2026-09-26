@@ -32,7 +32,11 @@
 </div>
 
 <!-- Import modals (one per importer) -->
-<% uiImporters.forEach(({ imp }) => { const ui = imp.ui; %>
+<% uiImporters.forEach(({ imp, plugin }) => { const ui = imp.ui;
+    // These importers post no source: an enriched run asks the collection's first one,
+    // whose caution is shown when it has one.
+    const enrichSource = ui.fields.some(f => f.name === 'enrich') ? searchableSources(plugin, settings)[0] : null;
+    const sourceNote = enrichSource && enrichSource.importNote ? t(enrichSource.importNote) : ''; %>
     <div id="importModal_<%= imp.id %>" class="fixed inset-0 z-[120] hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="absolute inset-0" onclick="toggleImportModal('<%= imp.id %>')"></div>
         <div class="relative card-theme w-full max-w-lg rounded-3xl p-6 md:p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
@@ -92,6 +96,13 @@
                 <div class="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[11px] text-amber-600 dark:text-amber-400 flex items-start gap-2">
                     <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
                     <span><%= t(ui.warning) %></span>
+                </div>
+            <% } %>
+
+            <% if (sourceNote) { %>
+                <div class="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[11px] text-amber-600 dark:text-amber-400 flex items-start gap-2">
+                    <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
+                    <span><%= sourceNote %></span>
                 </div>
             <% } %>
 

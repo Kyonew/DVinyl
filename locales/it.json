@@ -413,7 +413,8 @@
         "pages": "Pagine",
         "language": "Lingua"
       },
-      "err_missing_required": "Questi campi obbligatori devono essere associati a una colonna o a un valore fisso: {{fields}}"
+      "err_missing_required": "Questi campi obbligatori devono essere associati a una colonna o a un valore fisso: {{fields}}",
+      "screenscraper_note": "ScreenScraper è lento: conta qualche secondo per ogni gioco con una piattaforma riconosciuta, fino a un minuto altrimenti, e quei giochi potrebbero non essere completati. Indica una piattaforma per ogni riga (una colonna Piattaforma o la piattaforma predefinita) per ricerche più rapide e precise."
     },
     "sources": {
       "title": "Dove cerca questo modulo",
@@ -1205,7 +1206,10 @@
     "scan_found": "Codice trovato!",
     "scan_error": "Errore fotocamera",
     "barcode_warning": "La scansione potrebbe non funzionare correttamente al momento.",
-    "manual_entry": "Non trovato? Aggiungi manualmente"
+    "manual_entry": "Non trovato? Aggiungi manualmente",
+    "platform_label": "Piattaforma",
+    "platform_all": "Tutte (lento)",
+    "platform_hint": "Scegliere una piattaforma rende la ricerca su ScreenScraper molto più veloce."
   },
   "confirm_game": {
     "config_title": "Verifica e completa",

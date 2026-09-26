@@ -99,6 +99,15 @@ export interface PluginDefinition {
   // Custom EJS partial rendered in the search form ('top' and 'bottom' zones)
   searchFormPartial?: string;
 
+  // Names of the fields that partial adds to the form. Their posted values reach the
+  // source's search in its options, and come back to the partial as `searchFields` so a
+  // search keeps what was picked for the next one.
+  searchFormFields?: string[];
+
+  // What an item about to be looked up by a CSV import tells the sources beyond its
+  // title (the platform of a game, say), as search options. Called with the mapped row.
+  enrichSearchOptions?(data: Record<string, any>): Record<string, any>;
+
   // The plugin's single historical image provider. Superseded by sources declaring
   // searchImages, and still merged in alongside them, so a plugin that declares only
   // this keeps the picker it had.
@@ -337,6 +346,17 @@ export interface ExternalSource {
   // source's getDetails accepts: such items keep no pair and refresh through the plugin's
   // own hook, rather than carrying an id the source cannot look up.
   legacyIdField?: string | null;
+
+  // How long a CSV import waits on one lookup of this source before counting the row as
+  // not found. Unset, the import's own default. A source that is slow by nature sets
+  // more than its own request timeout, so its lookups end on their own rather than
+  // being abandoned while they still hold the source's request slot.
+  lookupTimeoutMs?: number;
+
+  // i18n key of a caution shown on the import screens when this source is the one that
+  // fills in the file, for a source whose lookups are slow or need something from the
+  // rows to work well.
+  importNote?: string;
 
   // What this source can answer. A source implements the capabilities it has and no
   // more, and the core asks before it calls: a database of cover art has no item to

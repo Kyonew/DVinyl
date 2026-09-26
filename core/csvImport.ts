@@ -349,7 +349,8 @@ async function enrichOnce(
   exact: boolean
 ): Promise<Record<string, any> | null> {
   {
-    const search = (q: string) => withTimeout(source.search(q, options), ENRICH_TIMEOUT_MS);
+    const timeoutMs = Math.max(ENRICH_TIMEOUT_MS, source.lookupTimeoutMs || 0);
+    const search = (q: string) => withTimeout(source.search(q, options), timeoutMs);
 
     let { match, sure } = pickBestMatch(await search(query), target);
 
@@ -372,7 +373,7 @@ async function enrichOnce(
     // Handed back to getDetails() the way the confirm page does, so the details describe
     // the exact hit (the edition carrying the searched ISBN) rather than the work at large.
     const detailOptions = { ...(match.confirmQuery || {}), ...options };
-    const details = await withTimeout(source.getDetails(String(match.id), detailOptions), ENRICH_TIMEOUT_MS);
+    const details = await withTimeout(source.getDetails(String(match.id), detailOptions), timeoutMs);
     return { ...match, ...details, source: source.id, source_id: String(match.id) };
   }
 }
@@ -450,7 +451,11 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
       // would happily settle for a different book with a similar title.
       const exactCode = canEnrich ? exactLookupFor(plugin, enrichSource, data) : '';
       const query = exactCode || (spec.searchQuery ? spec.searchQuery(row, data) : data.title);
-      const searchOptions = { language: req.language, ...(spec.searchOptions ? spec.searchOptions(row, data) : {}) };
+      const searchOptions = {
+        language: req.language,
+        ...(plugin.enrichSearchOptions ? plugin.enrichSearchOptions(data) : {}),
+        ...(spec.searchOptions ? spec.searchOptions(row, data) : {})
+      };
 
       // What the row claims about the item, so the right hit can be told apart from the
       // rest. Read off the mapped payload rather than the raw row: the mapping is what

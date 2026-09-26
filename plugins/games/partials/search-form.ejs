@@ -1,0 +1,84 @@
+<% if (zone === 'top') { %>
+    <%# What the form sends when no partial takes the top zone. %>
+    <% if (locals.searchType) { %>
+        <input type="hidden" name="type" value="<%= searchType %>">
+    <% } %>
+<% } else if (zone === 'bottom' && (locals.sources || []).some(src => src.id === 'screenscraper')) { %>
+    <%# The system to search ScreenScraper in. Searching all of them takes close to a
+        minute, one of them a few seconds, so the row shows while ScreenScraper is the
+        source picked (or the only one) and remembers the last system chosen. The list is
+        fetched once the row is first shown rather than with the page: it comes from
+        ScreenScraper and may take a moment. %>
+    <div id="ss-platform-row" class="hidden flex-col items-center gap-1.5 mt-4">
+        <div class="flex items-center gap-2 w-full max-w-sm">
+            <label for="ss-platform" class="text-xs font-bold uppercase opacity-40 shrink-0"><%= t('add_game.platform_label') %></label>
+            <select id="ss-platform" name="platform" disabled
+                data-selected="<%= (locals.searchFields && searchFields.platform) || '' %>"
+                class="flex-1 min-w-0 bg-black/5 dark:bg-white/5 border border-transparent text-sm rounded-lg p-2 outline-none cursor-pointer focus:ring-2 focus:ring-primary-theme">
+                <option value="" class="bg-white dark:bg-[#1a1a1a]"><%= t('add_game.platform_all') %></option>
+            </select>
+        </div>
+        <p class="text-[10px] opacity-40 text-center"><%= t('add_game.platform_hint') %></p>
+    </div>
+
+    <script>
+        (function () {
+            const row = document.getElementById('ss-platform-row');
+            const select = document.getElementById('ss-platform');
+            const form = row.closest('form');
+            const STORAGE_KEY = 'dvinyl.screenscraper.platform';
+            const onlySource = <%- JSON.stringify(locals.sources.length === 1 ? locals.sources[0].id : '') %>;
+            let loaded = false;
+
+            function remembered() {
+                try { return localStorage.getItem(STORAGE_KEY) || ''; } catch (e) { return ''; }
+            }
+
+            function remember(value) {
+                try { localStorage.setItem(STORAGE_KEY, value); } catch (e) { }
+            }
+
+            function activeSource() {
+                const checked = form.querySelector('input[name="source"]:checked');
+                return checked ? checked.value : onlySource;
+            }
+
+            function load() {
+                if (loaded) return;
+                loaded = true;
+                const wanted = select.dataset.selected || remembered();
+                fetch('<%= baseUrl %>/api/games/screenscraper/systems', { credentials: 'same-origin' })
+                    .then(res => res.ok ? res.json() : [])
+                    .catch(() => [])
+                    .then(systems => {
+                        for (const system of systems) {
+                            const option = document.createElement('option');
+                            option.value = system.id;
+                            option.textContent = system.name;
+                            option.className = 'bg-white dark:bg-[#1a1a1a]';
+                            select.appendChild(option);
+                        }
+                        if (wanted && systems.some(system => system.id === wanted)) select.value = wanted;
+                        // An empty list is ScreenScraper out of reach: the next page
+                        // load asks again.
+                        if (systems.length === 0) loaded = false;
+                        refresh();
+                    });
+            }
+
+            // Hidden and disabled together: a system is meaningless to the other sources,
+            // and a disabled field is not posted.
+            function refresh() {
+                const shown = activeSource() === 'screenscraper';
+                row.classList.toggle('hidden', !shown);
+                row.classList.toggle('flex', shown);
+                select.disabled = !shown || select.options.length <= 1;
+                if (shown) load();
+            }
+
+            select.addEventListener('change', () => remember(select.value));
+            form.querySelectorAll('input[name="source"]').forEach(radio => radio.addEventListener('change', refresh));
+            refresh();
+        })();
+    </script>
+<% } %>

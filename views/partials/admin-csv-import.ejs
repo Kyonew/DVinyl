@@ -7,7 +7,7 @@
         icon: 'fa-' + p.icon,
         canEnrich: hasSearch(p),
         // Offered only when there is a choice to make; one source needs no picker.
-        sources: searchableSources(p, settings).map(src => ({ id: src.id, name: src.name })),
+        sources: searchableSources(p, settings).map(src => ({ id: src.id, name: src.name, note: src.importNote ? t(src.importNote) : '' })),
         fields: importableFields(p, settings, t)
     }));
 %>
@@ -100,6 +100,13 @@
             <div id="csvSourceRow" class="hidden items-center gap-3 bg-black/5 dark:bg-white/5 rounded-2xl p-4">
                 <span class="text-xs font-bold shrink-0"><%= t('admin.csv_import.source_label') %></span>
                 <select id="csvSource" class="flex-1 bg-white dark:bg-black/20 border-transparent rounded-xl p-2 text-xs outline-none focus:ring-2 focus:ring-primary-theme"></select>
+            </div>
+
+            <%# What the source filling in the file warns about (a slow one, say), shown
+                while enrichment is on and that source is the one it will ask. %>
+            <div id="csvSourceNote" class="hidden p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[11px] text-amber-600 dark:text-amber-400 items-start gap-2">
+                <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
+                <span data-note-text></span>
             </div>
 
             <button type="button" id="csvAnalyzeBtn" onclick="csvAnalyze()"
@@ -251,9 +258,23 @@
                     select.appendChild(option);
                 }
             }
+            refreshSourceNote();
+        }
+
+        // The source the import will ask: the one picked, or the only one there is.
+        function refreshSourceNote() {
+            const sources = currentModule().sources || [];
+            const source = sources.find(s => s.id === el('csvSource').value) || sources[0];
+            const note = el('csvEnrich').checked && source && source.note ? source.note : '';
+            const box = el('csvSourceNote');
+            box.querySelector('[data-note-text]').innerText = note;
+            box.classList.toggle('hidden', !note);
+            box.classList.toggle('flex', !!note);
         }
 
         el('csvModule').addEventListener('change', refreshEnrichRow);
+        el('csvEnrich').addEventListener('change', refreshSourceNote);
+        el('csvSource').addEventListener('change', refreshSourceNote);
         refreshEnrichRow();
 
         // The name of the picked file, which the hidden input can no longer show itself

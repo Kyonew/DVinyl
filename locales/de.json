@@ -413,7 +413,8 @@
         "pages": "Seiten",
         "language": "Sprache"
       },
-      "err_missing_required": "Diese Pflichtfelder müssen einer Spalte oder einem festen Wert zugeordnet werden: {{fields}}"
+      "err_missing_required": "Diese Pflichtfelder müssen einer Spalte oder einem festen Wert zugeordnet werden: {{fields}}",
+      "screenscraper_note": "ScreenScraper ist langsam: Rechne mit einigen Sekunden pro Spiel mit erkannter Plattform, sonst bis zu einer Minute, und diese Spiele werden womöglich nicht ergänzt. Gib jeder Zeile eine Plattform (eine Plattform-Spalte oder die Standardplattform), damit die Suche schneller und genauer ist."
     },
     "sources": {
       "title": "Wo dieses Modul sucht",
@@ -1205,7 +1206,10 @@
     "scan_found": "Barcode gefunden!",
     "scan_error": "Kamerafehler",
     "barcode_warning": "Das Scannen funktioniert derzeit möglicherweise nicht ordnungsgemäß.",
-    "manual_entry": "Nicht gefunden? Manuell hinzufügen"
+    "manual_entry": "Nicht gefunden? Manuell hinzufügen",
+    "platform_label": "Plattform",
+    "platform_all": "Alle (langsam)",
+    "platform_hint": "Mit einer gewählten Plattform ist die ScreenScraper-Suche viel schneller."
   },
   "confirm_game": {
     "config_title": "Überprüfen und vervollständigen",

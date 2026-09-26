@@ -25,10 +25,16 @@ const pkg = require('../../package.json');
 
 const API_BASE = 'https://api.screenscraper.fr/api2';
 const SOFT_NAME = `DVinyl-${pkg.version}`;
-// jeuRecherche routinely takes 10 to 20 seconds to answer, so anything shorter cuts off
-// searches that were about to succeed.
+// jeuInfos and a search within one system routinely take 5 to 20 seconds to answer.
 const REQUEST_TIMEOUT_MS = 45000;
+// A search across every system takes 40 seconds to a minute. Given as long as a page can
+// wait: a reverse proxy commonly drops one that has not answered within 60 seconds.
+const SEARCH_ALL_SYSTEMS_TIMEOUT_MS = 55000;
 const MEDIA_TIMEOUT_MS = 20000;
+// What a CSV import may wait on one lookup: a search, or the details and the cover they
+// fetch, each ending on its own timeout first so the request slot is always released.
+export const SCREENSCRAPER_LOOKUP_TIMEOUT_MS =
+  Math.max(SEARCH_ALL_SYSTEMS_TIMEOUT_MS, REQUEST_TIMEOUT_MS + MEDIA_TIMEOUT_MS) + 5000;
 // jeuRecherche answers up to 30 games ranked by likelihood. Each shown result costs a
 // thumbnail request against the member's quota, and past the first dozen the ranking has
 // long stopped being about what was typed.
@@ -209,8 +215,8 @@ async function call(endpoint: string, params: Record<string, string>, timeoutMs:
   });
 }
 
-async function requestJson(endpoint: string, params: Record<string, string>): Promise<any> {
-  const response = await call(endpoint, { ...params, output: 'json' }, REQUEST_TIMEOUT_MS);
+async function requestJson(endpoint: string, params: Record<string, string>, timeoutMs = REQUEST_TIMEOUT_MS): Promise<any> {
+  const response = await call(endpoint, { ...params, output: 'json' }, timeoutMs);
   // Nothing matched: a normal answer to a lookup, not a failure.
   if (response.status === 404) return null;
   if (!response.ok) throw statusError(response.status);
@@ -258,6 +264,127 @@ export async function fetchScreenScraperMedia(
   const buffer = Buffer.from(await response.arrayBuffer());
   if (buffer.length === 0 || buffer.length > MAX_ITEM_IMAGE_UPLOAD_BYTES) return null;
   return { buffer, contentType };
+}
+
+// ---------------------------------------------------------------------------------------
+// Systems. A search told which one to look in answers in a few seconds, where the same
+// search across all of them takes close to a minute: the add page offers the list, and
+// an import names the platform its rows carry.
+
+export interface ScreenScraperSystem {
+  id: string;
+  nameEu: string;
+  nameUs: string;
+  // Every spelling that names the system, compacted (see compactName), grouped from the
+  // most official down: ScreenScraper's own names, the front-ends' display names, the
+  // common names, then the front-ends' folder names.
+  names: string[][];
+}
+
+const SYSTEMS_TTL_MS = 24 * 60 * 60 * 1000;
+// After a failed load, how long searches go on without the list before it is asked for
+// again: it weighs several megabytes, and an import would otherwise ask once per row.
+const SYSTEMS_RETRY_MS = 10 * 60 * 1000;
+let systemsCache: { at: number; systems: ScreenScraperSystem[] } | null = null;
+let systemsLoading: Promise<ScreenScraperSystem[]> | null = null;
+let systemsFailedAt = 0;
+
+/** Lowercase letters and digits only, so "Mega Drive", "Megadrive" and "mega-drive" meet. */
+function compactName(value: string): string {
+  return value.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+const nameList = (value: unknown): string[] =>
+  String(value ?? '').split(',').map(compactName).filter(Boolean);
+
+/** systemesListe.php's answer, down to what naming and picking a system needs. */
+export function parseSystems(list: unknown): ScreenScraperSystem[] {
+  if (!Array.isArray(list)) return [];
+  const systems: ScreenScraperSystem[] = [];
+  for (const entry of list) {
+    const id = String(entry?.id ?? '');
+    const names = entry?.noms || {};
+    const nameEu = text(names.nom_eu);
+    const nameUs = text(names.nom_us);
+    // ScreenScraper files collections of ROM hacks as systems of their own. Nobody owns
+    // a box of those, and their names would otherwise tie with the console they hack.
+    if (!/^\d+$/.test(id) || !(nameEu || nameUs) || /\bhacks?$/i.test(nameEu || nameUs)) continue;
+    systems.push({
+      id,
+      nameEu,
+      nameUs,
+      names: [
+        [...nameList(names.nom_eu), ...nameList(names.nom_us), ...nameList(names.nom_jp)],
+        [...nameList(names.nom_launchbox), ...nameList(names.nom_hyperspin)],
+        nameList(names.noms_commun),
+        [...nameList(names.nom_recalbox), ...nameList(names.nom_retropie)]
+      ]
+    });
+  }
+  return systems;
+}
+
+// Platform names whose usual meaning in DVinyl is not the one ScreenScraper gives them.
+// "PC" is how IGDB and the Libib import name a Windows game, where ScreenScraper's
+// common names hand it to MS-DOS.
+const PLATFORM_ALIASES: Record<string, string> = { pc: 'windows' };
+
+/**
+ * The id of the system a platform name designates, or '' when none does unambiguously.
+ * A name like "Sega Mega Drive/Genesis" or "PC (Microsoft Windows)" is also tried piece
+ * by piece, longest first, since the longest piece is usually the most specific.
+ */
+export function matchSystem(platform: string, systems: ScreenScraperSystem[]): string {
+  const pieces = platform.split(/[/|()]+/).map(p => p.trim()).filter(Boolean).sort((a, b) => b.length - a.length);
+  const candidates = [...new Set([platform, ...pieces].map(compactName))].filter(c => c.length >= 2);
+
+  for (const candidate of candidates) {
+    const wanted = PLATFORM_ALIASES[candidate] || candidate;
+    for (let tier = 0; tier < 4; tier++) {
+      const hits = systems.filter(s => s.names[tier]!.includes(wanted));
+      if (hits.length === 1) return hits[0]!.id;
+      // Several systems answer to this name ("arcade"): a less official spelling will
+      // not tell them apart either, so the next piece of the name is tried instead.
+      if (hits.length > 1) break;
+    }
+  }
+  return '';
+}
+
+/** The system list, from ScreenScraper once a day. */
+export async function screenScraperSystems(): Promise<ScreenScraperSystem[]> {
+  if (systemsCache && Date.now() - systemsCache.at < SYSTEMS_TTL_MS) return systemsCache.systems;
+  if (!systemsCache && Date.now() - systemsFailedAt < SYSTEMS_RETRY_MS) return [];
+  if (!systemsLoading) {
+    systemsLoading = requestJson('systemesListe.php', {})
+      .then(response => {
+        const systems = parseSystems(response?.systemes);
+        if (systems.length === 0) throw new Error('ScreenScraper sent an empty system list');
+        systemsCache = { at: Date.now(), systems };
+        return systems;
+      })
+      .catch(err => {
+        console.error('[ERR] ScreenScraper systems:', err.message);
+        systemsFailedAt = Date.now();
+        // Yesterday's list is still right about every system that existed yesterday.
+        return systemsCache?.systems || [];
+      })
+      .finally(() => { systemsLoading = null; });
+  }
+  return systemsLoading;
+}
+
+/** The system to search in: an id as the add page posts it, or a platform name to look up. */
+async function systemIdFor(platform: unknown): Promise<string> {
+  const value = typeof platform === 'string' ? platform.trim() : '';
+  if (!value) return '';
+  if (/^\d+$/.test(value)) return value;
+  return matchSystem(value, await screenScraperSystems());
+}
+
+/** A system's name as the reader's region knows it: Genesis in America, Megadrive elsewhere. */
+function systemName(system: ScreenScraperSystem, language?: string): string {
+  return (language || '').startsWith('en') ? (system.nameUs || system.nameEu) : (system.nameEu || system.nameUs);
 }
 
 // ---------------------------------------------------------------------------------------
@@ -339,7 +466,11 @@ export class ScreenScraperProvider implements SearchProvider {
   name = 'ScreenScraper';
 
   async search(query: string, options: SearchOptions): Promise<SearchResult[]> {
-    const response = await requestJson('jeuRecherche.php', { recherche: query });
+    // The system picked on the add page, or the platform an imported row carries.
+    const systemId = await systemIdFor(options.platform);
+    const response = systemId
+      ? await requestJson('jeuRecherche.php', { recherche: query, systemeid: systemId })
+      : await requestJson('jeuRecherche.php', { recherche: query }, SEARCH_ALL_SYSTEMS_TIMEOUT_MS);
     // An empty search answers with a single empty game rather than an empty list.
     const games = (Array.isArray(response?.jeux) ? response.jeux : []).filter((g: any) => g && g.id);
     const regions = regionPriorities(options.language);
@@ -408,4 +539,19 @@ export async function screenScraperMediaRoute(req: any, res: any): Promise<void>
     console.error('[ERR] ScreenScraper thumbnail:', err.message);
     res.status(err?.status === 429 || err?.status === 430 ? 429 : 502).end();
   }
+}
+
+/**
+ * GET /api/games/screenscraper/systems : the systems to offer on the add page, as
+ * `{ id, name }` in the reader's alphabetical order. An empty list when ScreenScraper
+ * could not be asked, which leaves the page searching every system.
+ */
+export async function screenScraperSystemsRoute(req: any, res: any): Promise<void> {
+  const language = req.language;
+  const systems = (await screenScraperSystems())
+    .map(system => ({ id: system.id, name: systemName(system, language) }))
+    .sort((a, b) => a.name.localeCompare(b.name, language, { sensitivity: 'base' }));
+  // Changes once a day at most, and only empty after a failure worth retrying soon.
+  res.set('Cache-Control', systems.length > 0 ? 'private, max-age=3600' : 'no-store');
+  res.json(systems);
 }

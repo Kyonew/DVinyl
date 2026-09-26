@@ -90,6 +90,14 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
     router.post(`/search-${plugin.id}`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
       const { query, type, year, country, genre_filter, label_filter } = req.body;
       const rawQuery = typeof query === 'string' ? query.trim() : '';
+      // The fields the plugin's own search form partial adds, as strings only. Every
+      // render of the page below hands them back, so the partial shows them as picked.
+      const searchFields: Record<string, string> = {};
+      for (const name of plugin.searchFormFields || []) {
+        const value = req.body[name];
+        if (typeof value === 'string' && value.trim()) searchFields[name] = value.trim();
+      }
+      res.locals.searchFields = searchFields;
       // Which database to ask. The form only offers the picker when the plugin has more
       // than one configured, so most searches arrive without it and take the default.
       const source = resolveSource(plugin, req.body.source, res.locals.settings);
@@ -158,6 +166,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         }
 
         const runSearch = (q: string) => source.search(q, {
+          ...searchFields,
           type: type || plugin.id,
           year,
           country,

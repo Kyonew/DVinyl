@@ -7,7 +7,8 @@ process.env.SCREENSCRAPER_USER = 'member';
 process.env.SCREENSCRAPER_PASSWORD = 'member-secret';
 
 import {
-  ScreenScraperProvider, formatScreenScraperGame, coverMediaName, pickTagged, regionPriorities
+  ScreenScraperProvider, formatScreenScraperGame, coverMediaName, pickTagged, regionPriorities,
+  parseSystems, matchSystem
 } from '../plugins/games/screenscraper';
 
 // The shape jeuInfos / jeuRecherche answer with in JSON. Media addresses carry the
@@ -121,6 +122,58 @@ test('a refusal is reported by status, without echoing the request', async () =>
   // What the live API actually does with a bad developer pair: a 200 and a line of text.
   stubFetch(() => new Response('Erreur de login : Vérifier vos identifiants développeur !  ', { status: 200 }));
   await assert.rejects(new ScreenScraperProvider().search('x', {}), (err: any) => err.status === 403);
+});
+
+// Entries of systemesListe.php as the live API writes them, media left out.
+const systemList = [
+  { id: 1, noms: { nom_eu: 'Megadrive', nom_us: 'Genesis', nom_recalbox: 'megadrive', nom_retropie: 'genesis,megadrive', nom_launchbox: 'Sega Genesis', nom_hyperspin: 'Sega Genesis', noms_commun: 'Sega Megadrive,Sega Genesis,Megadrive,Genesis,Super Aladdin Boy' } },
+  { id: 203, noms: { nom_eu: 'Megadrive - Sonic The Hedgehog 2 Hacks', nom_recalbox: 'megadrive', noms_commun: 'Megadrive,Genesis' } },
+  { id: 6, noms: { nom_eu: 'Capcom Play System', nom_recalbox: 'arcade,mame,fba', nom_launchbox: 'Capcom Play System', noms_commun: 'Capcom Play System,CPS 1' } },
+  { id: 47, noms: { nom_eu: 'Cave', nom_recalbox: 'arcade,mame,fba', nom_launchbox: 'arcade', noms_commun: 'Cave' } },
+  { id: 49, noms: { nom_eu: 'Daphne', nom_recalbox: 'daphne,arcade,mame', nom_launchbox: 'arcade', noms_commun: 'Daphne' } },
+  { id: 135, noms: { nom_eu: 'PC Dos', nom_recalbox: 'dos', nom_launchbox: 'MS-DOS', noms_commun: 'Microsoft MS-DOS,DOS,MS-DOS,PC-DOS,PC' } },
+  { id: 138, noms: { nom_eu: 'PC Windows', nom_launchbox: 'Windows', noms_commun: 'Microsoft Windows,Windows,Windows XP' } },
+  { id: 225, noms: { nom_eu: 'Switch', nom_launchbox: 'Nintendo Switch' } }
+];
+
+test('names a system from the way IGDB, Libib or a spreadsheet spell its platform', () => {
+  const systems = parseSystems(systemList);
+  assert.deepEqual(systems.map(s => s.id), ['1', '6', '47', '49', '135', '138', '225'], 'ROM hack collections are not systems anyone owns');
+
+  assert.equal(matchSystem('Sega Mega Drive/Genesis', systems), '1');
+  assert.equal(matchSystem('mega-drive', systems), '1');
+  assert.equal(matchSystem('Nintendo Switch', systems), '225');
+  assert.equal(matchSystem('MS-DOS', systems), '135');
+  // "PC" is a Windows game in DVinyl, not the MS-DOS one ScreenScraper's names suggest.
+  assert.equal(matchSystem('PC', systems), '138');
+  assert.equal(matchSystem('PC (Microsoft Windows)', systems), '138');
+  // A name several systems answer to picks none of them.
+  assert.equal(matchSystem('Arcade', systems), '');
+  assert.equal(matchSystem('Xbox Series X|S', systems), '');
+});
+
+test('searches within the system picked on the add page', async () => {
+  const calls = stubFetch(() => json({ response: { jeux: [game] } }));
+  await new ScreenScraperProvider().search('sonic', { platform: '1' });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0]!.searchParams.get('systemeid'), '1');
+
+  await new ScreenScraperProvider().search('sonic', {});
+  assert.equal(calls[1]!.searchParams.get('systemeid'), null);
+});
+
+test('an imported platform name is looked up in a system list fetched once', async () => {
+  const calls = stubFetch(url => url.pathname.endsWith('systemesListe.php')
+    ? json({ response: { systemes: systemList } })
+    : json({ response: { jeux: [game] } }));
+  await new ScreenScraperProvider().search('sonic', { platform: 'Sega Genesis' });
+  await new ScreenScraperProvider().search('doom', { platform: 'MS-DOS' });
+  await new ScreenScraperProvider().search('metal slug', { platform: 'Arcade' });
+
+  const lists = calls.filter(url => url.pathname.endsWith('systemesListe.php'));
+  const searches = calls.filter(url => url.pathname.endsWith('jeuRecherche.php'));
+  assert.equal(lists.length, 1);
+  assert.deepEqual(searches.map(url => url.searchParams.get('systemeid')), ['1', '135', null]);
 });
 
 test('stops asking once the day\'s quota is spent', async () => {

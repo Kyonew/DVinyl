@@ -1,7 +1,9 @@
 import { PluginDefinition } from '../../core/types';
 import { sourceFromProvider, imageSourceFrom } from '../../core/sources';
 import { IGDBProvider } from './igdb';
-import { ScreenScraperProvider, screenScraperMediaRoute } from './screenscraper';
+import {
+  ScreenScraperProvider, screenScraperMediaRoute, screenScraperSystemsRoute, SCREENSCRAPER_LOOKUP_TIMEOUT_MS
+} from './screenscraper';
 import { gamesImporters } from './importers';
 import { escapeRegExp, fetchJson } from '../../core/helpers';
 import { igdbRequest } from './igdbHelper';
@@ -46,6 +48,10 @@ const igdb = sourceFromProvider(igdbProvider, {
 const screenscraper = sourceFromProvider(new ScreenScraperProvider(), {
   id: 'screenscraper',
   requiredEnvKeys: ['SCREENSCRAPER_DEV_ID', 'SCREENSCRAPER_DEV_PASSWORD'],
+  // A search across every system takes close to a minute, one in a known system a few
+  // seconds: an import waits long enough for either, and says so beforehand.
+  lookupTimeoutMs: SCREENSCRAPER_LOOKUP_TIMEOUT_MS,
+  importNote: 'admin.csv_import.screenscraper_note',
   itemUrl: (id: string) => `https://www.screenscraper.fr/gameinfos.php?gameid=${encodeURIComponent(id)}`
 });
 
@@ -106,11 +112,23 @@ export const gamesPlugin: PluginDefinition = {
   supportsBarcodeSearch: true,
   barcodeNoiseTerms: ['Nintendo', 'PlayStation', 'Xbox', 'PS2', 'PS3', 'PS4', 'PS5', 'Switch', 'Wii U', 'Wii', 'Series X', 'Series S', 'One'],
   sources: [igdb, screenscraper, tmdbImages, itunesSoftware],
-  // Relays ScreenScraper thumbnails to the add page: their own addresses carry the
-  // instance's credentials and must never reach a browser.
+  // Relays ScreenScraper thumbnails to the add page, since their own addresses carry the
+  // instance's credentials and must never reach a browser, and lists its systems for the
+  // search form.
   apiRoutes: [
-    { method: 'get', path: '/api/games/screenscraper/media', requireEditor: true, handler: screenScraperMediaRoute }
+    { method: 'get', path: '/api/games/screenscraper/media', requireEditor: true, handler: screenScraperMediaRoute },
+    { method: 'get', path: '/api/games/screenscraper/systems', requireEditor: true, handler: screenScraperSystemsRoute }
   ],
+  // The system to search ScreenScraper in, which the form offers while it is the source
+  // picked. IGDB ignores it.
+  searchFormPartial: 'search-form',
+  searchFormFields: ['platform'],
+  // An imported row's platform, so ScreenScraper can look in that system alone. The
+  // schema's own default says nothing about the game and is left out.
+  enrichSearchOptions(data: Record<string, any>) {
+    const platform = typeof data.platform === 'string' ? data.platform.trim() : '';
+    return platform && platform !== 'other' ? { platform } : {};
+  },
   imageSearchType: 'game',
   duplicateCheckFields: ['platform', 'region', 'format'],
   aspectRatioClass: 'aspect-[2/3]',

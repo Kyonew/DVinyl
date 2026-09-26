@@ -413,7 +413,8 @@
         "pages": "Páginas",
         "language": "Idioma"
       },
-      "err_missing_required": "Estos campos obligatorios deben asociarse a una columna o a un valor fijo: {{fields}}"
+      "err_missing_required": "Estos campos obligatorios deben asociarse a una columna o a un valor fijo: {{fields}}",
+      "screenscraper_note": "ScreenScraper es lento: cuenta unos segundos por juego cuya plataforma se reconoce, y hasta un minuto si no, en cuyo caso puede que no se complete. Indica una plataforma en cada fila (una columna Plataforma o la plataforma por defecto) para búsquedas más rápidas y precisas."
     },
     "sources": {
       "title": "Dónde busca este módulo",
@@ -1205,7 +1206,10 @@
     "scan_found": "¡Código encontrado!",
     "scan_error": "Error de cámara",
     "barcode_warning": "Es posible que el escaneo no funcione correctamente por el momento.",
-    "manual_entry": "¿No encontrado? Añadir manualmente"
+    "manual_entry": "¿No encontrado? Añadir manualmente",
+    "platform_label": "Plataforma",
+    "platform_all": "Todas (lento)",
+    "platform_hint": "Elegir una plataforma hace que la búsqueda en ScreenScraper sea mucho más rápida."
   },
   "confirm_game": {
     "config_title": "Verificar y completar",

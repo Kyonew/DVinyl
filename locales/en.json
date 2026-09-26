@@ -647,7 +647,8 @@
         "pages": "Pages",
         "language": "Language"
       },
-      "err_missing_required": "These required fields must be mapped to a column or to a fixed value: {{fields}}"
+      "err_missing_required": "These required fields must be mapped to a column or to a fixed value: {{fields}}",
+      "screenscraper_note": "ScreenScraper is slow: expect a few seconds per game whose platform is recognized, up to a minute otherwise, and those may not get completed. Give every row a platform (a Platform column, or the default platform) for faster, more accurate lookups."
     },
     "sources": {
       "title": "Where this looks things up",
@@ -1205,7 +1206,10 @@
     "scan_found": "Barcode found!",
     "scan_error": "Camera error",
     "barcode_warning": "Scanning may not work correctly at the moment.",
-    "manual_entry": "Not found? Add manually"
+    "manual_entry": "Not found? Add manually",
+    "platform_label": "Platform",
+    "platform_all": "All (slow)",
+    "platform_hint": "Picking a platform makes ScreenScraper searches much faster."
   },
   "confirm_game": {
     "config_title": "Verify and complete",

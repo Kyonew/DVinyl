@@ -30,6 +30,8 @@ export function sourceFromProvider(
     // being split into two sources wearing the same name.
     searchImages?(query: string, options?: { language?: string }): Promise<string[]>;
     exactQuery?(query: string): boolean;
+    lookupTimeoutMs?: number;
+    importNote?: string;
   }
 ): SearchableSource {
   return {

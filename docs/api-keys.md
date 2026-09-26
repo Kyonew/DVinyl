@@ -81,6 +81,12 @@ ScreenScraper asks for two pairs of credentials:
   its quotas per member, so without one every lookup draws on the smallest allowance there is.
   Set it as soon as you use the source for more than a few games.
 
+ScreenScraper is slow: a search across every system takes up to a minute, one within a single
+system a few seconds. The add page therefore offers a platform list while ScreenScraper is the
+source picked, and remembers the last one chosen. A CSV import that fills its rows in from
+ScreenScraper looks each game up in the system its platform names, so give the rows a platform
+(a column, or the importer's default platform).
+
 DVinyl keeps within the quota ScreenScraper reports (requests per day, requests at once) and stops
 asking once the day's allowance is spent. Covers are copied into your instance when you add a game,
 so browsing your collection never counts against it.
