@@ -71,6 +71,7 @@
       "import_success": "Datenbank erfolgreich importiert.",
       "json_error": "Ungültige JSON-Datei.",
       "file_error": "Die Sicherungsdatei ist beschädigt oder ungültig.",
+      "error_collection_dump": "Diese Datei ist ein Sammlungs-Backup: Sie enthält keine Benutzerkonten und kann daher keine ganze Instanz wiederherstellen. Es wurde nichts geändert. Zum Wiederherstellen melde dich an (oder lege das erste Konto an) und importiere sie dann unter „Sammlungs-Backup“ auf der Verwaltungsseite der Sammlung.",
       "section_subtitle": "Exportieren oder wiederherstellen Sie Ihre gesamte Sammlung.",
       "section_title": "Datenbanksicherung",
       "subtitle": "Sichern Sie Ihre Sammlung oder stellen Sie eine vorhandene Datenbank wieder her.",
@@ -308,7 +309,8 @@
     "collection_backup": {
       "title": "Sammlungs-Backup",
       "subtitle": "Diese Sammlung exportieren (Elemente + Einstellungen) oder ihren Inhalt durch ein Backup ersetzen. ZIP enthält lokale Bilder; JSON enthält nur Daten.",
-      "confirm_import": "Der Import ERSETZT alle Elemente dieser Sammlung. Fortfahren?"
+      "confirm_import": "Der Import ERSETZT alle Elemente dieser Sammlung. Fortfahren?",
+      "error_invalid_item": "Das Element „{{- title}}“ in dieser Datei kann nicht wiederhergestellt werden (ungültiges Feld: {{field}}). Es wurde nichts geändert."
     },
     "sharing": {
       "title": "Öffentliche Freigabelinks",

@@ -71,6 +71,7 @@
       "import_success": "Base de datos importada exitosamente.",
       "json_error": "Archivo JSON no válido.",
       "file_error": "El archivo de copia de seguridad está dañado o no es válido.",
+      "error_collection_dump": "Este archivo es una copia de una colección: no contiene cuentas de usuario, así que no puede restaurar una instancia completa. No se ha cambiado nada. Para restaurarla, inicia sesión (o crea la primera cuenta) e impórtala en «Copia de la colección», en la página de administración de la colección.",
       "section_subtitle": "Exporta o restaura toda tu colección.",
       "section_title": "Copia de seguridad de la base de datos",
       "subtitle": "Haga una copia de seguridad de su colección o restaure una base de datos existente.",
@@ -308,7 +309,8 @@
     "collection_backup": {
       "title": "Copia de la colección",
       "subtitle": "Exporta esta colección (elementos + ajustes) o reemplaza su contenido con una copia de seguridad. El ZIP incluye las imágenes locales; el JSON solo contiene datos.",
-      "confirm_import": "La importación REEMPLAZARÁ todos los elementos de esta colección. ¿Continuar?"
+      "confirm_import": "La importación REEMPLAZARÁ todos los elementos de esta colección. ¿Continuar?",
+      "error_invalid_item": "El elemento «{{- title}}» de este archivo no se puede restaurar (campo no válido: {{field}}). No se ha cambiado nada."
     },
     "sharing": {
       "title": "Enlaces públicos para compartir",

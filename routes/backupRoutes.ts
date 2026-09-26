@@ -163,7 +163,23 @@ const importInstanceBackup = async (req: any, res: any) => {
             return res.status(400).json({ error: "Backup file missing required fields" });
         }
 
+        // A collection's own backup (what a collection's admin page exports) carries no
+        // accounts. Restored here, it would wipe every user and every other collection and
+        // leave its items in none, with nobody left able to sign in. Refused before
+        // anything is touched, with a message saying where it goes instead.
+        const isCollectionDump = typeof data.collectionName === 'string' || data.metadata?.type === 'collection';
+        if (isCollectionDump || !Array.isArray(data.users) || data.users.length === 0) {
+            await cleanupImportedImages(req);
+            return res.status(400).json({
+                error: "Collection backup (no user accounts) posted to the instance import",
+                userMessage: req.t('admin.backup.error_collection_dump')
+            });
+        }
+
         const hasCollections = Array.isArray(data.collections) && data.collections.length > 0;
+        // Lists name items by id, and a whole-instance restore keeps every id as it was, so
+        // they go back untouched. Settled here, before the wipe.
+        const listsToRestore = hasCollections ? restorableLists(data.lists, list => list) : [];
         const replacedImagePaths = await managedItemImagesForQuery({});
         // The wipe below takes the info pages with it, so their uploads are candidates
         // for release too, exactly like the items' own images.
@@ -221,11 +237,10 @@ const importInstanceBackup = async (req: any, res: any) => {
             await Collection.updateMany({}, { $set: { shelvesSeeded: Array.isArray(data.furniture) } });
         }
 
-        // Lists name items by id, and a whole-instance restore keeps every id as it was,
-        // so they come back untouched. Inserted through the model so the ids a JSON dump
-        // carries as strings are cast back to ObjectIds.
-        if (hasCollections && Array.isArray(data.lists) && data.lists.length > 0) {
-            await List.insertMany(data.lists);
+        // Inserted through the model so the ids a JSON dump carries as strings are cast
+        // back to ObjectIds.
+        if (listsToRestore.length > 0) {
+            await List.insertMany(listsToRestore);
         }
 
         if (data.users && data.users.length > 0) {
@@ -623,6 +638,45 @@ function restorableFurniture(data: any, collectionId: any, userId: any): any[] |
     return pieces;
 }
 
+// An id as a dump writes one: 24 hex digits, or already an ObjectId. isValid() alone
+// would also take any 12-character string.
+const isDumpId = (value: unknown) =>
+    value instanceof mongoose.Types.ObjectId || /^[a-f0-9]{24}$/i.test(String(value ?? ''));
+
+/**
+ * The lists of a dump that can go back, each in the shape `place` gives it. Settled
+ * before anything is wiped, for the same reason as the furniture: a list the model
+ * refuses (a kind this version does not know, a name left blank in a file edited by
+ * hand) would only fail its insert once the replacement had already started, and a
+ * whole-instance restore inserts the lists before the accounts. Such a list is left out
+ * rather than costing the rest of the restore, and so is a line naming no valid item.
+ */
+function restorableLists(lists: unknown, place: (list: any) => any): any[] {
+    if (!Array.isArray(lists)) return [];
+
+    const kept: any[] = [];
+    let dropped = 0;
+    for (const raw of lists) {
+        if (!raw || typeof raw !== 'object') {
+            dropped++;
+            continue;
+        }
+        const entries = (Array.isArray(raw.entries) ? raw.entries : []).filter((entry: any) =>
+            entry && isDumpId(entry.item) && (entry.track === undefined || entry.track === null || isDumpId(entry.track))
+        );
+        const list = place({ ...raw, entries });
+        if (new List(list).validateSync()) {
+            dropped++;
+            continue;
+        }
+        kept.push(list);
+    }
+    if (dropped > 0) {
+        console.warn(`[BACKUP] ${dropped} list(s) of the dump could not be restored as they are and were left out.`);
+    }
+    return kept;
+}
+
 /**
  * POST /collection/import - replaces the ACTIVE collection's items (and settings,
  * when present in the file) with the backup's content. Accepts both per-collection
@@ -651,62 +705,90 @@ const importCollectionBackup = async (req: any, res: any) => {
         // turns into a rebuild rather than an error halfway through the replacement.
         const furnitureToRestore = restorableFurniture(data, activeCollectionId, req.user._id);
 
+        // Old item id -> new one. Ids are reassigned (the same dump may be restored twice
+        // into different collections), which would leave every "contained in" and every
+        // list line pointing at an item that no longer exists. So the new ids are drawn up
+        // front and the links rewritten against them, keeping a show and its seasons, and
+        // the lists, together through the restore.
+        const idMap = new Map<string, mongoose.Types.ObjectId>();
+        for (const album of data.albums) {
+            if (album?._id) idMap.set(String(album._id), new mongoose.Types.ObjectId());
+        }
+
+        const legacyKind = registry.getAll().find(p => p.matchesLegacyItems)?.kind || 'Music';
+        const extraDateFields = collectExtraDateFields(
+            Array.isArray(data.settings) ? data.settings : (data.settings ? [data.settings] : [])
+        );
+        // A file edited by hand can name one id twice. The second copy gets an id of its
+        // own, since sharing one would fail the insert after the wipe.
+        const usedIds = new Set<string>();
+        const cleanAlbums = data.albums.map((album: any) => {
+            const { _id, __v, ...rest } = album || {};
+            const fixed: any = {
+                ...rest,
+                kind: rest.kind || legacyKind,
+                owner: req.user._id,
+                collection: activeCollectionId
+            };
+            const newId = _id ? idMap.get(String(_id)) : undefined;
+            if (newId && !usedIds.has(String(newId))) {
+                fixed._id = newId;
+                usedIds.add(String(newId));
+            }
+            // A holder left outside the dump would strand the item in no listing at all,
+            // so it becomes standalone rather than invisible.
+            fixed.parent = rest.parent ? idMap.get(String(rest.parent)) : undefined;
+            if (!fixed.parent) delete fixed.parent;
+            if (fixed.extra) fixed.extra = { ...fixed.extra };
+            reviveExtraDates(fixed, extraDateFields);
+            return fixed;
+        });
+
+        // Checked against their models before the wipe: the insert below validates too,
+        // and an item it refused there would leave the collection emptied. Refused here,
+        // the collection stays exactly as it was.
+        for (const album of cleanAlbums) {
+            const Model: any = (Item as any).discriminators?.[album.kind] || Item;
+            const invalid = new Model(album).validateSync();
+            if (invalid) {
+                await cleanupImportedImages(req);
+                const field = Object.keys(invalid.errors || {})[0] || '?';
+                return res.status(400).json({
+                    error: invalid.message,
+                    userMessage: req.t('admin.collection_backup.error_invalid_item', {
+                        title: String(album.title || '?').slice(0, 100),
+                        field
+                    })
+                });
+            }
+        }
+
+        // A line whose item did not come back with the dump has nothing to point at and is
+        // left out; tracks keep their own ids through the restore, so only the item half of
+        // a playlist line is rewritten.
+        const listsToRestore = restorableLists(data.lists, (list: any) => {
+            const { _id, __v, collection: _owner, createdBy: _by, ...rest } = list;
+            return {
+                ...rest,
+                collection: activeCollectionId,
+                createdBy: req.user._id,
+                entries: rest.entries
+                    .filter((entry: any) => idMap.has(String(entry.item)))
+                    .map((entry: any) => ({ ...entry, item: idMap.get(String(entry.item)) }))
+            };
+        });
+
         // Replacement semantics: the collection's current items are wiped first.
         const replacedImagePaths = await managedItemImagesForQuery({ collection: activeCollectionId });
         await Item.deleteMany({ collection: activeCollectionId });
-
-        // Old item id -> new one, filled below. Read again by the lists once the items are in.
-        const idMap = new Map<string, mongoose.Types.ObjectId>();
-
-        if (data.albums.length > 0) {
-            const legacyKind = registry.getAll().find(p => p.matchesLegacyItems)?.kind || 'Music';
-            const extraDateFields = collectExtraDateFields(
-                Array.isArray(data.settings) ? data.settings : (data.settings ? [data.settings] : [])
-            );
-            // Ids are reassigned here (the same dump may be restored twice into different
-            // collections), which would leave every "contained in" pointing at an item that
-            // no longer exists. So the new ids are drawn up front and the links rewritten
-            // against them, keeping a show and its seasons together through the restore.
-            for (const album of data.albums) {
-                if (album._id) idMap.set(String(album._id), new mongoose.Types.ObjectId());
-            }
-
-            const cleanAlbums = data.albums.map((album: any) => {
-                const { _id, __v, ...rest } = album;
-                const fixed: any = {
-                    ...rest,
-                    kind: rest.kind || legacyKind,
-                    owner: req.user._id,
-                    collection: activeCollectionId
-                };
-                if (_id && idMap.has(String(_id))) fixed._id = idMap.get(String(_id));
-                // A holder left outside the dump would strand the item in no listing at all,
-                // so it becomes standalone rather than invisible.
-                fixed.parent = rest.parent ? idMap.get(String(rest.parent)) : undefined;
-                if (!fixed.parent) delete fixed.parent;
-                if (fixed.extra) fixed.extra = { ...fixed.extra };
-                reviveExtraDates(fixed, extraDateFields);
-                return fixed;
-            });
+        if (cleanAlbums.length > 0) {
             await Item.insertMany(cleanAlbums);
         }
 
-        // Replacement semantics for the lists too. A line whose item did not come back with
-        // the dump has nothing to point at and is left out; tracks keep their own ids
-        // through the restore, so only the item half of a playlist line is rewritten.
+        // Replacement semantics for the lists too.
         await List.deleteMany({ collection: activeCollectionId });
-        if (Array.isArray(data.lists) && data.lists.length > 0) {
-            await List.insertMany(data.lists.map((list: any) => {
-                const { _id, __v, collection: _owner, createdBy: _by, ...rest } = list;
-                return {
-                    ...rest,
-                    collection: activeCollectionId,
-                    createdBy: req.user._id,
-                    entries: (rest.entries || [])
-                        .filter((entry: any) => idMap.has(String(entry.item)))
-                        .map((entry: any) => ({ ...entry, item: idMap.get(String(entry.item)) }))
-                };
-            }));
+        if (listsToRestore.length > 0) {
+            await List.insertMany(listsToRestore);
         }
 
         // Replacement semantics again: the collection's own furniture goes with its items.

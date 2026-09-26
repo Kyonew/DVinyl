@@ -71,6 +71,7 @@
       "import_success": "Database importato correttamente.",
       "json_error": "File JSON non valido.",
       "file_error": "Il file di backup è danneggiato o non valido.",
+      "error_collection_dump": "Questo file è un backup di una collezione: non contiene account utente, quindi non può ripristinare un'intera istanza. Non è stato modificato nulla. Per ripristinarlo, accedi (o crea il primo account), poi importalo in «Backup della collezione» nella pagina di amministrazione della collezione.",
       "section_subtitle": "Esporta o ripristina la tua intera collezione.",
       "section_title": "Backup del database",
       "subtitle": "Esegui il backup della tua raccolta o ripristina un database esistente.",
@@ -308,7 +309,8 @@
     "collection_backup": {
       "title": "Backup della collezione",
       "subtitle": "Esporta questa collezione (elementi + impostazioni) o sostituisci il suo contenuto con un backup. Lo ZIP include le immagini locali; il JSON contiene solo i dati.",
-      "confirm_import": "L'importazione SOSTITUIRÀ tutti gli elementi di questa collezione. Continuare?"
+      "confirm_import": "L'importazione SOSTITUIRÀ tutti gli elementi di questa collezione. Continuare?",
+      "error_invalid_item": "L'elemento «{{- title}}» di questo file non può essere ripristinato (campo non valido: {{field}}). Non è stato modificato nulla."
     },
     "sharing": {
       "title": "Link di condivisione pubblici",

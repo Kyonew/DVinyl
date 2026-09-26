@@ -388,6 +388,7 @@
       "import_error": "Error during import.",
       "json_error": "Invalid JSON file.",
       "file_error": "The backup file is corrupted or invalid.",
+      "error_collection_dump": "This file is a collection backup: it holds no user accounts, so it cannot restore a whole instance. Nothing was changed. To restore it, sign in (or create the first account), then import it under \"Collection backup\" on the collection's admin page.",
       "confirm_import": "WARNING: This will delete all your current data (albums, users, logs) and replace it with the content of the file. You will be logged out. Continue?",
       "subtitle": "Backup your collection or restore an existing database.",
       "title": "System Maintenance",
@@ -542,7 +543,8 @@
     "collection_backup": {
       "title": "Collection backup",
       "subtitle": "Export this collection (items + settings) or replace its content with a backup file. ZIP includes local images; JSON contains data only.",
-      "confirm_import": "Importing will REPLACE every item of this collection. Continue?"
+      "confirm_import": "Importing will REPLACE every item of this collection. Continue?",
+      "error_invalid_item": "The item \"{{- title}}\" in this file cannot be restored (invalid field: {{field}}). Nothing was changed."
     },
     "sharing": {
       "title": "Public share links",

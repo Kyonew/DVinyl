@@ -373,6 +373,7 @@
       "import_error": "Erreur lors de l'importation.",
       "json_error": "Fichier JSON invalide.",
       "file_error": "Le fichier de sauvegarde est corrompu ou invalide.",
+      "error_collection_dump": "Ce fichier est une sauvegarde de collection : il ne contient aucun compte utilisateur et ne peut donc pas restaurer une instance entière. Rien n'a été modifié. Pour la restaurer, connectez-vous (ou créez le premier compte), puis importez-la dans « Sauvegarde de la collection » sur la page d'administration de la collection.",
       "confirm_import": "ATTENTION : Cela va supprimer toutes vos données actuelles (albums, utilisateurs, logs) pour les remplacer par le contenu du fichier. Vous serez déconnecté. Continuer ?",
       "subtitle": "Sauvegardez votre collection ou restaurez une base de données existante.",
       "title": "Maintenance du système",
@@ -542,7 +543,8 @@
     "collection_backup": {
       "title": "Sauvegarde de la collection",
       "subtitle": "Exporter cette collection (items + réglages) ou remplacer son contenu avec une sauvegarde. Le ZIP inclut les images locales ; le JSON contient uniquement les données.",
-      "confirm_import": "L'import va REMPLACER tous les items de cette collection. Continuer ?"
+      "confirm_import": "L'import va REMPLACER tous les items de cette collection. Continuer ?",
+      "error_invalid_item": "L'item « {{- title}} » de ce fichier ne peut pas être restauré (champ invalide : {{field}}). Rien n'a été modifié."
     },
     "sharing": {
       "title": "Liens de partage publics",

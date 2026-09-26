@@ -929,7 +929,10 @@
                                 alert(<%- JSON.stringify(t('admin.backup.import_success')) %>);
                                 window.location.reload();
                             } else {
-                                alert(<%- JSON.stringify(t('admin.backup.import_error')) %>);
+                                // A refusal worded for the reader (an item the file cannot
+                                // bring back) names what is wrong.
+                                const failure = await response.json().catch(() => ({}));
+                                alert(failure.userMessage || <%- JSON.stringify(t('admin.backup.import_error')) %>);
                             }
                         } catch (err) {
                             alert(<%- JSON.stringify(t('admin.backup.file_error')) %>);
