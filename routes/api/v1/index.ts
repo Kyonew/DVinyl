@@ -6,6 +6,7 @@ import collectionsRoutes from './collectionsRoutes';
 import collectionSettingsRoutes from './collectionSettingsRoutes';
 import importExportRoutes from './importExportRoutes';
 import itemsRoutes from './itemsRoutes';
+import maintenanceRoutes from './maintenanceRoutes';
 import pluginsRoutes from './pluginsRoutes';
 import valuesRoutes from './valuesRoutes';
 
@@ -18,6 +19,7 @@ router.use(collectionsRoutes);
 router.use(collectionSettingsRoutes);
 router.use(importExportRoutes);
 router.use(itemsRoutes);
+router.use(maintenanceRoutes);
 router.use(pluginsRoutes);
 router.use(valuesRoutes);
 
