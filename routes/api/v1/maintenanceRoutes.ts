@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { requireApiAuth } from '../../../middleware/authMiddleware';
 import { requireApiCollectionRole } from '../../../middleware/apiAuthMiddleware';
 import { registry } from '../../../core/registry';
+import Item from '../../../models/Item';
+import { deleteItemsAndContents } from '../../../utils/itemHelpers';
 import { collectRefreshItems, runPluginRefresh } from '../../../utils/refreshAll';
 import {
   RefreshJob, createRefreshJob, failRefreshJob, findRunningRefreshJob, finishRefreshJob,
@@ -11,6 +13,8 @@ import {
 const router = Router();
 
 router.use(requireApiAuth);
+
+const MAX_ITEM_DELETE_COUNT = 10000;
 
 /** The public shape of a job; internal fields (userId, scopeKey) stay server-side. */
 function serializeRefreshJob(job: RefreshJob) {
@@ -86,6 +90,38 @@ router.get('/collections/:id/refresh-jobs/:jobId', requireApiCollectionRole('adm
     return res.status(404).json({ success: false, error: 'Job not found' });
   }
   res.status(200).json({ job: serializeRefreshJob(job) });
+});
+
+router.post('/collections/:id/delete-last-items', requireApiCollectionRole('admin'), async (req: any, res: any) => {
+  const { count, pluginId } = req.body ?? {};
+
+  if (!Number.isInteger(count) || count < 1 || count > MAX_ITEM_DELETE_COUNT) {
+    return res.status(400).json({ success: false, error: 'Invalid count' });
+  }
+
+  const plugin = typeof pluginId === 'string' && pluginId ? registry.get(pluginId) : undefined;
+  if (!plugin) {
+    return res.status(400).json({ success: false, error: 'Unknown plugin' });
+  }
+
+  try {
+    // Counted the way the grid counts: "the last 3 items" means the last 3 lines someone
+    // can see, and a show leaves with its seasons rather than counting as several.
+    const items = await Item.find({
+      collection: req.apiCollection._id,
+      kind: plugin.kind,
+      parent: { $exists: false }
+    })
+      .sort({ added_at: -1, _id: -1 })
+      .limit(count)
+      .select('_id');
+
+    const deleted = await deleteItemsAndContents(items.map((i: any) => i._id));
+    res.status(200).json({ success: true, deleted });
+  } catch (err: any) {
+    console.error('API delete-last-items error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 export = router;
