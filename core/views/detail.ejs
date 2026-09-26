@@ -21,7 +21,7 @@
                 || (item.in_wishlist ? baseUrl + '/wishlist' : baseUrl + '/collection?type=' + plugin.id);
         %>
         <% if (locals.holder) { %>
-            <a href="<%= baseUrl %><%= plugin.routePrefix %>/<%= holder._id %>" class="hover:opacity-100 hover:text-primary-theme transition-colors flex items-center gap-2">
+            <a href="<%= baseUrl %><%= plugin.routePrefix %>/<%= holder._id %><%= locals.backUrl ? '?from=' + encodeURIComponent(backUrl) : '' %>" class="hover:opacity-100 hover:text-primary-theme transition-colors flex items-center gap-2">
                 <i class="fa-solid fa-arrow-left"></i>
                 <%= holder.title %>
             </a>

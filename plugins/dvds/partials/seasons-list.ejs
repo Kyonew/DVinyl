@@ -11,7 +11,7 @@
 
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
             <% seasons.forEach(season => { %>
-                <a href="<%= baseUrl %>/dvd/<%= season._id %>"
+                <a href="<%= baseUrl %>/dvd/<%= season._id %><%= locals.backUrl ? '?from=' + encodeURIComponent(backUrl) : '' %>"
                     class="group card-theme rounded-xl overflow-hidden hover:border-primary-theme transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
                     <div class="aspect-[2/3] w-full overflow-hidden bg-black/5 dark:bg-white/5">
                         <img src="<%= itemImageUrl(season.cover_image) %>" loading="lazy"
