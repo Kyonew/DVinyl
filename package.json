@@ -5,12 +5,14 @@
   "main": "app.ts",
   "scripts": {
     "start": "node --env-file=.env --import tsx app.ts",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --import tsx --import ./test/helpers/env.ts --test 'routes/api/v1/*.test.ts'",
+    "test:watch": "node --import tsx --import ./test/helpers/env.ts --test --watch 'routes/api/v1/*.test.ts'",
     "build:css": "npx tailwindcss -i ./website/src/input.css -o ./website/public/styles/tailwind.css --watch"
   },
   "author": "Kyo'",
   "license": "ISC",
   "dependencies": {
+    "@scalar/express-api-reference": "^0.10.21",
     "bcrypt": "^5.1.1",
     "bwip-js": "^4.11.4",
     "cookie-parser": "^1.4.7",
@@ -37,11 +39,14 @@
     "@types/multer": "^2.1.0",
     "@types/node": "^25.9.3",
     "@types/qrcode": "^1.5.6",
+    "@types/supertest": "^7.2.1",
     "@types/yauzl": "^3.4.0",
     "@types/yazl": "^3.3.1",
     "autoprefixer": "^10.4.21",
+    "mongodb-memory-server": "^11.3.0",
     "nodemon": "^3.1.10",
     "postcss": "^8.5.3",
+    "supertest": "^7.3.0",
     "tailwindcss": "^4.1.5",
     "tsx": "^4.22.4",
     "typescript": "^5.9.3"

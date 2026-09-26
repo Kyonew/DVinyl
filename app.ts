@@ -44,6 +44,8 @@ import settingsRoutes from './routes/settingsRoutes.js';
 import backupRoutes from './routes/backupRoutes.js';
 import itemImageRoutes from './routes/itemImageRoutes.js';
 import oidcRoutes from './routes/oidcRoutes.js';
+import apiV1Routes from './routes/api/v1/index.js';
+import apiDocsRoutes from './routes/apiDocsRoutes.js';
 
 import dashboardRoute from './core/routes/dashboardRoute.js';
 import collectionRoute from './core/routes/collectionRoute.js';
@@ -115,6 +117,10 @@ app.use(BASE_URL, express.static(path.join(__dirname, 'public'), {
 }));
 // Mounted with the static assets: no session, no settings, no collection lookup needed
 app.use(BASE_URL + '/plugin-assets', pluginAssetRoutes);
+// Public API docs (Scalar UI + the OpenAPI document). Before the setup gate so a
+// fresh instance can read them; before the /api/v1 router so the spec path isn't
+// swallowed by its JSON 404 handling.
+app.use(BASE_URL, apiDocsRoutes);
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cookieParser());
@@ -245,6 +251,9 @@ app.use(async (req, res, next) => {
   try {
     const count = await User.countDocuments();
     if (count === 0) {
+      if (req.path.startsWith(BASE_URL + '/api/v1')) {
+        return res.status(503).json({ success: false, error: 'Instance not set up yet' });
+      }
       return res.redirect(BASE_URL + '/setup');
     }
   } catch (e) {
@@ -293,6 +302,7 @@ if (isOidcEnabled()) {
   app.use(BASE_URL, oidcRoutes);
 }
 
+app.use(BASE_URL + '/api/v1', apiV1Routes);
 app.use(BASE_URL, dashboardRoute);
 app.use(BASE_URL, collectionRoute);
 app.use(BASE_URL, searchRoute);

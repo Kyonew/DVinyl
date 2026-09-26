@@ -1,7 +1,7 @@
 import { PluginDefinition } from '../../core/types';
 import { DiscogsProvider } from './discogs';
 import { musicImporters } from './importers';
-import { musicApiRoutes } from './apiRoutes';
+import { musicApiRoutes, estimateMusicPrice } from './apiRoutes';
 import { escapeRegExp, fetchJson, PermanentRefreshError, syncStamp } from '../../core/helpers';
 import Item from '../../models/Item';
 
@@ -21,6 +21,7 @@ export const musicPlugin: PluginDefinition = {
   summaryField: { label: 'confirm_vinyl.label_label', field: 'label' },
   bulkRefreshDelayMs: 1500,
   supportsPriceEstimate: true,
+  estimatePrice: estimateMusicPrice,
   externalLink(item: any) {
     return item.discogs_id ? { label: 'Discogs', url: `https://www.discogs.com/release/${item.discogs_id}` } : null;
   },

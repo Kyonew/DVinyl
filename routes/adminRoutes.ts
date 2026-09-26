@@ -17,10 +17,10 @@ import PriceHistory from "../models/PriceHistory";
 
 import { registry } from "../core/registry.js";
 import { CARD_ASPECT_RATIOS } from "../core/customPlugin";
-import { PermanentRefreshError, syncStamp, getPublicProtocol } from "../core/helpers";
+import { getPublicProtocol } from "../core/helpers";
 import { deleteItemsAndContents } from "../utils/itemHelpers";
 import { deleteUnusedManagedItemImages, managedItemImagesForQuery } from "../core/itemImageStorage";
-import { alignImagesAfterRefresh } from "../core/itemImages";
+import { collectRefreshItems, runPluginRefresh } from "../utils/refreshAll";
 
 const router = express.Router();
 
@@ -1134,104 +1134,29 @@ router.post(
   requireCollectionRole("admin"),
   async (req: any, res: any) => {
     const { pluginId } = req.params;
-    const { mode = "all" } = req.body;
+    // The web form's mode is only ever "missing" (the checkbox) or absent; anything else
+    // has always behaved as "all", so coerce rather than reject — the API route validates.
+    const mode = req.body.mode === "missing" ? "missing" : "all";
     const plugin = registry.get(pluginId);
     if (!plugin) return res.status(404).json({ error: "Plugin not found" });
     if (!plugin.refreshItem) return res.status(400).json({ error: "Plugin does not support refresh" });
 
     try {
-      const idField = plugin.externalIdField || '_id';
-
-      let query: any = {
-        collection: res.locals.activeCollectionId,
-        [idField]: { $exists: true, $ne: null }
-      };
-
-      if (plugin.matchesLegacyItems) {
-        query.$and = [{ $or: [{ kind: plugin.kind }, { kind: { $exists: false } }] }];
-      } else {
-        query.kind = plugin.kind;
-      }
-
-      if (mode === "missing") {
-        query.$and = query.$and || [];
-        query.$and.push({
-          $or: [
-            { genre: { $exists: false } },
-            { genre: "" },
-            { genre: null },
-            { genres: { $exists: false } },
-            { genres: { $size: 0 } },
-            { styles: { $exists: false } },
-            { styles: { $size: 0 } }
-          ]
-        });
-      }
-
-      const items = await Item.find(query).lean();
+      const items = await collectRefreshItems(plugin, res.locals.activeCollectionId, mode);
       if (items.length === 0) return res.json({ success: true, count: 0 });
 
       res.status(202).json({ success: true, total: items.length });
 
       (async () => {
         const io = req.app.get("io");
-        let current = 0;
-        for (const item of items) {
-          current++;
-          let success = false;
-          let retries = 0;
-          while (!success && retries < 3) {
-            try {
-              if (io && retries === 0) {
-                io.emit("refresh_all_progress", {
-                  current,
-                  total: items.length,
-                  title: `${item[plugin.creatorField]} - ${item.title}`,
-                });
-              }
-
-              const refreshedData = await plugin.refreshItem!(item, req);
-              // "missing" mode only backfills genre metadata, never clobber cover/description/
-              // publisher/etc that the user may have edited by hand.
-              let dataToApply = refreshedData;
-              if (mode === "missing") {
-                dataToApply = {};
-                for (const k of ["genre", "genres", "styles"]) {
-                  if (refreshedData[k] !== undefined) dataToApply[k] = refreshedData[k];
-                }
-              }
-              // Same realignment as the single-item refresh: a new cover replaces the old
-              // one inside the gallery instead of pushing it down into it. Copied rather
-              // than mutated, since in the full mode this is the plugin's own return value.
-              const update = { ...dataToApply };
-              const replacedCover = alignImagesAfterRefresh(item, update);
-              // Written even when the provider changed nothing, so the date says when the
-              // item was last checked rather than when it last happened to differ.
-              await Item.updateOne({ _id: item._id }, { $set: { ...update, ...syncStamp() } });
-              if (replacedCover) {
-                try {
-                  await deleteUnusedManagedItemImages([replacedCover]);
-                } catch (cleanupError) {
-                  console.warn('[ITEM IMAGE] Post-refresh cleanup failed:', cleanupError);
-                }
-              }
-
-              success = true;
-              await new Promise((r) => setTimeout(r, plugin.bulkRefreshDelayMs ?? 500));
-            } catch (err: any) {
-              retries++;
-              console.error(
-                `[ERR] Refresh bulk ID for ${plugin.id} (Attempt ${retries}):`,
-                err.message,
-              );
-              // Nothing about this item can change between attempts: retrying only
-              // stretches the run by 6 seconds per item for the same failure.
-              if (err instanceof PermanentRefreshError) break;
-              await new Promise((r) => setTimeout(r, 2000));
-            }
-          }
-        }
-        if (io) io.emit("refresh_all_finished", { count: current });
+        const { refreshed, failed } = await runPluginRefresh({
+          plugin,
+          items,
+          mode,
+          req,
+          onProgress: (p) => io?.emit("refresh_all_progress", p)
+        });
+        if (io) io.emit("refresh_all_finished", { count: refreshed + failed });
       })();
 
     } catch (err: any) {

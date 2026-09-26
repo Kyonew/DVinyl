@@ -105,3 +105,39 @@ export async function resolveActiveCollectionForUser(user: any): Promise<any> {
     }
     return fallback;
 }
+
+const ROLE_LEVEL: Record<string, number> = { viewer: 1, editor: 2, admin: 3 };
+
+/**
+ * Resolves `user`'s role on `collectionId` directly from its membership list -
+ * independent of any "active collection". The mobile API is stateless and checks
+ * role per request against whatever collection id the client passed, never against
+ * res.locals.collectionRole (middleware/collectionMiddleware.ts only ever computes
+ * that for the web session's single active collection).
+ */
+export async function resolveMemberRole(user: any, collectionId: any): Promise<{ collection: any; role: string | null }> {
+    const collection = await Collection.findById(collectionId);
+    if (!collection) return { collection: null, role: null };
+    if (user.isAdmin) return { collection, role: 'admin' };
+    const membership = (collection.members || []).find(
+        (m: any) => String(m.user) === String(user._id)
+    );
+    return { collection, role: membership ? membership.role : null };
+}
+
+export function roleAtLeast(role: string | null, minRole: 'viewer' | 'editor' | 'admin'): boolean {
+    return !!role && (ROLE_LEVEL[role] ?? 0) >= (ROLE_LEVEL[minRole] ?? 99);
+}
+
+/** Every collection `user` belongs to (all of them, for an instance admin), with their role on each. */
+export async function listUserCollectionsWithRole(user: any): Promise<{ id: string; name: string; role: string }[]> {
+    if (user.isAdmin) {
+        const all = await Collection.find().select('_id name').lean();
+        return all.map((c: any) => ({ id: String(c._id), name: c.name, role: 'admin' }));
+    }
+    const mine = await Collection.find({ 'members.user': user._id }).select('_id name members').lean();
+    return mine.map((c: any) => {
+        const membership = (c.members || []).find((m: any) => String(m.user) === String(user._id));
+        return { id: String(c._id), name: c.name, role: membership ? membership.role : 'viewer' };
+    });
+}
