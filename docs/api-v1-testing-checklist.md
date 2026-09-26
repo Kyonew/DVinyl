@@ -46,8 +46,8 @@ BASE=http://localhost:3000
 
 ## Maintenance
 
-- [ ] `POST $BASE/api/v1/collections/$CID/refresh-all` `{"pluginId":"music"}` → 202, `{job:{status:"running",pluginId:"music",mode:"all"}}`
-- [ ] `GET $BASE/api/v1/collections/$CID/refresh-jobs/$JOBID` (the id above) → 200; polling reaches `status:"finished"` with `result.refreshed + result.failed == result.total`
+- [x] `POST $BASE/api/v1/collections/$CID/refresh-all` `{"pluginId":"music"}` → 202, `{job:{status:"running",pluginId:"music",mode:"all"}}`
+- [x] `GET $BASE/api/v1/collections/$CID/refresh-jobs/$JOBID` (the id above) → 200; polling reaches `status:"finished"` with `result.refreshed + result.failed == result.total`
 - [ ] A second `refresh-all` for the same plugin while one runs → 409 `{code:"refresh_running", job}`
 - [ ] A `refresh-all` for a different plugin while one runs → 202
 - [ ] `POST …/refresh-all` with `{"pluginId":"nope"}` → 404; with a plugin that has no refresh → 400

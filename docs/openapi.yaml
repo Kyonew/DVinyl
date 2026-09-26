@@ -3296,7 +3296,8 @@ paths:
         immediately; poll `GET /collections/{id}/refresh-jobs/{jobId}`. Only one refresh
         may be active per collection and plugin; a second start returns `409` with the
         active job. A refresh over zero matching items still returns `202` and finishes
-        immediately with `total: 0`.
+        immediately with `total: 0`. A refresh started from the web admin UI is not tracked
+        by this guard, so it can overlap an API-started refresh for the same plugin.
       parameters:
         - $ref: '#/components/parameters/CollectionId'
       requestBody:

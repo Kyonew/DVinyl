@@ -7,8 +7,11 @@ import { RefreshMode } from './refreshJobs';
 
 /**
  * Metadata refresh shared by the web admin route (which forwards progress to socket.io)
- * and the /api/v1 job (which records it on the job). The logic is the web loop moved
- * verbatim; only the progress sink differs.
+ * and the /api/v1 job (which records it on the job). The loop is extracted from the web
+ * route with two deliberate differences: progress is injected via `onProgress`, and the
+ * `Item.updateOne` filter includes `kind: plugin.kind` so discriminator-only fields
+ * (`creator` etc.) are not stripped from the base-model update — matching the single-item
+ * API route.
  */
 
 export interface RefreshProgress {
