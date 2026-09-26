@@ -168,7 +168,7 @@
   </div>
 
   <nav class="nav-custom transition-colors duration-300">
-      <div class="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto p-4">
+      <div class="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto px-2.5 py-4 sm:p-4">
       
       <a href="<%= baseUrl || '/' %>" class="flex items-center space-x-3 group">
         <img src="<%= baseUrl %>/ressources/logo.png" alt="Logo" class="h-8 w-8 rounded-full object-cover group-hover:rotate-12 transition-transform">
@@ -301,9 +301,13 @@
           <%
             // Global shortcuts plus shortcuts declared by each plugin (navbarShortcuts)
             const shortcutConfig = {
-                'global_home': { label: t('nav.home'), url: '/' },
+                // Its own path, not '/': that one lands wherever the user chose, which
+                // may be the collection, and the dashboard would then have no entry.
+                'global_home': { label: t('nav.home'), url: '/dashboard' },
                 'global_collection': { label: t('nav.collection'), url: '/collection' },
-                'global_wishlist': { label: t('nav.wishlist'), url: '/wishlist' }
+                'global_wishlist': { label: t('nav.wishlist'), url: '/wishlist' },
+                'global_info': { label: t('collection_info.title'), url: '/info' },
+                'global_lists': { label: t('lists.title'), url: '/lists' }
             };
             if (typeof registry !== 'undefined' && registry) {
                 registry.getAll().forEach(p => {
@@ -323,7 +327,10 @@
                 : null;
 
             function shortcutAllowed(id, item) {
-                if (locals.isShareView && (id === 'global_home' || id === 'global_wishlist')) return false;
+                if (locals.isShareView && (id === 'global_home' || id === 'global_wishlist' || id === 'global_lists')) return false;
+                // Chosen once for the whole collection, but the page it opens can be off,
+                // empty or kept from the share links: the shortcut follows it.
+                if (id === 'global_info') return isCollectionInfoVisible(locals.activeCollection, locals.isShareView);
                 if (!shareScopeMap) return true;
                 if (!item.pluginId) return true;
                 if (!shareScopeMap.has(item.pluginId)) return false;
@@ -454,4 +461,4 @@
     });
   </script>
 
-  <main class="p-6 flex-1">
+  <main class="px-2.5 py-6 sm:p-6 flex-1">

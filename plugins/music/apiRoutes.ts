@@ -193,33 +193,42 @@ async function getEstimateHistory(req: any, res: any) {
 }
 
 
-// DISCOGS IMAGE GALLERY (secondary "disc" image search in the item editor)
+// DISCOGS IMAGE GALLERY
+//
+// Not the same pictures as a cover search: this walks the top release matches and returns
+// every image each one holds, which for a record means the back, the labels, the inner
+// sleeve and the vinyl itself. What a collector of the physical object actually wants,
+// and why music has always had a second image service behind the first.
+export async function discogsGalleryImages(query: string): Promise<string[]> {
+  const headers = {
+    'User-Agent': 'DVinylApp/2.0',
+    Authorization: `Discogs token=${process.env.DISCOGS_TOKEN || ''}`,
+  };
+
+  const searchRes = await fetchJson(
+    `https://api.discogs.com/database/search?q=${encodeURIComponent(query)}&type=release&per_page=3`,
+    { headers }
+  );
+
+  const galleries = await Promise.all((searchRes.results || []).map(async (item: any) => {
+    try {
+      const detail = await fetchJson(`https://api.discogs.com/releases/${item.id}`, { headers });
+      return (detail.images || []).map((img: any) => img.resource_url);
+    } catch (e) {
+      // One release refusing to load is not worth losing the other two over.
+      return [];
+    }
+  }));
+
+  return [...new Set(galleries.flat())];
+}
+
+// Kept as an endpoint of its own: it is what secondaryImageSearchPath used to point at,
+// and a third-party plugin or an instance still declaring that path reaches it here.
 async function searchDiscogsGallery(req: any, res: any) {
   try {
-    let { q } = req.query;
-    q = typeof q === 'string' ? q.trim() : '';
-    const headers = {
-      'User-Agent': 'DVinylApp/2.0',
-      Authorization: `Discogs token=${process.env.DISCOGS_TOKEN || ''}`,
-    };
-
-    const searchRes = await fetchJson(
-      `https://api.discogs.com/database/search?q=${encodeURIComponent(q)}&type=release&per_page=3`,
-      { headers }
-    );
-    const results = searchRes.results || [];
-    const galleryPromises = results.map(async (item: any) => {
-      try {
-        const detail = await fetchJson(`https://api.discogs.com/releases/${item.id}`, { headers });
-        return (detail.images || []).map((img: any) => img.resource_url);
-      } catch (e) {
-        return [];
-      }
-    });
-
-    const allGalleries = await Promise.all(galleryPromises);
-    const finalImages = [...new Set(allGalleries.flat())];
-    res.json(finalImages);
+    const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    res.json(await discogsGalleryImages(q));
   } catch (err: any) {
     console.error('[ERR] Discogs Global Gallery:', err.message);
     res.status(500).json({ error: 'ERROR Discogs search' });

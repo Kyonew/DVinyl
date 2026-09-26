@@ -18,7 +18,7 @@
             </a>
         </div>
 
-        <form action="<%= baseUrl %>/admin/personnalisation/save" method="POST" class="space-y-8">
+        <form action="<%= baseUrl %>/admin/personnalisation/save" method="POST" data-save-bar class="space-y-8">
 
             <div class="card-theme rounded-3xl p-6 shadow-xl transition-colors">
                 <h2 class="text-xl font-bold mb-6 flex items-center gap-3">
@@ -126,7 +126,9 @@
                         { label: t('perso.modules.global'), active: true, options: [
                             { id: 'global_home', label: t('nav.home') },
                             { id: 'global_collection', label: t('nav.collection') },
-                            { id: 'global_wishlist', label: t('nav.wishlist') }
+                            { id: 'global_wishlist', label: t('nav.wishlist') },
+                            { id: 'global_info', label: t('collection_info.title') },
+                            { id: 'global_lists', label: t('lists.title') }
                         ] }
                     ];
                     registry.getAll().forEach(p => {
@@ -223,6 +225,36 @@
                             </label>
                             <% }) %>
                 </div>
+
+                <%# Offered only where something can actually be scanned into one exact
+                    item: with no such module active the toggle would promise a behaviour
+                    no search on this instance can trigger. %>
+                <% if (locals.scanModeAvailable) { %>
+                    <label
+                        class="flex items-start justify-between gap-4 p-4 mt-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 cursor-pointer">
+                        <div class="flex items-start gap-3">
+                            <div
+                                class="w-10 h-10 rounded-xl flex items-center justify-center bg-white dark:bg-black/20 shadow-sm shrink-0">
+                                <i class="fa-solid fa-barcode text-sm"></i>
+                            </div>
+                            <div>
+                                <span class="text-sm font-bold opacity-80">
+                                    <%= t('perso.instantAdd_title') %>
+                                </span>
+                                <p class="text-xs opacity-50 mt-0.5">
+                                    <%= t('perso.instantAdd_desc') %>
+                                </p>
+                            </div>
+                        </div>
+                        <div class="relative inline-flex items-center shrink-0 mt-2">
+                            <input type="checkbox" name="instantAdd" <%= settings.instantAdd === true ? 'checked' : ''
+                                %> class="sr-only peer">
+                            <div
+                                class="w-11 h-6 bg-black/10 dark:bg-white/10 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500">
+                            </div>
+                        </div>
+                    </label>
+                <% } %>
             </div>
 
             <div class="card-theme rounded-3xl p-6 shadow-xl transition-colors mt-8">

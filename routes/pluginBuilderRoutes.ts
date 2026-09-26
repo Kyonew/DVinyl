@@ -12,7 +12,8 @@ import {
   CUSTOM_PLUGIN_PALETTE,
   CUSTOM_PLUGIN_ICONS
 } from '../core/customPluginStore';
-import { sanitizeExtraFields, getExtraFields } from '../core/pluginExtraFields';
+import { sanitizeExtraFields, getExtraFields, nativeLookalikesByPlugin } from '../core/pluginExtraFields';
+import { SUPPORTED_LANGUAGES } from '../config/constants';
 import { placeholderUrl } from '../core/placeholderImage';
 import { cardFieldCandidates, getCardLines, MAX_CARD_LINES, CORNER_POSITIONS, DEFAULT_CORNER_POSITION } from '../core/cardFields';
 import { registerPluginDirAtRuntime, unregisterPluginAtRuntime } from '../core/pluginRuntime';
@@ -66,6 +67,14 @@ router.get('/', async (req: any, res: any) => {
     // Cosmetic-override targets: every plugin, with translated labels for the modal.
     // Read through the decorated registry so the collection's user-defined fields are
     // offered as card fields too.
+    // Read on the bare registry: the decorated one lists the user-defined fields among
+    // the plugin's own, which would make every one of them look like itself.
+    const lookalikes = nativeLookalikesByPlugin(
+      settings,
+      registry.getAll(),
+      key => SUPPORTED_LANGUAGES.map(lng => req.t(key, { lng }))
+    );
+
     const customizablePlugins = res.locals.registry.getAll().map((p: any) => ({
       id: p.id,
       label: req.t(p.label),
@@ -75,6 +84,8 @@ router.get('/', async (req: any, res: any) => {
       formats: (p.formats || []).map((f: any) => ({ value: f.value, label: req.t(f.label) })),
       current: customization[p.id] || {},
       extraFields: getExtraFields(settings, p.id),
+      // User-defined field key -> label of the plugin's own field it looks like
+      lookalikes: Object.fromEntries((lookalikes[p.id] || []).map(l => [l.name, req.t(l.nativeLabel)])),
       cardFieldChoices: cardFieldCandidates(p).map(f => ({
         name: f.name,
         label: req.t(f.label, { defaultValue: f.label })
@@ -162,7 +173,8 @@ router.post('/customize/:pluginId', async (req: any, res: any) => {
     // key, so a caller that only changes the icon never touches the declared fields.
     let extraUpdate: { set?: any; unset?: string } | null = null;
     if (req.body.extraFields !== undefined) {
-      const { fields, errors } = sanitizeExtraFields(req.body.extraFields, plugin);
+      const existingFields = getExtraFields(res.locals.settings, plugin.id);
+      const { fields, errors } = sanitizeExtraFields(req.body.extraFields, plugin, existingFields);
       if (errors.length > 0) {
         return res.status(400).json({ success: false, error: errors.map(e => req.t(e)).join(' ') });
       }

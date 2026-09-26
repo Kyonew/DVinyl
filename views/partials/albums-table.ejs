@@ -1,0 +1,82 @@
+<%# Item table shared by the collection and wishlist pages.
+    Same items as the grid, read as rows instead of covers: no cover art, no
+    per-item measuring, nothing beyond what core/cardFields.ts already resolves
+    for the card body. That is what keeps this the lightest view to draw.
+
+    Params: albums, and optionally
+      gridId     id set on the table element
+      wishlist   adds the "received it" button per row
+      selectable adds the bulk-selection checkbox column %>
+<%
+    const tr = s => isTranslationKey(s) ? t(s, { defaultValue: s }) : s;
+    const lineText = l => l.translateValue ? tr(l.value) : l.value;
+    // The collection's search term lights up in the values; labels are never what it matched.
+    const hit = s => highlightMatches(s, locals.querySearch);
+    const lineHtml = l => (l.showLabel ? highlightMatches(tr(l.label), '') + ' : ' : '') + hit(lineText(l));
+    const showWishlistAction = locals.wishlist === true && locals.canEditCollection;
+%>
+<div class="card-theme rounded-2xl overflow-hidden shadow-lg transition-colors">
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm" <% if (locals.gridId) { %>id="<%= locals.gridId %>"<% } %>>
+            <thead class="bg-black/5 dark:bg-white/5 text-xs uppercase opacity-70 transition-colors">
+                <tr>
+                    <% if (locals.selectable) { %><th class="p-0"></th><% } %>
+                    <th class="px-4 py-3"><%= t('collection.table_col_title') %></th>
+                    <th class="hidden sm:table-cell px-4 py-3"><%= t('collection.table_col_info') %></th>
+                    <% if (!locals.isShareView) { %><th class="hidden sm:table-cell px-4 py-3"><%= t('common.location') %></th><% } %>
+                    <% if (showWishlistAction) { %><th class="px-4 py-3"></th><% } %>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-black/5 dark:divide-white/5 transition-colors">
+                <% albums.forEach(album => { %>
+                    <%
+                        const itemPlugin = registry.getByKind(album.kind);
+                        const routePrefix = itemPlugin ? itemPlugin.routePrefix : '/album';
+                        const cardLines = getCardLines(itemPlugin, album, { lang: currentLng, isShareView: locals.isShareView === true });
+                        const infoText = cardLines.map(l => (l.showLabel ? tr(l.label) + ' : ' : '') + lineText(l)).join(' · ');
+                        const infoHtml = cardLines.map(lineHtml).join(' · ');
+                    %>
+                    <tr class="album-card even:bg-black/[0.045] dark:even:bg-white/[0.045] hover:bg-black/[0.09] dark:hover:bg-white/[0.09] transition-colors"
+                        <% if (locals.selectable) { %>data-id="<%= album._id %>"<% } %>>
+                        <% if (locals.selectable) { %>
+                            <%# The padding sits on the checkbox, so the column takes no room outside select mode. %>
+                            <td class="p-0 align-middle">
+                                <span class="select-checkbox-overlay hidden items-center justify-center w-5 h-5 ml-3">
+                                    <input type="checkbox" class="album-select-checkbox w-4 h-4 accent-primary-theme cursor-pointer">
+                                </span>
+                            </td>
+                        <% } %>
+                        <td class="px-4 py-2 align-middle w-full max-w-0 sm:w-auto sm:max-w-xs">
+                            <a href="<%= baseUrl + routePrefix %>/<%= album._id %>" class="font-bold truncate block hover:text-primary-theme transition-colors" title="<%= album.title %>"><%- hit(album.title) %></a>
+                            <% if (album.containsLabel) { %>
+                                <p class="text-[10px] font-bold text-primary-theme truncate"><%= t(album.containsLabel.key, album.containsLabel.params) %></p>
+                            <% } %>
+                            <%# On a phone the info and location columns would scroll off screen, so they read under the title instead. %>
+                            <% const mobileInfo = [infoHtml, locals.isShareView ? '' : highlightMatches(album.location, '')].filter(Boolean).join(' · '); %>
+                            <% if (mobileInfo) { %>
+                                <p class="sm:hidden text-xs opacity-60 truncate"><%- mobileInfo %></p>
+                            <% } %>
+                        </td>
+                        <td class="hidden sm:table-cell px-4 py-2 align-middle opacity-70 max-w-sm">
+                            <% if (infoText) { %>
+                                <span class="truncate block" title="<%= infoText %>"><%- infoHtml %></span>
+                            <% } %>
+                        </td>
+                        <% if (!locals.isShareView) { %>
+                            <td class="hidden sm:table-cell px-4 py-2 align-middle opacity-70 truncate"><%= album.location || '' %></td>
+                        <% } %>
+                        <% if (showWishlistAction) { %>
+                            <td class="px-4 py-2 align-middle text-right">
+                                <button onclick="moveToCollection('<%= album._id %>', '<%= routePrefix %>')"
+                                    class="px-3 py-1.5 bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white text-primary-theme rounded-lg transition-colors"
+                                    title="<%= t('wishlist.btn_received') %>">
+                                    <i class="fa-solid fa-check"></i>
+                                </button>
+                            </td>
+                        <% } %>
+                    </tr>
+                <% }) %>
+            </tbody>
+        </table>
+    </div>
+</div>

@@ -7,7 +7,10 @@
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
             <% variants.forEach(variant => { %>
                 <% 
-                    const detailUrl = `${plugin.routePrefix}/${variant._id}`;
+                    // Carries on the listing this page was opened from, so going back
+                    // from another edition still lands there.
+                    const detailUrl = `${plugin.routePrefix}/${variant._id}`
+                        + (locals.backUrl ? '?from=' + encodeURIComponent(backUrl) : '');
                 %>
                 <a href="<%= baseUrl + detailUrl %>" class="group block">
                     <div class="aspect-square rounded-xl overflow-hidden card-theme border border-black/5 dark:border-white/10 shadow-sm hover:shadow-md transition-all duration-300 relative flex items-center justify-center">

@@ -1,22 +1,24 @@
 {
   "name": "dvinyl",
-  "version": "3.1.5",
+  "version": "3.2.0",
   "description": "",
   "main": "app.ts",
   "scripts": {
     "start": "node --env-file=.env --import tsx app.ts",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --import tsx --test tests/extraFieldIdentity.test.ts tests/hardcoverEditions.test.ts tests/searchHighlight.test.ts tests/markdown.test.ts tests/shelfHelpers.test.ts tests/screenscraper.test.ts",
+    "test:integration": "node --import tsx --test tests/extraFieldMigration.integration.test.ts",
     "build:css": "npx tailwindcss -i ./website/src/input.css -o ./website/public/styles/tailwind.css --watch"
   },
   "author": "Kyo'",
   "license": "ISC",
   "dependencies": {
-    "bcrypt": "^5.1.1",
+    "bcrypt": "^6.0.0",
     "bwip-js": "^4.11.4",
     "cookie-parser": "^1.4.7",
     "ejs": "^3.1.10",
     "express": "^5.1.0",
     "express-session": "^1.18.1",
+    "fast-xml-parser": "^5.11.0",
     "i18next": "^25.8.0",
     "i18next-http-middleware": "^3.9.2",
     "jsonwebtoken": "^9.0.2",

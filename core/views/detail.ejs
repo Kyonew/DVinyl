@@ -21,7 +21,7 @@
                 || (item.in_wishlist ? baseUrl + '/wishlist' : baseUrl + '/collection?type=' + plugin.id);
         %>
         <% if (locals.holder) { %>
-            <a href="<%= baseUrl %><%= plugin.routePrefix %>/<%= holder._id %>" class="hover:opacity-100 hover:text-primary-theme transition-colors flex items-center gap-2">
+            <a href="<%= baseUrl %><%= plugin.routePrefix %>/<%= holder._id %><%= locals.backUrl ? '?from=' + encodeURIComponent(backUrl) : '' %>" class="hover:opacity-100 hover:text-primary-theme transition-colors flex items-center gap-2">
                 <i class="fa-solid fa-arrow-left"></i>
                 <%= holder.title %>
             </a>
@@ -332,7 +332,7 @@
                     </div>
                 <% } %>
                 <!-- External "source" link, declared by the plugin -->
-                <% const extLink = plugin.externalLink ? plugin.externalLink(item) : null; %>
+                <% const extLink = externalLinkFor(plugin, item); %>
                 <% if (extLink) { %>
                     <div>
                         <span class="block text-xs opacity-50 uppercase font-bold mb-1"><%= t('detail.source') %></span>
@@ -420,7 +420,7 @@
                         // as one more thing to know about the item.
                     %>
                     <div class="flex flex-col items-start gap-1 md:flex-1">
-                        <% if (plugin.refreshItem) { %>
+                        <% if (canRefresh(plugin)) { %>
                             <button id="refreshInfoBtn" onclick="refreshMetadata('<%= item._id %>')" class="w-full md:w-auto opacity-60 hover:opacity-100 px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center md:justify-start gap-2">
                                 <i class="fa-solid fa-arrows-rotate" id="refreshInfoIcon"></i>
                                 <%= t('collection.refresh_metadata_btn') %>
@@ -437,6 +437,10 @@
                         its label rather than shrinking to a bare icon: "refresh" and "back to
                         wishlist" are not guessable from a pictogram alone. %>
                     <div class="grid grid-cols-2 gap-2 md:flex md:gap-4">
+                    <button type="button" onclick="openListPicker({ kind: 'items', item: '<%= item._id %>', label: <%= JSON.stringify(item.title || '') %> })" class="w-full md:w-auto text-center md:text-left opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
+                        <i class="fa-solid fa-list-check mr-2"></i>
+                        <%= t('lists.add_to_list') %>
+                    </button>
                     <% if (!item.in_wishlist) { %>
                         <button onclick="moveToWishlist('<%= item._id %>')" class="w-full md:w-auto text-center md:text-left opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
                             <i class="fa-solid fa-heart-circle-minus mr-2"></i>
@@ -497,6 +501,10 @@
     <%- include('partials/variants', { variants, plugin }) %>
 
 </div>
+
+<% if (user && locals.canEditCollection) { %>
+    <%- include('../../views/partials/list-picker') %>
+<% } %>
 
 <!-- Fullscreen preview of the visual currently shown in the main frame -->
 <div id="imageLightbox" class="fixed inset-0 z-[200] hidden flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 md:p-10 cursor-zoom-out"

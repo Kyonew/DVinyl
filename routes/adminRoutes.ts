@@ -9,17 +9,29 @@ import Settings from "../models/Settings";
 import Collection from "../models/Collection";
 import { requireAuth, requireAdmin, requireCollectionRole } from "../middleware/authMiddleware";
 import { generateUniqueSlug, generateShareToken } from "../utils/collectionHelpers";
-import { BASE_URL } from "../config/constants";
+import { BASE_URL, SUPPORTED_LANGUAGES } from "../config/constants";
 import { getInstanceSettings, saveInstanceSettings, InstanceSettingsData } from "../utils/instanceSettings";
 import PRESETS from "../config/themes";
 import Item from "../models/Item";
 import PriceHistory from "../models/PriceHistory";
+import Furniture from "../models/Furniture";
+import List from "../models/List";
 
 import { registry } from "../core/registry.js";
+import { canRefresh, refreshPatchFor, gatherImages, pluginSources } from "../core/sources.js";
 import { CARD_ASPECT_RATIOS } from "../core/customPlugin";
 import { PermanentRefreshError, syncStamp, getPublicProtocol } from "../core/helpers";
 import { deleteItemsAndContents } from "../utils/itemHelpers";
 import { deleteUnusedManagedItemImages, managedItemImagesForQuery } from "../core/itemImageStorage";
+import {
+  collectionInfoFromForm,
+  collectionInfoOf,
+  MAX_COLLECTION_INFO_BODY,
+  MAX_COLLECTION_INFO_IMAGES,
+  MAX_COLLECTION_INFO_TITLE,
+} from "../core/collectionInfo";
+import { renderMarkdown } from "../core/markdown";
+import { nativeLookalikesByPlugin } from "../core/pluginExtraFields";
 import { alignImagesAfterRefresh } from "../core/itemImages";
 
 const router = express.Router();
@@ -148,6 +160,12 @@ async function loadInstanceAdminData(): Promise<InstanceAdminData> {
   };
 }
 
+// The message keys a redirect reports a failure with, so the banner is drawn as
+// an error instead of a success.
+function isErrorMessageKey(key: string | undefined): boolean {
+  return !!key && (key.startsWith("error_") || key.endsWith("_error"));
+}
+
 // COLLECTION ADMIN PAGE (GET /admin) - gated on the active collection's admin role
 router.get("/", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
   try {
@@ -156,10 +174,25 @@ router.get("/", requireAuth, requireCollectionRole("admin"), async (req: any, re
     // Read optional message key from query and translate in the view.
     const msgKey = req.query.msg as string | undefined;
 
+    // User-defined fields that now look like a plugin's own field, typically one the
+    // plugin gained in an update. Surfaced here since nothing else would say so until
+    // someone opened that plugin's customization.
+    const lookalikes = nativeLookalikesByPlugin(
+      res.locals.settings,
+      registry.getEnabled(res.locals.settings),
+      (key) => SUPPORTED_LANGUAGES.map((lng) => req.t(key, { lng })),
+    );
+    const fieldLookalikes = Object.entries(lookalikes).map(([pluginId, fields]) => ({
+      pluginLabel: req.t(registry.get(pluginId)!.label),
+      fields: fields.map((f) => ({ name: f.name, label: f.label, nativeLabel: req.t(f.nativeLabel) })),
+    }));
+
     res.render("admin", {
       ...data,
+      fieldLookalikes,
       user: res.locals.user,
       successMessage: msgKey ? req.t(`messages.${msgKey}`) : null,
+      messageIsError: isErrorMessageKey(msgKey),
       newPassword: null,
       // Share links must show a full, absolute URL (scheme + host) - a bare
       // baseUrl-relative path is not something you can scan/paste elsewhere.
@@ -183,6 +216,7 @@ router.get("/instance", requireAuth, requireAdmin, async (req: any, res: any) =>
       ...data,
       user: res.locals.user,
       successMessage: msgKey ? req.t(`messages.${msgKey}`) : null,
+      messageIsError: isErrorMessageKey(msgKey),
       newPassword: null,
       apiKeyStatus: registry.getApiKeyStatus(),
     });
@@ -191,6 +225,16 @@ router.get("/instance", requireAuth, requireAdmin, async (req: any, res: any) =>
     res.status(500).send(req.t("errors.generic_server_error"));
   }
 });
+
+// Names why an account could not be created: a duplicate key names the field
+// already in use, anything else falls back to a generic failure.
+function userCreationErrorKey(err: any): string {
+  if (err?.code === 11000) {
+    return err.keyPattern?.username ? "error_username_taken" : "error_email_taken";
+  }
+  if (err?.name === "ValidationError") return "error_user_invalid";
+  return "error_user_create";
+}
 
 // Add user at the INSTANCE level (POST) - creates a global account with no
 // collection membership; collection admins attach members from their own page.
@@ -226,7 +270,41 @@ router.post("/add-user", requireAuth, requireAdmin, async (req: any, res: any) =
     });
   } catch (err) {
     console.error("[ADMIN] User creation error:", err);
-    res.redirect("/admin/instance?msg=user_created");
+    res.redirect(`/admin/instance?msg=${userCreationErrorKey(err)}`);
+  }
+});
+
+// Assign a member's home collection: the one they land in when they open the app
+// (see utils/homePage.ts). The user can change it themselves from their settings;
+// an admin sets it here so a new account starts somewhere sensible. Empty clears it,
+// which puts the user back on whatever they last browsed.
+router.post("/users/home-collection", requireAuth, requireAdmin, async (req: any, res: any) => {
+  try {
+    const { userId, collectionId } = req.body;
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.redirect("/admin/instance");
+    }
+
+    if (!collectionId) {
+      await User.updateOne({ _id: userId }, { $set: { homeCollectionId: null } });
+      return res.redirect("/admin/instance?msg=home_collection_updated");
+    }
+
+    // Only a collection the user belongs to: anything else would send them, every
+    // launch, somewhere the collection middleware has to heal them away from.
+    const member = await Collection.findOne({
+      _id: mongoose.Types.ObjectId.isValid(collectionId) ? collectionId : null,
+      "members.user": userId,
+    }).select("_id");
+    if (!member) {
+      return res.redirect("/admin/instance?msg=error_member_not_found");
+    }
+
+    await User.updateOne({ _id: userId }, { $set: { homeCollectionId: member._id } });
+    res.redirect("/admin/instance?msg=home_collection_updated");
+  } catch (err) {
+    console.error("[ADMIN] Home collection error:", err);
+    res.redirect("/admin/instance?msg=generic_error");
   }
 });
 
@@ -271,6 +349,7 @@ router.post("/collections/create", requireAuth, requireAdmin, async (req: any, r
       slug,
       createdBy: req.user._id,
       isDefault: false,
+      shelvesSeeded: true,
       members: [{ user: req.user._id, role: "admin" }],
     });
 
@@ -327,10 +406,17 @@ router.post("/collections/:id/delete", requireAuth, requireAdmin, async (req: an
     // The value snapshots describe a collection that is about to stop existing, and
     // nothing else points at them: left behind they would only be unreachable rows.
     await PriceHistory.deleteMany({ collection: target._id });
+    // Shelves and lists only mean anything next to the items they arrange.
+    await Furniture.deleteMany({ collection: target._id });
+    await List.deleteMany({ collection: target._id });
     // Users pointing at this collection self-heal to another membership on next request
     await User.updateMany(
       { lastActiveCollectionId: target._id },
       { $set: { lastActiveCollectionId: null } },
+    );
+    await User.updateMany(
+      { homeCollectionId: target._id },
+      { $set: { homeCollectionId: null } },
     );
     await Collection.deleteOne({ _id: target._id });
     try {
@@ -413,6 +499,10 @@ router.post("/instance/collections/:id/members/remove", requireAuth, requireAdmi
       { _id: userId, lastActiveCollectionId: req.params.id },
       { $set: { lastActiveCollectionId: null } },
     );
+    await User.updateOne(
+      { _id: userId, homeCollectionId: req.params.id },
+      { $set: { homeCollectionId: null } },
+    );
 
     res.redirect("/admin/instance?msg=member_removed");
   } catch (err) {
@@ -466,7 +556,7 @@ router.post("/members/create", requireAuth, requireCollectionRole("admin"), asyn
     });
   } catch (err) {
     console.error("Member creation error:", err);
-    res.redirect("/admin?msg=error_member");
+    res.redirect(`/admin?msg=${userCreationErrorKey(err)}`);
   }
 });
 
@@ -553,6 +643,10 @@ router.post("/members/remove", requireAuth, requireCollectionRole("admin"), asyn
     await User.updateOne(
       { _id: userId, lastActiveCollectionId: res.locals.activeCollectionId },
       { $set: { lastActiveCollectionId: null } },
+    );
+    await User.updateOne(
+      { _id: userId, homeCollectionId: res.locals.activeCollectionId },
+      { $set: { homeCollectionId: null } },
     );
 
     res.redirect("/admin?msg=member_removed");
@@ -878,10 +972,78 @@ router.post("/delete-last-logs", requireAuth, requireAdmin, async (req: any, res
   }
 });
 
+// COLLECTION INFO PAGE EDITOR (see core/collectionInfo.ts). The page it writes is
+// served by core/routes/collectionInfoRoute.ts and is readable by share visitors, so
+// only a collection admin gets to write it.
+router.get("/collection-info", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
+  try {
+    const collection = await Collection.findById(res.locals.activeCollectionId).lean();
+    if (!collection) return res.redirect("/admin");
+
+    const info = collectionInfoOf(collection);
+    res.render("admin-collection-info", {
+      user: res.locals.user,
+      collectionName: (collection as any).name,
+      info,
+      infoHtml: renderMarkdown(info.body),
+      maxTitle: MAX_COLLECTION_INFO_TITLE,
+      maxBody: MAX_COLLECTION_INFO_BODY,
+      maxImages: MAX_COLLECTION_INFO_IMAGES,
+      successMessage: req.query.msg ? req.t(`messages.${req.query.msg}`) : null,
+    });
+  } catch (err) {
+    console.error("[ERR] Collection info editor:", err);
+    res.status(500).send(req.t("errors.generic_server_error"));
+  }
+});
+
+router.post("/collection-info", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
+  try {
+    const collectionId = res.locals.activeCollectionId;
+    const previous = collectionInfoOf(await Collection.findById(collectionId).lean());
+    const info = collectionInfoFromForm(req.body);
+
+    await Collection.updateOne(
+      { _id: collectionId },
+      { $set: { info: { ...info, updated_at: new Date() } } },
+    );
+
+    // An upload dropped from the page is nothing's image any more. The release is
+    // guarded against every other reference (items, other collections), so a picture
+    // used twice stays where it is.
+    const removed = previous.images.filter(image => !info.images.includes(image));
+    if (removed.length > 0) {
+      try {
+        await deleteUnusedManagedItemImages(removed);
+      } catch (cleanupError) {
+        console.warn("[COLLECTION INFO] Image cleanup failed:", cleanupError);
+      }
+    }
+
+    res.redirect("/admin/collection-info?msg=saved");
+  } catch (err) {
+    console.error("[ERR] Collection info save:", err);
+    res.status(500).send(req.t("errors.generic_server_error"));
+  }
+});
+
+// Live preview of the editor's text. Rendered here rather than in the browser so the
+// preview and the page itself can never drift apart: both read core/markdown.ts.
+router.post("/collection-info/preview", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
+  const body = typeof req.body?.body === "string" ? req.body.body : "";
+  res.json({ html: renderMarkdown(body.slice(0, MAX_COLLECTION_INFO_BODY)) });
+});
+
 router.get("/personnalisation", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
   try {
+    const settings = res.locals.settings;
     res.render("personnalisation", {
       presets: PRESETS,
+      // Scan mode is only worth offering when an active module has a source that can
+      // read a query as one exact item (see ExternalSource.exactQuery).
+      scanModeAvailable: registry.getAll().some(p =>
+        settings?.modules?.[p.collectionType] && pluginSources(p).some(s => typeof s.exactQuery === "function")
+      ),
     });
   } catch (err) {
     console.error(err);
@@ -931,6 +1093,7 @@ router.post(
         navbarShortcuts: shortcuts,
         statsWidgets: stats,
         fastAdd: fastAdd,
+        instantAdd: req.body.instantAdd === "on",
       };
       for (const p of registry.getAll()) {
         const preset = req.body[`${p.collectionType}Preset`];
@@ -971,6 +1134,18 @@ router.post("/modules/save", requireAuth, requireCollectionRole("admin"), async 
       for (const opt of p.settings || []) {
         update[`pluginSettings.${p.id}.${opt.key}`] = req.body[`pluginSetting_${p.id}_${opt.key}`] === "on";
       }
+    }
+
+    // Order the collection prefers its sources in: sourceOrder_<pluginId>, a comma-separated
+    // list of ids. Filtered against what the plugin declares, so a stale form or a hand-made
+    // request cannot store an id that means nothing, and deduplicated, since a repeated id
+    // would silently drop whichever source it displaced.
+    for (const p of registry.getAll()) {
+      const raw = req.body[`sourceOrder_${p.id}`];
+      if (typeof raw !== "string") continue;
+      const declared = new Set(pluginSources(p).map(s => s.id));
+      const ids = [...new Set(raw.split(",").map((id: string) => id.trim()).filter((id: string) => declared.has(id)))];
+      if (ids.length > 0) update[`sourceOrder.${p.id}`] = ids;
     }
 
     await Settings.findOneAndUpdate(
@@ -1072,18 +1247,25 @@ router.get(
   async (req: any, res: any) => {
     let { q, type } = req.query;
     q = typeof q === 'string' ? q.trim() : '';
-    console.log(`[SEARCH] Query: "${q}" | Type: ${type}`);
+    const pluginId = typeof req.query.plugin === 'string' ? req.query.plugin : '';
 
     try {
-      // Each plugin declares its imageSearchProvider; fall back to the legacy plugin (music)
-      const plugin = registry.getAll().find(p => p.imageSearchType === type && p.imageSearchProvider)
-        || registry.getAll().find(p => p.matchesLegacyItems && p.imageSearchProvider);
+      // The picker names its plugin outright. `type` is what it used to send and is still
+      // accepted: the route is a public endpoint of the instance, and an old page left
+      // open in a tab must not start coming back empty.
+      //
+      // Nothing falls back to the legacy plugin any more. It used to, which is how a
+      // custom plugin asking for its own images was handed music's album covers: a
+      // plugin with no image source of its own now gets none rather than someone else's.
+      const plugin = (pluginId ? registry.get(pluginId) : undefined)
+        || registry.getAll().find(p => p.imageSearchType === type);
 
-      if (!plugin || !plugin.imageSearchProvider) {
+      if (!plugin) {
         return res.json([]);
       }
 
-      const urls = await plugin.imageSearchProvider.search(q, { language: req.language });
+      // Every image source of the plugin at once, merged and deduplicated.
+      const urls = await gatherImages(plugin, q, { language: req.language }, res.locals.settings);
       console.log(`[SEARCH] ${plugin.id} found: ${urls.length} images`);
       res.json(urls);
     } catch (err: any) {
@@ -1137,14 +1319,21 @@ router.post(
     const { mode = "all" } = req.body;
     const plugin = registry.get(pluginId);
     if (!plugin) return res.status(404).json({ error: "Plugin not found" });
-    if (!plugin.refreshItem) return res.status(400).json({ error: "Plugin does not support refresh" });
+    if (!canRefresh(plugin)) return res.status(400).json({ error: "Plugin does not support refresh" });
 
     try {
       const idField = plugin.externalIdField || '_id';
 
+      // An item qualifies on either reference: the plugin's own id field, which is what
+      // everything added before sources existed carries, or the stored source pair, which
+      // is the only thing an item filled in from another database has. Selecting on the id
+      // field alone is what would leave those out of every bulk run, silently.
       let query: any = {
         collection: res.locals.activeCollectionId,
-        [idField]: { $exists: true, $ne: null }
+        $or: [
+          { [idField]: { $exists: true, $ne: null } },
+          { source_id: { $exists: true, $nin: [null, ''] } }
+        ]
       };
 
       if (plugin.matchesLegacyItems) {
@@ -1190,7 +1379,7 @@ router.post(
                 });
               }
 
-              const refreshedData = await plugin.refreshItem!(item, req);
+              const refreshedData = await refreshPatchFor(plugin, item, req);
               // "missing" mode only backfills genre metadata, never clobber cover/description/
               // publisher/etc that the user may have edited by hand.
               let dataToApply = refreshedData;
@@ -1207,7 +1396,14 @@ router.post(
               const replacedCover = alignImagesAfterRefresh(item, update);
               // Written even when the provider changed nothing, so the date says when the
               // item was last checked rather than when it last happened to differ.
-              await Item.updateOne({ _id: item._id }, { $set: { ...update, ...syncStamp() } });
+              //
+              // Through the discriminator model rather than the base one: the plugin's own
+              // paths (developer, publisher, tracklist...) do not exist on the base schema,
+              // and strict mode drops them without a word. A bulk run reported every item
+              // as refreshed while writing back only the fields the base schema shares.
+              // The single-item route sidesteps this by casting through `kind` in its filter.
+              const RefreshModel = mongoose.model(plugin.kind);
+              await RefreshModel.updateOne({ _id: item._id }, { $set: { ...update, ...syncStamp() } });
               if (replacedCover) {
                 try {
                   await deleteUnusedManagedItemImages([replacedCover]);

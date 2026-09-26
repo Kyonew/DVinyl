@@ -1,3 +1,7 @@
+<%# Paging over items belongs to a view that pages over items. One that pages over
+    something of its own (a piece of furniture, say) draws its own navigation, so
+    nothing is rendered here. %>
+<% if (!locals.activeView || activeView.paginates === 'items') { %>
 <div
     class="mt-12 flex flex-col md:flex-row items-center justify-between gap-6 border-t border-black/5 dark:border-white/10 pt-8">
 
@@ -70,3 +74,4 @@
         changePage(page);
     }
 </script>
+<% } %>

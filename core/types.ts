@@ -70,15 +70,47 @@ export interface PluginDefinition {
 
   formats: FormatOption[];
 
+  // Real-world footprint of one item standing on its spine, per format value, in
+  // millimetres. What the shelf view draws to scale: a CD is thicker than an LP sleeve
+  // but far shorter, and that is what makes a mixed shelf read as a real one.
+  // A plugin that declares nothing, or a format missing from the map, falls back to
+  // SPINE_FALLBACK in core/spine.ts.
+  spineSize?: Record<string, { thickness: number; height: number }>;
+
   creatorField: string;
 
   extraSearchFields?: string[];
 
+  // Extra entries of the collection's sort menu, offered while this type is the one
+  // selected. Each sorts on its fields in order, then on the title, all in the direction
+  // picked: books order a run of volumes by series, then volume number.
+  sortOptions?: PluginSortOption[];
+
+  // The plugin's single historical provider. Superseded by `sources`, and still read
+  // when a plugin declares no source of its own: it is then treated as one source
+  // bearing the plugin's own id, so third-party plugins keep working untouched.
   searchProvider?: SearchProvider;
+
+  // Where this plugin can look items up, in the order it prefers them. The first one
+  // is the plugin's default, and the one the stored reference of every item predating
+  // this field is attributed to (see the migration).
+  sources?: ExternalSource[];
 
   // Custom EJS partial rendered in the search form ('top' and 'bottom' zones)
   searchFormPartial?: string;
 
+  // Names of the fields that partial adds to the form. Their posted values reach the
+  // source's search in its options, and come back to the partial as `searchFields` so a
+  // search keeps what was picked for the next one.
+  searchFormFields?: string[];
+
+  // What an item about to be looked up by a CSV import tells the sources beyond its
+  // title (the platform of a game, say), as search options. Called with the mapped row.
+  enrichSearchOptions?(data: Record<string, any>): Record<string, any>;
+
+  // The plugin's single historical image provider. Superseded by sources declaring
+  // searchImages, and still merged in alongside them, so a plugin that declares only
+  // this keeps the picker it had.
   imageSearchProvider?: ImageSearchProvider;
 
   // Value of the `type` param for /admin/api/search-image-universal ('music', 'book', 'movie', 'game')
@@ -89,6 +121,12 @@ export interface PluginDefinition {
   // Noise terms stripped from the title returned by the barcode lookup (e.g. 'DVD', 'Blu-ray', 'PS5'),
   // to sharpen the external search query. Plugin-specific (keeps the core agnostic).
   barcodeNoiseTerms?: string[];
+
+  // Hides the "Scan Barcode" affordance on the add page entirely. Unlike supportsBarcodeSearch
+  // (which only controls whether a scan gets resolved through a UPC lookup service before
+  // searching), this is for a provider whose search can't do anything useful with a barcode
+  // at all - e.g. BoardGameGeek, which indexes titles only.
+  noBarcodeScan?: boolean;
 
   // CSS aspect-ratio class for the plugin's own pages (detail, add/edit forms),
   // e.g. 'aspect-square' for music. Default 'aspect-[2/3]'. The item grids follow
@@ -104,8 +142,10 @@ export interface PluginDefinition {
   // image gallery is now available to every plugin regardless of this value.
   supportsUserImage?: boolean;
 
-  // Optional provider-specific endpoint merged into the generic image search results.
-  // Ex: music -> '/api/search-discogs-gallery'.
+  // Superseded by a source declaring searchImages, and still honoured: an extra endpoint
+  // whose results are merged into the image picker. It was the one way to have two image
+  // services behind one plugin (music: iTunes covers plus the Discogs gallery of the
+  // physical object) before sources could say so themselves.
   secondaryImageSearchPath?: string;
 
   // Legacy icon setting retained for custom-plugin config compatibility.
@@ -201,7 +241,23 @@ export interface PluginDefinition {
   partialsPath?: string;
 
   detailZones?: DetailZone[];
+
+  // Fetches fresh metadata for an item and says what to write. Owns the whole step,
+  // request included, which is what a plugin needs when its refresh asks its API
+  // something its search never asks (music reads the release's barcode identifiers,
+  // books run a query of their own). Only ever reaches the plugin's historical
+  // provider, so an item filled in from another source cannot be refreshed this way:
+  // prefer mergeRefresh where the refresh is a plain lookup by id.
   refreshItem?(item: any, req: any): Promise<Record<string, any>>;
+
+  // How fresh details from a source fold into an item that already exists. The fetch
+  // belongs to the source, the merge belongs here: only the plugin knows that a provider
+  // returning no publisher means "keep the one we have" rather than "clear it", or that
+  // the owner's own notes on an episode outlive the episode being re-read.
+  //
+  // Pure, and the core writes what it returns. Declaring it is what makes an item
+  // refreshable from whichever source filled it in rather than from one provider.
+  mergeRefresh?(item: any, details: ConfirmData): Record<string, any>;
 
   bulkRefresh?: BulkRefreshProvider;
 }
@@ -255,6 +311,80 @@ export interface ConfirmData {
 
 export interface ImageSearchProvider {
   search(query: string, options?: { language?: string }): Promise<string[]>;
+}
+
+/**
+ * One external service a plugin can look items up in.
+ *
+ * A plugin says what an item *is*; a source says where its metadata can be found. The
+ * two are separate because the same medium has several databases behind it, and which
+ * one answers best depends on what is being collected: IGDB knows recent games, an
+ * archive of the era knows MS-DOS.
+ *
+ * The `id` is written onto every item the source fills in, so it must stay stable for
+ * the life of the source: changing it orphans everything already saved. It is also
+ * global rather than per-plugin, since a source is free to serve several plugins.
+ */
+export interface ExternalSource {
+  id: string;
+
+  // Shown to the user: on a result badge, in an error message. Plain text, not a key.
+  name: string;
+
+  // Environment variables this source needs. It stays out of every list until all of
+  // them are set, which is what lets a plugin ship a source nobody has configured.
+  requiredEnvKeys?: string[];
+
+  // Page of the item on the source's own site, from the id it handed out. What the
+  // detail page links to for an item the plugin's own externalLink cannot place,
+  // because that one only knows the plugin's historical provider.
+  itemUrl?(externalId: string): string | null;
+
+  // The item path that holds this source's record id on items saved before sources
+  // existed, which is how the boot migration gives them their `source`/`source_id` pair.
+  // Defaults to the plugin's externalIdField. `null` when no stored path holds an id this
+  // source's getDetails accepts: such items keep no pair and refresh through the plugin's
+  // own hook, rather than carrying an id the source cannot look up.
+  legacyIdField?: string | null;
+
+  // How long a CSV import waits on one lookup of this source before counting the row as
+  // not found. Unset, the import's own default. A source that is slow by nature sets
+  // more than its own request timeout, so its lookups end on their own rather than
+  // being abandoned while they still hold the source's request slot.
+  lookupTimeoutMs?: number;
+
+  // i18n key of a caution shown on the import screens when this source is the one that
+  // fills in the file, for a source whose lookups are slow or need something from the
+  // rows to work well.
+  importNote?: string;
+
+  // What this source can answer. A source implements the capabilities it has and no
+  // more, and the core asks before it calls: a database of cover art has no item to
+  // hand over and nothing to attribute, and forcing it to pretend otherwise would put
+  // unopenable results in front of the user.
+
+  // Metadata search. Comes as a pair with getDetails: a result nobody can expand is a
+  // dead end, so a source offering one without the other is not offered for searching.
+  search?(query: string, options: SearchOptions): Promise<SearchResult[]>;
+  getDetails?(id: string, options: any): Promise<ConfirmData>;
+
+  // Image search: bare URLs, for the picker in the image manager. Every image-capable
+  // source of a plugin is asked at once and the results are merged, since images are
+  // gathered rather than chosen from one place: a vinyl's front cover lives on one
+  // service and the scan of its inner sleeve on another.
+  searchImages?(query: string, options?: { language?: string }): Promise<string[]>;
+
+  // True when this source's search reads the query as one exact item rather than a
+  // description (an ISBN for Hardcover), so a single hit is the item and not a guess.
+  // What lets scan mode (settings.instantAdd) save it without the confirm page being
+  // looked at. Left unset by any source whose search is fuzzy.
+  exactQuery?(query: string): boolean;
+}
+
+export interface PluginSortOption {
+  key: string;   // sent as `${key}_asc` / `${key}_desc` in the sort parameter
+  label: string; // i18n key
+  fields: string[];
 }
 
 export interface PluginApiRoute {
@@ -383,4 +513,63 @@ export interface CollectionAction {
 
   // behavior 'importer-sync': id of the importer to trigger (POST /import/{importerId}).
   importerId?: string;
+}
+
+// How the collection and the wishlist draw the items they hold. The pages themselves
+// stay agnostic: they render whichever view is active, and the view selector is built
+// from what the registry holds (see core/viewRegistry.ts).
+export interface CollectionView {
+  id: string;
+
+  // i18n key of the name shown in the view selector
+  label: string;
+
+  // FontAwesome icon of the selector button (e.g. 'fa-table-cells')
+  icon: string;
+
+  // Display order in the selector, ascending. Default 100.
+  order?: number;
+
+  // Partial rendered in place of the item grid, resolved from the page's own
+  // directory (e.g. 'partials/albums-grid').
+  partial: string;
+
+  // 'items' keeps the per-page selector and the page numbers under the view.
+  // 'none' means the view pages over something of its own and hides both.
+  paginates: 'items' | 'none';
+
+  // The partial can be rendered on its own and swapped into the page without its
+  // scripts running again, which is what lets the search follow the typing. A view
+  // whose partial sets itself up with inline scripts leaves it off, and its search
+  // applies on Enter through a full page load.
+  liveRedraw?: boolean;
+
+  // Merged into the page's view model, and only when this view is the active one:
+  // a view nobody is looking at must not cost a query. `base` is what the page has
+  // built so far, so a view can read the filters that were already resolved.
+  buildData?(context: CollectionViewContext, base: Record<string, any>): Promise<Record<string, any>>;
+
+  // A view can be unavailable rather than empty: it is then neither offered in the
+  // selector nor reachable through ?view=, and the page falls back to the default.
+  // Async because what makes a view worth offering can live in the database (the
+  // shelf has nothing to show a collection with no furniture in it).
+  isAvailable?(context: CollectionViewContext): boolean | Promise<boolean>;
+}
+
+export interface CollectionViewContext {
+  req: any;
+  res: any;
+
+  // The collection and the wishlist are the same page over two halves of one shelf,
+  // so a view says here whether it makes sense on a list of things nobody owns yet.
+  inWishlist: boolean;
+
+  // The resolved Mongo filter behind the page: every criterion the filter controls
+  // produced, plus the visibility, module and share-scope narrowing, and minus paging
+  // and ordering. A view that draws something other than one page of items builds its
+  // own query on top of this, so it shows exactly what the filters say it should.
+  itemQuery: any;
+
+  // The ordering the page resolved, for a view keeping a list of items of its own.
+  itemSort: any;
 }

@@ -262,7 +262,7 @@
         results.innerHTML = '<div class="col-span-full py-6 text-center opacity-50"><i class="fa-solid fa-spinner fa-spin"></i></div>';
 
         const endpoints = [
-            `<%= baseUrl %>/admin/api/search-image-universal?q=${encodeURIComponent(query)}&type=<%= plugin.imageSearchType || 'music' %>`
+            `<%= baseUrl %>/admin/api/search-image-universal?q=${encodeURIComponent(query)}&plugin=<%= plugin.id %>`
             <% if (plugin.secondaryImageSearchPath) { %>,
             `<%= baseUrl %><%= plugin.secondaryImageSearchPath %>?q=${encodeURIComponent(query)}`
             <% } %>
@@ -308,6 +308,25 @@
             searchImages();
         }
     });
+
+    // Lets a plugin's own confirm-page widget (a picker between variants of one item) swap the
+    // main image when its own selection changes, without reaching into this closure's
+    // `images` array directly. `previousUrl` is what the caller itself put in the main
+    // slot last time: still there, it's replaced in place; moved or removed by the user
+    // since, the new one is added instead, so a manual reorder is never undone underneath
+    // someone.
+    window.dvinylSetPrimaryImage = function (url, previousUrl) {
+        const clean = typeof url === 'string' ? url.trim() : '';
+        if (!clean) return;
+        images = images.filter(image => image !== clean);
+        if (previousUrl && images[0] === previousUrl) {
+            images[0] = clean;
+        } else {
+            images.unshift(clean);
+            if (images.length > maxImages) images.length = maxImages;
+        }
+        render();
+    };
 
     render();
 })();

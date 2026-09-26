@@ -17,6 +17,7 @@ import { BASE_URL, SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE, normalizeLanguage, dat
 import { isOidcEnabled, getOidcButtonLabel, isLocalLoginDisabled } from './config/oidc.js';
 import { connectDB } from './config/db.js';
 import { migrateDatabase } from './utils/migrate.js';
+import { migrateExtraFieldIdentities } from './utils/migrateExtraFieldIdentities.js';
 
 // Models
 import User from './models/User.js';
@@ -29,9 +30,12 @@ import { syncCustomPluginsOnBoot } from './core/customPluginSync.js';
 import { mountPluginRoutes, pluginDispatcher } from './core/pluginRuntime.js';
 import { applyPluginCustomization } from './core/pluginCustomization.js';
 import { getCardLines, getCornerBadge, isTranslationKey, CORNER_POSITIONS, DEFAULT_CORNER_POSITION, SHARE_HIDDEN_FIELDS } from './core/cardFields.js';
+import { highlightMatches } from './core/searchHighlight.js';
 import { importableFields } from './core/csvMapping.js';
 import { MAX_ITEM_IMAGES, MAX_ITEM_IMAGE_BYTES } from './core/itemImages.js';
 import { cleanupStaleItemImageUploads, ITEM_IMAGE_SWEEP_INTERVAL_MS, itemImageUrl } from './core/itemImageStorage.js';
+import { isCollectionInfoVisible } from './core/collectionInfo.js';
+import { externalLinkFor, hasSearch, hasBarcodeScan, requiredEnvKeysFor, canRefresh, sourceStatusFor, searchableSources } from './core/sources';
 
 // Routes imports
 import setupRoutes from './routes/setupRoutes.js';
@@ -47,6 +51,9 @@ import oidcRoutes from './routes/oidcRoutes.js';
 
 import dashboardRoute from './core/routes/dashboardRoute.js';
 import collectionRoute from './core/routes/collectionRoute.js';
+import collectionInfoRoute from './core/routes/collectionInfoRoute.js';
+import shelfRoute from './core/routes/shelfRoute.js';
+import listRoute from './core/routes/listRoute.js';
 import searchRoute from './core/routes/searchRoute.js';
 import manualAddRoute from './core/routes/manualAddRoute.js';
 import csvImportRoute from './core/routes/csvImportRoute.js';
@@ -89,6 +96,8 @@ app.set('views', [path.join(__dirname, 'views'), path.join(__dirname, 'core/view
 app.locals.getCardLines = getCardLines;
 app.locals.getCornerBadge = getCornerBadge;
 app.locals.isTranslationKey = isTranslationKey;
+// Lights up the searched text on the cards and table rows it brought back
+app.locals.highlightMatches = highlightMatches;
 app.locals.CORNER_POSITIONS = CORNER_POSITIONS;
 app.locals.DEFAULT_CORNER_POSITION = DEFAULT_CORNER_POSITION;
 // A share visitor is shown the collection, not the home around it: the item page reads
@@ -104,6 +113,18 @@ app.locals.MAX_ITEM_IMAGE_BYTES = MAX_ITEM_IMAGE_BYTES;
 app.locals.itemImageUrl = itemImageUrl;
 // Dates read the same way wherever a view prints one
 app.locals.dateLocaleFor = dateLocaleFor;
+// Every entry point to the collection info page asks the same question before it links
+// to it, share visitors included (core/collectionInfo.ts).
+app.locals.isCollectionInfoVisible = isCollectionInfoVisible;
+// Where an item came from, and whether a plugin can be searched at all: both are now
+// answers about its sources rather than about a single provider hanging off it.
+app.locals.externalLinkFor = externalLinkFor;
+app.locals.hasSearch = hasSearch;
+app.locals.hasBarcodeScan = hasBarcodeScan;
+app.locals.requiredEnvKeysFor = requiredEnvKeysFor;
+app.locals.canRefresh = canRefresh;
+app.locals.sourceStatusFor = sourceStatusFor;
+app.locals.searchableSources = searchableSources;
 app.set('io', io); // Expose io to routes
 
 // Global middlewares
@@ -151,10 +172,14 @@ for (const name of ['PASSJWT', 'SESSION_SECRET'] as const) {
 }
 
 const session_secret = process.env.SESSION_SECRET!;
+// Sessions live in memory and their cookie has no maxAge, so an entry is only dropped when
+// the process restarts. Stored only once something is written to them (the collection a
+// signed-in browser is on, an OIDC round trip): a share visitor, a crawler or a health
+// check would otherwise leave one behind per request made without a cookie.
 app.use(session({
   secret: session_secret,
   resave: false,
-  saveUninitialized: true,
+  saveUninitialized: false,
   cookie: { secure: process.env.PROD === 'true', httpOnly: true },
 }));
 
@@ -295,6 +320,9 @@ if (isOidcEnabled()) {
 
 app.use(BASE_URL, dashboardRoute);
 app.use(BASE_URL, collectionRoute);
+app.use(BASE_URL, collectionInfoRoute);
+app.use(BASE_URL, shelfRoute);
+app.use(BASE_URL, listRoute);
 app.use(BASE_URL, searchRoute);
 app.use(BASE_URL, manualAddRoute);
 // Before the plugin dispatcher, which also serves /import/:id routes
@@ -320,6 +348,14 @@ connectDB()
     // a fresh/rebuilt container and backfills the DB from any pre-existing folders.
     console.log('[BOOT] Syncing custom plugins...');
     await syncCustomPluginsOnBoot();
+    console.log('[BOOT] Migrating custom field identities...');
+    // Never fatal, like migrateDatabase(): a failure here would otherwise stop the server
+    // from ever listening. It is idempotent, so the next boot picks up where it stopped.
+    try {
+      await migrateExtraFieldIdentities();
+    } catch (err) {
+      console.error('[BOOT] Custom field identity migration failed:', err);
+    }
     const sweepAbandonedItemImages = async (label: string) => {
       try {
         const removed = await cleanupStaleItemImageUploads();

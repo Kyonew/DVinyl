@@ -47,6 +47,7 @@
     "scan_stop": "Stoppen Sie den Scanvorgang",
     "search_placeholder": "Künstler, Album...",
     "separator_or": "ODER",
+    "source_label": "Quelle",
     "title": "Fügen Sie einen Datensatz hinzu",
     "manual_entry": "Nicht auf Discogs? Manuell hinzufügen"
   },
@@ -70,6 +71,7 @@
       "import_success": "Datenbank erfolgreich importiert.",
       "json_error": "Ungültige JSON-Datei.",
       "file_error": "Die Sicherungsdatei ist beschädigt oder ungültig.",
+      "error_collection_dump": "Diese Datei ist ein Sammlungs-Backup: Sie enthält keine Benutzerkonten und kann daher keine ganze Instanz wiederherstellen. Es wurde nichts geändert. Zum Wiederherstellen melde dich an (oder lege das erste Konto an) und importiere sie dann unter „Sammlungs-Backup“ auf der Verwaltungsseite der Sammlung.",
       "section_subtitle": "Exportieren oder wiederherstellen Sie Ihre gesamte Sammlung.",
       "section_title": "Datenbanksicherung",
       "subtitle": "Sichern Sie Ihre Sammlung oder stellen Sie eine vorhandene Datenbank wieder her.",
@@ -211,7 +213,9 @@
       "last_change": "Letzte Bearbeitung",
       "loc": "Ort.",
       "security": "Sicherheit",
-      "user": "Benutzer"
+      "user": "Benutzer",
+      "home_collection": "Standardsammlung",
+      "home_collection_last": "Zuletzt besucht"
     },
     "temp_password_hint": "Hier ist das temporäre Passwort (kopieren Sie es, es wird nicht mehr angezeigt):",
     "time_ago_min": "Vor {{count}} Minuten",
@@ -272,7 +276,14 @@
       "allow_member_creation": "Mitgliedern erlauben, eine eigene Sammlung zu erstellen",
       "allow_member_creation_desc": "Jeder Benutzer der Instanz (lokales Konto oder SSO) kann eine eigene Sammlung erstellen und wird deren Administrator, ganz ohne dein Zutun. Ist die Option aus, erstellt nur der Instanz-Administrator Sammlungen.",
       "max_collections": "Maximale Anzahl Sammlungen pro Benutzer",
-      "max_collections_desc": "Zählt nur Sammlungen, die der Benutzer selbst erstellt hat; mit ihm geteilte Sammlungen zählen nicht. Instanz-Administratoren sind nicht begrenzt."
+      "max_collections_desc": "Zählt nur Sammlungen, die der Benutzer selbst erstellt hat; mit ihm geteilte Sammlungen zählen nicht. Instanz-Administratoren sind nicht begrenzt.",
+      "tabs": {
+        "collections": "Sammlungen",
+        "users": "Benutzer",
+        "backup": "Sicherung",
+        "security": "Sicherheit",
+        "logs": "Protokolle"
+      }
     },
     "logs_delete_last": {
       "count_placeholder": "Anzahl",
@@ -298,7 +309,8 @@
     "collection_backup": {
       "title": "Sammlungs-Backup",
       "subtitle": "Diese Sammlung exportieren (Elemente + Einstellungen) oder ihren Inhalt durch ein Backup ersetzen. ZIP enthält lokale Bilder; JSON enthält nur Daten.",
-      "confirm_import": "Der Import ERSETZT alle Elemente dieser Sammlung. Fortfahren?"
+      "confirm_import": "Der Import ERSETZT alle Elemente dieser Sammlung. Fortfahren?",
+      "error_invalid_item": "Das Element „{{- title}}“ in dieser Datei kann nicht wiederhergestellt werden (ungültiges Feld: {{field}}). Es wurde nichts geändert."
     },
     "sharing": {
       "title": "Öffentliche Freigabelinks",
@@ -367,6 +379,7 @@
       "target_wishlist": "Wunschliste",
       "enrich_label": "Über die API ergänzen",
       "enrich_hint": "Sucht jeden Eintrag, um Cover und Metadaten zu ergänzen, die die Datei nicht enthält (langsamer).",
+      "source_label": "Nachschlagen in",
       "btn_analyze": "Datei analysieren",
       "btn_back": "Datei wechseln",
       "btn_import": "Import starten",
@@ -402,7 +415,32 @@
         "pages": "Seiten",
         "language": "Sprache"
       },
-      "err_missing_required": "Diese Pflichtfelder müssen einer Spalte oder einem festen Wert zugeordnet werden: {{fields}}"
+      "err_missing_required": "Diese Pflichtfelder müssen einer Spalte oder einem festen Wert zugeordnet werden: {{fields}}",
+      "screenscraper_note": "ScreenScraper ist langsam: Rechne mit einigen Sekunden pro Spiel mit erkannter Plattform, sonst bis zu einer Minute, und diese Spiele werden womöglich nicht ergänzt. Gib jeder Zeile eine Plattform (eine Plattform-Spalte oder die Standardplattform), damit die Suche schneller und genauer ist."
+    },
+    "sources": {
+      "title": "Wo dieses Modul sucht",
+      "hint": "In dieser Reihenfolge angefragt. Die erste, die antwortet, übernimmt die Suche; alle liefern Bilder.",
+      "cap_search": "Suche",
+      "cap_images": "Bilder",
+      "ready": "Bereit",
+      "missing": "Fehlt {{keys}}",
+      "move_up": "Nach oben",
+      "move_down": "Nach unten"
+    },
+    "tabs": {
+      "settings": "Einstellungen",
+      "members": "Mitglieder",
+      "collection": "Sammlung",
+      "imports": "Importe",
+      "maintenance": "Wartung"
+    },
+    "field_lookalikes": {
+      "title": "Einige eigene Felder ähneln integrierten Feldern",
+      "item": "{{plugin}}: „{{custom}}“ ähnelt dem integrierten Feld „{{native}}“",
+      "hint": "Oft ein Feld, das das Plugin mit einem Update erhalten hat. Enthalten beide dasselbe, ist das integrierte Feld das, das bleiben sollte; beide zu behalten ist ebenfalls möglich.",
+      "review": "Prüfen",
+      "later": "Später"
     }
   },
   "auth": {
@@ -423,8 +461,47 @@
   },
   "collection": {
     "add": "Hinzufügen",
+    "scan": "Scannen",
     "share_view_banner": "Du siehst eine geteilte Sammlung - schreibgeschützt.",
     "filter_placeholder": "Filter...",
+    "view_grid": "Raster",
+    "view_table": "Tabelle",
+    "view_shelf": "Regal",
+    "table_col_title": "Titel",
+    "table_col_info": "Info",
+    "shelf_no_furniture": "In dieser Sammlung gibt es noch kein Möbelstück.",
+    "shelf_empty_cell": "Leer",
+    "shelf_unsorted": "Nicht einsortiert",
+    "shelf_more_hidden": "nicht angezeigt",
+    "shelf_none": "Nicht einsortiert",
+    "shelf_new_option": "+ Neues Regalfach…",
+    "shelf_new_placeholder": "Name des Regalfachs",
+    "shelf_move_btn": "Einsortieren",
+    "shelf_move_title": "Einsortieren in…",
+    "shelf_move_confirm": "Einsortieren",
+    "shelf_arrange": "Einrichten",
+    "shelf_furniture_name": "Name des Möbelstücks",
+    "shelf_layout": "Anordnung",
+    "shelf_layout_cubes": "Fächer",
+    "shelf_layout_rows": "Reihen",
+    "shelf_columns": "Spalten",
+    "shelf_rows": "Reihen",
+    "shelf_shelves": "Regalfächer",
+    "shelf_add": "Hinzufügen",
+    "shelf_save": "Speichern",
+    "shelf_capacity": "Richtwert Kapazität",
+    "shelf_name_placeholder": "Name des Regalfachs",
+    "shelf_move_to": "Verschieben nach…",
+    "shelf_up": "Nach oben",
+    "shelf_down": "Nach unten",
+    "shelf_remove": "Entfernen",
+    "shelf_delete_furniture": "Dieses Möbelstück löschen",
+    "shelf_new_furniture": "Neues Möbelstück",
+    "shelf_new_furniture_prompt": "Name des neuen Möbelstücks",
+    "shelf_confirm_delete_furniture": "Dieses Möbelstück löschen? Die enthaltenen Objekte werden nicht gelöscht, sie sind wieder nicht einsortiert.",
+    "shelf_confirm_remove": "Dieses Regalfach entfernen? Die %d Objekte darin sind wieder nicht einsortiert.",
+    "shelf_error_duplicate": "Zwei Regalfächer tragen denselben Namen.",
+    "shelf_error_elsewhere": "Ein Regalfach mit diesem Namen gibt es bereits in „%s“.",
     "refresh": "Aktualisieren",
     "refresh_metadata_btn": "Informationen aktualisieren",
     "refresh_tooltip": "Von Discogs aktualisieren",
@@ -455,10 +532,47 @@
     "deselect_all": "Auswahl aufheben",
     "cancel_select": "Abbrechen",
     "selected_count_suffix": "ausgewählt",
+    "hide_select_bar": "Auswahlleiste ausblenden",
+    "show_select_bar": "Auswahlleiste einblenden",
     "print_selected_qr": "QR-Etiketten drucken",
     "print_selected_barcode": "Barcode-Etiketten drucken",
+    "delete_selected": "Auswahl löschen",
+    "confirm_delete_selected": "{{count}} ausgewählte Objekte löschen? Ihr Inhalt wird mitgelöscht. Diese Aktion ist irreversibel.",
+    "delete_selected_done": "{{count}} Objekt(e) gelöscht.",
+    "delete_selected_partial": "{{deleted}} Objekt(e) gelöscht, {{failed}} übersprungen.",
+    "delete_selected_error": "Löschen fehlgeschlagen: Es wurde nichts gelöscht.",
+    "delete_selected_too_many": "Es können höchstens {{max}} Objekte auf einmal gelöscht werden.",
     "label_sheet_title": "Etiketten drucken",
     "label_sheet_empty": "Keines der ausgewählten Objekte hat einen Barcode, es gibt also nichts zu drucken."
+  },
+  "collection_info": {
+    "title": "Sammlungsinfo",
+    "bar_label": "Über diese Sammlung",
+    "back_to_collection": "Zurück zur Sammlung",
+    "edit": "Seite bearbeiten",
+    "open_page": "Seite ansehen",
+    "editor_title": "Infoseite",
+    "editor_intro": "Eine freie Seite über diese Sammlung: wie sie entstanden ist, was darin steckt, nützliche Links. Sie wird in Markdown geschrieben und kann einige Bilder enthalten.",
+    "enabled_label": "Seite anzeigen",
+    "enabled_hint": "Fügt einen Link dazu auf der Startseite, in der Sammlung und in der Navigationsleiste hinzu.",
+    "share_visible_label": "Über Freigabelinks sichtbar",
+    "share_visible_hint": "Besucher eines öffentlichen Freigabelinks können sie ebenfalls lesen.",
+    "page_title_label": "Seitentitel",
+    "body_label": "Text",
+    "body_placeholder": "Schreibe ein paar Worte über diese Sammlung…",
+    "markdown_hint": "Markdown: # Überschrift, **fett**, *kursiv*, - Liste, [Link](https://beispiel.com)",
+    "preview_hint": "Die Vorschau zeigt die Seite genau so, wie sie gelesen wird.",
+    "tab_write": "Schreiben",
+    "tab_preview": "Vorschau",
+    "images_label": "Bilder",
+    "images_hint": "Bis zu {{max}} Bilder, über dem Text angezeigt. Klicke ein Bild an, um es im Vollbild zu öffnen.",
+    "images_too_many": "Diese Seite kann höchstens {{max}} Bilder enthalten.",
+    "updated_on": "Aktualisiert am {{date}}",
+    "draft_banner": "Diese Seite ist noch nicht sichtbar: nur du kannst sie sehen.",
+    "hidden_from_share_banner": "Diese Seite ist für die Freigabelinks ausgeblendet.",
+    "admin_subtitle": "Eine Seite, die diese Sammlung vorstellt, mit Text und Bildern.",
+    "status_on": "Sichtbar",
+    "status_off": "Aus"
   },
   "common": {
     "external_id_label": "Quellen-ID",
@@ -485,6 +599,7 @@
     "or": "ODER",
     "save": "Speichern",
     "save_changes": "Änderungen speichern",
+    "unsaved_changes": "Ungespeicherte Änderungen",
     "search": "Suchen",
     "searching": "Suche...",
     "show": "Zeigen",
@@ -505,7 +620,10 @@
     "config_title": "Überprüfen und vervollständigen",
     "cover_preview": "Cover-Vorschau",
     "description_title": "Zusammenfassung",
+    "edition_hint": "Weitere Ausgaben dieses Titels. Eine Auswahl übernimmt Verlag, Jahr, ISBN, Seitenzahl und Sprache.",
+    "edition_unknown_publisher": "Unbekannter Verlag",
     "field_author": "Autor(en)",
+    "field_edition": "Ausgabe",
     "field_format": "Format",
     "field_isbn": "ISBN",
     "field_language": "Sprache",
@@ -707,7 +825,10 @@
     "hardcover": "Gebundene Ausgabe",
     "manga": "Manga",
     "paperback": "Taschenbuch",
-    "digital": "Digital"
+    "digital": "Digital",
+    "boxed": "Schachtel",
+    "expansion": "Erweiterung",
+    "promo": "Promo"
   },
   "generic": {
     "edit_title": "Element bearbeiten",
@@ -759,6 +880,7 @@
     "hero_subtitle": "Etwas Neues in der Sammlung?",
     "nav_add_full": "Fügen Sie einen Artikel hinzu",
     "nav_add_short": "Hinzufügen",
+    "nav_scan_full": "Barcode scannen",
     "nav_view_all": "Alle anzeigen",
     "search_placeholder": "Suchen...",
     "section_latest": "Neueste Ergänzungen",
@@ -780,7 +902,9 @@
     "local_disabled": "Diese Instanz akzeptiert nur Single Sign-On.",
     "error_oidc_unlinked": "Diesem SSO-Konto ist kein Benutzerkonto zugeordnet. Melden Sie sich zunächst mit Ihrem Passwort an und verknüpfen Sie Ihr Konto dann in den Einstellungen.",
     "error_oidc_forbidden": "Ihr Konto ist nicht berechtigt, auf diese Instanz zuzugreifen.",
-    "error_oidc_unavailable": "Die SSO-Anmeldung ist derzeit nicht verfügbar. Versuchen Sie es erneut oder verwenden Sie Ihr Passwort."
+    "error_oidc_unavailable": "Die SSO-Anmeldung ist derzeit nicht verfügbar. Versuchen Sie es erneut oder verwenden Sie Ihr Passwort.",
+    "identifier_label": "E-Mail oder Benutzername",
+    "identifier_placeholder": "example@email.com oder Benutzername"
   },
   "media": {
     "4k": "4K Ultra HD",
@@ -823,7 +947,9 @@
     "digital": "Digital",
     "book": "Buch",
     "lego": "LEGO",
-    "legos": "LEGO-Sets"
+    "legos": "LEGO-Sets",
+    "boardgames": "Brettspiele",
+    "boardgame": "Brettspiel"
   },
   "messages": {
     "saved": "Gespeichert!",
@@ -875,7 +1001,12 @@
     "share_scope_updated": "Freigegebene Inhalte aktualisiert.",
     "share_link_created": "Freigabelink erstellt.",
     "share_link_deleted": "Freigabelink gelöscht.",
-    "error_share": "Die Freigabe konnte nicht aktualisiert werden."
+    "error_share": "Die Freigabe konnte nicht aktualisiert werden.",
+    "home_collection_updated": "Standardsammlung aktualisiert.",
+    "error_email_taken": "Ein Konto verwendet diese E-Mail-Adresse bereits.",
+    "error_username_taken": "Ein Konto verwendet diesen Benutzernamen bereits.",
+    "error_user_invalid": "Benutzername und E-Mail prüfen, das Konto wurde nicht erstellt.",
+    "error_user_create": "Das Konto konnte nicht erstellt werden."
   },
   "modal": {
     "add_hub_subtitle": "Wählen Sie den Medientyp aus, den Sie Ihrer Sammlung hinzufügen möchten",
@@ -920,6 +1051,8 @@
     "backHome": "Zurück nach Hause",
     "fastAdd_desc": "Wenn aktiviert, leitet die Schaltfläche „Element hinzufügen“ direkt zum ausgewählten Formular weiter und umgeht das Auswahlmenü.",
     "fastAdd_disabled": "Deaktiviert (modal)",
+    "instantAdd_title": "Scan-Modus",
+    "instantAdd_desc": "Ein Code, der genau einen Artikel bezeichnet (eine ISBN), wird hinzugefügt, sobald die Suche nur ein einziges Ergebnis liefert – ohne Bestätigungsseite. Nach dem Hinzufügen geht es zurück zum Hinzufügen-Formular statt zur Sammlung, bereit für den nächsten Artikel.",
     "fastAdd_title": "Schnell hinzufügen",
     "card_aspect_ratio": "Seitenverhältnis der Karte",
     "card_aspect_ratio_desc": "Form der Kacheln in den Rastern von Sammlung, Startseite und Wunschliste. Jedes Plugin behält auf seinen Detailseiten sein eigenes Verhältnis.",
@@ -993,7 +1126,17 @@
     "oidc_linked_label": "Mit Ihrem Identitätsanbieter verknüpft",
     "oidc_not_linked_label": "Nicht verknüpft",
     "oidc_link_btn": "Konto verknüpfen",
-    "oidc_unlink_btn": "Verknüpfung aufheben"
+    "oidc_unlink_btn": "Verknüpfung aufheben",
+    "home_title": "Start",
+    "home_hint": "Wo die App sich öffnet und wie die Sammlung dargestellt wird.",
+    "home_collection_label": "Standardsammlung",
+    "home_collection_last": "Zuletzt besucht",
+    "home_page_label": "Startseite",
+    "home_page_dashboard": "Heim",
+    "home_page_collection": "Sammlung",
+    "home_page_wishlist": "Wunschliste",
+    "home_view_label": "Standardansicht",
+    "home_view_last": "Zuletzt verwendet"
   },
   "setup": {
     "admin_config": "Admin-Konfiguration",
@@ -1033,7 +1176,9 @@
     "lego_pieces_label": "Teile gesamt",
     "lego_minifigs_label": "Minifiguren gesamt",
     "lego_sealed_label": "Versiegelte Sets",
-    "top_theme_label": "Top-Thema"
+    "top_theme_label": "Top-Thema",
+    "boardgames_total_label": "Brettspiele gesamt",
+    "top_designer_label": "Top-Autor"
   },
   "status": {
     "read": "Lesen",
@@ -1048,6 +1193,7 @@
     "confirm_move": "Großartig! Möchten Sie dieses Album in Ihre offizielle Sammlung verschieben?",
     "empty_msg": "Ihre Wunschliste ist leer.",
     "search_link": "Fügen Sie Ihren ersten Artikel hinzu",
+    "scan_link": "Oder scannen Sie einen Barcode",
     "title": "Meine Wunschliste"
   },
   "add_game": {
@@ -1062,7 +1208,10 @@
     "scan_found": "Barcode gefunden!",
     "scan_error": "Kamerafehler",
     "barcode_warning": "Das Scannen funktioniert derzeit möglicherweise nicht ordnungsgemäß.",
-    "manual_entry": "Nicht gefunden? Manuell hinzufügen"
+    "manual_entry": "Nicht gefunden? Manuell hinzufügen",
+    "platform_label": "Plattform",
+    "platform_all": "Alle (langsam)",
+    "platform_hint": "Mit einer gewählten Plattform ist die ScreenScraper-Suche viel schneller."
   },
   "confirm_game": {
     "config_title": "Überprüfen und vervollständigen",
@@ -1083,6 +1232,10 @@
     "status_to_play": "Zu spielen",
     "status_playing": "Spielt gerade",
     "status_played": "Abgeschlossen",
+    "completion_time_label": "Geschätzte Spielzeit",
+    "completion_hastily": "Schnell",
+    "completion_normally": "Normal",
+    "completion_completely": "Komplettist",
     "replace_cover": "Hauptcover ersetzen",
     "btn_collection": "Zur Sammlung hinzufügen",
     "btn_wishlist": "Zur Wishlist hinzufügen",
@@ -1127,7 +1280,12 @@
     "add_lyrics_manual": "Songtext manuell hinzufügen"
   },
   "add": {
-    "manual_entry": "Manueller Eintrag"
+    "manual_entry": "Manueller Eintrag",
+    "instant_saving": "Wird hinzugefügt …",
+    "instant_blocked": "Hier fehlt eine Angabe, die das Formular benötigt. Bitte ergänzen und hinzufügen.",
+    "added": "„{{title}}“ hinzugefügt.",
+    "added_again": "„{{title}}“ war schon vorhanden: Sie haben jetzt {{quantity}}.",
+    "identifier_no_match": "Nichts gefunden für {{code}}."
   },
   "no_collection": {
     "title": "Kein Sammlungszugriff",
@@ -1234,7 +1392,9 @@
     "corner_taken": "Die Ecke oben rechts ist vom Format-Badge belegt.",
     "default_color": "Standardfarbe",
     "reset": "Zurücksetzen",
-    "customized": "Angepasst"
+    "customized": "Angepasst",
+    "field_lookalike": "Ähnelt dem integrierten Feld „{{native}}“. Behalte beide nur, wenn sie Unterschiedliches enthalten.",
+    "fields_to_review": "Zu prüfende Felder: {{count}}"
   },
   "add_lego": {
     "title": "LEGO-Set hinzufügen",
@@ -1242,6 +1402,15 @@
     "search_placeholder": "Set-Nummer oder Name...",
     "results_title": "Ergebnisse",
     "no_results": "Kein Set gefunden.",
+    "manual_entry": "Manuelle Eingabe",
+    "btn_scan": "Scannen"
+  },
+  "add_boardgame": {
+    "title": "Brettspiel hinzufügen",
+    "desc": "Suche nach Titel über BoardGameGeek.",
+    "search_placeholder": "Spieltitel...",
+    "results_title": "Ergebnisse",
+    "no_results": "Kein Spiel gefunden.",
     "manual_entry": "Manuelle Eingabe",
     "btn_scan": "Scannen"
   },
@@ -1280,5 +1449,96 @@
     "set_num_label": "Set-Nummer",
     "theme_label": "Thema",
     "delete_confirm": "Möchtest du dieses Set wirklich aus deiner Sammlung entfernen?"
+  },
+  "confirm_boardgame": {
+    "title": "Hinzufügen bestätigen",
+    "desc": "Überprüfe die Informationen und vervollständige die Details deines Spiels.",
+    "config_title": "Prüfen und vervollständigen",
+    "field_title": "Titel",
+    "field_designer": "Autor",
+    "field_publisher": "Verlag",
+    "field_year": "Jahr",
+    "field_players": "Spieler",
+    "field_playtime": "Spieldauer (Min.)",
+    "field_min_age": "Mindestalter",
+    "field_format": "Format",
+    "field_barcode": "Barcode",
+    "field_quantity": "Menge",
+    "field_rating": "Bewertung (von 5)",
+    "field_comments": "Notizen / Kommentare",
+    "comments_placeholder": "z.B. Ein paar Marker fehlen...",
+    "designer_label": "Autor",
+    "year_label": "Jahr",
+    "barcode_label": "Barcode",
+    "btn_collection": "Zur Sammlung hinzufügen",
+    "btn_wishlist": "Zur Wishlist hinzufügen"
+  },
+  "edit_boardgame": {
+    "title": "Brettspiel bearbeiten"
+  },
+  "boardgame_detail": {
+    "players_label": "Spieler",
+    "playtime_label": "Min.",
+    "designer_label": "Autor",
+    "publisher_label": "Verlag",
+    "rating_label": "BGG-Bewertung",
+    "delete_confirm": "Möchtest du dieses Spiel wirklich aus deiner Sammlung entfernen?"
+  },
+  "lists": {
+    "title": "Listen",
+    "new": "Neue Liste",
+    "new_placeholder": "z. B. Backlog, 2026 beendet…",
+    "create": "Liste erstellen",
+    "create_short": "Erstellen",
+    "field_name": "Name",
+    "field_kind": "Sie enthält",
+    "field_description": "Beschreibung (optional)",
+    "kind_items": "Einträge",
+    "kind_items_hint": "Alben, Filme, Spiele, Bücher… aus der Sammlung.",
+    "kind_tracks": "Titel",
+    "kind_tracks_hint": "Eine Playlist aus Titeln deiner Alben.",
+    "empty_title": "Noch keine Listen",
+    "empty_hint": "Sammle Einträge in Listen, etwa einen Backlog oder was du dieses Jahr beendet hast, oder Titel in Playlists. Hinzufügen geht über die Seite eines Eintrags, einen Titel oder eine Auswahl in der Sammlung.",
+    "entries_count_one": "{{count}} Eintrag",
+    "entries_count_other": "{{count}} Einträge",
+    "tracks_count_one": "{{count}} Titel",
+    "tracks_count_other": "{{count}} Titel",
+    "empty_list_items": "Diese Liste ist noch leer. Füge Einträge über die Schaltfläche unten, über ihre Seite oder per Auswahl in der Sammlung hinzu.",
+    "empty_list_tracks": "Diese Playlist ist noch leer. Füge Titel über die Schaltfläche unten oder über einen Titel auf der Seite eines Albums hinzu.",
+    "edit": "Liste bearbeiten",
+    "delete_confirm": "Die Liste „{{name}}“ löschen? Ihre Einträge bleiben in der Sammlung.",
+    "filter_placeholder": "Titel, Album, Künstler, Tag, Tonart…",
+    "filter_any_rating": "Jede Bewertung",
+    "bpm_min": "BPM min",
+    "bpm_max": "BPM max",
+    "col_album": "Album",
+    "col_duration": "Dauer",
+    "filter_no_match": "Kein Titel passt zu diesen Filtern.",
+    "move_up": "Nach oben",
+    "move_down": "Nach unten",
+    "remove": "Aus der Liste entfernen",
+    "add_to_list": "Zu einer Liste hinzufügen",
+    "add_to_playlist": "Zu einer Playlist hinzufügen",
+    "picker_title_items": "Zu einer Liste hinzufügen",
+    "picker_title_tracks": "Zu einer Playlist hinzufügen",
+    "picker_selection_one": "{{count}} ausgewählter Eintrag",
+    "picker_selection_other": "{{count}} ausgewählte Einträge",
+    "picker_empty_items": "Noch keine Liste: gib unten einen Namen ein.",
+    "picker_empty_tracks": "Noch keine Playlist: gib unten einen Namen ein.",
+    "picker_add": "Hinzufügen",
+    "picker_added_one": "✓ {{count}} hinzugefügt",
+    "picker_added_other": "✓ {{count}} hinzugefügt",
+    "err_name_required": "Gib der Liste einen Namen.",
+    "err_full": "Eine Liste enthält höchstens {{max}} Einträge.",
+    "err_stale": "Diese Liste wurde inzwischen geändert. Die Seite wird neu geladen.",
+    "add": "Hinzufügen",
+    "add_items": "Einträge hinzufügen",
+    "add_tracks": "Titel hinzufügen",
+    "add_search_items": "In der Sammlung suchen…",
+    "add_search_tracks": "Einen Titel nach Namen suchen…",
+    "add_hint_items": "Gib einen Titel, Künstler, Autor oder Barcode ein.",
+    "add_hint_tracks": "Gib einen Teil eines Titelnamens ein.",
+    "add_no_match": "Keine Treffer.",
+    "add_in_list": "✓ In der Liste"
   }
 }

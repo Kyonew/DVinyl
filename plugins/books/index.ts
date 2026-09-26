@@ -1,8 +1,46 @@
 import { PluginDefinition } from '../../core/types';
-import { HardcoverProvider } from './hardcover';
+import { sourceFromProvider, imageSourceFrom } from '../../core/sources';
+import { HardcoverProvider, normalizeIsbn, editionsQuery, preferPickedEdition } from './hardcover';
 import { booksImporters } from './importers';
 import { escapeRegExp, fetchJson, PermanentRefreshError } from '../../core/helpers';
 import Item from '../../models/Item';
+
+const hardcoverProvider = new HardcoverProvider();
+
+// The database this plugin has always searched, and the id stored on every item it fills
+// in, so it must never change.
+//
+// Hardcover is looked up by its numeric book id, which is what an item added through it
+// records as `source_id`. Books saved before sources existed only kept the slug
+// (hardcover_slug), which that lookup does not accept, so there is no older field to
+// credit them from: they keep no pair and refresh through refreshItem, which reads the
+// slug. No itemUrl either: Hardcover's pages are addressed by slug, and externalLink
+// already links every book that has one.
+const hardcover = sourceFromProvider(hardcoverProvider, {
+  id: 'hardcover',
+  requiredEnvKeys: ['HARDCOVER_API_KEY'],
+  legacyIdField: null,
+  // A bare ISBN-10 or ISBN-13 is searched as an edition lookup, never as text (see
+  // HardcoverProvider.search), so a single hit is that book.
+  exactQuery: (query: string) => normalizeIsbn(query) !== ''
+});
+
+// Covers only, and from a different service than the metadata: books are described by
+// Hardcover and pictured by Open Library. Needs no key, so the picker keeps working on
+// an instance that never configured Hardcover at all.
+const openLibrary = imageSourceFrom({
+  id: 'openlibrary',
+  name: 'Open Library',
+  async searchImages(query: string): Promise<string[]> {
+    const data = await fetchJson(
+      `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=10`,
+      { headers: { 'User-Agent': 'DVinylApp/2.0' }, signal: AbortSignal.timeout(10000) }
+    );
+    return (data.docs || [])
+      .filter((doc: any) => doc.cover_i)
+      .map((doc: any) => `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg`);
+  }
+});
 
 export const booksPlugin: PluginDefinition = {
   id: 'books',
@@ -20,12 +58,12 @@ export const booksPlugin: PluginDefinition = {
   routePrefix: '/book',
   collectionType: 'books',
   creatorField: 'author',
-  extraSearchFields: ['isbn', 'publisher'],
+  extraSearchFields: ['isbn', 'publisher', 'series'],
+  sortOptions: [{ key: 'series', label: 'confirm_book.field_series', fields: ['series', 'volume'] }],
   supportsBarcodeSearch: false,
-  searchProvider: new HardcoverProvider(),
+  sources: [hardcover, openLibrary],
   imageSearchType: 'book',
   importers: booksImporters,
-  requiredEnvKeys: ['HARDCOVER_API_KEY'],
   duplicateCheckFields: ['format'],
   backfillFields: ['isbn'],
   partialsPath: 'plugins/books/partials',
@@ -39,17 +77,6 @@ export const booksPlugin: PluginDefinition = {
     { value: 'book', label: 'media.books', icon: 'fa-book', color: 'peer-checked:bg-amber-600', url: '/add-books' }
   ],
 
-  imageSearchProvider: {
-    async search(query: string): Promise<string[]> {
-      const data = await fetchJson(
-        `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=10`,
-        { headers: { 'User-Agent': 'DVinylApp/2.0' }, signal: AbortSignal.timeout(10000) }
-      );
-      return (data.docs || [])
-        .filter((doc: any) => doc.cover_i)
-        .map((doc: any) => `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg`);
-    }
-  },
 
   navbarShortcuts: [
     { id: 'books', label: 'media.books', url: '/collection?type=books' },
@@ -77,7 +104,6 @@ export const booksPlugin: PluginDefinition = {
   schemaDefinition: {
     author: { type: String, required: true },
     hardcover_slug: { type: String, default: '' },
-    source: { type: String, enum: ['hardcover', 'goodreads', 'manual'], default: 'manual' },
     publisher: String,
     isbn: String,
     pages: Number,
@@ -115,6 +141,18 @@ export const booksPlugin: PluginDefinition = {
     { value: 'digital', label: 'format.digital', color: 'bg-cyan-600/90' }
   ],
 
+  // Book thickness is really a property of the page count, which nothing here records,
+  // so these are the usual proportions of each kind rather than a measurement. A comic
+  // is the giveaway: almost nothing thick, and taller than everything around it.
+  spineSize: {
+    paperback: { thickness: 15, height: 195 },
+    hardcover: { thickness: 25, height: 240 },
+    manga: { thickness: 13, height: 180 },
+    comic: { thickness: 5, height: 260 },
+    graphic_novel: { thickness: 15, height: 255 },
+    digital: { thickness: 5, height: 195 }
+  },
+
   formFields: [
     {
       name: 'title',
@@ -130,6 +168,17 @@ export const booksPlugin: PluginDefinition = {
       type: 'text',
       required: true,
       showIn: ['edit', 'confirm', 'detail', 'manual'],
+      group: 'main'
+    },
+    // Offered only on the API-sourced confirm page (edition-picker.ejs no-ops without
+    // item.editions, which only getDetails() ever sets), between the main fields and
+    // the metadata group it live-updates (publisher, year, ISBN, pages, language).
+    {
+      name: 'edition',
+      label: 'confirm_book.field_edition',
+      type: 'custom',
+      partial: 'edition-picker',
+      showIn: ['confirm'],
       group: 'main'
     },
     {
@@ -419,8 +468,12 @@ export const booksPlugin: PluginDefinition = {
     }
 
     const apiKey = process.env.HARDCOVER_API_KEY;
+    // The item's own ISBN says which print it is: the one picked on the confirm page or
+    // typed in by hand, not necessarily the book's most read edition.
+    const isbn = normalizeIsbn(item.isbn || item.barcode);
+    const editions = editionsQuery(isbn);
     const graphqlQuery = {
-      query: `query bookBySlug($slug: String!) {
+      query: `query bookBySlug($slug: String!${editions.variables}) {
         books(where: { slug: { _eq: $slug } }, limit: 1) {
           id
           slug
@@ -433,17 +486,10 @@ export const booksPlugin: PluginDefinition = {
           taggings {
             tag { tag }
           }
-          editions(limit: 5, order_by: { users_count: desc }) {
-            isbn_13
-            isbn_10
-            publisher { name }
-            language { language }
-            pages
-            reading_format_id
-          }
+          ${editions.selection}
         }
       }`,
-      variables: { slug: item.hardcover_slug }
+      variables: isbn ? { slug: item.hardcover_slug, isbn } : { slug: item.hardcover_slug }
     };
 
     const dataRes = await fetchJson('https://api.hardcover.app/v1/graphql', {
@@ -465,23 +511,32 @@ export const booksPlugin: PluginDefinition = {
       throw new Error('Not found on Hardcover API');
     }
 
+    const matchedIsbn = preferPickedEdition(bookData);
     const provider = new HardcoverProvider();
     const formatted = (provider as any).formatHardcoverBook(bookData);
     if (!formatted) {
       throw new Error('Formatting failed');
     }
 
-    return {
-      cover_image: formatted.cover_image,
+    const patch: Record<string, any> = {
+      cover_image: (matchedIsbn && bookData.editions[0]?.image?.url) || formatted.cover_image,
       description: formatted.description,
       genres: formatted.genres,
-      genre: formatted.genres[0] || '',
-      pages: formatted.pages,
-      language: formatted.language,
-      isbn: item.barcode_locked ? item.isbn : formatted.isbn,
-      barcode: item.barcode_locked ? item.barcode : formatted.isbn,
-      publisher: formatted.publisher
+      genre: formatted.genres[0] || ''
     };
+    // Edition details come from the item's own edition, or from the most read one when
+    // the item names none. An ISBN Hardcover does not know keeps what the item holds:
+    // another print's publisher and page count would be wrong for it.
+    if (matchedIsbn || !isbn) {
+      Object.assign(patch, {
+        pages: formatted.pages,
+        language: formatted.language,
+        isbn: item.barcode_locked ? item.isbn : formatted.isbn,
+        barcode: item.barcode_locked ? item.barcode : formatted.isbn,
+        publisher: formatted.publisher
+      });
+    }
+    return patch;
   }
 };
 

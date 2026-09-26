@@ -1,0 +1,50 @@
+<%# Active-filter pill bar, a partial of its own so the live-search response (see
+    collectionRoute.ts's renderShelfPartial) can re-render just this piece: the pills
+    follow querySearch as it changes, without duplicating the label logic in client JS. %>
+<%
+    const activePills = [];
+    if (locals.querySearch) activePills.push({ key: 'search', label: t('collection.filter_placeholder') + ': "' + locals.querySearch + '"' });
+    if (locals.queryLocation) activePills.push({ key: 'location', label: t('common.location') + ': "' + locals.queryLocation + '"' });
+    if (locals.queryArtist) activePills.push({ key: 'artist', label: (locals.creatorFilterLabel || t('collection.artist_filter')) + ': "' + locals.queryArtist + '"' });
+
+    if (locals.queryDecade) {
+        activePills.push({ key: 'decade', label: t('collection.decade_filter') + ': ' + locals.queryDecade.split(',').map(d => d + 's').join(', ') });
+    }
+    if (locals.queryGenre) {
+        activePills.push({ key: 'genre', label: t('confirm_vinyl.field_genres') + ': ' + locals.queryGenre.split(',').join(', ') });
+    }
+    if (locals.queryStyle) {
+        activePills.push({ key: 'style', label: t('collection.styles_filter') + ': ' + locals.queryStyle.split(',').join(', ') });
+    }
+    if (locals.queryPlatform) {
+        activePills.push({ key: 'platform', label: t('collection.platform_filter') + ': ' + locals.queryPlatform.split(',').join(', ') });
+    }
+
+    // One pill per active user-defined filter; a range contributes one per bound
+    const xFilters = locals.extraFilters || [];
+    xFilters.forEach(xf => {
+        const readable = (v) => v === locals.extraAny ? t('collection.xf_any')
+            : v === locals.extraNone ? t('collection.xf_none')
+            : v === 'true' ? t('common.yes')
+            : v === 'false' ? t('common.no')
+            : t(v, { defaultValue: v });
+        if (xf.value) activePills.push({ key: xf.param, label: xf.label + ': ' + readable(xf.value) });
+        if (xf.from) activePills.push({ key: xf.paramFrom, label: xf.label + ' ≥ ' + xf.from });
+        if (xf.to) activePills.push({ key: xf.paramTo, label: xf.label + ' ≤ ' + xf.to });
+    });
+%>
+
+<% if (activePills.length > 0) { %>
+    <div class="flex flex-wrap items-center gap-2 mt-4 text-xs animate-in fade-in duration-200">
+        <span class="opacity-60 font-semibold"><%= t('collection.active_filters') %></span>
+        <% activePills.forEach(pill => { %>
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary-theme/10 text-primary-theme font-semibold border border-primary-theme/20 shadow-sm transition-all hover:bg-primary-theme/20">
+                <%= pill.label %>
+                <button onclick="clearFilterParam('<%= pill.key %>')" class="hover:text-red-500 font-bold ml-1 text-sm focus:outline-none transition-colors" title="<%= t('common.delete') %>">&times;</button>
+            </span>
+        <% }) %>
+        <button onclick="clearAllFilters()" class="text-xs text-red-500 hover:text-red-600 font-bold ml-2 underline transition-colors cursor-pointer">
+            <%= t('collection.clear_all') %>
+        </button>
+    </div>
+<% } %>

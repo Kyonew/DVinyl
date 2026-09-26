@@ -37,6 +37,15 @@ const settingsSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.Mixed,
         default: () => registry.getDefaultPluginSettings()
     },
+    // Per-collection order in which a plugin's sources are tried, by plugin:
+    //   { [pluginId]: ['screenscraper', 'igdb'] }
+    // Only ids the plugin still declares are honoured, so a source dropped from a plugin
+    // leaves nothing behind and one added later falls in at the end of the list rather
+    // than jumping to the front of a preference nobody expressed.
+    sourceOrder: {
+        type: mongoose.Schema.Types.Mixed,
+        default: () => ({})
+    },
     // Per-collection cosmetic overrides applied on top of the shared plugin
     // definitions: { [pluginId]: { icon: 'fa-xxx', formatColors: { [formatValue]: paletteColor } } }
     pluginCustomization: {
@@ -45,13 +54,19 @@ const settingsSchema = new mongoose.Schema({
     },
     // Per-collection user-defined fields added on top of a plugin's own fields, for
     // native and custom plugins alike:
-    //   { [pluginId]: [{ name, label, type, group, placeholder, options }] }
+    //   { [pluginId]: [{ name, keyVersion, label, type, group, placeholder, options }] }
+    // `name` is an opaque generated identity; changing `label` never moves item data.
     // Values land in item.extra[name]; see core/pluginExtraFields.ts.
     pluginExtraFields: {
         type: mongoose.Schema.Types.Mixed,
         default: () => ({})
     },
     fastAdd: { type: String, default: '' },
+    // Scan mode. A search whose query names one exact item (a source's `exactQuery`,
+    // i.e. an ISBN today) and returns a single hit is saved without the confirm page being
+    // waited on, and adding then comes back to the add page instead of the collection.
+    // Useful for barcode scanners.
+    instantAdd: { type: Boolean, default: false },
     // When false, adding an item never bumps an existing one's quantity: every add
     // creates its own entry, even when the plugin's duplicate key matches. Item types
     // without a format (custom plugins) otherwise merge on title + creator alone.

@@ -1,5 +1,6 @@
 import Item from '../models/Item';
 import { PluginDefinition } from './types';
+import { shelfChoices } from './shelfStore';
 
 /**
  * Values offered under a field's input, keyed by field name.
@@ -23,6 +24,13 @@ export async function buildFieldSuggestions(
   const suggestions: Record<string, string[]> = {};
 
   await Promise.all(names.map(async name => {
+    // Where things are kept is no longer whatever anyone typed: the collection's
+    // furniture is the authority, and the picker in fields/location.ejs offers these.
+    if (name === 'location') {
+      suggestions[name] = await shelfChoices(collectionId);
+      return;
+    }
+
     const stored = await Item.distinct(name, {
       collection: collectionId,
       [name]: { $nin: ['', null] }

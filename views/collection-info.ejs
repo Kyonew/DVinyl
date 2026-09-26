@@ -1,0 +1,146 @@
+<%- include('partials/header') %>
+<%- include('partials/markdown-styles') %>
+
+<div class="max-w-4xl mx-auto pb-16">
+
+    <%# Only an admin is ever shown a page the others cannot reach, so both banners
+        below speak to whoever wrote it. %>
+    <% if (locals.isDraft || locals.hiddenFromShare) { %>
+        <div class="mt-6 flex items-center gap-3 bg-yellow-500/10 border border-yellow-500/30 rounded-2xl px-4 py-3">
+            <i class="fa-solid fa-eye-slash text-yellow-500"></i>
+            <p class="text-xs font-bold text-yellow-600 dark:text-yellow-400">
+                <%= locals.isDraft ? t('collection_info.draft_banner') : t('collection_info.hidden_from_share_banner') %>
+            </p>
+        </div>
+    <% } %>
+
+    <div class="pt-6 mb-6 flex items-start justify-between gap-4">
+        <div>
+            <p class="text-[10px] font-black uppercase tracking-widest opacity-50 mb-1">
+                <%= collectionName %>
+            </p>
+            <h1 class="text-3xl md:text-4xl font-black transition-colors">
+                <%= info.title.trim() || t('collection_info.title') %>
+            </h1>
+        </div>
+        <div class="flex gap-2 shrink-0">
+            <a href="<%= baseUrl %>/collection"
+                class="w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center gap-2 group"
+                title="<%= t('collection_info.back_to_collection') %>">
+                <i class="fa-solid fa-arrow-left group-hover:-translate-x-0.5 transition-transform"></i>
+                <span class="hidden md:inline text-xs font-bold uppercase tracking-widest">
+                    <%= t('collection_info.back_to_collection') %>
+                </span>
+            </a>
+            <% if (locals.isCollectionAdmin) { %>
+                <a href="<%= baseUrl %>/admin/collection-info"
+                    class="w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center gap-2 group"
+                    title="<%= t('collection_info.edit') %>">
+                    <i class="fa-solid fa-pen group-hover:scale-110 transition-transform"></i>
+                    <span class="hidden md:inline text-xs font-bold uppercase tracking-widest">
+                        <%= t('collection_info.edit') %>
+                    </span>
+                </a>
+            <% } %>
+        </div>
+    </div>
+
+    <div class="card-theme rounded-3xl p-6 md:p-10 shadow-sm transition-colors space-y-8">
+
+        <% if (info.images.length > 0) { %>
+            <%# One image fills the width, two sit side by side, more wrap into a grid:
+                the layout follows what was uploaded instead of asking for a choice. %>
+            <div class="grid gap-3 <%= info.images.length === 1 ? 'grid-cols-1' : (info.images.length === 2 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2 md:grid-cols-3') %>">
+                <% info.images.forEach((image, index) => { %>
+                    <button type="button" class="info-image group relative overflow-hidden rounded-2xl bg-black/5 dark:bg-white/5 cursor-zoom-in"
+                        data-image-index="<%= index %>" data-image-src="<%= itemImageUrl(image) %>"
+                        aria-label="<%= t('image_manager.image_number', { number: index + 1 }) %>">
+                        <img src="<%= itemImageUrl(image) %>" loading="lazy" alt=""
+                            class="w-full <%= info.images.length === 1 ? 'max-h-[28rem]' : 'h-48 md:h-56' %> object-cover group-hover:scale-[1.03] transition-transform duration-300">
+                        <span class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></span>
+                    </button>
+                <% }) %>
+            </div>
+        <% } %>
+
+        <% if (infoHtml) { %>
+            <div class="dv-markdown text-[15px] md:text-base"><%- infoHtml %></div>
+        <% } %>
+
+        <% if (info.updated_at) { %>
+            <p class="text-[10px] uppercase tracking-widest opacity-40 pt-2 border-t border-black/5 dark:border-white/5">
+                <%# The date is escaped once, by EJS. Left to i18next as well, the slashes
+                    of a formatted date come out as entities on the page. %>
+                <%= t('collection_info.updated_on', {
+                    date: new Date(info.updated_at).toLocaleDateString(dateLocaleFor(currentLng)),
+                    interpolation: { escapeValue: false }
+                }) %>
+            </p>
+        <% } %>
+    </div>
+</div>
+
+<% if (info.images.length > 0) { %>
+    <div id="infoLightbox" class="fixed inset-0 z-[200] hidden items-center justify-center bg-black/90 backdrop-blur-sm p-4 md:p-10 cursor-zoom-out"
+        role="dialog" aria-modal="true" aria-label="<%= t('collection_info.title') %>">
+        <button type="button" id="infoLightboxClose" title="<%= t('detail.close_preview') %>" aria-label="<%= t('detail.close_preview') %>"
+            class="absolute top-4 right-4 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md text-white border border-white/10 shadow-lg flex items-center justify-center transition-all">
+            <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+        <% if (info.images.length > 1) { %>
+            <button type="button" data-lightbox-step="-1" title="<%= t('image_manager.previous') %>" aria-label="<%= t('image_manager.previous') %>"
+                class="absolute z-10 left-2 md:left-6 top-1/2 -translate-y-1/2 w-11 h-11 md:w-12 md:h-12 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md text-white border border-white/10 shadow-lg flex items-center justify-center transition-all">
+                <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <button type="button" data-lightbox-step="1" title="<%= t('image_manager.next') %>" aria-label="<%= t('image_manager.next') %>"
+                class="absolute z-10 right-2 md:right-6 top-1/2 -translate-y-1/2 w-11 h-11 md:w-12 md:h-12 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md text-white border border-white/10 shadow-lg flex items-center justify-center transition-all">
+                <i class="fa-solid fa-chevron-right"></i>
+            </button>
+        <% } %>
+        <img id="infoLightboxImage" alt="" draggable="false"
+            class="max-h-full max-w-full object-contain rounded-2xl shadow-2xl select-none">
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const buttons = Array.from(document.querySelectorAll('.info-image'));
+            const lightbox = document.getElementById('infoLightbox');
+            const image = document.getElementById('infoLightboxImage');
+            let current = 0;
+
+            function show(index) {
+                current = (index + buttons.length) % buttons.length;
+                image.src = buttons[current].dataset.imageSrc;
+            }
+
+            function setOpen(open) {
+                lightbox.classList.toggle('hidden', !open);
+                lightbox.classList.toggle('flex', open);
+                document.body.classList.toggle('overflow-hidden', open);
+            }
+
+            buttons.forEach((button, index) => button.addEventListener('click', () => {
+                show(index);
+                setOpen(true);
+            }));
+
+            // The backdrop closes, the picture and the controls on top of it do not.
+            lightbox.addEventListener('click', event => {
+                if (event.target === lightbox) setOpen(false);
+            });
+            document.getElementById('infoLightboxClose').addEventListener('click', () => setOpen(false));
+            lightbox.querySelectorAll('[data-lightbox-step]').forEach(button => {
+                button.addEventListener('click', () => show(current + Number(button.dataset.lightboxStep)));
+            });
+
+            document.addEventListener('keydown', event => {
+                if (lightbox.classList.contains('hidden')) return;
+                if (event.key === 'Escape') setOpen(false);
+                if (event.key === 'ArrowLeft') show(current - 1);
+                if (event.key === 'ArrowRight') show(current + 1);
+            });
+        });
+    </script>
+<% } %>
+
+<%- include('partials/footer') %>

@@ -2,10 +2,20 @@
 
 <div class="max-w-screen-xl mx-auto pb-20 px-4 md:px-0">
     
-    <nav class="flex mb-6 text-sm opacity-60 transition-colors">
-        <a href="<%= baseUrl %>/add-<%= plugin.id %>" class="hover:opacity-100 transition-opacity flex items-center py-2">
+    <nav class="flex items-center justify-between gap-4 mb-6 text-sm transition-colors">
+        <%# A plain href here would land back on an empty search form: the results only
+            ever exist as the response to the POST that made them, so going "back" has to
+            mean the browser's own back navigation, not a fresh GET. Only when the previous
+            page is that result list, though: a history entry alone could be another site
+            or a blank tab. The href covers every other case. %>
+        <a href="<%= baseUrl %>/add-<%= plugin.id %>" data-search-url="<%= baseUrl %>/search-<%= plugin.id %>"
+            onclick="if (document.referrer === location.origin + this.dataset.searchUrl) { history.back(); return false; }" class="opacity-60 hover:opacity-100 transition-opacity flex items-center py-2">
             <i class="fa-solid fa-arrow-left mr-2"></i> <%= t('common.back_to_search') %>
         </a>
+        <button type="submit" form="confirm-form" name="in_wishlist" value="false"
+            class="flex-shrink-0 text-white bg-primary-theme hover:brightness-110 font-bold rounded-lg text-xs px-4 py-2.5 transition-transform hover:scale-[1.02] flex items-center justify-center gap-2 shadow-lg shadow-primary-theme/20">
+            <i class="fa-solid fa-check"></i> <%= t('confirm_' + plugin.i18nKey + '.btn_collection', { defaultValue: t('confirm_vinyl.btn_collection') }) %>
+        </button>
     </nav>
 
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -97,13 +107,50 @@
                 <!-- Duplicate warning banner -->
                 <%- include('partials/duplicate-warning') %>
 
-                <form action="<%= baseUrl %>/save-<%= plugin.id %>" method="POST" class="space-y-6">
+                <% if (locals.instantAdd) { %>
+                    <%# Both start hidden and are shown by the script at the foot of this page:
+                        it is the one thing that knows whether the form is on its way or is
+                        waiting for something only a person can fill in. Without JS neither
+                        appears, and the form is the ordinary one. %>
+                    <div id="instant-add-saving" role="status"
+                        class="hidden mb-6 p-4 rounded-xl bg-primary-theme/10 text-primary-theme text-sm font-bold flex items-center gap-3">
+                        <i class="fa-solid fa-spinner fa-spin"></i>
+                        <%= t('add.instant_saving') %>
+                    </div>
+                    <div id="instant-add-blocked" role="status"
+                        class="hidden mb-6 p-4 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 text-sm font-bold flex items-center gap-3">
+                        <i class="fa-solid fa-circle-exclamation"></i>
+                        <%= t('add.instant_blocked') %>
+                    </div>
+                <% } %>
+
+                <form id="confirm-form" action="<%= baseUrl %>/save-<%= plugin.id %>" method="POST" class="space-y-6">
+                    <% if (locals.scanMode) { %>
+                        <%# Scan mode: an add comes back to the add page instead of the
+                            collection, so the next item goes straight in. Read by the save
+                            handler for a collection add only: "add to wishlist" is a
+                            deliberate detour and lands on the wishlist, as it always has. %>
+                        <input type="hidden" name="after_add" value="<%= baseUrl %>/add-<%= plugin.id %>">
+                    <% } %>
                     <%
                     // Everything the API provided must reach the save handler, even without a visible input:
                     // 1. formFields hidden by showCondition (manual-only in API mode and vice versa)
                     // 2. plugin schema scalars not covered by any confirm formField (external ids, isbn...)
                     const visibleNames = new Set(plugin.formFields.filter(f => {
                         if (!f.showIn.includes('confirm') || f.type === 'custom') return false;
+                        if (f.showCondition === 'manual-only' && !isManual) return false;
+                        if (f.showCondition === 'api-only' && isManual) return false;
+                        return true;
+                    }).map(f => f.name));
+
+                    // Custom fields render their own inputs (a select, checkboxes, a JSON
+                    // blob...) under their field name. A hidden input for the same schema key
+                    // would post the value twice, which Express reads as an array like
+                    // ['plex', ''] that the save handler cannot cast. Only a form pre-filled
+                    // with real values shows it, since an empty custom input has nothing to
+                    // collide with.
+                    const customNames = new Set(plugin.formFields.filter(f => {
+                        if (f.type !== 'custom' || !f.showIn.includes('confirm')) return false;
                         if (f.showCondition === 'manual-only' && !isManual) return false;
                         if (f.showCondition === 'api-only' && isManual) return false;
                         return true;
@@ -116,8 +163,13 @@
                             hiddenInputs.push(f.name);
                         }
                     });
+                    // Written below as a pair when the details came from a source. A plugin
+                    // that also declares `source` in its own schema would otherwise post it
+                    // twice, and the save handler would store both values joined.
+                    const postsSourcePair = !!(item.source && item.source_id);
                     Object.keys(plugin.schemaDefinition).forEach(k => {
-                        if (visibleNames.has(k) || hiddenInputs.includes(k)) return;
+                        if (visibleNames.has(k) || hiddenInputs.includes(k) || customNames.has(k)) return;
+                        if (postsSourcePair && (k === 'source' || k === 'source_id')) return;
                         const v = item[k];
                         if (v === undefined || v === null) return;
                         // Scalars and string arrays (genres, styles...) are submitted; other objects (tracklist) have dedicated inputs
@@ -132,6 +184,13 @@
                     <% }) %>
                     <% if (item.hardcover_id) { %>
                         <input type="hidden" name="hardcover_id" value="<%= item.hardcover_id %>">
+                    <% } %>
+                    <%# Which database these details came from. Posted as a pair or not at
+                        all: an id alone names nothing, since two sources hand out the same
+                        numbers for unrelated records. %>
+                    <% if (item.source && item.source_id) { %>
+                        <input type="hidden" name="source" value="<%= item.source %>">
+                        <input type="hidden" name="source_id" value="<%= item.source_id %>">
                     <% } %>
 
                     <!-- formFields, main group first then metadata -->
@@ -195,6 +254,51 @@
 </div>
 
 <%- include('partials/item-images-js', { plugin }) %>
+
+<% if (locals.instantAdd) { %>
+<script>
+    // Reached by a scan the search resolved to a single exact match, so this form holds
+    // exactly what clicking through would have submitted, unedited: it submits itself and
+    // the page is only ever seen in passing.
+    (() => {
+        function submitNow() {
+            const form = document.querySelector('form[action="<%= baseUrl %>/save-<%= plugin.id %>"]');
+            // Which button submits matters: "add to collection" and "add to wishlist" are two
+            // submitters on this one form, and a submit with neither would post no in_wishlist
+            // at all. Named explicitly rather than left to a default.
+            const submitter = form && form.querySelector('button[name="in_wishlist"][value="false"]');
+            if (!form || !submitter) return;
+
+            // Coming back with Back, or reloading, re-runs the script on a page that already
+            // submitted once, which would add the item a second time. A restore from the
+            // back/forward cache re-runs nothing at all.
+            const navigation = performance.getEntriesByType('navigation')[0];
+            if (navigation && (navigation.type === 'back_forward' || navigation.type === 'reload')) return;
+
+            // What the provider returned is short of something the form insists on (a book
+            // with no author). Nothing to submit; say so and let the required field be filled
+            // in, which still lands back on the add page afterwards.
+            if (!form.checkValidity()) {
+                document.getElementById('instant-add-blocked').classList.remove('hidden');
+                form.reportValidity();
+                return;
+            }
+
+            document.getElementById('instant-add-saving').classList.remove('hidden');
+            form.requestSubmit(submitter);
+        }
+
+        // Waits for the page the other partials set themselves up on: what an editor of
+        // theirs writes into the form on submit (the tracklist) is registered there, and
+        // submitting before that would post the form without it.
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', submitNow, { once: true });
+        } else {
+            submitNow();
+        }
+    })();
+</script>
+<% } %>
 
 <style>
     .custom-scrollbar::-webkit-scrollbar { width: 4px; }

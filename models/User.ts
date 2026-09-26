@@ -60,6 +60,28 @@ const userSchema = new mongoose.Schema({
         ref: 'Collection',
         default: null
     },
+    // Where opening the app puts the user. Separate from lastActiveCollectionId, which
+    // follows them around while they browse: this one is a choice, applied when a
+    // session starts and never touched by the collection switcher afterwards.
+    // Null means "wherever I left off".
+    homeCollectionId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Collection',
+        default: null
+    },
+    homePage: {
+        type: String,
+        enum: ['dashboard', 'collection', 'wishlist'],
+        default: 'dashboard'
+    },
+    // Id of a view in core/viewRegistry.ts, applied to the landing page when it is the
+    // collection or the wishlist. Not an enum: views are registered at runtime, and an
+    // id that stops resolving falls back to the grid like any other stale choice.
+    // Empty means the browser's own last-used view.
+    homeView: {
+        type: String,
+        default: ''
+    },
     // OIDC identity linked from the Settings page. Optional: password login
     // always remains available. `sub` is the subject claim issued by the
     // identity provider and identifies the external account.
@@ -82,6 +104,17 @@ userSchema.index({ 'oidc.sub': 1 }, { unique: true, sparse: true });
 
 
 /**
+ * The account a sign-in identifier names: its email or its username. Emails are stored
+ * lowercased, so the typed address is too; an email match wins over a username spelled
+ * like an address. Null when it names none.
+ */
+userSchema.statics.findByLoginIdentifier = async function (identifier) {
+    const id = String(identifier || '').trim();
+    if (!id) return null;
+    return await this.findOne({ email: id.toLowerCase() }) || await this.findOne({ username: id });
+};
+
+/**
  * Authenticate a user by email and password.
  * Throws an Error with message 'incorrect email' or 'incorrect password'
  * which is handled by the calling controller.
@@ -90,8 +123,9 @@ userSchema.index({ 'oidc.sub': 1 }, { unique: true, sparse: true });
  * @param {string} password
  * @returns {Promise<mongoose.Document>} Resolves with the user document on success
  */
-userSchema.statics.login = async function (email, password) {
-    const user = await this.findOne({ email });
+// Accepts the email or the username (see findByLoginIdentifier).
+userSchema.statics.login = async function (identifier, password) {
+    const user = await (this as any).findByLoginIdentifier(identifier);
     if (user) {
         // SSO-only accounts have no local password: reject the password login
         // path cleanly instead of letting bcrypt.compare throw on an undefined

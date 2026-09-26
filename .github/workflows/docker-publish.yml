@@ -59,3 +59,6 @@ jobs:
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          secrets: |
+            screenscraper_dev_id=${{ secrets.SCREENSCRAPER_DEV_ID }}
+            screenscraper_dev_password=${{ secrets.SCREENSCRAPER_DEV_PASSWORD }}

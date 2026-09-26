@@ -15,7 +15,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT">
-  <img src="https://img.shields.io/badge/Version-3.1.5-blue.svg" alt="Version">
+  <img src="https://img.shields.io/badge/Version-3.2.0-blue.svg" alt="Version">
   <img src="https://img.shields.io/badge/Self--Hosted-Yes-green.svg" alt="Self-Hosted">
   <img src="https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white" alt="Docker">
 </p>
@@ -25,8 +25,9 @@
 ## Hey there 👋
 
 DVinyl is a little home for your physical collection. It lives on your own server, pulls in cover
-art and metadata from the big databases (Discogs, Hardcover, TMDB, IGDB, Rebrickable), can even
-estimate what your music is worth, and lays it all out on a dashboard you get to shape yourself.
+art and metadata from the big databases (Discogs, Hardcover, TMDB, IGDB, ScreenScraper,
+Rebrickable, BoardGameGeek), can even estimate what your music is worth, and lays it all out on a dashboard you
+get to shape yourself.
 
 DVinyl is **plugin based**: every media type is a plugin, so you turn on only what you
 care about, and you can add your own type without touching the core.
@@ -38,7 +39,7 @@ read-only preview of a finished instance.
 
 ### 📦 Your whole shelf, in one place
 - **Many formats.** Music (vinyls, CDs, cassettes), books (manga, comics, hardcover), movies
-  (Blu-ray, 4K, DVD, VHS, LaserDisc), video games and LEGO sets.
+  (Blu-ray, 4K, DVD, VHS, LaserDisc), video games, LEGO sets and board games.
 - **Multiple collections.** Keep separate libraries (yours, the family's, a specific room) and
   switch between them whenever you like.
 - **Smart import.** Add an item by ID or barcode, or bulk import a whole existing collection
@@ -51,6 +52,9 @@ read-only preview of a finished instance.
 - **14 color themes.** Ocean, Forest, Sunset, Sakura, Midnight and more, each with a light and a
   dark variant, and you can even set a different theme per category.
 - **Modular dashboard.** Pick the stat widgets you want and add your own navbar shortcuts.
+- **Collection info page.** Present a collection in your own words: a Markdown page with a few
+  images, linked from the home page and the collection, and readable from a share link if you
+  want it to be.
 - **Responsive.** Built to feel right on mobile too.
 - **Multilingual.** English, French, German, Spanish and Italian.
 
@@ -70,8 +74,9 @@ read-only preview of a finished instance.
 | Music  | Vinyls, CDs, cassettes | Discogs |
 | Books  | Books, manga, comics   | Hardcover |
 | Movies | Blu-ray, 4K, DVD, VHS  | TMDB |
-| Games  | Video games            | IGDB |
+| Games  | Video games            | IGDB, ScreenScraper |
 | LEGO   | LEGO sets              | Rebrickable |
+| Board games | Board games       | BoardGameGeek |
 
 Every plugin can be turned on or off per collection from the admin panel.
 
@@ -114,7 +119,7 @@ No Docker? No worries. Have a look at the other ways to install and run DVinyl i
 | :---- | :------------- |
 | [Getting started](./docs/getting-started.md) | Manual installation and requirements |
 | [Docker deployment](./docs/docker.md) | Deploy with Docker Compose (recommended) |
-| [API keys](./docs/api-keys.md) | Get your Discogs, Hardcover, TMDB, IGDB and Rebrickable keys |
+| [API keys](./docs/api-keys.md) | Get your Discogs, Hardcover, TMDB, IGDB, ScreenScraper, Rebrickable and BoardGameGeek keys |
 | [Plugin development](./docs/plugin-development.md) | Build your own media type as a code plugin |
 | [Public share links](./docs/sharing.md) | Let anyone browse a collection (or part of it) read-only, no account needed |
 | [Wiki](https://github.com/Kyonew/DVinyl/wiki) | User guides and no-code tutorials |
@@ -128,7 +133,7 @@ No Docker? No worries. Have a look at the other ways to install and run DVinyl i
 | Frontend | EJS templates |
 | Styling | Tailwind CSS |
 | Localization | i18next |
-| Metadata APIs | Discogs, Hardcover, TMDB, IGDB, Rebrickable |
+| Metadata APIs | Discogs, Hardcover, TMDB, IGDB, ScreenScraper, Rebrickable, BoardGameGeek |
 
 ## Contributing
 

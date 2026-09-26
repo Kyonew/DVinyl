@@ -11,7 +11,7 @@
         const hasEstimateAction = collectionActions.some(a => a.behavior === 'estimate');
     %>
 
-    <div class="max-w-screen-xl mx-auto px-1 md:px-0 pb-12">
+    <div class="max-w-screen-xl mx-auto px-1.5 sm:px-0 pb-12">
 
         <% if (locals.isShareView) { %>
             <div class="mt-6 flex items-center gap-3 bg-primary-theme/10 border border-primary-theme/30 rounded-2xl px-4 py-3">
@@ -25,19 +25,40 @@
                 <span>
                     <%= t('collection.title') %>
                 </span>
-                <span
+                <span id="totalItemsBadge"
                     class="px-3 md:mt-1.5 py-1 bg-black/5 dark:bg-white/10 rounded-full text-sm font-medium opacity-70 w-fit">
                     <%= totalItems %>
                         <%= t('common.items') %>
                 </span>
             </h1>
+            <div class="flex items-center gap-2">
+            <%# The collection's page, reachable from the collection itself: a share
+                visitor never sees the dashboard, and this is the page they land on. %>
+            <% if (isCollectionInfoVisible(locals.activeCollection, locals.isShareView)) { %>
+                <a href="<%= baseUrl %>/info"
+                    class="flex-shrink-0 w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center gap-2 group"
+                    title="<%= t('collection_info.title') %>">
+                    <i class="fa-solid fa-circle-info group-hover:scale-110 transition-transform"></i>
+                    <span class="hidden md:inline text-xs font-bold uppercase tracking-widest">
+                        <%= t('collection_info.title') %>
+                    </span>
+                </a>
+            <% } %>
+            <% if (!locals.isShareView) { %>
+                <a href="<%= baseUrl %>/lists"
+                    class="flex-shrink-0 w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center gap-2 group"
+                    title="<%= t('lists.title') %>">
+                    <i class="fa-solid fa-list-check group-hover:scale-110 transition-transform"></i>
+                    <span class="hidden md:inline text-xs font-bold uppercase tracking-widest"><%= t('lists.title') %></span>
+                </a>
+            <% } %>
             <% if (locals.canEditCollection) { %>
                 <%
                     // Add button target: external-search page if the plugin has one, else manual entry
                     const currentPlugin = registry.getAll().find(p => p.collectionType === currentType);
                     let addRoute = null;
                     if (currentPlugin) {
-                        addRoute = currentPlugin.searchProvider ? ('/add-' + currentPlugin.id) : ('/manual-add?type=' + currentPlugin.id);
+                        addRoute = hasSearch(currentPlugin) ? ('/add-' + currentPlugin.id) : ('/manual-add?type=' + currentPlugin.id);
                     }
                 %>
                     <div class="flex gap-2">
@@ -62,6 +83,19 @@
                             </a>
                             <% } %>
 
+                            <%# The page is already scoped to one module, so unlike the dashboard/wishlist
+                                triggers there's no picker question - straight to that module's scanner. %>
+                            <% if (currentPlugin && hasBarcodeScan(currentPlugin)) { %>
+                                <a href="<%= baseUrl %>/add-<%= currentPlugin.id %>?scan=1"
+                                    class="flex-shrink-0 w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center gap-2 group"
+                                    title="<%= t('collection.scan') %>">
+                                    <i class="fa-solid fa-barcode group-hover:scale-110 transition-transform"></i>
+                                    <span class="hidden md:inline text-xs font-bold uppercase tracking-widest">
+                                        <%= t('collection.scan') %>
+                                    </span>
+                                </a>
+                                <% } %>
+
                                 <% collectionActions.forEach(action => { %>
                                     <button type="button" data-action-id="<%= action.id %>"
                                         onclick="runCollectionAction('<%= action.id %>')"
@@ -76,21 +110,39 @@
 
                     </div>
                     <% } %>
+            </div>
 
         </div>
 
         <%- include('partials/albums-filters') %>
-        <%- include('partials/albums-grid', { albums, size: 'collection', gridId: 'albumGrid', selectable: locals.canEditCollection }) %>
-        <%- include('partials/albums-page-changer') %>
+        <div id="shelfResults" class="transition-opacity duration-150">
+            <%- include('partials/shelf-results', { albums, isWishlist: false }) %>
+        </div>
     </div>
 
     <% if (locals.canEditCollection) { %>
-    <div id="bulkActionBar" class="hidden fixed bottom-6 inset-x-0 z-40 flex justify-center px-4">
-        <div class="card-theme border rounded-2xl shadow-2xl px-5 py-3 flex items-center gap-4">
+    <div id="bulkActionBar" class="hidden fixed bottom-0 md:bottom-6 inset-x-0 z-40 flex flex-col items-center md:px-4 pointer-events-none">
+        <%# Folds the bar down to this tab so it stops covering the last cards; the
+            count moves onto the tab while the bar is folded. %>
+        <button type="button" id="bulkBarToggle" onclick="toggleBulkBarCollapsed()"
+            class="card-theme border border-b-0 rounded-t-xl -mb-px relative z-10 px-4 py-1 flex items-center gap-2 text-xs font-bold shadow-lg pointer-events-auto"
+            title="<%= t('collection.hide_select_bar') %>" aria-label="<%= t('collection.hide_select_bar') %>" aria-expanded="true">
+            <i id="bulkBarToggleIcon" class="fa-solid fa-chevron-down"></i>
+            <span id="bulkTabCount" class="hidden opacity-80"></span>
+        </button>
+        <div id="bulkBarPanel" class="card-theme border w-full md:w-auto rounded-t-2xl md:rounded-2xl shadow-2xl px-5 py-3 flex flex-wrap items-center justify-center gap-3 pointer-events-auto">
             <span id="bulkSelectedCount" class="text-sm font-bold opacity-80">0 <%= t('collection.selected_count_suffix') %></span>
             <button type="button" id="selectAllBtn" onclick="toggleSelectAll()"
                 class="px-4 py-2 bg-black/5 dark:bg-white/10 rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all">
                 <%= t('collection.select_all') %>
+            </button>
+            <button type="button" onclick="openShelfMoveModal()"
+                class="px-4 py-2 bg-primary-theme text-white rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all">
+                <i class="fa-solid fa-inbox mr-2"></i><%= t('collection.shelf_move_btn') %>
+            </button>
+            <button type="button" onclick="addSelectionToList()"
+                class="px-4 py-2 bg-primary-theme text-white rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all">
+                <i class="fa-solid fa-list-check mr-2"></i><%= t('lists.add_to_list') %>
             </button>
             <button type="button" onclick="printSelectedLabels('qr')"
                 class="px-4 py-2 bg-primary-theme text-white rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all">
@@ -100,6 +152,10 @@
                 class="px-4 py-2 bg-primary-theme text-white rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all">
                 <i class="fa-solid fa-barcode mr-2"></i><%= t('collection.print_selected_barcode') %>
             </button>
+            <button type="button" id="bulkDeleteBtn" onclick="deleteSelectedItems()" disabled
+                class="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:brightness-100 disabled:active:scale-100">
+                <i class="fa-solid fa-trash mr-2"></i><%= t('collection.delete_selected') %>
+            </button>
             <button type="button" onclick="cancelSelectMode()"
                 class="px-4 py-2 bg-black/5 dark:bg-white/10 rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all">
                 <%= t('collection.cancel_select') %>
@@ -107,6 +163,43 @@
         </div>
     </div>
     <form id="labelPrintForm" method="POST" action="<%= baseUrl %>/collection/labels" target="_blank" class="hidden"></form>
+    <%- include('partials/list-picker') %>
+
+    <%# Where to put what is selected. Offers the collection's shelves, and lets one be
+        invented on the spot; core/shelfStore.ts decides what that name becomes. %>
+    <div id="shelfMoveModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm items-center justify-center p-4">
+        <div class="card-theme border rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <h3 class="text-lg font-bold mb-1"><%= t('collection.shelf_move_title') %></h3>
+            <p class="text-xs opacity-50 mb-5"><span id="shelfMoveCount">0</span> <%= t('collection.selected_count_suffix') %></p>
+
+            <label class="block mb-2 text-xs font-bold uppercase tracking-widest opacity-60" for="shelfMoveSelect">
+                <%= t('common.location') %>
+            </label>
+            <select id="shelfMoveSelect"
+                class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme block w-full p-3 outline-none cursor-pointer">
+                <option value="" class="bg-white dark:bg-[#1a1a1a]"><%= t('collection.shelf_none') %></option>
+                <% locations.forEach(shelf => { %>
+                    <option value="<%= shelf %>" class="bg-white dark:bg-[#1a1a1a]"><%= shelf %></option>
+                <% }) %>
+                <option value="" class="bg-white dark:bg-[#1a1a1a]" data-new-shelf><%= t('collection.shelf_new_option') %></option>
+            </select>
+            <input type="text" id="shelfMoveNew" placeholder="<%= t('collection.shelf_new_placeholder') %>"
+                class="hidden mt-2 bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme w-full p-3 outline-none">
+
+            <p id="shelfMoveError" class="hidden mt-3 text-xs font-bold text-red-500"></p>
+
+            <div class="flex gap-2 mt-6">
+                <button type="button" onclick="closeShelfMoveModal()"
+                    class="flex-1 py-2.5 bg-black/5 dark:bg-white/10 rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all">
+                    <%= t('collection.cancel_select') %>
+                </button>
+                <button type="button" id="shelfMoveConfirm" onclick="confirmShelfMove()"
+                    class="flex-1 py-2.5 bg-primary-theme text-white rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all disabled:opacity-50">
+                    <%= t('collection.shelf_move_confirm') %>
+                </button>
+            </div>
+        </div>
+    </div>
     <% } %>
 
     <% if (hasEstimateAction) { %>
@@ -193,7 +286,35 @@
         // (rendered but hidden by default, see partials/albums-grid) and turns card
         // clicks into a selection toggle instead of a navigation.
         let selectMode = false;
+        let lastSelectedIndex = null;
         const selectedCountSuffix = <%- JSON.stringify(t('collection.selected_count_suffix')) %>;
+        const bulkDeleteConfirmTpl = <%- JSON.stringify(t('collection.confirm_delete_selected')) %>;
+        const bulkDeleteDoneTpl = <%- JSON.stringify(t('collection.delete_selected_done')) %>;
+        const bulkDeletePartialTpl = <%- JSON.stringify(t('collection.delete_selected_partial')) %>;
+        const bulkDeleteErrorTpl = <%- JSON.stringify(t('collection.delete_selected_error')) %>;
+
+        function getSelectableCheckboxes() {
+            return [...document.querySelectorAll('#albumGrid .album-card .album-select-checkbox')];
+        }
+
+        function applySelection(checkbox, checked, useRange) {
+            const checkboxes = getSelectableCheckboxes();
+            const currentIndex = checkboxes.indexOf(checkbox);
+            if (currentIndex === -1) return;
+
+            if (useRange && lastSelectedIndex !== null && lastSelectedIndex !== currentIndex) {
+                const start = Math.min(lastSelectedIndex, currentIndex);
+                const end = Math.max(lastSelectedIndex, currentIndex);
+                for (let i = start; i <= end; i += 1) {
+                    checkboxes[i].checked = checked;
+                }
+            } else {
+                checkbox.checked = checked;
+            }
+
+            lastSelectedIndex = currentIndex;
+            updateSelectedCount();
+        }
 
         function toggleSelectMode() {
             selectMode = !selectMode;
@@ -202,16 +323,63 @@
                 el.classList.toggle('flex', selectMode);
             });
             document.querySelectorAll('.album-select-checkbox').forEach(cb => { cb.checked = false; });
+            lastSelectedIndex = null;
             const bar = document.getElementById('bulkActionBar');
             if (bar) bar.classList.toggle('hidden', !selectMode);
+            // Each select session opens with the bar unfolded.
+            setBulkBarCollapsed(false);
             const btn = document.getElementById('selectModeBtn');
             if (btn) btn.classList.toggle('bg-primary-theme', selectMode);
             if (btn) btn.classList.toggle('text-white', selectMode);
+            // Shift-clicking a range would otherwise highlight every title it sweeps over.
+            document.getElementById('albumGrid')?.classList.toggle('select-none', selectMode);
             updateSelectedCount();
         }
 
+        // Live search brought in new cards, drawn as outside select mode. A selection
+        // only covers what is on screen, so it starts over on the new results.
+        document.addEventListener('shelf-results:replaced', () => {
+            if (!selectMode) return;
+            document.querySelectorAll('.select-checkbox-overlay').forEach(el => {
+                el.classList.remove('hidden');
+                el.classList.add('flex');
+            });
+            lastSelectedIndex = null;
+            document.getElementById('albumGrid')?.classList.add('select-none');
+            updateSelectedCount();
+        });
+
         function cancelSelectMode() {
             if (selectMode) toggleSelectMode();
+        }
+
+        const hideSelectBarLabel = <%- JSON.stringify(t('collection.hide_select_bar')) %>;
+        const showSelectBarLabel = <%- JSON.stringify(t('collection.show_select_bar')) %>;
+        let bulkBarCollapsed = false;
+
+        function setBulkBarCollapsed(collapsed) {
+            bulkBarCollapsed = collapsed;
+            document.getElementById('bulkBarPanel')?.classList.toggle('hidden', collapsed);
+            const toggle = document.getElementById('bulkBarToggle');
+            if (toggle) {
+                const label = collapsed ? showSelectBarLabel : hideSelectBarLabel;
+                toggle.title = label;
+                toggle.setAttribute('aria-label', label);
+                toggle.setAttribute('aria-expanded', String(!collapsed));
+                // Folded on a wide screen, the tab floats alone and needs all its corners.
+                toggle.classList.toggle('md:rounded-b-xl', collapsed);
+                toggle.classList.toggle('md:border-b', collapsed);
+            }
+            const icon = document.getElementById('bulkBarToggleIcon');
+            if (icon) {
+                icon.classList.toggle('fa-chevron-down', !collapsed);
+                icon.classList.toggle('fa-chevron-up', collapsed);
+            }
+            document.getElementById('bulkTabCount')?.classList.toggle('hidden', !collapsed);
+        }
+
+        function toggleBulkBarCollapsed() {
+            setBulkBarCollapsed(!bulkBarCollapsed);
         }
 
         function updateSelectedCount() {
@@ -219,6 +387,8 @@
             const count = document.querySelectorAll('.album-select-checkbox:checked').length;
             const countEl = document.getElementById('bulkSelectedCount');
             if (countEl) countEl.textContent = count + ' ' + selectedCountSuffix;
+            const tabCountEl = document.getElementById('bulkTabCount');
+            if (tabCountEl) tabCountEl.textContent = count + ' ' + selectedCountSuffix;
 
             const selectAllBtn = document.getElementById('selectAllBtn');
             if (selectAllBtn) {
@@ -227,6 +397,9 @@
                     ? <%- JSON.stringify(t('collection.deselect_all')) %>
                     : <%- JSON.stringify(t('collection.select_all')) %>;
             }
+
+            const deleteBtn = document.getElementById('bulkDeleteBtn');
+            if (deleteBtn) deleteBtn.disabled = count === 0;
         }
 
         // Selects every card on the current page, or clears the selection if every
@@ -236,7 +409,72 @@
             const checkboxes = [...document.querySelectorAll('.album-select-checkbox')];
             const allSelected = checkboxes.length > 0 && checkboxes.every(cb => cb.checked);
             checkboxes.forEach(cb => { cb.checked = !allSelected; });
+            // A blanket select has no anchor to extend from: the next shift-click
+            // starts a fresh range instead of reaching back to a stale index.
+            lastSelectedIndex = null;
             updateSelectedCount();
+        }
+
+        function selectedItemIds() {
+            return [...document.querySelectorAll('.album-select-checkbox:checked')]
+                .map(cb => cb.closest('[data-id]')?.dataset.id)
+                .filter(Boolean);
+        }
+
+        function addSelectionToList() {
+            const ids = selectedItemIds();
+            if (ids.length > 0) openListPicker({ kind: 'items', items: ids });
+        }
+
+        function openShelfMoveModal() {
+            const count = selectedItemIds().length;
+            if (count === 0) return;
+            const modal = document.getElementById('shelfMoveModal');
+            document.getElementById('shelfMoveCount').textContent = count;
+            document.getElementById('shelfMoveError').classList.add('hidden');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeShelfMoveModal() {
+            const modal = document.getElementById('shelfMoveModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        document.getElementById('shelfMoveSelect')?.addEventListener('change', function () {
+            const creating = this.options[this.selectedIndex]?.hasAttribute('data-new-shelf');
+            const input = document.getElementById('shelfMoveNew');
+            input.classList.toggle('hidden', !creating);
+            if (creating) input.focus(); else input.value = '';
+        });
+
+        async function confirmShelfMove() {
+            const ids = selectedItemIds();
+            if (ids.length === 0) return;
+
+            const select = document.getElementById('shelfMoveSelect');
+            const creating = select.options[select.selectedIndex]?.hasAttribute('data-new-shelf');
+            const location = creating ? document.getElementById('shelfMoveNew').value : select.value;
+
+            const button = document.getElementById('shelfMoveConfirm');
+            const error = document.getElementById('shelfMoveError');
+            button.disabled = true;
+
+            try {
+                const res = await fetch('<%= baseUrl %>/shelf/move', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids, location })
+                });
+                const data = await res.json();
+                if (!res.ok || !data.success) throw new Error(data.error || res.status);
+                window.location.reload();
+            } catch (err) {
+                button.disabled = false;
+                error.textContent = <%- JSON.stringify(t('errors.generic_server_error')) %>;
+                error.classList.remove('hidden');
+            }
         }
 
         function printSelectedLabels(type) {
@@ -261,16 +499,68 @@
             form.submit();
         }
 
-        document.getElementById('albumGrid')?.addEventListener('click', (e) => {
+        async function deleteSelectedItems() {
+            const ids = selectedItemIds();
+            if (ids.length === 0) return;
+
+            const confirmMsg = bulkDeleteConfirmTpl.replace('{{count}}', String(ids.length));
+            if (!confirm(confirmMsg)) return;
+
+            const deleteBtn = document.getElementById('bulkDeleteBtn');
+            if (deleteBtn) deleteBtn.disabled = true;
+
+            try {
+                const response = await fetch(`${jsBaseUrl}/api/collection/delete-selected`, {
+                    method: 'POST',
+                    // Accept matters here: a POST that fails the role check answers a plain
+                    // browser request with a redirect to the home page, and only an explicit
+                    // JSON accept gets the 403 body back (middleware/authMiddleware.ts).
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ ids })
+                });
+                const data = await response.json().catch(() => null);
+
+                if (response.ok && data && data.success) {
+                    const deleted = Number(data.deleted || 0);
+                    const failed = Number(data.failed || 0);
+                    // A non-zero 'failed' is not a broken request: those selections were
+                    // refused one by one (hidden by a visibility rule, or already gone),
+                    // so it is reported apart from an outright failure.
+                    alert(failed === 0
+                        ? bulkDeleteDoneTpl.replace('{{count}}', String(deleted))
+                        : bulkDeletePartialTpl
+                            .replace('{{deleted}}', String(deleted))
+                            .replace('{{failed}}', String(failed)));
+                    window.location.reload();
+                    return;
+                }
+
+                // The route answers in the reader's language, so its own message is
+                // worth more than a generic one when it sent one.
+                alert(typeof data?.error === 'string' && data.error ? data.error : bulkDeleteErrorTpl);
+            } catch {
+                alert(bulkDeleteErrorTpl);
+            }
+
+            if (deleteBtn) deleteBtn.disabled = false;
+        }
+
+        // Single entry point for both views: the checkbox carries no inline handler,
+        // so a click on it lands here like any other click on the card. Listened for on
+        // the results wrapper rather than the grid, which live search replaces.
+        document.getElementById('shelfResults')?.addEventListener('click', (e) => {
             if (!selectMode) return;
             const card = e.target.closest('.album-card');
             if (!card) return;
-            e.preventDefault();
             const checkbox = card.querySelector('.album-select-checkbox');
-            if (checkbox) {
-                checkbox.checked = !checkbox.checked;
-                updateSelectedCount();
-            }
+            if (!checkbox) return;
+
+            // The browser already flipped the box when the click landed on it, so we
+            // read that state instead of inverting it again, and we leave the event
+            // alone. Anywhere else on the card, the default is the <a> navigation.
+            const onCheckbox = e.target === checkbox;
+            if (!onCheckbox) e.preventDefault();
+            applySelection(checkbox, onCheckbox ? checkbox.checked : !checkbox.checked, e.shiftKey);
         });
 
         // Collection-level actions declared by the active plugin (see CollectionAction).

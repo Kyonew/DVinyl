@@ -26,7 +26,7 @@
                     <i class="fa-solid fa-pen-to-square text-primary-theme"></i> <%= t('edit_' + plugin.i18nKey + '.title', { defaultValue: t('generic.edit_title') }) %>
                 </h1>
 
-                <form action="<%= baseUrl %>/save-<%= plugin.id %>" method="POST" class="space-y-6">
+                <form action="<%= baseUrl %>/save-<%= plugin.id %>" method="POST" data-save-bar class="space-y-6">
                     <%# Where to land once saved, handed over by the item page. %>
                     <% if (locals.backUrl) { %>
                         <input type="hidden" name="return_to" value="<%= backUrl %>">
@@ -64,7 +64,8 @@
                         to attach it later to unlock the metadata refresh and the estimate.
                         Skipped when the plugin already declares the id among its form fields
                         (lego's set number), which would otherwise print the input twice.
-                        An emptied input changes nothing: save-<plugin> ignores blank ids. %>
+                        Emptying the input detaches the id: save-<plugin> unsets it, which is
+                        how a wrong match from an import is undone. %>
                     <%
                         const extIdField = plugin.externalIdField;
                         const extIdInForm = extIdField

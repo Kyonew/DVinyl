@@ -1,11 +1,96 @@
 import { PluginDefinition } from '../../core/types';
+import { sourceFromProvider, imageSourceFrom } from '../../core/sources';
 import { IGDBProvider } from './igdb';
+import {
+  ScreenScraperProvider, screenScraperMediaRoute, screenScraperSystemsRoute, SCREENSCRAPER_LOOKUP_TIMEOUT_MS
+} from './screenscraper';
 import { gamesImporters } from './importers';
-import { escapeRegExp, fetchJson, PermanentRefreshError, syncStamp } from '../../core/helpers';
+import { escapeRegExp, fetchJson } from '../../core/helpers';
 import { igdbRequest } from './igdbHelper';
 import Item from '../../models/Item';
 
 const igdbProvider = new IGDBProvider();
+
+// The database this plugin has always searched. The migration attributes every item
+// saved before sources existed to this id, so it must never change.
+const igdb = sourceFromProvider(igdbProvider, {
+  id: 'igdb',
+  requiredEnvKeys: ['TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET'],
+  itemUrl: (id: string) => `https://www.igdb.com/games/${id}`,
+  // Covers, artworks and screenshots: what IGDB holds of a game beyond its box.
+  async searchImages(query: string): Promise<string[]> {
+    const results = await igdbRequest('games',
+      `search "${query.replace(/"/g, '\\"')}";
+      fields cover.url, artworks.url, screenshots.url;
+      limit 5;`
+    );
+
+    const urls: string[] = [];
+    results.forEach((g: any) => {
+      if (g.cover && g.cover.url) urls.push(g.cover.url);
+      if (g.artworks) g.artworks.forEach((a: any) => urls.push(a.url));
+      if (g.screenshots) g.screenshots.forEach((sc: any) => urls.push(sc.url));
+    });
+
+    return urls.map((u) => {
+      let r = u.replace('t_thumb', 't_cover_big');
+      if (r.startsWith('//')) r = 'https:' + r;
+      return r;
+    });
+  }
+});
+
+// The retro side of the catalogue: MS-DOS, arcade and the 8 and 16-bit consoles, which
+// ScreenScraper documents far better than IGDB. Second in line, so IGDB stays the default
+// and the add page offers the choice once both are configured. Only the developer pair is
+// required; the member account in SCREENSCRAPER_USER / SCREENSCRAPER_PASSWORD is what
+// raises the daily quota (see screenscraper.ts).
+const screenscraper = sourceFromProvider(new ScreenScraperProvider(), {
+  id: 'screenscraper',
+  requiredEnvKeys: ['SCREENSCRAPER_DEV_ID', 'SCREENSCRAPER_DEV_PASSWORD'],
+  // A search across every system takes close to a minute, one in a known system a few
+  // seconds: an import waits long enough for either, and says so beforehand.
+  lookupTimeoutMs: SCREENSCRAPER_LOOKUP_TIMEOUT_MS,
+  importNote: 'admin.csv_import.screenscraper_note',
+  itemUrl: (id: string) => `https://www.screenscraper.fr/gameinfos.php?gameid=${encodeURIComponent(id)}`
+});
+
+// A game's box art is often on TMDB, which knows the film adaptations and the covers
+// that came with them. Declared with its key so it drops out of the picker by itself
+// when the instance has no TMDB credentials, instead of being skipped by a test inside
+// someone else's function.
+const tmdbImages = imageSourceFrom({
+  id: 'tmdb',
+  name: 'TMDB',
+  requiredEnvKeys: ['TMDB_API_KEY'],
+  async searchImages(query: string, options?: { language?: string }): Promise<string[]> {
+    const langMap: Record<string, string> = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', it: 'it-IT', de: 'de-DE' };
+    const tmdbLang = langMap[options?.language || ''] || 'en-US';
+    const data = await fetchJson(
+      `https://api.themoviedb.org/3/search/multi?api_key=${process.env.TMDB_API_KEY}&query=${encodeURIComponent(query)}&language=${tmdbLang}`,
+      { headers: { 'User-Agent': 'DVinylApp/2.0' }, signal: AbortSignal.timeout(10000) }
+    );
+    return (data.results || [])
+      .filter((item: any) => item.poster_path)
+      .map((item: any) => `https://image.tmdb.org/t/p/w500${item.poster_path}`);
+  }
+});
+
+// The App Store icon of a game that also shipped on mobile. Last of the three, as it has
+// always been: it answers for the fewest titles.
+const itunesSoftware = imageSourceFrom({
+  id: 'itunes',
+  name: 'iTunes',
+  async searchImages(query: string): Promise<string[]> {
+    const data = await fetchJson(
+      `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=software&limit=5`,
+      { headers: { 'User-Agent': 'DVinylApp/2.0' }, signal: AbortSignal.timeout(10000) }
+    );
+    return (data.results || [])
+      .filter((item: any) => item.artworkUrl100)
+      .map((item: any) => item.artworkUrl100.replace('100x100bb', '512x512bb'));
+  }
+});
 
 export const gamesPlugin: PluginDefinition = {
   id: 'games',
@@ -26,9 +111,25 @@ export const gamesPlugin: PluginDefinition = {
   extraSearchFields: ['platform', 'publisher'],
   supportsBarcodeSearch: true,
   barcodeNoiseTerms: ['Nintendo', 'PlayStation', 'Xbox', 'PS2', 'PS3', 'PS4', 'PS5', 'Switch', 'Wii U', 'Wii', 'Series X', 'Series S', 'One'],
-  searchProvider: igdbProvider,
+  sources: [igdb, screenscraper, tmdbImages, itunesSoftware],
+  // Relays ScreenScraper thumbnails to the add page, since their own addresses carry the
+  // instance's credentials and must never reach a browser, and lists its systems for the
+  // search form.
+  apiRoutes: [
+    { method: 'get', path: '/api/games/screenscraper/media', requireEditor: true, handler: screenScraperMediaRoute },
+    { method: 'get', path: '/api/games/screenscraper/systems', requireEditor: true, handler: screenScraperSystemsRoute }
+  ],
+  // The system to search ScreenScraper in, which the form offers while it is the source
+  // picked. IGDB ignores it.
+  searchFormPartial: 'search-form',
+  searchFormFields: ['platform'],
+  // An imported row's platform, so ScreenScraper can look in that system alone. The
+  // schema's own default says nothing about the game and is left out.
+  enrichSearchOptions(data: Record<string, any>) {
+    const platform = typeof data.platform === 'string' ? data.platform.trim() : '';
+    return platform && platform !== 'other' ? { platform } : {};
+  },
   imageSearchType: 'game',
-  requiredEnvKeys: ['TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET'],
   duplicateCheckFields: ['platform', 'region', 'format'],
   aspectRatioClass: 'aspect-[2/3]',
 
@@ -43,62 +144,14 @@ export const gamesPlugin: PluginDefinition = {
   partialsPath: 'plugins/games/partials',
   detailZones: [
     { id: 'badge', partial: 'game-status.ejs' },
-    { id: 'sidebar', partial: 'status-blocks.ejs' }
+    { id: 'sidebar', partial: 'status-blocks.ejs' },
+    { id: 'sidebar', partial: 'completion-times.ejs' }
   ],
 
   fastAddOptions: [
     { value: 'game', label: 'media.games', icon: 'fa-gamepad', color: 'peer-checked:bg-emerald-600', url: '/add-games' }
   ],
 
-  imageSearchProvider: {
-    async search(query: string, options?: { language?: string }): Promise<string[]> {
-      const fetchOptions = { headers: { 'User-Agent': 'DVinylApp/2.0' }, signal: AbortSignal.timeout(10000) };
-
-      // 1. IGDB assets (covers + artworks + screenshots)
-      const igdbResults = await igdbRequest('games',
-        `search "${query.replace(/"/g, '\\"')}";
-        fields cover.url, artworks.url, screenshots.url;
-        limit 5;`
-      );
-
-      let urls: string[] = [];
-      igdbResults.forEach((g: any) => {
-        if (g.cover && g.cover.url) urls.push(g.cover.url);
-        if (g.artworks) g.artworks.forEach((a: any) => urls.push(a.url));
-        if (g.screenshots) g.screenshots.forEach((sc: any) => urls.push(sc.url));
-      });
-      urls = urls.map((u) => {
-        let r = u.replace('t_thumb', 't_cover_big');
-        if (r.startsWith('//')) r = 'https:' + r;
-        return r;
-      });
-
-      // 2. TMDB fallback
-      const tmdbApiKey = process.env.TMDB_API_KEY;
-      if (tmdbApiKey) {
-        const langMap: Record<string, string> = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', it: 'it-IT', de: 'de-DE' };
-        const tmdbLang = langMap[options?.language || ''] || 'en-US';
-        const tmdbData = await fetchJson(
-          `https://api.themoviedb.org/3/search/multi?api_key=${tmdbApiKey}&query=${encodeURIComponent(query)}&language=${tmdbLang}`,
-          fetchOptions
-        );
-        urls = urls.concat((tmdbData.results || [])
-          .filter((item: any) => item.poster_path)
-          .map((item: any) => `https://image.tmdb.org/t/p/w500${item.poster_path}`));
-      }
-
-      // 3. iTunes software fallback
-      const itunesData = await fetchJson(
-        `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=software&limit=5`,
-        fetchOptions
-      );
-      urls = urls.concat((itunesData.results || [])
-        .filter((item: any) => item.artworkUrl100)
-        .map((item: any) => item.artworkUrl100.replace('100x100bb', '512x512bb')));
-
-      return [...new Set(urls)];
-    }
-  },
 
   navbarShortcuts: [
     { id: 'games', label: 'media.games', url: '/collection?type=games' },
@@ -148,7 +201,12 @@ export const gamesPlugin: PluginDefinition = {
     genre: { type: String, default: '' },
     genres: { type: [String], default: [] },
     styles: { type: [String], default: [] },
-    description: { type: String, default: '' }
+    description: { type: String, default: '' },
+    // Estimated hours to beat, from IGDB's own time-to-beat data. Absent (not 0) for a
+    // game nobody has timed yet, or one added before this existed.
+    completionHastily: Number,
+    completionNormally: Number,
+    completionCompletely: Number
   },
 
   formats: [
@@ -158,6 +216,16 @@ export const gamesPlugin: PluginDefinition = {
     { value: 'steelbook', label: 'media.steelbook', color: 'bg-sky-600/90' },
     { value: 'digital', label: 'media.digital', color: 'bg-cyan-600/90' }
   ],
+
+  // The standard disc-console case, which every format here shares; the collector and
+  // limited editions are boxes rather than cases, so they get the room they take.
+  spineSize: {
+    physical: { thickness: 14, height: 170 },
+    collector: { thickness: 60, height: 200 },
+    limited: { thickness: 30, height: 180 },
+    steelbook: { thickness: 15, height: 170 },
+    digital: { thickness: 5, height: 170 }
+  },
 
   formFields: [
     {
@@ -427,27 +495,29 @@ export const gamesPlugin: PluginDefinition = {
     }).lean();
   },
 
-  async refreshItem(item: any): Promise<Record<string, any>> {
-    if (!item.igdb_id) {
-      throw new PermanentRefreshError('No IGDB ID to refresh');
-    }
+  mergeRefresh(item: any, details: any): Record<string, any> {
+    const genres = details.genres || [];
+    // A source with no box to offer (or a download that failed) keeps the one the item
+    // has, rather than replacing it with nothing or with the generic logo IGDB falls back to.
+    const freshCover = details.cover_image && details.cover_image !== '/ressources/logo.png'
+      ? details.cover_image
+      : '';
 
-    const formatted = await igdbProvider.getDetails(String(item.igdb_id), {});
-    const genres = formatted.genres || [];
-
-    const updateData: any = {
-      cover_image: formatted.cover_image,
+    return {
+      cover_image: freshCover || item.cover_image,
       genres,
       genre: genres[0] || '',
-      year: formatted.year,
-      developer: formatted.developer || item.developer,
-      publisher: formatted.publisher || item.publisher,
-      // `description` holds the IGDB summary shown on the detail page — persist it on refresh too
-      description: formatted.description || item.description
+      year: details.year,
+      developer: details.developer || item.developer,
+      publisher: details.publisher || item.publisher,
+      // `description` holds the provider's summary shown on the detail page, so a refresh keeps it too
+      description: details.description || item.description,
+      // Fall back to what is already stored: a transient miss on the time-to-beat lookup
+      // must not wipe out an estimate fetched earlier.
+      completionHastily: details.completionHastily ?? item.completionHastily,
+      completionNormally: details.completionNormally ?? item.completionNormally,
+      completionCompletely: details.completionCompletely ?? item.completionCompletely
     };
-
-    await Item.updateOne({ _id: item._id }, { $set: { ...updateData, ...syncStamp() } });
-    return updateData;
   },
 
   getManualDefaults(): Record<string, any> {

@@ -4,10 +4,36 @@ import Item from '../../models/Item';
 import { requireAuth } from '../../middleware/authMiddleware';
 import { applyVisibilityFilter, applyEnabledModulesFilter, applyContainedFilter } from '../../utils/visibilityHelper';
 import { resolveShelfItems } from '../../utils/itemHelpers';
+import { applyHomeCollection, homePathFor } from '../../utils/homePage';
 
 const router = express.Router();
 
+// The app's entry point (bookmark, PWA start_url, the logo, post-login): puts the user
+// in their home collection and sends them to the page they chose to land on. The
+// dashboard keeps its own path below so it stays reachable for someone whose home is
+// the collection.
+//
+// Once per session, not on every visit, because '/' is also where the app sends people
+// on its own: the collection switcher redirects here after switching, and re-applying
+// the home collection on that hop would undo the switch on the way back. The express
+// session cookie carries no maxAge, so it dies with the browser and a genuine relaunch
+// gets a fresh one. Keyed by user id so signing in as somebody else in the same browser
+// still lands on their own home.
 router.get('/', requireAuth, async (req: any, res: any) => {
+  const userId = String(req.user._id);
+  if (req.session && req.session.homeAppliedFor !== userId) {
+    req.session.homeAppliedFor = userId;
+    await applyHomeCollection(req);
+  }
+
+  const target = homePathFor(req.user);
+  // Callers reach '/' carrying a message to show ('/?msg=collection_created'), and the
+  // page that displays one is the page being redirected to.
+  const msg = typeof req.query.msg === 'string' ? req.query.msg : '';
+  res.redirect(msg ? `${target}?msg=${encodeURIComponent(msg)}` : target);
+});
+
+router.get('/dashboard', requireAuth, async (req: any, res: any) => {
   try {
     const activeCollectionId = res.locals.activeCollectionId;
     if (!activeCollectionId) {

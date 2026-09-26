@@ -56,14 +56,15 @@
           <div class="grid gap-4">
             <div>
               <label for="email" class="block text-sm font-medium text-gray-300 mb-2">
-                <%= t('login.email_label') %>
+                <%= t('login.identifier_label') %>
               </label>
               <input 
                 type="text" 
                 name="email" 
+                autocomplete="username"
                 required
                 class="w-full px-4 py-3 rounded-lg border border-gray-700 transition-all"
-                placeholder="<%= t('login.email_placeholder') %>">
+                placeholder="<%= t('login.identifier_placeholder') %>">
               <div class="email error mt-2 text-sm"></div>
             </div>
     

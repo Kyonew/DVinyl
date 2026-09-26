@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import path from 'path';
 import { promises as fs } from 'fs';
 import Item from '../models/Item';
+import Collection from '../models/Collection';
 import { BASE_URL } from '../config/constants';
 
 export const ITEM_IMAGES_URL_PREFIX = '/uploads/items/';
@@ -57,8 +58,9 @@ export async function managedItemImagesForQuery(query: Record<string, any>): Pro
 }
 
 /**
- * Deletes only files no longer referenced by any item. The database check makes this safe
- * for restored backups or manually duplicated paths shared by several documents.
+ * Deletes only files no longer referenced by any item or collection info page. The
+ * database check makes this safe for restored backups or manually duplicated paths
+ * shared by several documents.
  */
 export async function deleteUnusedManagedItemImages(candidates: unknown[]): Promise<number> {
   const managed = [...new Set(candidates.filter(value => managedItemImageFile(value)) as string[])];
@@ -72,6 +74,19 @@ export async function deleteUnusedManagedItemImages(candidates: unknown[]): Prom
     ]
   }).select('cover_image user_image images').lean();
   const referenced = new Set(referencedItems.flatMap(managedItemImagesFrom));
+
+  // Uploads are one pool, and an item is not their only reader: a collection info page
+  // (core/collectionInfo.ts) points at the same files, and the periodic sweep below
+  // would carry them off within a day if they looked unused here.
+  const referencedCollections = await Collection
+    .find({ 'info.images': { $in: managed } })
+    .select('info.images')
+    .lean();
+  for (const collection of referencedCollections) {
+    for (const image of (collection as any).info?.images || []) {
+      if (typeof image === 'string') referenced.add(image);
+    }
+  }
 
   let deleted = 0;
   for (const image of managed) {
