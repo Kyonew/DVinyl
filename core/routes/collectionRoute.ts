@@ -61,7 +61,7 @@ function renderShelfPartial(res: any, data: Record<string, any>, isWishlist: boo
         console.error('Filter pills render error:', pillsErr.message);
         return res.status(500).json({ success: false });
       }
-      res.json({ success: true, html, pillsHtml, totalItems: data.totalItems });
+      res.json({ success: true, html, pillsHtml, totalItems: data.totalItems, uniqueTitles: data.uniqueTitles });
     });
   });
 }
@@ -285,6 +285,26 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
 
     const totalItems = await Item.countDocuments(query);
 
+    // UNIQUE TITLES
+    // The same work owned in several formats (a film on Blu-ray and 4K, a book in
+    // paperback and hardcover) is several items but one work, so a plain item count
+    // overstates how many distinct works the collection holds. Group on the normalized
+    // title plus the creator, the same pair the "other formats" block on the detail page
+    // matches on, so the two agree: editions of one work fold together, while a remake
+    // stays apart through its different director/creator. The year is deliberately not
+    // used - it belongs to the edition (a reissue, a new pressing), not to the work.
+    //
+    // Scoped to a selected type, which is what names a single creator field; across all
+    // types there is no one creator field, so it falls back to the title alone.
+    const uniqueGroupId: any = { sort_title: '$sort_title' };
+    if (selectedPlugin) uniqueGroupId.creator = `$${selectedPlugin.creatorField}`;
+    const uniqueTitlesAgg = await Item.aggregate([
+      { $match: query },
+      { $group: { _id: uniqueGroupId } },
+      { $count: 'total' }
+    ]);
+    const uniqueTitles = uniqueTitlesAgg[0]?.total ?? 0;
+
     // A code scanned from the filter bar names one item more often than not: open it
     // rather than showing a list of one. Anything else falls through to the list.
     if (req.query.scanned && totalItems === 1 && !isPartialRequest(req)) {
@@ -491,6 +511,7 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
     const viewModel: Record<string, any> = {
       albums: albumsFormatted,
       totalItems,
+      uniqueTitles,
       totalPages: Math.ceil(totalItems / limit),
       currentPage: page,
       queryLimit: limit,
