@@ -174,6 +174,11 @@ export interface PluginDefinition {
   // on top of externalIdField and barcode (e.g. books -> ['isbn']).
   backfillFields?: string[];
 
+  // Extra fields dropped when copying an item into a new entry, on top of the identity
+  // the copy always strips (own id, barcode, externalIdField). For a field that belongs
+  // to the specific copy rather than the work (e.g. music's own release id). Optional.
+  copyDropFields?: string[];
+
   // Shortcuts offered for the navbar (personalisation); ids are stored in settings.navbarShortcuts
   navbarShortcuts?: NavbarShortcut[];
 
