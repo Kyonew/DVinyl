@@ -819,6 +819,71 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
     }
   });
 
+  // COPY TO A NEW ENTRY (e.g. the same work in a second format)
+  // Renders the confirm/manual form pre-filled from an existing item, minus the identity
+  // that belongs to the specific copy rather than the work, so it saves as a brand-new
+  // document via the create path. Generic across every plugin: what a copy always drops
+  // is the item's own id, its barcode and its external provider id; a plugin may name a
+  // few more through copyDropFields (e.g. music's release id). No format is preselected -
+  // the duplicate banner lights up on its own from the fields that tell two copies apart,
+  // until the user changes one.
+  router.get(`/${plugin.id}/copy/:id`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(404).send(req.t('errors.not_found'));
+      }
+      const activeCollectionId = res.locals.activeCollectionId;
+
+      const copyQuery: any = { _id: req.params.id, collection: activeCollectionId };
+      applyPluginKindFilter(copyQuery, plugin);
+      const source = await Item.findOne(copyQuery);
+      if (!source) {
+        return res.status(404).send(req.t('errors.not_found'));
+      }
+
+      const seed: any = plugin.formatForView(source);
+      // Never carried onto a new document: server-managed identity/bookkeeping...
+      for (const key of ['_id', 'mongo_id', '__v', 'added_at', 'modified_at', 'synced_at',
+        'owner', 'modified_by', 'parent', 'in_wishlist', 'quantity']) {
+        delete seed[key];
+      }
+      // ...and the fields that identify this particular copy rather than the work: its
+      // barcode, its external provider id, and whatever else the plugin names.
+      delete seed.barcode;
+      if (plugin.externalIdField) delete seed[plugin.externalIdField];
+      for (const f of plugin.copyDropFields || []) delete seed[f];
+      seed.quantity = 1;
+
+      // Same-work editions already owned, so the confirm view's duplicate banner can warn
+      // once the user picks a format the collection already holds.
+      const existingItems = await filterVisible(await plugin.getVariants(plugin.formatForView(source)), res);
+
+      const suggestions = await buildFieldSuggestions(plugin, activeCollectionId, seed);
+      const genres = await Item.distinct('genre', {
+        collection: activeCollectionId,
+        genre: { $ne: '' },
+        $or: [{ kind: plugin.kind }, { kind: { $exists: false } }]
+      });
+
+      res.render('confirm', {
+        item: seed,
+        user: res.locals.user,
+        suggestions,
+        genres,
+        currentType: plugin.collectionType,
+        existingItems: existingItems.map(v => plugin.formatForView(v)),
+        plugin,
+        isManual: true,
+        // The copy already carries the source's artwork, so the cover uploader stays
+        // folded (unlike a blank manual add, where picking a cover is the next step).
+        coverOpen: false
+      });
+    } catch (err: any) {
+      console.error(`Error loading copy form for ${plugin.id}:`, err.message);
+      res.status(500).send(req.t('errors.generic_server_error'));
+    }
+  });
+
   // GET /{prefix}/:id -> details view
   router.get(`${plugin.routePrefix}/:id`, requireAuthOrShareView, async (req: any, res: any) => {
     try {
