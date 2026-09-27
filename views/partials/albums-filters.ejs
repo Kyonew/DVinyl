@@ -450,6 +450,7 @@
         // (see CollectionView.liveRedraw); any other one applies it on Enter.
         const liveSearchEnabled = <%= !!(locals.activeView && activeView.liveRedraw) %>;
         const itemsLabel = <%- JSON.stringify(t('common.items')) %>;
+        const uniqueTitlesLabel = <%- JSON.stringify(t('collection.unique_titles')) %>;
 
         // Builds the URL for the current filter state without navigating. reloadPage()
         // (every filter control except live search) navigates to it directly; live
@@ -543,6 +544,20 @@
 
                 const badge = document.getElementById('totalItemsBadge');
                 if (badge) badge.textContent = data.totalItems + ' ' + itemsLabel;
+
+                // The distinct-works count travels with the results (see renderShelfPartial),
+                // so it tracks the filter as it is typed. Hidden when it equals the item
+                // count, matching the server-rendered state on first load.
+                const uniqueBadge = document.getElementById('uniqueTitlesBadge');
+                if (uniqueBadge) {
+                    const u = data.uniqueTitles;
+                    if (typeof u === 'number' && u !== data.totalItems) {
+                        uniqueBadge.textContent = u + ' ' + uniqueTitlesLabel;
+                        uniqueBadge.classList.remove('hidden');
+                    } else {
+                        uniqueBadge.classList.add('hidden');
+                    }
+                }
 
                 updateSearchClearButton(!!filterInput.value.trim());
                 history.replaceState(null, '', url.toString());
