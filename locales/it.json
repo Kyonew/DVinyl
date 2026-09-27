@@ -510,6 +510,8 @@
     "sort_added": "Data aggiunta",
     "sort_artist": "Artista",
     "sort_label": "Ordina per",
+    "unique_titles": "titoli unici",
+    "unique_titles_hint": "Opere distinte; i formati o le edizioni di uno stesso titolo contano come uno (i remake restano distinti per il loro autore).",
     "sort_title": "Titolo",
     "sort_year": "Anno",
     "decade_filter": "Decennio",
