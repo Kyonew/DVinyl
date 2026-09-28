@@ -179,4 +179,54 @@ router.post('/collections/:id/lists/:listId/entries', requireApiCollectionRole('
   }
 });
 
+router.delete('/collections/:id/lists/:listId/entries/:entryId', requireApiCollectionRole('editor'), loadOwnList, async (req: any, res: any) => {
+  try {
+    const entryId = req.params.entryId;
+    if (!isId(entryId)) return res.status(404).json({ success: false, error: 'Entry not found' });
+    const list = req.apiList;
+    const entryObjectId = new mongoose.Types.ObjectId(entryId);
+    // The filter names the entry too: the List schema is timestamped, so Mongoose stamps
+    // `updated_at` on every update and a bare $pull with no match still counts as a
+    // modification. `matchedCount` is the honest signal.
+    const result = await List.updateOne(
+      { _id: list._id, 'entries._id': entryObjectId },
+      { $pull: { entries: { _id: entryObjectId } } }
+    );
+    if (result.matchedCount === 0) return res.status(404).json({ success: false, error: 'Entry not found' });
+    res.status(200).json({ success: true });
+  } catch (err: any) {
+    console.error('API list remove error:', err.message);
+    res.status(500).json({ success: false, error: 'Failed to remove from list' });
+  }
+});
+
+router.put('/collections/:id/lists/:listId/entries', requireApiCollectionRole('editor'), loadOwnList, async (req: any, res: any) => {
+  try {
+    const order = Array.isArray(req.body?.order) ? req.body.order.map(String) : null;
+    if (!order) return res.status(400).json({ success: false, error: 'order must be an array of entry ids' });
+
+    const list = req.apiList;
+    const byId = new Map((list.entries || []).map((e: any) => [String(e._id), e]));
+    // Names exactly the current lines, once each: an add or a removal that landed since the
+    // client read the list makes this match nothing, instead of being overwritten.
+    const sameSet = order.length === byId.size && new Set(order).size === order.length && order.every((id: string) => byId.has(id));
+    if (!sameSet) {
+      return res.status(409).json({ success: false, error: 'The list changed; reload it and try again' });
+    }
+
+    const ids = order.map((id: string) => new mongoose.Types.ObjectId(id));
+    const result = await List.updateOne(
+      { _id: list._id, entries: { $size: ids.length }, 'entries._id': { $all: ids } },
+      { $set: { entries: order.map((id: string) => (byId.get(id) as any).toObject()) } }
+    );
+    if (result.matchedCount === 0) {
+      return res.status(409).json({ success: false, error: 'The list changed; reload it and try again' });
+    }
+    res.status(200).json({ success: true });
+  } catch (err: any) {
+    console.error('API list reorder error:', err.message);
+    res.status(500).json({ success: false, error: 'Failed to reorder list' });
+  }
+});
+
 export = router;

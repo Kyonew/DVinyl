@@ -438,3 +438,90 @@ describe('POST /api/v1/collections/:id/lists/:listId/entries', () => {
     assert.equal(res.status, 403);
   });
 });
+
+describe('DELETE /api/v1/collections/:id/lists/:listId/entries/:entryId', () => {
+  test('200 removes one line and keeps the rest', async () => {
+    const { collection, list, owner, editorToken } = await seedList();
+    const a = await makeItem(TEST_PLUGIN_KIND, { title: 'A', owner: owner._id, collection: collection._id });
+    const b = await makeItem(TEST_PLUGIN_KIND, { title: 'B', owner: owner._id, collection: collection._id });
+    await List.updateOne({ _id: list._id }, { $set: { entries: [{ item: a._id }, { item: b._id }] } });
+    const stored: any = await List.findById(list._id).lean();
+    const removeId = String(stored.entries[0]._id);
+
+    const res = await request(app)
+      .delete(`/api/v1/collections/${collection._id}/lists/${list._id}/entries/${removeId}`)
+      .set(bearer(editorToken));
+
+    assert.equal(res.status, 200);
+    const after: any = await List.findById(list._id).lean();
+    assert.equal(after.entries.length, 1);
+    assert.equal(String(after.entries[0].item), String(b._id));
+  });
+
+  test('404 for an entry the list does not hold', async () => {
+    const { collection, list, editorToken } = await seedList();
+    const res = await request(app)
+      .delete(`/api/v1/collections/${collection._id}/lists/${list._id}/entries/64b7f9c2f1a2b3c4d5e6f7a8`)
+      .set(bearer(editorToken));
+    assert.equal(res.status, 404);
+  });
+});
+
+describe('PUT /api/v1/collections/:id/lists/:listId/entries', () => {
+  async function seedThree() {
+    const ctx = await seedList();
+    const items = [];
+    for (const title of ['A', 'B', 'C']) {
+      items.push(await makeItem(TEST_PLUGIN_KIND, { title, owner: ctx.owner._id, collection: ctx.collection._id }));
+    }
+    await List.updateOne({ _id: ctx.list._id }, { $set: { entries: items.map(i => ({ item: i._id })) } });
+    const stored: any = await List.findById(ctx.list._id).lean();
+    return { ...ctx, entryIds: stored.entries.map((e: any) => String(e._id)) };
+  }
+
+  test('200 writes the new order', async () => {
+    const ctx = await seedThree();
+    const [a, b, c] = ctx.entryIds;
+    const res = await request(app)
+      .put(`/api/v1/collections/${ctx.collection._id}/lists/${ctx.list._id}/entries`)
+      .set(bearer(ctx.editorToken))
+      .send({ order: [c, a, b] });
+
+    assert.equal(res.status, 200);
+    const after: any = await List.findById(ctx.list._id).lean();
+    assert.deepEqual(after.entries.map((e: any) => String(e._id)), [c, a, b]);
+  });
+
+  test('409 when the order repeats a line, and nothing changes', async () => {
+    const ctx = await seedThree();
+    const [a, b, c] = ctx.entryIds;
+    const res = await request(app)
+      .put(`/api/v1/collections/${ctx.collection._id}/lists/${ctx.list._id}/entries`)
+      .set(bearer(ctx.editorToken))
+      .send({ order: [a, a, b] });
+
+    assert.equal(res.status, 409);
+    assert.equal(res.body.success, false);
+    const after: any = await List.findById(ctx.list._id).lean();
+    assert.deepEqual(after.entries.map((e: any) => String(e._id)), [a, b, c]);
+  });
+
+  test('409 when the order is missing a line', async () => {
+    const ctx = await seedThree();
+    const [a, b] = ctx.entryIds;
+    const res = await request(app)
+      .put(`/api/v1/collections/${ctx.collection._id}/lists/${ctx.list._id}/entries`)
+      .set(bearer(ctx.editorToken))
+      .send({ order: [a, b] });
+    assert.equal(res.status, 409);
+  });
+
+  test('400 when order is not an array', async () => {
+    const ctx = await seedThree();
+    const res = await request(app)
+      .put(`/api/v1/collections/${ctx.collection._id}/lists/${ctx.list._id}/entries`)
+      .set(bearer(ctx.editorToken))
+      .send({ order: 'nope' });
+    assert.equal(res.status, 400);
+  });
+});
