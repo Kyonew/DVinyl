@@ -1168,6 +1168,19 @@ describe('collection values', () => {
     assert.deepEqual(res.body.styles, ['Vaporwave']);
   });
 
+  test('includes a genre carried only by the scalar field', async () => {
+    const ctx = await seedCollectionWithRoles();
+    await makeSettings(ctx.collection);
+    await makeItem(TEST_PLUGIN_KIND, {
+      owner: ctx.owner._id, collection: ctx.collection._id, title: 'Scalar',
+      genre: 'OnlyScalar', genres: []
+    });
+    const res = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/values`)
+      .set(bearer(ctx.viewerToken));
+    assert.deepEqual(res.body.genres, ['OnlyScalar']);
+  });
+
   test('wishlist values are scoped to the wishlist', async () => {
     const ctx = await seedValues();
     await makeItem(TEST_PLUGIN_KIND, {
