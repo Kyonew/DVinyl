@@ -3,7 +3,8 @@ import Collection from '../../../models/Collection';
 import {
   collectionInfoOf,
   collectionInfoPatch,
-  isCollectionInfoVisible
+  isCollectionInfoVisible,
+  MAX_COLLECTION_INFO_BODY
 } from '../../../core/collectionInfo';
 import { deleteUnusedManagedItemImages } from '../../../core/itemImageStorage';
 import { renderMarkdown } from '../../../core/markdown';
@@ -71,6 +72,16 @@ router.patch('/collections/:id/info', requireApiCollectionRole('admin'), async (
     console.error('API collection info save error:', err.message);
     res.status(500).json({ success: false, error: 'Failed to save the collection info page' });
   }
+});
+
+// Rendered here rather than in the client so the preview and the page can never drift
+// apart: both read core/markdown.ts.
+router.post('/collections/:id/info/preview', requireApiCollectionRole('admin'), (req: any, res: any) => {
+  const body = req.body?.body;
+  if (typeof body !== 'string') {
+    return res.status(400).json({ success: false, error: 'body must be a string' });
+  }
+  res.status(200).json({ html: renderMarkdown(body.slice(0, MAX_COLLECTION_INFO_BODY)) });
 });
 
 export = router;

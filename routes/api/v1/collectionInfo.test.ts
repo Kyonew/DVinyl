@@ -239,3 +239,32 @@ describe('PATCH /api/v1/collections/:id/info', () => {
     assert.equal(fs.existsSync(file), true);
   });
 });
+
+describe('POST /api/v1/collections/:id/info/preview', () => {
+  test('renders the body with the same renderer the page uses', async () => {
+    const ctx = await seedCollectionWithRoles(visibleInfo);
+    const res = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/info/preview`)
+      .set(bearer(ctx.ownerToken))
+      .send({ body: '# Hi\n\n**bold**' });
+    assert.equal(res.status, 200);
+    assert.match(res.body.html, /<h1>Hi<\/h1>/);
+    assert.match(res.body.html, /<strong>bold<\/strong>/);
+  });
+
+  test('400 for a non-string body, 403 for a viewer', async () => {
+    const ctx = await seedCollectionWithRoles(visibleInfo);
+    const bad = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/info/preview`)
+      .set(bearer(ctx.ownerToken))
+      .send({ body: 5 });
+    assert.equal(bad.status, 400);
+    assert.equal(bad.body.error, 'body must be a string');
+
+    const denied = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/info/preview`)
+      .set(bearer(ctx.viewerToken))
+      .send({ body: '# Hi' });
+    assert.equal(denied.status, 403);
+  });
+});
