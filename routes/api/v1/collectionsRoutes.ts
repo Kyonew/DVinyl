@@ -451,7 +451,9 @@ function contentFilterConditions(req: any, enabledPlugins: any[]): any[] {
     conditions.push({ $or: [{ media_type: pattern }, { format: pattern }] });
   }
 
-  const decades = commaList(req.query.decade).map(d => parseInt(d, 10)).filter(d => !isNaN(d));
+  // A decade start is exactly four digits; anything else is a client slip and is ignored
+  // rather than expanded into a range of years nothing can be in.
+  const decades = commaList(req.query.decade).filter(d => /^\d{4}$/.test(d)).map(d => parseInt(d, 10));
   if (decades.length > 0) {
     const years: RegExp[] = [];
     for (const start of decades) {
@@ -481,7 +483,11 @@ function contentFilterConditions(req: any, enabledPlugins: any[]): any[] {
       fields.add(plugin.creatorField);
       for (const field of plugin.creatorSearchFields || []) fields.add(field);
     }
-    conditions.push({ $or: Array.from(fields).map(field => ({ [field]: regex })) });
+    // A registry with nothing enabled leaves no field to search; skip rather than push an
+    // empty $or (which Mongoose would drop, silently turning the filter into a no-op).
+    if (fields.size > 0) {
+      conditions.push({ $or: Array.from(fields).map(field => ({ [field]: regex })) });
+    }
   }
 
   return conditions;
@@ -614,14 +620,20 @@ async function listValues(req: any, res: any, inWishlist: boolean) {
   const type = typeof req.query.type === 'string' ? req.query.type : '';
   applyTypeScope(query, selectedPluginFor(enabledPlugins, type));
 
-  const genreLists = await Promise.all([
-    Item.distinct('genres', { ...query, genres: { $nin: ['', null] } }),
-    Item.distinct('genre', { ...query, genre: { $nin: ['', null] } })
+  // Query the fields as they are and drop the blanks from the result: an item whose arrays
+  // also hold an empty string must still contribute its real values (a whole-document
+  // `$nin` would drop the item, and its good values with it).
+  const [genreArrays, genreScalars, stylesList, platformList] = await Promise.all([
+    Item.distinct('genres', query),
+    Item.distinct('genre', query),
+    Item.distinct('styles', query),
+    Item.distinct('platform', query)
   ]);
-  const genres = [...new Set(genreLists.flat())].filter(Boolean).sort();
-  const styles = (await Item.distinct('styles', { ...query, styles: { $nin: ['', null] } })).sort();
+  const nonEmpty = (values: any[]) => values.filter((v: any) => v !== '' && v != null);
+  const genres = [...new Set([...nonEmpty(genreArrays), ...nonEmpty(genreScalars)])].sort();
+  const styles = nonEmpty(stylesList).sort();
   // 'other' is the games plugin's "no known platform"; it is not a pickable value.
-  const platforms = (await Item.distinct('platform', { ...query, platform: { $nin: ['', null, 'other'] } })).sort();
+  const platforms = nonEmpty(platformList).filter((v: string) => v !== 'other').sort();
 
   res.status(200).json({ genres, styles, platforms });
 }

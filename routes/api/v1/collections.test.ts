@@ -974,7 +974,8 @@ describe('item listing filters', () => {
 describe('item listing content filters', () => {
   // Three items whose genre/style/platform/format/year each partition the set differently,
   // so a filter that matched the wrong field or the wrong operator cannot pass:
-  //   genre     Alpha Rock, Bravo Jazz, Charlie Rock (Alpha also in genres: Indie)
+  //   genre     Alpha Rock, Bravo Jazz, Charlie Rock (Alpha also in genres: Indie;
+  //             Charlie carries only the scalar `genre`, so the scalar clause is needed)
   //   style     Alpha Shoegaze, Bravo Bop, Charlie Bop
   //   platform  Alpha SNES, Bravo Mega Drive, Charlie SNES
   //   format    Alpha vinyl, Bravo cd, Charlie cd
@@ -993,7 +994,7 @@ describe('item listing content filters', () => {
       styles: ['Bop'], platform: 'Mega Drive', media_type: 'cd', year: '1985'
     });
     const charlie = await makeItem(TEST_PLUGIN_KIND, {
-      ...base, title: 'Charlie', creator: 'Nina', genre: 'Rock', genres: ['Rock'],
+      ...base, title: 'Charlie', creator: 'Nina', genre: 'Rock', genres: [],
       styles: ['Bop'], platform: 'SNES', media_type: 'cd', year: '2003'
     });
     return { ...ctx, alpha, bravo, charlie };
@@ -1033,6 +1034,12 @@ describe('item listing content filters', () => {
     assert.deepEqual(await filteredTitles('decade=1980,2000', ctx), ['Bravo', 'Charlie']);
   });
 
+  test('a decade that is not a 4-digit year is ignored, not turned into an empty page', async () => {
+    const ctx = await seedFilterItems();
+    assert.deepEqual(await filteredTitles('decade=99999999', ctx), ['Alpha', 'Bravo', 'Charlie']);
+    assert.deepEqual(await filteredTitles('decade=-1990', ctx), ['Alpha', 'Bravo', 'Charlie']);
+  });
+
   test('format matches media_type or format, case-insensitively', async () => {
     const ctx = await seedFilterItems();
     assert.deepEqual(await filteredTitles('format=cd', ctx), ['Bravo', 'Charlie']);
@@ -1060,6 +1067,14 @@ describe('item listing content filters', () => {
       await filteredTitles('filterMode=hide&genre=Rock&style=Shoegaze', ctx),
       ['Bravo', 'Charlie']
     );
+  });
+
+  test('filterMode=hide leaves the type scope and an empty criteria alone', async () => {
+    const ctx = await seedFilterItems();
+    assert.deepEqual(await filteredTitles('filterMode=hide', ctx), ['Alpha', 'Bravo', 'Charlie']);
+    // The type is scope, never inverted: a Music-scoped page has nothing, whatever is hidden.
+    assert.deepEqual(await filteredTitles('type=testkind&filterMode=hide&genre=Rock', ctx), ['Bravo']);
+    assert.deepEqual(await filteredTitles('type=music&filterMode=hide&genre=Rock', ctx), []);
   });
 
   test('blank filter values are ignored', async () => {
@@ -1137,6 +1152,20 @@ describe('collection values', () => {
       .get(`/api/v1/collections/${ctx.collection._id}/values?type=music`)
       .set(bearer(ctx.viewerToken));
     assert.deepEqual(scoped.body, { genres: [], styles: [], platforms: [] });
+  });
+
+  test('keeps a value whose array also holds an empty entry', async () => {
+    const ctx = await seedCollectionWithRoles();
+    await makeSettings(ctx.collection);
+    await makeItem(TEST_PLUGIN_KIND, {
+      owner: ctx.owner._id, collection: ctx.collection._id, title: 'Mixed',
+      genres: ['Synthwave', ''], styles: ['Vaporwave', '']
+    });
+    const res = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/values`)
+      .set(bearer(ctx.viewerToken));
+    assert.deepEqual(res.body.genres, ['Synthwave']);
+    assert.deepEqual(res.body.styles, ['Vaporwave']);
   });
 
   test('wishlist values are scoped to the wishlist', async () => {

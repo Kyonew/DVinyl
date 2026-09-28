@@ -1017,14 +1017,14 @@ paths:
           in: query
           required: false
           description: Comma-separated 4-digit decade starts; matches any year inside them.
-          schema: { type: string, example: 1980,1990 }
+          schema: { type: string, example: '1980,1990' }
         - name: genre
           in: query
           required: false
           description: |
             Comma-separated genres; case-insensitive substring match on `genre` or an
             entry of `genres`. Values within the list are ORed, other filters are ANDed.
-          schema: { type: string, example: Rock,Jazz }
+          schema: { type: string, example: 'Rock,Jazz' }
         - name: style
           in: query
           required: false
@@ -1600,12 +1600,12 @@ paths:
           in: query
           required: false
           description: Comma-separated 4-digit decade starts; matches any year inside them.
-          schema: { type: string, example: 1980,1990 }
+          schema: { type: string, example: '1980,1990' }
         - name: genre
           in: query
           required: false
           description: Comma-separated genres; case-insensitive substring on `genre`/`genres`.
-          schema: { type: string, example: Rock,Jazz }
+          schema: { type: string, example: 'Rock,Jazz' }
         - name: style
           in: query
           required: false
