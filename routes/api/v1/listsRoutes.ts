@@ -7,7 +7,7 @@ import { requireApiCollectionRole } from '../../../middleware/apiAuthMiddleware'
 import { getCollectionSettings } from '../../../utils/collectionSettings';
 import { toApiItem } from '../../../core/apiSerializers';
 import {
-  cleanListDescription, cleanListName, isListKind, listCovers, ownList, resolveListEntries,
+  cleanListDescription, cleanListName, isListKind, listCandidates, listCovers, ownList, resolveListEntries,
   pluginsWithTracks, MAX_LIST_BULK_ADD, MAX_LIST_ENTRIES
 } from '../../../core/listStore';
 
@@ -76,6 +76,31 @@ router.post('/collections/:id/lists', requireApiCollectionRole('editor'), async 
   } catch (err: any) {
     console.error('API list create error:', err.message);
     res.status(500).json({ success: false, error: 'Failed to create list' });
+  }
+});
+
+// Registered before `/lists/:listId` so the literal segment is not read as a list id.
+router.get('/collections/:id/lists/for-item', requireApiCollectionRole('viewer'), async (req: any, res: any) => {
+  try {
+    const item = String(req.query.item || '');
+    if (!isId(item)) return res.status(400).json({ success: false, error: 'A valid item id is required' });
+    const track = isId(req.query.track) ? String(req.query.track) : '';
+
+    const lists = await List.find({ collection: req.apiCollection._id }).sort({ updated_at: -1 }).lean();
+    res.status(200).json({
+      lists: lists.map((list: any) => ({
+        id: String(list._id),
+        name: list.name,
+        kind: list.kind,
+        count: (list.entries || []).length,
+        contains: (list.entries || []).some((e: any) =>
+          String(e.item) === item && (list.kind === 'items' || String(e.track) === track)
+        )
+      }))
+    });
+  } catch (err: any) {
+    console.error('API lists for-item error:', err.message);
+    res.status(500).json({ success: false, error: 'Failed to list memberships' });
   }
 });
 
@@ -226,6 +251,23 @@ router.put('/collections/:id/lists/:listId/entries', requireApiCollectionRole('e
   } catch (err: any) {
     console.error('API list reorder error:', err.message);
     res.status(500).json({ success: false, error: 'Failed to reorder list' });
+  }
+});
+
+router.get('/collections/:id/lists/:listId/candidates', requireApiCollectionRole('editor'), loadOwnList, async (req: any, res: any) => {
+  try {
+    const settings = await getCollectionSettings(req.apiCollection._id);
+    const results = await listCandidates({
+      list: req.apiList,
+      collectionId: req.apiCollection._id,
+      query: typeof req.query.q === 'string' ? req.query.q : '',
+      translate: req.t,
+      settings
+    });
+    res.status(200).json({ results });
+  } catch (err: any) {
+    console.error('API list candidates error:', err.message);
+    res.status(500).json({ success: false, error: 'Failed to search candidates' });
   }
 });
 

@@ -525,3 +525,90 @@ describe('PUT /api/v1/collections/:id/lists/:listId/entries', () => {
     assert.equal(res.status, 400);
   });
 });
+
+describe('GET /api/v1/collections/:id/lists/:listId/candidates', () => {
+  test('200 searches items and marks the ones already listed', async () => {
+    const { collection, list, owner, editorToken } = await seedList();
+    const held = await makeItem(TEST_PLUGIN_KIND, { title: 'Held One', owner: owner._id, collection: collection._id });
+    await makeItem(TEST_PLUGIN_KIND, { title: 'Free One', owner: owner._id, collection: collection._id });
+    await List.updateOne({ _id: list._id }, { $set: { entries: [{ item: held._id }] } });
+
+    const res = await request(app)
+      .get(`/api/v1/collections/${collection._id}/lists/${list._id}/candidates?q=one`)
+      .set(bearer(editorToken));
+
+    assert.equal(res.status, 200);
+    const byItem = new Map(res.body.results.map((r: any) => [r.item, r]));
+    assert.equal((byItem.get(String(held._id)) as any).inList, true);
+    assert.equal(res.body.results.find((r: any) => r.title === 'Free One').inList, false);
+  });
+
+  test('200 with no results for an empty query', async () => {
+    const { collection, list, editorToken } = await seedList();
+    const res = await request(app)
+      .get(`/api/v1/collections/${collection._id}/lists/${list._id}/candidates`)
+      .set(bearer(editorToken));
+    assert.equal(res.status, 200);
+    assert.deepEqual(res.body.results, []);
+  });
+
+  test('200 returns one row per matching track for a playlist', async () => {
+    const ctx = await seedRoles();
+    const item = await makeItem(TRACKLIST_PLUGIN_KIND, {
+      title: 'Album', owner: ctx.owner._id, collection: ctx.collection._id,
+      tracklist: [{ title: 'Sunrise', position: 'A1' }, { title: 'Sunset', position: 'A2' }]
+    });
+    const list = await List.create({ collection: ctx.collection._id, name: 'Play', kind: 'tracks', createdBy: ctx.owner._id });
+
+    const res = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/lists/${list._id}/candidates?q=sun`)
+      .set(bearer(ctx.editorToken));
+
+    assert.equal(res.status, 200);
+    assert.deepEqual(res.body.results.map((r: any) => r.trackTitle).sort(), ['Sunrise', 'Sunset']);
+    assert.ok(res.body.results.every((r: any) => r.item === String(item._id)));
+  });
+
+  test('403 for a viewer', async () => {
+    const { collection, list, viewerToken } = await seedList();
+    const res = await request(app)
+      .get(`/api/v1/collections/${collection._id}/lists/${list._id}/candidates?q=x`)
+      .set(bearer(viewerToken));
+    assert.equal(res.status, 403);
+  });
+});
+
+describe('GET /api/v1/collections/:id/lists/for-item', () => {
+  test('200 marks the lists that already hold the item', async () => {
+    const { collection, owner, viewerToken } = await seedList();
+    const item = await makeItem(TEST_PLUGIN_KIND, { title: 'Item', owner: owner._id, collection: collection._id });
+    await List.create({ collection: collection._id, name: 'Holds it', kind: 'items', createdBy: owner._id, entries: [{ item: item._id }] });
+    await List.create({ collection: collection._id, name: 'Empty', kind: 'items', createdBy: owner._id });
+
+    const res = await request(app)
+      .get(`/api/v1/collections/${collection._id}/lists/for-item?item=${item._id}`)
+      .set(bearer(viewerToken));
+
+    assert.equal(res.status, 200);
+    const byName = new Map(res.body.lists.map((l: any) => [l.name, l]));
+    assert.equal((byName.get('Holds it') as any).contains, true);
+    assert.equal((byName.get('Empty') as any).contains, false);
+  });
+
+  test('200 with contains false for an item that does not exist', async () => {
+    const { collection, viewerToken } = await seedList();
+    const res = await request(app)
+      .get(`/api/v1/collections/${collection._id}/lists/for-item?item=64b7f9c2f1a2b3c4d5e6f7a8`)
+      .set(bearer(viewerToken));
+    assert.equal(res.status, 200);
+    assert.ok(res.body.lists.every((l: any) => l.contains === false));
+  });
+
+  test('400 when item is missing', async () => {
+    const { collection, viewerToken } = await seedList();
+    const res = await request(app)
+      .get(`/api/v1/collections/${collection._id}/lists/for-item`)
+      .set(bearer(viewerToken));
+    assert.equal(res.status, 400);
+  });
+});
