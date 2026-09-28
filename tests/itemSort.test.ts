@@ -38,6 +38,16 @@ describe('resolveItemSort', () => {
     assert.equal(resolveItemSort('series_asc'), null);
   });
 
+  test('a plugin option outranks a built-in key it collides with', () => {
+    const collides = {
+      creatorField: 'author',
+      sortOptions: [{ key: 'title', label: 'x', fields: ['series'] }]
+    } as unknown as PluginDefinition;
+    assert.deepEqual(resolveItemSort('title_asc', collides), { series: 1, sort_title: 1, title: 1 });
+    // Built-in keys the plugin does not redeclare keep their meaning.
+    assert.deepEqual(resolveItemSort('year_asc', collides), { year: 1 });
+  });
+
   test('returns null for values outside the vocabulary', () => {
     assert.equal(resolveItemSort(undefined), null);
     assert.equal(resolveItemSort(null), null);

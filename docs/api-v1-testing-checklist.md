@@ -48,6 +48,7 @@ BASE=http://localhost:3000
 - [ ] `?sort=artist_asc` with no `type` (or `type=all`) → 400 `unknown sort`
 - [ ] `?sort=series_asc&type=books` → books ordered by series then volume; the same key under `type=all` or another type → 400
 - [ ] `?sort=nonsense`, or a key without `_asc`/`_desc` → 400 `{success:false,error:"unknown sort"}`
+- [ ] `?sort=title_asc&sort=ghost` (repeated) → 400 the same way
 - [ ] `GET …/collections/$CID/wishlist?sort=title_asc` → the wishlist honours `sort` the same way
 - [ ] `GET $BASE/api/v1/plugins` → `books.sortOptions` is `[{key:"series",label:"confirm_book.field_series"}]`; `music.sortOptions` is `[]`
 

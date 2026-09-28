@@ -1042,12 +1042,18 @@ paths:
                 totalItems: 42
                 totalPages: 2
         '400':
-          description: '`sort` is outside the vocabulary of the current `type`.'
+          description: |
+            `sort` is outside the vocabulary of the current `type`, or `location` and
+            `unshelved` were combined.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: { success: false, error: 'unknown sort' }
+              examples:
+                sort:
+                  value: { success: false, error: 'unknown sort' }
+                location:
+                  value: { success: false, error: 'location and unshelved cannot be combined' }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -4790,7 +4796,8 @@ components:
           description: |
             Extra `sort` keys this type adds to the item listing (books declares
             `series`). Send `${key}_asc` or `${key}_desc` as `sort` while `type` names
-            this plugin; see `GET /collections/{id}/items`.
+            this plugin; see `GET /collections/{id}/items`. The plugin must be enabled
+            for the collection, or the listing has no such type to narrow to.
           items:
             type: object
             required: [key, label]

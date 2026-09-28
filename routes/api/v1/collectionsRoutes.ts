@@ -465,8 +465,13 @@ async function listShelfItems(req: any, res: any, inWishlist: boolean) {
 
   // Strict where the page is lenient: an omitted sort is the newest-first default, but a
   // value the current type has no option for is a client mistake worth a 400 (rather than
-  // the page's silent fallback, which a caller cannot tell apart from success).
-  const sortParam = typeof req.query.sort === 'string' ? req.query.sort : '';
+  // the page's silent fallback, which a caller cannot tell apart from success). A repeated
+  // `?sort=a&sort=b` arrives as an array, which is not a value we accept either.
+  const rawSort = req.query.sort;
+  if (rawSort !== undefined && typeof rawSort !== 'string') {
+    return res.status(400).json({ success: false, error: 'unknown sort' });
+  }
+  const sortParam = rawSort || '';
   const itemSort = resolveItemSort(sortParam, selectedPlugin);
   if (sortParam && !itemSort) {
     return res.status(400).json({ success: false, error: 'unknown sort' });

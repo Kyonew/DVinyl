@@ -30,6 +30,18 @@ export function resolveItemSort(
   const key = match[1]!;
   const dir: 1 | -1 = match[2] === 'asc' ? 1 : -1;
 
+  // A type's own option is consulted first, so a plugin that names one of its fields
+  // `title` (say) gets the entry it declared - the same entry `GET /plugins` advertises -
+  // rather than the built-in silently shadowing it. The built-ins are the fallback.
+  const option = plugin?.sortOptions?.find(o => o.key === key);
+  if (option) {
+    // Sort on the option's own fields in order, then on the title, so two items whose keys
+    // are equal ("The Wall" and "Wall") do not come back in whatever order Mongo felt like.
+    const resolved: Record<string, 1 | -1> = {};
+    for (const field of option.fields) resolved[field] = dir;
+    return { ...resolved, sort_title: dir, title: dir };
+  }
+
   if (key === 'added') return { added_at: dir };
   if (key === 'title') return { sort_title: dir, title: dir };
   if (key === 'year') return { year: dir };
@@ -41,12 +53,5 @@ export function resolveItemSort(
     return { [plugin.creatorField]: dir };
   }
 
-  const option = plugin?.sortOptions?.find(o => o.key === key);
-  if (!option) return null;
-
-  // Sort on the option's own fields in order, then on the title, so two items whose keys
-  // are equal ("The Wall" and "Wall") do not come back in whatever order Mongo felt like.
-  const resolved: Record<string, 1 | -1> = {};
-  for (const field of option.fields) resolved[field] = dir;
-  return { ...resolved, sort_title: dir, title: dir };
+  return null;
 }

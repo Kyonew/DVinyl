@@ -566,10 +566,11 @@ describe('GET /api/v1/collections/:id/items', () => {
 
 describe('item listing sort', () => {
   // Three items whose every sortable key has a distinct order, so a wrong field or a
-  // wrong direction cannot accidentally pass:
+  // wrong direction cannot accidentally pass. added_desc and year_asc are deliberately
+  // different orders (1990 is the middle item by date, the first by year):
   //   title   Alpha < Bravo < Charlie
-  //   creator Amy (Alpha, Charlie) < Zed (Bravo)
-  //   year    1990 (Charlie) < 1999 (Bravo) < 2001 (Alpha)
+  //   creator Amy (Alpha) < Mike (Charlie) < Zed (Bravo)
+  //   year    1990 (Bravo) < 1999 (Charlie) < 2001 (Alpha)
   //   added   Charlie (newest) < Bravo < Alpha (oldest)
   async function seedSortable() {
     const ctx = await seedCollectionWithRoles();
@@ -583,9 +584,9 @@ describe('item listing sort', () => {
         collection: ctx.collection._id,
         added_at: new Date(Date.now() - agoSeconds * 1000)
       });
-    const bravo = await mk('Bravo', 'Zed', '1999', 10);
+    const bravo = await mk('Bravo', 'Zed', '1990', 10);
     const alpha = await mk('Alpha', 'Amy', '2001', 20);
-    const charlie = await mk('Charlie', 'Amy', '1990', 5);
+    const charlie = await mk('Charlie', 'Mike', '1999', 5);
     return { ...ctx, bravo, alpha, charlie };
   }
 
@@ -608,10 +609,22 @@ describe('item listing sort', () => {
     assert.deepEqual(await sortedTitles('sort=title_desc', ctx), ['Charlie', 'Bravo', 'Alpha']);
   });
 
+  test('title sorts on the normalized title, not the raw one', async () => {
+    const ctx = await seedCollectionWithRoles();
+    await makeSettings(ctx.collection);
+    const base = { owner: ctx.owner._id, collection: ctx.collection._id };
+    await makeItem(TEST_PLUGIN_KIND, { ...base, title: 'The Apple' });
+    await makeItem(TEST_PLUGIN_KIND, { ...base, title: 'Banana' });
+    // buildSortTitle drops the leading article: "The Apple" keys on "apple", so it comes
+    // before "Banana". Sorting on the raw title alone would put "Banana" first.
+    assert.deepEqual(await sortedTitles('sort=title_asc', ctx), ['The Apple', 'Banana']);
+    assert.deepEqual(await sortedTitles('sort=title_desc', ctx), ['Banana', 'The Apple']);
+  });
+
   test('year_asc / year_desc order by the year', async () => {
     const ctx = await seedSortable();
-    assert.deepEqual(await sortedTitles('sort=year_asc', ctx), ['Charlie', 'Bravo', 'Alpha']);
-    assert.deepEqual(await sortedTitles('sort=year_desc', ctx), ['Alpha', 'Bravo', 'Charlie']);
+    assert.deepEqual(await sortedTitles('sort=year_asc', ctx), ['Bravo', 'Charlie', 'Alpha']);
+    assert.deepEqual(await sortedTitles('sort=year_desc', ctx), ['Alpha', 'Charlie', 'Bravo']);
   });
 
   test('artist sorts on the selected type\'s creator field', async () => {
@@ -647,6 +660,13 @@ describe('item listing sort', () => {
       assert.equal(res.status, 400, `expected 400 for sort=${bad}`);
       assert.deepEqual(res.body, { success: false, error: 'unknown sort' });
     }
+
+    // A repeated parameter parses to an array; that is not a value we accept either.
+    const repeated = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/items?sort=title_asc&sort=ghost`)
+      .set(bearer(ctx.viewerToken));
+    assert.equal(repeated.status, 400);
+    assert.deepEqual(repeated.body, { success: false, error: 'unknown sort' });
   });
 
   test('400 for a plugin sort/artist under type=all', async () => {
