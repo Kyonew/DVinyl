@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { registry } from '../../../core/registry';
+import { canRefresh, hasSearch, isSearchable, isSourceConfigured, pluginSources } from '../../../core/sources';
 import { requireApiAuth } from '../../../middleware/authMiddleware';
 
 const router = Router();
@@ -30,7 +31,17 @@ router.get('/plugins', requireApiAuth, async (req: any, res: any) => {
     externalIdLabel: p.externalIdLabel,
     externalIdHint: p.externalIdHint,
     supportsBarcodeSearch: p.supportsBarcodeSearch || false,
-    supportsPriceEstimate: p.supportsPriceEstimate || false
+    supportsPriceEstimate: p.supportsPriceEstimate || false,
+    // What the add/search/refresh flows can actually offer: whether the plugin searches at
+    // all, whether a bulk refresh can run, and the databases a client may pick between.
+    hasSearch: hasSearch(p),
+    canRefresh: canRefresh(p),
+    sources: pluginSources(p).map(s => ({
+      id: s.id,
+      name: s.name,
+      searchable: isSearchable(s),
+      configured: isSourceConfigured(s)
+    }))
   }));
 
   res.status(200).json({ plugins });

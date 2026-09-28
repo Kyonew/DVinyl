@@ -33,5 +33,8 @@ describe('GET /api/v1/plugins', () => {
     const music = res.body.plugins.find((p: any) => p.id === 'music');
     assert.equal(music.kind, 'Music');
     assert.ok(Array.isArray(music.formFields));
+    assert.equal(music.hasSearch, true);
+    assert.equal(music.canRefresh, true);
+    assert.deepEqual(music.sources.map((s: any) => s.id).sort(), ['discogs', 'itunes']);
   });
 });

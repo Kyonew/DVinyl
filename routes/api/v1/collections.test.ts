@@ -5,7 +5,7 @@ import { buildApiApp } from '../../../test/helpers/app';
 import { startDb, stopDb, clearDb } from '../../../test/helpers/db';
 import { makeUser, makeCollection, makeSettings, makeItem, itemModel, allModulesOn } from '../../../test/helpers/factories';
 import { signAccessToken, bearer } from '../../../test/helpers/auth';
-import { loadPluginsOnce, registerTestPlugin, TEST_PLUGIN_ID, TEST_PLUGIN_KIND } from '../../../test/helpers/plugins';
+import { loadPluginsOnce, registerTestPlugin, registerMultiSourcePlugin, registerNoRefreshPlugin, TEST_PLUGIN_ID, TEST_PLUGIN_KIND, MULTI_SOURCE_PLUGIN_ID, MULTI_SOURCE_PLUGIN_KIND, NO_REFRESH_PLUGIN_ID } from '../../../test/helpers/plugins';
 import { removeItemImageUrls } from '../../../test/helpers/files';
 import Collection from '../../../models/Collection';
 import InstanceSettings from '../../../models/InstanceSettings';
@@ -17,6 +17,8 @@ const uploadedItemImages: string[] = [];
 before(async () => {
   loadPluginsOnce();
   registerTestPlugin();
+  registerMultiSourcePlugin();
+  registerNoRefreshPlugin();
   await startDb();
 });
 after(async () => {
@@ -592,6 +594,39 @@ describe('POST /api/v1/collections/:id/items/search', () => {
     assert.equal(res.status, 403);
     assert.equal(res.body.success, false);
   });
+
+  test('200 searches a plugin that declares sources and no searchProvider', async () => {
+    const ctx = await seedCollectionWithRoles();
+    const res = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/items/search`)
+      .set(bearer(ctx.editorToken))
+      .send({ pluginId: MULTI_SOURCE_PLUGIN_ID, query: 'dune' });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.results[0].title, 'Alpha result for dune');
+    assert.equal(res.body.source, 'alpha');
+    assert.deepEqual(res.body.sources.map((s: any) => s.id), ['alpha', 'beta']);
+  });
+
+  test('200 honours an explicitly selected source', async () => {
+    const ctx = await seedCollectionWithRoles();
+    const res = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/items/search`)
+      .set(bearer(ctx.editorToken))
+      .send({ pluginId: MULTI_SOURCE_PLUGIN_ID, query: 'dune', source: 'beta' });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.results[0].title, 'Beta result for dune');
+    assert.equal(res.body.source, 'beta');
+  });
+
+  test('404 when a plugin declares no searchable source', async () => {
+    const ctx = await seedCollectionWithRoles();
+    const res = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/items/search`)
+      .set(bearer(ctx.editorToken))
+      .send({ pluginId: NO_REFRESH_PLUGIN_ID, query: 'x' });
+    assert.equal(res.status, 404);
+    assert.equal(res.body.success, false);
+  });
 });
 
 describe('GET /api/v1/collections/:id/items/confirm', () => {
@@ -622,6 +657,17 @@ describe('GET /api/v1/collections/:id/items/confirm', () => {
       .set(bearer(ctx.editorToken));
     assert.equal(res.status, 404);
     assert.equal(res.body.success, false);
+  });
+
+  test('200 fetches details from a plugin that declares sources', async () => {
+    const ctx = await seedCollectionWithRoles();
+    const res = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/items/confirm?pluginId=${MULTI_SOURCE_PLUGIN_ID}&externalId=7&source=beta`)
+      .set(bearer(ctx.editorToken));
+    assert.equal(res.status, 200);
+    assert.equal(res.body.item.title, 'Beta detail 7');
+    assert.equal(res.body.source, 'beta');
+    assert.equal(res.body.item.source_id, '7');
   });
 });
 
@@ -669,6 +715,18 @@ describe('POST /api/v1/collections/:id/items', () => {
       .send({ pluginId: 'testkind', title: 'X' });
     assert.equal(res.status, 403);
     assert.equal(res.body.success, false);
+  });
+
+  test('201 stores the source pair the client added from', async () => {
+    const ctx = await seedCollectionWithRoles();
+    const res = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/items`)
+      .set(bearer(ctx.editorToken))
+      .send({ pluginId: MULTI_SOURCE_PLUGIN_ID, title: 'From beta', creator: 'B', source: 'beta', source_id: 'b-9' });
+    assert.equal(res.status, 201);
+    const stored: any = await itemModel(MULTI_SOURCE_PLUGIN_KIND).findById(res.body.item.id).lean();
+    assert.equal(stored.source, 'beta');
+    assert.equal(stored.source_id, 'b-9');
   });
 });
 

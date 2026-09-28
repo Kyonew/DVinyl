@@ -433,3 +433,150 @@ export function registerRefreshPlugin(): PluginDefinition {
   registry.register(refreshPlugin);
   return refreshPlugin;
 }
+
+export const MULTI_SOURCE_PLUGIN_ID = 'testmulti';
+export const MULTI_SOURCE_PLUGIN_KIND = 'TestMulti';
+export const MULTI_SOURCE_PLUGIN_TYPE = 'testmulti';
+
+let multiSourcePlugin: PluginDefinition | undefined;
+
+/**
+ * A plugin built the way every real plugin is after the sources refactor: it declares
+ * `sources` and no `searchProvider`. Two network-free searchable sources whose answers
+ * differ, so a test can tell which one a request actually reached.
+ */
+export function registerMultiSourcePlugin(): PluginDefinition {
+  if (multiSourcePlugin) return multiSourcePlugin;
+
+  multiSourcePlugin = {
+    id: MULTI_SOURCE_PLUGIN_ID,
+    kind: MULTI_SOURCE_PLUGIN_KIND,
+    label: 'Test Multi',
+    icon: 'fa-flask',
+    routePrefix: '/testmulti',
+    collectionType: MULTI_SOURCE_PLUGIN_TYPE,
+    i18nKey: 'testmulti',
+    creatorField: 'creator',
+    externalIdField: 'test_external_id',
+    supportsBarcodeSearch: false,
+    schemaDefinition: {
+      creator: { type: String, default: '' },
+      test_external_id: { type: String, default: '' }
+    },
+    formFields: [
+      { name: 'title', label: 'Title', type: 'text', required: true, showIn: ['add', 'edit'] },
+      { name: 'creator', label: 'Creator', type: 'text', showIn: ['add', 'edit'] }
+    ],
+    formats: [{ value: 'standard', label: 'Standard' }],
+    sources: [
+      {
+        id: 'alpha',
+        name: 'Alpha',
+        async search(query: string) {
+          return [{ id: `alpha-${query}`, title: `Alpha result for ${query}`, creator: 'Alpha Creator', year: '2001' }];
+        },
+        async getDetails(id: string) {
+          return { title: `Alpha detail ${id}`, creator: 'Alpha Creator', year: '2001', test_external_id: id };
+        }
+      },
+      {
+        id: 'beta',
+        name: 'Beta',
+        async search(query: string) {
+          return [{ id: `beta-${query}`, title: `Beta result for ${query}`, creator: 'Beta Creator', year: '2002' }];
+        },
+        async getDetails(id: string) {
+          return { title: `Beta detail ${id}`, creator: 'Beta Creator', year: '2002', test_external_id: id };
+        }
+      }
+    ],
+    getStats(items: any[]) {
+      return { testmulti: items.length };
+    },
+    formatForView(item: any) {
+      return {
+        _id: item._id,
+        title: item.title,
+        year: item.year,
+        creator: item.creator,
+        source: item.source,
+        source_id: item.source_id,
+        test_external_id: item.test_external_id
+      };
+    },
+    async findDuplicate() {
+      return null;
+    },
+    async getVariants() {
+      return [];
+    }
+  };
+
+  registry.register(multiSourcePlugin);
+  return multiSourcePlugin;
+}
+
+export const MERGE_REFRESH_PLUGIN_ID = 'testmerge';
+export const MERGE_REFRESH_PLUGIN_KIND = 'TestMerge';
+export const MERGE_REFRESH_PLUGIN_TYPE = 'testmerge';
+
+let mergeRefreshPlugin: PluginDefinition | undefined;
+
+/**
+ * Refresh only through `mergeRefresh`, like games/boardgames/lego after the sources
+ * refactor: an item carries its `source`/`source_id` pair and the source answers the
+ * lookup. No `refreshItem`, so `canRefresh()` has to be what accepts it.
+ */
+export function registerMergeRefreshPlugin(): PluginDefinition {
+  if (mergeRefreshPlugin) return mergeRefreshPlugin;
+
+  mergeRefreshPlugin = {
+    id: MERGE_REFRESH_PLUGIN_ID,
+    kind: MERGE_REFRESH_PLUGIN_KIND,
+    label: 'Test Merge',
+    icon: 'fa-rotate',
+    routePrefix: '/testmerge',
+    collectionType: MERGE_REFRESH_PLUGIN_TYPE,
+    i18nKey: 'testmerge',
+    creatorField: 'creator',
+    externalIdField: 'test_external_id',
+    bulkRefreshDelayMs: 0,
+    supportsBarcodeSearch: false,
+    schemaDefinition: {
+      creator: { type: String, default: '' },
+      test_external_id: { type: String, default: '' }
+    },
+    formFields: [
+      { name: 'title', label: 'Title', type: 'text', required: true, showIn: ['add', 'edit'] },
+      { name: 'creator', label: 'Creator', type: 'text', showIn: ['add', 'edit'] }
+    ],
+    formats: [{ value: 'standard', label: 'Standard' }],
+    sources: [
+      {
+        id: 'gamma',
+        name: 'Gamma',
+        async getDetails(id: string) {
+          return { title: `Gamma detail ${id}`, creator: 'Gamma Creator' };
+        }
+      }
+    ],
+    async mergeRefresh(_item: any, details: Record<string, any>) {
+      return { creator: `Merged ${details.title}` };
+    },
+    getStats(items: any[]) {
+      return { testmerge: items.length };
+    },
+    formatForView(item: any) {
+      return { _id: item._id, title: item.title, creator: item.creator, source: item.source, source_id: item.source_id };
+    },
+    async findDuplicate() {
+      return null;
+    },
+    async getVariants() {
+      return [];
+    }
+  };
+
+  registry.register(mergeRefreshPlugin);
+  return mergeRefreshPlugin;
+}

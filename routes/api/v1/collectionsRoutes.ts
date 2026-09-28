@@ -9,6 +9,7 @@ import Collection from '../../../models/Collection';
 import PriceHistory from '../../../models/PriceHistory';
 import User from '../../../models/User';
 import { registry } from '../../../core/registry';
+import { hasSearch, resolveSource, searchableSources } from '../../../core/sources';
 import { editStamp, escapeRegExp, getPublicProtocol, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback } from '../../../core/helpers';
 import { toApiItem } from '../../../core/apiSerializers';
 import { buildFieldSuggestions } from '../../../core/fieldSuggestions';
@@ -460,7 +461,7 @@ router.post('/collections/:id/items/search', requireApiCollectionRole('editor'),
   const body = req.body || {};
   const { pluginId, query, type, year, country, genre_filter, label_filter } = body;
   const plugin = registry.get(pluginId);
-  if (!plugin || !plugin.searchProvider) {
+  if (!plugin || !hasSearch(plugin)) {
     return res.status(404).json({ success: false, error: 'Unknown or non-searchable plugin' });
   }
 
@@ -482,7 +483,14 @@ router.post('/collections/:id/items/search', requireApiCollectionRole('editor'),
     }
 
     const settings = await getCollectionSettings(req.apiCollection._id);
-    const runSearch = (q: string) => plugin.searchProvider!.search(q, {
+    // Which database to ask. An unknown or dropped id falls back to the plugin's first
+    // configured source, the same rule the web add page follows.
+    const source = resolveSource(plugin, body.source, settings);
+    if (!source) {
+      return res.status(404).json({ success: false, error: 'No source is configured for this plugin' });
+    }
+
+    const runSearch = (q: string) => source.search(q, {
       type: type || plugin.id,
       year, country, genre_filter, label_filter,
       language: req.language,
@@ -498,7 +506,13 @@ router.post('/collections/:id/items/search', requireApiCollectionRole('editor'),
       results = await runSearch(searchQuery);
     }
 
-    res.status(200).json({ results, query: searchQuery, scannedBarcode: scannedBarcode || undefined });
+    res.status(200).json({
+      results,
+      query: searchQuery,
+      source: source.id,
+      sources: searchableSources(plugin, settings).map((s: any) => ({ id: s.id, name: s.name })),
+      scannedBarcode: scannedBarcode || undefined
+    });
   } catch (err: any) {
     console.error(`API search error for ${plugin.id}:`, err.message);
     res.status(502).json({ success: false, error: `Search provider error: ${err.message}` });
@@ -508,7 +522,7 @@ router.post('/collections/:id/items/search', requireApiCollectionRole('editor'),
 router.get('/collections/:id/items/confirm', requireApiCollectionRole('editor'), async (req: any, res: any) => {
   const { pluginId, externalId } = req.query;
   const plugin = registry.get(String(pluginId || ''));
-  if (!plugin || !plugin.searchProvider) {
+  if (!plugin || !hasSearch(plugin)) {
     return res.status(404).json({ success: false, error: 'Unknown or non-searchable plugin' });
   }
   if (!externalId) {
@@ -516,10 +530,23 @@ router.get('/collections/:id/items/confirm', requireApiCollectionRole('editor'),
   }
 
   try {
-    const details = await plugin.searchProvider.getDetails(String(externalId), {
+    const settings = await getCollectionSettings(req.apiCollection._id);
+    // The id and the source travel together: an id handed out by one source is meaningless
+    // to another, and an unknown one falls back to the plugin's default rather than failing.
+    const source = resolveSource(plugin, req.query.source as string | undefined, settings);
+    if (!source) {
+      return res.status(404).json({ success: false, error: 'No source is configured for this plugin' });
+    }
+
+    const details = await source.getDetails(String(externalId), {
       ...req.query,
       language: req.language
     });
+
+    // Where this item is about to come from, handed back so the client posts the pair to
+    // the create route and the item stays traceable to the database it was filled in from.
+    details.source = source.id;
+    details.source_id = String(externalId);
 
     if (details.creator !== undefined && details[plugin.creatorField] === undefined) {
       details[plugin.creatorField] = details.creator;
@@ -539,7 +566,7 @@ router.get('/collections/:id/items/confirm', requireApiCollectionRole('editor'),
       duplicates = exact ? [exact] : [];
     }
 
-    res.status(200).json({ item: details, suggestions, duplicates });
+    res.status(200).json({ item: details, source: source.id, suggestions, duplicates });
   } catch (err: any) {
     console.error(`API details fetch error for ${plugin.id} ID ${externalId}:`, err.message);
     res.status(502).json({ success: false, error: `Search provider error: ${err.message}` });
@@ -558,6 +585,14 @@ router.post('/collections/:id/items', requireApiCollectionRole('editor'), async 
     const settings: any = await getCollectionSettings(activeCollectionId);
     const extraFieldDefs = toFieldDefinitions(getExtraFields(settings, plugin.id));
     const updateData = buildApiItemUpdateData(plugin, body, extraFieldDefs);
+
+    // Which database this save came from, handed back by the confirm route. Not a plugin
+    // schema path (every item carries the pair), and kept only when the client posts both:
+    // a manual add posts neither and must not blank a reference an earlier lookup wrote.
+    if (body.source && body.source_id) {
+      updateData.source = String(body.source);
+      updateData.source_id = String(body.source_id);
+    }
 
     if (typeof plugin.handleCreate === 'function') {
       const handled = await plugin.handleCreate(updateData, {
@@ -589,6 +624,10 @@ router.post('/collections/:id/items', requireApiCollectionRole('editor'), async 
           saveObj[key] = (key === idField && /^\d+$/.test(String(incoming))) ? parseInt(String(incoming), 10) : incoming;
         }
       }
+      // An item added before sources existed carries no pair; fill it from this save so it
+      // stays traceable to the database the client just looked it up in.
+      if (updateData.source && !existingItem.source) saveObj.source = updateData.source;
+      if (updateData.source_id && !existingItem.source_id) saveObj.source_id = updateData.source_id;
 
       const EditModel = mongoose.model(plugin.kind);
       await EditModel.updateOne(

@@ -6,9 +6,9 @@ import { startDb, stopDb, clearDb } from '../../../test/helpers/db';
 import { makeUser, makeCollection, makeItem, itemModel } from '../../../test/helpers/factories';
 import { signAccessToken, bearer } from '../../../test/helpers/auth';
 import {
-  loadPluginsOnce, registerTestPlugin, registerRefreshPlugin, registerNoRefreshPlugin,
+  loadPluginsOnce, registerTestPlugin, registerRefreshPlugin, registerNoRefreshPlugin, registerMergeRefreshPlugin,
   TEST_PLUGIN_ID, TEST_PLUGIN_KIND, REFRESH_PLUGIN_KIND, REFRESH_PLUGIN_ID, NO_REFRESH_PLUGIN_ID,
-  refreshPluginState
+  MERGE_REFRESH_PLUGIN_ID, refreshPluginState
 } from '../../../test/helpers/plugins';
 import { clearRefreshJobs } from '../../../utils/refreshJobs';
 
@@ -20,6 +20,7 @@ before(async () => {
   registerTestPlugin();
   registerRefreshPlugin();
   registerNoRefreshPlugin();
+  registerMergeRefreshPlugin();
   await startDb();
 });
 after(async () => { await stopDb(); });
@@ -89,6 +90,13 @@ describe('POST /api/v1/collections/:id/refresh-all', () => {
     const res = await request(app).post(`/api/v1/collections/${collection._id}/refresh-all`).set(bearer(token)).send({ pluginId: NO_REFRESH_PLUGIN_ID });
     assert.equal(res.status, 400);
     assert.equal(res.body.error, 'Plugin does not support refresh');
+  });
+
+  test('202 accepts a plugin that only merges (no refreshItem)', async () => {
+    const { collection, token } = await seed();
+    const res = await request(app).post(`/api/v1/collections/${collection._id}/refresh-all`).set(bearer(token)).send({ pluginId: MERGE_REFRESH_PLUGIN_ID });
+    assert.equal(res.status, 202);
+    await waitForRefreshJob(token, collection._id, res.body.job.id);
   });
 
   test('400 for an invalid mode', async () => {

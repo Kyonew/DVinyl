@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { requireApiAuth } from '../../../middleware/authMiddleware';
 import { requireApiCollectionRole } from '../../../middleware/apiAuthMiddleware';
 import { registry } from '../../../core/registry';
+import { canRefresh } from '../../../core/sources';
 import Item from '../../../models/Item';
 import { deleteItemsAndContents } from '../../../utils/itemHelpers';
 import { collectRefreshItems, runPluginRefresh } from '../../../utils/refreshAll';
@@ -40,7 +41,7 @@ router.post('/collections/:id/refresh-all', requireApiCollectionRole('admin'), a
   if (!plugin) {
     return res.status(404).json({ success: false, error: 'Plugin not found' });
   }
-  if (!plugin.refreshItem) {
+  if (!canRefresh(plugin)) {
     return res.status(400).json({ success: false, error: 'Plugin does not support refresh' });
   }
   if (mode !== undefined && mode !== 'all' && mode !== 'missing') {

@@ -1127,13 +1127,15 @@ paths:
     post:
       tags: [Items]
       operationId: searchItems
-      summary: Search an external provider for items to add
+      summary: Search an external source for items to add
       description: |
         Requires at least `editor` role on the collection. Body must be JSON.
-        Dispatches to the named plugin's search provider. When the plugin supports
-        barcode search and `query` looks like a barcode, it is resolved to a title
-        first; an unresolvable barcode returns 200 with `results: []` and
-        `error: 'barcode_not_found'`. Provider failures return 502.
+        Dispatches to one of the named plugin's sources — `source` picks it, and an
+        unknown or omitted id falls back to the plugin's first configured source.
+        When the plugin supports barcode search and `query` looks like a barcode, it
+        is resolved to a title first; an unresolvable barcode returns 200 with
+        `results: []` and `error: 'barcode_not_found'`. Source failures return 502.
+        Returns 404 when the plugin declares no searchable source at all.
       parameters:
         - $ref: '#/components/parameters/CollectionId'
       requestBody:
@@ -1146,20 +1148,33 @@ paths:
               pluginId: music
               query: Daft Punk Discovery
               type: vinyl
+              source: discogs
       responses:
         '200':
-          description: Provider results (possibly empty).
+          description: Source results (possibly empty).
           content:
             application/json:
               schema:
                 type: object
-                required: [results, query]
+                required: [results, query, source]
                 properties:
                   results:
                     type: array
                     items:
                       $ref: '#/components/schemas/SearchResult'
                   query: { type: string }
+                  source:
+                    type: string
+                    description: Id of the source that answered.
+                  sources:
+                    type: array
+                    description: Every searchable source the client may pick between.
+                    items:
+                      type: object
+                      required: [id, name]
+                      properties:
+                        id: { type: string }
+                        name: { type: string }
                   scannedBarcode:
                     type: string
                     description: Present when a barcode was resolved.
@@ -1175,6 +1190,10 @@ paths:
                         creator: Daft Punk
                         year: '2001'
                     query: Daft Punk Discovery
+                    source: discogs
+                    sources:
+                      - { id: discogs, name: Discogs }
+                      - { id: itunes, name: iTunes }
                 barcodeNotFound:
                   value:
                     results: []
@@ -1202,13 +1221,15 @@ paths:
     get:
       tags: [Items]
       operationId: confirmItem
-      summary: Fetch provider details for a search result (pre-save confirm)
+      summary: Fetch source details for a search result (pre-save confirm)
       description: |
-        Requires at least `editor` role on the collection. Resolves one provider
-        result by `externalId` and returns the item fields, suggested field values
-        drawn from the collection's existing data, and any potential duplicates.
-        Plugin-specific query parameters are forwarded to the provider. Provider
-        failures return 502.
+        Requires at least `editor` role on the collection. Resolves one result by
+        `externalId` through one of the plugin's sources — `source` picks it, falling
+        back to the plugin's first configured source. Returns the item fields (with the
+        `source`/`source_id` pair the create route expects back verbatim), suggested
+        field values drawn from the collection's existing data, and any potential
+        duplicates. Plugin-specific query parameters are forwarded to the source.
+        Source failures return 502.
       parameters:
         - $ref: '#/components/parameters/CollectionId'
         - name: pluginId
@@ -1219,7 +1240,12 @@ paths:
         - name: externalId
           in: query
           required: true
-          description: Provider-specific result id.
+          description: Source-specific result id.
+          schema: { type: string }
+        - name: source
+          in: query
+          required: false
+          description: Source id the result came from (see `GET /plugins` → `sources[]`).
           schema: { type: string }
         - name: barcode
           in: query
@@ -1233,12 +1259,15 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [item, suggestions, duplicates]
+                required: [item, source, suggestions, duplicates]
                 properties:
                   item:
-                    description: Provider detail fields plus common item fields.
+                    description: Source detail fields plus common item fields, including the returned `source`/`source_id` pair.
                     type: object
                     additionalProperties: true
+                  source:
+                    type: string
+                    description: Id of the source the details came from.
                   suggestions:
                     type: object
                     additionalProperties:
@@ -1253,7 +1282,9 @@ paths:
                   title: Discovery
                   artist: Daft Punk
                   year: '2001'
-                  external_id: '249504'
+                  source: discogs
+                  source_id: '249504'
+                source: discogs
                 suggestions:
                   genres: [Electronic, House]
                 duplicates: []
@@ -1952,9 +1983,9 @@ paths:
       summary: List plugin metadata
       description: |
         Returns one entry per registered plugin (all media types) with the fields
-        a client needs to render add/edit/search UIs: form fields, formats, creator
-        and external-id field names, and capability flags. No per-plugin code is
-        needed client-side.
+        a client needs to render add/edit/search/refresh UIs: form fields, formats,
+        creator and external-id field names, capability flags, and the sources the
+        plugin can search. No per-plugin code is needed client-side.
       responses:
         '200':
           description: Registered plugins.
@@ -1982,6 +2013,11 @@ paths:
                     externalIdHint: Numeric Discogs release id
                     supportsBarcodeSearch: true
                     supportsPriceEstimate: true
+                    hasSearch: true
+                    canRefresh: true
+                    sources:
+                      - { id: discogs, name: Discogs, searchable: true, configured: true }
+                      - { id: itunes, name: iTunes, searchable: false, configured: false }
                     formats:
                       - { value: vinyl, label: Vinyl, color: '#1f2937' }
                       - { value: cd, label: CD, color: '#6b7280' }
@@ -3891,6 +3927,27 @@ components:
         externalIdHint: { type: string }
         supportsBarcodeSearch: { type: boolean }
         supportsPriceEstimate: { type: boolean }
+        hasSearch:
+          type: boolean
+          description: Whether any of the plugin's sources can be searched.
+        canRefresh:
+          type: boolean
+          description: |
+            Whether a single-item or bulk refresh can run (the plugin declares
+            `refreshItem` and/or `mergeRefresh`).
+        sources:
+          type: array
+          description: The databases the plugin can search, in picker order.
+          items:
+            type: object
+            required: [id, name]
+            properties:
+              id: { type: string }
+              name: { type: string }
+              searchable: { type: boolean }
+              configured:
+                type: boolean
+                description: Whether the source's required environment keys are all set.
     Item:
       type: object
       description: |
@@ -4047,6 +4104,11 @@ components:
         country: { type: string }
         genre_filter: { type: string }
         label_filter: { type: string }
+        source:
+          type: string
+          description: |
+            Id of the source to search (see `GET /plugins` → `sources[]`). Unknown or
+            omitted ids fall back to the plugin's first configured source.
         scanned_barcode: { type: string }
       additionalProperties: true
     CreateItemRequest:
@@ -4073,6 +4135,14 @@ components:
           items: { type: string }
         barcode: { type: string }
         barcode_locked: { type: boolean, default: false }
+        source:
+          type: string
+          description: |
+            Source id the confirm route returned, stored alongside `source_id` so the
+            item stays traceable to the database it was filled in from.
+        source_id:
+          type: string
+          description: The item's id on that source. Sent together with `source` or not at all.
         in_wishlist: { type: boolean, default: false }
         images:
           type: array

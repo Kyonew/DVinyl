@@ -6,8 +6,8 @@ import { startDb, stopDb, clearDb } from '../../../test/helpers/db';
 import { makeUser, makeCollection, makeSettings, makeItem, itemModel } from '../../../test/helpers/factories';
 import { signAccessToken, bearer } from '../../../test/helpers/auth';
 import {
-  loadPluginsOnce, registerTestPlugin, registerNoRefreshPlugin,
-  TEST_PLUGIN_KIND, NO_REFRESH_PLUGIN_KIND
+  loadPluginsOnce, registerTestPlugin, registerNoRefreshPlugin, registerMergeRefreshPlugin,
+  TEST_PLUGIN_KIND, NO_REFRESH_PLUGIN_KIND, MERGE_REFRESH_PLUGIN_KIND
 } from '../../../test/helpers/plugins';
 
 const app = buildApiApp();
@@ -16,6 +16,7 @@ before(async () => {
   loadPluginsOnce();
   registerTestPlugin();
   registerNoRefreshPlugin();
+  registerMergeRefreshPlugin();
   await startDb();
 });
 after(async () => { await stopDb(); });
@@ -207,6 +208,20 @@ describe('POST /api/v1/items/:itemId/refresh-info', () => {
       .send({});
     assert.equal(res.status, 404);
     assert.equal(res.body.success, false);
+  });
+
+  test('200 refreshes a mergeRefresh-only plugin from the item source', async () => {
+    const { user } = await makeUser();
+    const collection = await makeCollection({ members: [{ user, role: 'editor' }] });
+    const item = await makeItem(MERGE_REFRESH_PLUGIN_KIND, {
+      title: 'Merge me', owner: user._id, collection: collection._id, source: 'gamma', source_id: 'g-1'
+    });
+    const res = await request(app)
+      .post(`/api/v1/items/${item._id}/refresh-info`)
+      .set(bearer(signAccessToken(user._id)))
+      .send({});
+    assert.equal(res.status, 200);
+    assert.equal(res.body.item.creator, 'Merged Gamma detail g-1');
   });
 
   test('403 for a viewer', async () => {

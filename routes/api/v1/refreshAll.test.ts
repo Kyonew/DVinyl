@@ -3,12 +3,13 @@ import assert from 'node:assert/strict';
 import { startDb, stopDb, clearDb } from '../../../test/helpers/db';
 import { makeUser, makeCollection, makeItem, itemModel } from '../../../test/helpers/factories';
 import {
-  loadPluginsOnce, registerRefreshPlugin, REFRESH_PLUGIN_KIND, refreshPluginState
+  loadPluginsOnce, registerRefreshPlugin, registerMergeRefreshPlugin,
+  REFRESH_PLUGIN_KIND, MERGE_REFRESH_PLUGIN_KIND, refreshPluginState
 } from '../../../test/helpers/plugins';
 import { collectRefreshItems, runPluginRefresh } from '../../../utils/refreshAll';
 import Item from '../../../models/Item';
 
-before(async () => { loadPluginsOnce(); registerRefreshPlugin(); await startDb(); });
+before(async () => { loadPluginsOnce(); registerRefreshPlugin(); registerMergeRefreshPlugin(); await startDb(); });
 after(async () => { await stopDb(); });
 beforeEach(async () => {
   await clearDb();
@@ -57,6 +58,17 @@ describe('collectRefreshItems', () => {
     const ids = items.map((i: any) => String(i._id));
     assert.ok(ids.includes(String(empty._id)));
     assert.ok(!ids.includes(String(full._id)));
+  });
+
+  test('selects an item that carries only a source pair, not the plugin id field', async () => {
+    const { user, collection } = await seed();
+    const bySource = await makeItem(MERGE_REFRESH_PLUGIN_KIND, {
+      title: 'From a source', owner: user._id, collection: collection._id, source: 'gamma', source_id: 'g-1'
+    });
+
+    const items = await collectRefreshItems(registerMergeRefreshPlugin(), collection._id, 'all');
+    const ids = items.map((i: any) => String(i._id));
+    assert.ok(ids.includes(String(bySource._id)), 'an item with source_id but no externalIdField is collected');
   });
 });
 
@@ -122,5 +134,20 @@ describe('runPluginRefresh', () => {
 
     assert.deepEqual(result, { refreshed: 1, failed: 0 });
     assert.equal(refreshPluginState.calls.length, 2, 'the first attempt failed, the retry succeeded');
+  });
+
+  test('refreshes a mergeRefresh-only plugin through the item stored source', async () => {
+    const { user, collection } = await seed();
+    const item = await makeItem(MERGE_REFRESH_PLUGIN_KIND, {
+      title: 'Merge', owner: user._id, collection: collection._id, source: 'gamma', source_id: 'g-1'
+    });
+
+    const result = await runPluginRefresh({
+      plugin: registerMergeRefreshPlugin(), items: [item], mode: 'all', req: {}
+    });
+
+    assert.deepEqual(result, { refreshed: 1, failed: 0 });
+    const reloaded: any = await Item.findById(item._id).lean();
+    assert.equal(reloaded.creator, 'Merged Gamma detail g-1');
   });
 });

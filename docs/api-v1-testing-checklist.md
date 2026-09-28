@@ -41,6 +41,14 @@ BASE=http://localhost:3000
 - [x] No `Authorization` header on any of the above → 401
 - [x] An item hidden by the collection's `visibility` settings (`hiddenItems`/`hiddenGenres`/`hiddenTypes`) → 404, same as it is on the listing endpoint
 
+## Add flow / sources
+- [ ] `GET $BASE/api/v1/plugins` → every plugin carries `hasSearch`, `canRefresh` and a `sources[]` array (`{id,name,searchable,configured}`)
+- [ ] `POST …/collections/$CID/items/search` `{"pluginId":"games","query":"zelda"}` → 200, `source` names the plugin's first configured source, `sources[]` lists the picker
+- [ ] Same body with `"source":"screenscraper"` (configured) → 200, results come from ScreenScraper and `source:"screenscraper"`
+- [ ] `GET …/items/confirm?pluginId=games&externalId=<id>&source=screenscraper` → 200 with `item.source`/`item.source_id`; posting that pair back to `POST …/items` stores it
+- [ ] `POST …/items/:itemId/refresh-info` on an item added from a non-default source → 200, patched through that source
+- [ ] `POST …/refresh-all` for `games` (a plugin that only declares `mergeRefresh`) → 202, not 400
+
 ## Fresh-instance edge case
 - [ ] On an instance with zero users (before `/setup`), `POST $BASE/api/v1/auth/login` → 503 JSON (not an HTML redirect) — not re-run this pass (would require wiping the shared local test DB); confirmed by reading the code instead: `app.ts:249-250` gates every `/api/v1` request behind the same `setupRequired` check with a `503 {success:false,...}` JSON body.
 

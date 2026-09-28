@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import Item from '../../../models/Item';
 import Settings from '../../../models/Settings';
 import { registry } from '../../../core/registry';
+import { canRefresh, refreshPatchFor } from '../../../core/sources';
 import { requireApiAuth } from '../../../middleware/authMiddleware';
 import { resolveMemberRole, roleAtLeast } from '../../../utils/collectionHelpers';
 import { applyVisibilityFilter } from '../../../utils/visibilityHelper';
@@ -190,12 +191,14 @@ router.post('/items/:itemId/refresh-info', requireApiAuth, async (req: any, res:
   if (!item) return;
 
   const plugin = registry.getByKind(item.kind);
-  if (!plugin || !plugin.refreshItem) {
+  if (!plugin || !canRefresh(plugin)) {
     return res.status(404).json({ success: false, error: 'This item type does not support metadata refresh' });
   }
 
   try {
-    const result = await plugin.refreshItem(item, req);
+    // Source-aware: an item filled in from a source other than the plugin's historical
+    // provider refreshes through the pair it carries, not through the plugin's own id field.
+    const result = await refreshPatchFor(plugin, item, req);
     const update = { ...(result || {}) };
     alignImagesAfterRefresh(item, update);
     await Item.updateOne(
