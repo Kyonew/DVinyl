@@ -8,6 +8,7 @@ import { requireApiAuth } from '../../../middleware/authMiddleware';
 import { requireApiCollectionRole } from '../../../middleware/apiAuthMiddleware';
 import { getCollectionSettings } from '../../../utils/collectionSettings';
 import { applyVisibilityFilter, applyEnabledModulesFilter, applyContainedFilter } from '../../../utils/visibilityHelper';
+import { MAX_SHELF_MOVE } from '../../../utils/shelfHelpers';
 
 const router = Router();
 
@@ -135,6 +136,46 @@ router.delete('/collections/:id/furniture/:furnitureId', requireApiCollectionRol
   } catch (err: any) {
     console.error('API furniture delete error:', err.message);
     res.status(500).json({ success: false, error: 'Failed to delete furniture' });
+  }
+});
+
+router.post('/collections/:id/shelf/cell/move', requireApiCollectionRole('editor'), async (req: any, res: any) => {
+  try {
+    const verdict = await moveCell(req.apiCollection._id, req.body?.key, req.body?.to);
+    if (!verdict.ok) {
+      return res.status(verdict.error === 'bad_request' ? 400 : 404).json({
+        success: false,
+        error: verdict.error === 'bad_request' ? 'key and to are required' : 'Furniture not found'
+      });
+    }
+    res.status(200).json({ moved: verdict.moved });
+  } catch (err: any) {
+    console.error('API shelf move error:', err.message);
+    res.status(500).json({ success: false, error: 'Failed to move the shelf' });
+  }
+});
+
+router.post('/collections/:id/shelf/move', requireApiCollectionRole('editor'), async (req: any, res: any) => {
+  try {
+    const collectionId = req.apiCollection._id;
+    const ids = Array.isArray(req.body?.ids)
+      ? req.body.ids.filter((id: any) => mongoose.Types.ObjectId.isValid(id)).slice(0, MAX_SHELF_MOVE)
+      : [];
+    if (ids.length === 0) {
+      return res.status(400).json({ success: false, error: 'ids must be a non-empty array' });
+    }
+
+    // The store decides the spelling, and creates the compartment for a name the
+    // collection has never seen. An empty name takes the items off their shelf.
+    const location = await resolveShelfLocation(collectionId, req.body?.location);
+    const result = await Item.updateMany(
+      { _id: { $in: ids }, collection: collectionId },
+      { $set: { location } }
+    );
+    res.status(200).json({ moved: result.modifiedCount, matched: result.matchedCount, location });
+  } catch (err: any) {
+    console.error('API shelf move items error:', err.message);
+    res.status(500).json({ success: false, error: 'Failed to move the items' });
   }
 });
 

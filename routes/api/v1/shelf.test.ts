@@ -7,6 +7,7 @@ import { makeUser, makeCollection, makeItem, makeSettings, itemModel } from '../
 import { signAccessToken, bearer } from '../../../test/helpers/auth';
 import { loadPluginsOnce, registerTestPlugin, TEST_PLUGIN_KIND } from '../../../test/helpers/plugins';
 import { shelfNames } from '../../../core/shelfStore';
+import { MAX_SHELF_MOVE } from '../../../utils/shelfHelpers';
 import Furniture from '../../../models/Furniture';
 
 const app = buildApiApp();
@@ -370,5 +371,103 @@ describe('furniture writes', () => {
     assert.equal(await Furniture.countDocuments({ collection: ctx.collection._id }), 0);
     const stored: any = await itemModel(TEST_PLUGIN_KIND).findOne({ collection: ctx.collection._id, title: 'Lamp' }).lean();
     assert.equal(stored.location, 'Salon');
+  });
+});
+
+describe('shelf moves', () => {
+  test('cell move carries a shelf to another piece, editor only', async () => {
+    const ctx = await seedCollectionWithRoles();
+    const a = await seedFurniture(ctx, { name: 'A', cells: [['Salon'], ['Cave']] });
+    const b = await seedFurniture(ctx, { name: 'B', cells: [] });
+
+    const res = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/shelf/cell/move`)
+      .set(bearer(ctx.editorToken))
+      .send({ key: 'salon', to: String(b._id) });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.moved, true);
+
+    const source: any = await Furniture.findById(a._id).lean();
+    assert.deepEqual(source.cells.map((c: any) => c.name), ['Cave']);
+    const target: any = await Furniture.findById(b._id).lean();
+    assert.deepEqual(target.cells.map((c: any) => c.name), ['Salon']);
+
+    const denied = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/shelf/cell/move`)
+      .set(bearer(ctx.viewerToken))
+      .send({ key: 'cave', to: String(b._id) });
+    assert.equal(denied.status, 403);
+  });
+
+  test('cell move answers 400 without key/to and 404 for a missing shelf', async () => {
+    const ctx = await seedCollectionWithRoles();
+    const a = await seedFurniture(ctx, { cells: [['Salon']] });
+    await seedFurniture(ctx, { name: 'B', cells: [] });
+
+    const bad = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/shelf/cell/move`)
+      .set(bearer(ctx.editorToken))
+      .send({ key: 'salon' });
+    assert.equal(bad.status, 400);
+    assert.equal(bad.body.error, 'key and to are required');
+
+    const missing = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/shelf/cell/move`)
+      .set(bearer(ctx.editorToken))
+      .send({ key: 'nope', to: String(a._id) });
+    assert.equal(missing.status, 404);
+  });
+
+  test('shelf move files items onto the canonical spelling and clears with an empty name', async () => {
+    const ctx = await seedCollectionWithRoles();
+    await makeSettings(ctx.collection);
+    await seedFurniture(ctx, { cells: [['Salon']] });
+    const item = await makeItem(TEST_PLUGIN_KIND, { title: 'Lamp', owner: ctx.owner._id, collection: ctx.collection._id });
+
+    const moved = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/shelf/move`)
+      .set(bearer(ctx.editorToken))
+      .send({ ids: [String(item._id)], location: 'salon' });
+    assert.equal(moved.status, 200);
+    assert.equal(moved.body.moved, 1);
+    assert.equal(moved.body.location, 'Salon');
+    let stored: any = await itemModel(TEST_PLUGIN_KIND).findById(item._id).lean();
+    assert.equal(stored.location, 'Salon');
+
+    const cleared = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/shelf/move`)
+      .set(bearer(ctx.editorToken))
+      .send({ ids: [String(item._id)], location: '' });
+    assert.equal(cleared.status, 200);
+    assert.equal(cleared.body.location, '');
+    stored = await itemModel(TEST_PLUGIN_KIND).findById(item._id).lean();
+    assert.equal(stored.location, '');
+  });
+
+  test('shelf move ignores another collection\'s items and caps the list', async () => {
+    const ctx = await seedCollectionWithRoles();
+    const other = await makeCollection({ members: [{ user: ctx.owner, role: 'admin' }] });
+    await makeSettings(ctx.collection);
+    await seedFurniture(ctx, { cells: [['Salon']] });
+    const foreign = await makeItem(TEST_PLUGIN_KIND, { title: 'Theirs', owner: ctx.owner._id, collection: other._id });
+
+    const res = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/shelf/move`)
+      .set(bearer(ctx.editorToken))
+      .send({ ids: [String(foreign._id)], location: 'Salon' });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.moved, 0);
+    assert.equal(res.body.matched, 0);
+    const stored: any = await itemModel(TEST_PLUGIN_KIND).findById(foreign._id).lean();
+    assert.equal(stored.location, '');
+
+    const empty = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/shelf/move`)
+      .set(bearer(ctx.editorToken))
+      .send({ ids: [], location: 'Salon' });
+    assert.equal(empty.status, 400);
+    assert.equal(empty.body.error, 'ids must be a non-empty array');
+
+    assert.equal(MAX_SHELF_MOVE, 500);
   });
 });
