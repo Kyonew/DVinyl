@@ -564,6 +564,103 @@ describe('GET /api/v1/collections/:id/items', () => {
   });
 });
 
+describe('item listing sort', () => {
+  // Three items whose every sortable key has a distinct order, so a wrong field or a
+  // wrong direction cannot accidentally pass:
+  //   title   Alpha < Bravo < Charlie
+  //   creator Amy (Alpha, Charlie) < Zed (Bravo)
+  //   year    1990 (Charlie) < 1999 (Bravo) < 2001 (Alpha)
+  //   added   Charlie (newest) < Bravo < Alpha (oldest)
+  async function seedSortable() {
+    const ctx = await seedCollectionWithRoles();
+    await makeSettings(ctx.collection);
+    const mk = (title: string, creator: string, year: string, agoSeconds: number) =>
+      makeItem(TEST_PLUGIN_KIND, {
+        title,
+        creator,
+        year,
+        owner: ctx.owner._id,
+        collection: ctx.collection._id,
+        added_at: new Date(Date.now() - agoSeconds * 1000)
+      });
+    const bravo = await mk('Bravo', 'Zed', '1999', 10);
+    const alpha = await mk('Alpha', 'Amy', '2001', 20);
+    const charlie = await mk('Charlie', 'Amy', '1990', 5);
+    return { ...ctx, bravo, alpha, charlie };
+  }
+
+  async function sortedTitles(query: string, ctx: any) {
+    const res = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/items?${query}`)
+      .set(bearer(ctx.viewerToken));
+    assert.equal(res.status, 200);
+    return res.body.items.map((i: any) => i.title);
+  }
+
+  test('defaults to newest-first by added_at', async () => {
+    const ctx = await seedSortable();
+    assert.deepEqual(await sortedTitles('', ctx), ['Charlie', 'Bravo', 'Alpha']);
+  });
+
+  test('title_asc / title_desc order by the title', async () => {
+    const ctx = await seedSortable();
+    assert.deepEqual(await sortedTitles('sort=title_asc', ctx), ['Alpha', 'Bravo', 'Charlie']);
+    assert.deepEqual(await sortedTitles('sort=title_desc', ctx), ['Charlie', 'Bravo', 'Alpha']);
+  });
+
+  test('year_asc / year_desc order by the year', async () => {
+    const ctx = await seedSortable();
+    assert.deepEqual(await sortedTitles('sort=year_asc', ctx), ['Charlie', 'Bravo', 'Alpha']);
+    assert.deepEqual(await sortedTitles('sort=year_desc', ctx), ['Alpha', 'Bravo', 'Charlie']);
+  });
+
+  test('artist sorts on the selected type\'s creator field', async () => {
+    const ctx = await seedSortable();
+    assert.deepEqual(await sortedTitles('type=testkind&sort=artist_asc', ctx), ['Alpha', 'Charlie', 'Bravo']);
+  });
+
+  test('a plugin-declared sort option orders by its fields', async () => {
+    const ctx = await seedSortable();
+    assert.deepEqual(await sortedTitles('type=testkind&sort=creator_asc', ctx), ['Alpha', 'Charlie', 'Bravo']);
+    assert.deepEqual(await sortedTitles('type=testkind&sort=creator_desc', ctx), ['Bravo', 'Charlie', 'Alpha']);
+  });
+
+  test('sorts a wishlist the same way', async () => {
+    const ctx = await seedCollectionWithRoles();
+    await makeSettings(ctx.collection);
+    const base = { owner: ctx.owner._id, collection: ctx.collection._id, in_wishlist: true };
+    await makeItem(TEST_PLUGIN_KIND, { ...base, title: 'Zulu', added_at: new Date(Date.now() - 1000) });
+    await makeItem(TEST_PLUGIN_KIND, { ...base, title: 'Yankee', added_at: new Date(Date.now() - 2000) });
+    const res = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/wishlist?sort=title_asc`)
+      .set(bearer(ctx.viewerToken));
+    assert.equal(res.status, 200);
+    assert.deepEqual(res.body.items.map((i: any) => i.title), ['Yankee', 'Zulu']);
+  });
+
+  test('400 for a sort value nothing declares', async () => {
+    const ctx = await seedSortable();
+    for (const bad of ['ghost_desc', 'title', 'creator_asc', 'artist_asc']) {
+      const res = await request(app)
+        .get(`/api/v1/collections/${ctx.collection._id}/items?sort=${bad}`)
+        .set(bearer(ctx.viewerToken));
+      assert.equal(res.status, 400, `expected 400 for sort=${bad}`);
+      assert.deepEqual(res.body, { success: false, error: 'unknown sort' });
+    }
+  });
+
+  test('400 for a plugin sort/artist under type=all', async () => {
+    const ctx = await seedSortable();
+    for (const query of ['type=all&sort=creator_asc', 'type=all&sort=artist_asc', 'type=music&sort=creator_asc']) {
+      const res = await request(app)
+        .get(`/api/v1/collections/${ctx.collection._id}/items?${query}`)
+        .set(bearer(ctx.viewerToken));
+      assert.equal(res.status, 400, `expected 400 for ${query}`);
+      assert.equal(res.body.error, 'unknown sort');
+    }
+  });
+});
+
 describe('POST /api/v1/collections/:id/items/search', () => {
   test('200 maps fake provider results', async () => {
     const ctx = await seedCollectionWithRoles();

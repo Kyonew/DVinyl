@@ -967,10 +967,11 @@ paths:
       summary: Browse a collection's items
       description: |
         Requires at least `viewer` role on the collection. Returns non-wishlist
-        items newest-first, applying the collection's visibility and enabled-module
-        settings. `type` filters to one plugin kind (accepts a plugin id; `all` or
-        empty means everything). `search` case-insensitively matches title,
-        barcode, each plugin's creator field, and an exact item id.
+        items in the requested `sort` order (`added_desc` by default), applying the
+        collection's visibility and enabled-module settings. `type` filters to one
+        plugin kind (accepts a plugin id; `all` or empty means everything). `search`
+        case-insensitively matches title, barcode, each plugin's creator field, and an
+        exact item id.
       parameters:
         - $ref: '#/components/parameters/CollectionId'
         - name: page
@@ -993,6 +994,17 @@ paths:
           required: false
           description: Title/barcode/creator/id substring.
           schema: { type: string }
+        - name: sort
+          in: query
+          required: false
+          description: |
+            Ordering as `<key>_<asc|desc>`; defaults to `added_desc`. Built-in keys:
+            `added` (when saved), `title`, `year`. `artist` sorts on the selected type's
+            creator field and needs `type` set to a plugin id. A plugin may declare extra
+            keys (books adds `series`); `GET /plugins` lists them as `sortOptions`, and
+            they apply only while `type` names that plugin. Anything outside the current
+            type's vocabulary returns 400 (`unknown sort`).
+          schema: { type: string, example: title_asc }
         - name: location
           in: query
           required: false
@@ -1029,6 +1041,13 @@ paths:
                 limit: 25
                 totalItems: 42
                 totalPages: 2
+        '400':
+          description: '`sort` is outside the vocabulary of the current `type`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'unknown sort' }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -1442,12 +1461,12 @@ paths:
       summary: Browse a collection's wishlist
       description: |
         Requires at least `viewer` role on the collection. Returns the collection's
-        wishlist items (`in_wishlist: true`) newest-first, applying the collection's
-        visibility and enabled-module settings and excluding contained items (the same
-        shelf rule as the collection listing). `type` filters to one plugin kind
-        (accepts a plugin id; `all` or empty means everything). `search`
-        case-insensitively matches title, barcode, each plugin's creator field, and an
-        exact item id. This is the wishlist half of the shelf that
+        wishlist items (`in_wishlist: true`) in the requested `sort` order (`added_desc`
+        by default), applying the collection's visibility and enabled-module settings and
+        excluding contained items (the same shelf rule as the collection listing). `type`
+        filters to one plugin kind (accepts a plugin id; `all` or empty means everything).
+        `search` case-insensitively matches title, barcode, each plugin's creator field,
+        and an exact item id. This is the wishlist half of the shelf that
         `GET /collections/{id}/items` covers for owned items.
       parameters:
         - $ref: '#/components/parameters/CollectionId'
@@ -1471,6 +1490,14 @@ paths:
           required: false
           description: Title/barcode/creator/id substring.
           schema: { type: string }
+        - name: sort
+          in: query
+          required: false
+          description: |
+            Ordering as `<key>_<asc|desc>`; defaults to `added_desc`. The same vocabulary
+            as `GET /collections/{id}/items` — see there for the keys and the 400 on a
+            value outside the current type's vocabulary.
+          schema: { type: string, example: title_asc }
       responses:
         '200':
           description: Paginated wishlist items.
@@ -1490,6 +1517,13 @@ paths:
                 limit: 25
                 totalItems: 3
                 totalPages: 1
+        '400':
+          description: '`sort` is outside the vocabulary of the current `type`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: { success: false, error: 'unknown sort' }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2037,6 +2071,7 @@ paths:
                     hasSearch: true
                     canRefresh: true
                     searchFormFields: []
+                    sortOptions: []
                     sources:
                       - { id: discogs, name: Discogs, searchable: true, configured: true }
                       - { id: itunes, name: iTunes, searchable: false, configured: false }
@@ -4750,6 +4785,18 @@ components:
             Names of extra search options this plugin's own search form adds
             beyond the core ones (games declares `platform` for ScreenScraper).
             Send any of them in `POST /collections/{id}/items/search`.
+        sortOptions:
+          type: array
+          description: |
+            Extra `sort` keys this type adds to the item listing (books declares
+            `series`). Send `${key}_asc` or `${key}_desc` as `sort` while `type` names
+            this plugin; see `GET /collections/{id}/items`.
+          items:
+            type: object
+            required: [key, label]
+            properties:
+              key: { type: string }
+              label: { type: string }
         creatorField: { type: string }
         externalIdField: { type: string }
         externalIdLabel: { type: string }

@@ -18,6 +18,7 @@ import {
   getExtraFields, buildExtraFieldConditions, parseExtraSort, extraSortKey,
   filterParam, isFilterable, isRangeFilter, isPickerFilter, EXTRA_ANY, EXTRA_NONE
 } from '../pluginExtraFields';
+import { resolveItemSort } from '../itemSort';
 
 const router = express.Router();
 
@@ -297,43 +298,17 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
     }
 
     // BUILD SORT OBJECT
+    // The type-shaped keys (added/title/year, artist, a plugin's own sortOptions) are
+    // resolved by the helper the API shares, so the two surfaces cannot drift. This page
+    // adds its two own behaviours around it: a user-defined field's sort first, and a
+    // lenient fallback - an unrecognised value still draws a page here, where the API
+    // rejects it.
     const buildSortObj = () => {
       const extraSort = parseExtraSort(sort as string, extraDefs);
       if (extraSort) return extraSort;
 
-      const sortMap: Record<string, any> = {
-        'added_desc': { added_at: -1 },
-        'added_asc': { added_at: 1 },
-        // `title` stays as a tie-breaker: two items whose sort keys are equal ("The Wall"
-        // and "Wall") would otherwise come back in whatever order Mongo felt like.
-        'title_asc': { sort_title: 1, title: 1 },
-        'title_desc': { sort_title: -1, title: -1 },
-        'year_desc': { year: -1 },
-        'year_asc': { year: 1 },
-      };
-
-      // An option the selected type declares for itself (see PluginDefinition.sortOptions).
-      const own = sort && selectedPlugin ? sort.match(/^(.*)_(asc|desc)$/) : null;
-      const ownOption = own ? selectedPlugin?.sortOptions?.find(o => o.key === own[1]) : undefined;
-      if (own && ownOption) {
-        const dir = own[2] === 'asc' ? 1 : -1;
-        const ownSort: Record<string, 1 | -1> = {};
-        for (const field of ownOption.fields) ownSort[field] = dir;
-        return { ...ownSort, sort_title: dir, title: dir };
-      }
-
-      if (sort && sort.startsWith('artist')) {
-        const dir = sort === 'artist_asc' ? 1 : -1;
-        // No single creator field spans every type, so "all" falls back to the title, and
-        // it sorts on the same normalized key as the title options above.
-        if (!type || type === 'all') return { sort_title: dir, title: dir };
-
-        const plugin = enabledPlugins.find(p => p.id === type);
-        const field = plugin ? plugin.creatorField : 'title';
-        return { [field]: dir };
-      }
-
-      return sortMap[sort || ''] || { added_at: -1 };
+      return resolveItemSort(sort as string, selectedPlugin, { artistFallbackToTitle: true })
+        || { added_at: -1 };
     };
 
     const itemSort = buildSortObj();

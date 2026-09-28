@@ -29,6 +29,10 @@ router.get('/plugins', requireApiAuth, async (req: any, res: any) => {
     // The extra fields the plugin's own search form adds (games' ScreenScraper
     // `platform`). A client sends any of these names in the search body.
     searchFormFields: p.searchFormFields || [],
+    // The extra sort entries this type adds to the listing's menu (books order by
+    // series). The client sends `${key}_asc` / `${key}_desc` as the `sort` parameter.
+    // `fields` stays here: how the order is built is the server's business.
+    sortOptions: (p.sortOptions || []).map(o => ({ key: o.key, label: o.label })),
     creatorField: p.creatorField,
     externalIdField: p.externalIdField,
     externalIdLabel: p.externalIdLabel,

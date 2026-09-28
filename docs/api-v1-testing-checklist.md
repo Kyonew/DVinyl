@@ -41,6 +41,16 @@ BASE=http://localhost:3000
 - [x] No `Authorization` header on any of the above → 401
 - [x] An item hidden by the collection's `visibility` settings (`hiddenItems`/`hiddenGenres`/`hiddenTypes`) → 404, same as it is on the listing endpoint
 
+## Item sort
+- [ ] `GET …/collections/$CID/items` with no `sort` → `added_desc` (newest first), the historical order
+- [ ] `?sort=title_asc` / `title_desc` → alphabetical by normalized title; `?sort=year_asc` / `year_desc` → by year
+- [ ] `?sort=artist_asc&type=music` → ordered by the type's creator field
+- [ ] `?sort=artist_asc` with no `type` (or `type=all`) → 400 `unknown sort`
+- [ ] `?sort=series_asc&type=books` → books ordered by series then volume; the same key under `type=all` or another type → 400
+- [ ] `?sort=nonsense`, or a key without `_asc`/`_desc` → 400 `{success:false,error:"unknown sort"}`
+- [ ] `GET …/collections/$CID/wishlist?sort=title_asc` → the wishlist honours `sort` the same way
+- [ ] `GET $BASE/api/v1/plugins` → `books.sortOptions` is `[{key:"series",label:"confirm_book.field_series"}]`; `music.sortOptions` is `[]`
+
 ## Add flow / sources
 - [ ] `GET $BASE/api/v1/plugins` → every plugin carries `hasSearch`, `canRefresh` and a `sources[]` array (`{id,name,searchable,configured}`)
 - [ ] `GET $BASE/api/v1/plugins` → `games` carries `searchFormFields:["platform"]`; `music` carries `searchFormFields:[]`

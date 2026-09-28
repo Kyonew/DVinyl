@@ -12,6 +12,7 @@ import { registry } from '../../../core/registry';
 import { hasSearch, resolveSource, searchableSources } from '../../../core/sources';
 import { editStamp, escapeRegExp, getPublicProtocol, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback } from '../../../core/helpers';
 import { toApiItem } from '../../../core/apiSerializers';
+import { resolveItemSort } from '../../../core/itemSort';
 import { shelfNames, resolveShelfLocation } from '../../../core/shelfStore';
 import { buildFieldSuggestions } from '../../../core/fieldSuggestions';
 import { buildApiItemUpdateData } from '../../../core/apiItemPayload';
@@ -401,6 +402,12 @@ router.get('/collections/:id/share-links/:token/qr.png', requireApiCollectionRol
 });
 
 /**
+ * A listing with no `sort` comes back newest-first, exactly as it always has. Held as a
+ * `Record<string, 1 | -1>` so it can share the `.sort()` call with the resolved values.
+ */
+const DEFAULT_ITEM_SORT: Record<string, 1 | -1> = { added_at: -1 };
+
+/**
  * The collection and the wishlist are the same listing over two halves of the same
  * shelf, so `/collections/:id/items` and `/collections/:id/wishlist` share this and
  * differ only on `inWishlist` - mirroring core/routes/collectionRoute.ts's buildShelfView.
@@ -419,14 +426,12 @@ async function listShelfItems(req: any, res: any, inWishlist: boolean) {
   applyContainedFilter(query);
 
   const type = typeof req.query.type === 'string' ? req.query.type : '';
-  if (type && type !== 'all') {
-    const plugin = enabledPlugins.find(p => p.id === type);
-    if (plugin) {
-      if (plugin.matchesLegacyItems) {
-        query.$and = [...(query.$and || []), { $or: [{ kind: plugin.kind }, { kind: { $exists: false } }] }];
-      } else {
-        query.kind = plugin.kind;
-      }
+  const selectedPlugin = type && type !== 'all' ? enabledPlugins.find(p => p.id === type) : undefined;
+  if (selectedPlugin) {
+    if (selectedPlugin.matchesLegacyItems) {
+      query.$and = [...(query.$and || []), { $or: [{ kind: selectedPlugin.kind }, { kind: { $exists: false } }] }];
+    } else {
+      query.kind = selectedPlugin.kind;
     }
   }
 
@@ -458,9 +463,18 @@ async function listShelfItems(req: any, res: any, inWishlist: boolean) {
     }
   }
 
+  // Strict where the page is lenient: an omitted sort is the newest-first default, but a
+  // value the current type has no option for is a client mistake worth a 400 (rather than
+  // the page's silent fallback, which a caller cannot tell apart from success).
+  const sortParam = typeof req.query.sort === 'string' ? req.query.sort : '';
+  const itemSort = resolveItemSort(sortParam, selectedPlugin);
+  if (sortParam && !itemSort) {
+    return res.status(400).json({ success: false, error: 'unknown sort' });
+  }
+
   const totalItems = await Item.countDocuments(query);
   const found = await Item.find(query)
-    .sort({ added_at: -1 })
+    .sort(itemSort || DEFAULT_ITEM_SORT)
     .skip((page - 1) * limit)
     .limit(limit)
     .lean();

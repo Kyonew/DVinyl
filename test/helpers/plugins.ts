@@ -33,6 +33,7 @@ export function registerTestPlugin(): PluginDefinition {
     creatorField: 'creator',
     externalIdField: 'test_external_id',
     supportsBarcodeSearch: false,
+    sortOptions: [{ key: 'creator', label: 'testkind.sort_creator', fields: ['creator', 'title'] }],
     schemaDefinition: {
       creator: { type: String, default: '' },
       platform: { type: String, default: '' },
