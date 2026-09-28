@@ -3,8 +3,10 @@ import List from '../../../models/List';
 import { requireApiAuth } from '../../../middleware/authMiddleware';
 import { requireApiCollectionRole } from '../../../middleware/apiAuthMiddleware';
 import { getCollectionSettings } from '../../../utils/collectionSettings';
+import { toApiItem } from '../../../core/apiSerializers';
 import {
-  cleanListDescription, cleanListName, isListKind, listCovers, pluginsWithTracks
+  cleanListDescription, cleanListName, isListKind, listCovers, ownList, resolveListEntries,
+  pluginsWithTracks
 } from '../../../core/listStore';
 
 const router = Router();
@@ -21,6 +23,18 @@ function summarize(list: any, covers: string[] = []): any {
     count: (list.entries || []).length,
     covers
   };
+}
+
+/** Loads the list named by `:listId` in the URL's collection, or ends the request. */
+async function loadOwnList(req: any, res: any, next: any) {
+  try {
+    const list: any = await ownList(req.apiCollection._id, req.params.listId);
+    if (!list) return res.status(404).json({ success: false, error: 'List not found' });
+    req.apiList = list;
+    next();
+  } catch (err) {
+    next(err);
+  }
 }
 
 router.get('/collections/:id/lists', requireApiCollectionRole('viewer'), async (req: any, res: any) => {
@@ -58,6 +72,60 @@ router.post('/collections/:id/lists', requireApiCollectionRole('editor'), async 
   } catch (err: any) {
     console.error('API list create error:', err.message);
     res.status(500).json({ success: false, error: 'Failed to create list' });
+  }
+});
+
+router.get('/collections/:id/lists/:listId', requireApiCollectionRole('viewer'), loadOwnList, async (req: any, res: any) => {
+  try {
+    const list = req.apiList;
+    const collectionId = req.apiCollection._id;
+    const lines = await resolveListEntries(list.toObject(), collectionId);
+    const entries = lines.map((line: any) => {
+      const entry: any = {
+        entryId: line.entryId,
+        added_at: line.addedAt,
+        item: toApiItem(line.rawItem, line.plugin)
+      };
+      if (line.track) entry.track = line.track;
+      return entry;
+    });
+    const covers = await listCovers([list.toObject()], collectionId);
+    res.status(200).json({
+      list: {
+        ...summarize(list, covers.get(String(list._id)) || []),
+        created_at: list.created_at,
+        updated_at: list.updated_at
+      },
+      entries
+    });
+  } catch (err: any) {
+    console.error('API list detail error:', err.message);
+    res.status(500).json({ success: false, error: 'Failed to read list' });
+  }
+});
+
+router.patch('/collections/:id/lists/:listId', requireApiCollectionRole('editor'), loadOwnList, async (req: any, res: any) => {
+  try {
+    const list = req.apiList;
+    const name = cleanListName(req.body?.name);
+    if (name) list.name = name;
+    list.description = cleanListDescription(req.body?.description);
+    await list.save();
+    const covers = await listCovers([list.toObject()], req.apiCollection._id);
+    res.status(200).json({ list: summarize(list.toObject(), covers.get(String(list._id)) || []) });
+  } catch (err: any) {
+    console.error('API list edit error:', err.message);
+    res.status(500).json({ success: false, error: 'Failed to update list' });
+  }
+});
+
+router.delete('/collections/:id/lists/:listId', requireApiCollectionRole('editor'), loadOwnList, async (req: any, res: any) => {
+  try {
+    await List.deleteOne({ _id: req.apiList._id });
+    res.status(200).json({ success: true });
+  } catch (err: any) {
+    console.error('API list delete error:', err.message);
+    res.status(500).json({ success: false, error: 'Failed to delete list' });
   }
 });
 

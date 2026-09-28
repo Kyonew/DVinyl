@@ -213,3 +213,131 @@ describe('POST /api/v1/collections/:id/lists', () => {
     assert.equal(res.status, 403);
   });
 });
+
+async function seedList(kind: 'items' | 'tracks' = 'items', entries: any[] = []) {
+  const ctx = await seedRoles();
+  const list = await List.create({
+    collection: ctx.collection._id, name: 'Backlog', description: 'Mine', kind, createdBy: ctx.owner._id, entries
+  });
+  return { ...ctx, list };
+}
+
+describe('GET /api/v1/collections/:id/lists/:listId', () => {
+  test('200 returns the list and its resolved entries in order', async () => {
+    const { collection, list, viewerToken, owner } = await seedList();
+    const first = await makeItem(TEST_PLUGIN_KIND, { title: 'First', owner: owner._id, collection: collection._id });
+    const second = await makeItem(TEST_PLUGIN_KIND, { title: 'Second', owner: owner._id, collection: collection._id });
+    await List.updateOne({ _id: list._id }, { $set: { entries: [{ item: second._id }, { item: first._id }] } });
+
+    const res = await request(app)
+      .get(`/api/v1/collections/${collection._id}/lists/${list._id}`)
+      .set(bearer(viewerToken));
+
+    assert.equal(res.status, 200);
+    assert.equal(res.body.list.name, 'Backlog');
+    assert.equal(res.body.entries.length, 2);
+    assert.equal(res.body.entries[0].item.title, 'Second', 'stored order is kept');
+    assert.equal(res.body.entries[0].item.id, String(second._id));
+    assert.ok(res.body.entries[0].entryId);
+    assert.ok(res.body.entries[0].added_at);
+  });
+
+  test('200 includes the track for a playlist line', async () => {
+    const ctx = await seedRoles();
+    const item = await makeItem(TRACKLIST_PLUGIN_KIND, {
+      title: 'Album', owner: ctx.owner._id, collection: ctx.collection._id,
+      tracklist: [{ title: 'Sunrise', position: 'A1' }]
+    });
+    const trackId = item.tracklist[0]._id;
+    const list = await List.create({
+      collection: ctx.collection._id, name: 'Play', kind: 'tracks', createdBy: ctx.owner._id,
+      entries: [{ item: item._id, track: trackId }]
+    });
+
+    const res = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/lists/${list._id}`)
+      .set(bearer(ctx.viewerToken));
+
+    assert.equal(res.status, 200);
+    assert.equal(res.body.entries[0].track.title, 'Sunrise');
+    assert.equal(res.body.entries[0].track.position, 'A1');
+  });
+
+  test('prunes a dangling line and persists the prune', async () => {
+    const { collection, list, viewerToken } = await seedList('items', [{ item: new mongoose.Types.ObjectId() }]);
+    const res = await request(app)
+      .get(`/api/v1/collections/${collection._id}/lists/${list._id}`)
+      .set(bearer(viewerToken));
+    assert.equal(res.status, 200);
+    assert.deepEqual(res.body.entries, []);
+    const stored: any = await List.findById(list._id).lean();
+    assert.equal(stored.entries.length, 0, 'the dead line is removed from the list');
+  });
+
+  test('404 for a list of another collection', async () => {
+    const { list } = await seedList();
+    const other = await seedRoles();
+    const res = await request(app)
+      .get(`/api/v1/collections/${other.collection._id}/lists/${list._id}`)
+      .set(bearer(other.ownerToken));
+    assert.equal(res.status, 404);
+    assert.equal(res.body.success, false);
+  });
+});
+
+describe('PATCH /api/v1/collections/:id/lists/:listId', () => {
+  test('200 renames and re-describes', async () => {
+    const { collection, list, editorToken } = await seedList();
+    const res = await request(app)
+      .patch(`/api/v1/collections/${collection._id}/lists/${list._id}`)
+      .set(bearer(editorToken))
+      .send({ name: 'Renamed', description: 'New text' });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.list.name, 'Renamed');
+    assert.equal(res.body.list.description, 'New text');
+  });
+
+  test('200 keeps the name when the posted one is empty', async () => {
+    const { collection, list, editorToken } = await seedList();
+    const res = await request(app)
+      .patch(`/api/v1/collections/${collection._id}/lists/${list._id}`)
+      .set(bearer(editorToken))
+      .send({ name: '   ', description: '' });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.list.name, 'Backlog');
+  });
+
+  test('403 for a viewer', async () => {
+    const { collection, list, viewerToken } = await seedList();
+    const res = await request(app)
+      .patch(`/api/v1/collections/${collection._id}/lists/${list._id}`)
+      .set(bearer(viewerToken))
+      .send({ name: 'Nope' });
+    assert.equal(res.status, 403);
+  });
+});
+
+describe('DELETE /api/v1/collections/:id/lists/:listId', () => {
+  test('200 deletes the list and leaves the items', async () => {
+    const { collection, list, owner, editorToken } = await seedList();
+    const item = await makeItem(TEST_PLUGIN_KIND, { title: 'Stays', owner: owner._id, collection: collection._id });
+    await List.updateOne({ _id: list._id }, { $set: { entries: [{ item: item._id }] } });
+
+    const res = await request(app)
+      .delete(`/api/v1/collections/${collection._id}/lists/${list._id}`)
+      .set(bearer(editorToken));
+
+    assert.equal(res.status, 200);
+    assert.equal(res.body.success, true);
+    assert.equal(await List.countDocuments({ _id: list._id }), 0);
+    assert.equal(await mongoose.model(TEST_PLUGIN_KIND).countDocuments({ _id: item._id }), 1);
+  });
+
+  test('404 for an unknown list', async () => {
+    const ctx = await seedRoles();
+    const res = await request(app)
+      .delete(`/api/v1/collections/${ctx.collection._id}/lists/64b7f9c2f1a2b3c4d5e6f7a8`)
+      .set(bearer(ctx.editorToken));
+    assert.equal(res.status, 404);
+  });
+});
