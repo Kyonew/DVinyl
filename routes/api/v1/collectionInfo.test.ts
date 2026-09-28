@@ -268,3 +268,48 @@ describe('POST /api/v1/collections/:id/info/preview', () => {
     assert.equal(denied.status, 403);
   });
 });
+
+describe('POST /api/v1/collections/:id/info-images', () => {
+  const jpeg = () => Buffer.concat([Buffer.from([0xff, 0xd8, 0xff]), Buffer.from('jpeg-bytes')]);
+
+  test('201 stores a JPEG and returns its managed URL', async () => {
+    const ctx = await seedCollectionWithRoles(visibleInfo);
+    const res = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/info-images`)
+      .set(bearer(ctx.ownerToken))
+      .attach('image', jpeg(), { filename: 'info.jpg', contentType: 'image/jpeg' });
+    assert.equal(res.status, 201);
+    assert.equal(res.body.success, true);
+    assert.match(res.body.url, /^\/uploads\/items\/item-.*\.jpg$/);
+    uploadedImages.push(res.body.url);
+  });
+
+  test('400 for a non-JPEG, 413 when over the size limit', async () => {
+    const ctx = await seedCollectionWithRoles(visibleInfo);
+    const png = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/info-images`)
+      .set(bearer(ctx.ownerToken))
+      .attach('image', Buffer.from([0x89, 0x50, 0x4e, 0x47]), { filename: 'x.png', contentType: 'image/png' });
+    assert.equal(png.status, 400);
+    assert.equal(png.body.error, 'Only JPEG images are accepted');
+
+    const oversize = Buffer.alloc(MAX_ITEM_IMAGE_UPLOAD_BYTES + 1024);
+    oversize[0] = 0xff; oversize[1] = 0xd8; oversize[2] = 0xff;
+    const tooBig = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/info-images`)
+      .set(bearer(ctx.ownerToken))
+      .attach('image', oversize, { filename: 'big.jpg', contentType: 'image/jpeg' });
+    assert.equal(tooBig.status, 413);
+  });
+
+  test('403 for a viewer and an editor', async () => {
+    const ctx = await seedCollectionWithRoles(visibleInfo);
+    for (const token of [ctx.viewerToken, ctx.editorToken]) {
+      const res = await request(app)
+        .post(`/api/v1/collections/${ctx.collection._id}/info-images`)
+        .set(bearer(token))
+        .attach('image', jpeg(), { filename: 'info.jpg', contentType: 'image/jpeg' });
+      assert.equal(res.status, 403);
+    }
+  });
+});

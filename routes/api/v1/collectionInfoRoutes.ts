@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import multer from 'multer';
 import Collection from '../../../models/Collection';
 import {
   collectionInfoOf,
@@ -6,12 +7,22 @@ import {
   isCollectionInfoVisible,
   MAX_COLLECTION_INFO_BODY
 } from '../../../core/collectionInfo';
-import { deleteUnusedManagedItemImages } from '../../../core/itemImageStorage';
+import {
+  deleteUnusedManagedItemImages,
+  isJpegBuffer,
+  MAX_ITEM_IMAGE_UPLOAD_BYTES,
+  storeItemImage
+} from '../../../core/itemImageStorage';
 import { renderMarkdown } from '../../../core/markdown';
 import { requireApiAuth } from '../../../middleware/authMiddleware';
 import { requireApiCollectionRole } from '../../../middleware/apiAuthMiddleware';
 
 const router = Router();
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { files: 1, fileSize: MAX_ITEM_IMAGE_UPLOAD_BYTES }
+});
 
 router.use(requireApiAuth);
 
@@ -82,6 +93,28 @@ router.post('/collections/:id/info/preview', requireApiCollectionRole('admin'), 
     return res.status(400).json({ success: false, error: 'body must be a string' });
   }
   res.status(200).json({ html: renderMarkdown(body.slice(0, MAX_COLLECTION_INFO_BODY)) });
+});
+
+router.post('/collections/:id/info-images', requireApiCollectionRole('admin'), (req: any, res: any) => {
+  upload.single('image')(req, res, async (uploadError: any) => {
+    if (uploadError) {
+      const tooLarge = uploadError instanceof multer.MulterError && uploadError.code === 'LIMIT_FILE_SIZE';
+      return res.status(tooLarge ? 413 : 400).json({
+        success: false,
+        error: tooLarge ? 'Image too large' : 'Invalid upload'
+      });
+    }
+    if (!req.file || req.file.mimetype !== 'image/jpeg' || !isJpegBuffer(req.file.buffer)) {
+      return res.status(400).json({ success: false, error: 'Only JPEG images are accepted' });
+    }
+    try {
+      const url = await storeItemImage(req.file.buffer);
+      res.status(201).json({ success: true, url });
+    } catch (err: any) {
+      console.error('[API COLLECTION INFO IMAGE] Upload failed:', err.message);
+      res.status(500).json({ success: false, error: 'Upload failed' });
+    }
+  });
 });
 
 export = router;
