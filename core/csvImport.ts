@@ -1,6 +1,8 @@
 import mongoose from 'mongoose';
 import { PluginDefinition, SearchResult } from './types';
+import { resolveSource, SearchableSource } from './sources';
 import { escapeRegExp, parseCsvRecords, syncStamp } from './helpers';
+import { createShelfLocationResolver } from './shelfStore';
 
 /**
  * Generic engine behind the CSV importers declared by plugins (Libib & co.).
@@ -54,7 +56,9 @@ export interface CsvImportSpec {
 }
 
 /** Base Item paths an enrichment result may fill, on top of the plugin's own schema. */
-const ENRICHABLE_BASE_FIELDS = ['cover_image', 'year', 'barcode', 'genre', 'genres', 'styles'];
+// `source`/`source_id` among them: a row identified by a lookup owes its metadata to
+// that database, and an item that cannot say so can no longer be traced back to it.
+const ENRICHABLE_BASE_FIELDS = ['cover_image', 'year', 'barcode', 'genre', 'genres', 'styles', 'source', 'source_id'];
 
 /** Giving up on one provider lookup rather than stalling the whole import on it. */
 const ENRICH_TIMEOUT_MS = 20000;
@@ -283,6 +287,19 @@ class ImportPace {
 }
 
 /**
+ * The row's code when the source reads it as one exact item (an ISBN for Hardcover), or
+ * an empty string. Read after the plugin's own normalization, so a file that only filled
+ * the ISBN column still counts: books copy it into the barcode on save.
+ */
+function exactLookupFor(plugin: PluginDefinition, source: SearchableSource | null, data: Record<string, any>): string {
+  if (!source?.exactQuery) return '';
+  const probe = { ...data };
+  plugin.normalizeForSave?.(probe);
+  const code = String(probe.barcode || '').trim();
+  return code && source.exactQuery(code) ? code : '';
+}
+
+/**
  * Looks one item up on the plugin's own search provider and returns its details, or
  * null when nothing matches (a lookup failure never fails the import).
  *
@@ -292,14 +309,16 @@ class ImportPace {
  */
 async function fetchEnrichment(
   plugin: PluginDefinition,
+  source: SearchableSource,
   query: string,
   options: Record<string, any>,
   target: MatchTarget,
+  exact: boolean,
   pace?: ImportPace
 ): Promise<Record<string, any> | null> {
   for (let attempt = 0; attempt <= RATE_LIMIT_BACKOFF_MS.length; attempt++) {
     try {
-      return await enrichOnce(plugin, query, options, target);
+      return await enrichOnce(plugin, source, query, options, target, exact);
     } catch (err: any) {
       if (err?.status !== 429) {
         console.error(`[${plugin.id}] Enrichment failed for "${query}":`, err.message);
@@ -323,14 +342,22 @@ async function fetchEnrichment(
 
 async function enrichOnce(
   plugin: PluginDefinition,
+  source: SearchableSource,
   query: string,
   options: Record<string, any>,
-  target: MatchTarget
+  target: MatchTarget,
+  exact: boolean
 ): Promise<Record<string, any> | null> {
   {
-    const search = (q: string) => withTimeout(plugin.searchProvider!.search(q, options), ENRICH_TIMEOUT_MS);
+    const timeoutMs = Math.max(ENRICH_TIMEOUT_MS, source.lookupTimeoutMs || 0);
+    const search = (q: string) => withTimeout(source.search(q, options), timeoutMs);
 
     let { match, sure } = pickBestMatch(await search(query), target);
+
+    // The source answered the identifier itself, so whatever it returned is that item
+    // and nothing else is worth trying: a code it does not know, looked up again by
+    // title, only ever lands on some other work that happens to share the words.
+    if (exact) sure = true;
 
     // The bare title is what most providers match on: TMDB returns nothing at all for
     // "Inception Christopher Nolan". It is ambiguous on a generic title though, so when
@@ -343,8 +370,11 @@ async function enrichOnce(
     }
     if (!match) return null;
 
-    const details = await withTimeout(plugin.searchProvider!.getDetails(String(match.id), options), ENRICH_TIMEOUT_MS);
-    return { ...match, ...details };
+    // Handed back to getDetails() the way the confirm page does, so the details describe
+    // the exact hit (the edition carrying the searched ISBN) rather than the work at large.
+    const detailOptions = { ...(match.confirmQuery || {}), ...options };
+    const details = await withTimeout(source.getDetails(String(match.id), detailOptions), timeoutMs);
+    return { ...match, ...details, source: source.id, source_id: String(match.id) };
   }
 }
 
@@ -392,7 +422,13 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
     }
 
     const Model = mongoose.model(plugin.kind);
-    const canEnrich = enrich && !!plugin.searchProvider;
+    // One source answers for the whole file: a per-row choice would mean asking several
+    // databases the same question, and the quota of the smallest one is what gives out.
+    // Whichever the import screen picked, or the collection's first working choice, which
+    // is also the add page's default. An id that names nothing falls back rather than
+    // failing: the plugin importers post no source at all.
+    const enrichSource = resolveSource(plugin, req.body?.source, res.locals.settings);
+    const canEnrich = enrich && !!enrichSource;
     const pace = new ImportPace(spec.enrichDelayMs ?? 500);
     const allowed = enrichableFields(plugin);
     const defaults = schemaDefaults(plugin);
@@ -411,8 +447,15 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
       const data = await spec.mapRow(row, ctx);
       if (!data || !data.title) return 'skipped';
 
-      const query = spec.searchQuery ? spec.searchQuery(row, data) : data.title;
-      const searchOptions = { language: req.language, ...(spec.searchOptions ? spec.searchOptions(row, data) : {}) };
+      // A code the source resolves exactly is the only lookup worth making: a text query
+      // would happily settle for a different book with a similar title.
+      const exactCode = canEnrich ? exactLookupFor(plugin, enrichSource, data) : '';
+      const query = exactCode || (spec.searchQuery ? spec.searchQuery(row, data) : data.title);
+      const searchOptions = {
+        language: req.language,
+        ...(plugin.enrichSearchOptions ? plugin.enrichSearchOptions(data) : {}),
+        ...(spec.searchOptions ? spec.searchOptions(row, data) : {})
+      };
 
       // What the row claims about the item, so the right hit can be told apart from the
       // rest. Read off the mapped payload rather than the raw row: the mapping is what
@@ -436,7 +479,7 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
         // and metadata rather than being skipped outright.
         if (!canEnrich || !query) return 'skipped';
 
-        const enriched = await fetchEnrichment(plugin, query, searchOptions, target, pace);
+        const enriched = await fetchEnrichment(plugin, enrichSource!, query, searchOptions, target, !!exactCode, pace);
         await pace.wait();
         if (!enriched) {
           totalUnenriched++;
@@ -463,7 +506,7 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
       }
 
       if (canEnrich && query) {
-        const enriched = await fetchEnrichment(plugin, query, searchOptions, target, pace);
+        const enriched = await fetchEnrichment(plugin, enrichSource!, query, searchOptions, target, !!exactCode, pace);
         if (enriched) fillEmptyFields(data, enriched, allowed);
         else totalUnenriched++;
         await pace.wait();
@@ -474,6 +517,11 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
       // LEGO mirrors its theme into genre...).
       plugin.normalizeForSave?.(data);
 
+      // A file naming a shelf the collection already has must land on it rather than
+      // beside it: "salon" in a CSV is the "Salon" the furniture holds. One lookup per
+      // distinct value in the file, the rest served from the resolver's memory.
+      if (data.location !== undefined) data.location = await resolveLocation(data.location);
+
       await Model.create({
         ...data,
         kind: plugin.kind,
@@ -483,6 +531,8 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
       });
       return 'created';
     };
+
+    const resolveLocation = createShelfLocationResolver(ctx.collectionId);
 
     // Announce the size of the job before the first item: an enriched import spends
     // seconds per item, and the admin would otherwise stare at a frozen button.

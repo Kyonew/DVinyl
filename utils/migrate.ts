@@ -5,6 +5,8 @@ import Collection from '../models/Collection';
 import { registry } from '../core/registry';
 import { buildSortTitle } from '../core/helpers';
 import { findOrCreateDefaultCollection } from './collectionHelpers';
+import { seedFurnitureFromLocations } from '../core/shelfStore';
+import { legacySource, legacyIdFieldFor } from '../core/sources';
 
 /**
  * Legacy Settings could store theme.<key>.preset as an object (e.g. { default: 'default' })
@@ -276,6 +278,99 @@ export const migrateDatabase = async () => {
             }
             if (broken.length > ops.length) {
                 console.warn(`[MIGRATION] ${broken.length - ops.length} ${plugin.kind} item(s) hold a non-numeric ${field}; left untouched.`);
+            }
+        }
+
+        // An item used to carry its provider id on a typed path of its own (discogs_id,
+        // igdb_id, set_num...) and nothing saying which database handed that id out. There
+        // was only ever one per plugin, so it never needed saying. Now that a plugin can
+        // search several, an id alone no longer identifies anything: two databases number
+        // unrelated records the same way.
+        //
+        // Everything already saved is attributed to the plugin's first declared source able
+        // to describe a record, which is the one that historically filled that field. The typed path is left
+        // exactly as it is: it is what the price estimates, the duplicate lookups and the
+        // external links have always read.
+        //
+        // The `source` name predates the pair, though: books stored where an entry came
+        // from under it (hardcover, goodreads, manual). The core always writes `source`
+        // together with `source_id`, so a value naming none of the plugin's sources and
+        // never paired with an id is that older meaning, not a reference. It is cleared,
+        // which hands the item to the attribution like any other. Only for plugins written
+        // for sources: one still declaring a bare searchProvider keeps whatever it stores.
+        for (const plugin of registry.getAll()) {
+            if (!plugin.sources || plugin.sources.length === 0) continue;
+            const declared = plugin.sources.map(s => s.id);
+            const cleared = await Item.collection.updateMany(
+                {
+                    kind: plugin.kind,
+                    source: { $nin: ['', null, ...declared] },
+                    $or: [{ source_id: { $exists: false } }, { source_id: { $in: ['', null] } }]
+                },
+                { $set: { source: '' } }
+            );
+            if (cleared.modifiedCount > 0) {
+                console.log(`[MIGRATION] ${cleared.modifiedCount} ${plugin.kind} item(s) held a "source" naming none of the plugin's sources; cleared.`);
+            }
+        }
+
+        for (const plugin of registry.getAll()) {
+            const source = legacySource(plugin);
+            const field = legacyIdFieldFor(plugin, source);
+            if (!field || !source) continue;
+
+            const unattributed = await Item.collection
+                .find({
+                    kind: plugin.kind,
+                    [field]: { $nin: [null, ''] },
+                    $or: [{ source: { $exists: false } }, { source: '' }]
+                }, { projection: { [field]: 1 } })
+                .toArray();
+
+            for (let i = 0; i < unattributed.length; i += 500) {
+                await Item.collection.bulkWrite(
+                    unattributed.slice(i, i + 500).map((doc: any) => ({
+                        updateOne: {
+                            filter: { _id: doc._id },
+                            update: { $set: { source: source.id, source_id: String(doc[field]) } }
+                        }
+                    }))
+                );
+            }
+
+            if (unattributed.length > 0) {
+                console.log(`[MIGRATION] ${unattributed.length} ${plugin.kind} item(s) attributed to source "${source.id}".`);
+            }
+        }
+
+        // Where an item is kept used to be free text and nothing else. The shelf view
+        // needs those places to exist as things of their own, so each collection's
+        // distinct `location` values become the cells of a piece of furniture.
+        //
+        // Nothing is invented and nothing is lost: an item keeps carrying its shelf's
+        // name in `location`, which is what leaves the location filter, the CSV
+        // mapping, the exports and the backups working untouched.
+        const collectionsToSeed = await Collection.find({ shelvesSeeded: { $ne: true } }, '_id name').lean();
+        for (const coll of collectionsToSeed) {
+            // One collection at a time: a failure here leaves that collection unmarked, to
+            // be tried again on the next boot, without holding back the others.
+            let seeded;
+            try {
+                seeded = await seedFurnitureFromLocations(coll._id, coll.name);
+            } catch (err) {
+                console.error(`[MIGRATION] Shelves could not be seeded for collection "${coll.name}":`, err);
+                continue;
+            }
+
+            // Marked even when the collection had no location at all: this converts what
+            // the free-text era left behind, once. Shelves created from now on come from
+            // the shelf editor, not from here.
+            await Collection.updateOne({ _id: coll._id }, { $set: { shelvesSeeded: true } });
+
+            if (seeded.shelves > 0 || seeded.renamed > 0 || seeded.blanked > 0) {
+                console.log(`[MIGRATION] ${seeded.shelves} shelf/shelves seeded for collection "${coll.name}"` +
+                    (seeded.renamed > 0 ? `, ${seeded.renamed} item(s) moved onto a merged spelling` : '') +
+                    (seeded.blanked > 0 ? `, ${seeded.blanked} blank location(s) cleared` : '') + '.');
             }
         }
 

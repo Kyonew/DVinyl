@@ -41,14 +41,26 @@
             <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                 <i class="fa-solid fa-search opacity-40"></i>
             </div>
+            <%# Scanning finds the item carrying a code, which a share link has no use for. %>
+            <% const filterScan = !locals.isShareView; %>
+            <% const searchIcons = (locals.querySearch ? 1 : 0) + (filterScan ? 1 : 0); %>
             <input type="text" id="filterInput"
-                class="filter-input-textbox block w-full p-2.5 pl-10 <%= locals.querySearch ? 'pr-8' : '' %> text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme placeholder-opacity-50 transition-shadow"
+                class="filter-input-textbox block w-full p-2.5 pl-10 <%= searchIcons === 2 ? 'pr-14' : searchIcons === 1 ? 'pr-8' : '' %> text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme placeholder-opacity-50 transition-shadow"
                 value="<%= locals.querySearch || '' %>" placeholder="<%= t('collection.filter_placeholder') %>">
-            <% if (locals.querySearch) { %>
-                <button onclick="clearFilterParam('search')" class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-red-500 transition-colors">
-                    <i class="fa-solid fa-circle-xmark"></i>
-                </button>
-            <% } %>
+            <div id="searchActions" class="absolute inset-y-0 right-0 flex items-center gap-3 pr-3">
+                <% if (locals.querySearch) { %>
+                    <button id="searchClearBtn" type="button" onclick="clearSearchLive()" class="flex items-center text-gray-400 hover:text-red-500 transition-colors">
+                        <i class="fa-solid fa-circle-xmark"></i>
+                    </button>
+                <% } %>
+                <% if (filterScan) { %>
+                    <button id="filterScanBtn" type="button" onclick="scanIntoFilter()"
+                        title="<%= t('collection.scan') %>" aria-label="<%= t('collection.scan') %>"
+                        class="flex items-center opacity-40 hover:opacity-100 hover:text-primary-theme transition">
+                        <i class="fa-solid fa-barcode"></i>
+                    </button>
+                <% } %>
+            </div>
         </div>
 
         <%# Not for a share link: see SHARE_HIDDEN_FIELDS in core/cardFields.ts. %>
@@ -305,6 +317,19 @@
                                             <% } %>
                                     </button>
                                     <% } %>
+                            <% (locals.pluginSortOptions || []).forEach(po => {
+                                const poActive = currentSort.startsWith(po.key + '_');
+                                const poDir = poActive ? (currentSort.endsWith('_asc') ? 'asc' : 'desc') : 'asc';
+                            %>
+                                <button onclick="handleSort('<%= po.key %>', '<%= poDir %>', false)"
+                                    class="w-full flex items-center justify-between gap-2 p-2.5 text-sm rounded-lg transition-all cursor-pointer
+                                    <%= poActive ? 'bg-primary-theme/10 text-primary-theme font-semibold' : 'hover:bg-black/5 dark:hover:bg-white/5 opacity-70 hover:opacity-100' %>">
+                                    <span class="truncate"><%= po.label %></span>
+                                    <% if (poActive) { %>
+                                        <i class="fa-solid fa-arrow-<%= poDir === 'asc' ? 'up' : 'down' %> text-[11px]"></i>
+                                    <% } %>
+                                </button>
+                            <% }) %>
                             <% (locals.extraFilters || []).forEach(xf => {
                                 const xfActive = currentSort.startsWith(xf.sortKey + '_');
                                 const xfDir = xfActive ? (currentSort.endsWith('_asc') ? 'asc' : 'desc') : 'asc';
@@ -322,8 +347,22 @@
         </div>
 
         <div class="flex items-center gap-2 w-full lg:w-auto">
+            <%# Built from core/viewRegistry.ts, so a new way of looking at a collection
+                shows up here on its own. Left out while there is only one to pick. %>
+            <% if ((locals.collectionViews || []).length > 1) { %>
+                <div class="flex bg-black/5 dark:bg-white/5 p-1 rounded-lg h-10 items-center">
+                    <% collectionViews.forEach(view => { %>
+                        <button onclick="setView('<%= view.id %>')"
+                            title="<%= t(view.label) %>"
+                            class="w-10 h-8 flex items-center justify-center rounded-md transition-all <%= view.id === activeView.id ? 'bg-white dark:bg-white/20 shadow-sm text-primary-theme' : 'opacity-40 hover:opacity-100' %>">
+                            <i class="fa-solid <%= view.icon %> text-xs"></i>
+                        </button>
+                    <% }) %>
+                </div>
+            <% } %>
+
             <div class="flex bg-black/5 dark:bg-white/5 p-1 rounded-lg h-10 items-center">
-                <button onclick="setFilterMode('show')" 
+                <button onclick="setFilterMode('show')"
                     title="<%= t('collection.filter_mode_show') %>"
                     class="w-10 h-8 flex items-center justify-center rounded-md transition-all <%= (locals.queryFilterMode !== 'hide') ? 'bg-white dark:bg-white/20 shadow-sm text-primary-theme' : 'opacity-40 hover:opacity-100' %>">
                     <i class="fa-solid fa-eye text-xs"></i>
@@ -388,52 +427,9 @@
     <% } %>
 
     <!-- Active Filter Badges/Pills -->
-    <%
-        const activePills = [];
-        if (locals.querySearch) activePills.push({ key: 'search', label: t('collection.filter_placeholder') + ': "' + locals.querySearch + '"' });
-        if (locals.queryLocation) activePills.push({ key: 'location', label: t('common.location') + ': "' + locals.queryLocation + '"' });
-        if (locals.queryArtist) activePills.push({ key: 'artist', label: (locals.creatorFilterLabel || t('collection.artist_filter')) + ': "' + locals.queryArtist + '"' });
-        
-        if (locals.queryDecade) {
-            activePills.push({ key: 'decade', label: t('collection.decade_filter') + ': ' + locals.queryDecade.split(',').map(d => d + 's').join(', ') });
-        }
-        if (locals.queryGenre) {
-            activePills.push({ key: 'genre', label: t('confirm_vinyl.field_genres') + ': ' + locals.queryGenre.split(',').join(', ') });
-        }
-        if (locals.queryStyle) {
-            activePills.push({ key: 'style', label: t('collection.styles_filter') + ': ' + locals.queryStyle.split(',').join(', ') });
-        }
-        if (locals.queryPlatform) {
-            activePills.push({ key: 'platform', label: t('collection.platform_filter') + ': ' + locals.queryPlatform.split(',').join(', ') });
-        }
-
-        // One pill per active user-defined filter; a range contributes one per bound
-        xFilters.forEach(xf => {
-            const readable = (v) => v === locals.extraAny ? t('collection.xf_any')
-                : v === locals.extraNone ? t('collection.xf_none')
-                : v === 'true' ? t('common.yes')
-                : v === 'false' ? t('common.no')
-                : t(v, { defaultValue: v });
-            if (xf.value) activePills.push({ key: xf.param, label: xf.label + ': ' + readable(xf.value) });
-            if (xf.from) activePills.push({ key: xf.paramFrom, label: xf.label + ' ≥ ' + xf.from });
-            if (xf.to) activePills.push({ key: xf.paramTo, label: xf.label + ' ≤ ' + xf.to });
-        });
-    %>
-
-    <% if (activePills.length > 0) { %>
-        <div class="flex flex-wrap items-center gap-2 mt-4 text-xs animate-in fade-in duration-200">
-            <span class="opacity-60 font-semibold"><%= t('collection.active_filters') %></span>
-            <% activePills.forEach(pill => { %>
-                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary-theme/10 text-primary-theme font-semibold border border-primary-theme/20 shadow-sm transition-all hover:bg-primary-theme/20">
-                    <%= pill.label %>
-                    <button onclick="clearFilterParam('<%= pill.key %>')" class="hover:text-red-500 font-bold ml-1 text-sm focus:outline-none transition-colors" title="<%= t('common.delete') %>">&times;</button>
-                </span>
-            <% }) %>
-            <button onclick="clearAllFilters()" class="text-xs text-red-500 hover:text-red-600 font-bold ml-2 underline transition-colors cursor-pointer">
-                <%= t('collection.clear_all') %>
-            </button>
-        </div>
-    <% } %>
+    <div id="activeFilterPills">
+        <%- include('active-filter-pills') %>
+    </div>
 </div>
 
 <script>
@@ -448,8 +444,17 @@
         let currentDecade = '<%= locals.queryDecade || "" %>';
         let currentStyle = '<%= locals.queryStyle || "" %>';
         let currentFilterMode = '<%= locals.queryFilterMode || "show" %>';
+        let currentView = '<%= locals.activeView ? activeView.id : "" %>';
+        let searchDebounceTimer;
+        // Only a view that can be redrawn in place follows the search as it is typed
+        // (see CollectionView.liveRedraw); any other one applies it on Enter.
+        const liveSearchEnabled = <%= !!(locals.activeView && activeView.liveRedraw) %>;
+        const itemsLabel = <%- JSON.stringify(t('common.items')) %>;
 
-        function reloadPage() {
+        // Builds the URL for the current filter state without navigating. reloadPage()
+        // (every filter control except live search) navigates to it directly; live
+        // search fetches it instead so typing updates the page in place.
+        function buildFilterUrl() {
             const url = new URL(window.location.origin + window.location.pathname);
 
             validateAndSetUrlSearchParamString('type', currentType);
@@ -493,9 +498,10 @@
             validateAndSetUrlSearchParamString('sort', currentSort);
             validateAndSetUrlSearchParamString('artist', artistInput?.value);
             validateAndSetUrlSearchParamString('filterMode', currentFilterMode);
+            validateAndSetUrlSearchParamString('view', currentView);
 
             url.searchParams.set('page', 1);
-            window.location.href = url.toString();
+            return url;
 
             function validateAndSetUrlSearchParamString(key, value) {
                 if (value === null || value === undefined || (typeof value === "string" && value.trim() === "")) return;
@@ -504,8 +510,109 @@
             }
         }
 
+        function reloadPage() {
+            window.location.href = buildFilterUrl().toString();
+        }
+
+        // Live search: fetches and swaps in the results fragment instead of navigating,
+        // so typing filters the page with no visible reload. Falls back to a real
+        // navigation if the fetch fails for any reason: correctness over smoothness.
+        let searchRequestController = null;
+        async function liveSearchReload() {
+            const url = buildFilterUrl();
+            if (searchRequestController) searchRequestController.abort();
+            searchRequestController = new AbortController();
+
+            const resultsEl = document.getElementById('shelfResults');
+            try {
+                const res = await fetch(url.toString(), {
+                    headers: { 'X-Requested-With': 'fetch' },
+                    signal: searchRequestController.signal
+                });
+                if (!res.ok) throw new Error('bad response: ' + res.status);
+                const data = await res.json();
+                if (!data.success) throw new Error('partial render failed');
+
+                if (resultsEl) resultsEl.innerHTML = data.html;
+                // Scripts inside the new markup do not run, so a page that keeps state
+                // on the results (the selection mode) re-applies it from here.
+                document.dispatchEvent(new CustomEvent('shelf-results:replaced'));
+
+                const pillsEl = document.getElementById('activeFilterPills');
+                if (pillsEl) pillsEl.innerHTML = data.pillsHtml;
+
+                const badge = document.getElementById('totalItemsBadge');
+                if (badge) badge.textContent = data.totalItems + ' ' + itemsLabel;
+
+                updateSearchClearButton(!!filterInput.value.trim());
+                history.replaceState(null, '', url.toString());
+            } catch (e) {
+                if (e.name === 'AbortError') return;
+                window.location.href = url.toString();
+            }
+        }
+
+        function updateSearchClearButton(hasValue) {
+            // Room on the right for every icon sitting over the input: clear, and scan.
+            const icons = (hasValue ? 1 : 0) + (document.getElementById('filterScanBtn') ? 1 : 0);
+            filterInput.classList.remove('pr-8', 'pr-14');
+            if (icons) filterInput.classList.add(icons === 2 ? 'pr-14' : 'pr-8');
+            let btn = document.getElementById('searchClearBtn');
+            if (hasValue && !btn) {
+                btn = document.createElement('button');
+                btn.id = 'searchClearBtn';
+                btn.type = 'button';
+                btn.onclick = clearSearchLive;
+                btn.className = 'flex items-center text-gray-400 hover:text-red-500 transition-colors';
+                btn.innerHTML = '<i class="fa-solid fa-circle-xmark"></i>';
+                document.getElementById('searchActions').prepend(btn);
+            } else if (!hasValue && btn) {
+                btn.remove();
+            }
+        }
+
+        // Looks the code up across the whole shelf rather than inside the current filters:
+        // a type or a location left selected would hide the very item being looked for.
+        // The server opens the item straight away when the code names exactly one.
+        function scanIntoFilter() {
+            DVScanner.start({
+                onCode(code) {
+                    const url = new URL(window.location.origin + window.location.pathname);
+                    url.searchParams.set('search', code);
+                    url.searchParams.set('scanned', '1');
+                    window.location.href = url.toString();
+                }
+            }).catch(err => {
+                console.error('Error starting scan', err);
+                alert(<%- JSON.stringify(t('add_vinyl.scan_error')) %>);
+            });
+        }
+
+        // A scan that did not land on a single item shows its matches here. The marker is
+        // dropped from the address so a reload or a shared link is a plain search.
+        (() => {
+            const params = new URLSearchParams(window.location.search);
+            if (!params.has('scanned')) return;
+            params.delete('scanned');
+            history.replaceState(history.state, '', window.location.pathname + '?' + params.toString());
+        })();
+
+        function clearSearchLive() {
+            if (!filterInput) return;
+            filterInput.value = '';
+            clearTimeout(searchDebounceTimer);
+            if (!liveSearchEnabled) return reloadPage();
+            liveSearchReload();
+            filterInput.focus();
+        }
+
         function setFilterMode(mode) {
             currentFilterMode = mode;
+            reloadPage();
+        }
+
+        function setView(id) {
+            currentView = id;
             reloadPage();
         }
 
@@ -533,11 +640,28 @@
         }
 
         document.querySelectorAll('.filter-input-textbox').forEach(element => {
+            // The search box gets its own live-update handling below
+            if (element === filterInput && liveSearchEnabled) return;
             element.addEventListener('keydown', (e) => {
                 if (e.key !== 'Enter') return;
                 reloadPage();
             });
         });
+
+        // Live search: updates in place shortly after typing pauses, no Enter needed
+        // and no page reload (see liveSearchReload). Debounced so a fetch isn't fired
+        // on every keystroke.
+        if (filterInput && liveSearchEnabled) {
+            filterInput.addEventListener('input', () => {
+                clearTimeout(searchDebounceTimer);
+                searchDebounceTimer = setTimeout(() => liveSearchReload(), 350);
+            });
+            filterInput.addEventListener('keydown', (e) => {
+                if (e.key !== 'Enter') return;
+                clearTimeout(searchDebounceTimer);
+                liveSearchReload();
+            });
+        }
 
         // A date/number input fires 'change' once the value is complete, so applying
         // right away does not reload half-typed bounds.
@@ -559,12 +683,14 @@
             const sort = new URLSearchParams(window.location.search).get('sort');
             const limit = new URLSearchParams(window.location.search).get('limit');
             const filterMode = new URLSearchParams(window.location.search).get('filterMode');
+            const view = new URLSearchParams(window.location.search).get('view');
             
             if (type) url.searchParams.set('type', type);
             if (format) url.searchParams.set('format', format);
             if (sort) url.searchParams.set('sort', sort);
             if (limit) url.searchParams.set('limit', limit);
             if (filterMode) url.searchParams.set('filterMode', filterMode);
+            if (view) url.searchParams.set('view', view);
             
             url.searchParams.set('page', 1);
             window.location.href = url.toString();
@@ -800,3 +926,6 @@
             reloadPage();
         }
 </script>
+<% if (!locals.isShareView) { %>
+    <%- include('barcode-scanner') %>
+<% } %>

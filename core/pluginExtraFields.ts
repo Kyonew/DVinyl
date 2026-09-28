@@ -1,6 +1,11 @@
 import { PluginDefinition, FieldDefinition } from './types';
 import { CustomFieldConfig } from './customPlugin';
 import { RESERVED_FIELD_NAMES, FIELD_NAME_RE, FIELD_TYPES, cleanText, slugify } from './customPluginStore';
+import {
+  createExtraFieldKey,
+  EXTRA_FIELD_KEY_VERSION,
+  isManagedExtraFieldKey
+} from './extraFieldIdentity';
 
 /**
  * Per-collection user-defined fields added on top of a plugin's own fields, for
@@ -17,7 +22,10 @@ import { RESERVED_FIELD_NAMES, FIELD_NAME_RE, FIELD_TYPES, cleanText, slugify } 
  * raw) and definitions ride inside the Settings documents.
  */
 
-export type ExtraFieldConfig = CustomFieldConfig;
+export type ExtraFieldConfig = CustomFieldConfig & {
+  /** Versioned marker distinguishing generated identities from legacy label slugs. */
+  keyVersion?: number;
+};
 
 export const MAX_EXTRA_FIELDS_PER_PLUGIN = 15;
 
@@ -40,6 +48,69 @@ export function reservedNamesFor(plugin: PluginDefinition): Set<string> {
   if (plugin.creatorField) taken.add(plugin.creatorField);
   if (plugin.externalIdField) taken.add(plugin.externalIdField);
   return taken;
+}
+
+/** Lowercased, accents and punctuation dropped: "Signed by" and "signed_by" compare equal. */
+function comparableName(value: unknown): string {
+  return String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+export type NativeLookalike = {
+  /** The user-defined field's key and label. */
+  name: string;
+  label: string;
+  /** The plugin's own field it looks like, its label still an i18n key. */
+  nativeName: string;
+  nativeLabel: string;
+};
+
+/**
+ * User-defined fields that look like one of the plugin's own fields: the same name or
+ * label once case, accents and punctuation are ignored. Their keys can no longer
+ * collide (see extraFieldIdentity.ts), but a field added by hand before the plugin
+ * shipped its own is then filled in twice. Only reported, never changed: keeping both
+ * can be deliberate.
+ *
+ * `labelsFor` gives every reading of a native label key (one per language), since a
+ * field may have been named in another language than the one the admin reads.
+ */
+export function findNativeLookalikes(
+  plugin: PluginDefinition,
+  defs: ExtraFieldConfig[],
+  labelsFor: (key: string) => string[]
+): NativeLookalike[] {
+  const natives = (plugin.formFields || []).filter(f =>
+    !f.extraField && f.type !== 'custom' && f.group !== 'hidden'
+  );
+  const found: NativeLookalike[] = [];
+  for (const def of defs) {
+    const wanted = comparableName(def.label);
+    if (!wanted) continue;
+    const match = natives.find(f =>
+      comparableName(f.name) === wanted ||
+      labelsFor(f.label).some(l => comparableName(l) === wanted)
+    );
+    if (match) found.push({ name: def.name, label: def.label, nativeName: match.name, nativeLabel: match.label });
+  }
+  return found;
+}
+
+/** findNativeLookalikes over every plugin given, keyed by plugin id, leaving out the clean ones. */
+export function nativeLookalikesByPlugin(
+  settings: any,
+  plugins: PluginDefinition[],
+  labelsFor: (key: string) => string[]
+): Record<string, NativeLookalike[]> {
+  const out: Record<string, NativeLookalike[]> = {};
+  for (const plugin of plugins) {
+    const found = findNativeLookalikes(plugin, getExtraFields(settings, plugin.id), labelsFor);
+    if (found.length > 0) out[plugin.id] = found;
+  }
+  return out;
 }
 
 /** Turns stored definitions into form fields the generic views already know how to render. */
@@ -235,20 +306,30 @@ export function reviveExtraDates(item: any, dateFields: Set<string>): void {
  * the i18n keys of what went wrong. Mirrors the custom-plugin field rules so both
  * editors accept exactly the same shapes.
  */
-export function sanitizeExtraFields(raw: any, plugin: PluginDefinition): { fields: ExtraFieldConfig[]; errors: string[] } {
+export function sanitizeExtraFields(
+  raw: any,
+  plugin: PluginDefinition,
+  existing: ExtraFieldConfig[] = []
+): { fields: ExtraFieldConfig[]; errors: string[] } {
   const errors: string[] = [];
   const fields: ExtraFieldConfig[] = [];
   const taken = reservedNamesFor(plugin);
   const seen = new Set<string>();
+  const existingByName = new Map(existing.map(field => [field.name, field]));
+  const unavailable = new Set([...taken, ...existingByName.keys()]);
 
   for (const item of Array.isArray(raw) ? raw.slice(0, MAX_EXTRA_FIELDS_PER_PLUGIN) : []) {
     const label = cleanText(item?.label, 40);
     if (!label) continue; // ignore empty builder rows
 
-    // An existing field keeps its stored name so renaming its label never orphans
-    // the values already saved under the old key.
+    // Only a name already present in Settings identifies an existing field. A crafted
+    // client cannot choose the storage key of a new field, and changing the label of an
+    // existing one never moves its data.
     const submitted = cleanText(item?.name, 30);
-    const name = FIELD_NAME_RE.test(submitted) ? submitted : slugify(label).replace(/-/g, '_');
+    const previous = existingByName.get(submitted);
+    const name = previous
+      ? previous.name
+      : createExtraFieldKey(new Set([...unavailable, ...seen]));
     if (!FIELD_NAME_RE.test(name)) { errors.push('create_plugin.err_bad_field_name'); continue; }
     if (taken.has(name)) { errors.push('create_plugin.err_reserved_field'); continue; }
     if (seen.has(name)) { errors.push('create_plugin.err_duplicate_field'); continue; }
@@ -262,6 +343,9 @@ export function sanitizeExtraFields(raw: any, plugin: PluginDefinition): { field
       required: item?.required === true || item?.required === 'true',
       group: item?.group === 'main' ? 'main' : 'metadata'
     };
+    if (!previous || isManagedExtraFieldKey(previous.name, previous.keyVersion)) {
+      field.keyVersion = EXTRA_FIELD_KEY_VERSION;
+    }
 
     const placeholder = cleanText(item?.placeholder, 60);
     if (placeholder) field.placeholder = placeholder;

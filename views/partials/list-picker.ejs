@@ -1,0 +1,219 @@
+<%# "Add to a list", shared by the item page, the track modal and the collection's bulk bar.
+    Include once per page, for editors only, then call from anywhere:
+      openListPicker({ kind: 'items', item: id })          one item, each list toggles it
+      openListPicker({ kind: 'tracks', item: id, track })  one track, same
+      openListPicker({ kind: 'items', items: [ids] })      a selection, each list adds it
+    A list can also be created from here, and the picker then puts the item in it. %>
+<div id="listPicker" class="fixed inset-0 z-[60] hidden bg-black/70 backdrop-blur-sm items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="card-theme w-full sm:max-w-md max-h-[85vh] rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+        <div class="flex items-start justify-between gap-4 px-5 pt-5 pb-3">
+            <div class="min-w-0">
+                <h3 id="listPickerTitle" class="font-bold text-base"></h3>
+                <p id="listPickerSubtitle" class="text-xs opacity-50"></p>
+            </div>
+            <button type="button" data-list-picker-close class="opacity-40 hover:opacity-100 transition-opacity p-1 shrink-0" aria-label="<%= t('common.cancel') %>">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+
+        <div id="listPickerRows" class="overflow-y-auto custom-scrollbar px-3 pb-2 space-y-1 min-h-[3rem]"></div>
+        <p id="listPickerEmpty" class="hidden px-5 pb-3 text-sm opacity-50"></p>
+
+        <form id="listPickerNew" class="flex items-center gap-2 px-5 py-4 border-t border-black/10 dark:border-white/10">
+            <input type="text" id="listPickerNewName" maxlength="60" autocomplete="off"
+                placeholder="<%= t('lists.new_placeholder') %>"
+                class="flex-1 min-w-0 bg-black/5 dark:bg-white/5 rounded-lg text-sm p-2.5 outline-none focus:ring-1 focus:ring-primary-theme">
+            <button type="submit"
+                class="shrink-0 px-4 py-2.5 bg-primary-theme text-white rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all">
+                <i class="fa-solid fa-plus mr-1"></i><%= t('lists.create_short') %>
+            </button>
+        </form>
+        <p id="listPickerError" class="hidden px-5 pb-4 -mt-2 text-xs font-bold text-red-500"></p>
+    </div>
+</div>
+
+<script>
+(function () {
+    const base = '<%= baseUrl %>';
+    const text = <%- JSON.stringify({
+        titleItems: t('lists.picker_title_items'),
+        titleTracks: t('lists.picker_title_tracks'),
+        selection: { one: t('lists.picker_selection_one'), other: t('lists.picker_selection_other') },
+        noItemsLists: t('lists.picker_empty_items'),
+        noTracksLists: t('lists.picker_empty_tracks'),
+        add: t('lists.picker_add'),
+        added: { one: t('lists.picker_added_one'), other: t('lists.picker_added_other') },
+        entries: { one: t('lists.entries_count_one'), other: t('lists.entries_count_other') },
+        tracks: { one: t('lists.tracks_count_one'), other: t('lists.tracks_count_other') },
+        error: t('errors.generic_server_error')
+    }).replace(/</g, '\\u003c') %>;
+    // The counts are filled in here, so the plural form is picked here too, by the rules
+    // of the page's language, from the two forms the locale files give.
+    const plurals = new Intl.PluralRules(document.documentElement.lang || 'en');
+    const counted = (forms, count) =>
+        (plurals.select(count) === 'one' ? forms.one : forms.other).replace('{{count}}', count);
+
+    const picker = document.getElementById('listPicker');
+    const rows = document.getElementById('listPickerRows');
+    const empty = document.getElementById('listPickerEmpty');
+    const error = document.getElementById('listPickerError');
+    const newName = document.getElementById('listPickerNewName');
+    let target = null;
+
+    const post = (url, body) => fetch(base + url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(body)
+    }).then(async res => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.success) throw new Error(data.error || text.error);
+        return data;
+    });
+
+    function showError(message) {
+        error.textContent = message || text.error;
+        error.classList.remove('hidden');
+    }
+
+    // What one list line sends: the selection as a whole, or the single item/track.
+    function payload() {
+        if (target.items) return { items: target.items };
+        return target.kind === 'tracks' ? { item: target.item, track: target.track } : { items: [target.item] };
+    }
+
+    function countLabel(count) {
+        return counted(target.kind === 'tracks' ? text.tracks : text.entries, count);
+    }
+
+    function drawRow(list) {
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors';
+
+        const info = document.createElement('div');
+        info.className = 'flex-1 min-w-0';
+        const name = document.createElement('div');
+        name.className = 'text-sm font-bold truncate';
+        name.textContent = list.name;
+        const count = document.createElement('div');
+        count.className = 'text-[11px] opacity-50';
+        count.textContent = countLabel(list.count);
+        info.append(name, count);
+
+        if (target.items) {
+            // A selection is only ever added: taking a whole selection back out of a list
+            // is done from the list itself, line by line.
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold bg-primary-theme/10 text-primary-theme hover:bg-primary-theme hover:text-white transition-all';
+            button.textContent = text.add;
+            button.addEventListener('click', async () => {
+                button.disabled = true;
+                try {
+                    const data = await post(`/api/lists/${list.id}/add`, payload());
+                    button.textContent = counted(text.added, data.added);
+                    button.className = 'shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold text-green-600';
+                    count.textContent = countLabel(data.count);
+                } catch (err) {
+                    button.disabled = false;
+                    showError(err.message);
+                }
+            });
+            row.append(info, button);
+        } else {
+            const box = document.createElement('input');
+            box.type = 'checkbox';
+            box.checked = !!list.contains;
+            box.className = 'w-5 h-5 accent-primary-theme cursor-pointer shrink-0';
+            box.addEventListener('change', async () => {
+                box.disabled = true;
+                try {
+                    const route = box.checked ? 'add' : 'remove';
+                    const data = await post(`/api/lists/${list.id}/${route}`, box.checked ? payload() : { item: target.item, track: target.track });
+                    list.count = data.count ?? (list.count + (box.checked ? 1 : -1));
+                    count.textContent = countLabel(list.count);
+                } catch (err) {
+                    box.checked = !box.checked;
+                    showError(err.message);
+                } finally {
+                    box.disabled = false;
+                }
+            });
+            const label = document.createElement('label');
+            label.className = 'flex items-center gap-3 flex-1 min-w-0 cursor-pointer';
+            label.append(box, info);
+            row.append(label);
+        }
+        return row;
+    }
+
+    async function load() {
+        rows.innerHTML = '<div class="py-4 text-center opacity-40"><i class="fa-solid fa-circle-notch fa-spin"></i></div>';
+        const params = new URLSearchParams({ kind: target.kind });
+        if (target.item) params.set('item', target.item);
+        if (target.track) params.set('track', target.track);
+        try {
+            const res = await fetch(`${base}/api/lists?${params}`, { headers: { 'Accept': 'application/json' } });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.error);
+            rows.innerHTML = '';
+            data.lists.forEach(list => rows.appendChild(drawRow(list)));
+            empty.textContent = target.kind === 'tracks' ? text.noTracksLists : text.noItemsLists;
+            empty.classList.toggle('hidden', data.lists.length > 0);
+        } catch (err) {
+            rows.innerHTML = '';
+            showError(err.message);
+        }
+    }
+
+    function close() {
+        picker.classList.add('hidden');
+        picker.classList.remove('flex');
+        target = null;
+    }
+
+    window.openListPicker = function (options) {
+        target = options;
+        document.getElementById('listPickerTitle').textContent = options.kind === 'tracks' ? text.titleTracks : text.titleItems;
+        document.getElementById('listPickerSubtitle').textContent = options.items
+            ? counted(text.selection, options.items.length)
+            : (options.label || '');
+        error.classList.add('hidden');
+        newName.value = '';
+        picker.classList.remove('hidden');
+        picker.classList.add('flex');
+        load();
+    };
+
+    document.getElementById('listPickerNew').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const name = newName.value.trim();
+        if (!name || !target) return;
+        error.classList.add('hidden');
+        try {
+            const created = await post('/lists', { name, kind: target.kind });
+            const data = await post(`/api/lists/${created.list.id}/add`, payload());
+            newName.value = '';
+            const list = { ...created.list, count: data.count, contains: true };
+            empty.classList.add('hidden');
+            const row = drawRow(list);
+            rows.prepend(row);
+            // The new list already holds what the picker was opened on: say so on its row.
+            const button = row.querySelector('button');
+            if (button) {
+                button.disabled = true;
+                button.textContent = counted(text.added, data.added);
+                button.className = 'shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold text-green-600';
+            }
+        } catch (err) {
+            showError(err.message);
+        }
+    });
+
+    picker.addEventListener('click', event => {
+        if (event.target === picker || event.target.closest('[data-list-picker-close]')) close();
+    });
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && target) close();
+    });
+})();
+</script>

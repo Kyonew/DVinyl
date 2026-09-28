@@ -50,6 +50,20 @@ const itemSchema = new mongoose.Schema({
   styles: [String],
   barcode: { type: String, default: '' },
   barcode_locked: { type: Boolean, default: false },
+
+  // Which external source filled this item in, and the id it carries over there. Kept
+  // next to each other because neither means anything alone: two databases hand out the
+  // same numbers for unrelated things, so only the pair identifies a record.
+  //
+  // The plugins' own typed id paths (discogs_id, igdb_id...) stay written exactly as
+  // before: they are what the price estimates, the duplicate lookups and the external
+  // links have always read. This pair is what lets an item say where it came from when
+  // that is not the plugin's historical provider.
+  //
+  // Stored as text whatever the source's own type: it is an opaque reference here, and
+  // a source is free to hand out slugs.
+  source: { type: String, default: '' },
+  source_id: { type: String, default: '' },
   added_at: { type: Date, default: Date.now },
 
   // Values of the user-defined fields declared per collection in

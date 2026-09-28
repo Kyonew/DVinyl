@@ -20,7 +20,7 @@
             return entry;
         })).replace(/</g, '\\u003c') %>;
 
-        let banner, desc, submitBtn;
+        let banner, desc, submitBtns;
 
         const defaultBtnHTML = `<i class="fa-solid fa-check"></i> <%= t('confirm_' + plugin.i18nKey + '.btn_collection', { defaultValue: t('confirm_vinyl.btn_collection') }) %>`;
         const addAnywayBtnHTML = `<i class="fa-solid fa-plus"></i> <%= t('common.btn_add_anyway') %>`;
@@ -53,10 +53,10 @@
                 banner.style.display = 'flex';
                 const descTemplate = `<%= t('common.already_in_collection_desc', { qty: '__QTY__' }) %>`;
                 desc.innerHTML = descTemplate.replace('__QTY__', match.quantity || 1);
-                if (submitBtn) submitBtn.innerHTML = addAnywayBtnHTML;
+                submitBtns.forEach(btn => btn.innerHTML = addAnywayBtnHTML);
             } else {
                 banner.style.display = 'none';
-                if (submitBtn) submitBtn.innerHTML = defaultBtnHTML;
+                submitBtns.forEach(btn => btn.innerHTML = defaultBtnHTML);
             }
         }
 
@@ -64,7 +64,9 @@
         document.addEventListener('DOMContentLoaded', () => {
             banner = document.getElementById('duplicate-warning-banner');
             desc = document.getElementById('duplicate-warning-desc');
-            submitBtn = document.querySelector('button[name="in_wishlist"][value="false"]');
+            // A duplicate is just as much a duplicate whichever "add to collection" button
+            // triggers it - the page can offer more than one (e.g. a shortcut near the top).
+            submitBtns = Array.from(document.querySelectorAll('button[name="in_wishlist"][value="false"]'));
 
             dupFields.forEach(name => {
                 document.querySelectorAll(`[name="${name}"]`).forEach(el => {

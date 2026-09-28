@@ -2,6 +2,7 @@ import Item from '../models/Item';
 import { PluginDefinition } from '../core/types';
 import { PermanentRefreshError, syncStamp } from '../core/helpers';
 import { alignImagesAfterRefresh } from '../core/itemImages';
+import { refreshPatchFor } from '../core/sources';
 import { deleteUnusedManagedItemImages } from '../core/itemImageStorage';
 import { RefreshMode } from './refreshJobs';
 
@@ -32,9 +33,16 @@ export async function collectRefreshItems(
 ): Promise<any[]> {
   const idField = plugin.externalIdField || '_id';
 
+  // An item qualifies on either reference: the plugin's own id field, which is what
+  // everything added before sources existed carries, or the stored source pair, which
+  // is the only thing an item filled in from another database has. Selecting on the id
+  // field alone would leave those out of every bulk run, silently.
   const query: any = {
     collection: collectionId,
-    [idField]: { $exists: true, $ne: null }
+    $or: [
+      { [idField]: { $exists: true, $ne: null } },
+      { source_id: { $exists: true, $nin: [null, ''] } }
+    ]
   };
 
   if (plugin.matchesLegacyItems) {
@@ -85,7 +93,7 @@ export async function runPluginRefresh(
     let attempts = 0;
     while (!success && attempts < 3) {
       try {
-        const refreshedData = await plugin.refreshItem!(item, req);
+        const refreshedData = await refreshPatchFor(plugin, item, req);
         // "missing" mode only backfills genre metadata, never clobbering cover/description/
         // publisher/etc that the user may have edited by hand.
         let dataToApply = refreshedData;

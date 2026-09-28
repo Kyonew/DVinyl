@@ -1,4 +1,5 @@
 import express, { Router } from 'express';
+import crypto from 'crypto';
 import mongoose from 'mongoose';
 import QRCode from 'qrcode';
 import { PluginDefinition } from '../types';
@@ -6,20 +7,62 @@ import Item from '../../models/Item';
 import User from '../../models/User';
 import { BASE_URL } from '../../config/constants';
 import { requireAuth, requireAuthOrShareView, requireCollectionRole } from '../../middleware/authMiddleware';
-import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback, editStamp, syncStamp, safeReturnPath, getPublicProtocol, generateBarcodeDataUrl } from '../helpers';
+import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback, editStamp, syncStamp, safeReturnPath, confirmPathFor, getPublicProtocol, generateBarcodeDataUrl, escapeRegExp } from '../helpers';
 import { DEFAULT_PLACEHOLDER_IMAGE } from '../placeholderImage';
 import { alignImagesAfterRefresh, imagesForItem, imagesFromForm, ItemImageValidationError, MAX_ITEM_IMAGES, MAX_ITEM_IMAGE_BYTES } from '../itemImages';
 import { deleteUnusedManagedItemImages } from '../itemImageStorage';
 import { getExtraFields, toFieldDefinitions } from '../pluginExtraFields';
 import { buildFieldSuggestions } from '../fieldSuggestions';
+import { resolveShelfLocation } from '../shelfStore';
 import { deleteItemsAndContents, moveContentsToWishlist } from '../../utils/itemHelpers';
 import { applyVisibilityFilter, applyShareScopeFilter, applyPluginKindFilter, isWithinShareScope } from '../../utils/visibilityHelper';
+import { hasSearch, searchableSources, resolveSource, canRefresh, refreshPatchFor } from '../sources';
+
+/**
+ * Names what was just saved in the path an add comes back to, so the add page can say so.
+ * It is the one place that needs telling: the collection listing shows the new item itself,
+ * while the add page someone scanning is sent back to looks untouched otherwise.
+ *
+ * `qty` rides along only when the add landed on an item already there, which while working
+ * through a stack is the thing worth noticing.
+ */
+function withAddedNotice(path: string, title: string, mergedQuantity: number | null): string {
+  const [base, existingQuery] = path.split('?');
+  const params = new URLSearchParams(existingQuery || '');
+  params.set('added', title || '');
+  if (mergedQuantity && mergedQuantity > 1) params.set('qty', String(mergedQuantity));
+  return `${base}?${params.toString()}`;
+}
+
+// How long the search's go-ahead for a self-submitting confirm page stays valid: the
+// redirect is followed at once, so anything slower is not that redirect.
+const INSTANT_ADD_TTL_MS = 2 * 60 * 1000;
+
+/**
+ * Lets exactly one confirm page submit itself, the one this session's own search just
+ * redirected to. A self-submitting page is an add nobody clicks, so reaching it has to take
+ * more than a URL: without the token, any other site could send a signed-in user to a
+ * confirm link asking for it and have the item added under their name.
+ */
+function issueInstantAddToken(req: any, pluginId: string): string {
+  const token = crypto.randomBytes(16).toString('hex');
+  if (req.session) req.session.instantAdd = { token, pluginId, expires: Date.now() + INSTANT_ADD_TTL_MS };
+  return token;
+}
+
+/** True once per token issued above, for the plugin it was issued for. */
+function consumeInstantAddToken(req: any, pluginId: string, token: unknown): boolean {
+  const issued = req.session?.instantAdd;
+  if (!issued || typeof token !== 'string' || !token) return false;
+  delete req.session.instantAdd;
+  return issued.token === token && issued.pluginId === pluginId && Date.now() <= issued.expires;
+}
 
 export function createItemRoutes(plugin: PluginDefinition): Router {
   const router = express.Router();
 
   // EXTERNAL SEARCH
-  if (plugin.searchProvider) {
+  if (hasSearch(plugin)) {
     // GET /add-{type} -> render 'add' page
     router.get(`/add-${plugin.id}`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
       try {
@@ -27,8 +70,14 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         res.render('add', {
           results: null,
           searchType: formatParam || plugin.id,
+          // What the add this page was returned to saved (see withAddedNotice), since
+          // nothing else on the page would show it.
+          addedTitle: typeof req.query.added === 'string' ? req.query.added : '',
+          addedQuantity: parseInt(String(req.query.qty || ''), 10) || 0,
           user: res.locals.user,
           currentType: `add-${plugin.id}`,
+          sources: searchableSources(plugin, res.locals.settings),
+          activeSource: resolveSource(plugin, null, res.locals.settings)?.id || '',
           plugin
         });
       } catch (err: any) {
@@ -41,6 +90,18 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
     router.post(`/search-${plugin.id}`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
       const { query, type, year, country, genre_filter, label_filter } = req.body;
       const rawQuery = typeof query === 'string' ? query.trim() : '';
+      // The fields the plugin's own search form partial adds, as strings only. Every
+      // render of the page below hands them back, so the partial shows them as picked.
+      const searchFields: Record<string, string> = {};
+      for (const name of plugin.searchFormFields || []) {
+        const value = req.body[name];
+        if (typeof value === 'string' && value.trim()) searchFields[name] = value.trim();
+      }
+      res.locals.searchFields = searchFields;
+      // Which database to ask. The form only offers the picker when the plugin has more
+      // than one configured, so most searches arrive without it and take the default.
+      const source = resolveSource(plugin, req.body.source, res.locals.settings);
+      const sources = searchableSources(plugin, res.locals.settings);
       let searchQuery = rawQuery;
       // A search run after a scan posts the code back (hidden field in add.ejs), so
       // correcting the product name by hand no longer detaches it from the saved item.
@@ -49,6 +110,16 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       // Set only when this request resolved a barcode: the fallback below rewrites a
       // seller's product name, never what the user typed themselves.
       let resolvedTitle = '';
+      // Scan mode, and a query the chosen source reads as one exact item (an ISBN for
+      // Hardcover) rather than a description. However the search turns out the box goes
+      // back empty, so the next scan does not type itself onto the end of this one.
+      const exactIdentifier = res.locals.settings?.instantAdd === true
+        && !!source?.exactQuery?.(rawQuery);
+      // The same code, kept for the manual entry link: a provider that has never heard of
+      // this ISBN is the usual reason to type a book in by hand, and the number is the one
+      // field on that form nobody can look up. Stored without the hyphens it may have been
+      // typed with, so it matches how an item added through a provider records its own.
+      const identifierCode = exactIdentifier ? rawQuery.replace(/[- ]/g, '') : '';
 
       try {
         // Scanned barcode: resolve to a product title via UPC lookup first
@@ -67,6 +138,8 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
               scanned_barcode: barcode,
               user: res.locals.user,
               currentType: `add-${plugin.id}`,
+              sources,
+              activeSource: source?.id || '',
               plugin
             });
           }
@@ -75,7 +148,25 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         }
 
         const settings = res.locals.settings;
-        const runSearch = (q: string) => plugin.searchProvider!.search(q, {
+        if (!source) {
+          // Every source the plugin declares is missing its credentials. Nothing to ask,
+          // and nothing the user can do about it from here.
+          return res.render('add', {
+            results: [],
+            error: req.t('errors.api_error', { provider: req.t(plugin.label) }),
+            searchType: type || plugin.id,
+            searchQuery: rawQuery,
+            scanned_barcode: scannedBarcode,
+            user: res.locals.user,
+            currentType: `add-${plugin.id}`,
+            sources,
+            activeSource: '',
+            plugin
+          });
+        }
+
+        const runSearch = (q: string) => source.search(q, {
+          ...searchFields,
           type: type || plugin.id,
           year,
           country,
@@ -97,33 +188,68 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
 
         // What the search box shows on the way back. After a scan the digits are useless
         // there: on a hit it is the query that actually matched, and on a miss the whole
-        // product name, which is the thing the user has to correct.
-        const boxQuery = resolvedTitle
-          ? (results.length > 0 ? searchQuery : resolvedTitle)
+        // product name, which is the thing the user has to correct. An identifier is
+        // neither, and leaves the box empty: the code it stood for is named in the notice
+        // below instead, which is the only place it is still worth reading.
+        const boxQuery = exactIdentifier ? ''
+          : resolvedTitle ? (results.length > 0 ? searchQuery : resolvedTitle)
           : rawQuery;
+
+        // The id a result carries only means something next to the database that handed
+        // it out, so it travels with it: the confirm link needs to ask the same source
+        // for the details, and the item ends up storing the pair.
+        for (const result of results) {
+          result.source = source.id;
+          result.confirmPath = confirmPathFor(plugin.id, result, { searchType: type, scannedBarcode });
+        }
+
+        // Scan mode: the query named one exact item and one thing came back, so there is
+        // nothing to choose between. Straight to the confirm page, which submits itself.
+        // Never after a barcode was resolved to a product name: that hit is a guess. The
+        // path carries the source and the provider's confirmQuery like a result card does,
+        // which is what makes the searched ISBN's edition the one saved.
+        const onlyHit = results.length === 1 ? results[0] : undefined;
+        if (exactIdentifier && !resolvedTitle && onlyHit?.confirmPath) {
+          const path = onlyHit.confirmPath;
+          const token = issueInstantAddToken(req, plugin.id);
+          return res.redirect(`${path}${path.includes('?') ? '&' : '?'}instant=${token}`);
+        }
 
         res.render('add', {
           results,
           // Nothing matched a product name the user never got to see: show it instead of
-          // the digits so it can be corrected, the barcode rides along with the form.
-          error: resolvedTitle && results.length === 0 ? req.t('add_vinyl.barcode_no_match') : undefined,
+          // the digits so it can be corrected, the barcode rides along with the form. A
+          // scanned identifier that found nothing has to say which one, the box it was
+          // typed into having been emptied for the next item.
+          error: results.length > 0 ? undefined
+            : exactIdentifier ? req.t('add.identifier_no_match', { code: rawQuery })
+            : resolvedTitle ? req.t('add_vinyl.barcode_no_match')
+            : undefined,
           searchType: type || plugin.id,
           searchQuery: boxQuery,
+          identifierCode,
           scanned_barcode: scannedBarcode,
           user: res.locals.user,
           currentType: `add-${plugin.id}`,
+          sources,
+          activeSource: source.id,
           plugin
         });
       } catch (err: any) {
         console.error(`Search error for ${plugin.id}:`, err.message);
         res.render('add', {
           results: [],
-          error: req.t('errors.api_error', { provider: plugin.searchProvider!.name }),
+          error: req.t('errors.api_error', { provider: source?.name || req.t(plugin.label) }),
           searchType: type || plugin.id,
-          searchQuery: rawQuery,
+          // Emptied here too: a provider that failed is a reason to scan the item again,
+          // which needs the box clear as much as a miss does.
+          searchQuery: exactIdentifier ? '' : rawQuery,
+          identifierCode,
           scanned_barcode: scannedBarcode,
           user: res.locals.user,
           currentType: `add-${plugin.id}`,
+          sources,
+          activeSource: source?.id || '',
           plugin
         });
       }
@@ -133,16 +259,28 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
     router.get(`/confirm-${plugin.id}/:id`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
       const externalId = req.params.id;
       const searchTypeHint = req.query.type as string | undefined;
+      // The id in the path was handed out by the source the result came from, carried
+      // here by the result card. An unknown or dropped one falls back to the plugin's
+      // default source, which is what every link predating this carries.
+      const source = resolveSource(plugin, req.query.source as string | undefined, res.locals.settings);
 
       try {
+        if (!source) throw new Error('no source configured');
+
         // The query string is forwarded whole rather than key by key: what a provider needs
         // to narrow a result down is its own business (TMDB asks which season), and the core
         // has no reason to learn the vocabulary of each one.
-        const details = await plugin.searchProvider!.getDetails(externalId, {
+        const details = await source.getDetails(externalId, {
           ...req.query,
           type: searchTypeHint,
           language: req.language
         });
+
+        // Where this item is about to come from. Written on the confirm form as a hidden
+        // pair so the save handler stores it, which is what lets the item be traced back
+        // to the right database later on.
+        details.source = source.id;
+        details.source_id = String(externalId);
         const activeCollectionId = res.locals.activeCollectionId;
 
         // Providers return the creator under a generic `creator` key; make sure
@@ -179,16 +317,24 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           currentType: plugin.collectionType,
           existingItems: existingItemsArray,
           plugin,
-          isManual: false
+          isManual: false,
+          // Scan mode sends every add back to the add page, whether it submitted itself or
+          // was finished by hand here; `instantAdd` is the search route saying this page was
+          // reached by a scan that resolved to one exact item and needs no clicking, which
+          // only its own one-time token can say.
+          scanMode: res.locals.settings?.instantAdd === true,
+          instantAdd: res.locals.settings?.instantAdd === true && consumeInstantAddToken(req, plugin.id, req.query.instant)
         });
       } catch (err: any) {
         console.error(`Details fetch error for ${plugin.id} ID ${externalId}:`, err.message);
         res.render('add', {
           results: [],
-          error: `${req.t('errors.api_error', { provider: plugin.searchProvider!.name })} (${err.message})`,
+          error: `${req.t('errors.api_error', { provider: source?.name || req.t(plugin.label) })} (${err.message})`,
           searchType: searchTypeHint || plugin.id,
           user: res.locals.user,
           currentType: `add-${plugin.id}`,
+          sources: searchableSources(plugin, res.locals.settings),
+          activeSource: source?.id || '',
           plugin
         });
       }
@@ -273,6 +419,14 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         const defaults = plugin.getManualDefaults!();
         const activeCollectionId = res.locals.activeCollectionId;
 
+        // Handed over by the add page when a code found nothing there: the book is still in
+        // someone's hand and its number is the one field on this form that cannot be looked
+        // up, so it is filled in rather than read off the cover a second time. Ordinary form
+        // input from here on, free to be corrected or cleared like anything else.
+        if (typeof req.query.barcode === 'string' && req.query.barcode) {
+          defaults.barcode = req.query.barcode;
+        }
+
         const suggestions = await buildFieldSuggestions(plugin, activeCollectionId, defaults);
         const genres = await Item.distinct('genre', {
           collection: activeCollectionId,
@@ -288,7 +442,11 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           currentType: plugin.collectionType,
           existingItems: [],
           plugin,
-          isManual: true
+          isManual: true,
+          // Typed in by hand rather than scanned, so nothing submits itself here; what scan
+          // mode still owes this form is landing back on the add page afterwards.
+          scanMode: res.locals.settings?.instantAdd === true,
+          instantAdd: false
         });
       } catch (err: any) {
         console.error(`Error loading manual add for ${plugin.id}:`, err.message);
@@ -309,6 +467,11 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       const adminId = req.user._id;
       const activeCollectionId = res.locals.activeCollectionId;
       const isWishlist = in_wishlist === 'true';
+      // Where an add goes next when the form asks for somewhere other than the collection:
+      // the add page it came from, in scan mode. Validated like any other path handed over
+      // by a form, and left out of the wishlist and edit cases, which have their own
+      // destination and did not come from a scan.
+      const afterAdd = safeReturnPath(req.body.after_add, req.get('host'));
       const isBarcodeLocked = barcode_locked === 'on' || barcode_locked === 'true' || barcode_locked === true;
 
       const { genres: parsedGenres, styles: parsedStyles } = parseGenresAndStyles(genres, styles);
@@ -332,7 +495,9 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         images: submittedImages,
         in_wishlist: isWishlist,
         comments: comments || '',
-        location: location || '',
+        // Never the raw form value: the store is what turns it into the one spelling
+        // the collection uses, and what creates the shelf when the picker invented one.
+        location: await resolveShelfLocation(activeCollectionId, location),
         quantity: parseInt(quantity) || 1,
         genre: req.body.genre || (parsedGenres.length > 0 ? parsedGenres[0] : ''),
         genres: parsedGenres,
@@ -407,6 +572,15 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         }
       }
 
+      // Which database this save came from. Not a plugin schema path (every item carries
+      // the pair, whatever its plugin), so the loop above does not pick it up. Taken only
+      // when the form actually posts it: a manual add posts neither, and must not blank
+      // the reference an earlier lookup wrote.
+      if (req.body.source && req.body.source_id) {
+        updateData.source = String(req.body.source);
+        updateData.source_id = String(req.body.source_id);
+      }
+
       // Optional per-plugin normalization (e.g. books mirror barcode <-> isbn)
       if (typeof plugin.normalizeForSave === 'function') {
         plugin.normalizeForSave(updateData);
@@ -428,12 +602,18 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           } catch (cleanupError) {
             console.warn('[ITEM IMAGE] Post-create cleanup failed:', cleanupError);
           }
-          return res.redirect(isWishlist ? '/wishlist' : `/collection?type=${plugin.collectionType}`);
+          if (isWishlist) return res.redirect('/wishlist');
+          return res.redirect(afterAdd
+            ? withAddedNotice(afterAdd, updateData.title, null)
+            : `/collection?type=${plugin.collectionType}`);
         }
       }
 
       let existingItem: any;
       let isEdit = false;
+      // Set only when this add landed on an item that was already there, whose quantity it
+      // bumped: the number the add page reports back.
+      let mergedQuantity: number | null = null;
 
       if (mongo_id) {
         // Scope the edit to the active collection so a stale mongo_id (e.g. from a
@@ -457,13 +637,50 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       if (existingItem) {
         const qtyToAdd = parseInt(quantity) || 1;
         const finalQty = isEdit ? qtyToAdd : (existingItem.quantity || 1) + qtyToAdd;
+        if (!isEdit) mergedQuantity = finalQty;
 
         let saveObj: any;
+        const unsetObj: Record<string, ''> = {};
         if (isEdit) {
           saveObj = { ...updateData, quantity: finalQty };
           // Do not reset the added date when editing an existing item
           if (!added_at) {
             saveObj.added_at = existingItem.added_at || new Date();
+          }
+
+          // An emptied input now clears the stored value instead of being ignored, which
+          // is the only way to detach a wrong external id (a CSV import matching the
+          // wrong Discogs release) or to blank a number field. Written as $unset rather
+          // than $set: a Number path would reject the empty string it is posted as.
+          //
+          // Eligible: a path the form posted back blank, and that nothing above already
+          // resolved. A key absent from the body means the form does not carry that path
+          // at all, not that the owner emptied it, so it stays untouched: tracklist comes
+          // back as `tracklist_json`, episodes never come back, and unsetting either
+          // would wipe the ratings and notes the owner attached to them.
+          for (const fieldName of Object.keys(plugin.schemaDefinition)) {
+            const postedValue = req.body[fieldName];
+            const isBlank = typeof postedValue === 'string' && postedValue.trim() === '';
+            const alreadyResolved = saveObj[fieldName] !== undefined;
+            const storedValue = existingItem[fieldName];
+            const hasStoredValue = storedValue !== undefined && storedValue !== null && storedValue !== '';
+            if (isBlank && !alreadyResolved && hasStoredValue) {
+              unsetObj[fieldName] = '';
+              delete saveObj[fieldName];
+            }
+          }
+
+          // Detaching the external id detaches the record it pointed at. refreshPatchFor()
+          // prefers the stored source pair over the plugin's own id field, so leaving the
+          // pair behind would keep refreshing the item from the very match its owner just
+          // rejected, which is what emptying the id is for. Skipped when the form posts a
+          // pair of its own, which is a re-attachment rather than a detachment.
+          const detachedIdField = plugin.externalIdField;
+          if (detachedIdField && unsetObj[detachedIdField] !== undefined && !saveObj.source_id) {
+            if (existingItem.source) unsetObj.source = '';
+            if (existingItem.source_id) unsetObj.source_id = '';
+            delete saveObj.source;
+            delete saveObj.source_id;
           }
         } else {
           // Duplicate: increment quantity and backfill identifiers/metadata the existing record
@@ -479,6 +696,15 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
             if (incoming !== undefined && incoming !== null && incoming !== '' && existingEmpty) {
               saveObj[key] = (key === idField && /^\d+$/.test(String(incoming))) ? parseInt(String(incoming)) : incoming;
             }
+          }
+
+          // The source pair is backfilled as one value: half of it says nothing, and a
+          // stored id belongs to whichever database handed it out. Left alone as soon as
+          // the existing item already names a source, even a different one, since that is
+          // where its metadata came from and where a refresh has to go looking.
+          if (updateData.source && updateData.source_id && !existingItem.source) {
+            saveObj.source = updateData.source;
+            saveObj.source_id = updateData.source_id;
           }
         }
 
@@ -498,9 +724,13 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         // id into "1396", which then matched nothing that looked it up as a number.
         // `strict: false` still lets the user-defined `extra.*` keys through.
         const EditModel = mongoose.model(plugin.kind);
+        const updateDoc: any = { $set: { ...saveObj, ...editStamp(adminId) } };
+        if (Object.keys(unsetObj).length > 0) {
+          updateDoc.$unset = unsetObj;
+        }
         await EditModel.updateOne(
           { _id: existingItem._id },
-          { $set: { ...saveObj, ...editStamp(adminId) } },
+          updateDoc,
           { strict: false }
         );
       } else {
@@ -531,6 +761,10 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         res.redirect(`${plugin.routePrefix}/${existingItem._id}${origin}`);
       } else if (isWishlist) {
         res.redirect('/wishlist');
+      } else if (afterAdd) {
+        // Scan mode: back to the add page, which is where the next item is going in, with
+        // what just landed named in the query string since this page shows no list.
+        res.redirect(withAddedNotice(afterAdd, updateData.title, mergedQuantity));
       } else {
         res.redirect(`/collection?type=${plugin.collectionType}`);
       }
@@ -620,22 +854,30 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       // than by handing every plugin a viewer to reason about.
       const variants = await filterVisible(await plugin.getVariants(formatted), res);
 
-      // Who put the item there. Read separately rather than populated, so formatForView
-      // keeps receiving the raw document it expects. A member removed since then leaves
-      // a dangling reference, which simply reads as unknown.
       // What this item holds, if anything: the seasons of a show. Kept out of every
       // listing, so this page is the only way to them, which is also why deleting the
       // holder takes them along.
+      const containedQuery: any = { parent: item._id };
+      applyVisibilityFilter(containedQuery, res.locals.isCollectionAdmin, res.locals.settings);
+      const contained = await Item.find(containedQuery).lean();
+
       // Where this page was opened from, so leaving it, editing or deleting comes back to
       // the very page someone was on rather than the first one. The explicit parameter
       // wins: after saving an edit the header points at the form, while the parameter
       // still carries the listing that started the whole thing.
+      //
+      // A Referer that is another page of this plugin's items (a season, a variant, the
+      // show a season belongs to, its episodes) is not a listing, and trusting it made two
+      // such pages send "back" to each other with no way out. It is dropped, and the view
+      // falls back to the collection itself. safeReturnPath keeps BASE_URL on what it
+      // returns, hence the prefix in the pattern.
+      const refererPath = safeReturnPath(req.get('Referer'), req.get('host'));
+      const itemPagePattern = new RegExp(
+        `^${escapeRegExp(BASE_URL)}${escapeRegExp(plugin.routePrefix)}/[a-f0-9]{24}(?:[/?#]|$)`,
+        'i'
+      );
       const backUrl = safeReturnPath(req.query.from, req.get('host'))
-        || safeReturnPath(req.get('Referer'), req.get('host'));
-
-      const containedQuery: any = { parent: item._id };
-      applyVisibilityFilter(containedQuery, res.locals.isCollectionAdmin, res.locals.settings);
-      const contained = await Item.find(containedQuery).lean();
+        || (itemPagePattern.test(refererPath) ? '' : refererPath);
 
       // And what holds this one, if anything: a season is absent from every listing, so
       // "back to the collection" would send its page nowhere useful. The show it belongs
@@ -742,7 +984,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   });
 
   // POST /api/{prefix}/:id/refresh-info -> refresh metadata of single item
-  if (plugin.refreshItem) {
+  if (canRefresh(plugin)) {
     router.post(`/api${plugin.routePrefix}/:id/refresh-info`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
       try {
         const refreshQuery: any = { _id: req.params.id, collection: res.locals.activeCollectionId };
@@ -752,7 +994,10 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           return res.status(404).json({ success: false, error: "Item not found" });
         }
 
-        const result = await plugin.refreshItem!(item, req);
+        // Through the item's own source where the plugin can merge one, so an item that
+        // came from somewhere other than the plugin's historical provider refreshes
+        // against the database that actually holds it.
+        const result = await refreshPatchFor(plugin, item, req);
         // Persist the refreshed metadata (some plugins already persist internally; this is
         // idempotent). The filter needs `kind` so Mongoose casts against the discriminator
         // schema; without it, plugin-only paths like tracklist are silently stripped by

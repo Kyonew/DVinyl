@@ -141,9 +141,19 @@ export const login_post = async (req: any, res: any) => {
     return res.status(403).json({ errors: { login: req.t('login.local_disabled') } });
   }
 
-  const { email, password } = req.body;
+  // The field is still posted as `email`, but it holds an email or a username.
+  const { password } = req.body;
+  const identifier = String(req.body.email || '').trim().toLowerCase();
 
-  const blockedSeconds = secondsBlocked(email);
+  // Failures are counted per account when the identifier names one, so its email and its
+  // username share one counter: alternating between the two would otherwise double the
+  // attempts allowed. An identifier naming no account keeps a counter of its own, keyed
+  // lowercased so casing cannot dodge it.
+  const account = await (User as any).findByLoginIdentifier(req.body.email);
+  const key = account ? `user:${account._id}` : `id:${identifier}`;
+
+  // Check whether this account is temporarily blocked due to repeated failures.
+  const blockedSeconds = secondsBlocked(key);
   if (blockedSeconds !== null) {
     return res.status(429).json({
       errors: { login: req.t('errors.too_many_attempts_timed', { seconds: blockedSeconds }) }
@@ -151,24 +161,24 @@ export const login_post = async (req: any, res: any) => {
   }
 
   try {
-    const user = await (User as any).login(email, password);
+    const user = await (User as any).login(req.body.email, password);
 
-    clearAttempts(email);
+    clearAttempts(key);
 
     await issueSession(req, res, user);
     res.status(200).json({ user: user._id });
 
   } catch (err) {
-    const { count, justBlocked } = recordFailure(email);
+    const { count, justBlocked } = recordFailure(key);
 
     if (justBlocked) {
-      console.warn(`[AUTH] ${email} temporarily blocked after ${count} failed attempts (from ${getClientIp(req)})`);
+      console.warn(`[AUTH] ${identifier} temporarily blocked after ${count} failed attempts (from ${getClientIp(req)})`);
       return res.status(429).json({
         errors: { login: req.t('errors.too_many_attempts_blocked') }
       });
     }
 
-    console.warn(`[AUTH] Login failed for ${email}: ${(err as any)?.message} (attempt ${count}/${MAX_ATTEMPTS})`);
+    console.warn(`[AUTH] Login failed for ${identifier}: ${(err as any)?.message} (attempt ${count}/${MAX_ATTEMPTS})`);
 
     // Retrieve the error key from handleErrors.
     const errorKeys = handleErrors(err);

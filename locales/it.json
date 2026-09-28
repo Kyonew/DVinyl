@@ -47,6 +47,7 @@
     "scan_stop": "Interrompi la scansione",
     "search_placeholder": "Artista, album...",
     "separator_or": "O",
+    "source_label": "Fonte",
     "title": "Aggiungi un record",
     "manual_entry": "Non su Discogs? Aggiungi manualmente"
   },
@@ -70,6 +71,7 @@
       "import_success": "Database importato correttamente.",
       "json_error": "File JSON non valido.",
       "file_error": "Il file di backup è danneggiato o non valido.",
+      "error_collection_dump": "Questo file è un backup di una collezione: non contiene account utente, quindi non può ripristinare un'intera istanza. Non è stato modificato nulla. Per ripristinarlo, accedi (o crea il primo account), poi importalo in «Backup della collezione» nella pagina di amministrazione della collezione.",
       "section_subtitle": "Esporta o ripristina la tua intera collezione.",
       "section_title": "Backup del database",
       "subtitle": "Esegui il backup della tua raccolta o ripristina un database esistente.",
@@ -211,7 +213,9 @@
       "last_change": "Ultimo cambiamento",
       "loc": "Loc.",
       "security": "Sicurezza",
-      "user": "Utente"
+      "user": "Utente",
+      "home_collection": "Collezione predefinita",
+      "home_collection_last": "Ultima visitata"
     },
     "temp_password_hint": "Ecco la password temporanea (copiala, non verrà più mostrata):",
     "time_ago_min": "{{count}} minuti fa",
@@ -272,7 +276,14 @@
       "allow_member_creation": "Consenti ai membri di creare la propria collezione",
       "allow_member_creation_desc": "Qualsiasi utente dell'istanza (account locale o SSO) potrà creare la propria collezione e diventarne amministratore, senza alcun intervento da parte tua. Se disattivato, solo l'amministratore dell'istanza crea le collezioni.",
       "max_collections": "Numero massimo di collezioni per utente",
-      "max_collections_desc": "Conta solo le collezioni create dall'utente; quelle semplicemente condivise con lui non contano. Gli amministratori dell'istanza non hanno limiti."
+      "max_collections_desc": "Conta solo le collezioni create dall'utente; quelle semplicemente condivise con lui non contano. Gli amministratori dell'istanza non hanno limiti.",
+      "tabs": {
+        "collections": "Collezioni",
+        "users": "Utenti",
+        "backup": "Backup",
+        "security": "Sicurezza",
+        "logs": "Log"
+      }
     },
     "logs_delete_last": {
       "count_placeholder": "Numero",
@@ -298,7 +309,8 @@
     "collection_backup": {
       "title": "Backup della collezione",
       "subtitle": "Esporta questa collezione (elementi + impostazioni) o sostituisci il suo contenuto con un backup. Lo ZIP include le immagini locali; il JSON contiene solo i dati.",
-      "confirm_import": "L'importazione SOSTITUIRÀ tutti gli elementi di questa collezione. Continuare?"
+      "confirm_import": "L'importazione SOSTITUIRÀ tutti gli elementi di questa collezione. Continuare?",
+      "error_invalid_item": "L'elemento «{{- title}}» di questo file non può essere ripristinato (campo non valido: {{field}}). Non è stato modificato nulla."
     },
     "sharing": {
       "title": "Link di condivisione pubblici",
@@ -367,6 +379,7 @@
       "target_wishlist": "Lista dei desideri",
       "enrich_label": "Completa dall'API",
       "enrich_hint": "Cerca ogni elemento per recuperare copertine e metadati assenti dal file (più lento).",
+      "source_label": "Cerca in",
       "btn_analyze": "Analizza il file",
       "btn_back": "Cambia file",
       "btn_import": "Avvia l'importazione",
@@ -402,7 +415,32 @@
         "pages": "Pagine",
         "language": "Lingua"
       },
-      "err_missing_required": "Questi campi obbligatori devono essere associati a una colonna o a un valore fisso: {{fields}}"
+      "err_missing_required": "Questi campi obbligatori devono essere associati a una colonna o a un valore fisso: {{fields}}",
+      "screenscraper_note": "ScreenScraper è lento: conta qualche secondo per ogni gioco con una piattaforma riconosciuta, fino a un minuto altrimenti, e quei giochi potrebbero non essere completati. Indica una piattaforma per ogni riga (una colonna Piattaforma o la piattaforma predefinita) per ricerche più rapide e precise."
+    },
+    "sources": {
+      "title": "Dove cerca questo modulo",
+      "hint": "Provate in quest'ordine. La prima che risponde fa la ricerca; tutte alimentano il selettore di immagini.",
+      "cap_search": "Ricerca",
+      "cap_images": "Immagini",
+      "ready": "Pronta",
+      "missing": "Manca {{keys}}",
+      "move_up": "Su",
+      "move_down": "Giù"
+    },
+    "tabs": {
+      "settings": "Impostazioni",
+      "members": "Membri",
+      "collection": "Collezione",
+      "imports": "Importazioni",
+      "maintenance": "Manutenzione"
+    },
+    "field_lookalikes": {
+      "title": "Alcuni campi personalizzati somigliano a campi integrati",
+      "item": "{{plugin}}: «{{custom}}» somiglia al campo integrato «{{native}}»",
+      "hint": "Spesso è un campo che il plugin ha ricevuto con un aggiornamento. Se contengono la stessa cosa, conviene tenere quello integrato; puoi anche tenerli entrambi.",
+      "review": "Controlla",
+      "later": "Più tardi"
     }
   },
   "auth": {
@@ -423,8 +461,47 @@
   },
   "collection": {
     "add": "Aggiungere",
+    "scan": "Scansiona",
     "share_view_banner": "Stai consultando una collezione condivisa - sola lettura.",
     "filter_placeholder": "Filtro...",
+    "view_grid": "Griglia",
+    "view_table": "Tabella",
+    "view_shelf": "Scaffale",
+    "table_col_title": "Titolo",
+    "table_col_info": "Info",
+    "shelf_no_furniture": "Nessun mobile in questa collezione per ora.",
+    "shelf_empty_cell": "Vuoto",
+    "shelf_unsorted": "Non sistemati",
+    "shelf_more_hidden": "non mostrati",
+    "shelf_none": "Non sistemato",
+    "shelf_new_option": "+ Nuovo scaffale…",
+    "shelf_new_placeholder": "Nome dello scaffale",
+    "shelf_move_btn": "Sistema",
+    "shelf_move_title": "Sistema in…",
+    "shelf_move_confirm": "Sistema",
+    "shelf_arrange": "Sistemare",
+    "shelf_furniture_name": "Nome del mobile",
+    "shelf_layout": "Disposizione",
+    "shelf_layout_cubes": "Cubi",
+    "shelf_layout_rows": "Ripiani",
+    "shelf_columns": "Colonne",
+    "shelf_rows": "Righe",
+    "shelf_shelves": "Scaffali",
+    "shelf_add": "Aggiungi",
+    "shelf_save": "Salva",
+    "shelf_capacity": "Capacità indicativa",
+    "shelf_name_placeholder": "Nome dello scaffale",
+    "shelf_move_to": "Sposta in…",
+    "shelf_up": "Su",
+    "shelf_down": "Giù",
+    "shelf_remove": "Rimuovi",
+    "shelf_delete_furniture": "Elimina questo mobile",
+    "shelf_new_furniture": "Nuovo mobile",
+    "shelf_new_furniture_prompt": "Nome del nuovo mobile",
+    "shelf_confirm_delete_furniture": "Eliminare questo mobile? Gli elementi che conteneva non vengono eliminati, tornano non sistemati.",
+    "shelf_confirm_remove": "Rimuovere questo scaffale? I %d elementi che contiene tornano non sistemati.",
+    "shelf_error_duplicate": "Due scaffali hanno lo stesso nome.",
+    "shelf_error_elsewhere": "Uno scaffale con questo nome esiste già in “%s”.",
     "refresh": "Aggiorna",
     "refresh_metadata_btn": "Aggiorna informazioni",
     "refresh_tooltip": "Aggiorna da Discogs",
@@ -455,10 +532,47 @@
     "deselect_all": "Deseleziona tutto",
     "cancel_select": "Annulla",
     "selected_count_suffix": "selezionato/i",
+    "hide_select_bar": "Nascondi la barra di selezione",
+    "show_select_bar": "Mostra la barra di selezione",
     "print_selected_qr": "Stampa i codici QR",
     "print_selected_barcode": "Stampa i codici a barre",
+    "delete_selected": "Elimina selezionati",
+    "confirm_delete_selected": "Eliminare {{count}} elemento/i selezionato/i? Anche ciò che contengono viene eliminato. Questa azione è irreversibile.",
+    "delete_selected_done": "{{count}} elemento/i eliminato/i.",
+    "delete_selected_partial": "{{deleted}} elemento/i eliminato/i, {{failed}} non eliminato/i.",
+    "delete_selected_error": "Eliminazione non riuscita: non è stato eliminato nulla.",
+    "delete_selected_too_many": "È possibile eliminare al massimo {{max}} elementi alla volta.",
     "label_sheet_title": "Stampa le etichette",
     "label_sheet_empty": "Nessuno degli elementi selezionati ha un codice a barre, quindi non c’è nulla da stampare."
+  },
+  "collection_info": {
+    "title": "Informazioni collezione",
+    "bar_label": "Su questa collezione",
+    "back_to_collection": "Torna alla collezione",
+    "edit": "Modifica la pagina",
+    "open_page": "Vedi la pagina",
+    "editor_title": "Pagina informativa",
+    "editor_intro": "Una pagina libera su questa collezione: com'è nata, cosa contiene, link utili. Si scrive in Markdown e può contenere qualche immagine.",
+    "enabled_label": "Mostra la pagina",
+    "enabled_hint": "Aggiunge un link nella home, nella collezione e nella barra di navigazione.",
+    "share_visible_label": "Visibile dai link di condivisione",
+    "share_visible_hint": "Anche chi apre un link di condivisione pubblico può leggerla.",
+    "page_title_label": "Titolo della pagina",
+    "body_label": "Testo",
+    "body_placeholder": "Scrivi qualche parola su questa collezione…",
+    "markdown_hint": "Markdown: # titolo, **grassetto**, *corsivo*, - elenco, [link](https://esempio.com)",
+    "preview_hint": "L'anteprima mostra la pagina come verrà letta.",
+    "tab_write": "Scrivi",
+    "tab_preview": "Anteprima",
+    "images_label": "Immagini",
+    "images_hint": "Fino a {{max}} immagini, mostrate sopra il testo. Clicca su una per aprirla a schermo intero.",
+    "images_too_many": "Questa pagina può contenere al massimo {{max}} immagini.",
+    "updated_on": "Aggiornata il {{date}}",
+    "draft_banner": "Questa pagina non è ancora visibile: solo tu puoi vederla.",
+    "hidden_from_share_banner": "Questa pagina è nascosta ai link di condivisione.",
+    "admin_subtitle": "Una pagina di presentazione di questa collezione, con testo e immagini.",
+    "status_on": "Visibile",
+    "status_off": "Disattivata"
   },
   "common": {
     "external_id_label": "ID di origine",
@@ -485,6 +599,7 @@
     "or": "O",
     "save": "Salva",
     "save_changes": "Salva modifiche",
+    "unsaved_changes": "Modifiche non salvate",
     "search": "Ricerca",
     "searching": "Ricerca...",
     "show": "Mostra",
@@ -505,7 +620,10 @@
     "config_title": "Verifica e completa",
     "cover_preview": "Anteprima della copertina",
     "description_title": "Riepilogo",
+    "edition_hint": "Altre edizioni di questo titolo. Sceglierne una ne compila editore, anno, ISBN, numero di pagine e lingua.",
+    "edition_unknown_publisher": "Editore sconosciuto",
     "field_author": "Autore/i",
+    "field_edition": "Edizione",
     "field_format": "Formato",
     "field_isbn": "ISBN",
     "field_language": "Lingua",
@@ -707,7 +825,10 @@
     "hardcover": "Copertina rigida",
     "manga": "Manga",
     "paperback": "Paperback",
-    "digital": "Digitale"
+    "digital": "Digitale",
+    "boxed": "Scatola",
+    "expansion": "Espansione",
+    "promo": "Promo"
   },
   "generic": {
     "edit_title": "Modifica l'elemento",
@@ -759,6 +880,7 @@
     "hero_subtitle": "Qualcosa di nuovo nella collezione?",
     "nav_add_full": "Aggiungi un elemento",
     "nav_add_short": "Aggiungere",
+    "nav_scan_full": "Scansiona un codice a barre",
     "nav_view_all": "Visualizza tutto",
     "search_placeholder": "Ricerca...",
     "section_latest": "Ultime aggiunte",
@@ -780,7 +902,9 @@
     "local_disabled": "Questa istanza accetta solo l'accesso Single Sign-On.",
     "error_oidc_unlinked": "Nessun account è collegato a questa identità SSO. Accedi prima con la tua password, poi collega il tuo account dalle Impostazioni.",
     "error_oidc_forbidden": "Il tuo account non è autorizzato ad accedere a questa istanza.",
-    "error_oidc_unavailable": "L'accesso SSO non è al momento disponibile. Riprova oppure usa la tua password."
+    "error_oidc_unavailable": "L'accesso SSO non è al momento disponibile. Riprova oppure usa la tua password.",
+    "identifier_label": "E-mail o nome utente",
+    "identifier_placeholder": "esempio@email.com o nome utente"
   },
   "media": {
     "4k": "4K UltraHD",
@@ -823,7 +947,9 @@
     "digital": "Digitale",
     "book": "Libro",
     "lego": "LEGO",
-    "legos": "Set LEGO"
+    "legos": "Set LEGO",
+    "boardgames": "Giochi da tavolo",
+    "boardgame": "Gioco da tavolo"
   },
   "messages": {
     "saved": "Salvato!",
@@ -875,7 +1001,12 @@
     "share_scope_updated": "Contenuto condiviso aggiornato.",
     "share_link_created": "Link di condivisione creato.",
     "share_link_deleted": "Link di condivisione eliminato.",
-    "error_share": "Impossibile aggiornare la condivisione."
+    "error_share": "Impossibile aggiornare la condivisione.",
+    "home_collection_updated": "Collezione predefinita aggiornata.",
+    "error_email_taken": "Esiste già un account con questa e-mail.",
+    "error_username_taken": "Esiste già un account con questo nome utente.",
+    "error_user_invalid": "Controlla nome utente ed e-mail, l'account non è stato creato.",
+    "error_user_create": "Impossibile creare l'account."
   },
   "modal": {
     "add_hub_subtitle": "Seleziona il tipo di media da aggiungere alla tua raccolta",
@@ -920,6 +1051,8 @@
     "backHome": "Ritorno a casa",
     "fastAdd_desc": "Se abilitato, il pulsante \"Aggiungi un articolo\" reindirizza direttamente al modulo prescelto, bypassando il menu di selezione.",
     "fastAdd_disabled": "Disabilitato (modale)",
+    "instantAdd_title": "Modalità scansione",
+    "instantAdd_desc": "Un codice che identifica un articolo preciso (un ISBN) viene aggiunto appena la ricerca restituisce un solo risultato, senza passare dalla pagina di conferma. Dopo l'aggiunta si torna al modulo di aggiunta invece che alla collezione, pronto per il successivo.",
     "fastAdd_title": "Aggiunta rapida",
     "card_aspect_ratio": "Rapporto d'aspetto della scheda",
     "card_aspect_ratio_desc": "Forma delle miniature nelle griglie di collezione, home e lista dei desideri. Ogni plugin mantiene il proprio rapporto nelle sue schede.",
@@ -993,7 +1126,17 @@
     "oidc_linked_label": "Collegato al tuo provider di identità",
     "oidc_not_linked_label": "Non collegato",
     "oidc_link_btn": "Collega account",
-    "oidc_unlink_btn": "Scollega"
+    "oidc_unlink_btn": "Scollega",
+    "home_title": "Avvio",
+    "home_hint": "Dove si apre l'applicazione e come viene mostrata la collezione.",
+    "home_collection_label": "Collezione predefinita",
+    "home_collection_last": "Ultima visitata",
+    "home_page_label": "Pagina di arrivo",
+    "home_page_dashboard": "Casa",
+    "home_page_collection": "Collezione",
+    "home_page_wishlist": "Lista dei desideri",
+    "home_view_label": "Vista predefinita",
+    "home_view_last": "Ultima utilizzata"
   },
   "setup": {
     "admin_config": "Configurazione amministratore",
@@ -1033,7 +1176,9 @@
     "lego_pieces_label": "Totale pezzi",
     "lego_minifigs_label": "Totale minifigure",
     "lego_sealed_label": "Set sigillati",
-    "top_theme_label": "Tema principale"
+    "top_theme_label": "Tema principale",
+    "boardgames_total_label": "Totale giochi da tavolo",
+    "top_designer_label": "Autore principale"
   },
   "status": {
     "read": "Leggere",
@@ -1048,6 +1193,7 @@
     "confirm_move": "Grande! Vuoi spostare questo album nella tua raccolta ufficiale?",
     "empty_msg": "La tua lista dei desideri è vuota.",
     "search_link": "Aggiungi il tuo primo elemento",
+    "scan_link": "Oppure scansiona un codice a barre",
     "title": "La mia lista dei desideri"
   },
   "add_game": {
@@ -1062,7 +1208,10 @@
     "scan_found": "Codice trovato!",
     "scan_error": "Errore fotocamera",
     "barcode_warning": "La scansione potrebbe non funzionare correttamente al momento.",
-    "manual_entry": "Non trovato? Aggiungi manualmente"
+    "manual_entry": "Non trovato? Aggiungi manualmente",
+    "platform_label": "Piattaforma",
+    "platform_all": "Tutte (lento)",
+    "platform_hint": "Scegliere una piattaforma rende la ricerca su ScreenScraper molto più veloce."
   },
   "confirm_game": {
     "config_title": "Verifica e completa",
@@ -1083,6 +1232,10 @@
     "status_to_play": "Da giocare",
     "status_playing": "In corso",
     "status_played": "Completato",
+    "completion_time_label": "Tempo stimato per finirlo",
+    "completion_hastily": "Veloce",
+    "completion_normally": "Normale",
+    "completion_completely": "Completista",
     "replace_cover": "Sostituisci copertina principale",
     "btn_collection": "Aggiungi alla collezione",
     "btn_wishlist": "Aggiungi alla Wishlist",
@@ -1127,7 +1280,12 @@
     "add_lyrics_manual": "Aggiungi il testo manualmente"
   },
   "add": {
-    "manual_entry": "Inserimento manuale"
+    "manual_entry": "Inserimento manuale",
+    "instant_saving": "Aggiunta in corso…",
+    "instant_blocked": "Manca un dato richiesto dal modulo. Completalo e aggiungi.",
+    "added": "«{{title}}» aggiunto.",
+    "added_again": "«{{title}}» c'era già: ora ne hai {{quantity}}.",
+    "identifier_no_match": "Nessun risultato per {{code}}."
   },
   "no_collection": {
     "title": "Nessun accesso alle collezioni",
@@ -1234,7 +1392,9 @@
     "corner_taken": "L’angolo in alto a destra è occupato dal badge del formato.",
     "default_color": "Colore predefinito",
     "reset": "Reimposta",
-    "customized": "Personalizzato"
+    "customized": "Personalizzato",
+    "field_lookalike": "Somiglia al campo integrato «{{native}}». Tienili entrambi solo se contengono cose diverse.",
+    "fields_to_review": "Campi da controllare: {{count}}"
   },
   "add_lego": {
     "title": "Aggiungi un set LEGO",
@@ -1242,6 +1402,15 @@
     "search_placeholder": "Numero o nome del set...",
     "results_title": "Risultati",
     "no_results": "Nessun set trovato.",
+    "manual_entry": "Inserimento manuale",
+    "btn_scan": "Scansiona"
+  },
+  "add_boardgame": {
+    "title": "Aggiungi un gioco da tavolo",
+    "desc": "Cerca per titolo tramite BoardGameGeek.",
+    "search_placeholder": "Titolo del gioco...",
+    "results_title": "Risultati",
+    "no_results": "Nessun gioco trovato.",
     "manual_entry": "Inserimento manuale",
     "btn_scan": "Scansiona"
   },
@@ -1280,5 +1449,96 @@
     "set_num_label": "Numero del set",
     "theme_label": "Tema",
     "delete_confirm": "Vuoi davvero rimuovere questo set dalla tua collezione?"
+  },
+  "confirm_boardgame": {
+    "title": "Conferma aggiunta",
+    "desc": "Verifica le informazioni e completa i dettagli del tuo gioco.",
+    "config_title": "Verifica e completa",
+    "field_title": "Titolo",
+    "field_designer": "Autore",
+    "field_publisher": "Editore",
+    "field_year": "Anno",
+    "field_players": "Giocatori",
+    "field_playtime": "Durata (min)",
+    "field_min_age": "Età minima",
+    "field_format": "Formato",
+    "field_barcode": "Codice a barre",
+    "field_quantity": "Quantità",
+    "field_rating": "Valutazione (su 5)",
+    "field_comments": "Note / Commenti",
+    "comments_placeholder": "Es: Mancano alcuni segnalini...",
+    "designer_label": "Autore",
+    "year_label": "Anno",
+    "barcode_label": "Codice a barre",
+    "btn_collection": "Aggiungi alla collezione",
+    "btn_wishlist": "Aggiungi alla Wishlist"
+  },
+  "edit_boardgame": {
+    "title": "Modifica gioco da tavolo"
+  },
+  "boardgame_detail": {
+    "players_label": "giocatori",
+    "playtime_label": "min",
+    "designer_label": "Autore",
+    "publisher_label": "Editore",
+    "rating_label": "Valutazione BGG",
+    "delete_confirm": "Vuoi davvero rimuovere questo gioco dalla tua collezione?"
+  },
+  "lists": {
+    "title": "Liste",
+    "new": "Nuova lista",
+    "new_placeholder": "es. Da fare, Finiti nel 2026…",
+    "create": "Crea la lista",
+    "create_short": "Crea",
+    "field_name": "Nome",
+    "field_kind": "Contiene",
+    "field_description": "Descrizione (facoltativa)",
+    "kind_items": "Elementi",
+    "kind_items_hint": "Album, film, giochi, libri… della collezione.",
+    "kind_tracks": "Tracce",
+    "kind_tracks_hint": "Una playlist di tracce prese dai tuoi album.",
+    "empty_title": "Ancora nessuna lista",
+    "empty_hint": "Raccogli elementi in liste, come quello che resta da fare o quello che hai finito quest'anno, o tracce in playlist. Si aggiunge a una lista dalla pagina di un elemento, da una traccia o da una selezione nella collezione.",
+    "entries_count_one": "{{count}} elemento",
+    "entries_count_other": "{{count}} elementi",
+    "tracks_count_one": "{{count}} traccia",
+    "tracks_count_other": "{{count}} tracce",
+    "empty_list_items": "Questa lista è ancora vuota. Aggiungi elementi con il pulsante qui sotto, dalla loro pagina o selezionandone diversi nella collezione.",
+    "empty_list_tracks": "Questa playlist è ancora vuota. Aggiungi tracce con il pulsante qui sotto o da una traccia nella pagina di un album.",
+    "edit": "Modifica la lista",
+    "delete_confirm": "Eliminare la lista «{{name}}»? I suoi elementi restano nella collezione.",
+    "filter_placeholder": "Titolo, album, artista, tag, tonalità…",
+    "filter_any_rating": "Qualsiasi voto",
+    "bpm_min": "BPM min",
+    "bpm_max": "BPM max",
+    "col_album": "Album",
+    "col_duration": "Durata",
+    "filter_no_match": "Nessuna traccia corrisponde a questi filtri.",
+    "move_up": "Sposta su",
+    "move_down": "Sposta giù",
+    "remove": "Togli dalla lista",
+    "add_to_list": "Aggiungi a una lista",
+    "add_to_playlist": "Aggiungi a una playlist",
+    "picker_title_items": "Aggiungi a una lista",
+    "picker_title_tracks": "Aggiungi a una playlist",
+    "picker_selection_one": "{{count}} elemento selezionato",
+    "picker_selection_other": "{{count}} elementi selezionati",
+    "picker_empty_items": "Ancora nessuna lista: creane una qui sotto.",
+    "picker_empty_tracks": "Ancora nessuna playlist: creane una qui sotto.",
+    "picker_add": "Aggiungi",
+    "picker_added_one": "✓ {{count}} aggiunto",
+    "picker_added_other": "✓ {{count}} aggiunti",
+    "err_name_required": "Dai un nome alla lista.",
+    "err_full": "Una lista contiene al massimo {{max}} elementi.",
+    "err_stale": "Questa lista è cambiata nel frattempo. La pagina verrà ricaricata.",
+    "add": "Aggiungi",
+    "add_items": "Aggiungi elementi",
+    "add_tracks": "Aggiungi tracce",
+    "add_search_items": "Cerca nella collezione…",
+    "add_search_tracks": "Cerca una traccia per titolo…",
+    "add_hint_items": "Scrivi un titolo, un artista, un autore o un codice a barre.",
+    "add_hint_tracks": "Scrivi parte del titolo di una traccia.",
+    "add_no_match": "Nessun risultato.",
+    "add_in_list": "✓ Nella lista"
   }
 }

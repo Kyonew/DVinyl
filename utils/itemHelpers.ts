@@ -2,6 +2,7 @@ import Item from '../models/Item';
 import { registry } from '../core/registry';
 import { applyVisibilityFilter } from './visibilityHelper';
 import { deleteUnusedManagedItemImages, managedItemImagesFrom } from '../core/itemImageStorage';
+import { pullItemsFromLists } from '../core/listStore';
 
 /**
  * Resolves, for a page of items, what each one should actually show on the shelf.
@@ -77,6 +78,7 @@ export async function deleteItemsAndContents(ids: any[]): Promise<number> {
     const images = items.flatMap(managedItemImagesFrom);
 
     const result = await Item.deleteMany({ _id: { $in: all } });
+    await pullItemsFromLists(all);
     try {
         await deleteUnusedManagedItemImages(images);
     } catch (err) {

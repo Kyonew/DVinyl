@@ -336,10 +336,13 @@
                     if (response.ok) {
                         window.location.href = '<%= baseUrl %>/login';
                     } else {
-                        throw new Error('Import failed');
+                        // A refusal worded for the reader (a collection backup, which
+                        // holds no account to sign in with) says what to do instead.
+                        const failure = await response.json().catch(() => ({}));
+                        throw Object.assign(new Error('Import failed'), { userMessage: failure.userMessage });
                     }
                 } catch (err) {
-                    errorText.innerText = <%- JSON.stringify(t('setup.error_save_file')) %>;
+                    errorText.innerText = (err && err.userMessage) || <%- JSON.stringify(t('setup.error_save_file')) %>;
                     errorBox.classList.remove('hidden');
                     const btn = document.querySelector('button[type="submit"]');
                     btn.disabled = false;

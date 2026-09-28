@@ -1,6 +1,6 @@
 <%- include('partials/header') %>
 
-<div class="max-w-screen-xl mx-auto px-1 md:px-0 pb-12">
+<div class="max-w-screen-xl mx-auto pb-12">
 
     <%# Nothing searched yet: the bar is the page, like the home hero. Once there are
         results it shrinks to a line so the covers start as high as possible. %>
@@ -69,7 +69,7 @@
                                 settings: result.collectionSettings,
                                 cornerLabel: result.collectionName
                             }) %>
-                            <%- include('partials/item-card-body', { item: result.item, plugin: itemPlugin, size: 'collection' }) %>
+                            <%- include('partials/item-card-body', { item: result.item, plugin: itemPlugin, size: 'collection', querySearch: query }) %>
                         </button>
                     </form>
                 </div>

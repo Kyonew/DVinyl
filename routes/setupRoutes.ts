@@ -69,6 +69,7 @@ router.post('/', async (req, res) => {
             slug: await generateUniqueSlug('Vinyl'),
             createdBy: newAdmin._id,
             isDefault: true,
+            shelvesSeeded: true,
             members: [{ user: newAdmin._id, role: 'admin' }]
         });
         await User.updateOne(

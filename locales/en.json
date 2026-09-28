@@ -11,6 +11,7 @@
     "back_to_search": "Back to search",
     "cancel_back": "Cancel and back",
     "save_changes": "Save changes",
+    "unsaved_changes": "Unsaved changes",
     "searching": "Searching...",
     "no_results": "No results found.",
     "not_available": "N/A",
@@ -71,7 +72,17 @@
     "oidc_linked_label": "Linked to your identity provider",
     "oidc_not_linked_label": "Not linked",
     "oidc_link_btn": "Link account",
-    "oidc_unlink_btn": "Unlink"
+    "oidc_unlink_btn": "Unlink",
+    "home_title": "Startup",
+    "home_hint": "Where opening the app takes you, and how your collection is drawn.",
+    "home_collection_label": "Default collection",
+    "home_collection_last": "Last visited",
+    "home_page_label": "Landing page",
+    "home_page_dashboard": "Home",
+    "home_page_collection": "Collection",
+    "home_page_wishlist": "Wishlist",
+    "home_view_label": "Default view",
+    "home_view_last": "Last used"
   },
   "errors": {
     "username_taken": "This username is already taken.",
@@ -140,7 +151,12 @@
     "share_scope_updated": "Shared content updated.",
     "share_link_created": "Share link created.",
     "share_link_deleted": "Share link deleted.",
-    "error_share": "Could not update sharing."
+    "error_share": "Could not update sharing.",
+    "home_collection_updated": "Default collection updated.",
+    "error_email_taken": "An account already uses this email.",
+    "error_username_taken": "An account already uses this username.",
+    "error_user_invalid": "Check the username and email, the account was not created.",
+    "error_user_create": "The account could not be created."
   },
   "media": {
     "vinyl": "Vinyl",
@@ -183,7 +199,9 @@
     "steelbook": "Steelbook",
     "digital": "Digital",
     "lego": "LEGO",
-    "legos": "LEGO Sets"
+    "legos": "LEGO Sets",
+    "boardgames": "Board Games",
+    "boardgame": "Board Game"
   },
   "index": {
     "welcome": "Hello",
@@ -191,6 +209,7 @@
     "search_placeholder": "Search...",
     "nav_add_full": "Add an item",
     "nav_add_short": "Add",
+    "nav_scan_full": "Scan a barcode",
     "nav_view_all": "View all",
     "section_latest": "Latest Additions",
     "section_wishlist": "Wishlist",
@@ -221,7 +240,9 @@
     "lego_pieces_label": "Total pieces",
     "lego_minifigs_label": "Total minifigures",
     "lego_sealed_label": "Sealed sets",
-    "top_theme_label": "Top theme"
+    "top_theme_label": "Top theme",
+    "boardgames_total_label": "Total board games",
+    "top_designer_label": "Top Designer"
   },
   "modal": {
     "estimate_title": "Estimating...",
@@ -242,6 +263,7 @@
     "desc": "Search by name or scan the barcode.",
     "search_placeholder": "Artist, Album...",
     "separator_or": "OR",
+    "source_label": "Source",
     "btn_scan": "Scan Barcode",
     "scan_init": "Initializing...",
     "scan_stop": "Stop scanning",
@@ -312,7 +334,9 @@
       "loc": "Loc.",
       "ip_device": "IP & Device",
       "date": "Date",
-      "security": "Security"
+      "security": "Security",
+      "home_collection": "Default collection",
+      "home_collection_last": "Last visited"
     },
     "tooltips": {
       "reset_password": "Reset Password",
@@ -364,6 +388,7 @@
       "import_error": "Error during import.",
       "json_error": "Invalid JSON file.",
       "file_error": "The backup file is corrupted or invalid.",
+      "error_collection_dump": "This file is a collection backup: it holds no user accounts, so it cannot restore a whole instance. Nothing was changed. To restore it, sign in (or create the first account), then import it under \"Collection backup\" on the collection's admin page.",
       "confirm_import": "WARNING: This will delete all your current data (albums, users, logs) and replace it with the content of the file. You will be logged out. Continue?",
       "subtitle": "Backup your collection or restore an existing database.",
       "title": "System Maintenance",
@@ -485,7 +510,14 @@
       "allow_member_creation": "Allow members to create their own collection",
       "allow_member_creation_desc": "Any user of the instance (local or SSO account) will be able to create their own collection and become its administrator, with no action from you. When off, only the instance administrator creates collections.",
       "max_collections": "Maximum collections per user",
-      "max_collections_desc": "Only counts collections the user created; collections merely shared with them don't count. Instance administrators are not limited."
+      "max_collections_desc": "Only counts collections the user created; collections merely shared with them don't count. Instance administrators are not limited.",
+      "tabs": {
+        "collections": "Collections",
+        "users": "Users",
+        "backup": "Backup",
+        "security": "Security",
+        "logs": "Logs"
+      }
     },
     "logs_delete_last": {
       "count_placeholder": "Count",
@@ -511,7 +543,8 @@
     "collection_backup": {
       "title": "Collection backup",
       "subtitle": "Export this collection (items + settings) or replace its content with a backup file. ZIP includes local images; JSON contains data only.",
-      "confirm_import": "Importing will REPLACE every item of this collection. Continue?"
+      "confirm_import": "Importing will REPLACE every item of this collection. Continue?",
+      "error_invalid_item": "The item \"{{- title}}\" in this file cannot be restored (invalid field: {{field}}). Nothing was changed."
     },
     "sharing": {
       "title": "Public share links",
@@ -580,6 +613,7 @@
       "target_wishlist": "Wishlist",
       "enrich_label": "Complete from the API",
       "enrich_hint": "Looks every item up to fill in the covers and metadata the file does not carry (slower).",
+      "source_label": "Look up in",
       "btn_analyze": "Analyse the file",
       "btn_back": "Change file",
       "btn_import": "Start the import",
@@ -615,17 +649,81 @@
         "pages": "Pages",
         "language": "Language"
       },
-      "err_missing_required": "These required fields must be mapped to a column or to a fixed value: {{fields}}"
+      "err_missing_required": "These required fields must be mapped to a column or to a fixed value: {{fields}}",
+      "screenscraper_note": "ScreenScraper is slow: expect a few seconds per game whose platform is recognized, up to a minute otherwise, and those may not get completed. Give every row a platform (a Platform column, or the default platform) for faster, more accurate lookups."
+    },
+    "sources": {
+      "title": "Where this looks things up",
+      "hint": "Tried in this order. The first working one answers a search; every one of them feeds the image picker.",
+      "cap_search": "Search",
+      "cap_images": "Images",
+      "ready": "Ready",
+      "missing": "Missing {{keys}}",
+      "move_up": "Move up",
+      "move_down": "Move down"
+    },
+    "tabs": {
+      "settings": "Settings",
+      "members": "Members",
+      "collection": "Collection",
+      "imports": "Imports",
+      "maintenance": "Maintenance"
+    },
+    "field_lookalikes": {
+      "title": "Some custom fields look like built-in ones",
+      "item": "{{plugin}}: \"{{custom}}\" looks like the built-in \"{{native}}\" field",
+      "hint": "Often a field the plugin gained in an update. If both hold the same thing, the built-in one is the one to keep; keeping both is fine too.",
+      "review": "Review",
+      "later": "Later"
     }
   },
   "collection": {
     "title": "My Collection",
     "share_view_banner": "You're viewing a shared collection - read-only.",
     "filter_placeholder": "Filter...",
+    "view_grid": "Grid",
+    "view_table": "Table",
+    "view_shelf": "Shelf",
+    "table_col_title": "Title",
+    "table_col_info": "Info",
+    "shelf_no_furniture": "No furniture in this collection yet.",
+    "shelf_empty_cell": "Empty",
+    "shelf_unsorted": "Unsorted",
+    "shelf_more_hidden": "not shown",
+    "shelf_none": "Unsorted",
+    "shelf_new_option": "+ New shelf…",
+    "shelf_new_placeholder": "Shelf name",
+    "shelf_move_btn": "File",
+    "shelf_move_title": "File in…",
+    "shelf_move_confirm": "File",
+    "shelf_arrange": "Arrange",
+    "shelf_furniture_name": "Furniture name",
+    "shelf_layout": "Layout",
+    "shelf_layout_cubes": "Cubes",
+    "shelf_layout_rows": "Rows",
+    "shelf_columns": "Columns",
+    "shelf_rows": "Rows",
+    "shelf_shelves": "Shelves",
+    "shelf_add": "Add",
+    "shelf_save": "Save",
+    "shelf_capacity": "Indicative capacity",
+    "shelf_name_placeholder": "Shelf name",
+    "shelf_move_to": "Move to…",
+    "shelf_up": "Move up",
+    "shelf_down": "Move down",
+    "shelf_remove": "Remove",
+    "shelf_delete_furniture": "Delete this furniture",
+    "shelf_new_furniture": "New furniture",
+    "shelf_new_furniture_prompt": "Name of the new furniture",
+    "shelf_confirm_delete_furniture": "Delete this furniture? The items it held are not deleted, they go back to unsorted.",
+    "shelf_confirm_remove": "Remove this shelf? The %d items on it go back to unsorted.",
+    "shelf_error_duplicate": "Two shelves share the same name.",
+    "shelf_error_elsewhere": "A shelf with that name already exists in “%s”.",
     "refresh_tooltip": "Refresh from Discogs",
     "refresh": "Refresh",
     "refresh_metadata_btn": "Refresh info",
     "add": "Add",
+    "scan": "Scan",
     "sort_label": "Sort by",
     "sort_added": "Date added",
     "sort_title": "Title",
@@ -652,10 +750,47 @@
     "deselect_all": "Deselect all",
     "cancel_select": "Cancel",
     "selected_count_suffix": "selected",
+    "hide_select_bar": "Hide the selection bar",
+    "show_select_bar": "Show the selection bar",
     "print_selected_qr": "Print QR labels",
     "print_selected_barcode": "Print barcode labels",
+    "delete_selected": "Delete selected",
+    "confirm_delete_selected": "Delete {{count}} selected item(s)? Whatever they contain is deleted with them. This action is irreversible.",
+    "delete_selected_done": "{{count}} item(s) deleted.",
+    "delete_selected_partial": "{{deleted}} item(s) deleted, {{failed}} left untouched.",
+    "delete_selected_error": "The deletion failed: nothing was deleted.",
+    "delete_selected_too_many": "Only {{max}} items can be deleted at once.",
     "label_sheet_title": "Print labels",
     "label_sheet_empty": "None of the selected items has a barcode, so there is nothing to print."
+  },
+  "collection_info": {
+    "title": "Collection info",
+    "bar_label": "About this collection",
+    "back_to_collection": "Back to the collection",
+    "edit": "Edit the page",
+    "open_page": "View the page",
+    "editor_title": "Info page",
+    "editor_intro": "A free page about this collection: how it started, what is in it, where to look things up. It is written in Markdown and can hold a few images.",
+    "enabled_label": "Show the page",
+    "enabled_hint": "Adds a link to it on the home page, on the collection and in the navigation bar.",
+    "share_visible_label": "Visible from share links",
+    "share_visible_hint": "Visitors opening a public share link can read it too.",
+    "page_title_label": "Page title",
+    "body_label": "Text",
+    "body_placeholder": "Write a few words about this collection…",
+    "markdown_hint": "Markdown: # heading, **bold**, *italic*, - list, [link](https://example.com)",
+    "preview_hint": "The preview shows the page exactly as it will be read.",
+    "tab_write": "Write",
+    "tab_preview": "Preview",
+    "images_label": "Images",
+    "images_hint": "Up to {{max}} images, shown above the text. Click one to open it full screen.",
+    "images_too_many": "This page can hold at most {{max}} images.",
+    "updated_on": "Updated on {{date}}",
+    "draft_banner": "This page is not visible yet: you are the only one who can see it.",
+    "hidden_from_share_banner": "This page is hidden from the share links.",
+    "admin_subtitle": "A page presenting this collection, with text and images.",
+    "status_on": "Visible",
+    "status_off": "Off"
   },
   "confirm_vinyl": {
     "cover_preview": "Cover Preview",
@@ -753,6 +888,7 @@
     "title": "My Wishlist",
     "empty_msg": "Your wishlist is empty.",
     "search_link": "Add your first item",
+    "scan_link": "Or scan a barcode",
     "btn_received": "I received it!",
     "confirm_move": "Great! Do you want to move this album to your official collection?"
   },
@@ -798,7 +934,9 @@
     "local_disabled": "This instance only accepts single sign-on.",
     "error_oidc_unlinked": "No account is linked to this SSO identity. Sign in with your password first, then link your account from Settings.",
     "error_oidc_forbidden": "Your account is not allowed to access this instance.",
-    "error_oidc_unavailable": "SSO sign-in is currently unavailable. Please try again or use your password."
+    "error_oidc_unavailable": "SSO sign-in is currently unavailable. Please try again or use your password.",
+    "identifier_label": "Email or username",
+    "identifier_placeholder": "example@email.com or username"
   },
   "setup": {
     "title": "DVinyl Setup",
@@ -849,6 +987,8 @@
     "fastAdd_title": "Quick add",
     "fastAdd_desc": "If enabled, the \"Add an item\" button redirects directly to the chosen form, bypassing the selection menu.",
     "fastAdd_disabled": "Disabled (modal)",
+    "instantAdd_title": "Scan mode",
+    "instantAdd_desc": "A code that names one exact item (an ISBN) is added as soon as the search returns a single match, without the confirmation page. Adding then returns to the add page instead of the collection, ready for the next item.",
     "card_aspect_ratio": "Card aspect ratio",
     "card_aspect_ratio_desc": "Shape of the tiles in the collection, home and wishlist grids. Each plugin keeps its own ratio on its item pages.",
     "modules": {
@@ -897,6 +1037,9 @@
     "reading_tracking": "Reading tracking",
     "field_status": "Status",
     "field_rating": "Rating (out of 5)",
+    "field_edition": "Edition",
+    "edition_hint": "Other prints of this title. Picking one fills in its publisher, year, ISBN, page count and language.",
+    "edition_unknown_publisher": "Unknown publisher",
     "comments_hint": "(Book condition, special edition, signed...)",
     "btn_collection": "Add to Library",
     "cover_preview": "Cover Preview"
@@ -915,7 +1058,10 @@
     "graphic_novel": "Graphic Novel",
     "manga": "Manga",
     "comic": "Comic",
-    "digital": "Digital"
+    "digital": "Digital",
+    "boxed": "Boxed",
+    "expansion": "Expansion",
+    "promo": "Promo"
   },
   "status": {
     "to_read": "To read",
@@ -1062,7 +1208,10 @@
     "scan_found": "Barcode found!",
     "scan_error": "Camera error",
     "barcode_warning": "Scanning may not work correctly at the moment.",
-    "manual_entry": "Not found? Add manually"
+    "manual_entry": "Not found? Add manually",
+    "platform_label": "Platform",
+    "platform_all": "All (slow)",
+    "platform_hint": "Picking a platform makes ScreenScraper searches much faster."
   },
   "confirm_game": {
     "config_title": "Verify and complete",
@@ -1083,6 +1232,10 @@
     "status_to_play": "To play",
     "status_playing": "Playing",
     "status_played": "Completed",
+    "completion_time_label": "Estimated time to beat",
+    "completion_hastily": "Rushed",
+    "completion_normally": "Normal",
+    "completion_completely": "Completionist",
     "replace_cover": "Replace main cover",
     "btn_collection": "Add to Collection",
     "btn_wishlist": "Add to Wishlist",
@@ -1127,7 +1280,12 @@
     "add_lyrics_manual": "Add lyrics manually"
   },
   "add": {
-    "manual_entry": "Manual entry"
+    "manual_entry": "Manual entry",
+    "instant_saving": "Adding this one…",
+    "instant_blocked": "Something the form needs is missing here. Fill it in and add it.",
+    "added": "“{{title}}” added.",
+    "added_again": "“{{title}}” was already there: you now have {{quantity}}.",
+    "identifier_no_match": "Nothing found for {{code}}."
   },
   "no_collection": {
     "title": "No collection access",
@@ -1234,7 +1392,9 @@
     "corner_taken": "The top-right corner is taken by the format badge.",
     "default_color": "Default color",
     "reset": "Reset",
-    "customized": "Customized"
+    "customized": "Customized",
+    "field_lookalike": "Looks like the built-in \"{{native}}\" field. Keep both only if they hold different things.",
+    "fields_to_review": "Fields to review: {{count}}"
   },
   "add_lego": {
     "title": "Add a LEGO set",
@@ -1244,6 +1404,15 @@
     "no_results": "No set found.",
     "manual_entry": "Manual entry",
     "btn_scan": "Scan"
+  },
+  "add_boardgame": {
+    "title": "Add a Board Game",
+    "desc": "Search by title.",
+    "search_placeholder": "Game title...",
+    "results_title": "Results",
+    "no_results": "No board game found.",
+    "manual_entry": "Not on BoardGameGeek? Add manually",
+    "btn_scan": "Scan Barcode"
   },
   "confirm_lego": {
     "title": "Confirm addition",
@@ -1280,5 +1449,96 @@
     "set_num_label": "Set number",
     "theme_label": "Theme",
     "delete_confirm": "Do you really want to remove this set from your collection?"
+  },
+  "confirm_boardgame": {
+    "title": "Confirm addition",
+    "desc": "Check the information and complete your game's details.",
+    "config_title": "Review and complete",
+    "field_title": "Title",
+    "field_designer": "Designer",
+    "field_publisher": "Publisher",
+    "field_year": "Year",
+    "field_players": "Players",
+    "field_playtime": "Playtime (min)",
+    "field_min_age": "Minimum age",
+    "field_format": "Format",
+    "field_barcode": "Barcode",
+    "field_quantity": "Quantity",
+    "field_rating": "Rating (out of 5)",
+    "field_comments": "Notes / Comments",
+    "comments_placeholder": "e.g. Missing a few tokens...",
+    "designer_label": "Designer",
+    "year_label": "Year",
+    "barcode_label": "Barcode",
+    "btn_collection": "Add to collection",
+    "btn_wishlist": "Add to Wishlist"
+  },
+  "edit_boardgame": {
+    "title": "Edit board game"
+  },
+  "boardgame_detail": {
+    "players_label": "players",
+    "playtime_label": "min",
+    "designer_label": "Designer",
+    "publisher_label": "Publisher",
+    "rating_label": "BGG Rating",
+    "delete_confirm": "Do you really want to remove this game from your collection?"
+  },
+  "lists": {
+    "title": "Lists",
+    "new": "New list",
+    "new_placeholder": "e.g. Backlog, Finished in 2026…",
+    "create": "Create the list",
+    "create_short": "Create",
+    "field_name": "Name",
+    "field_kind": "It holds",
+    "field_description": "Description (optional)",
+    "kind_items": "Items",
+    "kind_items_hint": "Albums, films, games, books… from the collection.",
+    "kind_tracks": "Tracks",
+    "kind_tracks_hint": "A playlist of tracks taken from your albums.",
+    "empty_title": "No lists yet",
+    "empty_hint": "Gather items into lists like a backlog or what you finished this year, or tracks into playlists. Add to a list from an item's page, a track, or a selection in the collection.",
+    "entries_count_one": "{{count}} entry",
+    "entries_count_other": "{{count}} entries",
+    "tracks_count_one": "{{count}} track",
+    "tracks_count_other": "{{count}} tracks",
+    "empty_list_items": "Nothing in this list yet. Add items with the button below, from their page, or by selecting several in the collection.",
+    "empty_list_tracks": "No tracks in this playlist yet. Add some with the button below, or from a track on an album's page.",
+    "edit": "Edit the list",
+    "delete_confirm": "Delete the list \"{{name}}\"? The items it holds stay in the collection.",
+    "filter_placeholder": "Title, album, artist, tag, key…",
+    "filter_any_rating": "Any rating",
+    "bpm_min": "BPM min",
+    "bpm_max": "BPM max",
+    "col_album": "Album",
+    "col_duration": "Duration",
+    "filter_no_match": "No track matches these filters.",
+    "move_up": "Move up",
+    "move_down": "Move down",
+    "remove": "Remove from the list",
+    "add_to_list": "Add to a list",
+    "add_to_playlist": "Add to a playlist",
+    "picker_title_items": "Add to a list",
+    "picker_title_tracks": "Add to a playlist",
+    "picker_selection_one": "{{count}} selected item",
+    "picker_selection_other": "{{count}} selected items",
+    "picker_empty_items": "No list yet: name one below.",
+    "picker_empty_tracks": "No playlist yet: name one below.",
+    "picker_add": "Add",
+    "picker_added_one": "✓ {{count}} added",
+    "picker_added_other": "✓ {{count}} added",
+    "err_name_required": "Give the list a name.",
+    "err_full": "A list holds at most {{max}} entries.",
+    "err_stale": "This list changed in the meantime. The page will reload.",
+    "add": "Add",
+    "add_items": "Add items",
+    "add_tracks": "Add tracks",
+    "add_search_items": "Search the collection…",
+    "add_search_tracks": "Search a track by its title…",
+    "add_hint_items": "Type a title, an artist, an author or a barcode.",
+    "add_hint_tracks": "Type part of a track title.",
+    "add_no_match": "Nothing matches.",
+    "add_in_list": "✓ In the list"
   }
 }

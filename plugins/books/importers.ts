@@ -173,7 +173,6 @@ async function importGoodreads(req: any, res: any) {
           rating,
           readingStatus,
           cover_image,
-          source: 'goodreads',
           in_wishlist: false,
           comments: item['user_review']?.trim() || '',
           added_at: dateAdded,

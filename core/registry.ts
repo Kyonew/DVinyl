@@ -3,6 +3,7 @@ import { PluginDefinition } from './types';
 import { DEFAULT_PLACEHOLDER_IMAGE } from './placeholderImage';
 import Item from '../models/Item';
 import { imagesForItem } from './itemImages';
+import { pluginSources, isSourceConfigured, isSearchable, requiredEnvKeysFor } from './sources';
 
 const FLATTENS_EXTRA = Symbol('flattensExtra');
 const RESOLVES_PLACEHOLDER = Symbol('resolvesPlaceholder');
@@ -13,19 +14,32 @@ const RESOLVES_PLACEHOLDER = Symbol('resolvesPlaceholder');
  * `item[field.name]`, and the extra fields are declared with a plain name, so
  * without this every one of them would render empty.
  *
- * Done once at registration rather than in each of the plugins' formatForView, and
- * spread under the plugin's own output so a plugin path always wins over a stale
- * extra value carrying the same name.
+ * Done once at registration rather than in each of the plugins' formatForView.
+ * An extra value whose key is a native field name is never lifted, not even when the
+ * native value is empty: such a key is a leftover from before a plugin declared that
+ * field, and lifting it would show it, prefill the edit form with it, and write it
+ * into the native path on the next save.
  */
 function flattenExtraValues(plugin: PluginDefinition): void {
   if ((plugin as any)[FLATTENS_EXTRA]) return;
   const original = plugin.formatForView.bind(plugin);
+  const nativeNames = new Set<string>([
+    ...Object.keys(Item.schema.paths).map(p => p.split('.')[0]!),
+    ...Object.keys(plugin.schemaDefinition || {}),
+    ...(plugin.formFields || []).map(f => f.name)
+  ]);
+  if (plugin.creatorField) nativeNames.add(plugin.creatorField);
+  if (plugin.externalIdField) nativeNames.add(plugin.externalIdField);
   plugin.formatForView = function (item: any): any {
     const view = original(item);
     if (!view || typeof view !== 'object') return view;
     const extra = view.extra;
     if (!extra || typeof extra !== 'object' || Array.isArray(extra)) return view;
-    return { ...extra, ...view };
+    const lifted: Record<string, any> = {};
+    for (const [key, value] of Object.entries(extra)) {
+      if (!nativeNames.has(key)) lifted[key] = value;
+    }
+    return { ...lifted, ...view };
   };
   (plugin as any)[FLATTENS_EXTRA] = true;
 }
@@ -44,8 +58,10 @@ function resolvePlaceholderCover(plugin: PluginDefinition): void {
   plugin.formatForView = function (item: any): any {
     const view = original(item);
     if (!view || typeof view !== 'object') return view;
-    const images = imagesForItem(view);
     const placeholder = plugin.placeholderImage || DEFAULT_PLACEHOLDER_IMAGE;
+    const images = imagesForItem(view).filter(image =>
+      image !== DEFAULT_PLACEHOLDER_IMAGE && image !== placeholder
+    );
     view.cover_image = images[0] || placeholder;
     view.user_image = images[1] || '';
     view.images = images.length > 0 ? images : [placeholder];
@@ -107,13 +123,31 @@ class PluginRegistry {
     return this.getAll().filter(p => settings?.modules?.[p.collectionType] === true);
   }
 
-  /** Map collectionType -> true if all the plugin's requiredEnvKeys are present in process.env. */
+  /**
+   * Map collectionType -> whether the plugin can be enabled as things stand.
+   *
+   * One working source is enough. A plugin with several of them is usable as soon as
+   * any one answers, and keeping the old "every declared key must be set" rule would
+   * hold a plugin shut over credentials for a database its owner never intends to use.
+   * The plugin's own requiredEnvKeys, which are about the plugin rather than about
+   * where it searches, are still all required.
+   */
   getApiKeyStatus(): Record<string, boolean> {
     const status: Record<string, boolean> = {};
     for (const p of this.getAll()) {
-      status[p.collectionType] = (p.requiredEnvKeys || []).every(k => !!process.env[k]);
+      const ownKeys = (p.requiredEnvKeys || []).every(k => !!process.env[k]);
+      // Only the sources that can be searched decide. An image source is not what makes
+      // a module usable, and counting it would report a plugin ready because the service
+      // it fetches cover art from is configured while the one it looks items up in is not.
+      const searchable = pluginSources(p).filter(isSearchable);
+      status[p.collectionType] = ownKeys && (searchable.length === 0 || searchable.some(isSourceConfigured));
     }
     return status;
+  }
+
+  /** Every environment variable a plugin needs to be fully usable, its sources' included. */
+  getRequiredEnvKeys(plugin: PluginDefinition): string[] {
+    return requiredEnvKeysFor(plugin);
   }
 
   /** Reads a plugin-scoped setting value, falling back to the plugin's declared default. */

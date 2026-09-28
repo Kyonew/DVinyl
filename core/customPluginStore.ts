@@ -8,6 +8,7 @@ import {
 } from './customPlugin';
 import { materializePlaceholder, sanitizePlaceholder } from './placeholderImage';
 import { PluginDefinition } from './types';
+import { EXTRA_FIELD_PREFIX } from './extraFieldIdentity';
 
 /** Tailwind color names offered by the builder. The literal classes derived from
  *  them are safelisted in views/create-plugin.ejs so the JIT build includes them. */
@@ -45,7 +46,11 @@ export const RESERVED_FIELD_NAMES = new Set([
   '_id', 'kind', 'owner', 'collection', 'title', 'year', 'cover_image', 'user_image', 'images',
   'in_wishlist', 'comments', 'location', 'quantity', 'genre', 'genres', 'styles',
   'barcode', 'barcode_locked', 'added_at', 'updated_at', 'creator', 'format',
-  'tracklist', 'user_rating', 'mongo_id', 'extra', 'description'
+  'tracklist', 'user_rating', 'mongo_id', 'extra', 'description',
+  // Where the item's metadata came from. "Source" is a name a collector reaches for
+  // (where a copy was bought), and a builder field carrying it would write over the
+  // reference the core keeps there.
+  'source', 'source_id'
 ]);
 
 // Upper bounds on what a builder form may declare. Every field becomes a real Mongoose
@@ -161,7 +166,10 @@ export function buildConfigFromSubmission(body: any, existing?: CustomPluginConf
     if (!fieldLabel) continue; // ignore empty builder rows
     const name = FIELD_NAME_RE.test(cleanText(raw?.name, 30)) ? cleanText(raw.name, 30) : slugify(fieldLabel).replace(/-/g, '_');
     if (!FIELD_NAME_RE.test(name)) { errors.push('create_plugin.err_bad_field_name'); continue; }
-    if (RESERVED_FIELD_NAMES.has(name) && !grandfathered.has(name)) { errors.push('create_plugin.err_reserved_field'); continue; }
+    if ((RESERVED_FIELD_NAMES.has(name) || name.startsWith(EXTRA_FIELD_PREFIX)) && !grandfathered.has(name)) {
+      errors.push('create_plugin.err_reserved_field');
+      continue;
+    }
     if (seenNames.has(name)) { errors.push('create_plugin.err_duplicate_field'); continue; }
     seenNames.add(name);
 

@@ -1,14 +1,5 @@
 <%- include('../../views/partials/header') %>
 
-<%# ZXing rather than html5-qrcode: the latter hands its decoder a canvas sized to the
-    CSS width of the viewfinder, so on a phone an EAN-13 arrives at roughly 2 pixels per
-    bar and never decodes (issue #121). ZXing decodes the camera frame at its native
-    resolution instead. Served from the instance, with the version in the filename: the
-    scanner is reached from a phone on the local network, which is exactly where outbound
-    access to a CDN is least certain, and a publish upstream can no longer change what
-    every instance runs without a commit here. %>
-<script src="<%= baseUrl %>/vendor/zxing-0.23.0.umd.min.js"></script>
-
 <div class="max-w-screen-lg mx-auto pb-20 px-4">
     
     <div class="text-center mb-8 md:mb-12 pt-4 md:pt-8">
@@ -18,6 +9,24 @@
         <h1 class="text-3xl md:text-4xl font-black"><%= t('add_' + plugin.i18nKey + '.title', { defaultValue: t('add_vinyl.title') }) %></h1>
         <p class="opacity-60 mt-2"><%= t('add_' + plugin.i18nKey + '.desc', { defaultValue: t('add_vinyl.desc') }) %></p>
     </div>
+
+    <%# What the last add saved, when it came back here instead of to the collection (scan
+        mode). The escaping is EJS's: a title arrives from the query string and carries
+        whatever punctuation a title carries, so i18next is told to leave it alone rather
+        than have both escape it. %>
+    <% if (locals.addedTitle) { %>
+        <div role="status"
+            class="max-w-2xl mx-auto mb-6 p-4 rounded-2xl bg-green-500/10 text-green-700 dark:text-green-400 text-sm font-bold flex items-center gap-3">
+            <i class="fa-solid fa-circle-check text-base"></i>
+            <span>
+                <% if (locals.addedQuantity > 1) { %>
+                    <%= t('add.added_again', { title: addedTitle, quantity: addedQuantity, interpolation: { escapeValue: false } }) %>
+                <% } else { %>
+                    <%= t('add.added', { title: addedTitle, interpolation: { escapeValue: false } }) %>
+                <% } %>
+            </span>
+        </div>
+    <% } %>
 
     <form action="<%= baseUrl %>/search-<%= plugin.id %>" method="POST" class="max-w-2xl mx-auto mb-10">
         <% if (plugin.searchFormPartial && plugin.partialsPath) { %>
@@ -36,7 +45,7 @@
                 </div>
                 <input type="text" name="query" value="<%= locals.searchQuery || '' %>"
                     class="block w-full p-4 pl-12 text-base bg-black/5 dark:bg-white/5 border border-transparent focus:border-primary-theme rounded-2xl focus:ring-2 focus:ring-primary-theme/50 placeholder-opacity-50 transition-all outline-none"
-                    placeholder="<%= t('add_' + plugin.i18nKey + '.search_placeholder', { defaultValue: t('add_vinyl.search_placeholder') }) %>" autofocus required>
+                    placeholder="<%= t('add_' + plugin.i18nKey + '.search_placeholder', { defaultValue: t('add_vinyl.search_placeholder') }) %>" required>
             </div>
             <button type="submit"
                 class="bg-primary-theme hover:brightness-110 text-white font-bold px-8 py-4 rounded-2xl shadow-lg shadow-primary-theme/20 transition-all active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap">
@@ -44,6 +53,22 @@
                 <%= t('common.search') %>
             </button>
         </div>
+
+        <%# Which database to ask, when this plugin knows more than one. A plugin with a
+            single source keeps exactly the form it had. peer-checked:text-white is
+            written out because .bg-primary-theme carries its text colour as hand-written
+            CSS on the bare class, which a variant never matches. %>
+        <% if ((locals.sources || []).length > 1) { %>
+            <div class="flex flex-wrap items-center justify-center gap-2 mt-4">
+                <span class="text-xs font-bold uppercase opacity-40 mr-1"><%= t('add_vinyl.source_label') %></span>
+                <% sources.forEach(src => { %>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="source" value="<%= src.id %>" class="sr-only peer" <%= (locals.activeSource || '') === src.id ? 'checked' : '' %>>
+                        <span class="block px-3 py-1.5 rounded-lg text-xs font-bold bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 peer-checked:bg-primary-theme peer-checked:text-white transition-colors"><%= src.name %></span>
+                    </label>
+                <% }) %>
+            </div>
+        <% } %>
 
         <% if (plugin.searchFormPartial && plugin.partialsPath) { %>
             <%- include('../../' + plugin.partialsPath + '/' + plugin.searchFormPartial, { zone: 'bottom', searchType: locals.searchType }) %>
@@ -54,14 +79,22 @@
         </div>
 
         <div class="flex flex-col items-center justify-center mt-6 gap-3">
-            <button type="button" id="start-scan"
-                class="bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 active:scale-95">
-                <i class="fa-solid fa-barcode"></i>
-                <%= t('add_' + plugin.i18nKey + '.btn_scan', { defaultValue: t('add_vinyl.btn_scan') }) %>
-            </button>
+            <% if (!plugin.noBarcodeScan) { %>
+                <button type="button" id="start-scan"
+                    class="bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 active:scale-95">
+                    <i class="fa-solid fa-barcode"></i>
+                    <%= t('add_' + plugin.i18nKey + '.btn_scan', { defaultValue: t('add_vinyl.btn_scan') }) %>
+                </button>
+            <% } %>
 
             <% if (plugin.getManualDefaults) { %>
-                <a href="<%= baseUrl %>/add-<%= plugin.id %>/manual"
+                <%# The code this search ran on travels to the manual form, which is where
+                    someone goes when a provider has never heard of it. The identifier of an
+                    exact-match search first, then a scanned barcode: either is the number
+                    printed on the item in hand, and typing it twice is the one thing the
+                    manual form should not ask for. %>
+                <% const manualCode = locals.identifierCode || locals.scanned_barcode || ''; %>
+                <a href="<%= baseUrl %>/add-<%= plugin.id %>/manual<%- manualCode ? '?barcode=' + encodeURIComponent(manualCode) : '' %>"
                     class="text-xs text-primary-theme hover:underline font-bold transition-all flex items-center gap-1.5 mt-2">
                     <i class="fa-solid fa-keyboard"></i>
                     <%= t('add_' + plugin.i18nKey + '.manual_entry', { defaultValue: t('add_vinyl.manual_entry') }) %>
@@ -69,13 +102,9 @@
             <% } %>
         </div>
 
-        <%# The video element is ours rather than the library's: ZXing only ever reads the
-            frames, so how big it looks on screen no longer has anything to do with what
-            the decoder sees. %>
-        <div id="reader" class="hidden mt-6 rounded-2xl overflow-hidden shadow-lg border border-black/10 dark:border-white/10">
-            <video id="reader-video" class="w-full block bg-black" muted playsinline></video>
-        </div>
-        <p id="scan-hint" class="hidden mt-3 text-center text-xs opacity-60 max-w-md mx-auto leading-relaxed"></p>
+        <% if (!plugin.noBarcodeScan) { %>
+            <%- include('../../views/partials/barcode-scanner') %>
+        <% } %>
     </form>
 
     <% if (locals.results) { %>
@@ -85,27 +114,35 @@
         </div>
 
         <% if (results.length === 0) { %>
-            <div class="text-center py-12 card-theme bg-opacity-50 rounded-xl border-dashed opacity-70 transition-colors">
-                <i class="fa-solid <%= locals.error ? 'fa-barcode' : 'fa-ghost' %> text-4xl mb-3 opacity-50"></i>
-                <%# An empty list and a failed lookup read the same to the user unless we say so %>
-                <p><%= locals.error || t('add_' + plugin.i18nKey + '.no_results', { defaultValue: t('add_vinyl.no_results') }) %></p>
-            </div>
+            <%# An empty list and a failed lookup read the same to the user unless we say so.
+                A lookup that failed gets the loud box: it is read from wherever the scanner
+                is rather than from in front of the keyboard, and it is the one thing on the
+                page standing between two items of a stack. An empty shelf keeps the quiet
+                one, having nothing to announce. %>
+            <% if (locals.error) { %>
+                <div role="status"
+                    class="flex flex-col items-center text-center gap-4 py-10 px-6 rounded-2xl bg-amber-500/10 border-2 border-amber-500/40 text-amber-700 dark:text-amber-400 shadow-sm transition-colors">
+                    <div class="w-16 h-16 rounded-full bg-amber-500/20 flex items-center justify-center">
+                        <i class="fa-solid fa-barcode text-3xl"></i>
+                    </div>
+                    <p class="text-lg font-bold leading-snug max-w-xl"><%= error %></p>
+                </div>
+            <% } else { %>
+                <div class="text-center py-12 card-theme bg-opacity-50 rounded-xl border-dashed opacity-70 transition-colors">
+                    <i class="fa-solid fa-ghost text-4xl mb-3 opacity-50"></i>
+                    <p><%= t('add_' + plugin.i18nKey + '.no_results', { defaultValue: t('add_vinyl.no_results') }) %></p>
+                </div>
+            <% } %>
         <% } else { %>
             <% 
                 const aspect = plugin.aspectRatioClass || 'aspect-[2/3]';
             %>
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 <% results.forEach(item => { %>
-                    <%
-                        const confirmParams = [];
-                        if (locals.searchType && locals.searchType !== plugin.id) confirmParams.push('type=' + encodeURIComponent(searchType));
-                        if (locals.scanned_barcode) confirmParams.push('barcode=' + encodeURIComponent(scanned_barcode));
-                        const confirmQs = confirmParams.length ? '?' + confirmParams.join('&') : '';
-                    %>
-                    <a href="<%= baseUrl %>/confirm-<%= plugin.id %>/<%= item.id || item.hardcover_id || item.tmdb_id || item.igdb_id %><%- confirmQs %>" class="card-theme rounded-xl overflow-hidden hover:border-primary-theme transition-all group flex flex-col hover:shadow-lg hover:-translate-y-1">
+                    <a href="<%= baseUrl %><%= item.confirmPath %>" class="card-theme rounded-xl overflow-hidden hover:border-primary-theme transition-all group flex flex-col hover:shadow-lg hover:-translate-y-1">
                         <div class="relative <%= aspect %> bg-black/5 dark:bg-white/5">
                             <% if (item.cover_image && !item.cover_image.includes('spacer.gif')) { %>
-                                <img src="<%= item.cover_image %>" onerror="this.onerror=null; this.src='<%= baseUrl %>/ressources/logo.png';" class="w-full h-full object-cover">
+                                <img src="<%= item.cover_image %>" loading="lazy" onerror="this.onerror=null; this.src='<%= baseUrl %>/ressources/logo.png';" class="w-full h-full object-cover">
                             <% } else { %>
                                 <div class="w-full h-full flex items-center justify-center opacity-30">
                                     <i class="fa-solid fa-<%= plugin.icon %> text-3xl"></i>
@@ -119,7 +156,20 @@
                             <% if (creatorLine) { %>
                                 <p class="opacity-60 text-xs mb-1 transition-colors line-clamp-1"><%= creatorLine %></p>
                             <% } %>
-                            <p class="opacity-40 text-[10px] mb-2 transition-colors"><%= item.country ? item.country + ' • ' : '' %><%= item.year %></p>
+                            <%# Where the release is from, or what it runs on for a game: one title is
+                                often several results that only this tells apart. %>
+                            <p class="opacity-40 text-[10px] mb-2 transition-colors line-clamp-1"><%= [item.country || item.platforms_text, item.year].filter(Boolean).join(' • ') %></p>
+
+                            <%# Where the result came from, so two databases answering the same
+                                query stay tellable apart. Pointless when only one can answer. %>
+                            <% if ((locals.sources || []).length > 1 && item.source) { %>
+                                <% const resultSource = sources.find(s => s.id === item.source); %>
+                                <% if (resultSource) { %>
+                                    <div class="flex items-center gap-1 mb-2">
+                                        <span class="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-primary-theme/10 text-primary-theme truncate max-w-full"><%= resultSource.name %></span>
+                                    </div>
+                                <% } %>
+                            <% } %>
 
                             <% if (item.is_advanced_cd) { %>
                                 <div class="flex items-center gap-1 mb-2">
@@ -158,112 +208,76 @@
 </div>
 
 <script>
+    // Autofocus pops the on-screen keyboard and pushes the Scan button below the fold
+    // before anyone asked for anything - only worth it on a device with a real keyboard.
+    // Outside the scanner script, which a plugin without barcode scan never gets.
+    if (!window.matchMedia('(pointer: coarse)').matches) {
+        document.querySelector('input[name="query"]').focus();
+    }
+</script>
+
+<% if (!plugin.noBarcodeScan) { %>
+<script>
     const scanTranslations = {
         btnDefault: '<i class="fa-solid fa-barcode text-primary-theme text-xl"></i> <span><%= t("add_" + plugin.i18nKey + ".btn_scan", { defaultValue: t("add_vinyl.btn_scan") }) %></span>',
         init: '<i class="fa-solid fa-spinner fa-spin text-xl"></i> <span><%= t("add_vinyl.scan_init") %></span>',
         stop: '<i class="fa-solid fa-xmark text-xl"></i> <span><%= t("add_vinyl.scan_stop") %></span>',
         found: '<i class="fa-solid fa-check text-xl"></i> <span><%= t("add_vinyl.scan_found") %></span>',
-        error: <%- JSON.stringify(t("add_vinyl.scan_error")) %>,
-        hint: <%- JSON.stringify(t("add_vinyl.scan_hint")) %>
+        error: <%- JSON.stringify(t("add_vinyl.scan_error")) %>
     };
 
-    // Restricted to the retail symbologies an item can actually carry: a decoder asked
-    // for fewer formats rejects a bad read faster and misreads less often.
-    const scanHints = new Map();
-    scanHints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-        ZXing.BarcodeFormat.EAN_13,
-        ZXing.BarcodeFormat.EAN_8,
-        ZXing.BarcodeFormat.UPC_A,
-        ZXing.BarcodeFormat.UPC_E
-    ]);
-    // Costs more work per frame, and earns it here: the frames come from a hand-held
-    // camera, where a barcode is rarely square to the lens.
-    scanHints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-
-    const codeReader = new ZXing.BrowserMultiFormatReader(scanHints);
-    // Left at its default of 0, the reader re-decodes a full frame the instant the
-    // previous one failed, which pins a phone's CPU for nothing. Roughly the 10fps the
-    // scanner used to run at.
-    codeReader.timeBetweenDecodingAttempts = 100;
-
     const scanButton = document.getElementById('start-scan');
-    const readerDiv = document.getElementById('reader');
-    const videoEl = document.getElementById('reader-video');
-    const hintEl = document.getElementById('scan-hint');
     const searchInput = document.querySelector('input[name="query"]');
     const form = document.querySelector('form[action="<%= baseUrl %>/search-<%= plugin.id %>"]');
     let isScanning = false;
-    let foundCode = false;
-    let hintTimer = null;
 
-    // A camera that opens and never decodes says nothing about why. After a while of
-    // neither a result nor an error, offer what actually helps instead of leaving
-    // someone to wonder whether the scanner is even running.
-    const SCAN_HINT_DELAY_MS = 12000;
-
-    function stopScan() {
-        codeReader.reset();
-        clearTimeout(hintTimer);
-        readerDiv.classList.add('hidden');
-        hintEl.classList.add('hidden');
+    function resetScanButton(label) {
         scanButton.classList.remove('bg-red-600', 'hover:bg-red-500', 'text-white');
         scanButton.classList.add('bg-black/5', 'dark:bg-white/5', 'hover:bg-black/10', 'dark:hover:bg-white/10');
+        scanButton.innerHTML = label;
         isScanning = false;
     }
 
     scanButton.addEventListener('click', () => {
         if (isScanning) {
-            stopScan();
-            scanButton.innerHTML = scanTranslations.btnDefault;
+            DVScanner.stop();
+            resetScanButton(scanTranslations.btnDefault);
             return;
         }
 
-        foundCode = false;
-        readerDiv.classList.remove('hidden');
         scanButton.innerHTML = scanTranslations.init;
 
-        // Asking for the largest frame the camera will give is the whole point of this
-        // path: ZXing decodes the frame at the resolution it arrives in, so the stream
-        // is what decides whether a barcode is readable, not how big the preview looks.
-        // `ideal` rather than `exact` everywhere, so a laptop with no rear camera and a
-        // phone that cannot do 1080p both fall back instead of failing to open.
-        codeReader.decodeFromConstraints({
-            video: {
-                facingMode: { ideal: 'environment' },
-                width: { ideal: 1920 },
-                height: { ideal: 1080 }
-            }
-        }, videoEl, (result) => {
-            // The error argument fires on every single frame that holds no code, which
-            // is the normal state of a scanner, so only a result is worth reacting to.
-            if (!result || foundCode) return;
-            foundCode = true;
-            stopScan();
-            scanButton.innerHTML = scanTranslations.found;
-            searchInput.value = result.getText();
-            form.submit();
-        }).then(() => {
-            if (foundCode) return;
+        DVScanner.start({
+            onCode(code) {
+                resetScanButton(scanTranslations.found);
+                searchInput.value = code;
+                form.submit();
+            },
+            // The overlay's own close button: the camera is already stopped.
+            onClose: () => resetScanButton(scanTranslations.btnDefault)
+        }).then(running => {
+            if (!running) return;
             isScanning = true;
             scanButton.innerHTML = scanTranslations.stop;
-
             scanButton.classList.remove('bg-black/5', 'dark:bg-white/5', 'hover:bg-black/10', 'dark:hover:bg-white/10');
             scanButton.classList.add('bg-red-600', 'hover:bg-red-500', 'text-white');
-
-            hintTimer = setTimeout(() => {
-                hintEl.textContent = scanTranslations.hint;
-                hintEl.classList.remove('hidden');
-            }, SCAN_HINT_DELAY_MS);
         }).catch(err => {
             console.error("Error starting scan", err);
-            stopScan();
-            scanButton.innerHTML = scanTranslations.error;
+            resetScanButton(scanTranslations.error);
         });
     });
 
-    // A stream left running holds the camera open, and its indicator light on, after
-    // someone has already navigated away.
-    window.addEventListener('pagehide', () => codeReader.reset());
+    // Reached via a scan shortcut elsewhere (the add-hub picker, or a single-module
+    // collection's shortcut button): skip the form and go straight to the camera. The
+    // parameter is dropped once used, so a reload shows the plain form again.
+    const pageParams = new URLSearchParams(window.location.search);
+    if (pageParams.has('scan')) {
+        pageParams.delete('scan');
+        const rest = pageParams.toString();
+        history.replaceState(history.state, '', window.location.pathname + (rest ? '?' + rest : '') + window.location.hash);
+        scanButton.click();
+    }
 </script>
+<% } %>
 
 <%- include('../../views/partials/footer') %>

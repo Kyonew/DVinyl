@@ -11,6 +11,7 @@
     "back_to_search": "Retour à la recherche",
     "cancel_back": "Annuler et retour",
     "save_changes": "Enregistrer les modifications",
+    "unsaved_changes": "Modifications non enregistrées",
     "searching": "Recherche...",
     "no_results": "Aucun résultat trouvé.",
     "not_available": "N/A",
@@ -71,7 +72,17 @@
     "oidc_linked_label": "Lié à votre fournisseur d'identité",
     "oidc_not_linked_label": "Non lié",
     "oidc_link_btn": "Lier le compte",
-    "oidc_unlink_btn": "Délier"
+    "oidc_unlink_btn": "Délier",
+    "home_title": "Démarrage",
+    "home_hint": "L'endroit où l'application s'ouvre, et la façon dont la collection s'affiche.",
+    "home_collection_label": "Collection par défaut",
+    "home_collection_last": "Dernière visitée",
+    "home_page_label": "Page d'arrivée",
+    "home_page_dashboard": "Accueil",
+    "home_page_collection": "Collection",
+    "home_page_wishlist": "Souhaits",
+    "home_view_label": "Vue par défaut",
+    "home_view_last": "Dernière utilisée"
   },
   "errors": {
     "username_taken": "Ce pseudo est déjà utilisé.",
@@ -140,7 +151,12 @@
     "share_scope_updated": "Contenu partagé mis à jour.",
     "share_link_created": "Lien de partage créé.",
     "share_link_deleted": "Lien de partage supprimé.",
-    "error_share": "Impossible de mettre à jour le partage."
+    "error_share": "Impossible de mettre à jour le partage.",
+    "home_collection_updated": "Collection par défaut mise à jour.",
+    "error_email_taken": "Un compte utilise déjà cet email.",
+    "error_username_taken": "Un compte utilise déjà ce nom d'utilisateur.",
+    "error_user_invalid": "Vérifiez le nom d'utilisateur et l'email, le compte n'a pas été créé.",
+    "error_user_create": "Le compte n'a pas pu être créé."
   },
   "media": {
     "vinyl": "Vinyle",
@@ -183,7 +199,9 @@
     "digital": "Digital",
     "book": "Livre",
     "lego": "LEGO",
-    "legos": "Sets LEGO"
+    "legos": "Sets LEGO",
+    "boardgames": "Jeux de société",
+    "boardgame": "Jeu de société"
   },
   "index": {
     "welcome": "Salut",
@@ -191,6 +209,7 @@
     "search_placeholder": "Rechercher...",
     "nav_add_full": "Ajouter un élément",
     "nav_add_short": "Ajouter",
+    "nav_scan_full": "Scanner un code-barres",
     "nav_view_all": "Voir tout",
     "section_latest": "Derniers Ajouts",
     "section_wishlist": "Wishlist",
@@ -221,7 +240,9 @@
     "lego_pieces_label": "Total de pièces",
     "lego_minifigs_label": "Total minifigurines",
     "lego_sealed_label": "Sets scellés",
-    "top_theme_label": "Thème le plus présent"
+    "top_theme_label": "Thème le plus présent",
+    "boardgames_total_label": "Total jeux de société",
+    "top_designer_label": "Créateur Favori"
   },
   "modal": {
     "estimate_title": "Estimation en cours...",
@@ -242,6 +263,7 @@
     "desc": "Cherche par nom ou scanne le code-barres.",
     "search_placeholder": "Artiste, Album...",
     "separator_or": "OU",
+    "source_label": "Source",
     "btn_scan": "Scanner le code-barres",
     "scan_init": "Initialisation...",
     "scan_stop": "Arrêter le scan",
@@ -297,7 +319,9 @@
       "loc": "Loc.",
       "ip_device": "IP & Appareil",
       "date": "Date",
-      "security": "Sécurité"
+      "security": "Sécurité",
+      "home_collection": "Collection par défaut",
+      "home_collection_last": "Dernière visitée"
     },
     "tooltips": {
       "reset_password": "Réinitialiser MDP",
@@ -349,6 +373,7 @@
       "import_error": "Erreur lors de l'importation.",
       "json_error": "Fichier JSON invalide.",
       "file_error": "Le fichier de sauvegarde est corrompu ou invalide.",
+      "error_collection_dump": "Ce fichier est une sauvegarde de collection : il ne contient aucun compte utilisateur et ne peut donc pas restaurer une instance entière. Rien n'a été modifié. Pour la restaurer, connectez-vous (ou créez le premier compte), puis importez-la dans « Sauvegarde de la collection » sur la page d'administration de la collection.",
       "confirm_import": "ATTENTION : Cela va supprimer toutes vos données actuelles (albums, utilisateurs, logs) pour les remplacer par le contenu du fichier. Vous serez déconnecté. Continuer ?",
       "subtitle": "Sauvegardez votre collection ou restaurez une base de données existante.",
       "title": "Maintenance du système",
@@ -485,7 +510,14 @@
       "allow_member_creation": "Autoriser les membres à créer leur propre collection",
       "allow_member_creation_desc": "Tout utilisateur de l'instance (compte local ou SSO) pourra créer sa propre collection et en devenir administrateur, sans intervention de votre part. Désactivé, seul l'administrateur de l'instance crée des collections.",
       "max_collections": "Nombre de collections maximum par utilisateur",
-      "max_collections_desc": "Ne compte que les collections dont l'utilisateur est le créateur ; celles qui lui sont simplement partagées ne comptent pas. Les administrateurs de l'instance ne sont pas limités."
+      "max_collections_desc": "Ne compte que les collections dont l'utilisateur est le créateur ; celles qui lui sont simplement partagées ne comptent pas. Les administrateurs de l'instance ne sont pas limités.",
+      "tabs": {
+        "collections": "Collections",
+        "users": "Utilisateurs",
+        "backup": "Sauvegarde",
+        "security": "Sécurité",
+        "logs": "Journaux"
+      }
     },
     "logs_delete_last": {
       "count_placeholder": "Nombre",
@@ -511,7 +543,8 @@
     "collection_backup": {
       "title": "Sauvegarde de la collection",
       "subtitle": "Exporter cette collection (items + réglages) ou remplacer son contenu avec une sauvegarde. Le ZIP inclut les images locales ; le JSON contient uniquement les données.",
-      "confirm_import": "L'import va REMPLACER tous les items de cette collection. Continuer ?"
+      "confirm_import": "L'import va REMPLACER tous les items de cette collection. Continuer ?",
+      "error_invalid_item": "L'item « {{- title}} » de ce fichier ne peut pas être restauré (champ invalide : {{field}}). Rien n'a été modifié."
     },
     "sharing": {
       "title": "Liens de partage publics",
@@ -580,6 +613,7 @@
       "target_wishlist": "Liste de souhaits",
       "enrich_label": "Compléter depuis l'API",
       "enrich_hint": "Recherche chaque élément pour récupérer les jaquettes et métadonnées absentes du fichier (plus lent).",
+      "source_label": "Chercher dans",
       "btn_analyze": "Analyser le fichier",
       "btn_back": "Changer de fichier",
       "btn_import": "Lancer l'importation",
@@ -615,17 +649,81 @@
         "pages": "Pages",
         "language": "Langue"
       },
-      "err_missing_required": "Ces champs obligatoires doivent être associés à une colonne ou à une valeur fixe : {{fields}}"
+      "err_missing_required": "Ces champs obligatoires doivent être associés à une colonne ou à une valeur fixe : {{fields}}",
+      "screenscraper_note": "ScreenScraper est lent : comptez quelques secondes par jeu dont la plateforme est reconnue, jusqu'à une minute sinon, et ces jeux-là risquent de ne pas être complétés. Donnez une plateforme à chaque ligne (une colonne Plateforme, ou la plateforme par défaut) pour des recherches plus rapides et plus justes."
+    },
+    "sources": {
+      "title": "Où ce module cherche",
+      "hint": "Essayées dans cet ordre. La première qui répond fait la recherche ; toutes alimentent le sélecteur d'images.",
+      "cap_search": "Recherche",
+      "cap_images": "Images",
+      "ready": "Prête",
+      "missing": "Manque {{keys}}",
+      "move_up": "Monter",
+      "move_down": "Descendre"
+    },
+    "tabs": {
+      "settings": "Configuration",
+      "members": "Membres",
+      "collection": "Collection",
+      "imports": "Imports",
+      "maintenance": "Maintenance"
+    },
+    "field_lookalikes": {
+      "title": "Des champs personnalisés ressemblent à des champs intégrés",
+      "item": "{{plugin}} : « {{custom}} » ressemble au champ intégré « {{native}} »",
+      "hint": "Souvent un champ que le plugin a gagné dans une mise à jour. S'ils contiennent la même chose, c'est le champ intégré qu'il faut garder ; garder les deux est aussi possible.",
+      "review": "Vérifier",
+      "later": "Plus tard"
     }
   },
   "collection": {
     "title": "Ma Collection",
     "share_view_banner": "Vous consultez une collection partagée - lecture seule.",
     "filter_placeholder": "Filtrer...",
+    "view_grid": "Grille",
+    "view_table": "Tableau",
+    "view_shelf": "Étagère",
+    "table_col_title": "Titre",
+    "table_col_info": "Infos",
+    "shelf_no_furniture": "Aucun meuble dans cette collection pour l'instant.",
+    "shelf_empty_cell": "Vide",
+    "shelf_unsorted": "Non rangés",
+    "shelf_more_hidden": "non affichés",
+    "shelf_none": "Non rangé",
+    "shelf_new_option": "+ Nouvelle étagère…",
+    "shelf_new_placeholder": "Nom de l'étagère",
+    "shelf_move_btn": "Ranger",
+    "shelf_move_title": "Ranger dans…",
+    "shelf_move_confirm": "Ranger",
+    "shelf_arrange": "Aménager",
+    "shelf_furniture_name": "Nom du meuble",
+    "shelf_layout": "Disposition",
+    "shelf_layout_cubes": "Casiers",
+    "shelf_layout_rows": "Rangées",
+    "shelf_columns": "Colonnes",
+    "shelf_rows": "Rangs",
+    "shelf_shelves": "Étagères",
+    "shelf_add": "Ajouter",
+    "shelf_save": "Enregistrer",
+    "shelf_capacity": "Capacité indicative",
+    "shelf_name_placeholder": "Nom de l'étagère",
+    "shelf_move_to": "Déplacer vers…",
+    "shelf_up": "Monter",
+    "shelf_down": "Descendre",
+    "shelf_remove": "Retirer",
+    "shelf_delete_furniture": "Supprimer ce meuble",
+    "shelf_new_furniture": "Nouveau meuble",
+    "shelf_new_furniture_prompt": "Nom du nouveau meuble",
+    "shelf_confirm_delete_furniture": "Supprimer ce meuble ? Les items qu'il contenait ne sont pas supprimés, ils repassent en non rangés.",
+    "shelf_confirm_remove": "Retirer cette étagère ? Les %d items qu'elle contient repassent en non rangés.",
+    "shelf_error_duplicate": "Deux étagères portent le même nom.",
+    "shelf_error_elsewhere": "Une étagère de ce nom existe déjà dans « %s ».",
     "refresh_tooltip": "Rafraîchir depuis Discogs",
     "refresh": "Rafraîchir",
     "refresh_metadata_btn": "Actualiser les infos",
     "add": "Ajouter",
+    "scan": "Scanner",
     "artist_filter": "Artiste",
     "sort_added": "Date d'ajout",
     "sort_artist": "Artiste",
@@ -652,10 +750,47 @@
     "deselect_all": "Tout désélectionner",
     "cancel_select": "Annuler",
     "selected_count_suffix": "sélectionné(s)",
+    "hide_select_bar": "Masquer la barre de sélection",
+    "show_select_bar": "Afficher la barre de sélection",
     "print_selected_qr": "Imprimer les QR codes",
     "print_selected_barcode": "Imprimer les codes-barres",
+    "delete_selected": "Supprimer la sélection",
+    "confirm_delete_selected": "Supprimer {{count}} élément(s) sélectionné(s) ? Ce qu'ils contiennent est supprimé avec eux. Cette action est irréversible.",
+    "delete_selected_done": "{{count}} élément(s) supprimé(s).",
+    "delete_selected_partial": "{{deleted}} élément(s) supprimé(s), {{failed}} non supprimé(s).",
+    "delete_selected_error": "La suppression a échoué : rien n'a été supprimé.",
+    "delete_selected_too_many": "Seuls {{max}} éléments peuvent être supprimés en une fois.",
     "label_sheet_title": "Imprimer les étiquettes",
     "label_sheet_empty": "Aucun des items sélectionnés n'a de code-barres, il n'y a donc rien à imprimer."
+  },
+  "collection_info": {
+    "title": "Infos collection",
+    "bar_label": "À propos de cette collection",
+    "back_to_collection": "Retour à la collection",
+    "edit": "Modifier la page",
+    "open_page": "Voir la page",
+    "editor_title": "Page d'informations",
+    "editor_intro": "Une page libre à propos de cette collection : son histoire, ce qu'elle contient, des liens utiles. Elle s'écrit en Markdown et peut contenir quelques images.",
+    "enabled_label": "Afficher la page",
+    "enabled_hint": "Ajoute un lien vers elle sur l'accueil, sur la collection et dans la barre de navigation.",
+    "share_visible_label": "Visible depuis les liens de partage",
+    "share_visible_hint": "Les visiteurs qui ouvrent un lien de partage public peuvent la lire aussi.",
+    "page_title_label": "Titre de la page",
+    "body_label": "Texte",
+    "body_placeholder": "Écrivez quelques mots sur cette collection…",
+    "markdown_hint": "Markdown : # titre, **gras**, *italique*, - liste, [lien](https://exemple.com)",
+    "preview_hint": "L'aperçu montre la page telle qu'elle sera lue.",
+    "tab_write": "Écrire",
+    "tab_preview": "Aperçu",
+    "images_label": "Images",
+    "images_hint": "Jusqu'à {{max}} images, affichées au-dessus du texte. Cliquez sur l'une d'elles pour l'ouvrir en plein écran.",
+    "images_too_many": "Cette page peut contenir au maximum {{max}} images.",
+    "updated_on": "Mis à jour le {{date}}",
+    "draft_banner": "Cette page n'est pas encore visible : vous êtes le seul à la voir.",
+    "hidden_from_share_banner": "Cette page est masquée pour les liens de partage.",
+    "admin_subtitle": "Une page de présentation de cette collection, avec du texte et des images.",
+    "status_on": "Visible",
+    "status_off": "Désactivée"
   },
   "confirm_vinyl": {
     "cover_preview": "Aperçu Pochette",
@@ -753,6 +888,7 @@
     "title": "Liste de Souhaits",
     "empty_msg": "Ta liste de souhaits est vide.",
     "search_link": "Ajouter un premier élément",
+    "scan_link": "Ou scanne un code-barres",
     "btn_received": "Je l'ai reçu !",
     "confirm_move": "Super ! Tu veux ajouter cet album à ta collection officielle ?"
   },
@@ -798,7 +934,9 @@
     "local_disabled": "Cette instance n'accepte que l'authentification unique.",
     "error_oidc_unlinked": "Aucun compte n'est lié à cette identité SSO. Connectez-vous d'abord avec votre mot de passe, puis liez votre compte depuis les paramètres.",
     "error_oidc_forbidden": "Votre compte n'est pas autorisé à accéder à cette instance.",
-    "error_oidc_unavailable": "La connexion SSO est momentanément indisponible. Réessayez ou utilisez votre mot de passe."
+    "error_oidc_unavailable": "La connexion SSO est momentanément indisponible. Réessayez ou utilisez votre mot de passe.",
+    "identifier_label": "Email ou nom d'utilisateur",
+    "identifier_placeholder": "exemple@email.com ou nom d'utilisateur"
   },
   "setup": {
     "title": "Installation DVinyl",
@@ -849,6 +987,8 @@
     "fastAdd_title": "Ajout rapide",
     "fastAdd_desc": "Si activé, le bouton \"Ajouter un élément\" redirige directement vers le formulaire choisi, sans passer par le menu de sélection.",
     "fastAdd_disabled": "Désactivé (modal)",
+    "instantAdd_title": "Mode scan",
+    "instantAdd_desc": "Un code qui désigne un article précis (un ISBN) est ajouté dès que la recherche ne renvoie qu'un seul résultat, sans passer par la page de confirmation. L'ajout revient ensuite au formulaire d'ajout plutôt qu'à la collection, prêt pour le suivant.",
     "card_aspect_ratio": "Rapport hauteur/largeur de la carte",
     "card_aspect_ratio_desc": "Forme des vignettes dans les grilles collection, accueil et wishlist. Chaque plugin garde son propre rapport sur ses fiches.",
     "modules": {
@@ -897,6 +1037,9 @@
     "reading_tracking": "Suivi de lecture",
     "field_status": "Statut",
     "field_rating": "Note (sur 5)",
+    "field_edition": "Édition",
+    "edition_hint": "Autres impressions de ce titre. En choisir une remplit son éditeur, son année, son ISBN, son nombre de pages et sa langue.",
+    "edition_unknown_publisher": "Éditeur inconnu",
     "comments_hint": "(État du livre, édition spéciale, dédicace...)",
     "btn_collection": "Ajouter à la Bibliothèque",
     "cover_preview": "Aperçu de la couverture"
@@ -915,6 +1058,9 @@
     "graphic_novel": "Roman Graphique",
     "manga": "Manga",
     "comic": "Comic",
+    "boxed": "Boîte",
+    "expansion": "Extension",
+    "promo": "Promo",
     "digital": "Digital"
   },
   "status": {
@@ -1062,7 +1208,10 @@
     "scan_found": "Code trouvé !",
     "scan_error": "Erreur de caméra",
     "barcode_warning": "Le scan peut ne pas fonctionner correctement pour le moment.",
-    "manual_entry": "Introuvable ? Ajouter manuellement"
+    "manual_entry": "Introuvable ? Ajouter manuellement",
+    "platform_label": "Plateforme",
+    "platform_all": "Toutes (lent)",
+    "platform_hint": "Choisir une plateforme rend la recherche ScreenScraper bien plus rapide."
   },
   "confirm_game": {
     "config_title": "Vérifier et compléter",
@@ -1083,6 +1232,10 @@
     "status_to_play": "À jouer",
     "status_playing": "En cours",
     "status_played": "Terminé",
+    "completion_time_label": "Temps estimé pour terminer",
+    "completion_hastily": "Rapide",
+    "completion_normally": "Normal",
+    "completion_completely": "Complétionniste",
     "replace_cover": "Remplacer la pochette principale",
     "btn_collection": "Ajouter à la collection",
     "btn_wishlist": "Ajouter à la Wishlist",
@@ -1127,7 +1280,12 @@
     "add_lyrics_manual": "Saisir les paroles manuellement"
   },
   "add": {
-    "manual_entry": "Ajout manuel"
+    "manual_entry": "Ajout manuel",
+    "instant_saving": "Ajout en cours…",
+    "instant_blocked": "Il manque ici une information obligatoire. Complétez-la puis ajoutez.",
+    "added": "« {{title}} » ajouté.",
+    "added_again": "« {{title}} » y était déjà : vous en avez maintenant {{quantity}}.",
+    "identifier_no_match": "Rien trouvé pour {{code}}."
   },
   "no_collection": {
     "title": "Aucune collection",
@@ -1234,7 +1392,9 @@
     "corner_taken": "Le coin haut-droite est occupé par le badge de format.",
     "default_color": "Couleur par défaut",
     "reset": "Réinitialiser",
-    "customized": "Personnalisé"
+    "customized": "Personnalisé",
+    "field_lookalike": "Ressemble au champ intégré « {{native}} ». Ne gardez les deux que s'ils contiennent des choses différentes.",
+    "fields_to_review": "Champs à vérifier : {{count}}"
   },
   "add_lego": {
     "title": "Ajouter un set LEGO",
@@ -1244,6 +1404,15 @@
     "no_results": "Aucun set trouvé.",
     "manual_entry": "Saisie manuelle",
     "btn_scan": "Scanner"
+  },
+  "add_boardgame": {
+    "title": "Ajouter un jeu de société",
+    "desc": "Recherchez par titre.",
+    "search_placeholder": "Titre du jeu...",
+    "results_title": "Résultats",
+    "no_results": "Aucun jeu trouvé.",
+    "manual_entry": "Pas sur BoardGameGeek ? Saisie manuelle",
+    "btn_scan": "Scanner un code-barres"
   },
   "confirm_lego": {
     "title": "Confirmer l'ajout",
@@ -1280,5 +1449,96 @@
     "set_num_label": "Numéro de set",
     "theme_label": "Thème",
     "delete_confirm": "Voulez-vous vraiment supprimer ce set de votre collection ?"
+  },
+  "confirm_boardgame": {
+    "title": "Confirmer l'ajout",
+    "desc": "Vérifiez les informations et complétez les détails de votre jeu.",
+    "config_title": "Vérifier et compléter",
+    "field_title": "Titre",
+    "field_designer": "Créateur",
+    "field_publisher": "Éditeur",
+    "field_year": "Année",
+    "field_players": "Joueurs",
+    "field_playtime": "Durée (min)",
+    "field_min_age": "Âge minimum",
+    "field_format": "Format",
+    "field_barcode": "Code-barres",
+    "field_quantity": "Quantité",
+    "field_rating": "Note (sur 5)",
+    "field_comments": "Notes / Commentaires",
+    "comments_placeholder": "Ex: Il manque quelques jetons...",
+    "designer_label": "Créateur",
+    "year_label": "Année",
+    "barcode_label": "Code-barres",
+    "btn_collection": "Ajouter à la collection",
+    "btn_wishlist": "Ajouter à la Wishlist"
+  },
+  "edit_boardgame": {
+    "title": "Modifier le jeu de société"
+  },
+  "boardgame_detail": {
+    "players_label": "joueurs",
+    "playtime_label": "min",
+    "designer_label": "Créateur",
+    "publisher_label": "Éditeur",
+    "rating_label": "Note BGG",
+    "delete_confirm": "Voulez-vous vraiment supprimer ce jeu de votre collection ?"
+  },
+  "lists": {
+    "title": "Listes",
+    "new": "Nouvelle liste",
+    "new_placeholder": "ex. À faire, Terminés en 2026…",
+    "create": "Créer la liste",
+    "create_short": "Créer",
+    "field_name": "Nom",
+    "field_kind": "Elle contient",
+    "field_description": "Description (facultative)",
+    "kind_items": "Des items",
+    "kind_items_hint": "Albums, films, jeux, livres… de la collection.",
+    "kind_tracks": "Des pistes",
+    "kind_tracks_hint": "Une playlist de pistes tirées de vos albums.",
+    "empty_title": "Aucune liste pour l'instant",
+    "empty_hint": "Rassemblez des items dans des listes, comme ce qu'il reste à faire ou ce que vous avez fini cette année, ou des pistes dans des playlists. On ajoute à une liste depuis la page d'un item, une piste, ou une sélection dans la collection.",
+    "entries_count_one": "{{count}} élément",
+    "entries_count_other": "{{count}} éléments",
+    "tracks_count_one": "{{count}} piste",
+    "tracks_count_other": "{{count}} pistes",
+    "empty_list_items": "Rien dans cette liste pour l'instant. Ajoutez des items avec le bouton ci-dessous, depuis leur page, ou en en sélectionnant plusieurs dans la collection.",
+    "empty_list_tracks": "Aucune piste dans cette playlist pour l'instant. Ajoutez-en avec le bouton ci-dessous, ou depuis une piste sur la page d'un album.",
+    "edit": "Modifier la liste",
+    "delete_confirm": "Supprimer la liste « {{name}} » ? Les items qu'elle contient restent dans la collection.",
+    "filter_placeholder": "Titre, album, artiste, tag, tonalité…",
+    "filter_any_rating": "Toutes les notes",
+    "bpm_min": "BPM min",
+    "bpm_max": "BPM max",
+    "col_album": "Album",
+    "col_duration": "Durée",
+    "filter_no_match": "Aucune piste ne correspond à ces filtres.",
+    "move_up": "Monter",
+    "move_down": "Descendre",
+    "remove": "Retirer de la liste",
+    "add_to_list": "Ajouter à une liste",
+    "add_to_playlist": "Ajouter à une playlist",
+    "picker_title_items": "Ajouter à une liste",
+    "picker_title_tracks": "Ajouter à une playlist",
+    "picker_selection_one": "{{count}} item sélectionné",
+    "picker_selection_other": "{{count}} items sélectionnés",
+    "picker_empty_items": "Aucune liste pour l'instant : nommez-en une ci-dessous.",
+    "picker_empty_tracks": "Aucune playlist pour l'instant : nommez-en une ci-dessous.",
+    "picker_add": "Ajouter",
+    "picker_added_one": "✓ {{count}} ajouté",
+    "picker_added_other": "✓ {{count}} ajoutés",
+    "err_name_required": "Donnez un nom à la liste.",
+    "err_full": "Une liste contient au plus {{max}} éléments.",
+    "err_stale": "Cette liste a changé entre-temps. La page va se recharger.",
+    "add": "Ajouter",
+    "add_items": "Ajouter des items",
+    "add_tracks": "Ajouter des pistes",
+    "add_search_items": "Chercher dans la collection…",
+    "add_search_tracks": "Chercher une piste par son titre…",
+    "add_hint_items": "Tapez un titre, un artiste, un auteur ou un code-barres.",
+    "add_hint_tracks": "Tapez une partie du titre d'une piste.",
+    "add_no_match": "Aucun résultat.",
+    "add_in_list": "✓ Dans la liste"
   }
 }

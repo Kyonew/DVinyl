@@ -2,15 +2,17 @@ import express from 'express';
 import mongoose from 'mongoose';
 import QRCode from 'qrcode';
 import { registry } from '../registry';
+import { viewRegistry } from '../viewRegistry';
+import { shelfChoices } from '../shelfStore';
+import { CollectionViewContext } from '../types';
 import Item from '../../models/Item';
 import Collection from '../../models/Collection';
-import User from '../../models/User';
 import { BASE_URL } from '../../config/constants';
 import { requireAuth, requireAuthOrShareView, requireCollectionRole } from '../../middleware/authMiddleware';
 import { applyVisibilityFilter, applyEnabledModulesFilter, applyContainedFilter, applyShareScopeFilter } from '../../utils/visibilityHelper';
 import { escapeRegExp, getPublicProtocol, generateBarcodeDataUrl } from '../helpers';
-import { generateUniqueSlug } from '../../utils/collectionHelpers';
-import { resolveShelfItems } from '../../utils/itemHelpers';
+import { generateUniqueSlug, setActiveCollection } from '../../utils/collectionHelpers';
+import { resolveShelfItems, deleteItemsAndContents } from '../../utils/itemHelpers';
 import { checkCollectionCreation } from '../../utils/instanceSettings';
 import {
   getExtraFields, buildExtraFieldConditions, parseExtraSort, extraSortKey,
@@ -21,13 +23,48 @@ const router = express.Router();
 
 router.get('/wishlist', requireAuth, async (req: any, res: any) => {
   const data = await buildShelfView(req, res, true);
-  if (data) res.render('wishlist', data);
+  if (!data) return;
+  if (isPartialRequest(req)) return renderShelfPartial(res, data, true);
+  res.vary('X-Requested-With');
+  res.render('wishlist', data);
 });
 
 router.get('/collection', requireAuthOrShareView, async (req: any, res: any) => {
   const data = await buildShelfView(req, res, false);
-  if (data) res.render('collection', data);
+  if (!data) return;
+  if (isPartialRequest(req)) return renderShelfPartial(res, data, false);
+  res.vary('X-Requested-With');
+  res.render('collection', data);
 });
+
+// Live search (see albums-filters.ejs's liveSearchReload) asks for just the results
+// fragment instead of the whole page, through this header. A normal navigation never
+// sets it, so a bookmarked or shared link always gets real HTML.
+function isPartialRequest(req: any): boolean {
+  return req.get('X-Requested-With') === 'fetch';
+}
+
+// Renders only what a live filter change needs to replace (the active view with its
+// pager, and the active-filter pills) as JSON, instead of the full document.
+// The JSON answers the very URL the page then moves to, so it is kept out of the
+// browser cache: a back navigation to that URL would otherwise show the raw JSON.
+function renderShelfPartial(res: any, data: Record<string, any>, isWishlist: boolean) {
+  res.set('Cache-Control', 'no-store');
+  res.vary('X-Requested-With');
+  res.render('partials/shelf-results', { ...data, isWishlist }, (err: any, html: string) => {
+    if (err) {
+      console.error('Shelf partial render error:', err.message);
+      return res.status(500).json({ success: false });
+    }
+    res.render('partials/active-filter-pills', data, (pillsErr: any, pillsHtml: string) => {
+      if (pillsErr) {
+        console.error('Filter pills render error:', pillsErr.message);
+        return res.status(500).json({ success: false });
+      }
+      res.json({ success: true, html, pillsHtml, totalItems: data.totalItems });
+    });
+  });
+}
 
 // The collection and the wishlist are the same page over two halves of the same
 // shelf, so they share everything below and differ only on `inWishlist`.
@@ -248,6 +285,17 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
 
     const totalItems = await Item.countDocuments(query);
 
+    // A code scanned from the filter bar names one item more often than not: open it
+    // rather than showing a list of one. Anything else falls through to the list.
+    if (req.query.scanned && totalItems === 1 && !isPartialRequest(req)) {
+      const hit: any = await Item.findOne(query).select('_id kind').lean();
+      const hitPlugin = hit ? registry.getByKind(hit.kind) : undefined;
+      if (hit && hitPlugin) {
+        res.redirect(`${hitPlugin.routePrefix}/${hit._id}`);
+        return null;
+      }
+    }
+
     // BUILD SORT OBJECT
     const buildSortObj = () => {
       const extraSort = parseExtraSort(sort as string, extraDefs);
@@ -264,6 +312,16 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
         'year_asc': { year: 1 },
       };
 
+      // An option the selected type declares for itself (see PluginDefinition.sortOptions).
+      const own = sort && selectedPlugin ? sort.match(/^(.*)_(asc|desc)$/) : null;
+      const ownOption = own ? selectedPlugin?.sortOptions?.find(o => o.key === own[1]) : undefined;
+      if (own && ownOption) {
+        const dir = own[2] === 'asc' ? 1 : -1;
+        const ownSort: Record<string, 1 | -1> = {};
+        for (const field of ownOption.fields) ownSort[field] = dir;
+        return { ...ownSort, sort_title: dir, title: dir };
+      }
+
       if (sort && sort.startsWith('artist')) {
         const dir = sort === 'artist_asc' ? 1 : -1;
         // No single creator field spans every type, so "all" falls back to the title, and
@@ -278,11 +336,34 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
       return sortMap[sort || ''] || { added_at: -1 };
     };
 
+    const itemSort = buildSortObj();
+
     const found = await Item.find(query)
-      .sort(buildSortObj())
+      .sort(itemSort)
       .skip((page - 1) * limit)
       .limit(limit)
       .lean();
+
+    // How the page is drawn. Three sources, narrowest first: the view selector says so
+    // outright, then the user's chosen default view, then the one this browser last
+    // used. A default set in the settings outranks the cookie on purpose - that is what
+    // makes it a default rather than a one-off, and leaving it on "last used" is how a
+    // user asks for the cookie to keep deciding.
+    //
+    // Resolved here rather than with the sort and the page size, because a view that
+    // draws something other than one page of items needs the finished query and ordering
+    // to build its own. Resolved through the registry before it is stored, so an id that
+    // does not exist, or one that no longer applies to this page, cannot come back from
+    // the cookie on every later request.
+    const viewContext: CollectionViewContext = { req, res, inWishlist, itemQuery: query, itemSort };
+    const availableViews = await viewRegistry.getAvailable(viewContext);
+    const activeView = viewRegistry.resolve(
+      req.query.view || req.user?.homeView || req.cookies.viewPref,
+      availableViews
+    );
+    if (req.query.view === activeView.id) {
+      res.cookie('viewPref', activeView.id, { maxAge: 365 * 24 * 60 * 60 * 1000 });
+    }
 
     // A holder stands in for what it holds: several seasons and the show says so on its
     // card, a single one and that season takes the place outright. Applied after the
@@ -340,8 +421,7 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
     // Where things are kept spans every type, so this one is not scoped by the selected
     // type. A share link gets none of it: the control is not drawn for a visitor, and the
     // values that would fill it are not read either.
-    const locationQuery: any = { collection: activeCollectionId, location: { $nin: ['', null] } };
-    const locations = res.locals.isShareView ? [] : await Item.distinct('location', locationQuery);
+    const locations = res.locals.isShareView ? [] : await shelfChoices(activeCollectionId);
 
     // Scoped to the selected type, so a type never offers another type's values (and the
     // view drops a control entirely once its list comes back empty).
@@ -408,7 +488,7 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
       })
     );
 
-    return {
+    const viewModel: Record<string, any> = {
       albums: albumsFormatted,
       totalItems,
       totalPages: Math.ceil(totalItems / limit),
@@ -441,12 +521,24 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
       platforms,
       hasYear,
       creatorFilterLabel,
+      pluginSortOptions: (selectedPlugin?.sortOptions || []).map(o => ({ key: o.key, label: req.t(o.label) })),
       extraFilters,
       extraAny: EXTRA_ANY,
       extraNone: EXTRA_NONE,
       user: res.locals.user,
-      settings
+      settings,
+      activeView,
+      collectionViews: availableViews
     };
+
+    // Only the view being rendered gets to add to the page, so a view nobody is
+    // looking at costs nothing. It reads what is already there, which is how it
+    // reaches the filters the page resolved above.
+    if (activeView.buildData) {
+      Object.assign(viewModel, await activeView.buildData(viewContext, viewModel));
+    }
+
+    return viewModel;
   } catch (err: any) {
     console.error("Collection page loading error:", err.message);
     res.status(500).send(req.t('errors.generic_server_error'));
@@ -459,6 +551,11 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
 // serves everyone else, so a sheet is deliberately capped at a plausible print run
 // (measured: ~2.3s of blocked event loop for 200 QR codes).
 const MAX_SHEET_LABELS = 200;
+
+// How many explicit selections one request may delete. Not a latency cap like the label
+// sheet above but a blast-radius one: the grid only ever ticks what one page shows, so a
+// payload past this is not something the UI can produce.
+const MAX_BULK_DELETE_SELECTION = 500;
 
 // Bulk/sheet QR labels for a set of items picked on the collection page. Generic
 // rather than per-plugin: a mixed-type collection page can select items across
@@ -536,6 +633,64 @@ router.post('/collection/labels', requireAuth, requireCollectionRole('editor'), 
   }
 });
 
+// Bulk deletion for the collection page selection mode.
+router.post('/api/collection/delete-selected', requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
+  try {
+    const activeCollectionId = res.locals.activeCollectionId;
+    if (!activeCollectionId) {
+      return res.status(400).json({ success: false, error: req.t('errors.generic_server_error') });
+    }
+
+    const rawIds = req.body?.ids;
+    const idList: any[] = Array.isArray(rawIds) ? rawIds : (rawIds ? [rawIds] : []);
+    // Deduplicated before the cap is measured, so a payload that repeats the same card
+    // is not refused for a size it does not really have.
+    const selectedIds = Array.from(new Set(
+      idList.filter((id: any) => typeof id === 'string' && mongoose.Types.ObjectId.isValid(id))
+    ));
+
+    if (selectedIds.length === 0) {
+      return res.status(400).json({ success: false, error: req.t('errors.not_found') });
+    }
+
+    // Refused rather than trimmed to the cap: a label sheet that prints its first 200
+    // boxes is still a usable sheet, whereas a delete that silently drops part of the
+    // selection would report a success the user has no way to check.
+    if (selectedIds.length > MAX_BULK_DELETE_SELECTION) {
+      return res.status(400).json({
+        success: false,
+        error: req.t('collection.delete_selected_too_many', { max: MAX_BULK_DELETE_SELECTION })
+      });
+    }
+
+    // Mirror the same visibility/module/containment restrictions as the shelf page:
+    // a handcrafted request must not delete items that are not reachable there.
+    const query: any = { _id: { $in: selectedIds }, collection: activeCollectionId, in_wishlist: false };
+    applyVisibilityFilter(query, res.locals.isCollectionAdmin, res.locals.settings);
+    applyEnabledModulesFilter(query, res.locals.settings);
+    applyContainedFilter(query);
+
+    const items = await Item.find(query).select('_id').lean();
+    const itemIds = items.map((item: any) => item._id);
+    if (itemIds.length === 0) {
+      return res.status(404).json({ success: false, error: req.t('errors.not_found') });
+    }
+
+    await deleteItemsAndContents(itemIds);
+
+    // 'deleted' counts the ticked cards that went, not the documents removed: contents
+    // leave with their holder and were never selectable on their own, so counting them
+    // would report more deletions than there were boxes. 'failed' is what the selection
+    // asked for and did not get: hidden by a visibility rule, or already gone.
+    const deleted = itemIds.length;
+    const failed = selectedIds.length - deleted;
+    res.json({ success: true, deleted, failed });
+  } catch (err: any) {
+    console.error('Bulk delete selected error:', err.message);
+    res.status(500).json({ success: false, error: req.t('errors.generic_server_error') });
+  }
+});
+
 // Create a collection as an ordinary member. Gated on the instance-wide toggle and
 // per-user quota (utils/instanceSettings.ts); instance admins bypass both and also
 // have the richer /admin/collections/create path. The creator becomes 'admin' of what
@@ -559,15 +714,13 @@ router.post('/collection/create', requireAuth, async (req: any, res: any) => {
       slug: await generateUniqueSlug(name),
       createdBy: req.user._id,
       isDefault: false,
+      shelvesSeeded: true,
       members: [{ user: req.user._id, role: 'admin' }]
     });
 
     // Land the user in the collection they just created rather than leaving them on
     // whatever they were browsing (for a first-time user, on the no-collection page).
-    await User.updateOne(
-      { _id: req.user._id },
-      { $set: { lastActiveCollectionId: collection._id } }
-    );
+    await setActiveCollection(req, collection._id);
 
     console.log(`[COLLECTION] ${req.user.email} created "${collection.name}" (${collection._id})`);
     res.redirect('/?msg=collection_created');
@@ -595,10 +748,7 @@ router.post('/collection/switch', requireAuth, async (req: any, res: any) => {
       return res.redirect(back);
     }
 
-    await User.updateOne(
-      { _id: req.user._id },
-      { $set: { lastActiveCollectionId: target._id } }
-    );
+    await setActiveCollection(req, target._id);
 
     console.log(`[COLLECTION] ${req.user.email} switched to "${target.name}" (${target._id})`);
 

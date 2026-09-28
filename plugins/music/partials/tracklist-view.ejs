@@ -151,6 +151,10 @@
 
         <% if (locals.canEditCollection) { %>
         <div class="px-5 py-4 border-t border-black/10 dark:border-white/10 flex items-center justify-end gap-3">
+            <button type="button" id="tmPlaylist"
+                class="mr-auto text-sm font-bold opacity-70 hover:opacity-100 hover:text-primary-theme transition-all">
+                <i class="fa-solid fa-list-check mr-1"></i><%= t('lists.add_to_playlist') %>
+            </button>
             <span id="tmSaveMsg" class="text-xs opacity-0 transition-opacity"></span>
             <button type="button" id="tmSave"
                 class="bg-primary-theme text-white text-sm font-bold px-5 py-2 rounded-lg hover:opacity-90 active:scale-95 transition-all">
@@ -311,6 +315,17 @@
     }
 
     els.lyricsBtn.addEventListener('click', () => loadLyrics(current));
+
+    // The picker is included further down the item page, so it is looked up on click.
+    const playlistBtn = document.getElementById('tmPlaylist');
+    if (playlistBtn) {
+        playlistBtn.addEventListener('click', () => {
+            const tr = tracks[current];
+            if (tr && tr._id && window.openListPicker) {
+                window.openListPicker({ kind: 'tracks', item: '<%= item._id %>', track: tr._id, label: tr.title });
+            }
+        });
+    }
 
     if (els.lyricsAdd) {
         els.lyricsAdd.addEventListener('click', () => {
