@@ -633,3 +633,85 @@ export function registerTracklistPlugin(): PluginDefinition {
   registry.register(tracklistPlugin);
   return tracklistPlugin;
 }
+
+export const SEARCH_FIELDS_PLUGIN_ID = 'testsearchfields';
+export const SEARCH_FIELDS_PLUGIN_KIND = 'TestSearchFields';
+export const SEARCH_FIELDS_PLUGIN_TYPE = 'testsearchfields';
+/** The extra options this plugin's own search form declares, like games' `platform`. */
+export const SEARCH_FIELDS = ['platform', 'region'];
+
+/** One entry per search call, recording exactly what the source was asked with. */
+export const searchFieldsPluginState = {
+  calls: [] as Array<{ query: string; options: Record<string, any> }>
+};
+
+let searchFieldsPlugin: PluginDefinition | undefined;
+
+/**
+ * A searchable plugin that declares `searchFormFields` the way games does with its
+ * ScreenScraper `platform`, and records the options its source was called with so a test
+ * can prove a plugin-declared field travelled from the request body into the search.
+ */
+export function registerSearchFieldsPlugin(): PluginDefinition {
+  if (searchFieldsPlugin) return searchFieldsPlugin;
+
+  searchFieldsPlugin = {
+    id: SEARCH_FIELDS_PLUGIN_ID,
+    kind: SEARCH_FIELDS_PLUGIN_KIND,
+    label: 'Test Search Fields',
+    icon: 'fa-flask',
+    routePrefix: '/testsearchfields',
+    collectionType: SEARCH_FIELDS_PLUGIN_TYPE,
+    i18nKey: 'testsearchfields',
+    creatorField: 'creator',
+    externalIdField: 'test_external_id',
+    supportsBarcodeSearch: false,
+    searchFormFields: [...SEARCH_FIELDS],
+    schemaDefinition: {
+      creator: { type: String, default: '' },
+      platform: { type: String, default: '' },
+      region: { type: String, default: '' },
+      test_external_id: { type: String, default: '' }
+    },
+    formFields: [
+      { name: 'title', label: 'Title', type: 'text', required: true, showIn: ['add', 'edit'] },
+      { name: 'creator', label: 'Creator', type: 'text', showIn: ['add', 'edit'] }
+    ],
+    formats: [{ value: 'standard', label: 'Standard' }],
+    sources: [
+      {
+        id: 'recorder',
+        name: 'Recorder',
+        async search(query: string, options: Record<string, any>) {
+          searchFieldsPluginState.calls.push({ query, options });
+          return [{ id: `rec-${query}`, title: `Recorder result for ${query}`, creator: 'Recorder', year: '2020' }];
+        },
+        async getDetails(id: string) {
+          return { title: `Recorder detail ${id}`, creator: 'Recorder', test_external_id: id };
+        }
+      }
+    ],
+    getStats(items: any[]) {
+      return { testsearchfields: items.length };
+    },
+    formatForView(item: any) {
+      return {
+        _id: item._id,
+        title: item.title,
+        creator: item.creator,
+        platform: item.platform,
+        region: item.region,
+        test_external_id: item.test_external_id
+      };
+    },
+    async findDuplicate() {
+      return null;
+    },
+    async getVariants() {
+      return [];
+    }
+  };
+
+  registry.register(searchFieldsPlugin);
+  return searchFieldsPlugin;
+}

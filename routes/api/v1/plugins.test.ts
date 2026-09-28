@@ -37,4 +37,16 @@ describe('GET /api/v1/plugins', () => {
     assert.equal(music.canRefresh, true);
     assert.deepEqual(music.sources.map((s: any) => s.id).sort(), ['discogs', 'itunes']);
   });
+
+  test('200 exposes each plugin\'s own searchFormFields', async () => {
+    const { user } = await makeUser();
+    const res = await request(app)
+      .get('/api/v1/plugins')
+      .set(bearer(signAccessToken(user._id)));
+    assert.equal(res.status, 200);
+    const games = res.body.plugins.find((p: any) => p.id === 'games');
+    assert.deepEqual(games.searchFormFields, ['platform']);
+    const music = res.body.plugins.find((p: any) => p.id === 'music');
+    assert.deepEqual(music.searchFormFields, []);
+  });
 });

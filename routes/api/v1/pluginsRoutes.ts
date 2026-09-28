@@ -26,6 +26,9 @@ router.get('/plugins', requireApiAuth, async (req: any, res: any) => {
       hint: f.hint
     })),
     formats: p.formats,
+    // The extra fields the plugin's own search form adds (games' ScreenScraper
+    // `platform`). A client sends any of these names in the search body.
+    searchFormFields: p.searchFormFields || [],
     creatorField: p.creatorField,
     externalIdField: p.externalIdField,
     externalIdLabel: p.externalIdLabel,

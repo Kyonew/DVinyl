@@ -2017,6 +2017,7 @@ paths:
                     supportsPriceEstimate: true
                     hasSearch: true
                     canRefresh: true
+                    searchFormFields: []
                     sources:
                       - { id: discogs, name: Discogs, searchable: true, configured: true }
                       - { id: itunes, name: iTunes, searchable: false, configured: false }
@@ -4319,6 +4320,13 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/PluginFormat'
+        searchFormFields:
+          type: array
+          items: { type: string }
+          description: |
+            Names of extra search options this plugin's own search form adds
+            beyond the core ones (games declares `platform` for ScreenScraper).
+            Send any of them in `POST /collections/{id}/items/search`.
         creatorField: { type: string }
         externalIdField: { type: string }
         externalIdLabel: { type: string }
@@ -4494,6 +4502,11 @@ components:
     ItemSearchRequest:
       type: object
       required: [pluginId, query]
+      description: |
+        Searches one of a plugin's sources. Beyond the shared fields below, any
+        name listed in the plugin's `searchFormFields` (see `GET /plugins`) may
+        be sent to narrow the search — `games` declares `platform`, so a client
+        can restrict a ScreenScraper search to one system.
       properties:
         pluginId: { type: string }
         query: { type: string }
@@ -4502,6 +4515,11 @@ components:
         country: { type: string }
         genre_filter: { type: string }
         label_filter: { type: string }
+        platform:
+          type: string
+          description: |
+            Plugin-declared extra field: the ScreenScraper platform id, for games.
+            Other plugins declare their own (or none).
         source:
           type: string
           description: |

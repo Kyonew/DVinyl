@@ -5,7 +5,7 @@ import { buildApiApp } from '../../../test/helpers/app';
 import { startDb, stopDb, clearDb } from '../../../test/helpers/db';
 import { makeUser, makeCollection, makeSettings, makeItem, itemModel, allModulesOn } from '../../../test/helpers/factories';
 import { signAccessToken, bearer } from '../../../test/helpers/auth';
-import { loadPluginsOnce, registerTestPlugin, registerMultiSourcePlugin, registerNoRefreshPlugin, TEST_PLUGIN_ID, TEST_PLUGIN_KIND, MULTI_SOURCE_PLUGIN_ID, MULTI_SOURCE_PLUGIN_KIND, NO_REFRESH_PLUGIN_ID } from '../../../test/helpers/plugins';
+import { loadPluginsOnce, registerTestPlugin, registerMultiSourcePlugin, registerNoRefreshPlugin, registerSearchFieldsPlugin, TEST_PLUGIN_ID, TEST_PLUGIN_KIND, MULTI_SOURCE_PLUGIN_ID, MULTI_SOURCE_PLUGIN_KIND, NO_REFRESH_PLUGIN_ID, SEARCH_FIELDS_PLUGIN_ID, SEARCH_FIELDS_PLUGIN_TYPE, searchFieldsPluginState } from '../../../test/helpers/plugins';
 import { removeItemImageUrls } from '../../../test/helpers/files';
 import Collection from '../../../models/Collection';
 import InstanceSettings from '../../../models/InstanceSettings';
@@ -19,6 +19,7 @@ before(async () => {
   registerTestPlugin();
   registerMultiSourcePlugin();
   registerNoRefreshPlugin();
+  registerSearchFieldsPlugin();
   await startDb();
 });
 after(async () => {
@@ -626,6 +627,46 @@ describe('POST /api/v1/collections/:id/items/search', () => {
       .send({ pluginId: NO_REFRESH_PLUGIN_ID, query: 'x' });
     assert.equal(res.status, 404);
     assert.equal(res.body.success, false);
+  });
+
+  test('200 forwards the plugin-declared searchFormFields to the source', async () => {
+    const ctx = await seedCollectionWithRoles();
+    searchFieldsPluginState.calls.length = 0;
+    const res = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/items/search`)
+      .set(bearer(ctx.editorToken))
+      .send({ pluginId: SEARCH_FIELDS_PLUGIN_ID, query: 'sonic', platform: 'Genesis', region: 'JPN' });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.results[0].title, 'Recorder result for sonic');
+    const call = searchFieldsPluginState.calls.at(-1)!;
+    assert.equal(call.options.platform, 'Genesis');
+    assert.equal(call.options.region, 'JPN');
+  });
+
+  test('200 trims declared search fields and drops blank or non-string ones', async () => {
+    const ctx = await seedCollectionWithRoles();
+    searchFieldsPluginState.calls.length = 0;
+    const res = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/items/search`)
+      .set(bearer(ctx.editorToken))
+      .send({ pluginId: SEARCH_FIELDS_PLUGIN_ID, query: 'sonic', platform: '  Genesis  ', region: 42 });
+    assert.equal(res.status, 200);
+    const call = searchFieldsPluginState.calls.at(-1)!;
+    assert.equal(call.options.platform, 'Genesis');
+    assert.equal('region' in call.options, false);
+  });
+
+  test('200 does not forward body keys the plugin does not declare', async () => {
+    const ctx = await seedCollectionWithRoles();
+    searchFieldsPluginState.calls.length = 0;
+    await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/items/search`)
+      .set(bearer(ctx.editorToken))
+      .send({ pluginId: SEARCH_FIELDS_PLUGIN_ID, query: 'sonic', platform: 'Genesis', hacked: 'yes' });
+    const call = searchFieldsPluginState.calls.at(-1)!;
+    assert.equal('hacked' in call.options, false);
+    assert.equal(call.options.type, SEARCH_FIELDS_PLUGIN_TYPE);
+    assert.equal(call.options.platform, 'Genesis');
   });
 });
 

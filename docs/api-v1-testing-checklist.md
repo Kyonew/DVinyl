@@ -43,7 +43,9 @@ BASE=http://localhost:3000
 
 ## Add flow / sources
 - [ ] `GET $BASE/api/v1/plugins` → every plugin carries `hasSearch`, `canRefresh` and a `sources[]` array (`{id,name,searchable,configured}`)
+- [ ] `GET $BASE/api/v1/plugins` → `games` carries `searchFormFields:["platform"]`; `music` carries `searchFormFields:[]`
 - [ ] `POST …/collections/$CID/items/search` `{"pluginId":"games","query":"zelda"}` → 200, `source` names the plugin's first configured source, `sources[]` lists the picker
+- [ ] Same body with `"platform":"SNES"` → 200 and results are narrowed to that system (the field is forwarded to the source; a plugin without `searchFormFields` ignores unknown body keys)
 - [ ] Same body with `"source":"screenscraper"` (configured) → 200, results come from ScreenScraper and `source:"screenscraper"`
 - [ ] `GET …/items/confirm?pluginId=games&externalId=<id>&source=screenscraper` → 200 with `item.source`/`item.source_id`; posting that pair back to `POST …/items` stores it
 - [ ] `POST …/items/:itemId/refresh-info` on an item added from a non-default source → 200, patched through that source

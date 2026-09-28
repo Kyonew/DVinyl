@@ -33,6 +33,23 @@ const upload = multer({
   limits: { files: 1, fileSize: MAX_ITEM_IMAGE_UPLOAD_BYTES }
 });
 
+/**
+ * The plugin's own extra search fields, as a plain options record.
+ *
+ * A plugin can declare `searchFormFields` the core knows nothing about — games adds the
+ * ScreenScraper `platform`, which narrows a search to one system. Only declared names are
+ * read, and only as non-empty strings, so a client cannot smuggle arbitrary option keys
+ * into the provider call.
+ */
+function pluginSearchFields(plugin: any, body: Record<string, any>): Record<string, string> {
+  const fields: Record<string, string> = {};
+  for (const name of plugin.searchFormFields || []) {
+    const value = body?.[name];
+    if (typeof value === 'string' && value.trim()) fields[name] = value.trim();
+  }
+  return fields;
+}
+
 router.use(requireApiAuth);
 
 router.get('/collections', async (req: any, res: any) => {
@@ -491,6 +508,10 @@ router.post('/collections/:id/items/search', requireApiCollectionRole('editor'),
     }
 
     const runSearch = (q: string) => source.search(q, {
+      // The plugin's own search form may add fields the core does not know about (games'
+      // ScreenScraper platform). Read only names the plugin declares, strings only, so a
+      // client cannot smuggle arbitrary option keys into the provider call.
+      ...pluginSearchFields(plugin, req.body || {}),
       type: type || plugin.id,
       year, country, genre_filter, label_filter,
       language: req.language,
