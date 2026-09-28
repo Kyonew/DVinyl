@@ -62,6 +62,15 @@ BASE=http://localhost:3000
 - [ ] `GET …/lists/$LID/candidates?q=…` → 200 `{results}` with `inList` flags
 - [ ] `GET …/lists/for-item?item=$IID` → 200 with `contains` true for the lists that hold it
 
+## Collection info
+- [ ] `GET $BASE/api/v1/collections/$CID/info` as a member of a collection whose page is on with content → 200, `visible:true`, `info.body` plus rendered `bodyHtml`
+- [ ] Same request as a member when the page is off or empty → 200, `info:null`, `bodyHtml:""`, `visible:false` (the draft is not disclosed)
+- [ ] Same request as a collection admin while the page is off → 200, the saved draft with `visible:false` and `draft:true`
+- [ ] `PATCH …/info` `{"title":"New"}` (admin) → 200; other fields keep their values; `{"enabled":"yes"}` → 400; as a viewer/editor → 403
+- [ ] `PATCH …/info` with `images` containing a `data:` URL → the image is dropped; removing an image not used by any item deletes its file
+- [ ] `POST …/info/preview` `{"body":"# Hi"}` (admin) → 200 `{html:"<h1>Hi</h1>"}`; a non-string body → 400
+- [ ] `POST …/info-images` (admin) with a JPEG → 201 `{url}`; with a PNG → 400; as a viewer/editor → 403
+
 ## Fresh-instance edge case
 - [ ] On an instance with zero users (before `/setup`), `POST $BASE/api/v1/auth/login` → 503 JSON (not an HTML redirect) — not re-run this pass (would require wiping the shared local test DB); confirmed by reading the code instead: `app.ts:249-250` gates every `/api/v1` request behind the same `setupRequired` check with a `503 {success:false,...}` JSON body.
 

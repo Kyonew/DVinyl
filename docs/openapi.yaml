@@ -48,6 +48,8 @@ tags:
     description: Settings of the authenticated account (profile, password, avatar, SSO).
   - name: Lists
     description: Named selections of a collection's items, or of their tracks (playlists).
+  - name: Collection info
+    description: A collection's presentation page — Markdown body, pictures and visibility.
 paths:
   /auth/login:
     post:
@@ -2907,6 +2909,150 @@ paths:
         '500': { $ref: '#/components/responses/InternalServerError' }
         '503': { $ref: '#/components/responses/ServiceUnavailable' }
 
+  /collections/{id}/info:
+    get:
+      tags: [Collection info]
+      operationId: getCollectionInfo
+      summary: Read a collection's info page
+      description: |
+        Requires `viewer` role. `visible` is true when the page is enabled and has
+        content. A member receives `info` and `bodyHtml` only when it is visible; a
+        collection admin instead receives the saved draft with `draft: true`. The
+        share-link flag `shareVisible` never gates this member-only endpoint.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+      responses:
+        '200':
+          description: The page as this caller sees it.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CollectionInfoPage' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    patch:
+      tags: [Collection info]
+      operationId: patchCollectionInfo
+      summary: Edit a collection's info page
+      description: |
+        Requires `admin` role. Partial update: only the keys sent are applied, each
+        cleaned by the same rules as the web editor. `title` is trimmed and truncated to
+        120, `body` to 20000, `images` sanitised (managed uploads or http(s) URLs only,
+        deduplicated, at most 6). A present field of the wrong type is a 400.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CollectionInfoPatchRequest' }
+            example: { enabled: true, title: 'My records', body: '# Hello' }
+      responses:
+        '200':
+          description: The page as it now stands.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CollectionInfoPage' }
+        '400':
+          description: A present field has the wrong type.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { success: false, error: 'enabled must be a boolean' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /collections/{id}/info/preview:
+    post:
+      tags: [Collection info]
+      operationId: previewCollectionInfo
+      summary: Render collection info Markdown
+      description: |
+        Requires `admin` role. Renders `body` with the same renderer the page itself
+        uses, so the preview cannot drift from the published page. Writes nothing.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string }
+      responses:
+        '200':
+          description: The rendered HTML.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [html]
+                properties:
+                  html: { type: string }
+        '400':
+          description: '`body` is not a string.'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { success: false, error: 'body must be a string' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /collections/{id}/info-images:
+    post:
+      tags: [Collection info]
+      operationId: uploadCollectionInfoImage
+      summary: Upload a picture for a collection's info page
+      description: |
+        Requires `admin` role. `multipart/form-data` with one `image` part, JPEG only.
+        Returns the managed URL to place in `images` via `PATCH /collections/{id}/info`.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image: { type: string, format: binary }
+      responses:
+        '201':
+          description: The stored image.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, url]
+                properties:
+                  success: { type: boolean }
+                  url: { type: string }
+                example: { success: true, url: '/uploads/items/item-00000000-0000-0000-0000-000000000000.jpg' }
+        '400':
+          description: Not a JPEG.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { success: false, error: 'Only JPEG images are accepted' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '413':
+          description: Over the size limit.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { success: false, error: 'Image too large' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
   /collections/{id}/export:
     get:
       tags: [Collections]
@@ -4682,6 +4828,54 @@ components:
             failedCount: { type: integer }
             saved: { type: boolean }
         error: { type: string }
+
+    CollectionInfo:
+      type: object
+      required: [enabled, shareVisible, title, body, images]
+      properties:
+        enabled: { type: boolean }
+        shareVisible:
+          type: boolean
+          description: Whether a share-link visitor sees the page too (members-only over the API).
+        title: { type: string }
+        body: { type: string, description: Markdown, stored as written. }
+        images:
+          type: array
+          items: { type: string }
+          description: Managed upload paths (`/uploads/items/…`) or http(s) URLs, in display order.
+        updated_at:
+          type: [string, "null"]
+          format: date-time
+    CollectionInfoPage:
+      type: object
+      required: [info, bodyHtml, visible, draft]
+      properties:
+        info:
+          description: |
+            The page, or `null` when it is not visible to this caller and they are not a
+            collection admin.
+          oneOf:
+            - { $ref: '#/components/schemas/CollectionInfo' }
+            - type: "null"
+        bodyHtml:
+          type: string
+          description: '`info.body` rendered server-side; empty when `info` is withheld.'
+        visible: { type: boolean }
+        draft:
+          type: boolean
+          description: True only for a collection admin reading a page others cannot see yet.
+    CollectionInfoPatchRequest:
+      type: object
+      description: Partial update; omitted fields keep their stored value.
+      properties:
+        enabled: { type: boolean }
+        shareVisible: { type: boolean }
+        title: { type: string, maxLength: 120 }
+        body: { type: string, maxLength: 20000 }
+        images:
+          type: array
+          items: { type: string }
+          maxItems: 6
 
     CollectionSettings:
       type: object
