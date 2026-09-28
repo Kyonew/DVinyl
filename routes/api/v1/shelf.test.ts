@@ -265,3 +265,110 @@ describe('item location canonicalisation', () => {
     assert.equal(stored.location, '');
   });
 });
+
+describe('furniture writes', () => {
+  test('POST creates an empty piece, editor only', async () => {
+    const ctx = await seedCollectionWithRoles();
+    const created = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/furniture`)
+      .set(bearer(ctx.editorToken))
+      .send({ name: 'Kallax', layout: 'rows' });
+    assert.equal(created.status, 201);
+    assert.equal(created.body.furniture.name, 'Kallax');
+    assert.equal(created.body.furniture.layout, 'rows');
+    assert.deepEqual(created.body.furniture.cells, []);
+
+    const denied = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/furniture`)
+      .set(bearer(ctx.viewerToken))
+      .send({ name: 'X' });
+    assert.equal(denied.status, 403);
+
+    const unnamed = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/furniture`)
+      .set(bearer(ctx.editorToken))
+      .send({ name: '  ' });
+    assert.equal(unnamed.status, 400);
+    assert.equal(unnamed.body.error, 'name is required');
+
+    const badLayout = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/furniture`)
+      .set(bearer(ctx.editorToken))
+      .send({ name: 'X', layout: 'diagonal' });
+    assert.equal(badLayout.status, 400);
+    assert.equal(badLayout.body.error, 'A layout must be cubes or rows');
+  });
+
+  test('PUT saves a piece whole and reports renamed and moved', async () => {
+    const ctx = await seedCollectionWithRoles();
+    await makeSettings(ctx.collection);
+    const created = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/furniture`)
+      .set(bearer(ctx.editorToken))
+      .send({ name: 'Billy' });
+    const id = created.body.furniture.id;
+
+    const saved = await request(app)
+      .put(`/api/v1/collections/${ctx.collection._id}/furniture/${id}`)
+      .set(bearer(ctx.editorToken))
+      .send({ name: 'Billy', columns: 2, rows: 1, cells: [{ name: 'Salon' }, { name: 'Vitrine' }, { name: 'Cave' }] });
+    assert.equal(saved.status, 200);
+    assert.equal(saved.body.renamed, 0);
+    assert.equal(saved.body.furniture.columns, 2);
+    assert.deepEqual(saved.body.furniture.cells.map((c: any) => [c.name, c.row, c.column]), [['Salon', 0, 0], ['Vitrine', 0, 1], ['Cave', 1, 0]]);
+    assert.equal(saved.body.furniture.cells[0].count, 0);
+  });
+
+  test('PUT refuses a duplicate shelf and a shelf of another piece', async () => {
+    const ctx = await seedCollectionWithRoles();
+    const a = (await request(app).post(`/api/v1/collections/${ctx.collection._id}/furniture`).set(bearer(ctx.editorToken)).send({ name: 'A' })).body.furniture.id;
+    const b = (await request(app).post(`/api/v1/collections/${ctx.collection._id}/furniture`).set(bearer(ctx.editorToken)).send({ name: 'B' })).body.furniture.id;
+    await request(app).put(`/api/v1/collections/${ctx.collection._id}/furniture/${b}`).set(bearer(ctx.editorToken)).send({ name: 'B', cells: [{ name: 'Cave' }] });
+
+    const repeated = await request(app)
+      .put(`/api/v1/collections/${ctx.collection._id}/furniture/${a}`)
+      .set(bearer(ctx.editorToken))
+      .send({ name: 'A', cells: [{ name: 'Salon' }, { name: 'salon' }] });
+    assert.equal(repeated.status, 409);
+    assert.equal(repeated.body.shelf, 'salon');
+
+    const elsewhere = await request(app)
+      .put(`/api/v1/collections/${ctx.collection._id}/furniture/${a}`)
+      .set(bearer(ctx.editorToken))
+      .send({ name: 'A', cells: [{ name: 'Cave' }] });
+    assert.equal(elsewhere.status, 409);
+    assert.equal(elsewhere.body.furniture, 'B');
+  });
+
+  test('another collection\'s furniture is 404 on save and delete', async () => {
+    const ctx = await seedCollectionWithRoles();
+    const other = await makeCollection({ members: [{ user: ctx.owner, role: 'admin' }] });
+    const foreign = await seedFurniture({ collection: other, owner: ctx.owner } as any, { cells: [['Cave']] });
+
+    const saved = await request(app)
+      .put(`/api/v1/collections/${ctx.collection._id}/furniture/${foreign._id}`)
+      .set(bearer(ctx.editorToken))
+      .send({ name: 'X', cells: [] });
+    assert.equal(saved.status, 404);
+
+    const deleted = await request(app)
+      .delete(`/api/v1/collections/${ctx.collection._id}/furniture/${foreign._id}`)
+      .set(bearer(ctx.editorToken));
+    assert.equal(deleted.status, 404);
+    assert.equal(await Furniture.countDocuments({ _id: foreign._id }), 1);
+  });
+
+  test('DELETE removes the piece and leaves its items where they said', async () => {
+    const ctx = await seedCollectionWithRoles();
+    const created = await request(app).post(`/api/v1/collections/${ctx.collection._id}/furniture`).set(bearer(ctx.editorToken)).send({ name: 'Billy' });
+    const id = created.body.furniture.id;
+    await request(app).put(`/api/v1/collections/${ctx.collection._id}/furniture/${id}`).set(bearer(ctx.editorToken)).send({ name: 'Billy', cells: [{ name: 'Salon' }] });
+    await makeItem(TEST_PLUGIN_KIND, { title: 'Lamp', owner: ctx.owner._id, collection: ctx.collection._id, location: 'Salon' });
+
+    const res = await request(app).delete(`/api/v1/collections/${ctx.collection._id}/furniture/${id}`).set(bearer(ctx.editorToken));
+    assert.equal(res.status, 200);
+    assert.equal(await Furniture.countDocuments({ collection: ctx.collection._id }), 0);
+    const stored: any = await itemModel(TEST_PLUGIN_KIND).findOne({ collection: ctx.collection._id, title: 'Lamp' }).lean();
+    assert.equal(stored.location, 'Salon');
+  });
+});
