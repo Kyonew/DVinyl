@@ -580,3 +580,56 @@ export function registerMergeRefreshPlugin(): PluginDefinition {
   registry.register(mergeRefreshPlugin);
   return mergeRefreshPlugin;
 }
+
+export const TRACKLIST_PLUGIN_ID = 'testtracks';
+export const TRACKLIST_PLUGIN_KIND = 'TestTracks';
+export const TRACKLIST_PLUGIN_TYPE = 'testtracks';
+
+let tracklistPlugin: PluginDefinition | undefined;
+
+/**
+ * A plugin whose items carry a `tracklist`, which is what a playlist is made from. The
+ * base test plugin has none, so playlist candidates and `pluginsWithTracks` need this.
+ */
+export function registerTracklistPlugin(): PluginDefinition {
+  if (tracklistPlugin) return tracklistPlugin;
+
+  tracklistPlugin = {
+    id: TRACKLIST_PLUGIN_ID,
+    kind: TRACKLIST_PLUGIN_KIND,
+    label: 'Test Tracks',
+    icon: 'fa-music',
+    routePrefix: '/testtracks',
+    collectionType: TRACKLIST_PLUGIN_TYPE,
+    i18nKey: 'testtracks',
+    enabledByDefault: true,
+    creatorField: 'creator',
+    externalIdField: 'test_external_id',
+    supportsBarcodeSearch: false,
+    schemaDefinition: {
+      creator: { type: String, default: '' },
+      test_external_id: { type: String, default: '' },
+      tracklist: [{ position: String, title: String, duration: String }]
+    },
+    formFields: [
+      { name: 'title', label: 'Title', type: 'text', required: true, showIn: ['add', 'edit'] },
+      { name: 'creator', label: 'Creator', type: 'text', showIn: ['add', 'edit'] }
+    ],
+    formats: [{ value: 'standard', label: 'Standard' }],
+    getStats(items: any[]) {
+      return { testtracks: items.length };
+    },
+    formatForView(item: any) {
+      return { _id: item._id, title: item.title, creator: item.creator, tracklist: item.tracklist || [] };
+    },
+    async findDuplicate() {
+      return null;
+    },
+    async getVariants() {
+      return [];
+    }
+  };
+
+  registry.register(tracklistPlugin);
+  return tracklistPlugin;
+}
