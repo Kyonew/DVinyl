@@ -7,7 +7,7 @@
     "start": "node --env-file=.env --import tsx app.ts",
     "test": "node --import tsx --import ./test/helpers/env.ts --test 'routes/api/v1/*.test.ts'",
     "test:watch": "node --import tsx --import ./test/helpers/env.ts --test --watch 'routes/api/v1/*.test.ts'",
-    "test:core": "node --import tsx --test tests/extraFieldIdentity.test.ts tests/hardcoverEditions.test.ts tests/searchHighlight.test.ts tests/markdown.test.ts tests/shelfHelpers.test.ts tests/screenscraper.test.ts",
+    "test:core": "node --import tsx --test tests/extraFieldIdentity.test.ts tests/hardcoverEditions.test.ts tests/searchHighlight.test.ts tests/markdown.test.ts tests/shelfHelpers.test.ts tests/screenscraper.test.ts tests/collectionInfo.test.ts",
     "test:integration": "node --import tsx --test tests/extraFieldMigration.integration.test.ts",
     "build:css": "npx tailwindcss -i ./website/src/input.css -o ./website/public/styles/tailwind.css --watch"
   },
