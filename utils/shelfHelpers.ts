@@ -97,3 +97,15 @@ export function clampInt(value: any, min: number, max: number, fallback: number)
   const parsed = parseInt(value, 10);
   return Number.isFinite(parsed) ? Math.min(max, Math.max(min, parsed)) : fallback;
 }
+
+/**
+ * A furniture `order`, or null when the value is not really one. `null`/`''` mean "absent",
+ * not "zero": a client that omits the field must leave the piece where it is.
+ */
+export function cleanOrder(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return Math.max(0, Math.floor(value));
+  if (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value))) {
+    return Math.max(0, Math.floor(Number(value)));
+  }
+  return null;
+}

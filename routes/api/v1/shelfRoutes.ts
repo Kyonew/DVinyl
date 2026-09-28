@@ -101,18 +101,29 @@ router.put('/collections/:id/furniture/:furnitureId', requireApiCollectionRole('
       if (verdict.error === 'name_required') {
         return res.status(400).json({ success: false, error: 'name is required' });
       }
-      if (verdict.error === 'duplicate_shelf') {
-        return res.status(409).json({
-          success: false,
-          error: `A shelf named "${verdict.shelf}" already exists in this piece of furniture`,
-          shelf: verdict.shelf
-        });
+      if (verdict.error === 'too_many_shelves') {
+        return res.status(400).json({ success: false, error: 'That is more shelves than one piece of furniture can hold' });
       }
-      return res.status(409).json({
+      // The race path (the unique index refusing a shelf another request just took) knows
+      // the clash only as a write failure, so the message must not name a shelf it lacks.
+      if (verdict.error === 'duplicate_shelf') {
+        const body: any = {
+          success: false,
+          error: verdict.shelf
+            ? `A shelf named "${verdict.shelf}" already exists in this piece of furniture`
+            : 'A shelf with this name already exists in this piece of furniture'
+        };
+        if (verdict.shelf) body.shelf = verdict.shelf;
+        return res.status(409).json(body);
+      }
+      const body: any = {
         success: false,
-        error: `A shelf named "${verdict.shelf}" already exists in "${verdict.furniture}"`,
-        furniture: verdict.furniture
-      });
+        error: verdict.shelf
+          ? `A shelf named "${verdict.shelf}" already exists in "${verdict.furniture}"`
+          : `A shelf with this name already exists in "${verdict.furniture}"`
+      };
+      body.furniture = verdict.furniture;
+      return res.status(409).json(body);
     }
 
     const settings: any = await getCollectionSettings(collectionId);
@@ -130,6 +141,9 @@ router.put('/collections/:id/furniture/:furnitureId', requireApiCollectionRole('
 
 router.delete('/collections/:id/furniture/:furnitureId', requireApiCollectionRole('editor'), async (req: any, res: any) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.furnitureId)) {
+      return res.status(404).json({ success: false, error: 'Furniture not found' });
+    }
     const deleted = await Furniture.deleteOne({ _id: req.params.furnitureId, collection: req.apiCollection._id });
     if (deleted.deletedCount === 0) return res.status(404).json({ success: false, error: 'Furniture not found' });
     res.status(200).json({ success: true });
@@ -143,6 +157,9 @@ router.post('/collections/:id/shelf/cell/move', requireApiCollectionRole('editor
   try {
     const verdict = await moveCell(req.apiCollection._id, req.body?.key, req.body?.to);
     if (!verdict.ok) {
+      if (verdict.error === 'target_full') {
+        return res.status(409).json({ success: false, error: 'The target piece of furniture is full' });
+      }
       return res.status(verdict.error === 'bad_request' ? 400 : 404).json({
         success: false,
         error: verdict.error === 'bad_request' ? 'key and to are required' : 'Furniture not found'

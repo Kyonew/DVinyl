@@ -372,6 +372,35 @@ describe('furniture writes', () => {
     const stored: any = await itemModel(TEST_PLUGIN_KIND).findOne({ collection: ctx.collection._id, title: 'Lamp' }).lean();
     assert.equal(stored.location, 'Salon');
   });
+
+  test('PUT persists an order and refuses more shelves than one piece holds', async () => {
+    const ctx = await seedCollectionWithRoles();
+    const created = await request(app).post(`/api/v1/collections/${ctx.collection._id}/furniture`).set(bearer(ctx.editorToken)).send({ name: 'Billy' });
+    const id = created.body.furniture.id;
+
+    const reordered = await request(app)
+      .put(`/api/v1/collections/${ctx.collection._id}/furniture/${id}`)
+      .set(bearer(ctx.editorToken))
+      .send({ name: 'Billy', order: 42, cells: [] });
+    assert.equal(reordered.status, 200);
+    assert.equal(reordered.body.furniture.order, 42);
+
+    const tooMany = await request(app)
+      .put(`/api/v1/collections/${ctx.collection._id}/furniture/${id}`)
+      .set(bearer(ctx.editorToken))
+      .send({ name: 'Billy', columns: 1, cells: Array.from({ length: 13 }, (_, i) => ({ name: `S${i}` })) });
+    assert.equal(tooMany.status, 400);
+    assert.equal(tooMany.body.error, 'That is more shelves than one piece of furniture can hold');
+  });
+
+  test('DELETE with a malformed id is 404, not a server error', async () => {
+    const ctx = await seedCollectionWithRoles();
+    const res = await request(app)
+      .delete(`/api/v1/collections/${ctx.collection._id}/furniture/not-an-id`)
+      .set(bearer(ctx.editorToken));
+    assert.equal(res.status, 404);
+    assert.equal(res.body.error, 'Furniture not found');
+  });
 });
 
 describe('shelf moves', () => {
@@ -469,5 +498,21 @@ describe('shelf moves', () => {
     assert.equal(empty.body.error, 'ids must be a non-empty array');
 
     assert.equal(MAX_SHELF_MOVE, 500);
+  });
+
+  test('cell move refuses a target that cannot hold another shelf', async () => {
+    const ctx = await seedCollectionWithRoles();
+    await seedFurniture(ctx, { cells: [['Salon']] });
+    const full = await seedFurniture(ctx, {
+      name: 'Full', columns: 1,
+      cells: Array.from({ length: 12 }, (_, i) => [`S${i}`])
+    });
+
+    const res = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/shelf/cell/move`)
+      .set(bearer(ctx.editorToken))
+      .send({ key: 'salon', to: String(full._id) });
+    assert.equal(res.status, 409);
+    assert.equal(res.body.error, 'The target piece of furniture is full');
   });
 });

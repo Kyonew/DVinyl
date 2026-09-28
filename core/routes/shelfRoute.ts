@@ -92,6 +92,7 @@ router.post('/shelf/furniture/:id', requireAuth, requireCollectionRole('editor')
     const verdict = await saveFurniture(res.locals.activeCollectionId, furniture, req.body);
     if (!verdict.ok) {
       if (verdict.error === 'name_required') return res.status(400).json({ success: false, error: 'name_required' });
+      if (verdict.error === 'too_many_shelves') return res.status(400).json({ success: false, error: 'too_many_shelves' });
       if (verdict.error === 'duplicate_shelf') return res.status(409).json({ success: false, error: 'duplicate_shelf', shelf: verdict.shelf });
       return res.status(409).json({ success: false, error: 'shelf_elsewhere', furniture: verdict.furniture });
     }
@@ -131,6 +132,7 @@ router.post('/shelf/cell/move', requireAuth, requireCollectionRole('editor'), as
   try {
     const verdict = await moveCell(res.locals.activeCollectionId, req.body?.key, req.body?.to);
     if (!verdict.ok) {
+      if (verdict.error === 'target_full') return res.status(409).json({ success: false, error: 'target_full' });
       return res.status(verdict.error === 'bad_request' ? 400 : 404).json({ success: false, error: verdict.error });
     }
     res.json({ success: true, moved: verdict.moved });

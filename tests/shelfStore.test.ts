@@ -6,6 +6,7 @@ import { startDb, stopDb, clearDb } from '../test/helpers/db';
 import Item from '../models/Item';
 import Furniture from '../models/Furniture';
 import { createFurniture, moveCell, saveFurniture } from '../core/shelfStore';
+import { MAX_FURNITURE_ROWS } from '../utils/shelfHelpers';
 
 before(async () => { await startDb(); });
 after(async () => { await stopDb(); });
@@ -131,4 +132,42 @@ test('moveCell is a no-op to the same piece and refuses a missing shelf', async 
   assert.deepEqual(await moveCell(collection, 'salon', created._id), { ok: true, moved: false });
   assert.deepEqual(await moveCell(collection, 'nope', created._id), { ok: false, error: 'not_found' });
   assert.deepEqual(await moveCell(collection, '', created._id), { ok: false, error: 'bad_request' });
+});
+
+test('saveFurniture honours an order and leaves it alone when absent', async () => {
+  const collection = new mongoose.Types.ObjectId();
+  const created = await piece({ collection, cells: [] });
+
+  const moved = await saveFurniture(collection, created, { name: 'Billy', cells: [], order: 7 });
+  assert.equal(moved.ok, true);
+  assert.equal((moved.furniture as any).order, 7);
+
+  const kept = await saveFurniture(collection, created, { name: 'Billy', cells: [] });
+  assert.equal(kept.ok, true);
+  assert.equal((kept.furniture as any).order, 7);
+
+  // null/'' are an absent order, not a request to move the piece to the top.
+  const ignored = await saveFurniture(collection, created, { name: 'Billy', cells: [], order: null });
+  assert.equal(ignored.ok, true);
+  assert.equal((ignored.furniture as any).order, 7);
+});
+
+test('saveFurniture refuses more shelves than one piece can hold', async () => {
+  const collection = new mongoose.Types.ObjectId();
+  const created = await piece({ collection, cells: [] });
+  const cells = Array.from({ length: MAX_FURNITURE_ROWS + 1 }, (_, i) => ({ name: `S${i}` }));
+  assert.deepEqual(
+    await saveFurniture(collection, created, { name: 'Billy', columns: 1, cells }),
+    { ok: false, error: 'too_many_shelves' }
+  );
+});
+
+test('moveCell refuses a target that cannot hold another shelf', async () => {
+  const collection = new mongoose.Types.ObjectId();
+  await piece({ collection, cells: [['Salon']] });
+  const full = await piece({
+    collection, name: 'Full', columns: 1,
+    cells: Array.from({ length: MAX_FURNITURE_ROWS }, (_, i) => [`S${i}`])
+  });
+  assert.deepEqual(await moveCell(collection, 'salon', full._id), { ok: false, error: 'target_full' });
 });

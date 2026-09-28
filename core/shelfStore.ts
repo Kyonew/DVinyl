@@ -3,7 +3,7 @@ import Furniture from '../models/Furniture';
 import Item from '../models/Item';
 import {
   locationKey, normalizeLocationName, pickDisplayName, capacityPerFurniture, fitGrid,
-  cleanShelfName, clampInt, findDuplicateCellKey,
+  cleanShelfName, clampInt, cleanOrder, findDuplicateCellKey,
   MAX_FURNITURE_COLUMNS, MAX_FURNITURE_ROWS, MAX_CELL_CAPACITY
 } from '../utils/shelfHelpers';
 
@@ -239,7 +239,7 @@ export async function seedFurnitureFromLocations(
 /** What a whole-piece save answers: the saved piece, or why it was refused. */
 export type FurnitureSaveVerdict =
   | { ok: true; furniture: any; renamed: number; moved: number }
-  | { ok: false; error: 'name_required' | 'duplicate_shelf' | 'shelf_elsewhere'; shelf?: string; furniture?: string };
+  | { ok: false; error: 'name_required' | 'duplicate_shelf' | 'shelf_elsewhere' | 'too_many_shelves'; shelf?: string; furniture?: string };
 
 /**
  * Saves a piece whole: its shape, and the shelves in it. Cells arrive in reading order and
@@ -274,6 +274,12 @@ export async function saveFurniture(collectionId: any, furniture: any, input: an
   const duplicate = findDuplicateCellKey(cells);
   if (duplicate) return { ok: false, error: 'duplicate_shelf', shelf: duplicate };
 
+  // A piece's grid is capped at MAX_FURNITURE_ROWS tall; accepting more cells would leave
+  // compartments below its own floor, which the view then cannot draw.
+  if (Math.ceil(cells.length / columns) > MAX_FURNITURE_ROWS) {
+    return { ok: false, error: 'too_many_shelves' };
+  }
+
   const elsewhere: any = await Furniture.findOne({
     collection: collectionId,
     _id: { $ne: furniture._id },
@@ -292,6 +298,8 @@ export async function saveFurniture(collectionId: any, furniture: any, input: an
   furniture.name = name;
   furniture.layout = input?.layout === 'rows' ? 'rows' : 'cubes';
   furniture.columns = columns;
+  const order = cleanOrder(input?.order);
+  if (order !== null) furniture.order = order;
   // Tall enough to hold what it was given, whatever the form asked for: a compartment
   // must never end up below its own furniture's floor.
   furniture.rows = Math.min(
@@ -342,9 +350,7 @@ export async function createFurniture(
 
   const count = await Furniture.countDocuments({ collection: collectionId });
   const fit = fitGrid(4);
-  const order = Number.isFinite(Number(input?.order))
-    ? Math.max(0, Math.floor(Number(input?.order)))
-    : 100 + count;
+  const order = cleanOrder(input?.order) ?? 100 + count;
 
   const created = await Furniture.create({
     collection: collectionId,
@@ -368,7 +374,7 @@ export async function moveCell(
   collectionId: any,
   key: unknown,
   targetId: any
-): Promise<{ ok: true; moved: boolean } | { ok: false; error: 'bad_request' | 'not_found' }> {
+): Promise<{ ok: true; moved: boolean } | { ok: false; error: 'bad_request' | 'not_found' | 'target_full' }> {
   const cellKey = locationKey(key);
   if (!cellKey || !mongoose.Types.ObjectId.isValid(targetId)) return { ok: false, error: 'bad_request' };
 
@@ -379,6 +385,11 @@ export async function moveCell(
   if (!source || !target) return { ok: false, error: 'not_found' };
   if (String(source._id) === String(target._id)) return { ok: true, moved: false };
 
+  // A target that is already as tall and wide as one piece may be has no room: pushing
+  // anyway would put the shelf below its own floor, where the view cannot draw it.
+  const at = (target.cells as any[]).length;
+  if (at >= MAX_FURNITURE_ROWS * target.columns) return { ok: false, error: 'target_full' };
+
   const cell = (source.cells as any[]).find((c: any) => c.key === cellKey);
   source.cells = (source.cells as any[]).filter((c: any) => c.key !== cellKey) as any;
   // Repacked, so removing a shelf from the middle does not leave a gap behind it.
@@ -387,7 +398,6 @@ export async function moveCell(
     c.column = index % source.columns;
   });
 
-  const at = (target.cells as any[]).length;
   (target.cells as any[]).push({
     name: cell.name,
     key: cell.key,
