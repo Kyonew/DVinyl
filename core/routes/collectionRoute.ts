@@ -294,16 +294,20 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
     // stays apart through its different director/creator. The year is deliberately not
     // used - it belongs to the edition (a reissue, a new pressing), not to the work.
     //
-    // Scoped to a selected type, which is what names a single creator field; across all
-    // types there is no one creator field, so it falls back to the title alone.
-    const uniqueGroupId: any = { sort_title: '$sort_title' };
-    if (selectedPlugin) uniqueGroupId.creator = `$${selectedPlugin.creatorField}`;
-    const uniqueTitlesAgg = await Item.aggregate([
-      { $match: query },
-      { $group: { _id: uniqueGroupId } },
-      { $count: 'total' }
-    ]);
-    const uniqueTitles = uniqueTitlesAgg[0]?.total ?? 0;
+    // Only shown for a selected type, which is what names a single creator field to match
+    // on (title + creator, the pair the "other formats" block uses). With every type shown
+    // at once there is no one creator field, and folding remakes together on the title
+    // alone would undercount, so the count is left off the all-types view. `null` tells the
+    // template to hide the badge.
+    let uniqueTitles: number | null = null;
+    if (selectedPlugin) {
+      const uniqueTitlesAgg = await Item.aggregate([
+        { $match: query },
+        { $group: { _id: { sort_title: '$sort_title', creator: `$${selectedPlugin.creatorField}` } } },
+        { $count: 'total' }
+      ]);
+      uniqueTitles = uniqueTitlesAgg[0]?.total ?? 0;
+    }
 
     // A code scanned from the filter bar names one item more often than not: open it
     // rather than showing a list of one. Anything else falls through to the list.

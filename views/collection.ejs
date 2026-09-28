@@ -32,12 +32,13 @@
                             <%= t('common.items') %>
                     </span>
                     <%# Distinct works behind the item count (title + creator, see the route).
-                        Hidden when it equals the item count so a single-format collection
-                        stays uncluttered; the live-search JS toggles it as the filter changes. %>
+                        Only for a selected type (null across all types); hidden too when it
+                        equals the item count so a single-format collection stays uncluttered.
+                        The live-search JS toggles it as the filter changes. %>
                     <span id="uniqueTitlesBadge"
-                        class="px-3 py-1 bg-black/5 dark:bg-white/10 rounded-full text-sm font-medium opacity-70 <%= (typeof uniqueTitles === 'undefined' || uniqueTitles === totalItems) ? 'hidden' : '' %>"
+                        class="px-3 py-1 bg-black/5 dark:bg-white/10 rounded-full text-sm font-medium opacity-70 <%= (uniqueTitles == null || uniqueTitles === totalItems) ? 'hidden' : '' %>"
                         title="<%= t('collection.unique_titles_hint') %>">
-                        <%= typeof uniqueTitles !== 'undefined' ? uniqueTitles : '' %>
+                        <%= uniqueTitles != null ? uniqueTitles : '' %>
                             <%= t('collection.unique_titles') %>
                     </span>
                 </span>
