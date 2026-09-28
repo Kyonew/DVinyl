@@ -52,6 +52,16 @@ BASE=http://localhost:3000
 - [ ] `GET …/collections/$CID/wishlist?sort=title_asc` → the wishlist honours `sort` the same way
 - [ ] `GET $BASE/api/v1/plugins` → `books.sortOptions` is `[{key:"series",label:"confirm_book.field_series"}]`; `music.sortOptions` is `[]`
 
+## Item content filters & values
+- [ ] `?genre=Rock` → items whose `genre` or `genres` contains it (case-insensitive); `?genre=Rock,Jazz` ORs the list
+- [ ] `?style=Bop` → matches `styles`; `?platform=SNES` → exact, case-insensitive (`?platform=SN` → nothing)
+- [ ] `?decade=1980,1990` → any year in those decades; `?format=cd` → `media_type`/`format`, case-insensitive; `?format=all` → no filter
+- [ ] `?artist=Nina` → matches the creator field of any enabled type
+- [ ] `?genre=Rock&style=Shoegaze` → AND across fields; `?filterMode=hide&genre=Rock` → everything *except* the Rock items
+- [ ] A blank filter (`?genre=%20`) is ignored; `?genre=Rock&type=music` narrows within the type
+- [ ] `GET …/collections/$CID/values` → `{genres,styles,platforms}`, distinct and sorted, `other` never a platform; honours `visibility`/disabled modules and `?type=`
+- [ ] `GET …/collections/$CID/wishlist/values` → the same shape scoped to `in_wishlist:true` items; a non-member → 403
+
 ## Add flow / sources
 - [ ] `GET $BASE/api/v1/plugins` → every plugin carries `hasSearch`, `canRefresh` and a `sources[]` array (`{id,name,searchable,configured}`)
 - [ ] `GET $BASE/api/v1/plugins` → `games` carries `searchFormFields:["platform"]`; `music` carries `searchFormFields:[]`

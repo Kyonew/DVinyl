@@ -37,6 +37,7 @@ export function registerTestPlugin(): PluginDefinition {
     schemaDefinition: {
       creator: { type: String, default: '' },
       platform: { type: String, default: '' },
+      media_type: { type: String, default: '' },
       test_external_id: { type: String, default: '' }
     },
     formFields: [

@@ -407,6 +407,86 @@ router.get('/collections/:id/share-links/:token/qr.png', requireApiCollectionRol
  */
 const DEFAULT_ITEM_SORT: Record<string, 1 | -1> = { added_at: -1 };
 
+/** `?genre=a,b` style parameters as a trimmed, non-empty list; anything else is empty. */
+function commaList(raw: any): string[] {
+  return typeof raw === 'string' ? raw.split(',').map(s => s.trim()).filter(Boolean) : [];
+}
+
+const likeAny = (values: string[]) => values.map(v => new RegExp(escapeRegExp(v), 'i'));
+const exactAny = (values: string[]) => values.map(v => new RegExp(`^${escapeRegExp(v)}$`, 'i'));
+
+/** The plugin a listing's `type` names, or undefined for `all`/empty/an unknown id. */
+function selectedPluginFor(enabledPlugins: any[], type: string): any {
+  return type && type !== 'all' ? enabledPlugins.find(p => p.id === type) : undefined;
+}
+
+/**
+ * Narrows a listing query to one plugin's kind. A plugin that also claims the kind-less
+ * items of a pre-plugins database needs an `$or`, which cannot sit on `query.kind`, so it
+ * goes through `$and` instead.
+ */
+function applyTypeScope(query: any, selectedPlugin: any): void {
+  if (!selectedPlugin) return;
+  if (selectedPlugin.matchesLegacyItems) {
+    query.$and = [...(query.$and || []), { $or: [{ kind: selectedPlugin.kind }, { kind: { $exists: false } }] }];
+  } else {
+    query.kind = selectedPlugin.kind;
+  }
+}
+
+/**
+ * The collection page's content filters - format, decade, genre, style, platform and
+ * artist - as the conditions the listing ANDs together. Mirrors
+ * core/routes/collectionRoute.ts's buildShelfView: a comma list ORs within one field
+ * (case-insensitively), the fields AND across, and a blank value contributes nothing so a
+ * client may send an unset filter. `artist` spans every enabled plugin's creator field and
+ * its declared secondary creator fields.
+ */
+function contentFilterConditions(req: any, enabledPlugins: any[]): any[] {
+  const conditions: any[] = [];
+
+  const format = typeof req.query.format === 'string' ? req.query.format.trim() : '';
+  if (format && format !== 'all') {
+    const pattern = new RegExp(`^${escapeRegExp(format)}$`, 'i');
+    conditions.push({ $or: [{ media_type: pattern }, { format: pattern }] });
+  }
+
+  const decades = commaList(req.query.decade).map(d => parseInt(d, 10)).filter(d => !isNaN(d));
+  if (decades.length > 0) {
+    const years: RegExp[] = [];
+    for (const start of decades) {
+      for (let y = start; y < start + 10; y++) years.push(new RegExp(`^${y}$`));
+    }
+    conditions.push({ year: { $in: years } });
+  }
+
+  const genres = commaList(req.query.genre);
+  if (genres.length > 0) {
+    conditions.push({
+      $or: [{ genre: { $in: likeAny(genres) } }, { genres: { $in: likeAny(genres) } }]
+    });
+  }
+
+  const styles = commaList(req.query.style);
+  if (styles.length > 0) conditions.push({ styles: { $in: likeAny(styles) } });
+
+  const platforms = commaList(req.query.platform);
+  if (platforms.length > 0) conditions.push({ platform: { $in: exactAny(platforms) } });
+
+  const artist = typeof req.query.artist === 'string' ? req.query.artist.trim() : '';
+  if (artist) {
+    const regex = new RegExp(escapeRegExp(artist), 'i');
+    const fields = new Set<string>();
+    for (const plugin of enabledPlugins) {
+      fields.add(plugin.creatorField);
+      for (const field of plugin.creatorSearchFields || []) fields.add(field);
+    }
+    conditions.push({ $or: Array.from(fields).map(field => ({ [field]: regex })) });
+  }
+
+  return conditions;
+}
+
 /**
  * The collection and the wishlist are the same listing over two halves of the same
  * shelf, so `/collections/:id/items` and `/collections/:id/wishlist` share this and
@@ -426,14 +506,14 @@ async function listShelfItems(req: any, res: any, inWishlist: boolean) {
   applyContainedFilter(query);
 
   const type = typeof req.query.type === 'string' ? req.query.type : '';
-  const selectedPlugin = type && type !== 'all' ? enabledPlugins.find(p => p.id === type) : undefined;
-  if (selectedPlugin) {
-    if (selectedPlugin.matchesLegacyItems) {
-      query.$and = [...(query.$and || []), { $or: [{ kind: selectedPlugin.kind }, { kind: { $exists: false } }] }];
-    } else {
-      query.kind = selectedPlugin.kind;
-    }
-  }
+  const selectedPlugin = selectedPluginFor(enabledPlugins, type);
+  applyTypeScope(query, selectedPlugin);
+
+  // Two buckets, mirroring the page: `criteria` is what the user asked to narrow by and is
+  // what `filterMode=hide` inverts; the `query` fields set above (visibility, modules, the
+  // selected type) define which items the listing is about at all, so inverting those would
+  // widen it to other types instead of narrowing it.
+  const criteria: any[] = [];
 
   const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
   if (search) {
@@ -443,7 +523,7 @@ async function listShelfItems(req: any, res: any, inWishlist: boolean) {
       searchOr.push({ [plugin.creatorField]: regex });
     }
     if (mongoose.Types.ObjectId.isValid(search)) searchOr.push({ _id: search });
-    query.$and = [...(query.$and || []), { $or: searchOr }];
+    criteria.push({ $or: searchOr });
   }
 
   // A shelf page asks two different questions: what is in this compartment (exact name,
@@ -456,11 +536,18 @@ async function listShelfItems(req: any, res: any, inWishlist: boolean) {
       return res.status(400).json({ success: false, error: 'location and unshelved cannot be combined' });
     }
     if (location) {
-      query.location = location;
+      criteria.push({ location });
     } else if (unshelved) {
       // $nin matches a missing field too, so an item that never had a location is reserve.
-      query.location = { $nin: await shelfNames(req.apiCollection._id) };
+      criteria.push({ location: { $nin: await shelfNames(req.apiCollection._id) } });
     }
+  }
+
+  criteria.push(...contentFilterConditions(req, enabledPlugins));
+
+  if (criteria.length > 0) {
+    const applied = req.query.filterMode === 'hide' ? [{ $nor: [{ $and: criteria }] }] : criteria;
+    query.$and = [...(query.$and || []), ...applied];
   }
 
   // Strict where the page is lenient: an omitted sort is the newest-first default, but a
@@ -507,9 +594,45 @@ async function listShelfItems(req: any, res: any, inWishlist: boolean) {
   });
 }
 
+/**
+ * The values a client can offer in the genre/style/platform pickers. Scoped to exactly the
+ * items the matching listing can return - visibility, enabled modules, contained items, the
+ * owned/wishlist split and the selected `type` - so a returned value always corresponds to
+ * something the caller can list. The web page's picker is looser (it reads every item of the
+ * collection); this stays tied to the listing on purpose, even though it costs a few values.
+ */
+async function listValues(req: any, res: any, inWishlist: boolean) {
+  const settings: any = await getCollectionSettings(req.apiCollection._id);
+  const isAdmin = req.apiCollectionRole === 'admin';
+  const enabledPlugins = registry.getEnabled(settings);
+
+  const query: any = { collection: req.apiCollection._id, in_wishlist: inWishlist };
+  applyVisibilityFilter(query, isAdmin, settings);
+  applyEnabledModulesFilter(query, settings);
+  applyContainedFilter(query);
+
+  const type = typeof req.query.type === 'string' ? req.query.type : '';
+  applyTypeScope(query, selectedPluginFor(enabledPlugins, type));
+
+  const genreLists = await Promise.all([
+    Item.distinct('genres', { ...query, genres: { $nin: ['', null] } }),
+    Item.distinct('genre', { ...query, genre: { $nin: ['', null] } })
+  ]);
+  const genres = [...new Set(genreLists.flat())].filter(Boolean).sort();
+  const styles = (await Item.distinct('styles', { ...query, styles: { $nin: ['', null] } })).sort();
+  // 'other' is the games plugin's "no known platform"; it is not a pickable value.
+  const platforms = (await Item.distinct('platform', { ...query, platform: { $nin: ['', null, 'other'] } })).sort();
+
+  res.status(200).json({ genres, styles, platforms });
+}
+
 router.get('/collections/:id/items', requireApiCollectionRole('viewer'), (req: any, res: any) => listShelfItems(req, res, false));
 
 router.get('/collections/:id/wishlist', requireApiCollectionRole('viewer'), (req: any, res: any) => listShelfItems(req, res, true));
+
+router.get('/collections/:id/values', requireApiCollectionRole('viewer'), (req: any, res: any) => listValues(req, res, false));
+
+router.get('/collections/:id/wishlist/values', requireApiCollectionRole('viewer'), (req: any, res: any) => listValues(req, res, true));
 
 router.post('/collections/:id/items/search', requireApiCollectionRole('editor'), async (req: any, res: any) => {
   const body = req.body || {};

@@ -971,7 +971,9 @@ paths:
         collection's visibility and enabled-module settings. `type` filters to one
         plugin kind (accepts a plugin id; `all` or empty means everything). `search`
         case-insensitively matches title, barcode, each plugin's creator field, and an
-        exact item id.
+        exact item id. `format`/`decade`/`genre`/`style`/`platform`/`artist` narrow by
+        content; `filterMode=hide` inverts that block. See `GET
+        /collections/{id}/values` for the genre/style/platform values to offer.
       parameters:
         - $ref: '#/components/parameters/CollectionId'
         - name: page
@@ -1006,6 +1008,48 @@ paths:
             a built-in name takes precedence for that type. Anything outside the current
             type's vocabulary returns 400 (`unknown sort`).
           schema: { type: string, example: title_asc }
+        - name: format
+          in: query
+          required: false
+          description: Exact, case-insensitive match on an item's `media_type` or `format`.
+          schema: { type: string, example: vinyl }
+        - name: decade
+          in: query
+          required: false
+          description: Comma-separated 4-digit decade starts; matches any year inside them.
+          schema: { type: string, example: 1980,1990 }
+        - name: genre
+          in: query
+          required: false
+          description: |
+            Comma-separated genres; case-insensitive substring match on `genre` or an
+            entry of `genres`. Values within the list are ORed, other filters are ANDed.
+          schema: { type: string, example: Rock,Jazz }
+        - name: style
+          in: query
+          required: false
+          description: Comma-separated styles; case-insensitive substring match on `styles`.
+          schema: { type: string, example: Shoegaze }
+        - name: platform
+          in: query
+          required: false
+          description: Comma-separated platforms; exact, case-insensitive match on `platform`.
+          schema: { type: string, example: SNES }
+        - name: artist
+          in: query
+          required: false
+          description: |
+            Case-insensitive substring across every enabled type's creator field (and its
+            declared secondary creator fields).
+          schema: { type: string, example: Nina }
+        - name: filterMode
+          in: query
+          required: false
+          description: |
+            `show` (default) keeps only items matching the filters; `hide` keeps every
+            item *except* those matching all of them. The selected `type` is always
+            applied, whichever mode is used.
+          schema: { type: string, enum: [show, hide], default: show }
         - name: location
           in: query
           required: false
@@ -1461,6 +1505,46 @@ paths:
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
 
+  /collections/{id}/values:
+    get:
+      tags: [Collections]
+      operationId: listCollectionValues
+      summary: List a collection's filter values
+      description: |
+        Requires at least `viewer` role. The distinct `genres`, `styles` and `platforms`
+        present in the items `GET /collections/{id}/items` can return, honouring the
+        collection's visibility and enabled-module settings and the optional `type`. Feed
+        them to the `genre`/`style`/`platform` filters. Sorted and deduplicated; `other`
+        is never offered as a platform.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+        - name: type
+          in: query
+          required: false
+          description: Plugin id to scope the values to, or `all`.
+          schema: { type: string }
+      responses:
+        '200':
+          description: The pickable values.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionFilterValues'
+              example:
+                genres: [Jazz, Rock]
+                styles: [Bop]
+                platforms: [SNES]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
   /collections/{id}/wishlist:
     get:
       tags: [Collections]
@@ -1473,7 +1557,9 @@ paths:
         excluding contained items (the same shelf rule as the collection listing). `type`
         filters to one plugin kind (accepts a plugin id; `all` or empty means everything).
         `search` case-insensitively matches title, barcode, each plugin's creator field,
-        and an exact item id. This is the wishlist half of the shelf that
+        and an exact item id. `format`/`decade`/`genre`/`style`/`platform`/`artist` narrow
+        by content, with `filterMode=hide` inverting that block — the same vocabulary as
+        `GET /collections/{id}/items`. This is the wishlist half of the shelf that
         `GET /collections/{id}/items` covers for owned items.
       parameters:
         - $ref: '#/components/parameters/CollectionId'
@@ -1505,6 +1591,41 @@ paths:
             as `GET /collections/{id}/items` — see there for the keys and the 400 on a
             value outside the current type's vocabulary.
           schema: { type: string, example: title_asc }
+        - name: format
+          in: query
+          required: false
+          description: Exact, case-insensitive match on an item's `media_type` or `format`.
+          schema: { type: string, example: vinyl }
+        - name: decade
+          in: query
+          required: false
+          description: Comma-separated 4-digit decade starts; matches any year inside them.
+          schema: { type: string, example: 1980,1990 }
+        - name: genre
+          in: query
+          required: false
+          description: Comma-separated genres; case-insensitive substring on `genre`/`genres`.
+          schema: { type: string, example: Rock,Jazz }
+        - name: style
+          in: query
+          required: false
+          description: Comma-separated styles; case-insensitive substring on `styles`.
+          schema: { type: string, example: Shoegaze }
+        - name: platform
+          in: query
+          required: false
+          description: Comma-separated platforms; exact, case-insensitive match on `platform`.
+          schema: { type: string, example: SNES }
+        - name: artist
+          in: query
+          required: false
+          description: Case-insensitive substring across the creator fields of every enabled type.
+          schema: { type: string, example: Nina }
+        - name: filterMode
+          in: query
+          required: false
+          description: '`show` (default) filters; `hide` keeps everything except the match.'
+          schema: { type: string, enum: [show, hide], default: show }
       responses:
         '200':
           description: Paginated wishlist items.
@@ -1531,6 +1652,44 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example: { success: false, error: 'unknown sort' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /collections/{id}/wishlist/values:
+    get:
+      tags: [Collections]
+      operationId: listWishlistValues
+      summary: List a wishlist's filter values
+      description: |
+        Requires at least `viewer` role. The same distinct `genres`, `styles` and
+        `platforms` as `GET /collections/{id}/values`, scoped to the collection's wishlist
+        items (`in_wishlist: true`) instead of its owned ones.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+        - name: type
+          in: query
+          required: false
+          description: Plugin id to scope the values to, or `all`.
+          schema: { type: string }
+      responses:
+        '200':
+          description: The pickable values.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionFilterValues'
+              example:
+                genres: [Pop]
+                styles: [Synthpop]
+                platforms: [Switch]
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -4767,6 +4926,20 @@ components:
         value: { type: string }
         label: { type: string }
         color: { type: string }
+    CollectionFilterValues:
+      type: object
+      description: The distinct values available to the listing's content filters.
+      required: [genres, styles, platforms]
+      properties:
+        genres:
+          type: array
+          items: { type: string }
+        styles:
+          type: array
+          items: { type: string }
+        platforms:
+          type: array
+          items: { type: string }
     Plugin:
       type: object
       required: [id, kind, label, formFields]

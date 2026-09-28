@@ -971,6 +971,201 @@ describe('item listing filters', () => {
   });
 });
 
+describe('item listing content filters', () => {
+  // Three items whose genre/style/platform/format/year each partition the set differently,
+  // so a filter that matched the wrong field or the wrong operator cannot pass:
+  //   genre     Alpha Rock, Bravo Jazz, Charlie Rock (Alpha also in genres: Indie)
+  //   style     Alpha Shoegaze, Bravo Bop, Charlie Bop
+  //   platform  Alpha SNES, Bravo Mega Drive, Charlie SNES
+  //   format    Alpha vinyl, Bravo cd, Charlie cd
+  //   year      Alpha 1994, Bravo 1985, Charlie 2003
+  //   creator   Alpha Nina, Bravo Miles, Charlie Nina
+  async function seedFilterItems() {
+    const ctx = await seedCollectionWithRoles();
+    await makeSettings(ctx.collection);
+    const base = { owner: ctx.owner._id, collection: ctx.collection._id };
+    const alpha = await makeItem(TEST_PLUGIN_KIND, {
+      ...base, title: 'Alpha', creator: 'Nina', genre: 'Rock', genres: ['Rock', 'Indie'],
+      styles: ['Shoegaze'], platform: 'SNES', media_type: 'vinyl', year: '1994'
+    });
+    const bravo = await makeItem(TEST_PLUGIN_KIND, {
+      ...base, title: 'Bravo', creator: 'Miles', genre: 'Jazz', genres: ['Jazz'],
+      styles: ['Bop'], platform: 'Mega Drive', media_type: 'cd', year: '1985'
+    });
+    const charlie = await makeItem(TEST_PLUGIN_KIND, {
+      ...base, title: 'Charlie', creator: 'Nina', genre: 'Rock', genres: ['Rock'],
+      styles: ['Bop'], platform: 'SNES', media_type: 'cd', year: '2003'
+    });
+    return { ...ctx, alpha, bravo, charlie };
+  }
+
+  async function filteredTitles(query: string, ctx: any) {
+    const res = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/items?${query}`)
+      .set(bearer(ctx.viewerToken));
+    assert.equal(res.status, 200);
+    return res.body.items.map((i: any) => i.title).sort();
+  }
+
+  test('genre matches the scalar or the array, OR within the list', async () => {
+    const ctx = await seedFilterItems();
+    assert.deepEqual(await filteredTitles('genre=Rock', ctx), ['Alpha', 'Charlie']);
+    assert.deepEqual(await filteredTitles('genre=Indie', ctx), ['Alpha']);
+    assert.deepEqual(await filteredTitles('genre=Rock,Jazz', ctx), ['Alpha', 'Bravo', 'Charlie']);
+  });
+
+  test('style matches the styles array', async () => {
+    const ctx = await seedFilterItems();
+    assert.deepEqual(await filteredTitles('style=Bop', ctx), ['Bravo', 'Charlie']);
+    assert.deepEqual(await filteredTitles('style=Shoegaze', ctx), ['Alpha']);
+  });
+
+  test('platform is an exact, case-insensitive match', async () => {
+    const ctx = await seedFilterItems();
+    assert.deepEqual(await filteredTitles('platform=SNES', ctx), ['Alpha', 'Charlie']);
+    assert.deepEqual(await filteredTitles('platform=snes', ctx), ['Alpha', 'Charlie']);
+    assert.deepEqual(await filteredTitles('platform=SN', ctx), []);
+  });
+
+  test('decade expands to the years inside it', async () => {
+    const ctx = await seedFilterItems();
+    assert.deepEqual(await filteredTitles('decade=1990', ctx), ['Alpha']);
+    assert.deepEqual(await filteredTitles('decade=1980,2000', ctx), ['Bravo', 'Charlie']);
+  });
+
+  test('format matches media_type or format, case-insensitively', async () => {
+    const ctx = await seedFilterItems();
+    assert.deepEqual(await filteredTitles('format=cd', ctx), ['Bravo', 'Charlie']);
+    assert.deepEqual(await filteredTitles('format=VINYL', ctx), ['Alpha']);
+    assert.deepEqual(await filteredTitles('format=all', ctx), ['Alpha', 'Bravo', 'Charlie']);
+  });
+
+  test('artist matches every plugin creator field', async () => {
+    const ctx = await seedFilterItems();
+    assert.deepEqual(await filteredTitles('artist=Nina', ctx), ['Alpha', 'Charlie']);
+    assert.deepEqual(await filteredTitles('artist=Miles', ctx), ['Bravo']);
+  });
+
+  test('filters combine with AND across fields', async () => {
+    const ctx = await seedFilterItems();
+    assert.deepEqual(await filteredTitles('genre=Rock&style=Shoegaze', ctx), ['Alpha']);
+    assert.deepEqual(await filteredTitles('genre=Rock&style=Bop', ctx), ['Charlie']);
+  });
+
+  test('filterMode=hide inverts the filter block', async () => {
+    const ctx = await seedFilterItems();
+    assert.deepEqual(await filteredTitles('filterMode=hide&genre=Rock', ctx), ['Bravo']);
+    // not (Rock AND Shoegaze) -> the Jazz item and the Rock/Bop item
+    assert.deepEqual(
+      await filteredTitles('filterMode=hide&genre=Rock&style=Shoegaze', ctx),
+      ['Bravo', 'Charlie']
+    );
+  });
+
+  test('blank filter values are ignored', async () => {
+    const ctx = await seedFilterItems();
+    assert.deepEqual(await filteredTitles('genre=%20,%20', ctx), ['Alpha', 'Bravo', 'Charlie']);
+  });
+
+  test('type narrows alongside a filter', async () => {
+    const ctx = await seedFilterItems();
+    assert.deepEqual(await filteredTitles('type=testkind&genre=Jazz', ctx), ['Bravo']);
+    assert.deepEqual(await filteredTitles('type=music&genre=Jazz', ctx), []);
+  });
+
+  test('applies to the wishlist as well', async () => {
+    const ctx = await seedCollectionWithRoles();
+    await makeSettings(ctx.collection);
+    const base = { owner: ctx.owner._id, collection: ctx.collection._id, in_wishlist: true };
+    await makeItem(TEST_PLUGIN_KIND, { ...base, title: 'Wish Rock', genre: 'Rock' });
+    await makeItem(TEST_PLUGIN_KIND, { ...base, title: 'Wish Jazz', genre: 'Jazz' });
+    const res = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/wishlist?genre=Rock`)
+      .set(bearer(ctx.viewerToken));
+    assert.equal(res.status, 200);
+    assert.deepEqual(res.body.items.map((i: any) => i.title), ['Wish Rock']);
+  });
+});
+
+describe('collection values', () => {
+  async function seedValues() {
+    const ctx = await seedCollectionWithRoles();
+    await makeSettings(ctx.collection);
+    const base = { owner: ctx.owner._id, collection: ctx.collection._id };
+    const alpha = await makeItem(TEST_PLUGIN_KIND, {
+      ...base, title: 'Alpha', genre: 'Rock', genres: ['Rock', 'Indie'],
+      styles: ['Shoegaze'], platform: 'SNES'
+    });
+    await makeItem(TEST_PLUGIN_KIND, {
+      ...base, title: 'Bravo', genre: 'Jazz', genres: ['Jazz'],
+      styles: ['Bop'], platform: 'Mega Drive'
+    });
+    await makeItem(TEST_PLUGIN_KIND, {
+      ...base, title: 'Charlie', genre: 'Rock', genres: ['Rock'],
+      styles: ['Bop'], platform: 'SNES'
+    });
+    const other = await makeItem(TEST_PLUGIN_KIND, {
+      ...base, title: 'Other', genre: '', genres: [], styles: [], platform: 'other'
+    });
+    return { ...ctx, alpha, other };
+  }
+
+  test('200 returns the distinct sorted values, dropping the other platform', async () => {
+    const ctx = await seedValues();
+    const res = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/values`)
+      .set(bearer(ctx.viewerToken));
+    assert.equal(res.status, 200);
+    assert.deepEqual(res.body, {
+      genres: ['Indie', 'Jazz', 'Rock'],
+      styles: ['Bop', 'Shoegaze'],
+      platforms: ['Mega Drive', 'SNES']
+    });
+  });
+
+  test('respects visibility and the type scope', async () => {
+    const ctx = await seedValues();
+    await makeSettings(ctx.collection, { visibility: { hiddenItems: [ctx.alpha._id] } });
+    const hidden = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/values`)
+      .set(bearer(ctx.viewerToken));
+    assert.deepEqual(hidden.body.genres, ['Jazz', 'Rock']);
+    assert.deepEqual(hidden.body.styles, ['Bop']);
+    assert.deepEqual(hidden.body.platforms, ['Mega Drive', 'SNES']);
+
+    const scoped = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/values?type=music`)
+      .set(bearer(ctx.viewerToken));
+    assert.deepEqual(scoped.body, { genres: [], styles: [], platforms: [] });
+  });
+
+  test('wishlist values are scoped to the wishlist', async () => {
+    const ctx = await seedValues();
+    await makeItem(TEST_PLUGIN_KIND, {
+      owner: ctx.owner._id, collection: ctx.collection._id, in_wishlist: true,
+      title: 'Wished', genre: 'Pop', genres: ['Pop'], styles: ['Synthpop'], platform: 'Switch'
+    });
+    const owned = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/values`)
+      .set(bearer(ctx.viewerToken));
+    assert.ok(!owned.body.genres.includes('Pop'));
+
+    const wishlist = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/wishlist/values`)
+      .set(bearer(ctx.viewerToken));
+    assert.deepEqual(wishlist.body.genres, ['Pop']);
+    assert.deepEqual(wishlist.body.styles, ['Synthpop']);
+  });
+
+  test('403 for a non-member', async () => {
+    const ctx = await seedValues();
+    const res = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/values`)
+      .set(bearer(ctx.outsiderToken));
+    assert.equal(res.status, 403);
+  });
+});
+
 describe('GET /api/v1/collections/:id/stats', () => {
   test('200 totals quantities and per-plugin counts', async () => {
     const ctx = await seedCollectionWithRoles();
