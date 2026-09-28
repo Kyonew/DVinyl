@@ -270,6 +270,7 @@ describe('GET /api/v1/collections/:id/lists/:listId', () => {
       .set(bearer(viewerToken));
     assert.equal(res.status, 200);
     assert.deepEqual(res.body.entries, []);
+    assert.equal(res.body.list.count, 0, 'the summary count matches the pruned entries');
     const stored: any = await List.findById(list._id).lean();
     assert.equal(stored.entries.length, 0, 'the dead line is removed from the list');
   });

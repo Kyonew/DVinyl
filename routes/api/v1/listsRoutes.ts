@@ -118,12 +118,16 @@ router.get('/collections/:id/lists/:listId', requireApiCollectionRole('viewer'),
       if (line.track) entry.track = line.track;
       return entry;
     });
-    const covers = await listCovers([list.toObject()], collectionId);
+    // resolveListEntries prunes dangling lines in the database, so the summary is read back
+    // rather than taken from the pre-prune document: its count and covers must agree with
+    // the entries the client is about to receive.
+    const fresh: any = await List.findById(list._id).lean();
+    const covers = await listCovers([fresh], collectionId);
     res.status(200).json({
       list: {
-        ...summarize(list, covers.get(String(list._id)) || []),
-        created_at: list.created_at,
-        updated_at: list.updated_at
+        ...summarize(fresh, covers.get(String(list._id)) || []),
+        created_at: fresh.created_at,
+        updated_at: fresh.updated_at
       },
       entries
     });
