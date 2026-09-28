@@ -50,6 +50,8 @@ tags:
     description: Named selections of a collection's items, or of their tracks (playlists).
   - name: Collection info
     description: A collection's presentation page — Markdown body, pictures and visibility.
+  - name: Shelves
+    description: A collection's furniture and the location vocabulary for its items.
 paths:
   /auth/login:
     post:
@@ -991,6 +993,21 @@ paths:
           required: false
           description: Title/barcode/creator/id substring.
           schema: { type: string }
+        - name: location
+          in: query
+          required: false
+          description: |
+            Only items whose `location` equals this compartment name exactly (the shelf
+            view's rule). Cannot be combined with `unshelved`.
+          schema: { type: string }
+        - name: unshelved
+          in: query
+          required: false
+          description: |
+            Only items whose `location` names no compartment of the collection (the
+            reserve), including items with no location at all. Cannot be combined with
+            `location`.
+          schema: { type: boolean }
       responses:
         '200':
           description: Paginated items.
@@ -3053,6 +3070,64 @@ paths:
               example: { success: false, error: 'Image too large' }
         '503': { $ref: '#/components/responses/ServiceUnavailable' }
 
+  /collections/{id}/shelves:
+    get:
+      tags: [Shelves]
+      operationId: getCollectionShelves
+      summary: List a collection's shelf vocabulary
+      description: |
+        Requires `viewer` role. Every compartment name in the collection's furniture,
+        plus any item `location` that names none of them (so a stray left by an import
+        stays pickable), deduplicated and sorted. The same list the confirm route returns
+        as `suggestions.location`.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+      responses:
+        '200':
+          description: The shelf names.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [shelves]
+                properties:
+                  shelves:
+                    type: array
+                    items: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /collections/{id}/furniture:
+    get:
+      tags: [Shelves]
+      operationId: getCollectionFurniture
+      summary: List a collection's furniture
+      description: |
+        Requires `viewer` role. The collection's pieces in `order`, each with its cells
+        and, per cell, how many of the collection's owned items stand there (`count`),
+        under the caller's visibility filters. A wishlist item and an item of another
+        collection are not counted.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+      responses:
+        '200':
+          description: The furniture.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [furniture]
+                properties:
+                  furniture:
+                    type: array
+                    items: { $ref: '#/components/schemas/Furniture' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
   /collections/{id}/export:
     get:
       tags: [Collections]
@@ -4876,6 +4951,33 @@ components:
           type: array
           items: { type: string }
           maxItems: 6
+
+    FurnitureCell:
+      type: object
+      required: [name, key, row, column]
+      properties:
+        name: { type: string, description: The compartment's name; items carry it as their `location`. }
+        key: { type: string, description: Normalized lookup form, lowercase. }
+        row: { type: integer, minimum: 0 }
+        column: { type: integer, minimum: 0 }
+        capacity: { type: integer, minimum: 0, description: Indicative only; never enforced. }
+        count:
+          type: integer
+          minimum: 0
+          description: Owned items standing here, under the caller's visibility filters.
+    Furniture:
+      type: object
+      required: [id, name, layout, columns, rows, order, cells]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        layout: { type: string, enum: [cubes, rows] }
+        columns: { type: integer, minimum: 1, maximum: 12 }
+        rows: { type: integer, minimum: 1, maximum: 12 }
+        order: { type: integer }
+        cells:
+          type: array
+          items: { $ref: '#/components/schemas/FurnitureCell' }
 
     CollectionSettings:
       type: object

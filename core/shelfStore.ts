@@ -32,6 +32,25 @@ export async function shelfChoices(collectionId: any): Promise<string[]> {
 }
 
 /**
+ * How many items carry each `location`, for an Item match the caller built. A `find`
+ * rather than an aggregate on purpose: an aggregate does not cast, so the visibility
+ * filter's hidden-item ids would compare as strings against ObjectIds and every hidden
+ * item would be counted. The caller narrows the match to the compartment names, so this
+ * reads only shelved items.
+ */
+export async function shelfCounts(match: Record<string, any>): Promise<Map<string, number>> {
+  const items = await Item.find(match).select('location').lean();
+  const counts = new Map<string, number>();
+  for (const item of items as any[]) {
+    const location = item.location;
+    if (typeof location === 'string' && location) {
+      counts.set(location, (counts.get(location) || 0) + 1);
+    }
+  }
+  return counts;
+}
+
+/**
  * Turns whatever was said about where an item lives into the name of a real shelf.
  *
  * This is the only way `location` should ever be written. Every caller hands it raw

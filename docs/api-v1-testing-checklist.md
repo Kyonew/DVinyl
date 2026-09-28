@@ -71,6 +71,16 @@ BASE=http://localhost:3000
 - [ ] `POST …/info/preview` `{"body":"# Hi"}` (admin) → 200 `{html:"<h1>Hi</h1>"}`; a non-string body → 400
 - [ ] `POST …/info-images` (admin) with a JPEG → 201 `{url}`; with a PNG → 400; as a viewer/editor → 403
 
+## Shelves (read)
+- [ ] `GET $BASE/api/v1/collections/$CID/shelves` → 200 with every compartment name plus any stray item `location`, sorted and deduped
+- [ ] `GET …/furniture` → 200 with pieces in `order`, each cell carrying `name`, `key`, `row`, `column`, `capacity` and `count`
+- [ ] A cell's `count` excludes a wishlist item and an item in another collection; an item hidden by the collection's visibility settings is not counted for a viewer but is for an admin
+- [ ] `GET …/items?location=Salon` → exactly that compartment's items (`totalItems` is the compartment's size); `?location=Étagère du salon` does not return the `Salon` items
+- [ ] `GET …/items?unshelved=true` → items whose location names no compartment, including items with no location at all
+- [ ] `?location=…&unshelved=true` together → 400
+- [ ] `POST …/items` with `{"location":"salon"}` when the collection's shelf is `Salon` → the item stores `Salon`; a brand-new name creates exactly one compartment
+- [ ] `PATCH …/items/:itemId` with `{"location":""}` → the item is off its shelf
+
 ## Fresh-instance edge case
 - [ ] On an instance with zero users (before `/setup`), `POST $BASE/api/v1/auth/login` → 503 JSON (not an HTML redirect) — not re-run this pass (would require wiping the shared local test DB); confirmed by reading the code instead: `app.ts:249-250` gates every `/api/v1` request behind the same `setupRequired` check with a `503 {success:false,...}` JSON body.
 

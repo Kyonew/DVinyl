@@ -10,6 +10,7 @@ import { applyVisibilityFilter } from '../../../utils/visibilityHelper';
 import { toApiItem } from '../../../core/apiSerializers';
 import { getExtraFields, toFieldDefinitions } from '../../../core/pluginExtraFields';
 import { buildApiItemUpdateData } from '../../../core/apiItemPayload';
+import { resolveShelfLocation } from '../../../core/shelfStore';
 import { editStamp, syncStamp } from '../../../core/helpers';
 import { alignImagesAfterRefresh, ItemImageValidationError } from '../../../core/itemImages';
 import { deleteItemsAndContents, moveContentsToWishlist } from '../../../utils/itemHelpers';
@@ -77,6 +78,10 @@ router.patch('/items/:itemId', requireApiAuth, async (req: any, res: any) => {
     const settings: any = await Settings.findOne({ collection: existingItem.collection }).lean();
     const extraFieldDefs = toFieldDefinitions(getExtraFields(settings, plugin.id));
     const updateData = buildApiItemUpdateData(plugin, req.body, extraFieldDefs, { partial: true });
+
+    if (updateData.location !== undefined) {
+      updateData.location = await resolveShelfLocation(existingItem.collection, updateData.location);
+    }
 
     const saveObj: Record<string, any> = { ...updateData };
     if (!req.body.added_at) {

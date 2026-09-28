@@ -10,6 +10,7 @@ import itemsRoutes from './itemsRoutes';
 import listsRoutes from './listsRoutes';
 import maintenanceRoutes from './maintenanceRoutes';
 import pluginsRoutes from './pluginsRoutes';
+import shelfRoutes from './shelfRoutes';
 import valuesRoutes from './valuesRoutes';
 
 const router = Router();
@@ -25,6 +26,7 @@ router.use(itemsRoutes);
 router.use(listsRoutes);
 router.use(maintenanceRoutes);
 router.use(pluginsRoutes);
+router.use(shelfRoutes);
 router.use(valuesRoutes);
 
 router.use((err: any, req: any, res: any, next: any) => {

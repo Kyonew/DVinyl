@@ -12,6 +12,7 @@ import { registry } from '../../../core/registry';
 import { hasSearch, resolveSource, searchableSources } from '../../../core/sources';
 import { editStamp, escapeRegExp, getPublicProtocol, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback } from '../../../core/helpers';
 import { toApiItem } from '../../../core/apiSerializers';
+import { shelfNames, resolveShelfLocation } from '../../../core/shelfStore';
 import { buildFieldSuggestions } from '../../../core/fieldSuggestions';
 import { buildApiItemUpdateData } from '../../../core/apiItemPayload';
 import { getExtraFields, toFieldDefinitions } from '../../../core/pluginExtraFields';
@@ -440,6 +441,23 @@ async function listShelfItems(req: any, res: any, inWishlist: boolean) {
     query.$and = [...(query.$and || []), { $or: searchOr }];
   }
 
+  // A shelf page asks two different questions: what is in this compartment (exact name,
+  // the shelf view's rule — "Salon" must not draw "Étagère du salon"), and what is in the
+  // reserve at all. Both are meaningless on a wishlist, which holds nothing anywhere.
+  if (!inWishlist) {
+    const location = typeof req.query.location === 'string' ? req.query.location.trim() : '';
+    const unshelved = req.query.unshelved === 'true' || req.query.unshelved === '1';
+    if (location && unshelved) {
+      return res.status(400).json({ success: false, error: 'location and unshelved cannot be combined' });
+    }
+    if (location) {
+      query.location = location;
+    } else if (unshelved) {
+      // $nin matches a missing field too, so an item that never had a location is reserve.
+      query.location = { $nin: await shelfNames(req.apiCollection._id) };
+    }
+  }
+
   const totalItems = await Item.countDocuments(query);
   const found = await Item.find(query)
     .sort({ added_at: -1 })
@@ -606,6 +624,12 @@ router.post('/collections/:id/items', requireApiCollectionRole('editor'), async 
     const settings: any = await getCollectionSettings(activeCollectionId);
     const extraFieldDefs = toFieldDefinitions(getExtraFields(settings, plugin.id));
     const updateData = buildApiItemUpdateData(plugin, body, extraFieldDefs);
+
+    // Where an item is kept is the shelf store's to decide, exactly as the web save does:
+    // it creates the compartment for a name the collection has never seen, and rewrites a
+    // variant spelling onto the collection's own. Bypass it and the duplicates the boot
+    // migration merged come straight back.
+    updateData.location = await resolveShelfLocation(activeCollectionId, updateData.location);
 
     // Which database this save came from, handed back by the confirm route. Not a plugin
     // schema path (every item carries the pair), and kept only when the client posts both:
