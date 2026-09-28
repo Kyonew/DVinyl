@@ -38,11 +38,15 @@ export function registerTestPlugin(): PluginDefinition {
       creator: { type: String, default: '' },
       platform: { type: String, default: '' },
       media_type: { type: String, default: '' },
+      edition: { type: String, default: '' },
       test_external_id: { type: String, default: '' }
     },
     formFields: [
       { name: 'title', label: 'Title', type: 'text', required: true, showIn: ['add', 'edit'] },
-      { name: 'creator', label: 'Creator', type: 'text', showIn: ['add', 'edit'] }
+      { name: 'creator', label: 'Creator', type: 'text', showIn: ['add', 'edit'] },
+      // A plugin-sourced pick effectively: the value arrives from confirm's `details` and
+      // is posted back, without ever being a schema-declared core field.
+      { name: 'edition', label: 'Edition', type: 'text', showIn: ['confirm'] }
     ],
     formats: [
       { value: 'standard', label: 'Standard' },
@@ -54,7 +58,12 @@ export function registerTestPlugin(): PluginDefinition {
         return [{ id: `fake-${query}`, title: `Result for ${query}`, creator: 'Fake Creator', year: '2020' }];
       },
       async getDetails(id: string) {
-        return { title: `Detail ${id}`, creator: 'Fake Creator', year: '2020', test_external_id: id };
+        return {
+          title: `Detail ${id}`, creator: 'Fake Creator', year: '2020', test_external_id: id,
+          // Stands in for a provider-sourced edition list as books' Hardcover returns it;
+          // a round-trip test reads this back through confirm and posts it to create.
+          editions: [{ id: `ed-${id}`, edition_format: 'Hardcover' }]
+        };
       }
     },
     getStats(items: any[]) {

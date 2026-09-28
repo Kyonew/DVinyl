@@ -799,6 +799,15 @@ describe('GET /api/v1/collections/:id/items/confirm', () => {
     assert.ok(res.body.suggestions && typeof res.body.suggestions === 'object');
   });
 
+  test('200 returns a provider-sourced edition list the client can post back', async () => {
+    const ctx = await seedCollectionWithRoles();
+    const res = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/items/confirm?pluginId=testkind&externalId=42`)
+      .set(bearer(ctx.editorToken));
+    assert.equal(res.status, 200);
+    assert.deepEqual(res.body.item.editions, [{ id: 'ed-42', edition_format: 'Hardcover' }]);
+  });
+
   test('400 without externalId', async () => {
     const ctx = await seedCollectionWithRoles();
     const res = await request(app)
@@ -885,6 +894,17 @@ describe('POST /api/v1/collections/:id/items', () => {
     const stored: any = await itemModel(MULTI_SOURCE_PLUGIN_KIND).findById(res.body.item.id).lean();
     assert.equal(stored.source, 'beta');
     assert.equal(stored.source_id, 'b-9');
+  });
+
+  test('201 stores a plugin-picked edition the confirm route offered', async () => {
+    const ctx = await seedCollectionWithRoles();
+    const res = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/items`)
+      .set(bearer(ctx.editorToken))
+      .send({ pluginId: 'testkind', title: 'Picked Edition', creator: 'C', edition: 'ed-42' });
+    assert.equal(res.status, 201);
+    const stored: any = await itemModel(TEST_PLUGIN_KIND).findById(res.body.item.id).lean();
+    assert.equal(stored.edition, 'ed-42');
   });
 });
 
