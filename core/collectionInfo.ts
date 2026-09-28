@@ -106,11 +106,63 @@ export function hasCollectionInfoContent(info: CollectionInfo): boolean {
 }
 
 /**
+ * Whether the page's own members are shown it: it is on, and it has something on it.
+ * The share link's narrower rule lives in `isCollectionInfoVisible`.
+ */
+export function isInfoVisibleForMembers(info: CollectionInfo): boolean {
+  return info.enabled && hasCollectionInfoContent(info);
+}
+
+/**
  * Whether this viewer should be offered the page at all. Used by the route that serves
  * it and by every entry point that links to it, so a hidden page is never linked to.
  */
 export function isCollectionInfoVisible(collection: any, isShareView: boolean): boolean {
   const info = collectionInfoOf(collection);
-  if (!info.enabled || !hasCollectionInfoContent(info)) return false;
+  if (!isInfoVisibleForMembers(info)) return false;
   return isShareView ? info.shareVisible : true;
+}
+
+/**
+ * Applies a JSON body to an existing info page, the way `collectionInfoFromForm` applies
+ * form input. Only the keys actually present are read, so a client can send what changed;
+ * an omitted field keeps its stored value. Each value is cleaned by the same rules the web
+ * editor uses. A present field of the wrong type is refused rather than coerced: a
+ * one-shot client call is better failed than trusted.
+ */
+export function collectionInfoPatch(
+  current: CollectionInfo,
+  body: any
+): { info: Omit<CollectionInfo, 'updated_at'>; error?: undefined } | { info?: undefined; error: string } {
+  const source: any = body && typeof body === 'object' ? body : {};
+  const next: Omit<CollectionInfo, 'updated_at'> = {
+    enabled: current.enabled,
+    shareVisible: current.shareVisible,
+    title: current.title,
+    body: current.body,
+    images: current.images
+  };
+
+  if ('enabled' in source) {
+    if (typeof source.enabled !== 'boolean') return { error: 'enabled must be a boolean' };
+    next.enabled = source.enabled;
+  }
+  if ('shareVisible' in source) {
+    if (typeof source.shareVisible !== 'boolean') return { error: 'shareVisible must be a boolean' };
+    next.shareVisible = source.shareVisible;
+  }
+  if ('title' in source) {
+    if (typeof source.title !== 'string') return { error: 'title must be a string' };
+    next.title = source.title.trim().slice(0, MAX_COLLECTION_INFO_TITLE);
+  }
+  if ('body' in source) {
+    if (typeof source.body !== 'string') return { error: 'body must be a string' };
+    next.body = source.body.slice(0, MAX_COLLECTION_INFO_BODY);
+  }
+  if ('images' in source) {
+    if (!Array.isArray(source.images)) return { error: 'images must be an array' };
+    next.images = normalizeInfoImages(source.images);
+  }
+
+  return { info: next };
 }

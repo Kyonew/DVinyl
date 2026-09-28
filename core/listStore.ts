@@ -2,6 +2,8 @@ import mongoose from 'mongoose';
 import Item from '../models/Item';
 import List from '../models/List';
 import { registry } from './registry';
+import { escapeRegExp } from './helpers';
+import { itemImageUrl } from './itemImageStorage';
 
 export const LIST_KINDS = ['items', 'tracks'] as const;
 export type ListKind = typeof LIST_KINDS[number];
@@ -14,6 +16,9 @@ export const MAX_LIST_DESCRIPTION = 500;
 export const MAX_LIST_ENTRIES = 2000;
 // How many items one bulk add may carry, same bound as the other bulk actions.
 export const MAX_LIST_BULK_ADD = 500;
+// How many matches the candidates search offers at once: enough to find something by a few
+// letters, few enough to read without scrolling.
+export const MAX_CANDIDATES = 20;
 
 export function isListKind(value: unknown): value is ListKind {
   return typeof value === 'string' && (LIST_KINDS as readonly string[]).includes(value);
@@ -45,6 +50,10 @@ export function pluginsWithTracks(settings: any) {
 export type ResolvedItemEntry = {
   entryId: string;
   item: any;
+  // The unformatted document and the entry's own timestamp, for callers (the API) that
+  // need more than the formatted view the web page draws.
+  rawItem: any;
+  addedAt: any;
   plugin: any;
   cover: string;
   creator: string;
@@ -95,6 +104,8 @@ export async function resolveListEntries(list: any, collectionId: any): Promise<
     const line: any = {
       entryId: String(entry._id),
       item: view,
+      rawItem: raw,
+      addedAt: entry.added_at,
       plugin,
       cover: view.cover_image || '',
       creator: plugin.creatorField ? String(raw[plugin.creatorField] || '') : ''
@@ -144,4 +155,73 @@ export async function listCovers(lists: any[], collectionId: any): Promise<Map<s
     out.set(listId, ids.map(id => coverById.get(id)).filter(Boolean) as string[]);
   }
   return out;
+}
+
+/**
+ * What the "Add" search offers for a list: the collection's items for a list of items, the
+ * tracks of its items for a playlist. Each result says whether the list already holds it.
+ * Shared by the web list page and /api/v1, so the two cannot drift in what they offer.
+ */
+export async function listCandidates(params: {
+  list: any;
+  collectionId: any;
+  query: string;
+  translate: (key: string, options?: any) => string;
+  settings?: any;
+}): Promise<any[]> {
+  const { list, collectionId, query, translate, settings } = params;
+  const q = typeof query === 'string' ? query.trim().slice(0, 100) : '';
+  if (q.length < 1) return [];
+  const regex = new RegExp(escapeRegExp(q), 'i');
+  const plugins = registry.getEnabled(settings);
+  const describe = (raw: any) => {
+    const plugin = registry.getByKind(raw.kind);
+    const view = plugin ? plugin.formatForView(raw) : raw;
+    // Format and year tell two copies of one title apart (the vinyl and the CD).
+    const formatValue = String(raw.format || raw.media_type || '').toLowerCase();
+    const format = (plugin?.formats || []).find((f: any) => f.value === formatValue);
+    return {
+      item: String(raw._id),
+      title: raw.title || '',
+      creator: plugin?.creatorField ? String(raw[plugin.creatorField] || '') : '',
+      details: [format ? translate(format.label) : '', raw.year].filter(Boolean).join(' · '),
+      cover: itemImageUrl(view.cover_image || '')
+    };
+  };
+
+  if (list.kind === 'tracks') {
+    // Only the tracks whose title matches, not every track of an album that does.
+    const items = await Item.find({ collection: collectionId, parent: { $exists: false }, 'tracklist.title': regex })
+      .sort({ sort_title: 1 })
+      .limit(MAX_CANDIDATES)
+      .lean();
+    const present = new Set((list.entries || []).map((e: any) => `${e.item}:${e.track}`));
+    const results: any[] = [];
+    for (const raw of items as any[]) {
+      for (const track of raw.tracklist || []) {
+        if (!regex.test(track.title || '') || results.length >= MAX_CANDIDATES) continue;
+        results.push({
+          ...describe(raw),
+          track: String(track._id),
+          trackTitle: track.title,
+          position: track.position || '',
+          inList: present.has(`${raw._id}:${track._id}`)
+        });
+      }
+    }
+    return results;
+  }
+
+  // Same fields as the collection's own search box. Items held inside another (the seasons
+  // of a show) stay out, as they do from every listing.
+  const searchOr: any[] = [{ title: regex }, { barcode: regex }];
+  for (const creator of new Set(plugins.map((p: any) => p.creatorField).filter(Boolean))) {
+    searchOr.push({ [creator as string]: regex });
+  }
+  const items = await Item.find({ collection: collectionId, parent: { $exists: false }, $or: searchOr })
+    .sort({ sort_title: 1 })
+    .limit(MAX_CANDIDATES)
+    .lean();
+  const present = new Set((list.entries || []).map((e: any) => String(e.item)));
+  return (items as any[]).map(raw => ({ ...describe(raw), inList: present.has(String(raw._id)) }));
 }

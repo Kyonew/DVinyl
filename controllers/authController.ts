@@ -2,6 +2,7 @@ import User from '../models/User';
 import jwt from 'jsonwebtoken';
 import LoginLog from '../models/LoginLog';
 import { isLocalLoginDisabled } from '../config/oidc';
+import { secondsBlocked, recordFailure, clearAttempts, MAX_ATTEMPTS } from './loginAttempts';
 
 /**
  * Retrieve the client IP address from request headers or socket details.
@@ -49,17 +50,6 @@ const getGeoLocation = async (ip: string) => {
 };
 
 
-
-// In-memory login attempt tracking to throttle brute-force attempts.
-interface LoginAttempt {
-  count: number;
-  lastTry: number;
-  blockedUntil?: number;
-}
-
-const loginAttempts: Record<string, LoginAttempt> = {};
-const MAX_ATTEMPTS = 4;
-const BLOCK_TIME = 5 * 60 * 1000; // 5 minutes (can be adjusted as needed)
 
 /**
  * Translate known errors into i18n keys returned to the client.
@@ -154,7 +144,6 @@ export const login_post = async (req: any, res: any) => {
   // The field is still posted as `email`, but it holds an email or a username.
   const { password } = req.body;
   const identifier = String(req.body.email || '').trim().toLowerCase();
-  const now = Date.now();
 
   // Failures are counted per account when the identifier names one, so its email and its
   // username share one counter: alternating between the two would otherwise double the
@@ -164,38 +153,32 @@ export const login_post = async (req: any, res: any) => {
   const key = account ? `user:${account._id}` : `id:${identifier}`;
 
   // Check whether this account is temporarily blocked due to repeated failures.
-  if (loginAttempts[key] && loginAttempts[key].blockedUntil && now < loginAttempts[key].blockedUntil) {
-    const secondsLeft = Math.ceil((loginAttempts[key].blockedUntil - now) / 1000);
+  const blockedSeconds = secondsBlocked(key);
+  if (blockedSeconds !== null) {
     return res.status(429).json({
-      errors: { login: req.t('errors.too_many_attempts_timed', { seconds: secondsLeft }) }
+      errors: { login: req.t('errors.too_many_attempts_timed', { seconds: blockedSeconds }) }
     });
   }
 
   try {
     const user = await (User as any).login(req.body.email, password);
 
-    // Clear failed attempts on successful login.
-    if (loginAttempts[key]) delete loginAttempts[key];
+    clearAttempts(key);
 
     await issueSession(req, res, user);
     res.status(200).json({ user: user._id });
 
   } catch (err) {
-    // Increment the failure counter for this account.
-    if (!loginAttempts[key]) loginAttempts[key] = { count: 0, lastTry: now };
-    loginAttempts[key].count++;
-    loginAttempts[key].lastTry = now;
+    const { count, justBlocked } = recordFailure(key);
 
-    // If threshold reached, set a temporary block window.
-    if (loginAttempts[key].count >= MAX_ATTEMPTS) {
-      loginAttempts[key].blockedUntil = now + BLOCK_TIME;
-      console.warn(`[AUTH] ${identifier} temporarily blocked after ${loginAttempts[key].count} failed attempts (from ${getClientIp(req)})`);
+    if (justBlocked) {
+      console.warn(`[AUTH] ${identifier} temporarily blocked after ${count} failed attempts (from ${getClientIp(req)})`);
       return res.status(429).json({
         errors: { login: req.t('errors.too_many_attempts_blocked') }
       });
     }
 
-    console.warn(`[AUTH] Login failed for ${identifier}: ${(err as any)?.message} (attempt ${loginAttempts[key].count}/${MAX_ATTEMPTS})`);
+    console.warn(`[AUTH] Login failed for ${identifier}: ${(err as any)?.message} (attempt ${count}/${MAX_ATTEMPTS})`);
 
     // Retrieve the error key from handleErrors.
     const errorKeys = handleErrors(err);

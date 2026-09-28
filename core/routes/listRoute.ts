@@ -3,12 +3,9 @@ import mongoose from 'mongoose';
 import Item from '../../models/Item';
 import List from '../../models/List';
 import { requireAuth, requireCollectionRole } from '../../middleware/authMiddleware';
-import { escapeRegExp } from '../helpers';
-import { registry } from '../registry';
-import { itemImageUrl } from '../itemImageStorage';
 import {
   ownList, isListKind, cleanListName, cleanListDescription, resolveListEntries, listCovers,
-  pluginsWithTracks, MAX_LIST_ENTRIES, MAX_LIST_BULK_ADD
+  listCandidates, pluginsWithTracks, MAX_LIST_ENTRIES, MAX_LIST_BULK_ADD
 } from '../listStore';
 
 /**
@@ -164,76 +161,24 @@ router.get('/api/lists', requireAuth, requireCollectionRole('viewer'), async (re
   }
 });
 
-// How many matches the list page's search offers at once: enough to find something by
-// a few letters of its name, few enough to read without scrolling.
-const MAX_CANDIDATES = 20;
-
 // GET /api/lists/:id/candidates?q= -> what the list page's "Add" search offers: the
 // collection's items for a list of items, the tracks of its items for a playlist. Each
-// says whether the list already holds it.
+// says whether the list already holds it. The search itself is shared with /api/v1
+// (core/listStore.listCandidates), so the two surfaces cannot drift.
 router.get('/api/lists/:id/candidates', requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
   try {
     const collectionId = res.locals.activeCollectionId;
     const list: any = await ownList(collectionId, req.params.id);
     if (!list) return res.status(404).json({ success: false, error: req.t('errors.not_found') });
 
-    const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 100) : '';
-    if (q.length < 1) return res.json({ success: true, results: [] });
-    const regex = new RegExp(escapeRegExp(q), 'i');
-    const plugins = registry.getEnabled(res.locals.settings);
-    const describe = (raw: any) => {
-      const plugin = registry.getByKind(raw.kind);
-      const view = plugin ? plugin.formatForView(raw) : raw;
-      // Format and year tell two copies of one title apart (the vinyl and the CD).
-      const formatValue = String(raw.format || raw.media_type || '').toLowerCase();
-      const format = (plugin?.formats || []).find(f => f.value === formatValue);
-      return {
-        item: String(raw._id),
-        title: raw.title || '',
-        creator: plugin?.creatorField ? String(raw[plugin.creatorField] || '') : '',
-        details: [format ? req.t(format.label) : '', raw.year].filter(Boolean).join(' · '),
-        cover: itemImageUrl(view.cover_image || '')
-      };
-    };
-
-    if (list.kind === 'tracks') {
-      // Only the tracks whose title matches, not every track of an album that does.
-      const items = await Item.find({ collection: collectionId, parent: { $exists: false }, 'tracklist.title': regex })
-        .sort({ sort_title: 1 })
-        .limit(MAX_CANDIDATES)
-        .lean();
-      const present = new Set(list.entries.map((e: any) => `${e.item}:${e.track}`));
-      const results: any[] = [];
-      for (const raw of items as any[]) {
-        for (const track of raw.tracklist || []) {
-          if (!regex.test(track.title || '') || results.length >= MAX_CANDIDATES) continue;
-          results.push({
-            ...describe(raw),
-            track: String(track._id),
-            trackTitle: track.title,
-            position: track.position || '',
-            inList: present.has(`${raw._id}:${track._id}`)
-          });
-        }
-      }
-      return res.json({ success: true, results });
-    }
-
-    // Same fields as the collection's own search box. Items held inside another (the
-    // seasons of a show) stay out, as they do from every listing.
-    const searchOr: any[] = [{ title: regex }, { barcode: regex }];
-    for (const creator of new Set(plugins.map(p => p.creatorField).filter(Boolean))) {
-      searchOr.push({ [creator]: regex });
-    }
-    const items = await Item.find({ collection: collectionId, parent: { $exists: false }, $or: searchOr })
-      .sort({ sort_title: 1 })
-      .limit(MAX_CANDIDATES)
-      .lean();
-    const present = new Set(list.entries.map((e: any) => String(e.item)));
-    res.json({
-      success: true,
-      results: (items as any[]).map(raw => ({ ...describe(raw), inList: present.has(String(raw._id)) }))
+    const results = await listCandidates({
+      list,
+      collectionId,
+      query: typeof req.query.q === 'string' ? req.query.q : '',
+      translate: req.t,
+      settings: res.locals.settings
     });
+    res.json({ success: true, results });
   } catch (err: any) {
     console.error('[ERR] List candidates:', err.message);
     res.status(500).json({ success: false, error: req.t('errors.generic_server_error') });

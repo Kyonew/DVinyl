@@ -1,8 +1,10 @@
+import mongoose from 'mongoose';
 import Furniture from '../models/Furniture';
 import Item from '../models/Item';
 import {
   locationKey, normalizeLocationName, pickDisplayName, capacityPerFurniture, fitGrid,
-  MAX_FURNITURE_ROWS
+  cleanShelfName, clampInt, cleanOrder, findDuplicateCellKey,
+  MAX_FURNITURE_COLUMNS, MAX_FURNITURE_ROWS, MAX_CELL_CAPACITY
 } from '../utils/shelfHelpers';
 
 /** Every shelf in a collection, in the spelling its furniture holds. */
@@ -29,6 +31,27 @@ export async function shelfChoices(collectionId: any): Promise<string[]> {
     if (key && !byKey.has(key)) byKey.set(key, normalizeLocationName(value));
   }
   return [...byKey.values()].sort((a, b) => a.localeCompare(b));
+}
+
+/**
+ * How many items carry each `location`, for an Item match the caller built. A `find`
+ * rather than an aggregate on purpose: an aggregate does not cast, so the visibility
+ * filter's hidden-item ids would compare as strings against ObjectIds and every hidden
+ * item would be counted. The caller narrows the match to the compartment names, so the
+ * returned map is bounded by the furniture; the documents read are that collection's
+ * shelved items, which can be most of the collection. Bounding the read itself wants an
+ * index on (collection, location), which is a follow-up rather than this surface's job.
+ */
+export async function shelfCounts(match: Record<string, any>): Promise<Map<string, number>> {
+  const items = await Item.find(match).select('location').lean();
+  const counts = new Map<string, number>();
+  for (const item of items as any[]) {
+    const location = item.location;
+    if (typeof location === 'string' && location) {
+      counts.set(location, (counts.get(location) || 0) + 1);
+    }
+  }
+  return counts;
 }
 
 /**
@@ -211,4 +234,184 @@ export async function seedFurnitureFromLocations(
   }
 
   return { shelves: shelves.length, renamed, blanked };
+}
+
+/** What a whole-piece save answers: the saved piece, or why it was refused. */
+export type FurnitureSaveVerdict =
+  | { ok: true; furniture: any; renamed: number; moved: number }
+  | { ok: false; error: 'name_required' | 'duplicate_shelf' | 'shelf_elsewhere' | 'too_many_shelves'; shelf?: string; furniture?: string };
+
+/**
+ * Saves a piece whole: its shape, and the shelves in it. Cells arrive in reading order and
+ * carry no coordinates; the grid is derived from the order and the column count. `from` on a
+ * cell is the key it had before, which tells a rename from a remove-and-create: a renamed
+ * shelf takes its items with it. Shared by the web editor and the API.
+ */
+export async function saveFurniture(collectionId: any, furniture: any, input: any): Promise<FurnitureSaveVerdict> {
+  const name = cleanShelfName(input?.name);
+  if (!name) return { ok: false, error: 'name_required' };
+
+  const columns = clampInt(input?.columns, 1, MAX_FURNITURE_COLUMNS, furniture.columns);
+  const incoming = Array.isArray(input?.cells) ? input.cells : [];
+
+  const cells: any[] = [];
+  for (const raw of incoming) {
+    const cellName = cleanShelfName(raw?.name);
+    const key = locationKey(cellName);
+    // A shelf with no name is not a shelf. Dropped rather than refused, so an empty row
+    // left in the form does not cost the user the whole save.
+    if (!key) continue;
+    cells.push({
+      name: cellName,
+      key,
+      row: Math.floor(cells.length / columns),
+      column: cells.length % columns,
+      capacity: clampInt(raw?.capacity, 0, MAX_CELL_CAPACITY, 0),
+      from: typeof raw?.from === 'string' ? raw.from : null
+    });
+  }
+
+  const duplicate = findDuplicateCellKey(cells);
+  if (duplicate) return { ok: false, error: 'duplicate_shelf', shelf: duplicate };
+
+  // A piece's grid is capped at MAX_FURNITURE_ROWS tall; accepting more cells would leave
+  // compartments below its own floor, which the view then cannot draw.
+  if (Math.ceil(cells.length / columns) > MAX_FURNITURE_ROWS) {
+    return { ok: false, error: 'too_many_shelves' };
+  }
+
+  const elsewhere: any = await Furniture.findOne({
+    collection: collectionId,
+    _id: { $ne: furniture._id },
+    'cells.key': { $in: cells.map(c => c.key) }
+  }).select('name cells.key').lean();
+  if (elsewhere) {
+    const clash = cells.find(c => (elsewhere.cells || []).some((x: any) => x.key === c.key));
+    return { ok: false, error: 'shelf_elsewhere', shelf: clash?.name, furniture: elsewhere.name };
+  }
+
+  const storedByKey = new Map((furniture.cells as any[]).map((cell: any) => [cell.key, cell]));
+  const renames = cells
+    .map(cell => ({ before: cell.from ? storedByKey.get(cell.from) : null, after: cell.name }))
+    .filter(entry => entry.before && entry.before.name !== entry.after) as { before: any; after: string }[];
+
+  furniture.name = name;
+  furniture.layout = input?.layout === 'rows' ? 'rows' : 'cubes';
+  furniture.columns = columns;
+  const order = cleanOrder(input?.order);
+  if (order !== null) furniture.order = order;
+  // Tall enough to hold what it was given, whatever the form asked for: a compartment
+  // must never end up below its own furniture's floor.
+  furniture.rows = Math.min(
+    MAX_FURNITURE_ROWS,
+    Math.max(clampInt(input?.rows, 1, MAX_FURNITURE_ROWS, furniture.rows), Math.ceil(cells.length / columns) || 1)
+  );
+  furniture.cells = cells.map(({ from, ...cell }) => cell) as any;
+
+  try {
+    await furniture.save();
+  } catch (err: any) {
+    // The unique index on (collection, cells.key) refusing a shelf another request just took.
+    if (err?.code === 11000) return { ok: false, error: 'duplicate_shelf' };
+    throw err;
+  }
+
+  // One pass, so a pair of shelves swapping names cannot see each other's work: run in
+  // sequence, "A becomes B" then "B becomes A" would land everything on A.
+  let moved = 0;
+  if (renames.length > 0) {
+    const result = await Item.updateMany(
+      { collection: collectionId, location: { $in: renames.map(r => r.before.name) } },
+      [{
+        $set: {
+          location: {
+            $switch: {
+              branches: renames.map(r => ({ case: { $eq: ['$location', r.before.name] }, then: r.after })),
+              default: '$location'
+            }
+          }
+        }
+      }]
+    );
+    moved = result.modifiedCount;
+  }
+
+  return { ok: true, furniture, renamed: renames.length, moved };
+}
+
+/** Builds a new, empty piece. `order` defaults after the collection's existing pieces. */
+export async function createFurniture(
+  collectionId: any,
+  input: { name?: unknown; layout?: unknown; columns?: unknown; rows?: unknown; order?: unknown },
+  userId: any
+): Promise<{ ok: true; furniture: any } | { ok: false; error: 'name_required' }> {
+  const name = cleanShelfName(input?.name);
+  if (!name) return { ok: false, error: 'name_required' };
+
+  const count = await Furniture.countDocuments({ collection: collectionId });
+  const fit = fitGrid(4);
+  const order = cleanOrder(input?.order) ?? 100 + count;
+
+  const created = await Furniture.create({
+    collection: collectionId,
+    name,
+    layout: input?.layout === 'rows' ? 'rows' : 'cubes',
+    columns: clampInt(input?.columns, 1, MAX_FURNITURE_COLUMNS, fit.columns),
+    rows: clampInt(input?.rows, 1, MAX_FURNITURE_ROWS, fit.rows),
+    order,
+    cells: [],
+    createdBy: userId
+  });
+  return { ok: true, furniture: created };
+}
+
+/**
+ * Carries one shelf, with everything on it, to another piece. Its own operation rather than
+ * two saves: the shelf must never exist in both pieces at once, nor in neither. The items
+ * are not touched, since the shelf keeps its name and they refer to it by that.
+ */
+export async function moveCell(
+  collectionId: any,
+  key: unknown,
+  targetId: any
+): Promise<{ ok: true; moved: boolean } | { ok: false; error: 'bad_request' | 'not_found' | 'target_full' }> {
+  const cellKey = locationKey(key);
+  if (!cellKey || !mongoose.Types.ObjectId.isValid(targetId)) return { ok: false, error: 'bad_request' };
+
+  const [source, target] = await Promise.all([
+    Furniture.findOne({ collection: collectionId, 'cells.key': cellKey }),
+    Furniture.findOne({ _id: targetId, collection: collectionId })
+  ]);
+  if (!source || !target) return { ok: false, error: 'not_found' };
+  if (String(source._id) === String(target._id)) return { ok: true, moved: false };
+
+  // A target that is already as tall and wide as one piece may be has no room: pushing
+  // anyway would put the shelf below its own floor, where the view cannot draw it.
+  const at = (target.cells as any[]).length;
+  if (at >= MAX_FURNITURE_ROWS * target.columns) return { ok: false, error: 'target_full' };
+
+  const cell = (source.cells as any[]).find((c: any) => c.key === cellKey);
+  source.cells = (source.cells as any[]).filter((c: any) => c.key !== cellKey) as any;
+  // Repacked, so removing a shelf from the middle does not leave a gap behind it.
+  (source.cells as any[]).forEach((c: any, index: number) => {
+    c.row = Math.floor(index / source.columns);
+    c.column = index % source.columns;
+  });
+
+  (target.cells as any[]).push({
+    name: cell.name,
+    key: cell.key,
+    capacity: cell.capacity,
+    row: Math.floor(at / target.columns),
+    column: at % target.columns
+  });
+  if (Math.floor(at / target.columns) + 1 > target.rows) {
+    target.rows = Math.min(MAX_FURNITURE_ROWS, Math.floor(at / target.columns) + 1);
+  }
+
+  // The source first: while both hold the shelf, the unique index would refuse the second
+  // write and leave the move half done.
+  await source.save();
+  await target.save();
+  return { ok: true, moved: true };
 }

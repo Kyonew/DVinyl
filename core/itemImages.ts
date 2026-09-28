@@ -29,7 +29,7 @@ function cleanImageList(values: unknown[]): string[] {
   return images;
 }
 
-function submittedImageList(values: unknown[]): string[] {
+export function submittedImageList(values: unknown[]): string[] {
   const images: string[] = [];
   const seen = new Set<string>();
   let storedBytes = 0;
@@ -109,4 +109,11 @@ export function imagesFromForm(body: any): string[] {
   }
 
   return submittedImageList([body?.cover_image, body?.user_image]);
+}
+
+/** JSON-body sibling of imagesFromForm: the API sends a real `images: string[]` array
+ *  instead of a form-encoded `images_json` string, so no parsing step is needed — only
+ *  the same validation (cap, dedupe, byte-size). */
+export function imagesFromJson(body: any): string[] {
+  return submittedImageList(Array.isArray(body?.images) ? body.images : []);
 }

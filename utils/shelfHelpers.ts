@@ -81,3 +81,31 @@ export function capacityPerFurniture(maxColumns = 4): number {
   const columns = Math.max(1, Math.min(maxColumns, MAX_FURNITURE_COLUMNS));
   return columns * MAX_FURNITURE_ROWS;
 }
+
+/** Bounds shared by the web shelf editor and the API, so neither re-declares them. */
+export const MAX_FURNITURE_NAME = 60;
+export const MAX_CELL_CAPACITY = 100000;
+export const MAX_SHELF_MOVE = 500;
+
+/** The display form of a piece or cell name, capped at what a compartment can show. */
+export function cleanShelfName(value: unknown): string {
+  return normalizeLocationName(value).slice(0, MAX_FURNITURE_NAME);
+}
+
+/** An integer within [min, max], or `fallback` when it is not a number. */
+export function clampInt(value: any, min: number, max: number, fallback: number): number {
+  const parsed = parseInt(value, 10);
+  return Number.isFinite(parsed) ? Math.min(max, Math.max(min, parsed)) : fallback;
+}
+
+/**
+ * A furniture `order`, or null when the value is not really one. `null`/`''` mean "absent",
+ * not "zero": a client that omits the field must leave the piece where it is.
+ */
+export function cleanOrder(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return Math.max(0, Math.floor(value));
+  if (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value))) {
+    return Math.max(0, Math.floor(Number(value)));
+  }
+  return null;
+}

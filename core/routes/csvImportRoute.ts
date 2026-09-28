@@ -1,9 +1,8 @@
 import express from 'express';
 import { registry } from '../registry';
 import { requireAuth, requireCollectionRole } from '../../middleware/authMiddleware';
-import { CSV_DELIMITERS, detectCsvDelimiter, parseCsv, parseCsvRecords } from '../helpers';
+import { buildGenericCsvSpec, previewCsv, GenericCsvFailure } from '../genericCsvImport';
 import { runCsvImport } from '../csvImport';
-import { buildMapRow, importableFields, sanitizeMapping } from '../csvMapping';
 
 /**
  * Generic CSV import: any file, into any enabled module, with the user mapping the
@@ -15,6 +14,9 @@ import { buildMapRow, importableFields, sanitizeMapping } from '../csvMapping';
  * mapping the user validated. The file itself is never stored server-side between the
  * two: the browser re-posts it, which keeps the flow stateless and leaves nothing to
  * clean up if the user walks away mid-mapping.
+ *
+ * The parsing and specification live in `core/genericCsvImport.ts`, shared with the
+ * /api/v1 import-job route.
  */
 
 const router = express.Router();
@@ -22,84 +24,33 @@ const router = express.Router();
 // Bulk imports are collection-admin only, same tier as the plugin importers.
 const guards = [requireAuth, requireCollectionRole('admin')];
 
-const SAMPLE_ROWS = 3;
-
-/** The requested separator when it is one we support, else the detected one. */
-function resolveDelimiter(requested: any, csv: string): string {
-  return CSV_DELIMITERS.includes(requested) ? requested : detectCsvDelimiter(csv);
+/** Translates a shared failure code; the web UI is localized, the API is not. */
+function csvError(req: any, failure: GenericCsvFailure): string {
+  const key = `admin.csv_import.err_${failure.error}`;
+  return failure.error === 'missing_required'
+    ? req.t(key, { fields: failure.detail })
+    : req.t(key);
 }
 
 // POST /import/csv/preview -> columns, sample values and detected separator
 router.post('/import/csv/preview', ...guards, (req: any, res: any) => {
-  const csv = req.body?.csv;
-  if (typeof csv !== 'string' || !csv.trim()) {
-    return res.status(400).json({ error: req.t('admin.csv_import.err_no_file') });
-  }
-
-  const delimiter = resolveDelimiter(req.body?.delimiter, csv);
-  const records = parseCsvRecords(csv, delimiter);
-  if (records.length === 0) {
-    return res.status(400).json({ error: req.t('admin.csv_import.err_empty') });
-  }
-
-  // Read back from the raw matrix rather than from the records: duplicate headers
-  // collapse into a single key, and the mapping screen must not offer a column the
-  // rows cannot actually be read from.
-  const columns = Object.keys(records[0]!);
-  const headerCount = (parseCsv(csv, delimiter)[0] || []).length;
-
-  res.json({
-    delimiter,
-    columns,
-    total: records.length,
-    duplicateColumns: headerCount > columns.length,
-    samples: records.slice(0, SAMPLE_ROWS)
-  });
+  const result = previewCsv(req.body?.csv, req.body?.delimiter);
+  if ('error' in result) return res.status(400).json({ error: csvError(req, result) });
+  res.json(result.preview);
 });
 
 // POST /import/csv -> runs the import with a user-defined mapping
 router.post('/import/csv', ...guards, (req: any, res: any) => {
-  const csv = req.body?.csv;
-  if (typeof csv !== 'string' || !csv.trim()) {
-    return res.status(400).json({ error: req.t('admin.csv_import.err_no_file') });
-  }
-
   const settings = res.locals.settings;
-  const plugin = registry.get(String(req.body?.plugin || ''));
-  if (!plugin || !registry.getEnabled(settings).some(p => p.id === plugin.id)) {
-    return res.status(400).json({ error: req.t('admin.csv_import.err_unknown_module') });
-  }
-
-  const delimiter = resolveDelimiter(req.body?.delimiter, csv);
-  const records = parseCsvRecords(csv, delimiter);
-  if (records.length === 0) {
-    return res.status(400).json({ error: req.t('admin.csv_import.err_empty') });
-  }
-
-  const fields = importableFields(plugin, settings, req.t);
-  const { mapping, missingRequired } = sanitizeMapping(req.body?.mapping, fields, Object.keys(records[0]!));
-  if (missingRequired.length > 0) {
-    return res.status(400).json({
-      error: req.t('admin.csv_import.err_missing_required', { fields: missingRequired.join(', ') })
-    });
-  }
-
-  const mapRow = buildMapRow(fields, mapping, req.t);
-
-  return runCsvImport(req, res, {
-    plugin,
-    delimiter,
-    // No searchQuery: enrichment looks the item up by title alone, which is the only
-    // thing every provider matches on. TMDB in particular returns nothing at all for
-    // "Inception Christopher Nolan", so pasting the creator in silently emptied the
-    // enrichment of every row whose creator column was filled. Telling two same-titled
-    // works apart is the engine's job, from the year and the creator of the row.
-    mapRow,
-    // The support the row landed on, when the mapping fed one. Providers that key their
-    // search on it (Discogs) otherwise default to vinyl and would enrich a CD import
-    // with the wrong pressings; the others ignore the option.
-    searchOptions: (_row, data) => (data.media_type ? { type: data.media_type } : {})
+  const result = buildGenericCsvSpec({
+    body: req.body,
+    settings,
+    enabledPlugins: registry.getEnabled(settings),
+    t: req.t
   });
+  if ('error' in result) return res.status(400).json({ error: csvError(req, result) });
+
+  return runCsvImport(req, res, result.target.spec);
 });
 
 export default router;
