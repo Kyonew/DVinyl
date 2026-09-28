@@ -8,6 +8,12 @@ import {
   TEST_PLUGIN_KIND, TRACKLIST_PLUGIN_KIND
 } from '../../../test/helpers/plugins';
 import { listCandidates, resolveListEntries } from '../../../core/listStore';
+import request from 'supertest';
+import { buildApiApp } from '../../../test/helpers/app';
+import { signAccessToken, bearer } from '../../../test/helpers/auth';
+import List from '../../../models/List';
+
+const app = buildApiApp();
 
 before(async () => {
   loadPluginsOnce();
@@ -89,5 +95,121 @@ describe('resolveListEntries', () => {
     const line = lines[0]!;
     assert.equal(String(line.rawItem._id), String(item._id));
     assert.ok(line.addedAt instanceof Date);
+  });
+});
+
+/** owner=admin, editor, viewer, plus an outsider non-member. */
+async function seedRoles() {
+  const owner = (await makeUser()).user;
+  const editor = (await makeUser()).user;
+  const viewer = (await makeUser()).user;
+  const outsider = (await makeUser()).user;
+  const collection = await makeCollection({
+    members: [
+      { user: owner, role: 'admin' },
+      { user: editor, role: 'editor' },
+      { user: viewer, role: 'viewer' }
+    ]
+  });
+  await makeSettings(collection);
+  return {
+    owner, editor, viewer, outsider, collection,
+    ownerToken: signAccessToken(owner._id),
+    editorToken: signAccessToken(editor._id),
+    viewerToken: signAccessToken(viewer._id),
+    outsiderToken: signAccessToken(outsider._id)
+  };
+}
+
+describe('GET /api/v1/collections/:id/lists', () => {
+  test('401 without a bearer token', async () => {
+    const ctx = await seedRoles();
+    const res = await request(app).get(`/api/v1/collections/${ctx.collection._id}/lists`);
+    assert.equal(res.status, 401);
+    assert.equal(res.body.success, false);
+  });
+
+  test('200 lists summaries with covers and canMakePlaylists', async () => {
+    const ctx = await seedRoles();
+    const item = await makeItem(TEST_PLUGIN_KIND, {
+      title: 'Covered', cover_image: '/uploads/items/cover.jpg', owner: ctx.owner._id, collection: ctx.collection._id
+    });
+    await makeItem(TEST_PLUGIN_KIND, { title: 'Unlisted', owner: ctx.owner._id, collection: ctx.collection._id });
+    await List.create({ collection: ctx.collection._id, name: 'Backlog', kind: 'items', createdBy: ctx.owner._id, entries: [{ item: item._id }] });
+
+    const res = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/lists`)
+      .set(bearer(ctx.viewerToken));
+
+    assert.equal(res.status, 200);
+    assert.equal(res.body.lists.length, 1);
+    assert.equal(res.body.lists[0].name, 'Backlog');
+    assert.equal(res.body.lists[0].count, 1);
+    assert.equal(res.body.lists[0].covers.length, 1);
+    assert.equal(res.body.canMakePlaylists, true);
+  });
+
+  test('200 with canMakePlaylists false when no enabled plugin has a tracklist', async () => {
+    const ctx = await seedRoles();
+    await makeSettings(ctx.collection, { modules: {} });
+    const res = await request(app)
+      .get(`/api/v1/collections/${ctx.collection._id}/lists`)
+      .set(bearer(ctx.viewerToken));
+    assert.equal(res.status, 200);
+    assert.equal(res.body.canMakePlaylists, false);
+  });
+});
+
+describe('POST /api/v1/collections/:id/lists', () => {
+  test('201 creates an item list', async () => {
+    const ctx = await seedRoles();
+    const res = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/lists`)
+      .set(bearer(ctx.editorToken))
+      .send({ name: '  Backlog  ', description: 'To play' });
+    assert.equal(res.status, 201);
+    assert.equal(res.body.list.name, 'Backlog');
+    assert.equal(res.body.list.kind, 'items');
+    assert.equal(res.body.list.count, 0);
+    assert.deepEqual(res.body.list.covers, []);
+  });
+
+  test('201 creates a playlist', async () => {
+    const ctx = await seedRoles();
+    const res = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/lists`)
+      .set(bearer(ctx.editorToken))
+      .send({ name: 'Road trip', kind: 'tracks' });
+    assert.equal(res.status, 201);
+    assert.equal(res.body.list.kind, 'tracks');
+  });
+
+  test('400 for an empty name', async () => {
+    const ctx = await seedRoles();
+    const res = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/lists`)
+      .set(bearer(ctx.editorToken))
+      .send({ name: '   ' });
+    assert.equal(res.status, 400);
+    assert.equal(res.body.error, 'A list name is required');
+  });
+
+  test('400 for an unknown kind', async () => {
+    const ctx = await seedRoles();
+    const res = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/lists`)
+      .set(bearer(ctx.editorToken))
+      .send({ name: 'X', kind: 'playlist' });
+    assert.equal(res.status, 400);
+    assert.equal(res.body.error, 'Invalid list kind');
+  });
+
+  test('403 for a viewer', async () => {
+    const ctx = await seedRoles();
+    const res = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/lists`)
+      .set(bearer(ctx.viewerToken))
+      .send({ name: 'X' });
+    assert.equal(res.status, 403);
   });
 });
