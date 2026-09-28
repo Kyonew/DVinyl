@@ -35,8 +35,10 @@ export async function shelfChoices(collectionId: any): Promise<string[]> {
  * How many items carry each `location`, for an Item match the caller built. A `find`
  * rather than an aggregate on purpose: an aggregate does not cast, so the visibility
  * filter's hidden-item ids would compare as strings against ObjectIds and every hidden
- * item would be counted. The caller narrows the match to the compartment names, so this
- * reads only shelved items.
+ * item would be counted. The caller narrows the match to the compartment names, so the
+ * returned map is bounded by the furniture; the documents read are that collection's
+ * shelved items, which can be most of the collection. Bounding the read itself wants an
+ * index on (collection, location), which is a follow-up rather than this surface's job.
  */
 export async function shelfCounts(match: Record<string, any>): Promise<Map<string, number>> {
   const items = await Item.find(match).select('location').lean();

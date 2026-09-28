@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import Furniture from '../../../models/Furniture';
+import { furnitureToApi } from '../../../core/apiSerializers';
 import { shelfChoices, shelfCounts } from '../../../core/shelfStore';
 import { requireApiAuth } from '../../../middleware/authMiddleware';
 import { requireApiCollectionRole } from '../../../middleware/apiAuthMiddleware';
@@ -9,26 +10,6 @@ import { applyVisibilityFilter, applyEnabledModulesFilter, applyContainedFilter 
 const router = Router();
 
 router.use(requireApiAuth);
-
-/** One piece as the API exposes it; `counts` is keyed by the cell's exact `location`. */
-function furnitureToApi(piece: any, counts: Map<string, number>) {
-  return {
-    id: String(piece._id),
-    name: piece.name,
-    layout: piece.layout,
-    columns: piece.columns,
-    rows: piece.rows,
-    order: piece.order,
-    cells: (piece.cells || []).map((cell: any) => ({
-      name: cell.name,
-      key: cell.key,
-      row: cell.row,
-      column: cell.column,
-      capacity: cell.capacity || 0,
-      count: counts.get(cell.name) || 0
-    }))
-  };
-}
 
 /** The location picker's vocabulary: compartment names plus any stray item location. */
 router.get('/collections/:id/shelves', requireApiCollectionRole('viewer'), async (req: any, res: any) => {
