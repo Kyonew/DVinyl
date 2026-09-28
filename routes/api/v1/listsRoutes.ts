@@ -1,12 +1,14 @@
 import { Router } from 'express';
+import mongoose from 'mongoose';
 import List from '../../../models/List';
+import Item from '../../../models/Item';
 import { requireApiAuth } from '../../../middleware/authMiddleware';
 import { requireApiCollectionRole } from '../../../middleware/apiAuthMiddleware';
 import { getCollectionSettings } from '../../../utils/collectionSettings';
 import { toApiItem } from '../../../core/apiSerializers';
 import {
   cleanListDescription, cleanListName, isListKind, listCovers, ownList, resolveListEntries,
-  pluginsWithTracks
+  pluginsWithTracks, MAX_LIST_BULK_ADD, MAX_LIST_ENTRIES
 } from '../../../core/listStore';
 
 const router = Router();
@@ -24,6 +26,8 @@ function summarize(list: any, covers: string[] = []): any {
     covers
   };
 }
+
+const isId = (value: unknown) => typeof value === 'string' && mongoose.Types.ObjectId.isValid(value);
 
 /** Loads the list named by `:listId` in the URL's collection, or ends the request. */
 async function loadOwnList(req: any, res: any, next: any) {
@@ -126,6 +130,52 @@ router.delete('/collections/:id/lists/:listId', requireApiCollectionRole('editor
   } catch (err: any) {
     console.error('API list delete error:', err.message);
     res.status(500).json({ success: false, error: 'Failed to delete list' });
+  }
+});
+
+router.post('/collections/:id/lists/:listId/entries', requireApiCollectionRole('editor'), loadOwnList, async (req: any, res: any) => {
+  try {
+    const list = req.apiList;
+    const collectionId = req.apiCollection._id;
+    let additions: { item: any; track?: any }[] = [];
+
+    if (list.kind === 'tracks') {
+      const { item, track } = req.body || {};
+      if (!isId(item) || !isId(track)) {
+        return res.status(400).json({ success: false, error: 'A playlist line needs an item and a track id' });
+      }
+      // Cast by hand: `tracklist` is declared by the plugin, not the base model this query
+      // runs on, so Mongoose would compare the raw string otherwise.
+      const owner = await Item.exists({
+        _id: item,
+        collection: collectionId,
+        'tracklist._id': new mongoose.Types.ObjectId(track)
+      });
+      if (!owner) return res.status(404).json({ success: false, error: 'Item or track not found' });
+      const already = list.entries.some((e: any) => String(e.item) === String(item) && String(e.track) === String(track));
+      if (!already) additions = [{ item, track }];
+    } else {
+      if (!Array.isArray(req.body?.items)) {
+        return res.status(400).json({ success: false, error: 'items must be an array' });
+      }
+      const ids: string[] = req.body.items.filter(isId).slice(0, MAX_LIST_BULK_ADD);
+      // Only the collection's own items, whatever ids the request carries.
+      const found = await Item.find({ _id: { $in: ids }, collection: collectionId }).select('_id').lean();
+      const valid = new Set(found.map((f: any) => String(f._id)));
+      const present = new Set((list.entries || []).map((e: any) => String(e.item)));
+      additions = [...new Set(ids)].filter(id => valid.has(id) && !present.has(id)).map(item => ({ item }));
+    }
+
+    if ((list.entries || []).length + additions.length > MAX_LIST_ENTRIES) {
+      return res.status(400).json({ success: false, error: 'The list is full' });
+    }
+    if (additions.length > 0) {
+      await List.updateOne({ _id: list._id }, { $push: { entries: { $each: additions } } });
+    }
+    res.status(200).json({ success: true, added: additions.length, count: (list.entries || []).length + additions.length });
+  } catch (err: any) {
+    console.error('API list add error:', err.message);
+    res.status(500).json({ success: false, error: 'Failed to add to list' });
   }
 });
 

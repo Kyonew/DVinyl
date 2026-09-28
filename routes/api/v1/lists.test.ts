@@ -341,3 +341,100 @@ describe('DELETE /api/v1/collections/:id/lists/:listId', () => {
     assert.equal(res.status, 404);
   });
 });
+
+describe('POST /api/v1/collections/:id/lists/:listId/entries', () => {
+  test('200 adds collection items, skipping duplicates and already-present ones', async () => {
+    const { collection, list, owner, editorToken } = await seedList();
+    const a = await makeItem(TEST_PLUGIN_KIND, { title: 'A', owner: owner._id, collection: collection._id });
+    const b = await makeItem(TEST_PLUGIN_KIND, { title: 'B', owner: owner._id, collection: collection._id });
+    await List.updateOne({ _id: list._id }, { $set: { entries: [{ item: a._id }] } });
+
+    const res = await request(app)
+      .post(`/api/v1/collections/${collection._id}/lists/${list._id}/entries`)
+      .set(bearer(editorToken))
+      .send({ items: [String(a._id), String(b._id), String(b._id)] });
+
+    assert.equal(res.status, 200);
+    assert.equal(res.body.added, 1, 'a is already present, b is added once');
+    assert.equal(res.body.count, 2);
+  });
+
+  test('does not add an item from another collection', async () => {
+    const { collection, list, editorToken } = await seedList();
+    const other = await seedRoles();
+    const foreign = await makeItem(TEST_PLUGIN_KIND, { title: 'Foreign', owner: other.owner._id, collection: other.collection._id });
+
+    const res = await request(app)
+      .post(`/api/v1/collections/${collection._id}/lists/${list._id}/entries`)
+      .set(bearer(editorToken))
+      .send({ items: [String(foreign._id)] });
+
+    assert.equal(res.status, 200);
+    assert.equal(res.body.added, 0);
+  });
+
+  test('400 when items is not an array', async () => {
+    const { collection, list, editorToken } = await seedList();
+    const res = await request(app)
+      .post(`/api/v1/collections/${collection._id}/lists/${list._id}/entries`)
+      .set(bearer(editorToken))
+      .send({ items: 'nope' });
+    assert.equal(res.status, 400);
+  });
+
+  test('200 adds a track to a playlist', async () => {
+    const ctx = await seedRoles();
+    const item = await makeItem(TRACKLIST_PLUGIN_KIND, {
+      title: 'Album', owner: ctx.owner._id, collection: ctx.collection._id,
+      tracklist: [{ title: 'Sunrise', position: 'A1' }]
+    });
+    const list = await List.create({ collection: ctx.collection._id, name: 'Play', kind: 'tracks', createdBy: ctx.owner._id });
+
+    const res = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/lists/${list._id}/entries`)
+      .set(bearer(ctx.editorToken))
+      .send({ item: String(item._id), track: String(item.tracklist[0]._id) });
+
+    assert.equal(res.status, 200);
+    assert.equal(res.body.added, 1);
+    const stored: any = await List.findById(list._id).lean();
+    assert.equal(String(stored.entries[0].track), String(item.tracklist[0]._id));
+  });
+
+  test('404 when the track id belongs to a different item', async () => {
+    const ctx = await seedRoles();
+    const withTrack = await makeItem(TRACKLIST_PLUGIN_KIND, {
+      title: 'Album', owner: ctx.owner._id, collection: ctx.collection._id, tracklist: [{ title: 'Sunrise' }]
+    });
+    const other = await makeItem(TRACKLIST_PLUGIN_KIND, {
+      title: 'Other', owner: ctx.owner._id, collection: ctx.collection._id, tracklist: [{ title: 'Other track' }]
+    });
+    const list = await List.create({ collection: ctx.collection._id, name: 'Play', kind: 'tracks', createdBy: ctx.owner._id });
+
+    const res = await request(app)
+      .post(`/api/v1/collections/${ctx.collection._id}/lists/${list._id}/entries`)
+      .set(bearer(ctx.editorToken))
+      .send({ item: String(withTrack._id), track: String(other.tracklist[0]._id) });
+
+    assert.equal(res.status, 404);
+    assert.equal(res.body.success, false);
+  });
+
+  test('400 for a malformed track pair', async () => {
+    const { collection, list, editorToken } = await seedList('tracks');
+    const res = await request(app)
+      .post(`/api/v1/collections/${collection._id}/lists/${list._id}/entries`)
+      .set(bearer(editorToken))
+      .send({ item: 'nope', track: 'nope' });
+    assert.equal(res.status, 400);
+  });
+
+  test('403 for a viewer', async () => {
+    const { collection, list, viewerToken } = await seedList();
+    const res = await request(app)
+      .post(`/api/v1/collections/${collection._id}/lists/${list._id}/entries`)
+      .set(bearer(viewerToken))
+      .send({ items: [] });
+    assert.equal(res.status, 403);
+  });
+});
