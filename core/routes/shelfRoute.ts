@@ -3,26 +3,10 @@ import mongoose from 'mongoose';
 import Item from '../../models/Item';
 import Furniture from '../../models/Furniture';
 import { requireAuth, requireCollectionRole } from '../../middleware/authMiddleware';
-import { resolveShelfLocation } from '../shelfStore';
-import {
-  locationKey, normalizeLocationName, findDuplicateCellKey, fitGrid,
-  MAX_FURNITURE_COLUMNS, MAX_FURNITURE_ROWS
-} from '../../utils/shelfHelpers';
+import { createFurniture, moveCell, resolveShelfLocation, saveFurniture } from '../shelfStore';
+import { MAX_SHELF_MOVE } from '../../utils/shelfHelpers';
 
 const router = express.Router();
-
-// One move can only ever be as large as the page that selected the items, and the
-// collection page caps itself at 200 per page.
-const MAX_MOVE = 500;
-
-// Long enough for "Bibliotheque du salon", short enough to stay readable on a cell.
-const MAX_NAME = 60;
-
-const cleanName = (value: unknown) => normalizeLocationName(value).slice(0, MAX_NAME);
-const clamp = (value: any, min: number, max: number, fallback: number) => {
-  const parsed = parseInt(value, 10);
-  return Number.isFinite(parsed) ? Math.min(max, Math.max(min, parsed)) : fallback;
-};
 
 /** The piece of furniture named by :id, if it belongs to the caller's own collection. */
 async function ownFurniture(req: any, res: any) {
@@ -48,7 +32,7 @@ router.post('/shelf/move', requireAuth, requireCollectionRole('editor'), async (
     const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
     const valid = ids
       .filter((id: any) => mongoose.Types.ObjectId.isValid(id))
-      .slice(0, MAX_MOVE);
+      .slice(0, MAX_SHELF_MOVE);
 
     if (valid.length === 0) {
       return res.status(400).json({ success: false, error: 'no_items' });
@@ -80,24 +64,10 @@ router.post('/shelf/furniture', requireAuth, requireCollectionRole('editor'), as
     const activeCollectionId = res.locals.activeCollectionId;
     if (!activeCollectionId) return res.status(400).json({ success: false, error: 'no_active_collection' });
 
-    const name = cleanName(req.body?.name);
-    if (!name) return res.status(400).json({ success: false, error: 'name_required' });
+    const verdict = await createFurniture(activeCollectionId, req.body, req.user._id);
+    if (!verdict.ok) return res.status(400).json({ success: false, error: 'name_required' });
 
-    const count = await Furniture.countDocuments({ collection: activeCollectionId });
-    const { columns, rows } = fitGrid(4);
-
-    const created = await Furniture.create({
-      collection: activeCollectionId,
-      name,
-      layout: req.body?.layout === 'rows' ? 'rows' : 'cubes',
-      columns,
-      rows,
-      order: 100 + count,
-      cells: [],
-      createdBy: req.user._id
-    });
-
-    res.json({ success: true, id: String(created._id) });
+    res.json({ success: true, id: String(verdict.furniture._id) });
   } catch (err: any) {
     console.error('Furniture create error:', err.message);
     res.status(500).json({ success: false, error: 'server_error' });
@@ -119,88 +89,14 @@ router.post('/shelf/furniture/:id', requireAuth, requireCollectionRole('editor')
     const furniture = await ownFurniture(req, res);
     if (!furniture) return res.status(404).json({ success: false, error: 'not_found' });
 
-    const name = cleanName(req.body?.name);
-    if (!name) return res.status(400).json({ success: false, error: 'name_required' });
-
-    const columns = clamp(req.body?.columns, 1, MAX_FURNITURE_COLUMNS, furniture.columns);
-    const incoming = Array.isArray(req.body?.cells) ? req.body.cells : [];
-
-    const cells: any[] = [];
-    for (const raw of incoming) {
-      const cellName = cleanName(raw?.name);
-      const key = locationKey(cellName);
-      // A shelf with no name is not a shelf. Dropped rather than refused, so an empty
-      // row left in the form does not cost the user the whole save.
-      if (!key) continue;
-
-      cells.push({
-        name: cellName,
-        key,
-        row: Math.floor(cells.length / columns),
-        column: cells.length % columns,
-        capacity: clamp(raw?.capacity, 0, 100000, 0),
-        from: typeof raw?.from === 'string' ? raw.from : null
-      });
+    const verdict = await saveFurniture(res.locals.activeCollectionId, furniture, req.body);
+    if (!verdict.ok) {
+      if (verdict.error === 'name_required') return res.status(400).json({ success: false, error: 'name_required' });
+      if (verdict.error === 'duplicate_shelf') return res.status(409).json({ success: false, error: 'duplicate_shelf', shelf: verdict.shelf });
+      return res.status(409).json({ success: false, error: 'shelf_elsewhere', furniture: verdict.furniture });
     }
-
-    const duplicate = findDuplicateCellKey(cells);
-    if (duplicate) return res.status(409).json({ success: false, error: 'duplicate_shelf', shelf: duplicate });
-
-    // The unique index would catch this too, but only as a write failure with nothing to
-    // tell the user. Named here, before anything is touched.
-    const elsewhere = await Furniture.findOne({
-      collection: res.locals.activeCollectionId,
-      _id: { $ne: furniture._id },
-      'cells.key': { $in: cells.map(c => c.key) }
-    }).select('name cells.key').lean();
-    if (elsewhere) {
-      return res.status(409).json({ success: false, error: 'shelf_elsewhere', furniture: (elsewhere as any).name });
-    }
-
-    // Read off the stored cells before they are replaced: a shelf that changed name has
-    // to take the items standing on it along, and they only know the old name.
-    const storedByKey = new Map((furniture.cells as any[]).map((cell: any) => [cell.key, cell]));
-    const renames = cells
-      .map(cell => ({ before: cell.from ? storedByKey.get(cell.from) : null, after: cell.name }))
-      .filter(entry => entry.before && entry.before.name !== entry.after) as { before: any; after: string }[];
-
-    furniture.name = name;
-    furniture.layout = req.body?.layout === 'rows' ? 'rows' : 'cubes';
-    furniture.columns = columns;
-    // Tall enough to hold what it was given, whatever the form asked for: a compartment
-    // must never end up below its own furniture's floor.
-    furniture.rows = Math.min(
-      MAX_FURNITURE_ROWS,
-      Math.max(clamp(req.body?.rows, 1, MAX_FURNITURE_ROWS, furniture.rows), Math.ceil(cells.length / columns) || 1)
-    );
-    furniture.cells = cells.map(({ from, ...cell }) => cell) as any;
-    await furniture.save();
-
-    // One pass, so a pair of shelves swapping names cannot see each other's work: run in
-    // sequence, "A becomes B" then "B becomes A" would land everything on A.
-    let moved = 0;
-    if (renames.length > 0) {
-      const result = await Item.updateMany(
-        { collection: res.locals.activeCollectionId, location: { $in: renames.map(r => r.before.name) } },
-        [{
-          $set: {
-            location: {
-              $switch: {
-                branches: renames.map(r => ({ case: { $eq: ['$location', r.before.name] }, then: r.after })),
-                default: '$location'
-              }
-            }
-          }
-        }]
-      );
-      moved = result.modifiedCount;
-    }
-
-    res.json({ success: true, renamed: renames.length, moved });
+    res.json({ success: true, renamed: verdict.renamed, moved: verdict.moved });
   } catch (err: any) {
-    if (err?.code === 11000) {
-      return res.status(409).json({ success: false, error: 'duplicate_shelf' });
-    }
     console.error('Furniture save error:', err.message);
     res.status(500).json({ success: false, error: 'server_error' });
   }
@@ -233,47 +129,11 @@ router.post('/shelf/furniture/:id/delete', requireAuth, requireCollectionRole('e
  */
 router.post('/shelf/cell/move', requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
   try {
-    const activeCollectionId = res.locals.activeCollectionId;
-    const key = locationKey(req.body?.key);
-    const targetId = req.body?.to;
-
-    if (!key || !mongoose.Types.ObjectId.isValid(targetId)) {
-      return res.status(400).json({ success: false, error: 'bad_request' });
+    const verdict = await moveCell(res.locals.activeCollectionId, req.body?.key, req.body?.to);
+    if (!verdict.ok) {
+      return res.status(verdict.error === 'bad_request' ? 400 : 404).json({ success: false, error: verdict.error });
     }
-
-    const [source, target] = await Promise.all([
-      Furniture.findOne({ collection: activeCollectionId, 'cells.key': key }),
-      Furniture.findOne({ _id: targetId, collection: activeCollectionId })
-    ]);
-    if (!source || !target) return res.status(404).json({ success: false, error: 'not_found' });
-    if (String(source._id) === String(target._id)) return res.json({ success: true, moved: false });
-
-    const cell = (source.cells as any[]).find((c: any) => c.key === key);
-    source.cells = (source.cells as any[]).filter((c: any) => c.key !== key) as any;
-    // Repacked, so removing a shelf from the middle does not leave a gap behind it.
-    (source.cells as any[]).forEach((c: any, index: number) => {
-      c.row = Math.floor(index / source.columns);
-      c.column = index % source.columns;
-    });
-
-    const at = (target.cells as any[]).length;
-    (target.cells as any[]).push({
-      name: cell.name,
-      key: cell.key,
-      capacity: cell.capacity,
-      row: Math.floor(at / target.columns),
-      column: at % target.columns
-    });
-    if (Math.floor(at / target.columns) + 1 > target.rows) {
-      target.rows = Math.min(MAX_FURNITURE_ROWS, Math.floor(at / target.columns) + 1);
-    }
-
-    // The source first: while both hold the shelf, the unique index would refuse the
-    // second write and leave the move half done.
-    await source.save();
-    await target.save();
-
-    res.json({ success: true, moved: true });
+    res.json({ success: true, moved: verdict.moved });
   } catch (err: any) {
     console.error('Shelf move between furniture error:', err.message);
     res.status(500).json({ success: false, error: 'server_error' });
