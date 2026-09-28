@@ -46,6 +46,8 @@ tags:
     description: Instance-admin-only settings, users, blocked IPs and login logs.
   - name: Account
     description: Settings of the authenticated account (profile, password, avatar, SSO).
+  - name: Lists
+    description: Named selections of a collection's items, or of their tracks (playlists).
 paths:
   /auth/login:
     post:
@@ -3678,6 +3680,390 @@ paths:
         '500': { $ref: '#/components/responses/InternalServerError' }
         '503': { $ref: '#/components/responses/ServiceUnavailable' }
 
+  /collections/{id}/lists:
+    get:
+      tags: [Lists]
+      operationId: listLists
+      summary: List a collection's lists and playlists
+      description: |
+        Requires at least `viewer` role. One summary per list, most recently
+        updated first, with up to four item covers and whether the collection
+        can offer playlists at all (`canMakePlaylists`).
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+      responses:
+        '200':
+          description: List summaries.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [lists, canMakePlaylists]
+                properties:
+                  lists:
+                    type: array
+                    items: { $ref: '#/components/schemas/ListSummary' }
+                  canMakePlaylists:
+                    type: boolean
+                    description: Whether at least one enabled plugin keeps a tracklist.
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+    post:
+      tags: [Lists]
+      operationId: createList
+      summary: Create a list or a playlist
+      description: |
+        Requires at least `editor` role. `name` is required after trimming
+        (whitespace collapsed, truncated to 60 chars); `kind` is `items` (default)
+        or `tracks`, and any other value is a `400`; `description` is truncated
+        to 500.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, maxLength: 60 }
+                kind: { type: string, enum: [items, tracks], default: items }
+                description: { type: string, maxLength: 500 }
+            example: { name: Backlog, kind: items }
+      responses:
+        '201':
+          description: The new list.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [list]
+                properties:
+                  list: { $ref: '#/components/schemas/ListSummary' }
+        '400':
+          description: The cleaned name is empty, or `kind` is neither value.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                name: { value: { success: false, error: 'A list name is required' } }
+                kind: { value: { success: false, error: 'Invalid list kind' } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /collections/{id}/lists/for-item:
+    get:
+      tags: [Lists]
+      operationId: listsForItem
+      summary: Which lists hold an item (the picker's reverse lookup)
+      description: |
+        Requires at least `viewer` role. Every list of the collection, each saying
+        whether it already holds `item` (for an items list) or the given
+        `item`+`track` (for a playlist). An item that does not exist is not an
+        error: every `contains` is simply false.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+        - name: item
+          in: query
+          required: true
+          description: Item id (Mongo ObjectId).
+          schema: { type: string }
+        - name: track
+          in: query
+          required: false
+          description: Track id; consulted for playlists only.
+          schema: { type: string }
+      responses:
+        '200':
+          description: Every list with its membership flag.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [lists]
+                properties:
+                  lists:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, name, kind, count, contains]
+                      properties:
+                        id: { type: string }
+                        name: { type: string }
+                        kind: { type: string, enum: [items, tracks] }
+                        count: { type: integer }
+                        contains: { type: boolean }
+        '400':
+          description: Missing or malformed `item`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { success: false, error: 'A valid item id is required' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /collections/{id}/lists/{listId}:
+    parameters:
+      - $ref: '#/components/parameters/CollectionId'
+      - $ref: '#/components/parameters/ListId'
+    get:
+      tags: [Lists]
+      operationId: getList
+      summary: Read one list and its lines
+      description: |
+        Requires at least `viewer` role. Entries keep their arranged order. A line
+        whose item was deleted or whose track was edited out is pruned and removed
+        from the list before the response, so a client never sees a dead line.
+      responses:
+        '200':
+          description: The list and its resolved entries.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [list, entries]
+                properties:
+                  list: { $ref: '#/components/schemas/ListDetail' }
+                  entries:
+                    type: array
+                    items: { $ref: '#/components/schemas/ListEntry' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: No such list in this collection.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { success: false, error: 'List not found' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+    patch:
+      tags: [Lists]
+      operationId: updateList
+      summary: Rename or re-describe a list
+      description: |
+        Requires at least `editor` role. A cleaned `name` that comes out empty
+        leaves the current name in place; `description` is always replaced.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, maxLength: 60 }
+                description: { type: string, maxLength: 500 }
+            example: { name: Backlog 2026, description: To play next }
+      responses:
+        '200':
+          description: The updated list.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [list]
+                properties:
+                  list: { $ref: '#/components/schemas/ListSummary' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: No such list in this collection.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { success: false, error: 'List not found' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+    delete:
+      tags: [Lists]
+      operationId: deleteList
+      summary: Delete a list
+      description: Requires at least `editor` role. The items it named stay in the collection.
+      responses:
+        '200':
+          description: Deleted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessTrue' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: No such list in this collection.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { success: false, error: 'List not found' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /collections/{id}/lists/{listId}/entries:
+    parameters:
+      - $ref: '#/components/parameters/CollectionId'
+      - $ref: '#/components/parameters/ListId'
+    post:
+      tags: [Lists]
+      operationId: addListEntries
+      summary: Add items or one track to a list
+      description: |
+        Requires at least `editor` role. For an items list, send `items` (array of
+        item ids): ids from another collection and lines already present are
+        skipped, at most 500 per request. For a playlist, send `item` and `track`.
+        A `400` when the result would exceed 2000 entries.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items: { type: string }
+                  description: Items-list form.
+                item: { type: string, description: Playlist form, with `track`. }
+                track: { type: string, description: Playlist form, with `item`. }
+            examples:
+              items: { value: { items: ['64b7f9c2f1a2b3c4d5e6f7a8'] } }
+              track: { value: { item: '64b7f9c2f1a2b3c4d5e6f7a8', track: '64b7f9c2f1a2b3c4d5e6f7a9' } }
+      responses:
+        '200':
+          description: How many lines were added, and the new total.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, added, count]
+                properties:
+                  success: { type: boolean }
+                  added: { type: integer }
+                  count: { type: integer }
+        '400':
+          description: Malformed body, or the list is full.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: No such list, or the item/track pair does not exist.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+    put:
+      tags: [Lists]
+      operationId: reorderListEntries
+      summary: Rewrite a list's line order
+      description: |
+        Requires at least `editor` role. `order` must name exactly the list's
+        current entry ids, once each. Otherwise it answers `409` and changes
+        nothing, so a client working from a stale page cannot drop or double a line.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [order]
+              properties:
+                order:
+                  type: array
+                  items: { type: string }
+            example: { order: ['64b7f9c2f1a2b3c4d5e6f7a8', '64b7f9c2f1a2b3c4d5e6f7a9'] }
+      responses:
+        '200':
+          description: Reordered.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessTrue' }
+        '400':
+          description: '`order` is not an array.'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { success: false, error: 'order must be an array of entry ids' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: No such list in this collection.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '409':
+          description: The order does not match the list's current lines.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { success: false, error: 'The list changed; reload it and try again' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /collections/{id}/lists/{listId}/entries/{entryId}:
+    parameters:
+      - $ref: '#/components/parameters/CollectionId'
+      - $ref: '#/components/parameters/ListId'
+      - $ref: '#/components/parameters/EntryId'
+    delete:
+      tags: [Lists]
+      operationId: removeListEntry
+      summary: Remove one line from a list
+      description: Requires at least `editor` role. The item itself is untouched.
+      responses:
+        '200':
+          description: Removed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessTrue' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: No such list, or the list holds no such line.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { success: false, error: 'Entry not found' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /collections/{id}/lists/{listId}/candidates:
+    get:
+      tags: [Lists]
+      operationId: listCandidates
+      summary: Search items or tracks to add to a list
+      description: |
+        Requires at least `editor` role. For an items list, matches title, barcode
+        and each enabled plugin's creator field; for a playlist, matches track
+        titles and returns one row per track. Results carry `inList`. An empty or
+        absent `q` returns no results.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+        - $ref: '#/components/parameters/ListId'
+        - name: q
+          in: query
+          required: false
+          description: Search text (trimmed, first 100 chars).
+          schema: { type: string }
+      responses:
+        '200':
+          description: Candidates.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [results]
+                properties:
+                  results:
+                    type: array
+                    items: { $ref: '#/components/schemas/ListCandidate' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: No such list in this collection.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { success: false, error: 'List not found' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -3709,6 +4095,18 @@ components:
       in: path
       required: true
       description: Share-link token.
+      schema: { type: string }
+    ListId:
+      name: listId
+      in: path
+      required: true
+      description: List id (Mongo ObjectId).
+      schema: { type: string }
+    EntryId:
+      name: entryId
+      in: path
+      required: true
+      description: Entry (line) id, the subdocument id from a list's `entries`.
       schema: { type: string }
   responses:
     BadRequest:
@@ -4436,3 +4834,51 @@ components:
         collectionType: { type: string }
         label: { type: string }
         fields: { type: array, items: { type: object } }
+    SuccessTrue:
+      type: object
+      required: [success]
+      properties:
+        success: { type: boolean }
+    ListSummary:
+      type: object
+      required: [id, name, kind, count, covers]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string }
+        kind: { type: string, enum: [items, tracks] }
+        count: { type: integer }
+        covers:
+          type: array
+          items: { type: string }
+    ListDetail:
+      allOf:
+        - $ref: '#/components/schemas/ListSummary'
+        - type: object
+          properties:
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+    ListEntry:
+      type: object
+      required: [entryId, item]
+      properties:
+        entryId: { type: string }
+        added_at: { type: string, format: date-time }
+        item: { $ref: '#/components/schemas/Item' }
+        track:
+          type: object
+          additionalProperties: true
+          description: The tracklist subdocument, present on a playlist line only.
+    ListCandidate:
+      type: object
+      additionalProperties: true
+      properties:
+        item: { type: string }
+        title: { type: string }
+        creator: { type: string }
+        details: { type: string }
+        cover: { type: string }
+        inList: { type: boolean }
+        track: { type: string }
+        trackTitle: { type: string }
+        position: { type: string }

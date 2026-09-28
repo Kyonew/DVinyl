@@ -49,6 +49,17 @@ BASE=http://localhost:3000
 - [ ] `POST …/items/:itemId/refresh-info` on an item added from a non-default source → 200, patched through that source
 - [ ] `POST …/refresh-all` for `games` (a plugin that only declares `mergeRefresh`) → 202, not 400
 
+## Lists & playlists
+- [ ] `GET $BASE/api/v1/collections/$CID/lists` → 200 `{lists:[…],canMakePlaylists}`; an empty collection answers `lists: []`
+- [ ] `POST …/lists` `{"name":"Backlog"}` (editor) → 201; `{"name":"  "}` → 400; `{"name":"X","kind":"nope"}` → 400; as a viewer → 403
+- [ ] `GET …/lists/$LID` → 200 with ordered `entries`; a list from another collection → 404
+- [ ] `POST …/lists/$LID/entries` `{"items":[id]}` → 200 `{added,count}`; adding an item of another collection adds nothing
+- [ ] A playlist (`kind:"tracks"`) accepts `{"item":id,"track":id}`; a track id from another item → 404
+- [ ] `PUT …/lists/$LID/entries` `{"order":[entryId,…]}` → 200 reorders; a repeated or missing id → 409 and no change
+- [ ] `DELETE …/lists/$LID/entries/$ENTRYID` → 200; a second call → 404
+- [ ] `GET …/lists/$LID/candidates?q=…` → 200 `{results}` with `inList` flags
+- [ ] `GET …/lists/for-item?item=$IID` → 200 with `contains` true for the lists that hold it
+
 ## Fresh-instance edge case
 - [ ] On an instance with zero users (before `/setup`), `POST $BASE/api/v1/auth/login` → 503 JSON (not an HTML redirect) — not re-run this pass (would require wiping the shared local test DB); confirmed by reading the code instead: `app.ts:249-250` gates every `/api/v1` request behind the same `setupRequired` check with a `503 {success:false,...}` JSON body.
 
