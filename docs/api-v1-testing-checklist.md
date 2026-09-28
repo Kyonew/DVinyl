@@ -81,6 +81,16 @@ BASE=http://localhost:3000
 - [ ] `POST …/items` with `{"location":"salon"}` when the collection's shelf is `Salon` → the item stores `Salon`; a brand-new name creates exactly one compartment
 - [ ] `PATCH …/items/:itemId` with `{"location":""}` → the item is off its shelf
 
+## Shelves (write)
+- [ ] `POST …/furniture` `{"name":"Kallax","layout":"rows"}` (editor) → 201 `{furniture}` with `cells:[]`; `{"name":"  "}` → 400; `{"layout":"diagonal"}` → 400; as a viewer → 403
+- [ ] `PUT …/furniture/$FID` `{"name":"Billy","columns":2,"rows":1,"cells":[{"name":"Salon"},{"name":"Vitrine"},{"name":"Cave"}]}` → 200 with cells at (0,0),(0,1),(1,0), `renamed:0`, `moved:0`
+- [ ] Renaming a cell with `from` moves its items: `{"cells":[{"name":"Living room","from":"salon"}]}` → `renamed:1`, `moved:1`, and the items' `location` is now `Living room`
+- [ ] `{"cells":[{"name":"Salon"},{"name":"salon"}]}` → 409 `{shelf:"salon"}`; a key already in another piece → 409 `{furniture:"…"}`
+- [ ] A furniture id from another collection on PUT/DELETE/cell-move → 404, and nothing changes
+- [ ] `DELETE …/furniture/$FID` → 200; the items that stood in it keep their `location` and show under `?unshelved=true`
+- [ ] `POST …/shelf/cell/move` `{"key":"salon","to":"$FID"}` → 200 `{moved:true}`; the shelf and its items are in the target; missing `to` → 400
+- [ ] `POST …/shelf/move` `{"ids":[…],"location":"salon"}` → 200 `{moved,matched,location:"Salon"}`; `{"location":""}` clears; ids from another collection → nothing moves; `{"ids":[]}` → 400
+
 ## Fresh-instance edge case
 - [ ] On an instance with zero users (before `/setup`), `POST $BASE/api/v1/auth/login` → 503 JSON (not an HTML redirect) — not re-run this pass (would require wiping the shared local test DB); confirmed by reading the code instead: `app.ts:249-250` gates every `/api/v1` request behind the same `setupRequired` check with a `503 {success:false,...}` JSON body.
 

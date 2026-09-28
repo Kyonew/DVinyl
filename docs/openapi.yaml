@@ -3127,6 +3127,202 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    post:
+      tags: [Shelves]
+      operationId: createFurniture
+      summary: Create a piece of furniture
+      description: |
+        Requires `editor` role. Builds an empty piece; cells are added by saving it.
+        `layout` must be `cubes` or `rows`; `columns`/`rows` clamp to 1-12; `order`
+        defaults after the collection's existing pieces.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FurnitureInput' }
+      responses:
+        '201':
+          description: The new piece.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [furniture]
+                properties:
+                  furniture: { $ref: '#/components/schemas/Furniture' }
+        '400':
+          description: Empty name or an unknown layout.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { success: false, error: 'A layout must be cubes or rows' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /collections/{id}/furniture/{furnitureId}:
+    put:
+      tags: [Shelves]
+      operationId: saveFurniture
+      summary: Save a piece of furniture whole
+      description: |
+        Requires `editor` role. Cells arrive in reading order and carry no coordinates;
+        the grid is derived from the order and the column count, so a compartment can
+        never sit outside its own piece and changing the width reflows it. `from` on a
+        cell is the key it had before: a renamed shelf takes its items with it. `409`
+        names the clashing shelf (`shelf`) or the piece that already holds it (`furniture`).
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+        - $ref: '#/components/parameters/FurnitureId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FurnitureInput' }
+      responses:
+        '200':
+          description: The saved piece.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [furniture, renamed, moved]
+                properties:
+                  furniture: { $ref: '#/components/schemas/Furniture' }
+                  renamed: { type: integer, description: How many cells were renames. }
+                  moved: { type: integer, description: How many items followed them. }
+        '400':
+          description: Empty name or an unknown layout.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { success: false, error: 'name is required' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: A shelf name clashes.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { success: false, error: 'A shelf named "Salon" already exists in this piece of furniture', shelf: Salon }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    delete:
+      tags: [Shelves]
+      operationId: deleteFurniture
+      summary: Delete a piece of furniture
+      description: |
+        Requires `editor` role. The items that stood in it keep their `location`, so they
+        fall into the reserve and rebuild onto the shelf if it is created again.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+        - $ref: '#/components/parameters/FurnitureId'
+      responses:
+        '200':
+          description: The piece is gone.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success]
+                properties:
+                  success: { type: boolean }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /collections/{id}/shelf/cell/move:
+    post:
+      tags: [Shelves]
+      operationId: moveShelfCell
+      summary: Move a shelf to another piece of furniture
+      description: |
+        Requires `editor` role. Carries one compartment, with the items that stay standing
+        on it untouched, to another piece. `404` names a missing shelf or piece; `moved` is
+        false when it is already there.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [key, to]
+              properties:
+                key: { type: string, description: The shelf's normalized key. }
+                to: { type: string, description: The target piece's id. }
+      responses:
+        '200':
+          description: Whether anything moved.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [moved]
+                properties:
+                  moved: { type: boolean }
+        '400':
+          description: Missing or invalid key/to.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { success: false, error: 'key and to are required' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /collections/{id}/shelf/move:
+    post:
+      tags: [Shelves]
+      operationId: moveItemsToShelf
+      summary: File items onto a shelf, or take them off
+      description: |
+        Requires `editor` role. Canonicalises `location` through the shelf store (creating
+        the compartment for a new name) and applies it to the collection's own items, up to
+        500 at a time. An empty `location` takes them off their shelf. Ids the collection
+        does not hold are ignored.
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids]
+              properties:
+                ids:
+                  type: array
+                  items: { type: string }
+                location: { type: string, description: The shelf name, or empty to clear it. }
+      responses:
+        '200':
+          description: What moved.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [moved, matched, location]
+                properties:
+                  moved: { type: integer }
+                  matched: { type: integer }
+                  location: { type: string, description: The canonical spelling applied. }
+        '400':
+          description: No usable id.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { success: false, error: 'ids must be a non-empty array' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
 
   /collections/{id}/export:
     get:
@@ -4300,6 +4496,12 @@ components:
       required: true
       description: Collection id (Mongo ObjectId).
       schema: { type: string }
+    FurnitureId:
+      name: furnitureId
+      in: path
+      required: true
+      description: A piece of furniture's id.
+      schema: { type: string }
     ItemId:
       name: itemId
       in: path
@@ -4965,6 +5167,29 @@ components:
           type: integer
           minimum: 0
           description: Owned items standing here, under the caller's visibility filters.
+    FurnitureCellInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, description: The compartment's name. }
+        capacity: { type: integer, minimum: 0, description: Indicative only. }
+        from:
+          type: string
+          description: |
+            The cell's previous `key`. Present when this cell is a rename, so the
+            items standing on the shelf move with it.
+    FurnitureInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, maxLength: 60 }
+        layout: { type: string, enum: [cubes, rows] }
+        columns: { type: integer, minimum: 1, maximum: 12 }
+        rows: { type: integer, minimum: 1, maximum: 12 }
+        order: { type: integer, minimum: 0 }
+        cells:
+          type: array
+          items: { $ref: '#/components/schemas/FurnitureCellInput' }
     Furniture:
       type: object
       required: [id, name, layout, columns, rows, order, cells]
