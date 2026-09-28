@@ -1002,7 +1002,8 @@ paths:
             `added` (when saved), `title`, `year`. `artist` sorts on the selected type's
             creator field and needs `type` set to a plugin id. A plugin may declare extra
             keys (books adds `series`); `GET /plugins` lists them as `sortOptions`, and
-            they apply only while `type` names that plugin. Anything outside the current
+            they apply only while `type` names that plugin. A plugin's own key that reuses
+            a built-in name takes precedence for that type. Anything outside the current
             type's vocabulary returns 400 (`unknown sort`).
           schema: { type: string, example: title_asc }
         - name: location
