@@ -549,6 +549,10 @@ export const dvdPlugin: PluginDefinition = {
       collection: ctx.collectionId,
       kind: 'Dvd',
       tmdb_id: { $in: [numericId, String(numericId)] },
+      // TMDB ids are unique only within a media type, so a movie can share this numeric
+      // id with an unrelated show. Only a TV item can hold seasons; scoping to it stops
+      // the seasons being filed under a same-id movie.
+      media_type: 'tv',
       parent: { $exists: false }
     });
 
@@ -652,7 +656,11 @@ export const dvdPlugin: PluginDefinition = {
         collection: collectionId,
         in_wishlist: false,
         kind: 'Dvd',
-        tmdb_id: parseInt(tmdbId)
+        tmdb_id: parseInt(tmdbId),
+        // TMDB ids are only unique within a media type: movie 155 and tv 155 are
+        // different works. Without this, adding a show whose id matches an owned movie
+        // (or vice versa) treats it as a duplicate of that movie.
+        media_type: data.media_type || 'movie'
       };
       if (matchFormat) {
         query.format = matchFormat;
@@ -683,7 +691,9 @@ export const dvdPlugin: PluginDefinition = {
   async findPotentialDuplicates(collectionId: any, data: Record<string, any>): Promise<any[]> {
     const or: any[] = [];
     if (data.tmdb_id) {
-      or.push({ tmdb_id: parseInt(data.tmdb_id) });
+      // Match the id together with the media type: a movie and a show can share a numeric
+      // tmdb_id, so the id alone would flag an unrelated work as a potential duplicate.
+      or.push({ tmdb_id: parseInt(data.tmdb_id), media_type: data.media_type || 'movie' });
     }
     const title = (data.title || '').trim();
     const director = (data.director || data.creator || '').trim();
