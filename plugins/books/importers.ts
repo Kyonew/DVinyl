@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import { PluginImporter } from '../../core/types';
-import { fetchJson, fetchText } from '../../core/helpers';
+import { fetchText } from '../../core/helpers';
 import { CsvImportContext, CsvRow, runCsvImport } from '../../core/csvImport';
 import { registry } from '../../core/registry';
 import {
@@ -9,6 +9,7 @@ import {
   libibRating, libibTags, libibTypeFilter, libibYear
 } from '../../utils/libib';
 import Item from '../../models/Item';
+import { fetchOpenLibraryEdition } from './openLibrary';
 
 function parseRssXml(xmlText: string): any[] {
   const items: any[] = [];
@@ -112,16 +113,12 @@ async function importGoodreads(req: any, res: any) {
 
         if (isbn) {
           try {
-            const olData = await fetchJson(
-              `https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`,
-              { signal: AbortSignal.timeout(4000) }
-            );
-            const olBook = olData?.[`ISBN:${isbn}`];
+            const olBook = await fetchOpenLibraryEdition(isbn, AbortSignal.timeout(4000));
 
             if (olBook) {
-              publisher = olBook.publishers?.[0]?.name || '';
+              publisher = olBook.publisher;
 
-              const langKey = (olBook.languages?.[0]?.key || '').split('/').pop() || '';
+              const langKey = olBook.languageCode;
               const langMap: Record<string, string> = {
                 fre: 'fr', fra: 'fr',
                 eng: 'en',
