@@ -1,11 +1,12 @@
 # 🚀 Installation
 
-There are three ways to run DVinyl. Pick the one that fits your setup, they all end up at the same
+There are several ways to run DVinyl. Pick the one that fits your setup, they all end up at the same
 app. Whatever you choose, DVinyl always needs a **MongoDB** database to store your collection.
 
 | Method | Best for | Guide |
 | :----- | :------- | :---- |
 | 🐳 Docker | Most people, quickest path | [Docker deployment](./docker.md) (recommended) |
+| 🧊 ZimaOS | ZimaOS / CasaOS users (1-click app store) | [Section below](#-zimaos) |
 | 🧡 Unraid | Unraid server users | [Section below](#-unraid) |
 | 🛠️ Manual (Node.js) | Developers and custom setups | [Section below](#-manual-nodejs) |
 
@@ -23,6 +24,18 @@ install.
 
 The [Docker deployment guide](./docker.md) has the full compose file, update instructions and
 troubleshooting tips.
+
+## 🧊 ZimaOS
+
+DVinyl can be installed via the community **TwoBytes Store**:
+
+1. In ZimaOS, go to **App Store → Sources → Add**, and paste:
+   ```
+   https://raw.githubusercontent.com/NoNoBzH22/TwoBytes-Store/gh-pages
+   ```
+   *(Older versions requiring a zip archive can use: `https://github.com/NoNoBzH22/TwoBytes-Store/archive/refs/heads/main.zip`)*
+2. Install **DVinyl** from the store.
+3. Open `http://<server-ip>:3099` to complete setup.
 
 ## 🧡 Unraid
 
