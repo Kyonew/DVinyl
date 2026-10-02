@@ -659,8 +659,9 @@ export const dvdPlugin: PluginDefinition = {
         tmdb_id: parseInt(tmdbId),
         // TMDB ids are only unique within a media type: movie 155 and tv 155 are
         // different works. Without this, adding a show whose id matches an owned movie
-        // (or vice versa) treats it as a duplicate of that movie.
-        media_type: data.media_type || 'movie'
+        // (or vice versa) treats it as a duplicate of that movie. A legacy movie item
+        // without media_type is matched as a movie as well.
+        media_type: data.media_type === 'tv' ? 'tv' : { $in: ['movie', null] }
       };
       if (matchFormat) {
         query.format = matchFormat;
@@ -693,7 +694,10 @@ export const dvdPlugin: PluginDefinition = {
     if (data.tmdb_id) {
       // Match the id together with the media type: a movie and a show can share a numeric
       // tmdb_id, so the id alone would flag an unrelated work as a potential duplicate.
-      or.push({ tmdb_id: parseInt(data.tmdb_id), media_type: data.media_type || 'movie' });
+      or.push({
+        tmdb_id: parseInt(data.tmdb_id),
+        media_type: data.media_type === 'tv' ? 'tv' : { $in: ['movie', null] }
+      });
     }
     const title = (data.title || '').trim();
     const director = (data.director || data.creator || '').trim();

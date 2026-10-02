@@ -23,7 +23,10 @@ export async function fetchOpenLibraryEdition(isbn: string, signal: AbortSignal)
     throw err;
   }
 
-  const publisher = typeof edition?.publishers?.[0] === 'string' ? edition.publishers[0].trim() : '';
-  const languageCode = String(edition?.languages?.[0]?.key || '').split('/').pop() || '';
+  const rawPublisher = edition?.publishers?.[0];
+  const publisher = typeof rawPublisher === 'string'
+    ? rawPublisher.trim()
+    : (typeof rawPublisher?.name === 'string' ? rawPublisher.name.trim() : '');
+  const languageCode = String(edition?.languages?.[0]?.key || edition?.languages?.[0] || '').split('/').pop() || '';
   return { publisher, languageCode };
 }

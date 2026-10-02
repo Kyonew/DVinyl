@@ -281,6 +281,18 @@ export const migrateDatabase = async () => {
             }
         }
 
+        // TMDB ids are shared across media types (e.g. movie 155 vs show 155), so Dvd
+        // items are scoped by media_type ('movie' | 'tv'). Backfill legacy Dvd items
+        // missing media_type with the schema default ('movie') so duplicate detection
+        // and TMDB linking find them reliably. Idempotent.
+        const missingMediaType = await Item.collection.updateMany(
+            { kind: 'Dvd', media_type: { $exists: false } },
+            { $set: { media_type: 'movie' } }
+        );
+        if (missingMediaType.modifiedCount > 0) {
+            console.log(`[MIGRATION] ${missingMediaType.modifiedCount} Dvd item(s) backfilled with media_type "movie".`);
+        }
+
         // An item used to carry its provider id on a typed path of its own (discogs_id,
         // igdb_id, set_num...) and nothing saying which database handed that id out. There
         // was only ever one per plugin, so it never needed saying. Now that a plugin can
