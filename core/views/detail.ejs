@@ -480,6 +480,18 @@
                             <%= t('detail.print_label_btn') %>
                         </a>
                     <% } %>
+                    <%# Copy to a new entry (e.g. the same work in a second format), for
+                        every collection type. Not for a wishlist item, nor a contained
+                        item (a TV season) or a holder (a show): those are added through
+                        their own flow, not duplicated. %>
+                    <% if (!item.in_wishlist
+                            && (item.season === null || item.season === undefined)
+                            && !(locals.contains && contains.length > 0)) { %>
+                        <a href="<%= baseUrl %>/<%= plugin.id %>/copy/<%= item._id %>" class="w-full md:w-auto text-center md:text-left opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
+                            <i class="fa-solid fa-copy mr-2"></i>
+                            <%= t('detail.copy_to_new_btn', { defaultValue: 'Copy to a new entry' }) %>
+                        </a>
+                    <% } %>
                     <%# The origin travels on the link, since the Referer of the edit page
                         is this page and not the listing anyone wants to come back to. %>
                     <a href="<%= baseUrl %><%= plugin.routePrefix %>/edit/<%= item._id %><%= locals.backUrl ? '?from=' + encodeURIComponent(backUrl) : '' %>" class="w-full md:w-auto text-center md:text-left opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
