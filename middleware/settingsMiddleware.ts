@@ -36,6 +36,7 @@ async function settingsMiddleware(req: any, res: any, next: any) {
 
         const settings = dbSettings || defaultSettings;
 
+        settings.modules = settings.modules || registry.getDefaultModules();
         settings.pluginSettings = settings.pluginSettings || registry.getDefaultPluginSettings();
 
         settings.navbarShortcuts = settings.navbarShortcuts || registry.getDefaultNavbarShortcuts();
@@ -106,7 +107,13 @@ async function settingsMiddleware(req: any, res: any, next: any) {
         console.error("[ERR] SettingsMiddleware:", err);
         res.locals.isDark = true;
         res.locals.currentLng = 'fr';
-        res.locals.settings = { theme: { home: { preset: 'default' } } };
+        res.locals.settings = {
+            theme: { home: { preset: 'default' } },
+            modules: registry.getDefaultModules(),
+            navbarShortcuts: registry.getDefaultNavbarShortcuts(),
+            statsWidgets: registry.getDefaultStatsWidgets(),
+            pluginSettings: registry.getDefaultPluginSettings()
+        };
         next();
     }
 }
