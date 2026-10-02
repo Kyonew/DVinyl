@@ -346,7 +346,9 @@
               settings.navbarShortcuts.forEach(id => {
                 const item = shortcutConfig[id];
                 if (item && shortcutAllowed(id, item)) {
-                  const isModuleActive = item.module ? settings.modules[item.module] : true;
+                  const isModuleActive = item.module
+                    ? Boolean(settings && settings.modules && (settings.modules instanceof Map ? settings.modules.get(item.module) : settings.modules[item.module]))
+                    : true;
 
                   if (isModuleActive) { %>
                     <li>

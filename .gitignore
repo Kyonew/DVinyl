@@ -8,10 +8,11 @@ docker-compose.override.yml
 dvinyl_collection-*.csv
 .vscode/
 .claude/
+.agents/
 dist/
+CLAUDE.md
 
 # graphify (local knowledge-graph tooling, not part of the app)
-CLAUDE.md
 /graphify-out
 /docs/roadmap.md
 /docs/superpowers
