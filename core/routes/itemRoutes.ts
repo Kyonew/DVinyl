@@ -7,7 +7,7 @@ import Item from '../../models/Item';
 import User from '../../models/User';
 import { BASE_URL } from '../../config/constants';
 import { requireAuth, requireAuthOrShareView, requireCollectionRole } from '../../middleware/authMiddleware';
-import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback, editStamp, syncStamp, safeReturnPath, confirmPathFor, getPublicProtocol, generateBarcodeDataUrl, escapeRegExp } from '../helpers';
+import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback, editStamp, syncStamp, safeReturnPath, confirmPathFor, getPublicProtocol, generateBarcodeDataUrl, escapeRegExp, buildCopySeed } from '../helpers';
 import { DEFAULT_PLACEHOLDER_IMAGE } from '../placeholderImage';
 import { alignImagesAfterRefresh, imagesForItem, imagesFromForm, ItemImageValidationError, MAX_ITEM_IMAGES, MAX_ITEM_IMAGE_BYTES } from '../itemImages';
 import { deleteUnusedManagedItemImages } from '../itemImageStorage';
@@ -827,7 +827,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   // few more through copyDropFields (e.g. music's release id). No format is preselected -
   // the duplicate banner lights up on its own from the fields that tell two copies apart,
   // until the user changes one.
-  router.get(`/${plugin.id}/copy/:id`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
+  router.get(`${plugin.routePrefix}/copy/:id`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
     try {
       if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
         return res.status(404).send(req.t('errors.not_found'));
@@ -841,22 +841,16 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         return res.status(404).send(req.t('errors.not_found'));
       }
 
-      const seed: any = plugin.formatForView(source);
-      // Never carried onto a new document: server-managed identity/bookkeeping...
-      for (const key of ['_id', 'mongo_id', '__v', 'added_at', 'modified_at', 'synced_at',
-        'owner', 'modified_by', 'parent', 'in_wishlist', 'quantity']) {
-        delete seed[key];
-      }
-      // ...and the fields that identify this particular copy rather than the work: its
-      // barcode, its external provider id, and whatever else the plugin names.
-      delete seed.barcode;
-      if (plugin.externalIdField) delete seed[plugin.externalIdField];
-      for (const f of plugin.copyDropFields || []) delete seed[f];
-      seed.quantity = 1;
+      const seed: any = buildCopySeed(plugin.formatForView(source), plugin);
 
       // Same-work editions already owned, so the confirm view's duplicate banner can warn
-      // once the user picks a format the collection already holds.
+      // once the user picks a format the collection already holds. getVariants excludes the
+      // source itself (_id: { $ne }), so a single-copy source would come back empty and the
+      // banner would stay dark on load. Prepend the source so the banner detects the format
+      // being copied from right away; this adds exactly one entry and cannot double-count
+      // genuine variants.
       const existingItems = await filterVisible(await plugin.getVariants(plugin.formatForView(source)), res);
+      const existingWithSource = [source, ...existingItems];
 
       const suggestions = await buildFieldSuggestions(plugin, activeCollectionId, seed);
       const genres = await Item.distinct('genre', {
@@ -871,7 +865,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         suggestions,
         genres,
         currentType: plugin.collectionType,
-        existingItems: existingItems.map(v => plugin.formatForView(v)),
+        existingItems: existingWithSource.map(v => plugin.formatForView(v)),
         plugin,
         isManual: true,
         // The copy already carries the source's artwork, so the cover uploader stays
