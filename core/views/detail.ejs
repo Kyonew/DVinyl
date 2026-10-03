@@ -487,7 +487,7 @@
                     <% if (!item.in_wishlist
                             && (item.season === null || item.season === undefined)
                             && !(locals.contains && contains.length > 0)) { %>
-                        <a href="<%= baseUrl %>/<%= plugin.id %>/copy/<%= item._id %>" class="w-full md:w-auto text-center md:text-left opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
+                        <a href="<%= baseUrl %><%= plugin.routePrefix %>/copy/<%= item._id %>" class="w-full md:w-auto text-center md:text-left opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
                             <i class="fa-solid fa-copy mr-2"></i>
                             <%= t('detail.copy_to_new_btn', { defaultValue: 'Copy to a new entry' }) %>
                         </a>
