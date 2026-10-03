@@ -121,6 +121,67 @@ export function buildSortTitle(title: string | null | undefined): string {
   return base.replace(/^(?:a|an|the)\s+/, '') || base;
 }
 
+// Minimal shape the distinct-titles group key needs off a plugin: which `kind` its
+// items carry and which field names their creator. Kept narrow (not the full
+// PluginDefinition) so the builder stays a pure function a unit test can call with
+// plain fakes, no registry wiring.
+export interface CreatorFieldSource {
+  kind: string;
+  creatorField: string;
+}
+
+// Folds a creator value to the same shape across editions: lowercased and trimmed, with
+// a missing value standing in as "" rather than breaking the whole $group expression.
+// Matches the case/space-insensitive intent of each plugin's getVariants(), which
+// compares title and creator with an `^...$`/`i` regex.
+function normalizeCreatorExpr(creatorExpr: any): any {
+  return { $toLower: { $trim: { input: { $ifNull: [creatorExpr, ''] } } } };
+}
+
+/**
+ * Builds the `$group._id` expression that counts distinct works behind the raw item
+ * count on the collection shelf: editions of one work (several formats, a reissue) fold
+ * together, while a remake stays apart through its different creator.
+ *
+ * The key is the normalized title plus the normalized creator. The title component uses
+ * `sort_title` (already lowercased, accent-folded and article-stripped by
+ * buildSortTitle), guarded with $ifNull so a legacy doc missing it still groups.
+ *
+ * The creator component depends on the view:
+ * - A selected type names one creator field (artist, director, author...), so the key
+ *   reads that field directly.
+ * - The all-types view has no single creator field, so the component is a $switch on
+ *   `kind` with one branch per enabled plugin (`then: '$' + creatorField`), driven by
+ *   the registry so custom plugins are covered too, and a '' default for any unknown
+ *   kind. This keeps the all-types number equal to the sum of the per-type counts: two
+ *   different-type items sharing a title do not collapse, because their kinds pick
+ *   different creator fields.
+ *
+ * Both components are normalized the same way (see normalizeCreatorExpr), so
+ * "The Beatles", "the beatles" and a trailing-space variant fold into one.
+ */
+export function buildUniqueTitlesGroupKey(
+  selectedPlugin: CreatorFieldSource | undefined,
+  enabledPlugins: CreatorFieldSource[]
+): { title: any; creator: any } {
+  const creatorExpr = selectedPlugin
+    ? `$${selectedPlugin.creatorField}`
+    : {
+        $switch: {
+          branches: enabledPlugins.map(p => ({
+            case: { $eq: ['$kind', p.kind] },
+            then: `$${p.creatorField}`
+          })),
+          default: ''
+        }
+      };
+
+  return {
+    title: { $ifNull: ['$sort_title', ''] },
+    creator: normalizeCreatorExpr(creatorExpr)
+  };
+}
+
 /**
  * The two ways an item changes once it exists, kept apart on purpose.
  *

@@ -10,7 +10,7 @@ import Collection from '../../models/Collection';
 import { BASE_URL } from '../../config/constants';
 import { requireAuth, requireAuthOrShareView, requireCollectionRole } from '../../middleware/authMiddleware';
 import { applyVisibilityFilter, applyEnabledModulesFilter, applyContainedFilter, applyShareScopeFilter } from '../../utils/visibilityHelper';
-import { escapeRegExp, getPublicProtocol, generateBarcodeDataUrl } from '../helpers';
+import { escapeRegExp, getPublicProtocol, generateBarcodeDataUrl, buildUniqueTitlesGroupKey } from '../helpers';
 import { generateUniqueSlug, setActiveCollection } from '../../utils/collectionHelpers';
 import { resolveShelfItems, deleteItemsAndContents } from '../../utils/itemHelpers';
 import { checkCollectionCreation } from '../../utils/instanceSettings';
@@ -294,16 +294,19 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
     // stays apart through its different director/creator. The year is deliberately not
     // used - it belongs to the edition (a reissue, a new pressing), not to the work.
     //
-    // Only shown for a selected type, which is what names a single creator field to match
-    // on (title + creator, the pair the "other formats" block uses). With every type shown
-    // at once there is no one creator field, and folding remakes together on the title
-    // alone would undercount, so the count is left off the all-types view. `null` tells the
-    // template to hide the badge.
-    let uniqueTitles: number | null = null;
-    if (selectedPlugin) {
+    // The all-types view has no single creator field, so the group key reads a $switch on
+    // `kind` that picks each item's OWN creator field (built from the registry, see
+    // buildUniqueTitlesGroupKey). That keeps the all-types number equal to the sum of the
+    // per-type counts: two different-type items sharing a title key on different creator
+    // fields and stay apart. A selected type keys on that one plugin's field directly.
+    //
+    // Skipped entirely when there are 0 or 1 items: the count then equals the item count
+    // and the badge hides anyway, so there is no reason to pay for the aggregate.
+    let uniqueTitles: number = totalItems;
+    if (totalItems > 1) {
       const uniqueTitlesAgg = await Item.aggregate([
         { $match: query },
-        { $group: { _id: { sort_title: '$sort_title', creator: `$${selectedPlugin.creatorField}` } } },
+        { $group: { _id: buildUniqueTitlesGroupKey(selectedPlugin, enabledPlugins) } },
         { $count: 'total' }
       ]);
       uniqueTitles = uniqueTitlesAgg[0]?.total ?? 0;
