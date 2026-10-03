@@ -32,14 +32,15 @@
                             <%= t('common.items') %>
                     </span>
                     <%# Distinct works behind the item count (title + creator, see the route).
-                        Only for a selected type (null across all types); hidden too when it
-                        equals the item count so a single-format collection stays uncluttered.
-                        The live-search JS toggles it as the filter changes. %>
+                        Computed for every view (a selected type and all types alike); hidden
+                        when it equals the item count so a single-format collection stays
+                        uncluttered. The label pluralizes on the count (i18next picks
+                        unique_titles_one for 1). The live-search JS toggles it as the filter
+                        changes. %>
                     <span id="uniqueTitlesBadge"
-                        class="px-3 py-1 bg-black/5 dark:bg-white/10 rounded-full text-sm font-medium opacity-70 <%= (uniqueTitles == null || uniqueTitles === totalItems) ? 'hidden' : '' %>"
+                        class="px-3 py-1 bg-black/5 dark:bg-white/10 rounded-full text-sm font-medium opacity-70 <%= (uniqueTitles === totalItems) ? 'hidden' : '' %>"
                         title="<%= t('collection.unique_titles_hint') %>">
-                        <%= uniqueTitles != null ? uniqueTitles : '' %>
-                            <%= t('collection.unique_titles') %>
+                        <%= t('collection.unique_titles', { count: uniqueTitles }) %>
                     </span>
                 </span>
             </h1>

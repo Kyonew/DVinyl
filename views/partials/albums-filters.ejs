@@ -450,7 +450,12 @@
         // (see CollectionView.liveRedraw); any other one applies it on Enter.
         const liveSearchEnabled = <%= !!(locals.activeView && activeView.liveRedraw) %>;
         const itemsLabel = <%- JSON.stringify(t('common.items')) %>;
-        const uniqueTitlesLabel = <%- JSON.stringify(t('collection.unique_titles')) %>;
+        // i18next pluralization is server-side only, so both plural forms are resolved
+        // here with a %CNT% placeholder (count is interpolated by i18next, so a literal
+        // token keeps each locale's wording and word order). The badge-update code picks
+        // the _one form when the count is 1 and swaps %CNT% for the number.
+        const uniqueTitlesLabelOne = <%- JSON.stringify(t('collection.unique_titles_one', { count: '%CNT%' })) %>;
+        const uniqueTitlesLabelOther = <%- JSON.stringify(t('collection.unique_titles_other', { count: '%CNT%' })) %>;
 
         // Builds the URL for the current filter state without navigating. reloadPage()
         // (every filter control except live search) navigates to it directly; live
@@ -552,7 +557,8 @@
                 if (uniqueBadge) {
                     const u = data.uniqueTitles;
                     if (typeof u === 'number' && u !== data.totalItems) {
-                        uniqueBadge.textContent = u + ' ' + uniqueTitlesLabel;
+                        const template = u === 1 ? uniqueTitlesLabelOne : uniqueTitlesLabelOther;
+                        uniqueBadge.textContent = template.replace('%CNT%', u);
                         uniqueBadge.classList.remove('hidden');
                     } else {
                         uniqueBadge.classList.add('hidden');
