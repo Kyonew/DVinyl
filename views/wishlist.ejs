@@ -30,10 +30,20 @@
                         <%= t('wishlist.title') %>
                     </span>
                 </span>
-                <span id="totalItemsBadge"
-                    class="px-3 md:mt-1.5 py-1 bg-black/5 dark:bg-white/10 rounded-full text-sm font-medium opacity-70 w-fit">
-                    <%= totalItems %>
-                        <%= t('common.items') %>
+                <span class="flex flex-wrap items-center gap-2 md:mt-1.5 w-fit">
+                    <span id="totalItemsBadge"
+                        class="px-3 py-1 bg-black/5 dark:bg-white/10 rounded-full text-sm font-medium opacity-70">
+                        <%= totalItems %>
+                            <%= t('common.items') %>
+                    </span>
+                    <%# Distinct works behind the item count, shown here too so the wishlist
+                        matches the collection page. Hidden when it equals the item count.
+                        The label pluralizes on the count (unique_titles_one for 1). %>
+                    <span id="uniqueTitlesBadge"
+                        class="px-3 py-1 bg-black/5 dark:bg-white/10 rounded-full text-sm font-medium opacity-70 <%= (uniqueTitles === totalItems) ? 'hidden' : '' %>"
+                        title="<%= t('collection.unique_titles_hint') %>">
+                        <%= t('collection.unique_titles', { count: uniqueTitles }) %>
+                    </span>
                 </span>
             </h1>
 
