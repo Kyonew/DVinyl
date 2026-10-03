@@ -37,9 +37,13 @@ Used for album metadata, tracklists and market value.
 Used for book metadata and covers.
 
 1. Create an account on the [Hardcover website](https://hardcover.app/).
-2. Open the [API section](https://hardcover.app/account/api) and copy your **token** (do not include
-   the word "bearer", so it should look like `eyJhb...`).
-3. Paste it into your `.env` as `HARDCOVER_API_KEY`.
+2. Open the [API section](https://hardcover.app/account/api)
+3. Click **+ New API Key**
+4. Choose a name (e.g. *DVinyl*) and expiration date
+5. Use *Start from preset* and select *E-reader/Sync client*
+6. Click **Create Key**
+7. Copy your **token**
+8. Paste it into your `.env` as `HARDCOVER_API_KEY`.
 
 ## 📀 TMDB (Movies)
 
