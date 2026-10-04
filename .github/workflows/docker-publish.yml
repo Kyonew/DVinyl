@@ -44,7 +44,6 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Log into Docker Hub
-        if: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -56,7 +55,7 @@ jobs:
         with:
           images: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-            ${{ secrets.DOCKERHUB_USERNAME != '' && format('{0}/dvinyl', secrets.DOCKERHUB_USERNAME) || '' }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/dvinyl
 
       - name: Build and push by digest
         id: build
@@ -67,7 +66,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           outputs: |
             type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
-            ${{ secrets.DOCKERHUB_USERNAME != '' && format('type=image,name=docker.io/{0}/dvinyl,push-by-digest=true,name-canonical=true,push=true', secrets.DOCKERHUB_USERNAME) || '' }}
+            type=image,name=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/dvinyl,push-by-digest=true,name-canonical=true,push=true
           secrets: |
             screenscraper_dev_id=${{ secrets.SCREENSCRAPER_DEV_ID }}
             screenscraper_dev_password=${{ secrets.SCREENSCRAPER_DEV_PASSWORD }}
@@ -112,7 +111,6 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Log into Docker Hub
-        if: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -124,7 +122,7 @@ jobs:
         with:
           images: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-            ${{ secrets.DOCKERHUB_USERNAME != '' && format('{0}/dvinyl', secrets.DOCKERHUB_USERNAME) || '' }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/dvinyl
           tags: |
             type=semver,pattern={{version}}
             type=raw,value=${{ inputs.tag }},enable=${{ inputs.tag != '' }}
@@ -138,8 +136,6 @@ jobs:
           GHCR_TAGS=$(echo "${{ steps.meta.outputs.tags }}" | grep "${{ env.REGISTRY }}" | sed 's/^/-t /' | tr '\n' ' ')
           docker buildx imagetools create $GHCR_TAGS $GHCR_DIGESTS
 
-          if [ -n "${{ secrets.DOCKERHUB_USERNAME }}" ]; then
-            DH_DIGESTS=$(printf 'docker.io/${{ secrets.DOCKERHUB_USERNAME }}/dvinyl@sha256:%s ' *)
-            DH_TAGS=$(echo "${{ steps.meta.outputs.tags }}" | grep -v "${{ env.REGISTRY }}" | sed 's/^/-t /' | tr '\n' ' ')
-            docker buildx imagetools create $DH_TAGS $DH_DIGESTS
-          fi
+          DH_DIGESTS=$(printf 'docker.io/${{ secrets.DOCKERHUB_USERNAME }}/dvinyl@sha256:%s ' *)
+          DH_TAGS=$(echo "${{ steps.meta.outputs.tags }}" | grep -v "${{ env.REGISTRY }}" | sed 's/^/-t /' | tr '\n' ' ')
+          docker buildx imagetools create $DH_TAGS $DH_DIGESTS
