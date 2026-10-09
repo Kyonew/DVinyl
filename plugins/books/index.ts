@@ -13,8 +13,8 @@ const hardcoverProvider = new HardcoverProvider();
 // Hardcover is looked up by its numeric book id, which is what an item added through it
 // records as `source_id`. Books saved before sources existed only kept the slug
 // (hardcover_slug), which that lookup does not accept, so there is no older field to
-// credit them from: they keep no pair and refresh through refreshItem, which reads the
-// slug. No itemUrl either: Hardcover's pages are addressed by slug, and externalLink
+// credit them from: they keep no pair until refreshItem finds them by slug and records
+// the id it gets back. No itemUrl either: Hardcover's pages are addressed by slug, and externalLink
 // already links every book that has one.
 const hardcover = sourceFromProvider(hardcoverProvider, {
   id: 'hardcover',
@@ -464,8 +464,15 @@ export const booksPlugin: PluginDefinition = {
   },
 
   async refreshItem(item: any, req: any): Promise<Record<string, any>> {
-    if (!item.hardcover_slug) {
-      throw new PermanentRefreshError('No Hardcover Slug to refresh');
+    // Hardcover's numeric id first: it survives a title fix, the slug does not, since the
+    // slug is derived from the title. The slug remains the way in for a book saved before
+    // the id was kept, and for one whose id no longer answers (a record merged into
+    // another on Hardcover's side).
+    const bookId = item.source === 'hardcover' && /^\d+$/.test(String(item.source_id || ''))
+      ? parseInt(String(item.source_id), 10)
+      : null;
+    if (!bookId && !item.hardcover_slug) {
+      throw new PermanentRefreshError('No Hardcover id or slug to refresh');
     }
 
     const apiKey = process.env.HARDCOVER_API_KEY;
@@ -473,9 +480,7 @@ export const booksPlugin: PluginDefinition = {
     // typed in by hand, not necessarily the book's most read edition.
     const isbn = normalizeIsbn(item.isbn || item.barcode);
     const editions = editionsQuery(isbn);
-    const graphqlQuery = {
-      query: `query bookBySlug($slug: String!${editions.variables}) {
-        books(where: { slug: { _eq: $slug } }, limit: 1) {
+    const bookFields = `
           id
           slug
           title
@@ -487,27 +492,39 @@ export const booksPlugin: PluginDefinition = {
           taggings {
             tag { tag }
           }
-          ${editions.selection}
-        }
-      }`,
-      variables: isbn ? { slug: item.hardcover_slug, isbn } : { slug: item.hardcover_slug }
+          ${editions.selection}`;
+
+    const lookup = async (query: string, variables: Record<string, any>): Promise<any> => {
+      const dataRes = await fetchJson('https://api.hardcover.app/v1/graphql', {
+        method: 'POST',
+        headers: {
+          'Authorization': apiKey?.startsWith('Bearer ') ? apiKey : `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ query, variables: isbn ? { ...variables, isbn } : variables })
+      });
+      if (dataRes.errors) {
+        console.error("[ERR] Hardcover GraphQL:", dataRes.errors);
+        throw new Error(dataRes.errors[0]?.message || 'GraphQL Error');
+      }
+      return dataRes?.data;
     };
 
-    const dataRes = await fetchJson('https://api.hardcover.app/v1/graphql', {
-      method: 'POST',
-      headers: {
-        'Authorization': apiKey?.startsWith('Bearer ') ? apiKey : `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(graphqlQuery)
-    });
-
-    if (dataRes.errors) {
-      console.error("[ERR] Hardcover GraphQL:", dataRes.errors);
-      throw new Error(dataRes.errors[0]?.message || 'GraphQL Error');
+    let bookData: any = null;
+    if (bookId) {
+      const data = await lookup(
+        `query bookById($id: Int!${editions.variables}) { books_by_pk(id: $id) { ${bookFields} } }`,
+        { id: bookId }
+      );
+      bookData = data?.books_by_pk || null;
     }
-
-    const bookData = dataRes?.data?.books?.[0];
+    if (!bookData && item.hardcover_slug) {
+      const data = await lookup(
+        `query bookBySlug($slug: String!${editions.variables}) { books(where: { slug: { _eq: $slug } }, limit: 1) { ${bookFields} } }`,
+        { slug: item.hardcover_slug }
+      );
+      bookData = data?.books?.[0] || null;
+    }
     if (!bookData) {
       throw new Error('Not found on Hardcover API');
     }
@@ -523,7 +540,13 @@ export const booksPlugin: PluginDefinition = {
       cover_image: (matchedIsbn && bookData.editions[0]?.image?.url) || formatted.cover_image,
       description: formatted.description,
       genres: formatted.genres,
-      genre: formatted.genres[0] || ''
+      genre: formatted.genres[0] || '',
+      // Hardcover's pages are addressed by slug, so the link follows the book when its
+      // title is corrected. A book found by its slug alone gets the id from then on,
+      // which is what keeps it refreshable through the next rename.
+      hardcover_slug: formatted.hardcover_slug || item.hardcover_slug,
+      source: 'hardcover',
+      source_id: String(bookData.id)
     };
     // Edition details come from the item's own edition, or from the most read one when
     // the item names none. An ISBN Hardcover does not know keeps what the item holds:

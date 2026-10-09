@@ -673,10 +673,18 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           // Detaching the external id detaches the record it pointed at. refreshPatchFor()
           // prefers the stored source pair over the plugin's own id field, so leaving the
           // pair behind would keep refreshing the item from the very match its owner just
-          // rejected, which is what emptying the id is for. Skipped when the form posts a
-          // pair of its own, which is a re-attachment rather than a detachment.
+          // rejected, which is what emptying the id is for. Typing a different id in is the
+          // same rejection: the pair would still name the old record and win over the new
+          // one, while without it the refresh falls back to the id field the owner just
+          // set. Skipped when the form posts a pair of its own, which is a re-attachment
+          // rather than a detachment.
           const detachedIdField = plugin.externalIdField;
-          if (detachedIdField && unsetObj[detachedIdField] !== undefined && !saveObj.source_id) {
+          const storedId = detachedIdField ? existingItem[detachedIdField] : undefined;
+          const postedId = detachedIdField ? saveObj[detachedIdField] : undefined;
+          const idReplaced = postedId !== undefined && postedId !== null && String(postedId).trim() !== ''
+            && storedId !== undefined && storedId !== null && String(storedId).trim() !== ''
+            && String(postedId).trim() !== String(storedId).trim();
+          if (detachedIdField && (unsetObj[detachedIdField] !== undefined || idReplaced) && !saveObj.source_id) {
             if (existingItem.source) unsetObj.source = '';
             if (existingItem.source_id) unsetObj.source_id = '';
             delete saveObj.source;
