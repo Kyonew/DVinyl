@@ -419,6 +419,12 @@
             </div>
         </div>
 
+        <div id="czFiltersWrap">
+            <label class="block mb-1 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('create_plugin.filters') %></label>
+            <p class="text-xs opacity-50 mb-2"><%= t('create_plugin.filters_hint') %></p>
+            <div id="czFilters" class="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-52 overflow-y-auto custom-scrollbar pr-1"></div>
+        </div>
+
         <div>
             <label class="block mb-1 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('create_plugin.extra_fields') %></label>
             <p class="text-xs opacity-50 mb-2"><%= t('create_plugin.extra_fields_hint') %></p>
@@ -1164,6 +1170,32 @@
         czSyncCardFieldLimit();
     }
 
+    // ---- Filters (on/off per filter, in the order the collection page lays them out) --
+    function czRenderFilters(data) {
+        const wrap = $('czFilters');
+        wrap.innerHTML = '';
+        const choices = data.filterChoices || [];
+        $('czFiltersWrap').classList.toggle('hidden', choices.length === 0);
+
+        choices.forEach(choice => {
+            const label = document.createElement('label');
+            label.className = 'flex items-center gap-2 text-sm px-2 py-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer transition-colors';
+
+            const box = document.createElement('input');
+            box.type = 'checkbox';
+            box.className = 'cz-filter accent-primary-theme w-4 h-4 shrink-0';
+            box.value = choice.id;
+            box.checked = !!choice.on;
+
+            const text = document.createElement('span');
+            text.className = 'truncate';
+            text.textContent = choice.label;
+
+            label.append(box, text);
+            wrap.appendChild(label);
+        });
+    }
+
     window.openCustomize = function (id) {
         const data = customizable.find(p => p.id === id);
         if (!data) return;
@@ -1178,6 +1210,7 @@
 
         czRenderCardFields(data);
         czRenderCornerField(data);
+        czRenderFilters(data);
 
         const wrap = $('czFormats');
         wrap.innerHTML = '';
@@ -1241,6 +1274,8 @@
             // Always sent, so unchecking everything is honoured as "title only" instead
             // of falling back to the plugin's own fields
             body.cardFields = Array.from(document.querySelectorAll('.cz-card-field'))
+                .filter(b => b.checked).map(b => b.value);
+            body.filters = Array.from(document.querySelectorAll('.cz-filter'))
                 .filter(b => b.checked).map(b => b.value);
             body.extraFields = Array.from(document.querySelectorAll('.cz-field-row')).map(r => ({
                 name: r.dataset.name || undefined,

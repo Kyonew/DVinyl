@@ -251,6 +251,7 @@
             <% } %>
         <% } %>
 
+        <% if (locals.showCreatorFilter !== false) { %>
         <div class="w-full lg:w-44 relative">
             <div class="relative">
                 <%# The selected type names its own creator field ("Fabricant", "Réalisateur"...) %>
@@ -267,6 +268,7 @@
                 </div>
             </div>
         </div>
+        <% } %>
 
         <div class="w-full lg:w-48 relative">
             <button onclick="toggleSortMenu(event)" id="sortSelectorBtn"
@@ -330,11 +332,11 @@
                                     <% } %>
                                 </button>
                             <% }) %>
-                            <% (locals.extraFilters || []).forEach(xf => {
-                                const xfActive = currentSort.startsWith(xf.sortKey + '_');
+                            <% (locals.extraSortOptions || []).forEach(xf => {
+                                const xfActive = currentSort.startsWith(xf.key + '_');
                                 const xfDir = xfActive ? (currentSort.endsWith('_asc') ? 'asc' : 'desc') : 'asc';
                             %>
-                                <button onclick="handleSort('<%= xf.sortKey %>', '<%= xfDir %>', false)"
+                                <button onclick="handleSort('<%= xf.key %>', '<%= xfDir %>', false)"
                                     class="w-full flex items-center justify-between gap-2 p-2.5 text-sm rounded-lg transition-all cursor-pointer
                                     <%= xfActive ? 'bg-primary-theme/10 text-primary-theme font-semibold' : 'hover:bg-black/5 dark:hover:bg-white/5 opacity-70 hover:opacity-100' %>">
                                     <span class="truncate"><%= xf.label %></span>
@@ -383,8 +385,8 @@
         </div>
     </div>
 
-    <!-- User-defined field filters, on their own row: their number depends on what
-            the collection admin declared, so they must not squeeze the main row. -->
+    <!-- Field filters, on their own row: their number depends on what the collection
+            admin declared and switched on, so they must not squeeze the main row. -->
     <% const xFilters = locals.extraFilters || []; %>
     <% if (xFilters.length > 0) { %>
         <!-- Wrapping grid rather than a single flex row: the number of controls is
@@ -413,10 +415,13 @@
                                 <option value="true" class="bg-white dark:bg-[#1a1a1a]" <%= xf.value === 'true' ? 'selected' : '' %>><%= t('common.yes') %></option>
                                 <option value="false" class="bg-white dark:bg-[#1a1a1a]" <%= xf.value === 'false' ? 'selected' : '' %>><%= t('common.no') %></option>
                             <% } else { %>
-                                <option value="<%= locals.extraAny %>" class="bg-white dark:bg-[#1a1a1a]" <%= xf.value === locals.extraAny ? 'selected' : '' %>><%= t('collection.xf_any') %></option>
-                                <option value="<%= locals.extraNone %>" class="bg-white dark:bg-[#1a1a1a]" <%= xf.value === locals.extraNone ? 'selected' : '' %>><%= t('collection.xf_none') %></option>
+                                <% if (xf.offerPresence) { %>
+                                    <option value="<%= locals.extraAny %>" class="bg-white dark:bg-[#1a1a1a]" <%= xf.value === locals.extraAny ? 'selected' : '' %>><%= t('collection.xf_any') %></option>
+                                    <option value="<%= locals.extraNone %>" class="bg-white dark:bg-[#1a1a1a]" <%= xf.value === locals.extraNone ? 'selected' : '' %>><%= t('collection.xf_none') %></option>
+                                <% } %>
+                                <%# Labels arrive already translated (see shownLabel in collectionRoute.ts) %>
                                 <% xf.choices.forEach(c => { %>
-                                    <option value="<%= c.value %>" class="bg-white dark:bg-[#1a1a1a]" <%= xf.value === c.value ? 'selected' : '' %>><%= t(c.label, { defaultValue: c.label }) %></option>
+                                    <option value="<%= c.value %>" class="bg-white dark:bg-[#1a1a1a]" <%= xf.value === c.value ? 'selected' : '' %>><%= c.label %></option>
                                 <% }) %>
                             <% } %>
                         </select>

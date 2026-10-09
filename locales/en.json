@@ -1388,6 +1388,8 @@
     "card_fields_hint": "Shown under the cover in every grid, in the order the plugin declares them. Up to {{count}}.",
     "corner_field": "Corner of the cover",
     "corner_field_hint": "Shown in the bottom-left corner of every cover, opposite the format badge. The stored value is used as is, so it stays short.",
+    "filters": "Filters",
+    "filters_hint": "Shown on the collection page once this type is selected. Fields with a fixed list of values, like a status, can be added.",
     "corner_field_none": "Nothing",
     "corner_position": "Which corner",
     "corner_top_left": "Top left",

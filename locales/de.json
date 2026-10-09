@@ -1388,6 +1388,8 @@
     "card_fields_hint": "Werden in allen Rastern unter dem Cover angezeigt, in der Reihenfolge des Plugins. Maximal {{count}}.",
     "corner_field": "Ecke des Covers",
     "corner_field_hint": "Wird unten links auf jedem Cover angezeigt, gegenüber dem Format-Badge. Der gespeicherte Wert wird unverändert übernommen, damit er kurz bleibt.",
+    "filters": "Filter",
+    "filters_hint": "Werden auf der Sammlungsseite angezeigt, sobald dieser Typ ausgewählt ist. Felder mit fester Werteliste, etwa ein Status, lassen sich hinzufügen.",
     "corner_field_none": "Nichts",
     "corner_position": "Welche Ecke",
     "corner_top_left": "Oben links",

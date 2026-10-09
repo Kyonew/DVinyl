@@ -15,7 +15,8 @@ import {
 import { sanitizeExtraFields, getExtraFields, nativeLookalikesByPlugin } from '../core/pluginExtraFields';
 import { SUPPORTED_LANGUAGES } from '../config/constants';
 import { placeholderUrl } from '../core/placeholderImage';
-import { cardFieldCandidates, getCardLines, MAX_CARD_LINES, CORNER_POSITIONS, DEFAULT_CORNER_POSITION } from '../core/cardFields';
+import { cardFieldCandidates, isTranslationKey, getCardLines, MAX_CARD_LINES, CORNER_POSITIONS, DEFAULT_CORNER_POSITION } from '../core/cardFields';
+import { filterCandidates, filterOverrides, activeFilters, sanitizeFilterSelection } from '../core/filterFields';
 import { registerPluginDirAtRuntime, unregisterPluginAtRuntime } from '../core/pluginRuntime';
 import { saveCustomPluginToDB, deleteCustomPluginFromDB } from '../core/customPluginSync';
 
@@ -91,7 +92,19 @@ router.get('/', async (req: any, res: any) => {
         label: req.t(f.label, { defaultValue: f.label })
       })),
       // What the cards show today, so an untouched plugin opens on its real state
-      cardFields: p.defaultCardFields || [p.creatorField]
+      cardFields: p.defaultCardFields || [p.creatorField],
+      // Read on the bare plugin for the same reason as the lookalikes above
+      filterChoices: (() => {
+        const bare = registry.get(p.id);
+        if (!bare) return [];
+        const candidates = filterCandidates(bare, getExtraFields(settings, p.id));
+        const on = new Set(activeFilters(candidates, filterOverrides(customization, p.id)).map(c => c.id));
+        return candidates.map(c => ({
+          id: c.id,
+          label: isTranslationKey(c.label) ? req.t(c.label, { defaultValue: c.label }) : c.label,
+          on: on.has(c.id)
+        }));
+      })()
     }));
 
     res.render('create-plugin', {
@@ -169,6 +182,16 @@ router.post('/customize/:pluginId', async (req: any, res: any) => {
         .slice(0, MAX_CARD_LINES);
     }
 
+    // Filters shown on the collection page once this type is selected. Only what differs
+    // from the default is kept (see core/filterFields.ts), so leaving every box as it
+    // came stores nothing. Read against the fields declared before this save: one added
+    // in the same submission has no box yet and simply keeps its default.
+    if (Array.isArray(req.body.filters)) {
+      const candidates = filterCandidates(plugin, getExtraFields(res.locals.settings, plugin.id));
+      const filters = sanitizeFilterSelection(candidates, req.body.filters);
+      if (Object.keys(filters).length > 0) cosmetics.filters = filters;
+    }
+
     // User-defined fields. Only validated and written when the submission carries the
     // key, so a caller that only changes the icon never touches the declared fields.
     let extraUpdate: { set?: any; unset?: string } | null = null;
@@ -185,7 +208,7 @@ router.post('/customize/:pluginId', async (req: any, res: any) => {
     const cosmeticsPath = `pluginCustomization.${plugin.id}`;
     const $set: any = {};
     const $unset: any = {};
-    if (cosmetics.icon || cosmetics.formatColors || cosmetics.cardFields || cosmetics.sortFormats || cosmetics.cornerField) $set[cosmeticsPath] = cosmetics;
+    if (cosmetics.icon || cosmetics.formatColors || cosmetics.cardFields || cosmetics.sortFormats || cosmetics.cornerField || cosmetics.filters) $set[cosmeticsPath] = cosmetics;
     else $unset[cosmeticsPath] = '';
     if (extraUpdate?.set) Object.assign($set, extraUpdate.set);
     if (extraUpdate?.unset) $unset[extraUpdate.unset] = '';

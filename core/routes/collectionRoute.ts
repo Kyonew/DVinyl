@@ -16,8 +16,10 @@ import { resolveShelfItems, deleteItemsAndContents } from '../../utils/itemHelpe
 import { checkCollectionCreation } from '../../utils/instanceSettings';
 import {
   getExtraFields, buildExtraFieldConditions, parseExtraSort, extraSortKey,
-  filterParam, isFilterable, isRangeFilter, isPickerFilter, EXTRA_ANY, EXTRA_NONE
+  filterParam, filterPath, isFilterable, isRangeFilter, isPickerFilter, EXTRA_ANY, EXTRA_NONE
 } from '../pluginExtraFields';
+import { filterCandidates, filterOverrides, activeFilters, CORE_FILTER_IDS } from '../filterFields';
+import { isTranslationKey } from '../cardFields';
 
 const router = express.Router();
 
@@ -78,10 +80,9 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
       return null;
     }
     const settings = res.locals.settings;
-    const { search, type, format, location, genre, style, platform, artist, decade } = req.query;
+    const { search, type, format, location } = req.query;
 
     const trimmedSearch = typeof search === 'string' ? search.trim() : '';
-    const trimmedArtist = typeof artist === 'string' ? artist.trim() : '';
 
     let sort = req.query.sort;
     if (sort) {
@@ -122,6 +123,31 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
     const enabledPlugins = shareScopedPluginIds
       ? registry.getEnabled(settings).filter(p => shareScopedPluginIds.has(p.id))
       : registry.getEnabled(settings);
+
+    // The filters the selected type shows (see core/filterFields.ts). A filter the
+    // collection switched off is read as absent, even from a link that still carries
+    // it: no control would be there to show it is narrowing the page, or to clear it.
+    // Without a selected type every filter stays, since they span all types at once.
+    const selectedPlugin = (type && type !== 'all')
+      ? enabledPlugins.find(p => p.id === type)
+      : undefined;
+    const extraDefs = selectedPlugin ? getExtraFields(settings, selectedPlugin.id) : [];
+    const shownFilters = selectedPlugin
+      ? activeFilters(filterCandidates(selectedPlugin, extraDefs), filterOverrides(settings?.pluginCustomization, selectedPlugin.id))
+      : null;
+    const filterShown = (id: string) => !shownFilters || shownFilters.some(c => c.id === id);
+    const shownParam = (id: string, value: any) => (filterShown(id) ? value : undefined);
+    const genre = shownParam(CORE_FILTER_IDS.genre, req.query.genre);
+    const style = shownParam(CORE_FILTER_IDS.style, req.query.style);
+    const platform = shownParam(CORE_FILTER_IDS.platform, req.query.platform);
+    const decade = shownParam(CORE_FILTER_IDS.decade, req.query.decade);
+    const artist = shownParam(CORE_FILTER_IDS.creator, req.query.artist);
+    const trimmedArtist = typeof artist === 'string' ? artist.trim() : '';
+    // Fields with a filter control: the plugin's own fields the collection switched on,
+    // and its user-defined ones it did not switch off.
+    const fieldFilters = shownFilters
+      ? shownFilters.filter(c => c.field).map(c => c.field!)
+      : [];
 
     // SEARCH QUERY
     if (trimmedSearch) {
@@ -242,14 +268,10 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
       }
     }
 
-    // USER-DEFINED FIELD FILTERS
+    // FIELD FILTERS
     // Scoped to a selected type: the fields are declared per plugin, so they are
     // meaningless while the collection shows every type at once.
-    const selectedPlugin = (type && type !== 'all')
-      ? enabledPlugins.find(p => p.id === type)
-      : undefined;
-    const extraDefs = selectedPlugin ? getExtraFields(settings, selectedPlugin.id) : [];
-    conditions.push(...buildExtraFieldConditions(extraDefs, req.query));
+    conditions.push(...buildExtraFieldConditions(fieldFilters, req.query));
 
     // Scope shared by every "values actually in use" lookup feeding the filter controls.
     // Without a selected type the page spans them all, so the lookup stays unscoped.
@@ -426,7 +448,9 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
     }
 
     // DYNAMIC ARTIST LIST
+    const showCreatorFilter = filterShown(CORE_FILTER_IDS.creator);
     const artistList = await (async () => {
+      if (!showCreatorFilter) return [];
       const baseQuery: any = { collection: activeCollectionId, in_wishlist: inWishlist };
       // Per-plugin below, which a link scoped to a whole type already covers; this is for
       // the one scoped to some of its formats, where the kind alone would still offer the
@@ -460,21 +484,29 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
     const locations = res.locals.isShareView ? [] : await shelfChoices(activeCollectionId);
 
     // Scoped to the selected type, so a type never offers another type's values (and the
-    // view drops a control entirely once its list comes back empty).
-    const genresList = await Promise.all([
-      Item.distinct('genres', { ...typeScope(), genres: { $nin: ['', null] } }),
-      Item.distinct('genre', { ...typeScope(), genre: { $nin: ['', null] } })
-    ]);
+    // view drops a control entirely once its list comes back empty, which is also how a
+    // filter the collection switched off stays out of the bar without being read).
+    const genresList = filterShown(CORE_FILTER_IDS.genre)
+      ? await Promise.all([
+        Item.distinct('genres', { ...typeScope(), genres: { $nin: ['', null] } }),
+        Item.distinct('genre', { ...typeScope(), genre: { $nin: ['', null] } })
+      ])
+      : [];
     const genres = [...new Set(genresList.flat())].filter(Boolean).sort();
 
-    const styles = await Item.distinct('styles', { ...typeScope(), styles: { $nin: ['', null] } });
+    const styles = filterShown(CORE_FILTER_IDS.style)
+      ? await Item.distinct('styles', { ...typeScope(), styles: { $nin: ['', null] } })
+      : [];
     styles.sort();
 
-    const platforms = await Item.distinct('platform', { ...typeScope(), platform: { $nin: ['', null, 'other'] } });
+    const platforms = filterShown(CORE_FILTER_IDS.platform)
+      ? await Item.distinct('platform', { ...typeScope(), platform: { $nin: ['', null, 'other'] } })
+      : [];
     platforms.sort();
 
     // The decade filter only makes sense where something actually carries a year
-    const hasYear = !!(await Item.exists({ ...typeScope(), year: { $nin: ['', null] } }));
+    const hasYear = filterShown(CORE_FILTER_IDS.decade)
+      && !!(await Item.exists({ ...typeScope(), year: { $nin: ['', null] } }));
 
     // Filter and sort labels follow the selected type's own wording ("Fabricant",
     // "Réalisateur"...) instead of the music-flavoured default.
@@ -485,32 +517,42 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
       ? req.t(creatorDef.label, { defaultValue: creatorDef.label })
       : '';
 
-    // Filter controls for the selected type's user-defined fields. Picker filters offer
-    // the values actually stored (a select uses its declared options instead, so an
-    // option nobody used yet is still selectable and shows its label).
+    // Labels from a plugin's code are catalogue keys, while the ones a collection typed
+    // in the Customize panel are plain words (see isTranslationKey).
+    const shownLabel = (value: string) => (isTranslationKey(value) ? req.t(value, { defaultValue: value }) : value);
+
+    // Filter controls for the selected type's fields. Picker filters offer the values
+    // actually stored (a select uses its declared options instead, so an option nobody
+    // used yet is still selectable and shows its label).
+    const queryString = (key: string) => (typeof req.query[key] === 'string' ? req.query[key] : '');
     const extraFilters = await Promise.all(
-      extraDefs.filter(isFilterable).map(async (field) => {
+      fieldFilters.map(async (field) => {
         const control = {
           name: field.name,
-          label: field.label,
+          label: shownLabel(field.label),
           type: field.type,
+          // "Filled in" and "empty" mean nothing for a plugin field that falls back to a
+          // default: every item reads as one of its values.
+          offerPresence: !(field.native && field.default !== undefined && field.default !== ''),
           kind: isRangeFilter(field) ? 'range' : (field.type === 'boolean' ? 'boolean' : 'picker'),
           param: filterParam(field),
           paramFrom: filterParam(field, 'from'),
           paramTo: filterParam(field, 'to'),
-          sortKey: extraSortKey(field),
-          value: (req.query[filterParam(field)] as string) || '',
-          from: (req.query[filterParam(field, 'from')] as string) || '',
-          to: (req.query[filterParam(field, 'to')] as string) || '',
+          // Strings only, like the query builder: a repeated param arrives as an array,
+          // narrows nothing, and must not show up as an active filter either.
+          value: queryString(filterParam(field)),
+          from: queryString(filterParam(field, 'from')),
+          to: queryString(filterParam(field, 'to')),
           choices: [] as { value: string; label: string }[]
         };
 
         if (field.type === 'select') {
-          control.choices = (field.options || []).map(o => ({ value: o.value, label: o.label }));
+          control.choices = (field.options || []).map(o => ({ value: o.value, label: shownLabel(o.label) }));
         } else if (isPickerFilter(field)) {
-          const values = await Item.distinct(`extra.${field.name}`, {
+          const path = filterPath(field);
+          const values = await Item.distinct(path, {
             ...typeScope(),
-            [`extra.${field.name}`]: { $nin: ['', null] }
+            [path]: { $nin: ['', null] }
           });
           control.choices = values
             .filter((v: any) => typeof v === 'string' || typeof v === 'number')
@@ -559,6 +601,9 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
       hasYear,
       creatorFilterLabel,
       pluginSortOptions: (selectedPlugin?.sortOptions || []).map(o => ({ key: o.key, label: req.t(o.label) })),
+      // Sorting on a user-defined field does not depend on whether it is filtered on.
+      extraSortOptions: extraDefs.filter(isFilterable).map(f => ({ key: extraSortKey(f), label: f.label })),
+      showCreatorFilter,
       extraFilters,
       extraAny: EXTRA_ANY,
       extraNone: EXTRA_NONE,

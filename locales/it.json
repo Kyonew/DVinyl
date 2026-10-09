@@ -1388,6 +1388,8 @@
     "card_fields_hint": "Mostrati sotto la copertina in tutte le griglie, nell'ordine dichiarato dal plugin. Massimo {{count}}.",
     "corner_field": "Angolo della copertina",
     "corner_field_hint": "Mostrato nell’angolo in basso a sinistra di ogni copertina, di fronte al badge del formato. Il valore memorizzato è usato così com’è, per restare breve.",
+    "filters": "Filtri",
+    "filters_hint": "Mostrati nella pagina della collezione quando questo tipo è selezionato. Si possono aggiungere i campi con un elenco fisso di valori, come uno stato.",
     "corner_field_none": "Niente",
     "corner_position": "Quale angolo",
     "corner_top_left": "In alto a sinistra",
