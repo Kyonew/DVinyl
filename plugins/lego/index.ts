@@ -105,10 +105,10 @@ export const legoPlugin: PluginDefinition = {
   // size, so what changes here is what the state implies: a sealed box keeps its shop
   // proportions, a built model stands as its own object, a dismantled one is a bag.
   spineSize: {
-    sealed: { thickness: 60, height: 260 },
-    built: { thickness: 90, height: 200 },
-    dismantled: { thickness: 70, height: 150 },
-    incomplete: { thickness: 70, height: 150 }
+    sealed: { thickness: 60, height: 260, shape: 'box' },
+    built: { thickness: 90, height: 200, shape: 'box' },
+    dismantled: { thickness: 70, height: 150, shape: 'box' },
+    incomplete: { thickness: 70, height: 150, shape: 'box' }
   },
 
   formFields: [

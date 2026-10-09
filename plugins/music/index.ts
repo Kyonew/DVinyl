@@ -176,9 +176,9 @@ export const musicPlugin: PluginDefinition = {
   // 3mm this scale is anchored on. A jewel case is more than three times thicker and
   // barely a third as tall.
   spineSize: {
-    vinyl: { thickness: 3, height: 315 },
-    cd: { thickness: 10, height: 125 },
-    cassette: { thickness: 17, height: 109 },
+    vinyl: { thickness: 3, height: 315, shape: 'sleeve' },
+    cd: { thickness: 10, height: 125, shape: 'jewel' },
+    cassette: { thickness: 17, height: 109, shape: 'jewel' },
     digital: { thickness: 3, height: 125 }
   },
 

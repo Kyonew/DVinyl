@@ -2,7 +2,7 @@ import Furniture from '../models/Furniture';
 import Item from '../models/Item';
 import { resolveShelfItems } from '../utils/itemHelpers';
 import { registry } from './registry';
-import { measureSpines, tallestFormat, SPINE_MAX_HEIGHT_PX } from './spine';
+import { measureSpines, tallestFormat, arrangeCompartment, pileUp, formatOf, SPINE_MAX_HEIGHT_PX } from './spine';
 import { CollectionView } from './types';
 
 // A reserve holding a whole collection is a wall of spines nobody can read, and a page
@@ -67,7 +67,7 @@ export const SHELF_VIEW: CollectionView = {
     const requestedId = String(req.query.furniture || '');
     const activeFurniture = furnitureList.find(f => String(f._id) === requestedId) || furnitureList[0];
     if (!activeFurniture) {
-      return { furnitureList, activeFurniture: null, shelfRows: [], shelfColumns: 1, unsorted: [], unsortedTotal: 0, unsortedShown: 0 };
+      return { furnitureList, activeFurniture: null, shelfRows: [], shelfColumns: 1, unsorted: [], unsortedPiles: [], unsortedTotal: 0, unsortedShown: 0 };
     }
 
     const cells: any[] = activeFurniture.cells || [];
@@ -127,10 +127,12 @@ export const SHELF_VIEW: CollectionView = {
       const slots = [];
       for (let column = 0; column < columnCount; column++) {
         const cell = cells.find(c => c.row === row && c.column === column);
+        const items = cell ? byLocation.get(cell.name) || [] : [];
         slots.push(cell ? {
           name: cell.name,
           capacity: cell.capacity || 0,
-          items: byLocation.get(cell.name) || []
+          items,
+          ...arrangeCompartment(items, cell.capacity || 0)
         } : null);
       }
       shelfRows.push(slots);
@@ -154,6 +156,9 @@ export const SHELF_VIEW: CollectionView = {
       shelfColumns: columnCount,
       shelfMaxSpineHeight: SPINE_MAX_HEIGHT_PX,
       unsorted,
+      // The same items laid in piles, one kind of object per pile, which is how the
+      // reserve is drawn.
+      unsortedPiles: pileUp(unsorted, (item: any) => item.kind + '|' + formatOf(item)),
       unsortedTotal,
       unsortedShown: unsorted.length
     };

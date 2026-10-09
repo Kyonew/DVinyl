@@ -5,7 +5,7 @@
   "main": "app.ts",
   "scripts": {
     "start": "node --env-file=.env --import tsx app.ts",
-    "test": "node --import tsx --test tests/extraFieldIdentity.test.ts tests/hardcoverEditions.test.ts tests/hardcoverRefresh.test.ts tests/searchHighlight.test.ts tests/markdown.test.ts tests/shelfHelpers.test.ts tests/screenscraper.test.ts tests/openLibraryEdition.test.ts tests/releaseValidation.test.ts tests/distinctTitles.test.ts tests/copySeed.test.ts tests/filterFields.test.ts",
+    "test": "node --import tsx --test tests/extraFieldIdentity.test.ts tests/hardcoverEditions.test.ts tests/hardcoverRefresh.test.ts tests/searchHighlight.test.ts tests/markdown.test.ts tests/shelfHelpers.test.ts tests/spine.test.ts tests/screenscraper.test.ts tests/openLibraryEdition.test.ts tests/releaseValidation.test.ts tests/distinctTitles.test.ts tests/copySeed.test.ts tests/filterFields.test.ts",
     "test:integration": "node --import tsx --test tests/extraFieldMigration.integration.test.ts tests/distinctTitles.integration.test.ts",
     "build:css": "npx tailwindcss -i ./website/src/input.css -o ./website/public/styles/tailwind.css --watch"
   },

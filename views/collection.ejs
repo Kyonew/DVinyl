@@ -439,8 +439,13 @@
             if (ids.length > 0) openListPicker({ kind: 'items', items: ids });
         }
 
-        function openShelfMoveModal() {
-            const count = selectedItemIds().length;
+        // What the open move dialog files away: the selection, or the one item a tap on
+        // a spine asked for from the shelf view's sheet.
+        let shelfMoveIds = [];
+
+        function openShelfMoveModal(ids) {
+            shelfMoveIds = Array.isArray(ids) ? ids : selectedItemIds();
+            const count = shelfMoveIds.length;
             if (count === 0) return;
             const modal = document.getElementById('shelfMoveModal');
             document.getElementById('shelfMoveCount').textContent = count;
@@ -463,7 +468,7 @@
         });
 
         async function confirmShelfMove() {
-            const ids = selectedItemIds();
+            const ids = shelfMoveIds;
             if (ids.length === 0) return;
 
             const select = document.getElementById('shelfMoveSelect');
