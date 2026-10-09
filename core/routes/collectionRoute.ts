@@ -307,6 +307,17 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
       applyShareScopeFilter(query, shareScope);
     }
 
+    // The page as it stands before any of the user's criteria, built through the same
+    // narrowing as above so it can never show what the query itself would hide.
+    const unfilteredQuery: any = { collection: activeCollectionId, in_wishlist: inWishlist };
+    applyVisibilityFilter(unfilteredQuery, res.locals.isCollectionAdmin, settings);
+    applyEnabledModulesFilter(unfilteredQuery, settings);
+    applyContainedFilter(unfilteredQuery);
+    if (res.locals.isShareView) {
+      applyShareScopeFilter(unfilteredQuery, shareScope);
+    }
+    const isNarrowed = allConditions.length > 0 || query.kind !== undefined;
+
     const totalItems = await Item.countDocuments(query);
 
     // UNIQUE TITLES
@@ -413,7 +424,7 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
     // to build its own. Resolved through the registry before it is stored, so an id that
     // does not exist, or one that no longer applies to this page, cannot come back from
     // the cookie on every later request.
-    const viewContext: CollectionViewContext = { req, res, inWishlist, itemQuery: query, itemSort };
+    const viewContext: CollectionViewContext = { req, res, inWishlist, itemQuery: query, itemSort, unfilteredQuery, isNarrowed };
     const availableViews = await viewRegistry.getAvailable(viewContext);
     const activeView = viewRegistry.resolve(
       req.query.view || req.user?.homeView || req.cookies.viewPref,

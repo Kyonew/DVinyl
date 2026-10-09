@@ -694,6 +694,7 @@
     "shelf_open_item": "Ouvrir la fiche",
     "shelf_move_one": "Ranger ailleurs",
     "shelf_close": "Fermer",
+    "shelf_matches": "{{matched}} sur {{total}} correspondent, le reste est estompé",
     "shelf_none": "Non rangé",
     "shelf_new_option": "+ Nouvelle étagère…",
     "shelf_new_placeholder": "Nom de l'étagère",

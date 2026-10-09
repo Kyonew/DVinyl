@@ -477,6 +477,7 @@
     "shelf_open_item": "Abrir ficha",
     "shelf_move_one": "Guardar en otro sitio",
     "shelf_close": "Cerrar",
+    "shelf_matches": "{{matched}} de {{total}} coinciden, el resto aparece atenuado",
     "shelf_none": "Sin ordenar",
     "shelf_new_option": "+ Nueva estantería…",
     "shelf_new_placeholder": "Nombre de la estantería",

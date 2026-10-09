@@ -274,6 +274,11 @@
         opacity: 0.25;
     }
 
+    <%# Standing in the furniture without matching what the page is narrowed to: still
+        there, still in its place, just out of the way of what was asked for. %>
+    .shelf-spine.is-dimmed { opacity: 0.18; filter: grayscale(1); }
+    .shelf-spine.is-dimmed:hover { opacity: 0.6; }
+
     #shelfPeek { pointer-events: none; }
 
     @media (prefers-reduced-motion: reduce) {
@@ -360,7 +365,7 @@
     <% const spine = (item, where) => { %>
         <% const sub = spineSub(item); %>
         <a href="<%= spineHref(item) %>"
-            class="shelf-spine"
+            class="shelf-spine<%= item.shelfMatch === false ? ' is-dimmed' : '' %>"
             title="<%= item.title %><%= sub ? ' · ' + sub : '' %>"
             data-item-id="<%= item._id %>"
             data-tone="<%= item.spine.tone %>"
@@ -430,6 +435,12 @@
                 <% }) }) %>
             </div>
         </nav>
+    <% } %>
+
+    <% if (shelfNarrowed) { %>
+        <p class="text-xs font-bold opacity-60 mb-3">
+            <%= t('collection.shelf_matches', { matched: shelfMatched, total: shelfTotal }) %>
+        </p>
     <% } %>
 
     <div class="shelf-piece card-theme border rounded-2xl p-2 sm:p-3">

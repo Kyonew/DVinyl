@@ -585,4 +585,12 @@ export interface CollectionViewContext {
 
   // The ordering the page resolved, for a view keeping a list of items of its own.
   itemSort: any;
+
+  // The same narrowing as itemQuery minus everything the user asked for (search, type,
+  // filters): what the collection holds on this page whatever is being looked for. A view
+  // that keeps its own shape under a filter draws this and marks what itemQuery matches.
+  unfilteredQuery: any;
+
+  // Whether itemQuery narrows anything beyond unfilteredQuery.
+  isNarrowed: boolean;
 }

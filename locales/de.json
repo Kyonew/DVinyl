@@ -477,6 +477,7 @@
     "shelf_open_item": "Eintrag öffnen",
     "shelf_move_one": "Woanders einräumen",
     "shelf_close": "Schließen",
+    "shelf_matches": "{{matched}} von {{total}} passen, der Rest ist ausgegraut",
     "shelf_none": "Nicht einsortiert",
     "shelf_new_option": "+ Neues Regalfach…",
     "shelf_new_placeholder": "Name des Regalfachs",
