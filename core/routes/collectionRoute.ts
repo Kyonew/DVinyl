@@ -140,8 +140,10 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
         }
       }
 
+      // Cast here rather than left to Mongoose: the same query also feeds an aggregate
+      // (unique titles), which does not cast and would never match a plain string.
       if (mongoose.Types.ObjectId.isValid(trimmedSearch)) {
-        searchOr.push({ _id: trimmedSearch });
+        searchOr.push({ _id: new mongoose.Types.ObjectId(trimmedSearch) });
       }
       conditions.push({ $or: searchOr });
     }
@@ -302,14 +304,21 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
     //
     // Skipped entirely when there are 0 or 1 items: the count then equals the item count
     // and the badge hides anyway, so there is no reason to pay for the aggregate.
+    //
+    // A failure here only costs the badge (it then equals the item count and hides),
+    // never the page.
     let uniqueTitles: number = totalItems;
     if (totalItems > 1) {
-      const uniqueTitlesAgg = await Item.aggregate([
-        { $match: query },
-        { $group: { _id: buildUniqueTitlesGroupKey(selectedPlugin, enabledPlugins) } },
-        { $count: 'total' }
-      ]);
-      uniqueTitles = uniqueTitlesAgg[0]?.total ?? 0;
+      try {
+        const uniqueTitlesAgg = await Item.aggregate([
+          { $match: query },
+          { $group: { _id: buildUniqueTitlesGroupKey(selectedPlugin, enabledPlugins) } },
+          { $count: 'total' }
+        ]);
+        uniqueTitles = uniqueTitlesAgg[0]?.total ?? 0;
+      } catch (aggErr: any) {
+        console.error('Unique titles count error:', aggErr.message);
+      }
     }
 
     // A code scanned from the filter bar names one item more often than not: open it
