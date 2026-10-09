@@ -37,6 +37,7 @@ export const boardGamesPlugin: PluginDefinition = {
   creatorField: 'designer',
   creatorSearchFields: ['designer', 'publisher'],
   extraSearchFields: ['bgg_id'],
+  duplicateCheckFields: ['format'],
   summaryField: { label: 'confirm_boardgame.field_designer', field: 'designer' },
 
   sources: [bggSource],

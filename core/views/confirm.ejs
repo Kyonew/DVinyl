@@ -7,11 +7,18 @@
             ever exist as the response to the POST that made them, so going "back" has to
             mean the browser's own back navigation, not a fresh GET. Only when the previous
             page is that result list, though: a history entry alone could be another site
-            or a blank tab. The href covers every other case. %>
+            or a blank tab. The href covers every other case. A form opened from an item
+            (a copy) goes back to that item instead. %>
+        <% if (locals.backHref) { %>
+        <a href="<%= baseUrl %><%= backHref %>" class="opacity-60 hover:opacity-100 transition-opacity flex items-center py-2">
+            <i class="fa-solid fa-arrow-left mr-2"></i> <%= t('common.cancel_back') %>
+        </a>
+        <% } else { %>
         <a href="<%= baseUrl %>/add-<%= plugin.id %>" data-search-url="<%= baseUrl %>/search-<%= plugin.id %>"
             onclick="if (document.referrer === location.origin + this.dataset.searchUrl) { history.back(); return false; }" class="opacity-60 hover:opacity-100 transition-opacity flex items-center py-2">
             <i class="fa-solid fa-arrow-left mr-2"></i> <%= t('common.back_to_search') %>
         </a>
+        <% } %>
         <button type="submit" form="confirm-form" name="in_wishlist" value="false"
             class="flex-shrink-0 text-white bg-primary-theme hover:brightness-110 font-bold rounded-lg text-xs px-4 py-2.5 transition-transform hover:scale-[1.02] flex items-center justify-center gap-2 shadow-lg shadow-primary-theme/20">
             <i class="fa-solid fa-check"></i> <%= t('confirm_' + plugin.i18nKey + '.btn_collection', { defaultValue: t('confirm_vinyl.btn_collection') }) %>
@@ -222,7 +229,7 @@
                     <% }) %>
 
                     <%# This view also serves /add-<id>/manual, where the item has no cover yet %>
-                    <%- include('partials/item-images', { plugin, item, coverOpen: (typeof locals.coverOpen === 'boolean' ? locals.coverOpen : (isManual === true)) }) %>
+                    <%- include('partials/item-images', { plugin, item, coverOpen: isManual === true }) %>
 
                     <hr class="border-black/10 dark:border-white/10 my-6 transition-colors">
 

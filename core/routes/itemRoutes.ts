@@ -820,13 +820,11 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   });
 
   // COPY TO A NEW ENTRY (e.g. the same work in a second format)
-  // Renders the confirm/manual form pre-filled from an existing item, minus the identity
-  // that belongs to the specific copy rather than the work, so it saves as a brand-new
-  // document via the create path. Generic across every plugin: what a copy always drops
-  // is the item's own id, its barcode and its external provider id; a plugin may name a
-  // few more through copyDropFields (e.g. music's release id). No format is preselected -
-  // the duplicate banner lights up on its own from the fields that tell two copies apart,
-  // until the user changes one.
+  // Renders the confirm/manual form pre-filled from an existing item, minus what belongs
+  // to that one copy (see buildCopySeed), so it saves as a brand-new document through the
+  // create path. Generic across every plugin. No format is preselected: the duplicate
+  // banner lights up on its own from the fields that tell two copies apart, until the
+  // user changes one.
   router.get(`${plugin.routePrefix}/copy/:id`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
     try {
       if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
@@ -837,20 +835,20 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       const copyQuery: any = { _id: req.params.id, collection: activeCollectionId };
       applyPluginKindFilter(copyQuery, plugin);
       const source = await Item.findOne(copyQuery);
-      if (!source) {
+      // Same rule as the button on the detail page: a wishlist entry is not owned yet, and
+      // a season or a show holding seasons is added through its own flow. Copying a season
+      // would also leave a season number on an item attached to no show.
+      const isNested = (source?.season !== undefined && source?.season !== null) || !!source?.parent;
+      if (!source || source.in_wishlist || isNested || await Item.exists({ parent: source._id })) {
         return res.status(404).send(req.t('errors.not_found'));
       }
 
-      const seed: any = buildCopySeed(plugin.formatForView(source), plugin);
-
-      // Same-work editions already owned, so the confirm view's duplicate banner can warn
-      // once the user picks a format the collection already holds. getVariants excludes the
-      // source itself (_id: { $ne }), so a single-copy source would come back empty and the
-      // banner would stay dark on load. Prepend the source so the banner detects the format
-      // being copied from right away; this adds exactly one entry and cannot double-count
-      // genuine variants.
-      const existingItems = await filterVisible(await plugin.getVariants(plugin.formatForView(source)), res);
-      const existingWithSource = [source, ...existingItems];
+      const formatted = plugin.formatForView(source);
+      // getVariants leaves the source out, so a single copy would come back empty and the
+      // banner would stay dark on load although the form starts on the source's format.
+      const variants = await filterVisible(await plugin.getVariants(formatted), res);
+      const existingItems = [{ ...formatted }, ...variants.map(v => plugin.formatForView(v))];
+      const seed: any = buildCopySeed(formatted, plugin);
 
       const suggestions = await buildFieldSuggestions(plugin, activeCollectionId, seed);
       const genres = await Item.distinct('genre', {
@@ -865,12 +863,11 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         suggestions,
         genres,
         currentType: plugin.collectionType,
-        existingItems: existingWithSource.map(v => plugin.formatForView(v)),
+        existingItems,
         plugin,
         isManual: true,
-        // The copy already carries the source's artwork, so the cover uploader stays
-        // folded (unlike a blank manual add, where picking a cover is the next step).
-        coverOpen: false
+        // Started from the item, not from a search: leaving the form goes back there.
+        backHref: `${plugin.routePrefix}/${source._id}`
       });
     } catch (err: any) {
       console.error(`Error loading copy form for ${plugin.id}:`, err.message);

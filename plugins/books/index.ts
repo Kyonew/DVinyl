@@ -66,7 +66,7 @@ export const booksPlugin: PluginDefinition = {
   importers: booksImporters,
   duplicateCheckFields: ['format'],
   backfillFields: ['isbn'],
-  copyDropFields: ['isbn', 'hardcover_id'],
+  copyDropFields: ['isbn'],
   partialsPath: 'plugins/books/partials',
   aspectRatioClass: 'aspect-[2/3]',
   detailZones: [

@@ -60,6 +60,7 @@ export const musicPlugin: PluginDefinition = {
   aspectRatioClass: 'aspect-square',
   imageLabels: { main: 'detail.official_cover' },
   duplicateCheckFields: ['media_type', 'variant_color'],
+  copyDropFields: ['discogs_id', 'source', 'source_id'],
 
   fastAddOptions: [
     { value: 'vinyl', label: 'media.vinyls', icon: 'fa-record-vinyl', color: 'peer-checked:bg-green-600', url: '/add-music?format=vinyl' },

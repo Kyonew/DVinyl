@@ -1,34 +1,34 @@
 import bwipjs from 'bwip-js';
 import { BASE_URL } from '../config/constants';
-import { PluginDefinition } from './types';
+import type { PluginDefinition } from './types';
 
 /**
  * Builds the seed object for the "copy an item to a new entry" flow from an already
- * `formatForView`'d source. Strips the identity that belongs to the specific copy rather
- * than the work so the result saves as a brand-new document: server-managed bookkeeping,
- * the barcode, the external provider link (shared `source`/`source_id` and the plugin's
- * `externalIdField`), the `barcode_locked` flag, and whatever extra fields the plugin
- * names through `copyDropFields`. Quantity is reset to a single copy. Mutates and returns
- * the passed object to match the copy route's original semantics.
+ * `formatForView`'d source, so the result saves as a brand-new document: server-managed
+ * bookkeeping goes, along with the barcode and its lock, which belong to one physical
+ * copy. The external link stays by default, since for most plugins it names the work
+ * (the same film on TMDB whatever the disc, the same Lego set sealed or built) and keeps
+ * the copy refreshable. A plugin whose ids name one edition instead lists them in
+ * `copyDropFields`, so a refresh never pulls the original's edition over the copy.
+ * Quantity is reset to a single copy. Mutates and returns the passed object.
  */
 export function buildCopySeed(formatted: any, plugin: PluginDefinition): any {
   const seed: any = formatted;
-  // Server-managed identity/bookkeeping that never rides onto a new document.
   for (const key of ['_id', 'mongo_id', '__v', 'added_at', 'modified_at', 'synced_at',
-    'owner', 'modified_by', 'parent', 'in_wishlist', 'quantity']) {
+    'owner', 'modified_by', 'parent', 'in_wishlist', 'quantity', 'barcode', 'barcode_locked']) {
     delete seed[key];
   }
-  // Fields that identify this particular copy rather than the work: its barcode, the
-  // external provider link (both the shared source/source_id pair and the plugin's own
-  // id field), its barcode lock, and whatever else the plugin names. Dropping the
-  // provider link is what keeps a later "refresh metadata" from overwriting the copy
-  // with the original release's info.
-  delete seed.barcode;
-  delete seed.source;
-  delete seed.source_id;
-  delete seed.barcode_locked;
-  if (plugin.externalIdField) delete seed[plugin.externalIdField];
   for (const f of plugin.copyDropFields || []) delete seed[f];
+  // Subdocuments (a tracklist) get ids of their own on the new document, rather than
+  // sharing the source's, which lists use to address one track of one item.
+  for (const [key, value] of Object.entries(seed)) {
+    if (!Array.isArray(value)) continue;
+    seed[key] = value.map((entry: any) => {
+      if (!entry || typeof entry !== 'object' || !('_id' in entry)) return entry;
+      const { _id, ...rest } = entry;
+      return rest;
+    });
+  }
   seed.quantity = 1;
   return seed;
 }
