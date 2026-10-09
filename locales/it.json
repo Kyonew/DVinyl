@@ -739,6 +739,7 @@
     "calculate_btn": "Calcolare",
     "confirm_delete": "Sei sicuro di voler eliminare questo album dalla tua raccolta? Questa azione è irreversibile.",
     "move_to_wishlist_btn": "Rimetti nella lista dei desideri",
+    "copy_to_new_btn": "Copia in una nuova voce",
     "move_to_wishlist_confirm": "Rimettere questo elemento nella lista dei desideri? Uscirà dalla tua collezione.",
     "duration_label": "Durata",
     "estimation_title": "Stima (Discogs)",
