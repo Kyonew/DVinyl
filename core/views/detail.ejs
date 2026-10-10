@@ -413,15 +413,15 @@
                     // off the *left* edge, where nothing scrolls, and the first two actions
                     // simply could not be reached.
                 %>
-                <div class="pt-6 border-t border-black/10 dark:border-white/10 flex flex-col gap-4 md:flex-row md:items-start md:justify-end transition-colors">
+                <div class="pt-6 border-t border-black/10 dark:border-white/10 flex flex-col gap-4 md:flex-row md:flex-wrap md:items-start md:justify-between transition-colors">
                     <%
                         // The refresh date belongs to the button, not to the metadata grid:
                         // stacked under it, it reads as a caption of the action rather than
                         // as one more thing to know about the item.
                     %>
-                    <div class="flex flex-col items-start gap-1 md:flex-1">
+                    <div class="flex flex-col items-start gap-1 md:flex-none">
                         <% if (canRefresh(plugin)) { %>
-                            <button id="refreshInfoBtn" onclick="refreshMetadata('<%= item._id %>')" class="w-full md:w-auto opacity-60 hover:opacity-100 px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center md:justify-start gap-2">
+                            <button id="refreshInfoBtn" onclick="refreshMetadata('<%= item._id %>')" class="w-full md:w-auto md:whitespace-nowrap opacity-60 hover:opacity-100 px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center md:justify-start gap-2">
                                 <i class="fa-solid fa-arrows-rotate" id="refreshInfoIcon"></i>
                                 <%= t('collection.refresh_metadata_btn') %>
                             </button>
@@ -436,13 +436,13 @@
                     <%# Two columns on a phone, the natural row from md up. Every action keeps
                         its label rather than shrinking to a bare icon: "refresh" and "back to
                         wishlist" are not guessable from a pictogram alone. %>
-                    <div class="grid grid-cols-2 gap-2 md:flex md:gap-4">
-                    <button type="button" onclick="openListPicker({ kind: 'items', item: '<%= item._id %>', label: <%= JSON.stringify(item.title || '') %> })" class="w-full md:w-auto text-center md:text-left opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
+                    <div class="grid grid-cols-2 gap-2 md:flex md:flex-wrap md:justify-end md:gap-3 md:flex-1">
+                    <button type="button" onclick="openListPicker({ kind: 'items', item: '<%= item._id %>', label: <%= JSON.stringify(item.title || '') %> })" class="w-full md:w-auto md:whitespace-nowrap text-center md:text-left opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
                         <i class="fa-solid fa-list-check mr-2"></i>
                         <%= t('lists.add_to_list') %>
                     </button>
                     <% if (!item.in_wishlist) { %>
-                        <button onclick="moveToWishlist('<%= item._id %>')" class="w-full md:w-auto text-center md:text-left opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
+                        <button onclick="moveToWishlist('<%= item._id %>')" class="w-full md:w-auto md:whitespace-nowrap text-center md:text-left opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
                             <i class="fa-solid fa-heart-circle-minus mr-2"></i>
                             <%= t('detail.move_to_wishlist_btn') %>
                         </button>
@@ -453,7 +453,7 @@
                             the item actually has a barcode - otherwise a "Barcode" option would
                             just be a dead end that server-side falls back to QR anyway. %>
                         <div class="relative group w-full md:w-auto" id="labelDropdown">
-                            <button type="button" onclick="toggleLabelDropdown(event)" class="w-full md:w-auto opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center md:justify-start gap-2">
+                            <button type="button" onclick="toggleLabelDropdown(event)" class="w-full md:w-auto md:whitespace-nowrap opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center md:justify-start gap-2">
                                 <i class="fa-solid fa-qrcode"></i>
                                 <%= t('detail.print_label_btn') %>
                                 <i class="fa-solid fa-chevron-down text-[10px] opacity-50"></i>
@@ -475,7 +475,7 @@
                             </div>
                         </div>
                     <% } else { %>
-                        <a href="<%= baseUrl %><%= plugin.routePrefix %>/<%= item._id %>/label" target="_blank" rel="noopener" class="w-full md:w-auto text-center md:text-left opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
+                        <a href="<%= baseUrl %><%= plugin.routePrefix %>/<%= item._id %>/label" target="_blank" rel="noopener" class="w-full md:w-auto md:whitespace-nowrap text-center md:text-left opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
                             <i class="fa-solid fa-qrcode mr-2"></i>
                             <%= t('detail.print_label_btn') %>
                         </a>
@@ -487,18 +487,18 @@
                     <% if (!item.in_wishlist
                             && (item.season === null || item.season === undefined)
                             && !(locals.contains && contains.length > 0)) { %>
-                        <a href="<%= baseUrl %><%= plugin.routePrefix %>/copy/<%= item._id %>" class="w-full md:w-auto text-center md:text-left opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
+                        <a href="<%= baseUrl %><%= plugin.routePrefix %>/copy/<%= item._id %>" class="w-full md:w-auto md:whitespace-nowrap text-center md:text-left opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
                             <i class="fa-solid fa-copy mr-2"></i>
                             <%= t('detail.copy_to_new_btn') %>
                         </a>
                     <% } %>
                     <%# The origin travels on the link, since the Referer of the edit page
                         is this page and not the listing anyone wants to come back to. %>
-                    <a href="<%= baseUrl %><%= plugin.routePrefix %>/edit/<%= item._id %><%= locals.backUrl ? '?from=' + encodeURIComponent(backUrl) : '' %>" class="w-full md:w-auto text-center md:text-left opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
+                    <a href="<%= baseUrl %><%= plugin.routePrefix %>/edit/<%= item._id %><%= locals.backUrl ? '?from=' + encodeURIComponent(backUrl) : '' %>" class="w-full md:w-auto md:whitespace-nowrap text-center md:text-left opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
                         <i class="fa-solid fa-pen-to-square mr-2"></i>
                         <%= t('common.edit') %>
                     </a>
-                    <button onclick="confirmDelete('<%= item._id %>')" class="w-full md:w-auto text-center md:text-left text-red-600 dark:text-red-500 hover:text-red-700 dark:hover:text-red-400 bg-red-100 dark:bg-red-500/10 hover:bg-red-200 dark:hover:bg-red-500/20 px-4 py-2 rounded-lg text-sm transition-colors">
+                    <button onclick="confirmDelete('<%= item._id %>')" class="w-full md:w-auto md:whitespace-nowrap text-center md:text-left text-red-600 dark:text-red-500 hover:text-red-700 dark:hover:text-red-400 bg-red-100 dark:bg-red-500/10 hover:bg-red-200 dark:hover:bg-red-500/20 px-4 py-2 rounded-lg text-sm transition-colors">
                         <i class="fa-solid fa-trash mr-2"></i>
                         <%= t('admin.tooltips.delete') %>
                     </button>
