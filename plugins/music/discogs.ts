@@ -17,6 +17,7 @@ export class DiscogsProvider implements SearchProvider {
     const country = options.country;
     const genre_filter = options.genre_filter;
     const label_filter = options.label_filter;
+    const format_filter = typeof options.format_filter === 'string' ? options.format_filter.trim() : '';
 
     let searchUrls: string[] = [];
     let isDirectRelease = false;
@@ -40,7 +41,9 @@ export class DiscogsProvider implements SearchProvider {
       if (genre_filter) advancedParams += `&genre=${encodeURIComponent(genre_filter)}`;
       if (label_filter) advancedParams += `&label=${encodeURIComponent(label_filter)}`;
 
-      if (type === 'cd' && enableAdvancedCD) {
+      if (format_filter) {
+        searchUrls.push(`https://api.discogs.com/database/search?q=${encodeURIComponent(query)}&type=release&format=${encodeURIComponent(format_filter)}${advancedParams}&token=${token}`);
+      } else if (type === 'cd' && enableAdvancedCD) {
         searchUrls.push(`https://api.discogs.com/database/search?q=${encodeURIComponent(query)}&type=release&format=CD${advancedParams}&token=${token}`);
         searchUrls.push(`https://api.discogs.com/database/search?q=${encodeURIComponent(query)}&type=release&format=SACD${advancedParams}&token=${token}`);
         searchUrls.push(`https://api.discogs.com/database/search?q=${encodeURIComponent(query)}&type=release&format=CDr${advancedParams}&token=${token}`);
@@ -75,7 +78,7 @@ export class DiscogsProvider implements SearchProvider {
     } else {
       responses.forEach((response, index) => {
         let results = response.results || [];
-        if (!urlMatch && type === 'cd' && enableAdvancedCD) {
+        if (!urlMatch && !format_filter && type === 'cd' && enableAdvancedCD) {
           if (index === 1) results = results.map((item: any) => ({ ...item, is_advanced_cd: 'sacd' }));
           else if (index === 2) results = results.map((item: any) => ({ ...item, is_advanced_cd: 'cdr' }));
         }

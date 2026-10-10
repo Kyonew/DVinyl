@@ -283,6 +283,9 @@
     "filter_ex_country": "Ex: France",
     "filter_ex_genre": "Ex: Electronic",
     "filter_ex_label": "Ex: EMI",
+    "filter_format": "Format",
+    "filter_ex_format": "Ex: 8-Track Cartridge",
+    "filter_format_hint": "Any Discogs format name. It replaces the format picked above.",
     "manual_entry": "Not on Discogs? Add manually"
   },
   "admin": {

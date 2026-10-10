@@ -45,29 +45,43 @@
         </label>
     </div>
 <% } else if (zone === 'bottom') { %>
+    <%
+        // Discogs format names, as Discogs spells them, for the formats the buttons above do not cover
+        const extraFormats = ['Shellac', 'Flexi-disc', 'Lathe Cut', 'Acetate', '8-Track Cartridge', '4-Track Cartridge', 'Reel-To-Reel', 'Microcassette', 'Minidisc', 'DAT', 'DCC', 'SACD', 'CDr'];
+        const picked = locals.searchFields || {};
+        const formatFilter = picked.format_filter || '';
+        const anyFilter = ['year', 'country', 'genre_filter', 'label_filter', 'format_filter'].some(k => picked[k]);
+    %>
     <!-- Advanced Filters -->
     <div class="mt-4 flex justify-center">
         <button type="button" onclick="document.getElementById('advanced-filters').classList.toggle('hidden'); document.getElementById('filter-icon').classList.toggle('fa-chevron-up'); document.getElementById('filter-icon').classList.toggle('fa-chevron-down')" class="text-xs opacity-50 hover:opacity-100 flex items-center gap-2 transition-opacity font-bold uppercase tracking-wider">
-            <i id="filter-icon" class="fa-solid fa-chevron-down"></i> <%= t('add_vinyl.advanced_filters') || 'Filtres avancés' %>
+            <i id="filter-icon" class="fa-solid <%= anyFilter ? 'fa-chevron-up' : 'fa-chevron-down' %>"></i> <%= t('add_vinyl.advanced_filters') %>
         </button>
     </div>
 
-    <div id="advanced-filters" class="hidden mt-4 p-4 rounded-2xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div id="advanced-filters" class="<%= anyFilter ? '' : 'hidden' %> mt-4 p-4 rounded-2xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 grid grid-cols-2 md:grid-cols-5 gap-4">
         <div>
-            <label class="block text-[10px] font-black uppercase opacity-40 mb-1"><%= t('add_vinyl.filter_year') || 'Année' %></label>
-            <input type="number" name="year" class="w-full p-3 text-sm rounded-xl bg-white dark:bg-black/50 border border-transparent focus:ring-2 focus:ring-primary-theme outline-none" placeholder="<%= t('add_vinyl.filter_ex_year') || 'Ex: 1994' %>">
+            <label class="block text-[10px] font-black uppercase opacity-40 mb-1"><%= t('add_vinyl.filter_year') %></label>
+            <input type="number" name="year" value="<%= picked.year || '' %>" class="w-full p-3 text-sm rounded-xl bg-white dark:bg-black/50 border border-transparent focus:ring-2 focus:ring-primary-theme outline-none" placeholder="<%= t('add_vinyl.filter_ex_year') %>">
         </div>
         <div>
-            <label class="block text-[10px] font-black uppercase opacity-40 mb-1"><%= t('add_vinyl.filter_country') || 'Pays' %></label>
-            <input type="text" name="country" class="w-full p-3 text-sm rounded-xl bg-white dark:bg-black/50 border border-transparent focus:ring-2 focus:ring-primary-theme outline-none" placeholder="<%= t('add_vinyl.filter_ex_country') || 'Ex: UK' %>">
+            <label class="block text-[10px] font-black uppercase opacity-40 mb-1"><%= t('add_vinyl.filter_country') %></label>
+            <input type="text" name="country" value="<%= picked.country || '' %>" class="w-full p-3 text-sm rounded-xl bg-white dark:bg-black/50 border border-transparent focus:ring-2 focus:ring-primary-theme outline-none" placeholder="<%= t('add_vinyl.filter_ex_country') %>">
         </div>
         <div>
-            <label class="block text-[10px] font-black uppercase opacity-40 mb-1"><%= t('add_vinyl.filter_genre') || 'Genre' %></label>
-            <input type="text" name="genre_filter" class="w-full p-3 text-sm rounded-xl bg-white dark:bg-black/50 border border-transparent focus:ring-2 focus:ring-primary-theme outline-none" placeholder="<%= t('add_vinyl.filter_ex_genre') || 'Ex: Electronic' %>">
+            <label class="block text-[10px] font-black uppercase opacity-40 mb-1"><%= t('add_vinyl.filter_genre') %></label>
+            <input type="text" name="genre_filter" value="<%= picked.genre_filter || '' %>" class="w-full p-3 text-sm rounded-xl bg-white dark:bg-black/50 border border-transparent focus:ring-2 focus:ring-primary-theme outline-none" placeholder="<%= t('add_vinyl.filter_ex_genre') %>">
         </div>
         <div>
-            <label class="block text-[10px] font-black uppercase opacity-40 mb-1"><%= t('add_vinyl.filter_label') || 'Label' %></label>
-            <input type="text" name="label_filter" class="w-full p-3 text-sm rounded-xl bg-white dark:bg-black/50 border border-transparent focus:ring-2 focus:ring-primary-theme outline-none" placeholder="<%= t('add_vinyl.filter_ex_label') || 'Ex: EMI' %>">
+            <label class="block text-[10px] font-black uppercase opacity-40 mb-1"><%= t('add_vinyl.filter_label') %></label>
+            <input type="text" name="label_filter" value="<%= picked.label_filter || '' %>" class="w-full p-3 text-sm rounded-xl bg-white dark:bg-black/50 border border-transparent focus:ring-2 focus:ring-primary-theme outline-none" placeholder="<%= t('add_vinyl.filter_ex_label') %>">
+        </div>
+        <div class="col-span-2 md:col-span-1">
+            <label class="block text-[10px] font-black uppercase opacity-40 mb-1"><%= t('add_vinyl.filter_format') %></label>
+            <input type="text" name="format_filter" list="music-format-suggestions" value="<%= formatFilter %>" autocomplete="off" class="w-full p-3 text-sm rounded-xl bg-white dark:bg-black/50 border border-transparent focus:ring-2 focus:ring-primary-theme outline-none" placeholder="<%= t('add_vinyl.filter_ex_format') %>" title="<%= t('add_vinyl.filter_format_hint') %>">
+            <datalist id="music-format-suggestions">
+                <% extraFormats.forEach(f => { %><option value="<%= f %>"></option><% }) %>
+            </datalist>
         </div>
     </div>
 <% } %>

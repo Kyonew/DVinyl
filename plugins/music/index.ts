@@ -227,7 +227,7 @@ export const musicPlugin: PluginDefinition = {
       name: 'format_type',
       label: 'confirm_vinyl.field_format',
       type: 'text',
-      showIn: ['edit', 'confirm', 'manual'],
+      showIn: ['edit', 'confirm', 'detail', 'manual'],
       group: 'main'
     },
     {
@@ -344,6 +344,10 @@ export const musicPlugin: PluginDefinition = {
 
   sources: [discogs, itunes],
   searchFormPartial: 'search-form',
+  // The advanced filters, handed back so a second search keeps them. format_filter takes
+  // any Discogs format name, for the formats the three buttons do not cover (8-track,
+  // MiniDisc, shellac...), and replaces the button's format in the Discogs query.
+  searchFormFields: ['year', 'country', 'genre_filter', 'label_filter', 'format_filter'],
   imageSearchType: 'music',
   importers: musicImporters,
   apiRoutes: musicApiRoutes,
