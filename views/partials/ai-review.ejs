@@ -202,6 +202,7 @@
                 for (const source of sources) {
                     const option = document.createElement('option');
                     option.value = source.id;
+                    option.className = 'bg-white dark:bg-[#1a1a1a]';
                     option.textContent = source.name;
                     select.appendChild(option);
                 }
@@ -322,8 +323,8 @@
         function fieldInputHtml(field, value) {
             const val = escapeHtml(value || '');
             if (field.options && field.options.length > 0) {
-                const options = ['<option value=""></option>'].concat(field.options.map(o =>
-                    '<option value="' + escapeHtml(o.value) + '"' + (o.value === value ? ' selected' : '') + '>'
+                const options = ['<option value="" class="bg-white dark:bg-[#1a1a1a]"></option>'].concat(field.options.map(o =>
+                    '<option value="' + escapeHtml(o.value) + '" class="bg-white dark:bg-[#1a1a1a]"' + (o.value === value ? ' selected' : '') + '>'
                     + escapeHtml(o.label) + '</option>'
                 )).join('');
                 return '<select data-ai-field="' + escapeHtml(field.name) + '" class="bg-black/5 dark:bg-white/5 border border-transparent text-xs rounded-lg block w-full p-2 outline-none cursor-pointer">' + options + '</select>';
