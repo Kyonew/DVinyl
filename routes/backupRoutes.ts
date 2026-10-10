@@ -14,6 +14,7 @@ import InstanceSettings from '../models/InstanceSettings';
 import Furniture from '../models/Furniture';
 import List from '../models/List';
 import { invalidateInstanceSettingsCache } from '../utils/instanceSettings';
+import { invalidateAiConfigCache } from '../core/ai/instance';
 import { requireAuth, requireAdmin, requireCollectionRole } from '../middleware/authMiddleware';
 import { registry } from '../core/registry';
 import { buildSortTitle, stringifyCsv, getPublicProtocol } from '../core/helpers';
@@ -204,6 +205,7 @@ const importInstanceBackup = async (req: any, res: any) => {
         // The singleton is cached in memory; the wipe above must not leave a stale copy
         // authorizing (or blocking) collection creation until the next restart.
         invalidateInstanceSettingsCache();
+        invalidateAiConfigCache();
 
         if (hasCollections) {
             await Collection.insertMany(data.collections);
@@ -344,6 +346,7 @@ const importInstanceBackup = async (req: any, res: any) => {
                 { upsert: true }
             );
             invalidateInstanceSettingsCache();
+            invalidateAiConfigCache();
         }
 
         // Rebuild the multi-collection invariants (default collection, item/user/settings

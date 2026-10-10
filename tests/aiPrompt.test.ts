@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { describeFields, buildExtractionMessages } from './prompt';
-import { ImportTargetField } from '../csvMapping';
-import { AiContentPart } from './types';
+import { describeFields, buildExtractionMessages } from '../core/ai/prompt';
+import { ImportTargetField } from '../core/csvMapping';
+import { AiContentPart } from '../core/ai/types';
 
 const fields: ImportTargetField[] = [
   { name: 'title', label: 'Title', type: 'text', required: true, group: 'plugin' },

@@ -4,14 +4,14 @@ import assert from 'node:assert/strict';
 process.env.SESSION_SECRET = 'test-session-secret';
 
 let encryptSecret: (plain: string) => string;
-let resolveAiConfig: (typeof import('./config'))['resolveAiConfig'];
-let resolveTestConfig: (typeof import('./config'))['resolveTestConfig'];
-let isAiConfigured: (typeof import('./config'))['isAiConfigured'];
-let normalizeStoredBaseUrl: (typeof import('./config'))['normalizeStoredBaseUrl'];
+let resolveAiConfig: (typeof import('../core/ai/config'))['resolveAiConfig'];
+let resolveTestConfig: (typeof import('../core/ai/config'))['resolveTestConfig'];
+let isAiConfigured: (typeof import('../core/ai/config'))['isAiConfigured'];
+let normalizeStoredBaseUrl: (typeof import('../core/ai/config'))['normalizeStoredBaseUrl'];
 
 before(async () => {
-  ({ encryptSecret } = await import('./secret'));
-  ({ resolveAiConfig, resolveTestConfig, isAiConfigured, normalizeStoredBaseUrl } = await import('./config'));
+  ({ encryptSecret } = await import('../core/ai/secret'));
+  ({ resolveAiConfig, resolveTestConfig, isAiConfigured, normalizeStoredBaseUrl } = await import('../core/ai/config'));
 });
 
 const AI_ENV = ['AI_API_KEY', 'AI_BASE_URL', 'AI_MODEL', 'AI_PROVIDER'];
@@ -158,4 +158,31 @@ test('resolveTestConfig ignores a hosted-preset baseUrl left over from a previou
     apiKey: 'sk-x'
   }, null);
   assert.equal(config.baseUrl, 'https://api.anthropic.com/v1');
+});
+
+test('resolveTestConfig never sends a held key to an endpoint other than its own', () => {
+  const stored = {
+    enabled: true, provider: 'openrouter', baseUrl: '', model: 'openai/gpt-4o-mini',
+    visionModel: '', apiKeyEncrypted: encryptSecret('sk-stored-openrouter')
+  };
+  const elsewhere = resolveTestConfig({
+    provider: 'custom', baseUrl: 'https://attacker.example/v1', model: 'x', visionModel: '', apiKey: ''
+  }, stored);
+  assert.equal(elsewhere.apiKey, '', 'the stored key stays with OpenRouter');
+
+  process.env.AI_API_KEY = 'sk-from-env';
+  const fromEnv = resolveTestConfig({
+    provider: 'custom', baseUrl: 'https://attacker.example/v1', model: 'x', visionModel: '', apiKey: ''
+  }, stored);
+  assert.equal(fromEnv.apiKey, '', 'neither does the environment key');
+
+  const typed = resolveTestConfig({
+    provider: 'custom', baseUrl: 'https://attacker.example/v1', model: 'x', visionModel: '', apiKey: 'sk-typed'
+  }, stored);
+  assert.equal(typed.apiKey, 'sk-typed', 'a key typed for the new endpoint is used');
+
+  const same = resolveTestConfig({
+    provider: 'openrouter', baseUrl: '', model: '', visionModel: '', apiKey: ''
+  }, stored);
+  assert.equal(same.apiKey, 'sk-from-env', 'its own endpoint still gets the held key');
 });

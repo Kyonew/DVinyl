@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { extractJsonArray, extractJsonObject } from './jsonExtract';
+import { extractJsonArray, extractJsonObject } from '../core/ai/jsonExtract';
 
 test('parses a bare JSON array', () => {
   assert.deepEqual(extractJsonArray('[{"title":"Dune"}]'), [{ title: 'Dune' }]);

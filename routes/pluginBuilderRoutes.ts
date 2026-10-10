@@ -34,7 +34,7 @@ const router = express.Router();
 
 router.use(requireAuth, requireCollectionRole('admin'));
 
-/** A description is a sentence, not a pasted list — generous but not import-sized. */
+/** A description is a sentence, not a pasted list: generous but not import-sized. */
 const MAX_DESCRIPTION_CHARS = 2000;
 
 async function listCustomPlugins() {

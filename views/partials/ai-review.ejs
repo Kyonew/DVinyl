@@ -6,7 +6,9 @@
         id: p.id,
         label: t(p.label),
         icon: 'fa-' + p.icon,
-        canEnrich: !!p.searchProvider
+        canEnrich: hasSearch(p),
+        // Offered only when there is a choice to make, as in the CSV import.
+        sources: searchableSources(p, settings).map(src => ({ id: src.id, name: src.name, note: src.importNote ? t(src.importNote) : '' }))
     }));
 %>
 
@@ -99,6 +101,16 @@
                     <span class="opacity-50"><%= t('admin.csv_import.enrich_hint') %></span>
                 </span>
             </label>
+
+            <div id="aiSourceRow" class="hidden items-center gap-3 bg-black/5 dark:bg-white/5 rounded-2xl p-4 mt-2">
+                <span class="text-xs font-bold shrink-0"><%= t('admin.csv_import.source_label') %></span>
+                <select id="aiSource" class="flex-1 bg-white dark:bg-black/20 border-transparent rounded-xl p-2 text-xs outline-none focus:ring-2 focus:ring-primary-theme"></select>
+            </div>
+
+            <div id="aiSourceNote" class="hidden mt-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[11px] text-amber-600 dark:text-amber-400 items-start gap-2">
+                <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
+                <span data-note-text></span>
+            </div>
         </div>
 
         <div id="importErr_ai" class="hidden mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-500">
@@ -123,6 +135,7 @@
             failed: <%- JSON.stringify(t('admin.modal.import_failed')) %>,
             unenriched: <%- JSON.stringify(t('admin.modal.import_unenriched')) %>,
             missingRequired: <%- JSON.stringify(t('ai.import_missing_required')) %>,
+            missingEnrich: <%- JSON.stringify(t('ai.import_missing_enrich')) %>,
             noneSelected: <%- JSON.stringify(t('ai.import_none_selected')) %>,
             confirm: <%- JSON.stringify(t('ai.import_confirm')) %>,
             noInput: <%- JSON.stringify(t('ai.err_no_input')) %>,
@@ -171,10 +184,40 @@
 
         function refreshEnrichRow() {
             const row = el('aiEnrichRow');
-            const canEnrich = currentModule().canEnrich;
+            const module = currentModule();
+            const canEnrich = module.canEnrich;
             row.classList.toggle('hidden', !canEnrich);
             row.classList.toggle('flex', canEnrich);
             if (!canEnrich) el('aiEnrichCheck').checked = false;
+
+            // Same rule as the CSV import: a single source is not a choice, it is the answer.
+            const sourceRow = el('aiSourceRow');
+            const sources = module.sources || [];
+            const offer = canEnrich && sources.length > 1;
+            sourceRow.classList.toggle('hidden', !offer);
+            sourceRow.classList.toggle('flex', offer);
+            const select = el('aiSource');
+            select.replaceChildren();
+            if (offer) {
+                for (const source of sources) {
+                    const option = document.createElement('option');
+                    option.value = source.id;
+                    option.textContent = source.name;
+                    select.appendChild(option);
+                }
+            }
+            refreshSourceNote();
+        }
+
+        // The source the import will ask: the one picked, or the only one there is.
+        function refreshSourceNote() {
+            const sources = currentModule().sources || [];
+            const source = sources.find(s => s.id === el('aiSource').value) || sources[0];
+            const note = el('aiEnrichCheck').checked && source && source.note ? source.note : '';
+            const box = el('aiSourceNote');
+            box.querySelector('[data-note-text]').innerText = note;
+            box.classList.toggle('hidden', !note);
+            box.classList.toggle('flex', !!note);
         }
 
         window.aiBackToStep1 = function () {
@@ -292,7 +335,7 @@
 
         /**
          * One column per field the AI actually populated on at least one row, not every
-         * field the plugin could accept — a book plugin alone has twenty-odd fields, and
+         * field the plugin could accept: a book plugin alone has twenty-odd fields, and
          * most rows from a short text list only ever fill title and author.
          */
         function columnsInUse() {
@@ -315,10 +358,15 @@
 
             el('aiReviewBody').innerHTML = preview.rows.map((row, index) => {
                 const hasMissing = row.missingRequired.length > 0;
+                // A pasted list rarely names a film's director: the source fills such a gap
+                // in during the import, so the row stays selected. A missing title cannot
+                // be looked up, and neither can anything once enrichment is unavailable.
+                const fillable = hasMissing && preview.module.canEnrich && !row.missingRequired.includes('title');
+                const note = !hasMissing ? '' : fillable ? T.missingEnrich : T.missingRequired;
                 return '<tr data-ai-row="' + index + '" class="border-t border-black/5 dark:border-white/5' + (hasMissing ? ' bg-amber-500/10' : '') + '">'
-                    + '<td class="p-2 align-top"><input type="checkbox" data-ai-row-check class="w-4 h-4 accent-current mt-1"' + (hasMissing ? '' : ' checked') + '></td>'
+                    + '<td class="p-2 align-top"><input type="checkbox" data-ai-row-check class="w-4 h-4 accent-current mt-1"' + (hasMissing && !fillable ? '' : ' checked') + '></td>'
                     + columns.map(f => '<td class="p-2 align-top">' + fieldInputHtml(f, row.values[f.name]) + '</td>').join('')
-                    + '<td class="p-2 align-top text-[10px] text-amber-600 dark:text-amber-400 whitespace-nowrap">' + (hasMissing ? escapeHtml(T.missingRequired) : '') + '</td>'
+                    + '<td class="p-2 align-top text-[10px] text-amber-600 dark:text-amber-400 whitespace-nowrap">' + escapeHtml(note) + '</td>'
                     + '</tr>';
             }).join('');
         }
@@ -407,7 +455,8 @@
                     body: JSON.stringify({
                         plugin: preview.module.id,
                         rows,
-                        enrich: el('aiEnrichCheck').checked
+                        enrich: el('aiEnrichCheck').checked,
+                        source: el('aiSource').value || undefined
                     })
                 });
                 if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Error'); }
@@ -420,6 +469,8 @@
         };
 
         el('aiModule').addEventListener('change', refreshEnrichRow);
+        el('aiEnrichCheck').addEventListener('change', refreshSourceNote);
+        el('aiSource').addEventListener('change', refreshSourceNote);
         ensureSocket();
     })();
 </script>

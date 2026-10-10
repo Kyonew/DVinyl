@@ -1,7 +1,7 @@
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { aiChat, AiError, textPart, imagePart } from './client';
-import { AiConfig } from './types';
+import { aiChat, AiError, textPart, imagePart } from '../core/ai/client';
+import { AiConfig } from '../core/ai/types';
 
 const config: AiConfig = {
   enabled: true, provider: 'openrouter', baseUrl: 'https://api.test/v1',

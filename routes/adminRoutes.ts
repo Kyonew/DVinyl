@@ -396,7 +396,10 @@ router.post("/instance/ai/test", requireAuth, requireAdmin, async (req: any, res
     apiKey: typeof req.body?.apiKey === 'string' ? req.body.apiKey.trim() : ''
   }, stored);
   if (!isAiConfigured(config)) {
-    return res.status(400).json({ success: false, error: req.t('ai.err_not_configured') });
+    // A hosted provider other than the saved one is tested with a key typed for it: the
+    // held key never leaves for another endpoint (see resolveTestConfig).
+    const error = !config.apiKey && config.provider !== 'custom' ? 'ai.err_test_key_required' : 'ai.err_not_configured';
+    return res.status(400).json({ success: false, error: req.t(error) });
   }
   try {
     const result = await aiChat(

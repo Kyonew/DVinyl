@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildBarcodePrompt, parseBarcodeReply } from './barcode';
+import { buildBarcodePrompt, parseBarcodeReply } from '../core/ai/barcode';
 
 test('the prompt carries the code and the media kind, and demands JSON', () => {
   const messages = buildBarcodePrompt('9782266283321', 'book');

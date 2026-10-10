@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPluginGenerationPrompt, sanitizePluginDraft } from './pluginGenerate';
+import { buildPluginGenerationPrompt, sanitizePluginDraft } from '../core/ai/pluginGenerate';
 
 test('the prompt carries the description and demands JSON', () => {
   const messages = buildPluginGenerationPrompt('old glass Coca-Cola bottles');

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { AI_PROVIDERS, getProviderPreset, DEFAULT_PROVIDER_ID } from './providers';
+import { AI_PROVIDERS, getProviderPreset, DEFAULT_PROVIDER_ID } from '../core/ai/providers';
 
 test('every preset has a usable id, label and default model', () => {
   assert.ok(AI_PROVIDERS.length >= 5);

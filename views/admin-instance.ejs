@@ -971,7 +971,7 @@
                     // enabledEl is deliberately excluded: even when the rest of the panel is
                     // locked by an env-provided config, the toggle must stay clickable so a
                     // key-less local-endpoint env config (no AI_API_KEY) can still be turned
-                    // on by hand — resolveCandidate() only force-enables when an env key is
+                    // on by hand: resolveCandidate() only force-enables when an env key is
                     // present, so without this the toggle would be the only way to flip
                     // `enabled` and it would be stuck disabled.
                     [providerEl, baseUrlEl, modelEl, visionModelEl, apiKeyEl, clearKeyBtn, saveBtn, testBtn]
@@ -1025,7 +1025,9 @@
                 providerEl.addEventListener('change', () => {
                     syncProviderFields();
                     const preset = providers.find(p => p.id === providerEl.value);
-                    if (preset && preset.id !== 'custom') {
+                    // A custom endpoint has no default, and a hosted provider's model ids mean
+                    // nothing to it: the vision model would otherwise be saved as one.
+                    if (preset) {
                         modelEl.value = preset.defaultModel;
                         visionModelEl.value = preset.defaultVisionModel;
                     }
@@ -1038,7 +1040,7 @@
                 });
 
                 // If the user clears the key and then types/pastes a new one, that new
-                // input supersedes the pending clear — otherwise the save would still send
+                // input supersedes the pending clear, otherwise the save would still send
                 // the clear sentinel and silently discard what they just typed.
                 apiKeyEl.addEventListener('input', () => {
                     pendingClear = false;
@@ -1072,7 +1074,7 @@
                 saveBtn.addEventListener('click', persistAiSettings);
 
                 // The enable toggle is the one field a user expects to take effect the
-                // moment they flip it, without a separate Save click — every other field
+                // moment they flip it, without a separate Save click; every other field
                 // still needs Save since typing a key/model is not itself a decision to commit.
                 enabledEl.addEventListener('change', persistAiSettings);
 

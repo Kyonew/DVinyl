@@ -1,8 +1,8 @@
 /**
  * Pulling JSON out of a model's reply.
  *
- * The OpenAI-compatible layers DVinyl talks to do not all enforce a response schema —
- * Anthropic's compatibility layer documents that `strict` function calling is ignored —
+ * The OpenAI-compatible layers DVinyl talks to do not all enforce a response schema
+ * (Anthropic's compatibility layer documents that `strict` function calling is ignored),
  * and models habitually wrap their JSON in a code fence and a sentence of commentary. So
  * a reply is never handed to JSON.parse directly; it is scanned for the first balanced
  * bracketed run, which is parsed on its own.

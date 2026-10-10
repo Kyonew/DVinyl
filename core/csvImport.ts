@@ -515,9 +515,19 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
 
       if (canEnrich && query) {
         const enriched = await fetchEnrichment(plugin, enrichSource!, query, searchOptions, target, !!exactCode, pace);
-        if (enriched) fillEmptyFields(data, enriched, allowed);
-        else totalUnenriched++;
         await pace.wait();
+        if (enriched) {
+          fillEmptyFields(data, enriched, allowed);
+          // A row too thin to recognize an item already owned (a title with no creator,
+          // which is all a pasted list usually gives) is checked again with what the
+          // source filled in, else the import would add a second copy of it.
+          const known = ctx.isWishlist
+            ? await findWishlistDuplicate(plugin, ctx.collectionId, data)
+            : await plugin.findDuplicate(ctx.collectionId, data);
+          if (known) return 'skipped';
+        } else {
+          totalUnenriched++;
+        }
       }
 
       // Same normalization hook the manual and edit forms go through, so an imported

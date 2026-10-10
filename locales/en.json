@@ -700,6 +700,7 @@
     "get_key": "Get an API key",
     "err_save": "Could not save the AI settings.",
     "err_not_configured": "AI assist is not configured yet.",
+    "err_test_key_required": "Type this provider's API key to test it.",
     "err_no_input": "Enter something to import first.",
     "err_input_too_long": "That is too long. Import at most {{max}} characters at a time.",
     "err_no_rows": "No rows to import.",
@@ -718,6 +719,7 @@
     "import_review_title": "Check before importing",
     "import_review_hint": "The AI can be wrong. Correct anything that looks off, and untick what you do not want.",
     "import_missing_required": "Missing required information",
+    "import_missing_enrich": "Missing required information, the source will fill it in during the import",
     "import_confirm": "Import the ticked rows",
     "import_none_selected": "Tick at least one row."
   },

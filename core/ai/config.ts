@@ -83,7 +83,7 @@ export function resolveAiConfig(stored: StoredAiSettings | null | undefined): Ai
  * The config a "Test connection" click should use: the panel's current, possibly-unsaved
  * fields, falling back field-by-field to what's actually stored (same "blank means
  * unchanged" convention the save endpoint uses for the API key) so testing works whether
- * or not the form has been saved yet. Always treated as enabled — testing is a question
+ * or not the form has been saved yet. Always treated as enabled: testing is a question
  * about whether a provider/key/model combination works, independent of whether the
  * instance has the feature switched on.
  */
@@ -92,7 +92,7 @@ export function resolveTestConfig(
   stored: StoredAiSettings | null | undefined
 ): AiConfig {
   const provider = input.provider || stored?.provider || '';
-  return resolveCandidate({
+  const config = resolveCandidate({
     provider,
     // Only the custom provider's base URL is ever a real user edit (see
     // normalizeStoredBaseUrl) - for every hosted preset this must resolve to the
@@ -102,13 +102,19 @@ export function resolveTestConfig(
     visionModel: input.visionModel || stored?.visionModel || '',
     apiKey: input.apiKey || decryptSecret(stored?.apiKeyEncrypted || '')
   }, true);
+
+  // A key already held (stored, or from AI_API_KEY) only ever goes to the endpoint it was
+  // configured for. Testing another one takes a key typed for it, else the test would
+  // hand the instance's key to whatever URL was put in the form.
+  if (config.baseUrl !== resolveAiConfig(stored).baseUrl) config.apiKey = input.apiKey;
+  return config;
 }
 
 /**
  * The base URL a save should actually persist. Only the custom provider has a
  * user-supplied endpoint; every hosted preset's URL is fixed by the provider choice
  * itself, so a value here would be persisted as an explicit override that shadows the
- * preset's own baseUrl on every future read — including after switching to a
+ * preset's own baseUrl on every future read, including after switching to a
  * different provider. This is why the panel's (hidden, unedited) base-URL field can
  * never be trusted as-is: what it holds after a GET is the *resolved* baseUrl, which
  * already has the current preset's default filled in, not the raw stored one.

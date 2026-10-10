@@ -23,8 +23,8 @@ picture-only and need no key at all, so cover art keeps working on an instance t
 nothing: Open Library for books, iTunes for music and games. Games also uses TMDB for extra artwork
 if `TMDB_API_KEY` happens to be set, and quietly skips it otherwise.
 
-For optional AI-assisted import (text, photo, or barcode fallback), see the [AI Assist guide](./ai.md)
-— it is not tied to one media type and runs across the whole collection.
+For optional AI-assisted import (text, photo, or barcode fallback), see the [AI Assist guide](./ai.md):
+it is not tied to one media type and runs across the whole collection.
 
 ## 🎵 Discogs (Music)
 
