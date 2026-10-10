@@ -1340,7 +1340,11 @@
     "instant_blocked": "Manca un dato richiesto dal modulo. Completalo e aggiungi.",
     "added": "«{{title}}» aggiunto.",
     "added_again": "«{{title}}» c'era già: ora ne hai {{quantity}}.",
-    "identifier_no_match": "Nessun risultato per {{code}}."
+    "identifier_no_match": "Nessun risultato per {{code}}.",
+    "photo_btn": "Cerca con una foto",
+    "photo_reading": "Lettura della foto…",
+    "photo_unknown": "Niente di riconoscibile in questa foto. Prova più da vicino, con il titolo ben visibile.",
+    "photo_no_match": "Nessun risultato per ciò che mostra la foto. Correggi il titolo e cerca di nuovo."
   },
   "no_collection": {
     "title": "Nessun accesso alle collezioni",

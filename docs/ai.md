@@ -6,7 +6,7 @@ as before.
 
 ## What it can do
 
-The AI assist helps in three ways:
+The AI assist helps in several ways:
 
 - **Barcode fallback:** For the modules that turn a scanned barcode into a product name before
   searching (movies and video games), when that lookup does not recognize the digits, the AI is given the scanned number as plain text (never an image) and asked to identify
@@ -15,6 +15,11 @@ The AI assist helps in three ways:
   better *search query*, and that query is then handed to your module's own provider (TMDB, IGDB),
   so the result you see and save still comes from that provider, exactly like a
   normal search.
+- **Photo search:** On any add page, **Search with a photo** sits next to the barcode scanner.
+  Take or pick a photo of the item (a cover, a spine, a box) and the AI reads what it is. The
+  normal search then runs on that title and creator in your module's own provider, and you pick
+  the right result as usual. Handy for anything without a usable barcode: older records, books
+  printed before ISBNs, retro games. It uses the vision model.
 - **Text import:** When you paste or upload text (a book review, a product description, an article
   snippet), the AI extracts the title, creator, year, and any other field your plugin declares, so
   you can add items without looking up each one.
@@ -27,9 +32,9 @@ The AI assist helps in three ways:
 
 ## Off by default
 
-The AI assist is disabled until you configure it. Text import, photo import and plugin drafting
-stay fully in your control: nothing is analysed or generated until you paste text, upload photos,
-or type a description and click the relevant button yourself.
+The AI assist is disabled until you configure it. Photo search, text import, photo import and
+plugin drafting stay fully in your control: nothing is analysed or generated until you take a photo,
+paste text, upload photos, or type a description and click the relevant button yourself.
 
 The barcode fallback is the one exception: once AI is enabled, it fires automatically on *every*
 scanned barcode the metadata service fails to recognize, with no separate per-scan opt-in. This is
@@ -85,8 +90,8 @@ There is also a **Test connection** button so you can verify your setup works be
 
 Once you are happy, click **Save**, and the AI assist is ready to use on every collection of the
 instance. The key is the instance's: any collection admin can run an AI import or draft a plugin
-with it, and anyone who can add items triggers the barcode fallback, so requests are billed to
-whoever owns that key.
+with it, and anyone who can add items can use the photo search and triggers the barcode fallback,
+so requests are billed to whoever owns that key.
 
 ### From environment variables
 

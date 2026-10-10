@@ -1340,7 +1340,11 @@
     "instant_blocked": "Falta un dato que el formulario necesita. Complétalo y añádelo.",
     "added": "«{{title}}» añadido.",
     "added_again": "«{{title}}» ya estaba: ahora tienes {{quantity}}.",
-    "identifier_no_match": "No se ha encontrado nada para {{code}}."
+    "identifier_no_match": "No se ha encontrado nada para {{code}}.",
+    "photo_btn": "Buscar con una foto",
+    "photo_reading": "Leyendo la foto…",
+    "photo_unknown": "No se reconoce nada en esta foto. Prueba más cerca, con el título bien visible.",
+    "photo_no_match": "No se encontró nada para lo que muestra la foto. Corrige el título y vuelve a buscar."
   },
   "no_collection": {
     "title": "Sin acceso a colecciones",

@@ -1340,7 +1340,11 @@
     "instant_blocked": "Il manque ici une information obligatoire. Complétez-la puis ajoutez.",
     "added": "« {{title}} » ajouté.",
     "added_again": "« {{title}} » y était déjà : vous en avez maintenant {{quantity}}.",
-    "identifier_no_match": "Rien trouvé pour {{code}}."
+    "identifier_no_match": "Rien trouvé pour {{code}}.",
+    "photo_btn": "Chercher avec une photo",
+    "photo_reading": "Lecture de la photo…",
+    "photo_unknown": "Rien de reconnaissable sur cette photo. Essayez de plus près, avec le titre bien visible.",
+    "photo_no_match": "Rien trouvé pour ce que montre la photo. Corrigez le titre et relancez la recherche."
   },
   "no_collection": {
     "title": "Aucune collection",

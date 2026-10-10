@@ -79,12 +79,28 @@
         </div>
 
         <div class="flex flex-col items-center justify-center mt-6 gap-3">
-            <% if (!plugin.noBarcodeScan) { %>
-                <button type="button" id="start-scan"
-                    class="bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 active:scale-95">
-                    <i class="fa-solid fa-barcode"></i>
-                    <%= t('add_' + plugin.i18nKey + '.btn_scan', { defaultValue: t('add_vinyl.btn_scan') }) %>
-                </button>
+            <div class="flex flex-wrap items-center justify-center gap-3">
+                <% if (!plugin.noBarcodeScan) { %>
+                    <button type="button" id="start-scan"
+                        class="bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 active:scale-95">
+                        <i class="fa-solid fa-barcode"></i>
+                        <%= t('add_' + plugin.i18nKey + '.btn_scan', { defaultValue: t('add_vinyl.btn_scan') }) %>
+                    </button>
+                <% } %>
+                <%# Offered only with the AI assist configured: a model reads the photo and the
+                    normal search runs on what it read. No capture attribute, so a phone offers
+                    the gallery as well as the camera. %>
+                <% if (locals.aiPhotoSearch) { %>
+                    <button type="button" id="photo-search"
+                        class="bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 active:scale-95 disabled:opacity-70 disabled:cursor-wait">
+                        <i class="fa-solid fa-camera"></i>
+                        <span><%= t('add.photo_btn') %></span>
+                    </button>
+                    <input type="file" id="photo-search-input" accept="image/*" class="hidden">
+                <% } %>
+            </div>
+            <% if (locals.aiPhotoSearch) { %>
+                <p id="photo-search-error" role="alert" class="hidden text-xs font-bold text-red-500 text-center max-w-md"></p>
             <% } %>
 
             <% if (plugin.getManualDefaults) { %>
@@ -214,7 +230,82 @@
     if (!window.matchMedia('(pointer: coarse)').matches) {
         document.querySelector('input[name="query"]').focus();
     }
+
+    // A plain form POST, so this spinner just rides out the page navigation. Every way in
+    // goes through it (typing, a scan, a photo), and a barcode or a photo handed to the AI
+    // assist can take a few seconds more than a typed title.
+    (() => {
+        const searchSubmitBtn = document.getElementById('searchSubmitBtn');
+        document.querySelector('form[action="<%= baseUrl %>/search-<%= plugin.id %>"]').addEventListener('submit', () => {
+            searchSubmitBtn.disabled = true;
+            searchSubmitBtn.classList.add('opacity-70', 'cursor-not-allowed');
+            searchSubmitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span><%= t("common.searching") %></span>';
+        });
+    })();
 </script>
+
+<% if (locals.aiPhotoSearch) { %>
+<%- include('../../views/partials/image-downscale') %>
+<script>
+    (() => {
+        const button = document.getElementById('photo-search');
+        const input = document.getElementById('photo-search-input');
+        const errorBox = document.getElementById('photo-search-error');
+        const form = document.querySelector('form[action="<%= baseUrl %>/search-<%= plugin.id %>"]');
+        const idleLabel = button.innerHTML;
+        const readingLabel = '<i class="fa-solid fa-spinner fa-spin"></i> <span>' + <%- JSON.stringify(t('add.photo_reading')) %> + '</span>';
+
+        // The answer travels with the form: the title in the box, the creator in a hidden
+        // field, so the search tries both together before the title alone.
+        function setHidden(name, value) {
+            let field = form.querySelector('input[type="hidden"][name="' + name + '"]');
+            if (!field) {
+                field = document.createElement('input');
+                field.type = 'hidden';
+                field.name = name;
+                form.appendChild(field);
+            }
+            field.value = value;
+        }
+
+        function showError(message) {
+            errorBox.textContent = message;
+            errorBox.classList.remove('hidden');
+        }
+
+        button.addEventListener('click', () => input.click());
+
+        input.addEventListener('change', async () => {
+            const file = input.files && input.files[0];
+            input.value = '';
+            if (!file) return;
+            errorBox.classList.add('hidden');
+            button.disabled = true;
+            button.innerHTML = readingLabel;
+            try {
+                const image = await window.DVDownscaleImage(file, 1600);
+                const response = await fetch('<%= baseUrl %>/search-<%= plugin.id %>/photo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image })
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || !data.title) throw new Error(data.error || <%- JSON.stringify(t('add.photo_unknown')) %>);
+                form.querySelector('input[name="query"]').value = data.title;
+                setHidden('guess_from', 'photo');
+                setHidden('guess_creator', data.creator || '');
+                form.requestSubmit();
+            } catch (err) {
+                button.disabled = false;
+                button.innerHTML = idleLabel;
+                showError(err.message === 'could not load image' || err.message === 'empty image'
+                    ? <%- JSON.stringify(t('ai.err_image_rejected')) %>
+                    : err.message);
+            }
+        });
+    })();
+</script>
+<% } %>
 
 <% if (!plugin.noBarcodeScan) { %>
 <script>
@@ -229,18 +320,7 @@
     const scanButton = document.getElementById('start-scan');
     const searchInput = document.querySelector('input[name="query"]');
     const form = document.querySelector('form[action="<%= baseUrl %>/search-<%= plugin.id %>"]');
-    const searchSubmitBtn = document.getElementById('searchSubmitBtn');
     let isScanning = false;
-
-    // A plain form POST, so this spinner just rides out the page navigation - it's the
-    // one submit path shared by typing a query, clicking Search, and a barcode scan
-    // finding a code, and any of those can now take a few extra seconds when the
-    // barcode falls through to the AI assist.
-    form.addEventListener('submit', () => {
-        searchSubmitBtn.disabled = true;
-        searchSubmitBtn.classList.add('opacity-70', 'cursor-not-allowed');
-        searchSubmitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span><%= t("common.searching") %></span>';
-    });
 
     function resetScanButton(label) {
         scanButton.classList.remove('bg-red-600', 'hover:bg-red-500', 'text-white');

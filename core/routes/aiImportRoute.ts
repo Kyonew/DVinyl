@@ -8,6 +8,7 @@ import { isAiConfigured } from '../ai/config';
 import { extractRows } from '../ai/extract';
 import { textPart, imagePart } from '../ai/client';
 import { AiExtractedRow } from '../ai/types';
+import { isAcceptedImage } from '../ai/images';
 
 /**
  * Import through the AI assist: the user describes what they own, in prose or from a
@@ -32,18 +33,12 @@ const guards = [requireAuth, requireCollectionRole('admin')];
 const MAX_INPUT_CHARS = 20000;
 const MAX_ROWS = 200;
 
-/** Data URIs the browser has already downscaled. Four photos is a shelf, not a library. */
+/** Four photos is a shelf, not a library. */
 const MAX_IMAGES = 4;
-const MAX_IMAGE_CHARS = 4_000_000;
 
 function validImages(raw: any): string[] {
   if (!Array.isArray(raw)) return [];
-  return raw
-    .filter((entry: any): entry is string =>
-      typeof entry === 'string' &&
-      /^data:image\/(jpeg|png|webp);base64,/.test(entry) &&
-      entry.length <= MAX_IMAGE_CHARS)
-    .slice(0, MAX_IMAGES);
+  return raw.filter(isAcceptedImage).slice(0, MAX_IMAGES);
 }
 
 function resolvePlugin(req: any, res: any) {

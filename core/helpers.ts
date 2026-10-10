@@ -349,6 +349,26 @@ export async function searchWithTitleFallback<T>(
 }
 
 /**
+ * Runs a search on what a model identified (from a barcode or a photo). With the creator
+ * first, which is what a catalog of many same-titled releases needs (Discogs); then on the
+ * title alone, which is all some providers match on (TMDB returns nothing for "Inception
+ * Christopher Nolan"); then on shorter forms of the title, as for a seller's product name.
+ */
+export async function searchWithGuess<T>(
+  guess: { title: string; creator?: string },
+  search: (query: string) => Promise<T[]>
+): Promise<{ results: T[]; query: string }> {
+  const title = guess.title.trim();
+  const creator = (guess.creator || '').trim();
+  if (creator) {
+    const query = `${title} ${creator}`;
+    const results = await search(query);
+    if (results.length > 0) return { results, query };
+  }
+  return searchWithTitleFallback(title, search);
+}
+
+/**
  * Path (without BASE_URL) of the confirm page for one search result, or '' when the
  * result carries no id. Shared by the result cards and the scan mode redirect, so a
  * result opened either way asks the same source for the same details.

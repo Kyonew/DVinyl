@@ -7,7 +7,7 @@ import Item from '../../models/Item';
 import User from '../../models/User';
 import { BASE_URL } from '../../config/constants';
 import { requireAuth, requireAuthOrShareView, requireCollectionRole } from '../../middleware/authMiddleware';
-import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback, editStamp, syncStamp, safeReturnPath, confirmPathFor, getPublicProtocol, generateBarcodeDataUrl, escapeRegExp, buildCopySeed } from '../helpers';
+import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback, searchWithGuess, editStamp, syncStamp, safeReturnPath, confirmPathFor, getPublicProtocol, generateBarcodeDataUrl, escapeRegExp, buildCopySeed } from '../helpers';
 import { DEFAULT_PLACEHOLDER_IMAGE } from '../placeholderImage';
 import { alignImagesAfterRefresh, imagesForItem, imagesFromForm, ItemImageValidationError, MAX_ITEM_IMAGES, MAX_ITEM_IMAGE_BYTES } from '../itemImages';
 import { deleteUnusedManagedItemImages } from '../itemImageStorage';
@@ -18,6 +18,11 @@ import { deleteItemsAndContents, moveContentsToWishlist } from '../../utils/item
 import { applyVisibilityFilter, applyShareScopeFilter, applyPluginKindFilter, isWithinShareScope } from '../../utils/visibilityHelper';
 import { hasSearch, searchableSources, resolveSource, canRefresh, refreshPatchFor } from '../sources';
 import { resolveBarcodeWithAi } from '../ai/barcode';
+import { identifyFromPhoto } from '../ai/photo';
+import { IdentificationGuess } from '../ai/identify';
+import { isAcceptedImage } from '../ai/images';
+import { getAiConfig, isAiReady } from '../ai/instance';
+import { isAiConfigured } from '../ai/config';
 
 /**
  * Names what was just saved in the path an add comes back to, so the add page can say so.
@@ -79,6 +84,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           currentType: `add-${plugin.id}`,
           sources: searchableSources(plugin, res.locals.settings),
           activeSource: resolveSource(plugin, null, res.locals.settings)?.id || '',
+          aiPhotoSearch: await isAiReady(),
           plugin
         });
       } catch (err: any) {
@@ -91,6 +97,17 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
     router.post(`/search-${plugin.id}`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
       const { query, type, year, country, genre_filter, label_filter } = req.body;
       const rawQuery = typeof query === 'string' ? query.trim() : '';
+      // Every render of the page below offers the photo search again.
+      res.locals.aiPhotoSearch = await isAiReady();
+      // What a model identified, searched with its creator first (see searchWithGuess).
+      // A photo search posts its answer back with the form: the title in the box, the
+      // creator alongside. A barcode nothing else knew gets one further down.
+      let guess: IdentificationGuess | null = null;
+      const fromPhoto = req.body.guess_from === 'photo' && !!rawQuery;
+      if (fromPhoto) {
+        const creator = typeof req.body.guess_creator === 'string' ? req.body.guess_creator.trim() : '';
+        guess = { title: rawQuery, creator, year: '', confidence: 1 };
+      }
       // The fields the plugin's own search form partial adds, as strings only. Every
       // render of the page below hands them back, so the partial shows them as picked.
       const searchFields: Record<string, string> = {};
@@ -130,10 +147,10 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
 
           // UPCitemdb's free tier is 100 lookups a day per IP, so a null title covers an
           // unknown code and an exhausted quota alike. The AI assist, when configured, turns
-          // the digits into a search query for the plugin's own source; off or failing, the
+          // the digits into a search for the plugin's own source; off or failing, the
           // barcode is reported unknown exactly as before.
-          const query = title || await resolveBarcodeWithAi(barcode, plugin.id);
-          if (!query) {
+          if (!title) guess = await resolveBarcodeWithAi(barcode, plugin.id);
+          if (!title && !guess) {
             // Searching the digits themselves cannot match: these providers index titles,
             // not barcodes. Say the barcode is unknown rather than show an empty result
             // list, which reads as "you don't own this" instead of "I couldn't look it up".
@@ -150,9 +167,12 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
               plugin
             });
           }
-          searchQuery = query;
-          resolvedTitle = query;
+          searchQuery = title || '';
+          resolvedTitle = title || '';
         }
+        // A guess is shown and handled like a resolved product name: never added on its
+        // own, and put back in the box when nothing matched so it can be corrected.
+        if (guess) resolvedTitle = guess.title;
 
         const settings = res.locals.settings;
         if (!source) {
@@ -185,7 +205,11 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         });
 
         let results;
-        if (resolvedTitle) {
+        if (guess) {
+          const attempt = await searchWithGuess(guess, runSearch);
+          results = attempt.results;
+          searchQuery = attempt.query;
+        } else if (resolvedTitle) {
           const attempt = await searchWithTitleFallback(resolvedTitle, runSearch);
           results = attempt.results;
           searchQuery = attempt.query;
@@ -230,6 +254,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           // typed into having been emptied for the next item.
           error: results.length > 0 ? undefined
             : exactIdentifier ? req.t('add.identifier_no_match', { code: rawQuery })
+            : fromPhoto ? req.t('add.photo_no_match')
             : resolvedTitle ? req.t('add_vinyl.barcode_no_match')
             : undefined,
           searchType: type || plugin.id,
@@ -259,6 +284,28 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           activeSource: source?.id || '',
           plugin
         });
+      }
+    });
+
+    // POST /search-{type}/photo -> what the photographed item probably is, for the search
+    // form to run. Nothing is searched or saved here: the page posts the answer back
+    // through the normal search, so the results still come from the plugin's own source.
+    router.post(`/search-${plugin.id}/photo`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
+      const config = await getAiConfig();
+      if (!isAiConfigured(config)) {
+        return res.status(400).json({ error: req.t('ai.err_not_configured') });
+      }
+      const image = req.body?.image;
+      if (!isAcceptedImage(image)) {
+        return res.status(400).json({ error: req.t('ai.err_image_rejected') });
+      }
+      try {
+        const guess = await identifyFromPhoto(config, image, plugin.id, plugin.creatorField);
+        if (!guess) return res.status(422).json({ error: req.t('add.photo_unknown') });
+        res.json({ title: guess.title, creator: guess.creator });
+      } catch (err: any) {
+        console.error(`[ERR] AI photo search for ${plugin.id}:`, err.message);
+        res.status(502).json({ error: req.t('ai.err_extract_failed', { error: err.message }) });
       }
     });
 

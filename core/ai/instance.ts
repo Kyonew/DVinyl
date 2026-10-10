@@ -1,6 +1,6 @@
 import InstanceSettings from '../../models/InstanceSettings';
 import { AiConfig } from './types';
-import { resolveAiConfig, normalizeStoredBaseUrl, StoredAiSettings } from './config';
+import { resolveAiConfig, normalizeStoredBaseUrl, isAiConfigured, StoredAiSettings } from './config';
 import { encryptSecret } from './secret';
 
 /**
@@ -41,6 +41,11 @@ export async function getAiConfig(): Promise<AiConfig> {
   const config = resolveAiConfig(stored);
   cached = { config, at: Date.now() };
   return config;
+}
+
+/** Whether a page should offer what needs the AI assist at all. */
+export async function isAiReady(): Promise<boolean> {
+  return isAiConfigured(await getAiConfig());
 }
 
 export interface AiSettingsInput {

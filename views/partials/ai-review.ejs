@@ -124,6 +124,7 @@
     </div>
 </div>
 
+<%- include('image-downscale') %>
 <script>
     (function () {
         const modules = <%- JSON.stringify(aiModules) %>;
@@ -228,31 +229,6 @@
             clearError();
         };
 
-        /** Longest edge capped to MAX_PHOTO_EDGE, re-encoded as JPEG - what actually
-         * leaves the browser is a few hundred kB, never the multi-MB original. */
-        function downscaleImage(file) {
-            return new Promise((resolve, reject) => {
-                const url = URL.createObjectURL(file);
-                const img = new Image();
-                img.onload = () => {
-                    URL.revokeObjectURL(url);
-                    let { width, height } = img;
-                    if (width <= 0 || height <= 0) { reject(new Error('empty image')); return; }
-                    const scale = Math.min(1, MAX_PHOTO_EDGE / Math.max(width, height));
-                    width = Math.max(1, Math.round(width * scale));
-                    height = Math.max(1, Math.round(height * scale));
-                    const canvas = document.createElement('canvas');
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
-                    resolve(canvas.toDataURL('image/jpeg', 0.8));
-                };
-                img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('could not load image')); };
-                img.src = url;
-            });
-        }
-
         function renderPhotoThumbs() {
             el('aiPhotoThumbs').innerHTML = photos.map((src, index) =>
                 '<div class="relative w-16 h-16 rounded-xl overflow-hidden shrink-0 group">'
@@ -278,7 +254,7 @@
             for (const file of files) {
                 if (photos.length >= MAX_PHOTOS) break;
                 try {
-                    photos.push(await downscaleImage(file));
+                    photos.push(await window.DVDownscaleImage(file, MAX_PHOTO_EDGE));
                 } catch {
                     showError(T.imageRejected);
                 }

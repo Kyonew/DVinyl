@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildBarcodePrompt, parseBarcodeReply } from '../core/ai/barcode';
+import { buildBarcodePrompt } from '../core/ai/barcode';
+import { parseIdentificationReply } from '../core/ai/identify';
 
 test('the prompt carries the code and the media kind, and demands JSON', () => {
   const messages = buildBarcodePrompt('9782266283321', 'book');
@@ -15,7 +16,7 @@ test('the prompt carries the code and the media kind, and demands JSON', () => {
 });
 
 test('parses a confident reply', () => {
-  const guess = parseBarcodeReply('{"title":"Dune","creator":"Frank Herbert","year":"1965","confidence":0.9}');
+  const guess = parseIdentificationReply('{"title":"Dune","creator":"Frank Herbert","year":"1965","confidence":0.9}');
   assert.equal(guess?.title, 'Dune');
   assert.equal(guess?.creator, 'Frank Herbert');
   assert.equal(guess?.year, '1965');
@@ -23,22 +24,22 @@ test('parses a confident reply', () => {
 });
 
 test('parses a fenced reply', () => {
-  const guess = parseBarcodeReply('```json\n{"title":"Dune","confidence":0.8}\n```');
+  const guess = parseIdentificationReply('```json\n{"title":"Dune","confidence":0.8}\n```');
   assert.equal(guess?.title, 'Dune');
   assert.equal(guess?.creator, '');
 });
 
 test('returns null when the model declines or is unsure', () => {
-  assert.equal(parseBarcodeReply('{"title":"","confidence":0.9}'), null);
-  assert.equal(parseBarcodeReply('{"title":"Dune","confidence":0.2}'), null);
-  assert.equal(parseBarcodeReply('I do not know that barcode.'), null);
-  assert.equal(parseBarcodeReply(''), null);
+  assert.equal(parseIdentificationReply('{"title":"","confidence":0.9}'), null);
+  assert.equal(parseIdentificationReply('{"title":"Dune","confidence":0.2}'), null);
+  assert.equal(parseIdentificationReply('I do not know that barcode.'), null);
+  assert.equal(parseIdentificationReply(''), null);
 });
 
 test('a missing confidence is treated as too low to act on', () => {
-  assert.equal(parseBarcodeReply('{"title":"Dune"}'), null);
+  assert.equal(parseIdentificationReply('{"title":"Dune"}'), null);
 });
 
 test('coerces a numeric-string confidence', () => {
-  assert.equal(parseBarcodeReply('{"title":"Dune","confidence":"0.9"}')?.confidence, 0.9);
+  assert.equal(parseIdentificationReply('{"title":"Dune","confidence":"0.9"}')?.confidence, 0.9);
 });

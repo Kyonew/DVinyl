@@ -76,6 +76,25 @@ test('throws an AiError carrying the status and the provider message', async () 
   );
 });
 
+test('an aggregator\'s generic error carries the upstream reason, whatever shape it has', async () => {
+  const cases: [any, RegExp][] = [
+    [{ error: { message: 'Provider returned error', code: 429, metadata: { provider_name: 'Google AI Studio', raw: '{"error":{"message":"Resource exhausted, retry later"}}' } } },
+      /Provider returned error \(Google AI Studio: Resource exhausted, retry later\)/],
+    [{ error: { message: 'Provider returned error', metadata: { raw: 'model is temporarily rate-limited upstream' } } },
+      /Provider returned error \(model is temporarily rate-limited upstream\)/],
+    [{ error: { message: 'Provider returned error', metadata: { raw: { message: 'bad parameter' }, provider_name: 'Venice' } } },
+      /\(Venice: bad parameter\)/],
+    [{ error: { message: 'Invalid API key', metadata: {} } }, /^Invalid API key$/]
+  ];
+  for (const [body, expected] of cases) {
+    stubFetch(() => ({ status: 502, body }));
+    await assert.rejects(
+      () => aiChat(config, [{ role: 'user', content: 'hi' }]),
+      (err: AiError) => { assert.match(err.message, expected); return true; }
+    );
+  }
+});
+
 test('returns an empty string when the provider sends no choices', async () => {
   stubFetch(() => ({ body: { choices: [] } }));
   const result = await aiChat(config, [{ role: 'user', content: 'hi' }]);

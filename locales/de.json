@@ -1340,7 +1340,11 @@
     "instant_blocked": "Hier fehlt eine Angabe, die das Formular benötigt. Bitte ergänzen und hinzufügen.",
     "added": "„{{title}}“ hinzugefügt.",
     "added_again": "„{{title}}“ war schon vorhanden: Sie haben jetzt {{quantity}}.",
-    "identifier_no_match": "Nichts gefunden für {{code}}."
+    "identifier_no_match": "Nichts gefunden für {{code}}.",
+    "photo_btn": "Mit einem Foto suchen",
+    "photo_reading": "Foto wird gelesen…",
+    "photo_unknown": "Auf diesem Foto ist nichts zu erkennen. Versuch es näher, mit gut sichtbarem Titel.",
+    "photo_no_match": "Zu dem, was das Foto zeigt, wurde nichts gefunden. Pass den Titel an und such erneut."
   },
   "no_collection": {
     "title": "Kein Sammlungszugriff",

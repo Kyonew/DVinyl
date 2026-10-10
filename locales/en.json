@@ -1340,7 +1340,11 @@
     "instant_blocked": "Something the form needs is missing here. Fill it in and add it.",
     "added": "“{{title}}” added.",
     "added_again": "“{{title}}” was already there: you now have {{quantity}}.",
-    "identifier_no_match": "Nothing found for {{code}}."
+    "identifier_no_match": "Nothing found for {{code}}.",
+    "photo_btn": "Search with a photo",
+    "photo_reading": "Reading the photo…",
+    "photo_unknown": "Nothing recognisable in that photo. Try closer, with the title in view.",
+    "photo_no_match": "Nothing found for what the photo shows. Adjust the title and search again."
   },
   "no_collection": {
     "title": "No collection access",
