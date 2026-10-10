@@ -1,0 +1,53 @@
+<div id="toastContainer" class="fixed bottom-6 right-6 z-[200] flex flex-col-reverse gap-3 pointer-events-none max-w-[calc(100vw-3rem)]"></div>
+
+<style>
+    @keyframes toast-in {
+        from { transform: translateY(0.75rem); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+    @keyframes toast-timer {
+        from { transform: scaleX(1); }
+        to { transform: scaleX(0); }
+    }
+    .toast-item { animation: toast-in 0.2s ease-out; }
+    .toast-timer-bar { transform-origin: left; animation-name: toast-timer; animation-timing-function: linear; animation-fill-mode: forwards; }
+</style>
+
+<script>
+    /**
+     * A small, self-dismissing notification bottom-right, replacing the browser's
+     * blocking alert() for routine import/save results. Disappears on its own after
+     * 5s (shown by a shrinking bar along its bottom edge) or immediately on click;
+     * either way runs options.onDismiss, so a caller can chain something the user
+     * needs to actually have read first (a page reload) to the dismissal rather than
+     * to the instant the toast appears.
+     */
+    window.showToast = function (message, options) {
+        options = options || {};
+        const ok = options.ok !== false;
+        const durationMs = 5000;
+        const container = document.getElementById('toastContainer');
+        if (!container) { if (options.onDismiss) options.onDismiss(); return; }
+
+        const toast = document.createElement('div');
+        toast.className = 'toast-item pointer-events-auto card-theme relative overflow-hidden rounded-2xl shadow-2xl p-4 pr-5 w-96 max-w-full flex items-start gap-3 cursor-pointer';
+        toast.innerHTML =
+            '<i class="fa-solid ' + (ok ? 'fa-circle-check text-primary-theme' : 'fa-circle-exclamation text-red-500') + ' text-lg mt-0.5 shrink-0"></i>'
+            + '<p class="text-sm font-bold whitespace-pre-line flex-1">' + String(message)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</p>'
+            + '<div class="toast-timer-bar absolute left-0 bottom-0 h-1 w-full bg-primary-theme/50" style="animation-duration:' + durationMs + 'ms"></div>';
+
+        let dismissed = false;
+        const dismiss = () => {
+            if (dismissed) return;
+            dismissed = true;
+            clearTimeout(timer);
+            toast.remove();
+            if (options.onDismiss) options.onDismiss();
+        };
+
+        toast.addEventListener('click', dismiss);
+        const timer = setTimeout(dismiss, durationMs);
+        container.appendChild(toast);
+    };
+</script>

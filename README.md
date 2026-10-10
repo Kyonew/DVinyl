@@ -47,6 +47,9 @@ read-only preview of a finished instance.
 - **Multiple collections.** Keep separate libraries (yours, the family's, by room) and switch in one click.
 - **Smart import & barcode scanner.** Add items by ID, scan physical barcodes with your camera, or
   bulk import existing libraries (Discogs, Goodreads).
+- **AI assist.** Bring-your-own-key support for text, photo or barcode-fallback import, and for
+  drafting a new no-code plugin from a one-sentence description. See the
+  [AI Assist guide](./docs/ai.md) to set it up.
 - **Market value & price history.** Live valuation estimates for your music collection with historical
   charts over time.
 - **Game completion times.** Playtime estimates powered by IGDB.
@@ -141,6 +144,7 @@ No Docker or NAS? Have a look at the other ways to install and run DVinyl in the
 | [Getting started](./docs/getting-started.md) | Installation options and requirements |
 | [Docker deployment](./docs/docker.md) | Deploy with Docker Compose (recommended) |
 | [API keys](./docs/api-keys.md) | Get your Discogs, Hardcover, TMDB, IGDB, ScreenScraper, Rebrickable and BoardGameGeek keys |
+| [AI Assist](./docs/ai.md) | Optional bring-your-own-key AI for text, photo and barcode-fallback import, and for drafting a no-code plugin |
 | [Plugin development](./docs/plugin-development.md) | Build your own media type as a code plugin |
 | [Public share links](./docs/sharing.md) | Let anyone browse a collection (or part of it) read-only, no account needed |
 | [Wiki](https://github.com/Kyonew/DVinyl/wiki) | User guides and no-code tutorials |

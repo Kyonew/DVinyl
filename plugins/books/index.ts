@@ -58,6 +58,7 @@ export const booksPlugin: PluginDefinition = {
   routePrefix: '/book',
   collectionType: 'books',
   creatorField: 'author',
+  includeCreatorInSearch: true,
   extraSearchFields: ['isbn', 'publisher', 'series'],
   sortOptions: [{ key: 'series', label: 'confirm_book.field_series', fields: ['series', 'volume'] }],
   supportsBarcodeSearch: false,
