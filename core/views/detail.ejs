@@ -111,8 +111,8 @@
         steps through every image. %>
     <div class="md:hidden flex gap-4 mb-5">
         <button type="button" onclick="openLightbox()" aria-label="<%= t('detail.view_fullscreen') %>"
-            class="flex-none w-32 h-32 rounded-xl overflow-hidden shadow-lg shadow-black/30 bg-black/5 dark:bg-white/5">
-            <img src="<%= itemImageUrl(item.images[0]) %>" alt="" class="w-full h-full object-cover">
+            class="flex-none w-32 h-32 rounded-xl overflow-hidden shadow-lg shadow-black/30">
+            <%- include('../../views/partials/cover-thumb', { src: itemImageUrl(item.images[0]), plugin, boxClass: 'w-full h-full' }) %>
         </button>
         <div class="min-w-0 flex flex-col gap-1">
             <% if (baseFmtLabel) { %>
