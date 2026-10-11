@@ -47,12 +47,28 @@
       const n = parseInt(full, 16);
       return `${(n >> 16) & 255} ${(n >> 8) & 255} ${n & 255}`;
   };
+
+  // The browser chrome (Android status bar, Safari toolbar) is tinted to match the navbar
+  // of the mode the page opens in; the theme toggle below swaps it on the fly.
+  const navColorLight = activeTheme.light.navbar || '#0f0f0f';
+  const navColorDark = activeTheme.dark.navbar || '#0f0f0f';
+  const navColor = isDark ? navColorDark : navColorLight;
+  // iOS paints the status bar text white over the page with black-translucent, which
+  // vanishes on a light navbar. A light navbar gets the default style (dark text on an
+  // opaque bar) instead.
+  const isLightColor = (hex) => {
+      const [r, g, b] = rgbChannels(hex).split(' ').map(Number);
+      return (0.299 * r + 0.587 * g + 0.114 * b) > 160;
+  };
+  const statusBarStyle = isLightColor(navColor) ? 'default' : 'black-translucent';
 %>
 
 <html lang="<%= currentLng %>" class="<%= isDark ? 'dark' : '' %>">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <%# viewport-fit=cover lets the page run under the notch and the home indicator once
+      installed; the safe-area paddings in the style block below keep content clear of them. %>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>DVinyl</title>
   
   <%# Served from the instance rather than cdn.tailwindcss.com. The Play CDN is a
@@ -149,12 +165,28 @@
       background-color: var(--bg-page);
       color: var(--text-main);
     }
+
+    /* Safe areas, all zero outside an installed app on a notched device. The navbar
+       grows under the status bar so its colour fills it, the footer clears the home
+       indicator, and the sides clear the notch in landscape. */
+    body {
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
+    }
+    nav.nav-custom { padding-top: env(safe-area-inset-top); }
+    footer.nav-custom { padding-bottom: env(safe-area-inset-bottom); }
+    #saveBar, #toastContainer { margin-bottom: env(safe-area-inset-bottom); }
+    /* Docked to the bottom edge on phones only; from md up it floats above it. */
+    @media (max-width: 767px) {
+      #bulkBarPanel { padding-bottom: calc(0.75rem + env(safe-area-inset-bottom)); }
+    }
   </style>
 
   <link rel="manifest" href="<%= baseUrl %>/manifest.json">
-  <meta name="theme-color" content="#0f0f0f">
+  <meta name="theme-color" content="<%= navColor %>" data-light="<%= navColorLight %>" data-dark="<%= navColorDark %>">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="<%= statusBarStyle %>">
   <meta name="apple-mobile-web-app-title" content="DVinyl">
   <link rel="apple-touch-icon" href="<%= baseUrl %>/ressources/icone-192.png">
 </head>
@@ -405,6 +437,10 @@
   
         function updateButtonVisuals() {
             const isDark = htmlElement.classList.contains('dark');
+            const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+            if (themeColorMeta) {
+                themeColorMeta.setAttribute('content', isDark ? themeColorMeta.dataset.dark : themeColorMeta.dataset.light);
+            }
             if(themeIcon && themeText) {
                 if (isDark) {
                     themeIcon.className = 'fa-solid fa-sun w-5 text-center text-yellow-400';
