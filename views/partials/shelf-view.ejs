@@ -627,7 +627,10 @@
                 event.preventDefault();
                 sheetSpine = spine;
                 fill(sheet, 'sheet', spine);
-                sheet.querySelector('[data-sheet-open]').href = spine.getAttribute('href');
+                const open = sheet.querySelector('[data-sheet-open]');
+                open.href = spine.getAttribute('href');
+                // Lets the scroll restoration know which spine this leads to.
+                open.dataset.itemId = spine.dataset.itemId;
                 sheet.classList.remove('hidden');
             });
 

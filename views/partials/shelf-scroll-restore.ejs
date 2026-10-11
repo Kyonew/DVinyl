@@ -1,18 +1,12 @@
-<%# ── Scroll restoration (shared by the collection and wishlist shelves) ──────
-    Returning from an item's detail page ("Back to Collection"/"Back to Wishlist")
-    lands on the correct page (it is in the URL) but at the top, forcing a re-scroll
-    to find where you were — painful on mobile with 100 items/page. On tapping a card
-    we remember the EXACT scroll offset and the list URL (plus the item id as a
-    fallback). On coming back to that same URL we restore that scroll position, so it
-    behaves like the browser's own back button: nothing jumps, the card is right where
-    it was. If the offset can't be honored (e.g. the viewport reflowed after an
-    orientation change, so the saved pixel position no longer points at the card) we
-    fall back to centering the card by id rather than landing somewhere arbitrary.
-
-    Included from both views/collection.ejs and views/wishlist.ejs so the two shelves
-    behave identically. Unconditional (works for share-view visitors too) and keyed on
-    the generic #shelfResults wrapper + .album-card[data-item-id] that every item view
-    renders; a card-less view (e.g. a future table view) simply finds nothing and no-ops. %>
+<%# Scroll restoration, shared by the collection and wishlist pages.
+    Back from an item's page, the listing reopens on the right page and filters (they
+    are in the URL) but at the top. Opening an item from the results records the scroll
+    offset, the listing URL and the item id; coming back to that same URL puts the
+    offset back, the way the browser's own Back button does. When the layout reflowed
+    in between (a rotated phone, another column count) and the offset no longer shows
+    the item, the item is centered instead.
+    Generic over the active view: anything under #shelfResults that carries a
+    data-item-id (grid card, table row, shelf spine) and leads to the item counts. %>
 <script>
 (function () {
     var KEY = 'shelfReturn';
@@ -20,69 +14,55 @@
     if (!shelfResults) return;
 
     function currentListUrl() { return location.pathname + location.search; }
+    function forget() { try { sessionStorage.removeItem(KEY); } catch (err) {} }
 
-    // Remember the scroll offset + the tapped item + the list URL it was tapped from.
-    // Capture-phase so it records before the browser follows the link; delegated on the
-    // wrapper so it keeps working after live search swaps the grid.
-    shelfResults.addEventListener('click', function (e) {
-        var card = e.target.closest('.album-card');
-        if (!card) return;
-        // Ignore clicks that aren't a navigation to the detail page (e.g. the select
-        // checkbox or the wishlist "received" button, which stay on this page).
+    // Listened for on the document, and registered after the views' own handlers, so a
+    // click one of them turned into something else (a selection, the shelf's sheet) is
+    // already marked as handled when it gets here and leaves nothing behind.
+    document.addEventListener('click', function (e) {
+        if (e.defaultPrevented || !shelfResults.contains(e.target)) return;
+        var item = e.target.closest('[data-item-id]');
         var link = e.target.closest('a[href]');
-        if (!link || !card.contains(link)) return;
-        var id = card.getAttribute('data-item-id');
+        if (!item || !link || !item.contains(link)) return;
         try {
             sessionStorage.setItem(KEY, JSON.stringify({
                 url: currentListUrl(),
-                y: window.scrollY || window.pageYOffset || 0,
-                id: id || ''
+                y: window.scrollY || 0,
+                id: item.getAttribute('data-item-id') || ''
             }));
         } catch (err) {}
-    }, true);
+    });
 
-    // Restore: if we have a saved position for THIS exact list URL, jump back to the
-    // saved scroll offset. Verify the saved offset still lands on the same card; if the
-    // layout reflowed and it doesn't, center the card by id instead.
     function restore() {
-        var raw;
-        try { raw = sessionStorage.getItem(KEY); } catch (err) { return; }
-        if (!raw) return;
         var saved;
-        try { saved = JSON.parse(raw); } catch (err) { return; }
-        if (!saved || saved.url !== currentListUrl()) return; // different page/filter: leave it
-
-        var card = saved.id
-            ? shelfResults.querySelector('[data-item-id="' + (window.CSS && CSS.escape ? CSS.escape(saved.id) : saved.id) + '"]')
-            : null;
-
-        // If we have an id to anchor on but the grid hasn't repopulated yet (live search),
-        // leave the key so the shelf-results:replaced handler retries once the cards exist.
-        if (saved.id && !card) return;
+        try { saved = JSON.parse(sessionStorage.getItem(KEY) || 'null'); } catch (err) { saved = null; }
+        // Read once: whichever listing loads next consumes it, so a record nobody came
+        // back for cannot fire later on an unrelated visit to the same URL.
+        forget();
+        if (!saved || saved.url !== currentListUrl()) return;
 
         var maxY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
-        var targetY = Math.min(saved.y || 0, maxY);
-        window.scrollTo(0, targetY);
+        window.scrollTo(0, Math.min(saved.y || 0, maxY));
 
-        // Did the saved offset actually put the tapped card on screen? If not (reflow,
-        // different column count, etc.), fall back to centering the card.
-        if (card) {
-            var r = card.getBoundingClientRect();
-            var onScreen = r.top >= 0 && r.bottom <= window.innerHeight;
-            if (!onScreen) card.scrollIntoView({ block: 'center', inline: 'nearest' });
-        }
-
-        // One-shot: clear so a manual reload or a later visit starts at the top.
-        try { sessionStorage.removeItem(KEY); } catch (err) {}
+        // The item may be gone (deleted, moved to the other list, sorted onto another
+        // page): the offset alone is then the best guess. Partly on screen counts as
+        // shown, since the item tapped was often cut by an edge of the screen.
+        var item = saved.id ? shelfResults.querySelector('[data-item-id="' + CSS.escape(saved.id) + '"]') : null;
+        if (!item) return;
+        var r = item.getBoundingClientRect();
+        if (r.bottom <= 0 || r.top >= window.innerHeight) item.scrollIntoView({ block: 'center' });
     }
 
-    // Initial load (full server navigation back from the detail page).
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', restore);
     } else {
         restore();
     }
-    // Live search replaced the grid: try again now that the cards exist.
-    document.addEventListener('shelf-results:replaced', restore);
+
+    // Back to a page kept in the browser's cache: the browser put the scroll back
+    // itself and this script did not run again, so the record is dropped here.
+    window.addEventListener('pageshow', function (e) {
+        if (e.persisted) forget();
+    });
 })();
 </script>
