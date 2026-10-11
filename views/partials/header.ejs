@@ -197,19 +197,40 @@
     }
 
     /* Phone tab bar (partials/shell/tab-bar). Its height is kept free at the bottom of
-       the page, and what docks to the bottom edge sits on top of it instead. */
+       the page, and what docks to the bottom edge sits on top of it instead. While
+       scrolling down it shrinks to its icons (body.tab-bar-compact): what sits on it
+       follows through --tab-bar-offset, while the page keeps its padding so nothing jumps. */
     @media (max-width: 767px) {
       body.has-tab-bar {
         --tab-bar-h: 4rem;
+        --tab-bar-offset: var(--tab-bar-h);
+        --tab-bar-ease: 0.5s cubic-bezier(0.32, 0.72, 0, 1);
         padding-bottom: calc(var(--tab-bar-h) + env(safe-area-inset-bottom));
       }
+      body.has-tab-bar.tab-bar-compact { --tab-bar-offset: 3rem; }
+      #tabBar [data-tab-grid] { height: var(--tab-bar-offset); transition: height var(--tab-bar-ease); }
+      #tabBar [data-tab-grid] > a { transition: gap var(--tab-bar-ease), color 0.15s, opacity 0.15s; }
+      #tabBar [data-tab-label] { max-height: 1rem; transition: opacity 0.3s ease, max-height var(--tab-bar-ease); }
+      #tabBar [data-tab-add] { transition: transform var(--tab-bar-ease); }
+      body.tab-bar-compact #tabBar [data-tab-grid] > a { gap: 0; }
+      body.tab-bar-compact #tabBar [data-tab-label] { opacity: 0; max-height: 0; }
+      body.tab-bar-compact #tabBar [data-tab-add] { transform: translateY(0.4rem) scale(0.8); }
       body.has-tab-bar footer.nav-custom { padding-bottom: 0; }
       body.has-tab-bar #saveBar,
-      body.has-tab-bar #toastContainer { margin-bottom: calc(var(--tab-bar-h) + env(safe-area-inset-bottom)); }
-      body.has-tab-bar #bulkActionBar { bottom: calc(var(--tab-bar-h) + env(safe-area-inset-bottom)); }
+      body.has-tab-bar #toastContainer {
+        margin-bottom: calc(var(--tab-bar-offset) + env(safe-area-inset-bottom));
+        transition: margin-bottom var(--tab-bar-ease);
+      }
+      body.has-tab-bar #bulkActionBar {
+        bottom: calc(var(--tab-bar-offset) + env(safe-area-inset-bottom));
+        transition: bottom var(--tab-bar-ease);
+      }
       body.has-tab-bar #bulkBarPanel { padding-bottom: 0.75rem; }
       /* No top bar to clear the status bar: the page itself starts below it. */
       body.no-top-bar main { padding-top: calc(env(safe-area-inset-top) + 1rem); }
+    }
+    @media (max-width: 767px) and (prefers-reduced-motion: reduce) {
+      #tabBar *, body.has-tab-bar #saveBar, body.has-tab-bar #toastContainer, body.has-tab-bar #bulkActionBar { transition: none !important; }
     }
 
     /* Installed app: display-mode standalone, or html.is-standalone for iOS, which only

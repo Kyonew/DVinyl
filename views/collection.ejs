@@ -206,9 +206,10 @@
     <% if (locals.canEditCollection) { %>
     <div id="bulkActionBar" class="hidden fixed bottom-0 md:bottom-6 inset-x-0 z-40 flex flex-col items-center md:px-4 pointer-events-none">
         <%# Folds the bar down to this tab so it stops covering the last cards; the
-            count moves onto the tab while the bar is folded. %>
+            count moves onto the tab while the bar is folded. On a phone it sits to the
+            right: folded, the centre is where the tab bar's add button rises. %>
         <button type="button" id="bulkBarToggle" onclick="toggleBulkBarCollapsed()"
-            class="card-theme border border-b-0 rounded-t-xl -mb-px relative z-10 px-4 py-1 flex items-center gap-2 text-xs font-bold shadow-lg pointer-events-auto"
+            class="max-md:self-end max-md:mr-4 card-theme border border-b-0 rounded-t-xl -mb-px relative z-10 px-4 py-1 flex items-center gap-2 text-xs font-bold shadow-lg pointer-events-auto"
             title="<%= t('collection.hide_select_bar') %>" aria-label="<%= t('collection.hide_select_bar') %>" aria-expanded="true">
             <i id="bulkBarToggleIcon" class="fa-solid fa-chevron-down"></i>
             <span id="bulkTabCount" class="hidden opacity-80"></span>
