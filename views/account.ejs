@@ -1,0 +1,136 @@
+<%- include('partials/header', { shellTopBar: false, shellPills: false }) %>
+
+<%
+    // The same entries as the desktop avatar menu (partials/shell/user-menu), grouped the
+    // way a phone's settings screen is: one card per kind of thing.
+    const accountCollections = locals.userCollections || [];
+    const showCollections = accountCollections.length > 1 || locals.canCreateCollection;
+    const showAdmin = locals.isCollectionAdmin || user.isAdmin;
+    const accountIsDark = (typeof locals.isDark !== 'undefined') ? locals.isDark : true;
+    const groupTitle = 'mb-2 ml-1 text-xs font-bold uppercase tracking-widest opacity-60';
+    const group = 'card-theme rounded-2xl overflow-hidden divide-y divide-black/5 dark:divide-white/5';
+    const row = 'flex items-center gap-4 w-full text-left px-4 min-h-[52px] hover:bg-black/5 dark:hover:bg-white/5 transition-colors';
+%>
+
+<div class="max-w-lg mx-auto px-1.5 sm:px-0 pb-12 flex flex-col gap-6">
+    <h1 class="text-[2rem] leading-tight font-extrabold tracking-tight pt-2 md:pt-6"><%= t('nav.account') %></h1>
+
+    <a href="<%= baseUrl %>/settings" class="card-theme rounded-2xl flex items-center gap-4 p-4 hover:border-primary-theme transition-colors">
+        <img src="<%= baseUrl + user.img %>" alt="" class="w-14 h-14 rounded-full object-cover flex-none">
+        <span class="flex-1 min-w-0">
+            <span class="block text-lg font-bold truncate"><%= user.username %></span>
+            <span class="block text-sm opacity-60 truncate"><%= user.email %></span>
+        </span>
+        <i class="fa-solid fa-chevron-right text-xs opacity-40" aria-hidden="true"></i>
+    </a>
+
+    <% if (showCollections) { %>
+    <section>
+        <h2 class="<%= groupTitle %>"><%= t('nav.collections') %></h2>
+        <div class="<%= group %>">
+            <% accountCollections.forEach(c => { const current = String(c._id) === String(locals.activeCollectionId); %>
+                <form action="<%= baseUrl %>/collection/switch" method="POST">
+                    <input type="hidden" name="collectionId" value="<%= c._id %>">
+                    <input type="hidden" name="redirectTo" value="/">
+                    <button type="submit" class="<%= row %>" <%- current ? 'aria-current="true"' : '' %>>
+                        <span class="flex-1 min-w-0 truncate <%= current ? 'font-bold' : '' %>"><%= c.name %></span>
+                        <% if (current) { %><i class="fa-solid fa-check text-primary-theme" aria-hidden="true"></i><% } %>
+                    </button>
+                </form>
+            <% }) %>
+            <% if (locals.canCreateCollection) { %>
+                <button type="button" data-new-collection-open class="<%= row %> text-primary-theme font-semibold">
+                    <i class="fa-solid fa-plus w-5 text-center" aria-hidden="true"></i>
+                    <%= t('nav.new_collection') %>
+                </button>
+            <% } %>
+        </div>
+    </section>
+    <% } %>
+
+    <% if (showAdmin) { %>
+    <section>
+        <h2 class="<%= groupTitle %>"><%= t('nav.administration') %></h2>
+        <div class="<%= group %>">
+            <% if (user.isAdmin) { %>
+                <a href="<%= baseUrl %>/admin/instance" class="<%= row %>">
+                    <i class="fa-solid fa-server w-5 text-center text-primary-theme" aria-hidden="true"></i>
+                    <span class="flex-1"><%= t('nav.instance') %></span>
+                    <i class="fa-solid fa-chevron-right text-xs opacity-40" aria-hidden="true"></i>
+                </a>
+            <% } %>
+            <% if (locals.isCollectionAdmin) { %>
+                <a href="<%= baseUrl %>/admin" class="<%= row %>">
+                    <i class="fa-solid fa-crown w-5 text-center text-primary-theme" aria-hidden="true"></i>
+                    <span class="flex-1"><%= t('nav.admin') %></span>
+                    <i class="fa-solid fa-chevron-right text-xs opacity-40" aria-hidden="true"></i>
+                </a>
+                <a href="<%= baseUrl %>/admin/personnalisation" class="<%= row %>">
+                    <i class="fa-solid fa-wand-magic-sparkles w-5 text-center text-primary-theme" aria-hidden="true"></i>
+                    <span class="flex-1"><%= t('perso.title') %></span>
+                    <i class="fa-solid fa-chevron-right text-xs opacity-40" aria-hidden="true"></i>
+                </a>
+            <% } %>
+        </div>
+    </section>
+    <% } %>
+
+    <section>
+        <h2 class="<%= groupTitle %>"><%= t('account.appearance') %></h2>
+        <div class="<%= group %>">
+            <div class="p-3">
+                <%# Two explicit choices rather than the menu's single toggle: each one only
+                    acts when it is not already the current mode, through the same toggle the
+                    avatar menu uses (header.ejs), so the saved preference follows. %>
+                <div role="radiogroup" aria-label="<%= t('account.appearance') %>" class="grid grid-cols-2 gap-1 p-1 rounded-xl bg-black/5 dark:bg-black/30">
+                    <button type="button" role="radio" data-account-mode="light" aria-checked="<%= !accountIsDark %>"
+                        class="h-10 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
+                        <i class="fa-solid fa-sun" aria-hidden="true"></i><%= t('nav.theme_light') %>
+                    </button>
+                    <button type="button" role="radio" data-account-mode="dark" aria-checked="<%= accountIsDark %>"
+                        class="h-10 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
+                        <i class="fa-solid fa-moon" aria-hidden="true"></i><%= t('nav.theme_dark') %>
+                    </button>
+                </div>
+            </div>
+            <a href="<%= baseUrl %>/settings" class="<%= row %>">
+                <i class="fa-solid fa-user-gear w-5 text-center text-primary-theme" aria-hidden="true"></i>
+                <span class="flex-1"><%= t('nav.settings') %></span>
+                <i class="fa-solid fa-chevron-right text-xs opacity-40" aria-hidden="true"></i>
+            </a>
+        </div>
+    </section>
+
+    <a href="<%= baseUrl %>/logout" class="card-theme rounded-2xl min-h-[52px] flex items-center justify-center font-bold text-red-600 dark:text-red-500 hover:bg-red-500/10 transition-colors">
+        <%= t('nav.logout') %>
+    </a>
+</div>
+
+<script>
+    (function () {
+        const modeButtons = Array.from(document.querySelectorAll('[data-account-mode]'));
+        function paint() {
+            const isDark = document.documentElement.classList.contains('dark');
+            modeButtons.forEach(function (button) {
+                const on = (button.dataset.accountMode === 'dark') === isDark;
+                button.setAttribute('aria-checked', on ? 'true' : 'false');
+                button.classList.toggle('bg-white', on);
+                button.classList.toggle('dark:bg-white/15', on);
+                button.classList.toggle('shadow-sm', on);
+                button.classList.toggle('opacity-60', !on);
+            });
+        }
+        modeButtons.forEach(function (button) {
+            button.addEventListener('click', function () {
+                const wantDark = button.dataset.accountMode === 'dark';
+                if (wantDark === document.documentElement.classList.contains('dark')) return;
+                const toggle = document.querySelector('[data-theme-toggle]');
+                if (toggle) toggle.click();
+                paint();
+            });
+        });
+        paint();
+    })();
+</script>
+
+<%- include('partials/footer') %>

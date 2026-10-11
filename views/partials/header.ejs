@@ -73,7 +73,7 @@
   const hideTopBarOnPhone = showTabBar && locals.shellTopBar === false;
   // Tab roots never get a back button. Any deeper page does once installed, where no
   // browser toolbar offers one (see the standalone rules in the style block).
-  const tabRoots = ['/', '/dashboard', '/collection', '/lists', '/wishlist'];
+  const tabRoots = ['/', '/dashboard', '/collection', '/lists', '/wishlist', '/account'];
   const showBackButton = !tabRoots.includes(locals.currentPath || '/');
 %>
 

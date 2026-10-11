@@ -1092,6 +1092,9 @@
     "min_label": "Mínimo (G)",
     "start_btn": "Iniciar análisis"
   },
+  "account": {
+    "appearance": "Apariencia"
+  },
   "nav": {
     "admin": "Panel de administración",
     "collection": "Recopilación",

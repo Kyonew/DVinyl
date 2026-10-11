@@ -22,8 +22,8 @@
 
         <%
             // On a phone the page opens on the collection's own name, as a large title, and
-            // tapping it switches collection (the account sheet lists them) when there is
-            // another one to switch to or one to create.
+            // tapping it leads to the account page, which lists the collections, when there
+            // is another one to switch to or one to create.
             const phoneTitle = (locals.activeCollection && activeCollection.name) || t('collection.title');
             const phoneTitleSwitches = !locals.isShareView
                 && ((locals.userCollections || []).length > 1 || locals.canCreateCollection);
@@ -36,10 +36,10 @@
                     <%= t('collection.title') %>
                 </span>
                 <% if (phoneTitleSwitches) { %>
-                    <button type="button" data-account-sheet-open class="md:hidden flex items-center gap-2 text-left min-w-0">
+                    <a href="<%= baseUrl %>/account" class="md:hidden flex items-center gap-2 min-w-0">
                         <span class="truncate"><%= phoneTitle %></span>
                         <i class="fa-solid fa-chevron-down text-lg text-primary-theme" aria-hidden="true"></i>
-                    </button>
+                    </a>
                 <% } else { %>
                     <span class="md:hidden truncate"><%= phoneTitle %></span>
                 <% } %>

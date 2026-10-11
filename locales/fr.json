@@ -962,6 +962,9 @@
     "btn_received": "Je l'ai reçu !",
     "confirm_move": "Super ! Tu veux ajouter cet album à ta collection officielle ?"
   },
+  "account": {
+    "appearance": "Apparence"
+  },
   "nav": {
     "loading": "Chargement...",
     "settings": "Paramètres",

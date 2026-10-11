@@ -1,8 +1,9 @@
 <%
   /**
-   * The account menu: collection switcher, administration, settings, theme and logout.
-   * Rendered twice, in the desktop avatar dropdown and in the phone account sheet, so
-   * nothing in it may carry an id; the theme toggle is found by its data attributes.
+   * The account menu of the desktop avatar dropdown: collection switcher, administration,
+   * settings, theme and logout. Phones get the same entries as a page (views/account).
+   * Nothing in it carries an id: the theme toggle is found by its data attributes, which
+   * the account page also clicks through.
    */
   const menuIsDark = (typeof locals.isDark !== 'undefined') ? locals.isDark : true;
 %>
