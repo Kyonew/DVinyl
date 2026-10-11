@@ -242,6 +242,14 @@
     }
     html.is-standalone [data-standalone-back] { display: flex !important; }
     html.is-standalone footer.nav-custom { display: none; }
+    /* Installed on a phone, the system blurs a band under the status bar: the first line
+       of the page starts a little lower than in the browser so it stays out of it. */
+    @media (display-mode: standalone) and (max-width: 767px) {
+      body.no-top-bar main { padding-top: calc(env(safe-area-inset-top) + 2rem); }
+    }
+    @media (max-width: 767px) {
+      html.is-standalone body.no-top-bar main { padding-top: calc(env(safe-area-inset-top) + 2rem); }
+    }
   </style>
   <script>
     if (window.navigator.standalone === true) document.documentElement.classList.add('is-standalone');

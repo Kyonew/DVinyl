@@ -106,15 +106,35 @@
         const mobileSectionTitle = 'mb-2 ml-1 text-xs font-bold uppercase tracking-widest opacity-60';
     %>
 
-    <%# Phone header: the cover as a thumbnail beside what the item is. The large cover
-        and its gallery are the desktop layout; here a tap opens the same lightbox, which
-        steps through every image. %>
-    <div class="md:hidden flex gap-4 mb-5">
-        <button type="button" onclick="openLightbox()" aria-label="<%= t('detail.view_fullscreen') %>"
-            class="flex-none w-32 h-32 rounded-xl overflow-hidden shadow-lg shadow-black/30">
-            <%- include('../../views/partials/cover-thumb', { src: itemImageUrl(item.images[0]), plugin, boxClass: 'w-full h-full' }) %>
-        </button>
-        <div class="min-w-0 flex flex-col gap-1">
+    <%# Phone header: every image in a row that swipes sideways, the next one peeking in so
+        it reads as more than one, then what the item is. A tap opens the same lightbox as
+        the desktop cover, on that image. The large cover and its gallery are the desktop
+        layout. %>
+    <%
+        const phoneImages = item.images || [];
+        const phoneSlideBox = (plugin.aspectRatioClass || 'aspect-square') === 'aspect-square'
+            ? 'h-64 aspect-square' : 'h-72 ' + plugin.aspectRatioClass;
+    %>
+    <div class="md:hidden mb-5">
+        <% if (phoneImages.length) { %>
+        <div id="phoneGallery" class="relative flex gap-3 overflow-x-auto snap-x snap-mandatory scroll-px-4 -mx-4 px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden <%= phoneImages.length > 1 ? '' : 'justify-center' %>">
+            <% phoneImages.forEach((image, index) => { %>
+                <button type="button" onclick="openLightboxAt(<%= index %>)" data-phone-slide
+                    aria-label="<%= t('detail.view_fullscreen') %> (<%= index + 1 %>/<%= phoneImages.length %>)"
+                    class="flex-none snap-start rounded-2xl overflow-hidden shadow-lg shadow-black/25 <%= phoneSlideBox %>">
+                    <%- include('../../views/partials/cover-thumb', { src: itemImageUrl(image), plugin, boxClass: 'w-full h-full' }) %>
+                </button>
+            <% }) %>
+        </div>
+        <% if (phoneImages.length > 1) { %>
+        <div class="flex justify-center gap-1.5 mt-3" aria-hidden="true">
+            <% phoneImages.forEach((image, index) => { %>
+                <span data-phone-dot class="h-1.5 rounded-full transition-all duration-300 <%= index === 0 ? 'w-4 bg-primary-theme' : 'w-1.5 bg-black/20 dark:bg-white/25' %>"></span>
+            <% }) %>
+        </div>
+        <% } %>
+        <% } %>
+        <div class="min-w-0 flex flex-col gap-1 mt-4">
             <% if (baseFmtLabel) { %>
                 <span class="self-start px-2 py-0.5 rounded-md bg-black/5 dark:bg-white/10 text-[11px] font-bold uppercase tracking-wider opacity-80"><%= baseFmtLabel %></span>
             <% } %>
@@ -240,9 +260,9 @@
             </div>
 
             <% if (user && locals.canEditCollection) { %>
-            <%# Phone actions: the four a collector reaches for, the rest in a sheet. They
-                call the same handlers as the desktop row further down. %>
-            <div class="md:hidden max-md:order-2 grid grid-cols-4 gap-2">
+            <%# Phone actions: the four a collector reaches for, the rest in a sheet, at the
+                end of the page as the desktop row is. They call the same handlers. %>
+            <div class="md:hidden max-md:order-last grid grid-cols-4 gap-2">
                 <a href="<%= editHref %>" class="flex flex-col items-center gap-1.5 py-3 rounded-2xl card-theme text-xs font-semibold">
                     <i class="fa-solid fa-pen-to-square text-lg text-primary-theme" aria-hidden="true"></i><%= t('common.edit') %>
                 </a>
@@ -557,20 +577,13 @@
             <% } %>
 
             <!-- Custom Content Detail Zones from plugin (like tracklist) -->
-            <%# On a phone the plugin's content (a tracklist) comes last and starts folded:
-                the page is about the copy, not about playing it. %>
+            <%# On a phone the plugin's content (a tracklist) comes after the copy and the
+                edition: the page is about the copy, not about playing it. %>
             <% if (contentZones.length) { %>
-                <div class="max-md:order-7 relative">
-                    <div id="detailContentZones" class="max-md:max-h-56 max-md:overflow-hidden">
-                        <% for (const zone of contentZones) { %>
-                            <%- include('../../' + plugin.partialsPath + '/' + zone.partial, { item, contains: locals.contains || [], containsLabel: locals.containsLabel || null }) %>
-                        <% } %>
-                    </div>
-                    <div id="detailContentFold" class="md:hidden absolute inset-x-0 bottom-0 pt-16 flex justify-center" style="background: linear-gradient(to bottom, transparent, var(--bg-page) 70%);">
-                        <button type="button" onclick="unfoldDetailContent()" class="px-5 py-2.5 rounded-full card-theme text-sm font-bold shadow-sm">
-                            <%= t('detail.show_all') %> <i class="fa-solid fa-chevron-down text-xs ml-1" aria-hidden="true"></i>
-                        </button>
-                    </div>
+                <div class="max-md:order-7">
+                    <% for (const zone of contentZones) { %>
+                        <%- include('../../' + plugin.partialsPath + '/' + zone.partial, { item, contains: locals.contains || [], containsLabel: locals.containsLabel || null }) %>
+                    <% } %>
                 </div>
             <% } %>
 
@@ -736,12 +749,6 @@
     </script>
 <% } %>
 
-<script>
-    function unfoldDetailContent() {
-        document.getElementById('detailContentZones').classList.remove('max-md:max-h-56', 'max-md:overflow-hidden');
-        document.getElementById('detailContentFold').remove();
-    }
-</script>
 
 <!-- Fullscreen preview of the visual currently shown in the main frame -->
 <div id="imageLightbox" class="fixed inset-0 z-[200] hidden flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 md:p-10 cursor-zoom-out"
@@ -890,7 +897,11 @@
         if (!mainImg || !mainImg.src) return;
 
         const activeIndex = galleryButtons.findIndex(button => button.querySelector('img').src === mainImg.src);
-        showLightboxImage(activeIndex >= 0 ? activeIndex : 0);
+        openLightboxAt(activeIndex >= 0 ? activeIndex : 0);
+    }
+
+    function openLightboxAt(index) {
+        showLightboxImage(index);
         lightbox.classList.remove('hidden');
         document.body.classList.add('overflow-hidden');
     }
@@ -899,7 +910,33 @@
         lightbox.classList.add('hidden');
         lightboxImage.removeAttribute('src');
         document.body.classList.remove('overflow-hidden');
+        // The phone row lands on the image the lightbox was left on.
+        const phoneSlide = phoneSlides[lightboxIndex];
+        if (phoneGallery && phoneSlide) phoneGallery.scrollTo({ left: phoneSlide.offsetLeft - phoneSlides[0].offsetLeft });
     }
+
+    // Phone image row: the dot under it follows the image in front.
+    const phoneGallery = document.getElementById('phoneGallery');
+    const phoneSlides = Array.from(document.querySelectorAll('[data-phone-slide]'));
+    const phoneDots = Array.from(document.querySelectorAll('[data-phone-dot]'));
+    phoneGallery?.addEventListener('scroll', () => {
+        if (phoneDots.length === 0) return;
+        const start = phoneSlides[0].offsetLeft;
+        let current = 0;
+        phoneSlides.forEach((slide, index) => {
+            if (Math.abs(slide.offsetLeft - start - phoneGallery.scrollLeft) < Math.abs(phoneSlides[current].offsetLeft - start - phoneGallery.scrollLeft)) current = index;
+        });
+        // At the end of the row the last image may never reach the front.
+        if (phoneGallery.scrollLeft >= phoneGallery.scrollWidth - phoneGallery.clientWidth - 2) current = phoneSlides.length - 1;
+        phoneDots.forEach((dot, index) => {
+            const on = index === current;
+            dot.classList.toggle('w-4', on);
+            dot.classList.toggle('bg-primary-theme', on);
+            dot.classList.toggle('w-1.5', !on);
+            dot.classList.toggle('bg-black/20', !on);
+            dot.classList.toggle('dark:bg-white/25', !on);
+        });
+    }, { passive: true });
 
     lightboxPrevious?.addEventListener('click', event => {
         event.stopPropagation();
