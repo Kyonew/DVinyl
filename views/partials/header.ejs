@@ -445,12 +445,12 @@
     });
   </script>
 
-  <main class="px-2.5 py-6 sm:p-6 flex-1">
+  <main class="px-4 py-6 sm:p-6 flex-1">
   <%# Phone, deep page: the top bar is gone, so the way back sits here. A page that opens
       on a back link of its own (an item, a form, a list) passes shellBack: false. %>
   <% if (hideTopBarOnPhone && showBackButton && locals.shellBack !== false) { %>
     <button type="button" data-app-back
-      class="md:hidden ml-1.5 mb-3 h-10 pr-3 flex items-center gap-1.5 text-primary-theme font-semibold">
+      class="md:hidden mb-3 h-10 pr-3 flex items-center gap-1.5 text-primary-theme font-semibold">
       <i class="fa-solid fa-chevron-left" aria-hidden="true"></i><%= t('nav.back') %>
     </button>
   <% } %>

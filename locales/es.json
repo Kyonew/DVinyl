@@ -1119,7 +1119,7 @@
   },
   "search": {
     "title": "Buscar",
-    "placeholder": "Buscar título o artista en todas tus colecciones...",
+    "placeholder": "Buscar en tus colecciones",
     "empty_prompt": "Escribe al menos 2 caracteres para buscar en todas tus colecciones.",
     "no_results": "No se encontraron resultados.",
     "results_count": "{{count}} resultados"
