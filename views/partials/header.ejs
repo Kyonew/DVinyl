@@ -68,11 +68,12 @@
   const showTabBar = Boolean(locals.user) && !locals.isShareView
       && typeof settings !== 'undefined' && settings && typeof registry !== 'undefined' && registry;
 
-  // A page that opens on its own large title (the collection) passes shellTopBar: false
-  // and drops the top bar on a phone, as an app screen would; the tab bar leads out.
-  const hideTopBarOnPhone = showTabBar && locals.shellTopBar === false;
-  // Tab roots never get a back button. Any deeper page does once installed, where no
-  // browser toolbar offers one (see the standalone rules in the style block).
+  // Wherever the tab bar shows, a phone has no top bar either, as in an app: each page
+  // opens on its own title, and the tab bar is how one moves between sections.
+  const hideTopBarOnPhone = showTabBar;
+  // Tab roots never get a back button. Any deeper page gets one on a phone (right under,
+  // at the head of <main>) and in an installed app on a larger screen, where no browser
+  // toolbar offers one (see the standalone rules in the style block).
   const tabRoots = ['/', '/dashboard', '/collection', '/lists', '/wishlist', '/account'];
   const showBackButton = !tabRoots.includes(locals.currentPath || '/');
 %>
@@ -301,16 +302,9 @@
       </div>
 
       <div class="items-center justify-between hidden w-full md:flex md:w-auto md:order-1" id="navbar-user">
-        <%- include('shell/nav-shortcuts', { shortcutsVariant: 'bar' }) %>
+        <%- include('shell/nav-shortcuts') %>
       </div>
     </div>
-    <%# A page with its own filter pills (collection, wishlist) passes shellPills: false,
-        so a phone never stacks two rows of pills. %>
-    <% if (showTabBar && locals.shellPills !== false) { %>
-    <div class="md:hidden">
-      <%- include('shell/nav-shortcuts', { shortcutsVariant: 'pills', shortcutsExclude: ['global_home', 'global_collection', 'global_lists'] }) %>
-    </div>
-    <% } %>
   </nav>
 
   <% if (locals.user && locals.canCreateCollection) { %>
@@ -341,13 +335,13 @@
   <script>
     document.body.classList.add('js-ready');
 
-    document.querySelectorAll('[data-standalone-back]').forEach(button => {
-        button.addEventListener('click', () => {
-            // Opened straight on this page (a shared link, a home screen shortcut): there
-            // is nothing to go back to, so the collection stands in for it.
-            if (window.history.length > 1) window.history.back();
-            else window.location.href = '<%= baseUrl %>/collection';
-        });
+    // Delegated: the phone's back button sits at the head of <main>, after this script.
+    document.addEventListener('click', event => {
+        if (!event.target.closest('[data-standalone-back], [data-app-back]')) return;
+        // Opened straight on this page (a shared link, a home screen shortcut): there
+        // is nothing to go back to, so the collection stands in for it.
+        if (window.history.length > 1) window.history.back();
+        else window.location.href = '<%= baseUrl %>/collection';
     });
     const navTranslations = {
         themeDark: <%- JSON.stringify(t('nav.theme_dark')) %>,
@@ -423,3 +417,11 @@
   </script>
 
   <main class="px-2.5 py-6 sm:p-6 flex-1">
+  <%# Phone, deep page: the top bar is gone, so the way back sits here. A page that opens
+      on a back link of its own (an item, a form, a list) passes shellBack: false. %>
+  <% if (hideTopBarOnPhone && showBackButton && locals.shellBack !== false) { %>
+    <button type="button" data-app-back
+      class="md:hidden -ml-1 mb-3 h-10 pr-3 flex items-center gap-1.5 text-primary-theme font-semibold">
+      <i class="fa-solid fa-chevron-left" aria-hidden="true"></i><%= t('nav.back') %>
+    </button>
+  <% } %>

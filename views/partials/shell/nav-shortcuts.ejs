@@ -1,15 +1,9 @@
 <%
   /**
    * The navbar shortcuts the collection chose (settings.navbarShortcuts), filtered to
-   * what this viewer can actually open.
-   *
-   * shortcutsVariant 'bar'   - the desktop navbar list, also the collapsible menu on a
-   *                            phone when there is no tab bar (share views, signed out).
-   * shortcutsVariant 'pills' - a horizontally scrolling row under the phone navbar;
-   *                            shortcutsExclude drops the ids the tab bar already offers.
+   * what this viewer can actually open. The desktop navbar list, also the collapsible
+   * menu on a phone when there is no tab bar (share views, signed out).
    */
-  const shortcutVariant = locals.shortcutsVariant || 'bar';
-  const shortcutExclude = locals.shortcutsExclude || [];
 
   // Global shortcuts plus shortcuts declared by each plugin (navbarShortcuts)
   const shortcutConfig = {
@@ -69,7 +63,7 @@
   if (typeof settings !== 'undefined' && settings && settings.navbarShortcuts) {
       settings.navbarShortcuts.forEach(id => {
           const item = shortcutConfig[id];
-          if (!item || shortcutExclude.includes(id) || !shortcutAllowed(id, item)) return;
+          if (!item || !shortcutAllowed(id, item)) return;
           const isModuleActive = item.module
               ? Boolean(settings.modules && (settings.modules instanceof Map ? settings.modules.get(item.module) : settings.modules[item.module]))
               : true;
@@ -77,20 +71,6 @@
       });
   }
 %>
-<% if (shortcutVariant === 'pills') { %>
-  <% if (visibleShortcuts.length > 0) { %>
-  <ul class="flex gap-2 overflow-x-auto px-2.5 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-    <% visibleShortcuts.forEach(item => { %>
-    <li class="flex-none">
-      <a href="<%= baseUrl + item.url %>" <%- item.current ? 'aria-current="page"' : '' %>
-        class="flex items-center h-8 px-3.5 rounded-full text-sm font-bold whitespace-nowrap transition-colors <%= item.current ? 'bg-primary-theme' : 'bg-black/5 dark:bg-white/10 text-[var(--text-main)]' %>">
-        <%= item.label %>
-      </a>
-    </li>
-    <% }) %>
-  </ul>
-  <% } %>
-<% } else { %>
   <ul class="flex flex-col font-medium p-4 md:p-0 mt-4 rounded-lg md:flex-row md:space-x-8 md:mt-0 md:border-0 md:bg-transparent">
     <% visibleShortcuts.forEach(item => { %>
     <li>
@@ -101,4 +81,3 @@
     </li>
     <% }) %>
   </ul>
-<% } %>
