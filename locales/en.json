@@ -1,5 +1,6 @@
 {
   "common": {
+    "share": "Share",
     "external_id_label": "Source ID",
     "external_id_hint": "The id this item is matched to on the site it came from. Fill it in to bring back the metadata refresh, or correct it if the item was matched to the wrong entry.",
     "edit": "Edit",
@@ -733,6 +734,14 @@
     "import_none_selected": "Tick at least one row."
   },
   "collection": {
+    "share_active_count_other": "{{count}} active links",
+    "share_active_count_one": "{{count}} active link",
+    "share_disabled_hint": "Turned off: the link no longer opens. Turning it back on brings back the same link.",
+    "share_name": "Name",
+    "share_scope_all": "The whole collection",
+    "share_manage": "Manage share links",
+    "share_none": "No share link is active yet. Create one to let anyone browse the collection read-only.",
+    "share_hint": "Send a read-only link to the collection.",
     "title": "My Collection",
     "share_view_banner": "You're viewing a shared collection - read-only.",
     "filter_placeholder": "Filter...",
@@ -905,6 +914,8 @@
     "edit_secondary_visual": "Edit secondary visual (Disc)"
   },
   "detail": {
+    "label_no_barcode": "No barcode on this item: add one when editing it.",
+    "label_save": "Save image",
     "in_collection": "In the collection",
     "my_copy": "My copy",
     "edition_section": "Edition",
@@ -949,8 +960,6 @@
     "print_label_btn": "Print label",
     "qr_option": "QR code",
     "barcode_option": "Barcode",
-    "switch_to_qr": "Switch to QR code",
-    "switch_to_barcode": "Switch to barcode",
     "label_page_title": "Label"
   },
   "wishlist": {

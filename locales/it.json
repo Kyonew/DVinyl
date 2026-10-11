@@ -509,6 +509,14 @@
     "volume": "Volume"
   },
   "collection": {
+    "share_active_count_other": "{{count}} link attivi",
+    "share_active_count_one": "{{count}} link attivo",
+    "share_disabled_hint": "Disattivato: il link non si apre più. Riattivandolo torna lo stesso link.",
+    "share_name": "Nome",
+    "share_scope_all": "L'intera collezione",
+    "share_manage": "Gestisci i link di condivisione",
+    "share_none": "Nessun link di condivisione attivo. Creane uno per permettere a chiunque di sfogliare la collezione in sola lettura.",
+    "share_hint": "Invia un link in sola lettura alla collezione.",
     "add": "Aggiungere",
     "scan": "Scansiona",
     "share_view_banner": "Stai consultando una collezione condivisa - sola lettura.",
@@ -632,6 +640,7 @@
     "status_off": "Disattivata"
   },
   "common": {
+    "share": "Condividi",
     "external_id_label": "ID di origine",
     "external_id_hint": "L'identificativo a cui questo elemento è collegato sul sito di origine. Inseriscilo per recuperare l'aggiornamento dei metadati, o correggilo se l'elemento è stato collegato alla scheda sbagliata.",
     "all": "Tutto",
@@ -781,6 +790,8 @@
     "tracklist_label": "Tracce"
   },
   "detail": {
+    "label_no_barcode": "Questo oggetto non ha un codice a barre: aggiungine uno modificandolo.",
+    "label_save": "Salva immagine",
     "in_collection": "Nella collezione",
     "my_copy": "La mia copia",
     "edition_section": "Edizione",
@@ -825,8 +836,6 @@
     "print_label_btn": "Stampa l'etichetta",
     "qr_option": "Codice QR",
     "barcode_option": "Codice a barre",
-    "switch_to_qr": "Passa al codice QR",
-    "switch_to_barcode": "Passa al codice a barre",
     "label_page_title": "Etichetta"
   },
   "dvd_detail": {

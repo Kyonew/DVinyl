@@ -509,6 +509,14 @@
     "volume": "Volumen"
   },
   "collection": {
+    "share_active_count_other": "{{count}} enlaces activos",
+    "share_active_count_one": "{{count}} enlace activo",
+    "share_disabled_hint": "Desactivado: el enlace ya no se abre. Al reactivarlo vuelve el mismo enlace.",
+    "share_name": "Nombre",
+    "share_scope_all": "Toda la colección",
+    "share_manage": "Gestionar los enlaces",
+    "share_none": "Aún no hay ningún enlace activo. Crea uno para que cualquiera pueda ver la colección en modo de solo lectura.",
+    "share_hint": "Envía un enlace de solo lectura a la colección.",
     "add": "Agregar",
     "scan": "Escanear",
     "share_view_banner": "Estás viendo una colección compartida - solo lectura.",
@@ -632,6 +640,7 @@
     "status_off": "Desactivada"
   },
   "common": {
+    "share": "Compartir",
     "external_id_label": "ID de origen",
     "external_id_hint": "El identificador con el que este elemento está vinculado en el sitio de origen. Complétalo para recuperar la actualización de metadatos, o corrígelo si el elemento se vinculó a la ficha equivocada.",
     "all": "Todo",
@@ -781,6 +790,8 @@
     "tracklist_label": "Lista de pistas"
   },
   "detail": {
+    "label_no_barcode": "Este objeto no tiene código de barras: añade uno al editarlo.",
+    "label_save": "Guardar imagen",
     "in_collection": "En la colección",
     "my_copy": "Mi ejemplar",
     "edition_section": "Edición",
@@ -825,8 +836,6 @@
     "print_label_btn": "Imprimir la etiqueta",
     "qr_option": "Código QR",
     "barcode_option": "Código de barras",
-    "switch_to_qr": "Cambiar al código QR",
-    "switch_to_barcode": "Cambiar al código de barras",
     "label_page_title": "Etiqueta"
   },
   "dvd_detail": {
