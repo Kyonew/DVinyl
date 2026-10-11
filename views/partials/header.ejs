@@ -61,6 +61,12 @@
       return (0.299 * r + 0.587 * g + 0.114 * b) > 160;
   };
   const statusBarStyle = isLightColor(navColor) ? 'default' : 'black-translucent';
+
+  // On a phone, a signed-in member gets the bottom tab bar (partials/shell/tab-bar, from
+  // the footer, on the same condition). It replaces the avatar menu and the burger there;
+  // share views and signed-out pages keep the burger.
+  const showTabBar = Boolean(locals.user) && !locals.isShareView
+      && typeof settings !== 'undefined' && settings && typeof registry !== 'undefined' && registry;
 %>
 
 <html lang="<%= currentLng %>" class="<%= isDark ? 'dark' : '' %>">
@@ -180,6 +186,20 @@
     @media (max-width: 767px) {
       #bulkBarPanel { padding-bottom: calc(0.75rem + env(safe-area-inset-bottom)); }
     }
+
+    /* Phone tab bar (partials/shell/tab-bar). Its height is kept free at the bottom of
+       the page, and what docks to the bottom edge sits on top of it instead. */
+    @media (max-width: 767px) {
+      body.has-tab-bar {
+        --tab-bar-h: 4rem;
+        padding-bottom: calc(var(--tab-bar-h) + env(safe-area-inset-bottom));
+      }
+      body.has-tab-bar footer.nav-custom { padding-bottom: 0; }
+      body.has-tab-bar #saveBar,
+      body.has-tab-bar #toastContainer { margin-bottom: calc(var(--tab-bar-h) + env(safe-area-inset-bottom)); }
+      body.has-tab-bar #bulkActionBar { bottom: calc(var(--tab-bar-h) + env(safe-area-inset-bottom)); }
+      body.has-tab-bar #bulkBarPanel { padding-bottom: 0.75rem; }
+    }
   </style>
 
   <link rel="manifest" href="<%= baseUrl %>/manifest.json">
@@ -191,7 +211,7 @@
   <link rel="apple-touch-icon" href="<%= baseUrl %>/ressources/icone-192.png">
 </head>
 
-<body class="font-sans transition-colors duration-300 min-h-screen flex flex-col">
+<body class="font-sans transition-colors duration-300 min-h-screen flex flex-col <%= showTabBar ? 'has-tab-bar' : '' %>">
     
   <div id="page-loader" class="fixed inset-0 z-[9999] flex flex-col items-center justify-center transition-opacity duration-500">
     <div class="relative">
@@ -200,8 +220,7 @@
   </div>
 
   <nav class="nav-custom transition-colors duration-300">
-      <div class="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto px-2.5 py-4 sm:p-4">
-      
+      <div class="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto px-2.5 <%= showTabBar ? 'py-3' : 'py-4' %> sm:p-4">
       <a href="<%= baseUrl || '/' %>" class="flex items-center space-x-3 group">
         <img src="<%= baseUrl %>/ressources/logo.png" alt="Logo" class="h-8 w-8 rounded-full object-cover group-hover:rotate-12 transition-transform">
         <span class="self-center text-2xl font-semibold text-inherit"><%= locals.activeCollection && locals.activeCollection.name ? activeCollection.name : 'Vinyl' %></span>
@@ -217,7 +236,7 @@
           <i class="fa-solid fa-magnifying-glass text-sm"></i>
         </a>
 
-        <button type="button" class="flex text-sm bg-black/5 dark:bg-white/10 rounded-full focus:ring-4 focus:ring-gray-300 dark:focus:ring-gray-600" id="user-menu-button" data-dropdown-toggle="user-dropdown">
+        <button type="button" class="<%= showTabBar ? 'hidden md:flex' : 'flex' %> text-sm bg-black/5 dark:bg-white/10 rounded-full focus:ring-4 focus:ring-gray-300 dark:focus:ring-gray-600" id="user-menu-button" data-dropdown-toggle="user-dropdown">
           <img class="w-8 h-8 rounded-full object-cover" src="<%= baseUrl + user.img %>" alt="user photo">
         </button>
   
@@ -231,87 +250,7 @@
               <span class="block text-sm font-bold opacity-90 text-[var(--text-main)]"><%= user.username %></span>
               <span class="block text-xs opacity-60 truncate text-[var(--text-sub)]"><%= user.email %></span>
             </div>
-            <ul class="py-2">
-              <%
-                // The collections block shows the switcher (only useful with 2+ memberships)
-                // and/or the self-service creation entry, so it appears as soon as either applies.
-                const hasSwitcher = (locals.userCollections || []).length > 1;
-                const showCollectionsBlock = hasSwitcher || locals.canCreateCollection;
-              %>
-              <% if (showCollectionsBlock) { %>
-              <li class="px-4 pt-1 pb-1">
-                <span class="block text-[9px] uppercase font-bold tracking-wider opacity-50 text-[var(--text-sub)]"><%= t('nav.collections') %></span>
-              </li>
-              <% } %>
-              <% if (hasSwitcher) { %>
-              <% (locals.userCollections || []).forEach(c => { %>
-              <li>
-                <form action="<%= baseUrl %>/collection/switch" method="POST">
-                  <input type="hidden" name="collectionId" value="<%= c._id %>">
-                  <input type="hidden" name="redirectTo" value="/">
-                  <button type="submit" class="w-[calc(100%-1rem)] text-left block px-4 py-2 text-sm text-[var(--text-main)] hover:bg-black/5 dark:hover:bg-white/10 mx-2 rounded transition flex items-center gap-3 <%= String(c._id) === String(locals.activeCollectionId) ? 'font-bold' : '' %>">
-                    <i class="fa-solid <%= String(c._id) === String(locals.activeCollectionId) ? 'fa-circle-check text-primary-theme' : 'fa-layer-group opacity-70' %> w-5 text-center"></i>
-                    <span class="truncate"><%= c.name %></span>
-                  </button>
-                </form>
-              </li>
-              <% }) %>
-              <% } %>
-              <% if (locals.canCreateCollection) { %>
-              <li>
-                <button type="button" data-new-collection-open
-                  class="w-[calc(100%-1rem)] text-left block px-4 py-2 text-sm text-[var(--text-main)] hover:bg-black/5 dark:hover:bg-white/10 mx-2 rounded transition flex items-center gap-3">
-                  <i class="fa-solid fa-plus w-5 text-center opacity-70"></i>
-                  <span class="truncate"><%= t('nav.new_collection') %></span>
-                </button>
-              </li>
-              <% } %>
-              <% if (showCollectionsBlock) { %>
-              <li class="border-t border-black/5 dark:border-white/10 my-1"></li>
-              <% } %>
-              <% if (locals.isCollectionAdmin || user.isAdmin) { %>
-              <li class="px-4 pt-1 pb-1">
-                <span class="block text-[9px] uppercase font-bold tracking-wider opacity-50 text-[var(--text-sub)]"><%= t('nav.administration') %></span>
-              </li>
-              <% if (user.isAdmin) { %>
-              <li>
-                <a href="<%= baseUrl %>/admin/instance" class="block px-4 py-2 text-sm text-[var(--text-main)] hover:bg-black/5 dark:hover:bg-white/10 mx-2 rounded transition flex items-center gap-3">
-                  <i class="fa-solid fa-server w-5 text-center opacity-70"></i> <span><%= t('nav.instance') %></span>
-                </a>
-              </li>
-              <% } %>
-              <% if (locals.isCollectionAdmin) { %>
-              <li>
-                <a href="<%= baseUrl %>/admin" class="block px-4 py-2 text-sm text-[var(--text-main)] hover:bg-black/5 dark:hover:bg-white/10 mx-2 rounded transition flex items-center gap-3">
-                  <i class="fa-solid fa-crown w-5 text-center opacity-70"></i> <span><%= t('nav.admin') %></span>
-                </a>
-              </li>
-              <li>
-                <a href="<%= baseUrl %>/admin/personnalisation" class="block px-4 py-2 text-sm text-[var(--text-main)] hover:bg-black/5 dark:hover:bg-white/10 mx-2 rounded transition flex items-center gap-3">
-                  <i class="fa-solid fa-wand-magic-sparkles w-5 text-center opacity-70"></i> <span><%= t('perso.title') %></span>
-                </a>
-              </li>
-              <% } %>
-              <li class="border-t border-black/5 dark:border-white/10 my-1"></li>
-              <% } %>
-              <li>
-                <a href="<%= baseUrl %>/settings" class="block px-4 py-2 text-sm text-[var(--text-main)] hover:bg-black/5 dark:hover:bg-white/10 mx-2 rounded transition flex items-center gap-3">
-                  <i class="fa-solid fa-user-gear w-5 text-center opacity-70"></i> <span><%= t('nav.settings') %></span>
-                </a>
-              </li>
-              <li>
-                <button id="theme-toggle" class="w-[calc(100%-1rem)] text-left block px-4 py-2 text-sm text-[var(--text-main)] hover:bg-black/5 dark:hover:bg-white/10 mx-2 rounded transition flex items-center gap-3">
-                    <i id="theme-icon" class="fa-solid fa-moon w-5 text-center"></i> 
-                    <span id="theme-text"><%= isDark ? t('nav.theme_light') : t('nav.theme_dark') %></span>
-                </button>
-              </li>
-
-              <li class="pt-2 border-t border-black/5 dark:border-white/10 mt-2">
-                <a href="<%= baseUrl %>/logout" class="block px-4 py-2 text-sm font-bold text-center text-white bg-red-500 hover:bg-red-600 rounded-md mx-4 mb-2 transition-colors shadow-sm">
-                  <%= t('nav.logout') %>
-                </a>
-              </li>
-            </ul>
+            <%- include('shell/user-menu') %>
           </div>
         </div>
         <% } else if (locals.isShareView) { %>
@@ -323,78 +262,22 @@
           <a href="<%= baseUrl %>/login" class="text-sm font-bold text-primary-theme hover:underline"><%= t('nav.login') %></a>
         <% } %>
 
+        <% if (!showTabBar) { %>
         <button data-collapse-toggle="navbar-user" type="button" class="inline-flex items-center p-2 w-10 h-10 justify-center text-sm opacity-70 rounded-lg md:hidden hover:bg-black/5 dark:hover:bg-white/10 focus:outline-none text-[var(--text-main)]">
           <i class="fa-solid fa-bars text-xl"></i>
         </button>
+        <% } %>
       </div>
 
       <div class="items-center justify-between hidden w-full md:flex md:w-auto md:order-1" id="navbar-user">
-        <ul class="flex flex-col font-medium p-4 md:p-0 mt-4 rounded-lg md:flex-row md:space-x-8 md:mt-0 md:border-0 md:bg-transparent">
-          <%
-            // Global shortcuts plus shortcuts declared by each plugin (navbarShortcuts)
-            const shortcutConfig = {
-                // Its own path, not '/': that one lands wherever the user chose, which
-                // may be the collection, and the dashboard would then have no entry.
-                'global_home': { label: t('nav.home'), url: '/dashboard' },
-                'global_collection': { label: t('nav.collection'), url: '/collection' },
-                'global_wishlist': { label: t('nav.wishlist'), url: '/wishlist' },
-                'global_info': { label: t('collection_info.title'), url: '/info' },
-                'global_lists': { label: t('lists.title'), url: '/lists' }
-            };
-            if (typeof registry !== 'undefined' && registry) {
-                registry.getAll().forEach(p => {
-                    (p.navbarShortcuts || []).forEach(s => {
-                        shortcutConfig[s.id] = { label: t(s.label), url: s.url, module: p.collectionType, pluginId: p.id };
-                    });
-                });
-            }
-
-            // A scoped share link only ever browses its allowlisted types/formats -
-            // drop shortcuts that would otherwise land a guest on an empty/blocked
-            // page, and drop account-only shortcuts (home, wishlist) that just
-            // bounce them to /login.
-            const shareScopeList = locals.isShareView ? (locals.shareScope || []) : null;
-            const shareScopeMap = shareScopeList && shareScopeList.length > 0
-                ? new Map(shareScopeList.map(s => [s.pluginId, s.formats || []]))
-                : null;
-
-            function shortcutAllowed(id, item) {
-                if (locals.isShareView && (id === 'global_home' || id === 'global_wishlist' || id === 'global_lists')) return false;
-                // Chosen once for the whole collection, but the page it opens can be off,
-                // empty or kept from the share links: the shortcut follows it.
-                if (id === 'global_info') return isCollectionInfoVisible(locals.activeCollection, locals.isShareView);
-                if (!shareScopeMap) return true;
-                if (!item.pluginId) return true;
-                if (!shareScopeMap.has(item.pluginId)) return false;
-                const allowedFormats = shareScopeMap.get(item.pluginId);
-                if (allowedFormats.length === 0) return true;
-                const qIndex = item.url.indexOf('?');
-                const params = new URLSearchParams(qIndex >= 0 ? item.url.slice(qIndex + 1) : '');
-                const fmt = params.get('format');
-                return !fmt || allowedFormats.includes(fmt);
-            }
-
-            if (settings && settings.navbarShortcuts) {
-              settings.navbarShortcuts.forEach(id => {
-                const item = shortcutConfig[id];
-                if (item && shortcutAllowed(id, item)) {
-                  const isModuleActive = item.module
-                    ? Boolean(settings && settings.modules && (settings.modules instanceof Map ? settings.modules.get(item.module) : settings.modules[item.module]))
-                    : true;
-
-                  if (isModuleActive) { %>
-                    <li>
-                      <a href="<%= baseUrl + item.url %>" class="block py-2 px-3 md:p-0 text-[var(--text-sub)] hover:text-primary-theme transition-colors">
-                        <%= item.label %>
-                      </a>
-                    </li>
-                  <% }
-                }
-              });
-          } %>
-        </ul>
+        <%- include('shell/nav-shortcuts', { shortcutsVariant: 'bar' }) %>
       </div>
     </div>
+    <% if (showTabBar) { %>
+    <div class="md:hidden">
+      <%- include('shell/nav-shortcuts', { shortcutsVariant: 'pills', shortcutsExclude: ['global_home', 'global_collection', 'global_lists'] }) %>
+    </div>
+    <% } %>
   </nav>
 
   <% if (locals.user && locals.canCreateCollection) { %>
@@ -430,31 +313,29 @@
     };
     
     document.addEventListener('DOMContentLoaded', () => {
-        const themeToggleBtn = document.getElementById('theme-toggle');
-        const themeIcon = document.getElementById('theme-icon');
-        const themeText = document.getElementById('theme-text');
+        // The account menu is rendered twice (desktop dropdown, phone account sheet), so
+        // every toggle, icon and label is updated, not just the first.
         const htmlElement = document.documentElement;
-  
+
         function updateButtonVisuals() {
             const isDark = htmlElement.classList.contains('dark');
             const themeColorMeta = document.querySelector('meta[name="theme-color"]');
             if (themeColorMeta) {
                 themeColorMeta.setAttribute('content', isDark ? themeColorMeta.dataset.dark : themeColorMeta.dataset.light);
             }
-            if(themeIcon && themeText) {
-                if (isDark) {
-                    themeIcon.className = 'fa-solid fa-sun w-5 text-center text-yellow-400';
-                    themeText.textContent = navTranslations.themeLight;
-                } else {
-                    themeIcon.className = 'fa-solid fa-moon w-5 text-center text-indigo-500';
-                    themeText.textContent = navTranslations.themeDark;
-                }
-            }
+            document.querySelectorAll('[data-theme-icon]').forEach(icon => {
+                icon.className = isDark
+                    ? 'fa-solid fa-sun w-5 text-center text-yellow-400'
+                    : 'fa-solid fa-moon w-5 text-center text-indigo-500';
+            });
+            document.querySelectorAll('[data-theme-text]').forEach(text => {
+                text.textContent = isDark ? navTranslations.themeLight : navTranslations.themeDark;
+            });
         }
-        
+
         updateButtonVisuals();
-  
-        if(themeToggleBtn){
+
+        document.querySelectorAll('[data-theme-toggle]').forEach(themeToggleBtn => {
             themeToggleBtn.addEventListener('click', async () => {
                 htmlElement.classList.toggle('dark');
                 updateButtonVisuals();
@@ -465,9 +346,9 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ theme: newTheme })
                     });
-                } catch (e) { console.error('Erreur thème', e); }
+                } catch (e) { console.error('Theme update failed', e); }
             });
-        }
+        });
     });
     
     // New-collection modal (only rendered when the user is allowed to create one)

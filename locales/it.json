@@ -1096,7 +1096,11 @@
     "administration": "Amministrazione",
     "new_collection": "Nuova collezione",
     "search": "Cerca",
-    "share_view": "Collezione condivisa · sola lettura"
+    "share_view": "Collezione condivisa · sola lettura",
+    "add": "Aggiungi",
+    "account": "Account",
+    "close": "Chiudi",
+    "main_navigation": "Navigazione principale"
   },
   "search": {
     "title": "Cerca",

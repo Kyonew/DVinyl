@@ -6,8 +6,9 @@
      * an add actually goes lives here only. That includes the fast-add shortcut, which
      * skips the picker when the collection has one configured.
      *
-     * Include it once per page, next to the trigger. Renders nothing for a member who
-     * cannot edit the collection, or when no module is enabled.
+     * The footer includes it on every signed-in page (see partials/footer), after the
+     * page body, so pages only place triggers and never include it themselves. Renders
+     * nothing for a member who cannot edit the collection, or when no module is enabled.
      */
     const addHubPlugins = registry.getEnabled(settings);
     const addHubFastRoutes = {};

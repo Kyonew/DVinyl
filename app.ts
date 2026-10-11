@@ -223,6 +223,13 @@ app.use(async (req: any, res, next) => {
   res.locals.currentLng = req.language;
   res.locals.appVersion = pkg.version;
   res.locals.baseUrl = BASE_URL;
+  // Where the request lands inside the app, BASE_URL stripped, so the shell can tell
+  // which tab and which navbar shortcut is the current page.
+  res.locals.currentPath = BASE_URL && req.path.startsWith(BASE_URL)
+    ? (req.path.slice(BASE_URL.length) || '/')
+    : req.path;
+  const queryStart = req.originalUrl.indexOf('?');
+  res.locals.currentSearch = queryStart >= 0 ? req.originalUrl.slice(queryStart + 1) : '';
   res.locals.oidcEnabled = isOidcEnabled();
   res.locals.oidcButtonLabel = getOidcButtonLabel();
   res.locals.localLoginDisabled = isLocalLoginDisabled();

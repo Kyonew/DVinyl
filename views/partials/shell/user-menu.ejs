@@ -1,0 +1,89 @@
+<%
+  /**
+   * The account menu: collection switcher, administration, settings, theme and logout.
+   * Rendered twice, in the desktop avatar dropdown and in the phone account sheet, so
+   * nothing in it may carry an id; the theme toggle is found by its data attributes.
+   */
+  const menuIsDark = (typeof locals.isDark !== 'undefined') ? locals.isDark : true;
+%>
+<ul class="py-2">
+  <%
+    // The collections block shows the switcher (only useful with 2+ memberships)
+    // and/or the self-service creation entry, so it appears as soon as either applies.
+    const hasSwitcher = (locals.userCollections || []).length > 1;
+    const showCollectionsBlock = hasSwitcher || locals.canCreateCollection;
+  %>
+  <% if (showCollectionsBlock) { %>
+  <li class="px-4 pt-1 pb-1">
+    <span class="block text-[9px] uppercase font-bold tracking-wider opacity-50 text-[var(--text-sub)]"><%= t('nav.collections') %></span>
+  </li>
+  <% } %>
+  <% if (hasSwitcher) { %>
+  <% (locals.userCollections || []).forEach(c => { %>
+  <li>
+    <form action="<%= baseUrl %>/collection/switch" method="POST">
+      <input type="hidden" name="collectionId" value="<%= c._id %>">
+      <input type="hidden" name="redirectTo" value="/">
+      <button type="submit" class="w-[calc(100%-1rem)] text-left block px-4 py-2 text-sm text-[var(--text-main)] hover:bg-black/5 dark:hover:bg-white/10 mx-2 rounded transition flex items-center gap-3 <%= String(c._id) === String(locals.activeCollectionId) ? 'font-bold' : '' %>">
+        <i class="fa-solid <%= String(c._id) === String(locals.activeCollectionId) ? 'fa-circle-check text-primary-theme' : 'fa-layer-group opacity-70' %> w-5 text-center"></i>
+        <span class="truncate"><%= c.name %></span>
+      </button>
+    </form>
+  </li>
+  <% }) %>
+  <% } %>
+  <% if (locals.canCreateCollection) { %>
+  <li>
+    <button type="button" data-new-collection-open
+      class="w-[calc(100%-1rem)] text-left block px-4 py-2 text-sm text-[var(--text-main)] hover:bg-black/5 dark:hover:bg-white/10 mx-2 rounded transition flex items-center gap-3">
+      <i class="fa-solid fa-plus w-5 text-center opacity-70"></i>
+      <span class="truncate"><%= t('nav.new_collection') %></span>
+    </button>
+  </li>
+  <% } %>
+  <% if (showCollectionsBlock) { %>
+  <li class="border-t border-black/5 dark:border-white/10 my-1"></li>
+  <% } %>
+  <% if (locals.isCollectionAdmin || user.isAdmin) { %>
+  <li class="px-4 pt-1 pb-1">
+    <span class="block text-[9px] uppercase font-bold tracking-wider opacity-50 text-[var(--text-sub)]"><%= t('nav.administration') %></span>
+  </li>
+  <% if (user.isAdmin) { %>
+  <li>
+    <a href="<%= baseUrl %>/admin/instance" class="block px-4 py-2 text-sm text-[var(--text-main)] hover:bg-black/5 dark:hover:bg-white/10 mx-2 rounded transition flex items-center gap-3">
+      <i class="fa-solid fa-server w-5 text-center opacity-70"></i> <span><%= t('nav.instance') %></span>
+    </a>
+  </li>
+  <% } %>
+  <% if (locals.isCollectionAdmin) { %>
+  <li>
+    <a href="<%= baseUrl %>/admin" class="block px-4 py-2 text-sm text-[var(--text-main)] hover:bg-black/5 dark:hover:bg-white/10 mx-2 rounded transition flex items-center gap-3">
+      <i class="fa-solid fa-crown w-5 text-center opacity-70"></i> <span><%= t('nav.admin') %></span>
+    </a>
+  </li>
+  <li>
+    <a href="<%= baseUrl %>/admin/personnalisation" class="block px-4 py-2 text-sm text-[var(--text-main)] hover:bg-black/5 dark:hover:bg-white/10 mx-2 rounded transition flex items-center gap-3">
+      <i class="fa-solid fa-wand-magic-sparkles w-5 text-center opacity-70"></i> <span><%= t('perso.title') %></span>
+    </a>
+  </li>
+  <% } %>
+  <li class="border-t border-black/5 dark:border-white/10 my-1"></li>
+  <% } %>
+  <li>
+    <a href="<%= baseUrl %>/settings" class="block px-4 py-2 text-sm text-[var(--text-main)] hover:bg-black/5 dark:hover:bg-white/10 mx-2 rounded transition flex items-center gap-3">
+      <i class="fa-solid fa-user-gear w-5 text-center opacity-70"></i> <span><%= t('nav.settings') %></span>
+    </a>
+  </li>
+  <li>
+    <button type="button" data-theme-toggle class="w-[calc(100%-1rem)] text-left block px-4 py-2 text-sm text-[var(--text-main)] hover:bg-black/5 dark:hover:bg-white/10 mx-2 rounded transition flex items-center gap-3">
+        <i data-theme-icon class="fa-solid fa-moon w-5 text-center"></i>
+        <span data-theme-text><%= menuIsDark ? t('nav.theme_light') : t('nav.theme_dark') %></span>
+    </button>
+  </li>
+
+  <li class="pt-2 border-t border-black/5 dark:border-white/10 mt-2">
+    <a href="<%= baseUrl %>/logout" class="block px-4 py-2 text-sm font-bold text-center text-white bg-red-500 hover:bg-red-600 rounded-md mx-4 mb-2 transition-colors shadow-sm">
+      <%= t('nav.logout') %>
+    </a>
+  </li>
+</ul>

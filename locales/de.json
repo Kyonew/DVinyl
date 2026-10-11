@@ -1096,7 +1096,11 @@
     "administration": "Verwaltung",
     "new_collection": "Neue Sammlung",
     "search": "Suche",
-    "share_view": "Geteilte Sammlung · schreibgeschützt"
+    "share_view": "Geteilte Sammlung · schreibgeschützt",
+    "add": "Hinzufügen",
+    "account": "Konto",
+    "close": "Schließen",
+    "main_navigation": "Hauptnavigation"
   },
   "search": {
     "title": "Suche",

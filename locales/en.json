@@ -966,7 +966,11 @@
     "administration": "Administration",
     "new_collection": "New collection",
     "search": "Search",
-    "share_view": "Shared collection · read-only"
+    "share_view": "Shared collection · read-only",
+    "add": "Add",
+    "account": "Account",
+    "close": "Close",
+    "main_navigation": "Main navigation"
   },
   "search": {
     "title": "Search",

@@ -1,0 +1,97 @@
+<%
+  /**
+   * Phone shell: the bottom tab bar and the account sheet its last tab opens. Rendered
+   * below md only; from md up the top navbar carries all of it. Shown on the same
+   * condition as header.ejs's showTabBar, which also reserves its height.
+   *
+   * Included from the footer so it comes after the page: the add hub, included right
+   * after it, then finds every trigger on the page when it swaps in the fast-add icon.
+   */
+  const tabPath = locals.currentPath || '';
+  const tabPathIn = (prefix) => tabPath === prefix || tabPath.startsWith(prefix + '/');
+  // Everything that is not one of the other sections is part of browsing the collection:
+  // the grid, the wishlist, the shelf, a detail page, an add or edit form.
+  let activeTab = 'collection';
+  if (tabPathIn('/dashboard')) activeTab = 'home';
+  else if (tabPathIn('/lists')) activeTab = 'lists';
+  else if (tabPathIn('/settings') || tabPathIn('/admin') || tabPathIn('/create-plugin')) activeTab = 'account';
+
+  const tabCanAdd = Boolean(locals.canEditCollection) && registry.getEnabled(settings).length > 0;
+  const tabClass = (id) => 'flex flex-col items-center justify-center gap-1 h-full min-w-0 text-[10.5px] font-bold transition-colors '
+      + (activeTab === id ? 'text-primary-theme' : 'text-[var(--text-main)] opacity-60 hover:opacity-100');
+%>
+<nav id="tabBar" aria-label="<%= t('nav.main_navigation') %>"
+  class="md:hidden fixed bottom-0 inset-x-0 z-40 text-[var(--text-main)]"
+  style="background-color: var(--bg-nav); border-top: 1px solid var(--border-color); padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);">
+  <div class="grid <%= tabCanAdd ? 'grid-cols-5' : 'grid-cols-4' %> h-16">
+    <a href="<%= baseUrl %>/dashboard" class="<%= tabClass('home') %>" <%- activeTab === 'home' ? 'aria-current="page"' : '' %>>
+      <span class="h-6 flex items-center" aria-hidden="true"><i class="fa-solid fa-house text-lg"></i></span>
+      <span class="truncate max-w-full px-1"><%= t('nav.home') %></span>
+    </a>
+    <a href="<%= baseUrl %>/collection" class="<%= tabClass('collection') %>" <%- activeTab === 'collection' ? 'aria-current="page"' : '' %>>
+      <span class="h-6 flex items-center" aria-hidden="true"><i class="fa-solid fa-layer-group text-lg"></i></span>
+      <span class="truncate max-w-full px-1"><%= t('nav.collection') %></span>
+    </a>
+    <% if (tabCanAdd) { %>
+    <div class="flex items-start justify-center">
+      <button type="button" onclick="openAddModal()" aria-label="<%= t('nav.add') %>"
+        class="-mt-5 w-14 h-14 rounded-full bg-primary-theme flex items-center justify-center active:scale-95 transition-transform"
+        style="box-shadow: 0 0 0 4px var(--bg-nav), 0 8px 20px rgba(0,0,0,0.3);">
+        <i data-add-hub-icon class="fa-solid fa-plus text-xl" aria-hidden="true"></i>
+      </button>
+    </div>
+    <% } %>
+    <a href="<%= baseUrl %>/lists" class="<%= tabClass('lists') %>" <%- activeTab === 'lists' ? 'aria-current="page"' : '' %>>
+      <span class="h-6 flex items-center" aria-hidden="true"><i class="fa-solid fa-list-ul text-lg"></i></span>
+      <span class="truncate max-w-full px-1"><%= t('lists.title') %></span>
+    </a>
+    <button type="button" data-account-sheet-open aria-haspopup="dialog" class="<%= tabClass('account') %>">
+      <img src="<%= baseUrl + user.img %>" alt="" class="w-6 h-6 rounded-full object-cover <%= activeTab === 'account' ? 'ring-2 ring-primary-theme' : '' %>">
+      <span class="truncate max-w-full px-1"><%= t('nav.account') %></span>
+    </button>
+  </div>
+</nav>
+
+<div id="accountSheet" class="md:hidden fixed inset-0 z-[60] hidden">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" data-account-sheet-close></div>
+  <div role="dialog" aria-modal="true" aria-label="<%= t('nav.account') %>"
+    class="absolute inset-x-0 bottom-0 card-theme rounded-t-[2rem] max-h-[85vh] overflow-y-auto shadow-2xl"
+    style="padding-bottom: env(safe-area-inset-bottom);">
+    <div class="w-12 h-1.5 bg-black/10 dark:bg-white/10 rounded-full mx-auto mt-3" aria-hidden="true"></div>
+    <div class="flex items-center gap-3 px-5 pt-4 pb-3">
+      <img src="<%= baseUrl + user.img %>" alt="" class="w-12 h-12 rounded-full object-cover flex-none">
+      <div class="flex-1 min-w-0">
+        <span class="block font-bold truncate"><%= user.username %></span>
+        <span class="block text-xs opacity-60 truncate"><%= user.email %></span>
+      </div>
+      <button type="button" data-account-sheet-close aria-label="<%= t('nav.close') %>"
+        class="w-10 h-10 flex-none rounded-full bg-black/5 dark:bg-white/10 flex items-center justify-center">
+        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+      </button>
+    </div>
+    <div class="border-t border-black/5 dark:border-white/10">
+      <%- include('user-menu') %>
+    </div>
+  </div>
+</div>
+
+<script>
+    (function () {
+        const sheet = document.getElementById('accountSheet');
+        if (!sheet) return;
+        const setOpen = (open) => {
+            sheet.classList.toggle('hidden', !open);
+            document.body.classList.toggle('overflow-hidden', open);
+        };
+        document.querySelectorAll('[data-account-sheet-open]')
+            .forEach(el => el.addEventListener('click', () => setOpen(true)));
+        sheet.querySelectorAll('[data-account-sheet-close]')
+            .forEach(el => el.addEventListener('click', () => setOpen(false)));
+        // The new-collection modal opens from the sheet's menu: get the sheet out of its way.
+        sheet.querySelectorAll('[data-new-collection-open]')
+            .forEach(el => el.addEventListener('click', () => setOpen(false)));
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') setOpen(false);
+        });
+    })();
+</script>
