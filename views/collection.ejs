@@ -1,4 +1,4 @@
-<%- include('partials/header') %>
+<%- include('partials/header', { shellPills: false }) %>
 
     <%
         // Collection-level action buttons are declared by the active plugin (collectionActions).
@@ -20,7 +20,7 @@
             </div>
         <% } %>
 
-        <div class="pt-6 mb-6 flex items-center justify-between">
+        <div class="pt-2 sm:pt-6 mb-6 flex items-center justify-between gap-3">
             <h1 class="text-3xl font-bold transition-colors flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
                 <span>
                     <%= t('collection.title') %>
@@ -58,8 +58,15 @@
                 </a>
             <% } %>
             <% if (!locals.isShareView) { %>
+                <%# On a phone the tab bar has Lists, and the shortcut pills that lead to the
+                    wishlist are not shown on this page: the wishlist takes the slot there. %>
+                <a href="<%= baseUrl %>/wishlist"
+                    class="md:hidden flex-shrink-0 w-10 h-10 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center"
+                    title="<%= t('nav.wishlist') %>" aria-label="<%= t('nav.wishlist') %>">
+                    <i class="fa-solid fa-gift"></i>
+                </a>
                 <a href="<%= baseUrl %>/lists"
-                    class="flex-shrink-0 w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center gap-2 group"
+                    class="hidden md:flex flex-shrink-0 w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm items-center justify-center gap-2 group"
                     title="<%= t('lists.title') %>">
                     <i class="fa-solid fa-list-check group-hover:scale-110 transition-transform"></i>
                     <span class="hidden md:inline text-xs font-bold uppercase tracking-widest"><%= t('lists.title') %></span>
@@ -87,7 +94,7 @@
 
                         <% if (addRoute) { %>
                             <a href="<%= baseUrl + addRoute %>"
-                                class="flex-shrink-0 w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center gap-2 group"
+                                class="hidden md:flex flex-shrink-0 w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm items-center justify-center gap-2 group"
                                 title="<%= t('collection.add') %>">
                                 <i class="fa-solid fa-plus group-hover:scale-110 transition-transform"></i>
                                 <span class="hidden md:inline text-xs font-bold uppercase tracking-widest">
@@ -97,10 +104,12 @@
                             <% } %>
 
                             <%# The page is already scoped to one module, so unlike the dashboard/wishlist
-                                triggers there's no picker question - straight to that module's scanner. %>
+                                triggers there's no picker question - straight to that module's scanner.
+                                Add and scan are desktop only: on a phone the "+" tab opens the add
+                                sheet on this same module. %>
                             <% if (currentPlugin && hasBarcodeScan(currentPlugin)) { %>
                                 <a href="<%= baseUrl %>/add-<%= currentPlugin.id %>?scan=1"
-                                    class="flex-shrink-0 w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center gap-2 group"
+                                    class="hidden md:flex flex-shrink-0 w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm items-center justify-center gap-2 group"
                                     title="<%= t('collection.scan') %>">
                                     <i class="fa-solid fa-barcode group-hover:scale-110 transition-transform"></i>
                                     <span class="hidden md:inline text-xs font-bold uppercase tracking-widest">

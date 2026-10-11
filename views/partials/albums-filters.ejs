@@ -1,37 +1,38 @@
 <div class="space-y-6 mb-8">
 
-    <div class="flex flex-wrap items-center justify-between gap-4">
-        <div class="flex flex-wrap gap-2" id="formatFilters">
+    <%# One row on a phone: the pills scroll sideways and the filters toggle stays at the
+        end; from sm up the pills wrap as before. %>
+    <div class="flex items-center gap-2 sm:flex-wrap sm:justify-between sm:gap-4">
+        <div class="flex flex-1 min-w-0 gap-2 overflow-x-auto sm:flex-wrap sm:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,black_85%,transparent)] sm:[mask-image:none]" id="formatFilters">
             <% const mainTypes = [{ id: 'all', label: t('common.all') },
                 ...registry.getEnabled(settings).map(p => ({ id: p.collectionType, label: t(p.label) }))]; %>
 
                 <% if (currentType==='all' ) { %>
                     <% mainTypes.forEach(type=> { %>
                         <button onclick="currentType = '<%= type.id %>'; currentFormat = 'all'; reloadPage();"
-                            class="px-4 py-2 rounded-full text-xs font-bold transition-all active:scale-95 <%= currentType === type.id ? 'bg-primary-theme text-white shadow-lg' : 'bg-black/5 dark:bg-white/10 opacity-60' %>">
+                            class="flex-none whitespace-nowrap px-4 py-2 rounded-full text-sm sm:text-xs font-bold transition-all active:scale-95 <%= currentType === type.id ? 'bg-primary-theme text-white shadow-lg' : 'bg-black/5 dark:bg-white/10 opacity-60' %>">
                             <%= type.label %>
                         </button>
                         <% }) %>
                             <% } else { %>
                                 <button onclick="currentType = 'all'; currentFormat = 'all'; reloadPage();"
-                                    class="px-4 py-2 rounded-full text-xs font-bold transition-all active:scale-95 bg-black/5 dark:bg-white/10 opacity-60">
+                                    class="flex-none whitespace-nowrap px-4 py-2 rounded-full text-sm sm:text-xs font-bold transition-all active:scale-95 bg-black/5 dark:bg-white/10 opacity-60">
                                     <i class="fa-solid fa-arrow-left mr-2"></i>
                                     <%= t('common.all') %>
                                 </button>
                                 <% const activeFilters = currentType !== 'all' ? (filterMap[currentType] || []) : []; %>
                                 <% activeFilters.forEach(filter=> { %>
                                     <button onclick="currentFormat = '<%= filter.id %>'; reloadPage();"
-                                        class="px-4 py-2 rounded-full text-xs font-bold transition-all active:scale-95 <%= (currentFormat === filter.id) ? 'bg-primary-theme text-white shadow-lg' : 'bg-black/5 dark:bg-white/10 opacity-60' %>">
+                                        class="flex-none whitespace-nowrap px-4 py-2 rounded-full text-sm sm:text-xs font-bold transition-all active:scale-95 <%= (currentFormat === filter.id) ? 'bg-primary-theme text-white shadow-lg' : 'bg-black/5 dark:bg-white/10 opacity-60' %>">
                                         <%= filter.label %>
                                     </button>
                                     <% }) %>
                                 <% } %>
         </div>
 
-        <button onclick="toggleMobileFilters()"
-            class="sm:hidden flex items-center gap-2 px-4 py-2 rounded-lg card-theme border text-sm font-bold opacity-70 hover:opacity-100 transition-all">
-            <i class="fa-solid fa-filter"></i>
-            <%= t('common.filters') %>
+        <button type="button" onclick="toggleMobileFilters()" title="<%= t('common.filters') %>" aria-label="<%= t('common.filters') %>"
+            class="sm:hidden flex-none w-10 h-10 flex items-center justify-center rounded-full card-theme border opacity-80 hover:opacity-100 transition-all">
+            <i class="fa-solid fa-sliders"></i>
         </button>
     </div>
 

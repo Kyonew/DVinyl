@@ -52,6 +52,19 @@
   </div>
 </nav>
 
+<style>
+  /* The account menu is the desktop dropdown's markup (shell/user-menu); in the sheet its
+     rows grow to finger size. */
+  #accountSheet [data-account-menu] a,
+  #accountSheet [data-account-menu] button {
+    min-height: 3rem;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+  }
+  #accountSheet [data-account-menu] a.text-center { justify-content: center; }
+</style>
+
 <div id="accountSheet" class="md:hidden fixed inset-0 z-[60] hidden">
   <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" data-account-sheet-close></div>
   <div role="dialog" aria-modal="true" aria-label="<%= t('nav.account') %>"
@@ -69,7 +82,7 @@
         <i class="fa-solid fa-xmark" aria-hidden="true"></i>
       </button>
     </div>
-    <div class="border-t border-black/5 dark:border-white/10">
+    <div class="border-t border-black/5 dark:border-white/10" data-account-menu>
       <%- include('user-menu') %>
     </div>
   </div>

@@ -273,7 +273,9 @@
         <%- include('shell/nav-shortcuts', { shortcutsVariant: 'bar' }) %>
       </div>
     </div>
-    <% if (showTabBar) { %>
+    <%# A page with its own filter pills (collection, wishlist) passes shellPills: false,
+        so a phone never stacks two rows of pills. %>
+    <% if (showTabBar && locals.shellPills !== false) { %>
     <div class="md:hidden">
       <%- include('shell/nav-shortcuts', { shortcutsVariant: 'pills', shortcutsExclude: ['global_home', 'global_collection', 'global_lists'] }) %>
     </div>
