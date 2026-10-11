@@ -67,6 +67,14 @@
   // share views and signed-out pages keep the burger.
   const showTabBar = Boolean(locals.user) && !locals.isShareView
       && typeof settings !== 'undefined' && settings && typeof registry !== 'undefined' && registry;
+
+  // A page that opens on its own large title (the collection) passes shellTopBar: false
+  // and drops the top bar on a phone, as an app screen would; the tab bar leads out.
+  const hideTopBarOnPhone = showTabBar && locals.shellTopBar === false;
+  // Tab roots never get a back button. Any deeper page does once installed, where no
+  // browser toolbar offers one (see the standalone rules in the style block).
+  const tabRoots = ['/', '/dashboard', '/collection', '/lists', '/wishlist'];
+  const showBackButton = !tabRoots.includes(locals.currentPath || '/');
 %>
 
 <html lang="<%= currentLng %>" class="<%= isDark ? 'dark' : '' %>">
@@ -199,8 +207,23 @@
       body.has-tab-bar #toastContainer { margin-bottom: calc(var(--tab-bar-h) + env(safe-area-inset-bottom)); }
       body.has-tab-bar #bulkActionBar { bottom: calc(var(--tab-bar-h) + env(safe-area-inset-bottom)); }
       body.has-tab-bar #bulkBarPanel { padding-bottom: 0.75rem; }
+      /* No top bar to clear the status bar: the page itself starts below it. */
+      body.no-top-bar main { padding-top: calc(env(safe-area-inset-top) + 1rem); }
     }
+
+    /* Installed app: display-mode standalone, or html.is-standalone for iOS, which only
+       exposes navigator.standalone. No browser toolbar there, so deep pages get a back
+       button of their own, and the site footer has no place in an app. */
+    @media (display-mode: standalone) {
+      [data-standalone-back] { display: flex !important; }
+      footer.nav-custom { display: none; }
+    }
+    html.is-standalone [data-standalone-back] { display: flex !important; }
+    html.is-standalone footer.nav-custom { display: none; }
   </style>
+  <script>
+    if (window.navigator.standalone === true) document.documentElement.classList.add('is-standalone');
+  </script>
 
   <link rel="manifest" href="<%= baseUrl %>/manifest.json">
   <meta name="theme-color" content="<%= navColor %>" data-light="<%= navColorLight %>" data-dark="<%= navColorDark %>">
@@ -211,7 +234,7 @@
   <link rel="apple-touch-icon" href="<%= baseUrl %>/ressources/icone-192.png">
 </head>
 
-<body class="font-sans transition-colors duration-300 min-h-screen flex flex-col <%= showTabBar ? 'has-tab-bar' : '' %>">
+<body class="font-sans transition-colors duration-300 min-h-screen flex flex-col <%= showTabBar ? 'has-tab-bar' : '' %> <%= hideTopBarOnPhone ? 'no-top-bar' : '' %>">
     
   <div id="page-loader" class="fixed inset-0 z-[9999] flex flex-col items-center justify-center transition-opacity duration-500">
     <div class="relative">
@@ -219,12 +242,20 @@
     </div>
   </div>
 
-  <nav class="nav-custom transition-colors duration-300">
+  <nav class="nav-custom transition-colors duration-300 <%= hideTopBarOnPhone ? 'max-md:hidden' : '' %>">
       <div class="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto px-2.5 <%= showTabBar ? 'py-3' : 'py-4' %> sm:p-4">
-      <a href="<%= baseUrl || '/' %>" class="flex items-center space-x-3 group">
+      <div class="flex items-center gap-2 min-w-0">
+      <% if (showBackButton) { %>
+      <button type="button" data-standalone-back aria-label="<%= t('nav.back') %>"
+        class="hidden w-9 h-9 flex-none items-center justify-center rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-colors">
+        <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
+      </button>
+      <% } %>
+      <a href="<%= baseUrl || '/' %>" class="flex items-center space-x-3 group min-w-0">
         <img src="<%= baseUrl %>/ressources/logo.png" alt="Logo" class="h-8 w-8 rounded-full object-cover group-hover:rotate-12 transition-transform">
         <span class="self-center text-2xl font-semibold text-inherit"><%= locals.activeCollection && locals.activeCollection.name ? activeCollection.name : 'Vinyl' %></span>
       </a>
+      </div>
 
       <div class="flex items-center md:order-2 gap-4">
 
@@ -309,6 +340,15 @@
 
   <script>
     document.body.classList.add('js-ready');
+
+    document.querySelectorAll('[data-standalone-back]').forEach(button => {
+        button.addEventListener('click', () => {
+            // Opened straight on this page (a shared link, a home screen shortcut): there
+            // is nothing to go back to, so the collection stands in for it.
+            if (window.history.length > 1) window.history.back();
+            else window.location.href = '<%= baseUrl %>/collection';
+        });
+    });
     const navTranslations = {
         themeDark: <%- JSON.stringify(t('nav.theme_dark')) %>,
         themeLight: <%- JSON.stringify(t('nav.theme_light')) %>

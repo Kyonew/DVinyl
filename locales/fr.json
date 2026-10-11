@@ -976,7 +976,8 @@
     "add": "Ajouter",
     "account": "Compte",
     "close": "Fermer",
-    "main_navigation": "Navigation principale"
+    "main_navigation": "Navigation principale",
+    "back": "Retour"
   },
   "search": {
     "title": "Recherche",

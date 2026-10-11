@@ -1106,7 +1106,8 @@
     "add": "Aggiungi",
     "account": "Account",
     "close": "Chiudi",
-    "main_navigation": "Navigazione principale"
+    "main_navigation": "Navigazione principale",
+    "back": "Indietro"
   },
   "search": {
     "title": "Cerca",

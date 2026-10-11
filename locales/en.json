@@ -976,7 +976,8 @@
     "add": "Add",
     "account": "Account",
     "close": "Close",
-    "main_navigation": "Main navigation"
+    "main_navigation": "Main navigation",
+    "back": "Back"
   },
   "search": {
     "title": "Search",

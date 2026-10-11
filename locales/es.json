@@ -1106,7 +1106,8 @@
     "add": "Añadir",
     "account": "Cuenta",
     "close": "Cerrar",
-    "main_navigation": "Navegación principal"
+    "main_navigation": "Navegación principal",
+    "back": "Volver"
   },
   "search": {
     "title": "Buscar",
