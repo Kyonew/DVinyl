@@ -1,9 +1,16 @@
 <%
   /**
    * The navbar shortcuts the collection chose (settings.navbarShortcuts), filtered to
-   * what this viewer can actually open. The desktop navbar list, also the collapsible
-   * menu on a phone when there is no tab bar (share views, signed out).
+   * what this viewer can actually open.
+   *
+   * shortcutsVariant 'bar'   - the desktop navbar list, also the collapsible menu on a
+   *                            phone when there is no tab bar (share views, signed out).
+   * shortcutsVariant 'chips' - the phone dashboard's shortcuts section, which has no top
+   *                            bar to hold them; shortcutsExclude drops what the tab bar
+   *                            already offers.
    */
+  const shortcutVariant = locals.shortcutsVariant || 'bar';
+  const shortcutExclude = locals.shortcutsExclude || [];
 
   // Global shortcuts plus shortcuts declared by each plugin (navbarShortcuts)
   const shortcutConfig = {
@@ -63,7 +70,7 @@
   if (typeof settings !== 'undefined' && settings && settings.navbarShortcuts) {
       settings.navbarShortcuts.forEach(id => {
           const item = shortcutConfig[id];
-          if (!item || !shortcutAllowed(id, item)) return;
+          if (!item || shortcutExclude.includes(id) || !shortcutAllowed(id, item)) return;
           const isModuleActive = item.module
               ? Boolean(settings.modules && (settings.modules instanceof Map ? settings.modules.get(item.module) : settings.modules[item.module]))
               : true;
@@ -71,6 +78,20 @@
       });
   }
 %>
+<% if (shortcutVariant === 'chips') { %>
+  <% if (visibleShortcuts.length > 0) { %>
+  <ul class="flex flex-wrap gap-2">
+    <% visibleShortcuts.forEach(item => { %>
+    <li>
+      <a href="<%= baseUrl + item.url %>"
+        class="flex items-center h-10 px-4 rounded-full card-theme text-sm font-semibold whitespace-nowrap">
+        <%= item.label %>
+      </a>
+    </li>
+    <% }) %>
+  </ul>
+  <% } %>
+<% } else { %>
   <ul class="flex flex-col font-medium p-4 md:p-0 mt-4 rounded-lg md:flex-row md:space-x-8 md:mt-0 md:border-0 md:bg-transparent">
     <% visibleShortcuts.forEach(item => { %>
     <li>
@@ -81,3 +102,4 @@
     </li>
     <% }) %>
   </ul>
+<% } %>

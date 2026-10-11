@@ -49,6 +49,9 @@
             <% }) %>
         </div>
 
+        <%# The collection's navbar shortcuts: a phone has no top bar to carry them. %>
+        <%- include('partials/shell/nav-shortcuts', { shortcutsVariant: 'chips', shortcutsExclude: ['global_home', 'global_collection', 'global_lists'] }) %>
+
         <% if (isCollectionInfoVisible(locals.activeCollection, locals.isShareView)) { %>
             <a href="<%= baseUrl %>/info" class="flex items-center gap-3 card-theme rounded-2xl px-4 min-h-[52px]">
                 <i class="fa-solid fa-circle-info text-primary-theme" aria-hidden="true"></i>
