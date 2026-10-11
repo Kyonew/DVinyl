@@ -1,7 +1,8 @@
 <%
     /**
-     * Add hub: the sheet every "add" entry point opens. Pick the module, then how to add:
-     * scan its barcode, search for it, read a photo of it, or fill the form by hand.
+     * Add hub: what every "add" entry point opens. On a phone, a sheet that picks the
+     * module, then how to add: scan its barcode, search for it, read a photo of it, or
+     * fill the form by hand. On a larger screen, the module picker alone.
      *
      * The pages own their trigger's layout and call openAddModal(); the rule for where
      * an add actually goes lives here only. That includes the fast-add shortcut, which
@@ -32,13 +33,15 @@
 %>
 <% if (locals.canEditCollection && addHubPlugins.length > 0) { %>
 <div id="addHubModal" data-hub-context="<%= addHubContext ? addHubContext.id : '' %>"
-    class="fixed inset-0 z-[100] hidden bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4">
+    class="fixed inset-0 z-[100] hidden bg-black/60 backdrop-blur-sm flex items-end md:items-center justify-center md:p-4">
 
+    <%# Phone: a sheet that picks the module, then the method, scan first since the phone
+        holds the camera. %>
     <div role="dialog" aria-modal="true" aria-labelledby="addHubTitle"
-        class="card-theme w-full sm:max-w-md rounded-t-[2rem] sm:rounded-[2rem] px-5 pt-3 sm:p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom sm:zoom-in duration-300"
+        class="md:hidden card-theme w-full rounded-t-[2rem] px-5 pt-3 shadow-2xl relative max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom duration-300"
         style="padding-bottom: calc(1.25rem + env(safe-area-inset-bottom));">
 
-        <div class="w-12 h-1.5 bg-black/10 dark:bg-white/10 rounded-full mx-auto mb-4 sm:hidden" aria-hidden="true"></div>
+        <div class="w-12 h-1.5 bg-black/10 dark:bg-white/10 rounded-full mx-auto mb-4" aria-hidden="true"></div>
 
         <div class="flex items-center justify-between gap-4 mb-4">
             <h2 id="addHubTitle" class="text-2xl font-black tracking-tight"><%= t('modal.add_hub_title') %></h2>
@@ -119,6 +122,41 @@
         <input type="file" id="addHubPhotoInput" accept="image/*" class="hidden">
         <% } %>
     </div>
+
+    <%# Desktop: the module picker alone. A computer rarely scans, so each tile opens the
+        module's add page, where search, photo and manual entry are all offered. %>
+    <%
+        const addHubDesktopCount = addHubPlugins.length;
+        let addHubDesktopCols = (addHubDesktopCount >= 3) ? 'grid-cols-3' : (addHubDesktopCount === 2) ? 'grid-cols-2' : 'grid-cols-1';
+        if (addHubDesktopCount === 4) addHubDesktopCols = 'grid-cols-2 lg:grid-cols-4';
+        const addHubDesktopWidth = (addHubDesktopCount === 1) ? 'max-w-md' : (addHubDesktopCount === 2) ? 'max-w-xl' : (addHubDesktopCount === 4) ? 'max-w-4xl' : 'max-w-3xl';
+        const addHubPlainHref = p => baseUrl + '/' + (hasSearch(p) ? ('add-' + p.id) : ('manual-add?type=' + p.id));
+    %>
+    <div role="dialog" aria-modal="true" aria-labelledby="addHubTitleDesktop"
+        class="hidden md:block card-theme w-full <%= addHubDesktopWidth %> rounded-[2.5rem] p-10 shadow-2xl relative animate-in zoom-in duration-300">
+
+        <button type="button" onclick="closeAddModal()" aria-label="<%= t('nav.close') %>" class="absolute top-6 right-6 opacity-40 hover:opacity-100 transition-opacity">
+            <i class="fa-solid fa-xmark text-2xl" aria-hidden="true"></i>
+        </button>
+
+        <div class="text-center mb-12">
+            <h2 id="addHubTitleDesktop" class="text-3xl font-black tracking-tight"><%= t('modal.add_hub_title') %></h2>
+            <p class="opacity-50 text-sm mt-1"><%= t('modal.add_hub_subtitle') %></p>
+        </div>
+
+        <div class="grid <%= addHubDesktopCols %> gap-6">
+            <% addHubPlugins.forEach(p => { %>
+                <a href="<%= addHubPlainHref(p) %>" data-hub-item data-plain-href="<%= addHubPlainHref(p) %>"
+                    data-scan-href="<%= hasBarcodeScan(p) ? (baseUrl + '/add-' + p.id + '?scan=1') : '' %>"
+                    class="group flex flex-col items-center justify-center p-8 rounded-[2rem] bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white transition-all duration-300">
+                    <div class="w-20 h-20 rounded-full bg-primary-theme/10 group-hover:bg-white/20 flex items-center justify-center mb-4">
+                        <i class="fa-solid fa-<%= p.icon %> text-4xl" aria-hidden="true"></i>
+                    </div>
+                    <span class="font-black text-xs uppercase tracking-widest text-center"><%= t(p.label) %></span>
+                </a>
+            <% }) %>
+        </div>
+    </div>
 </div>
 
 <% if (addHubPlugins.some(addHubCanPhoto)) { %>
@@ -149,6 +187,10 @@
     // Shared by the plain "+" trigger and the scan shortcut: same sheet, but the scan
     // shortcut only offers the modules that can scan.
     function setHubMode(scan) {
+        document.querySelectorAll('[data-hub-item]').forEach(function (tile) {
+            tile.classList.toggle('hidden', scan && !tile.dataset.scanHref);
+            tile.href = scan && tile.dataset.scanHref ? tile.dataset.scanHref : tile.dataset.plainHref;
+        });
         const pills = Array.from(document.querySelectorAll('[data-hub-type]'));
         if (pills.length === 0) return;
         pills.forEach(function (pill) {
