@@ -781,6 +781,12 @@
     "tracklist_label": "Titelliste"
   },
   "detail": {
+    "in_collection": "In der Sammlung",
+    "my_copy": "Mein Exemplar",
+    "edition_section": "Ausgabe",
+    "show_all": "Alles anzeigen",
+    "more_actions": "Mehr",
+    "label_short": "Etikett",
     "added_at": "Hinzugefügt bei",
     "added_by": "Hinzugefügt von",
     "modified_at": "Zuletzt geändert",

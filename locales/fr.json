@@ -905,6 +905,12 @@
     "edit_secondary_visual": "Modifier le visuel secondaire (Disque)"
   },
   "detail": {
+    "in_collection": "Dans la collection",
+    "my_copy": "Mon exemplaire",
+    "edition_section": "Édition",
+    "show_all": "Tout afficher",
+    "more_actions": "Plus",
+    "label_short": "Étiquette",
     "back_to_collection": "Retour à la collection",
     "back_to_wishlist": "Retour à la wishlist",
     "official_cover": "Pochette officielle",

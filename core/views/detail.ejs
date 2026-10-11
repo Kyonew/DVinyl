@@ -1,12 +1,13 @@
-<%- include('../../views/partials/header') %>
+<%- include('../../views/partials/header', { shellTopBar: false }) %>
 
-<div class="fixed inset-0 -z-10 opacity-10 dark:opacity-20 blur-3xl pointer-events-none transition-opacity duration-1000">
+<%# Desktop only: on a phone a blurred cover behind the whole page reads as a music player. %>
+<div class="max-md:hidden fixed inset-0 -z-10 opacity-10 dark:opacity-20 blur-3xl pointer-events-none transition-opacity duration-1000">
     <img src="<%= itemImageUrl(item.cover_image) %>" class="w-full h-full object-cover">
 </div>
 
 <div class="max-w-screen-xl mx-auto px-4 pb-20">
 
-    <nav class="flex py-6 text-sm opacity-60 transition-colors">
+    <nav class="flex py-6 max-md:pt-0 max-md:pb-4 text-sm max-md:text-base max-md:font-semibold opacity-60 max-md:opacity-100 max-md:text-primary-theme transition-colors">
         <%# A contained item is reachable from its holder alone, so that is where back
             leads: sending it to a collection it deliberately never appears in would be a
             dead end. %>
@@ -33,6 +34,96 @@
         <% } %>
     </nav>
 
+    <%
+        const dateLocale = dateLocaleFor(currentLng);
+        // Date-only values are stored as UTC midnight; formatting them in UTC keeps
+        // the displayed day identical to the one that was picked in the form.
+        // Falls back to the raw value: a field switched from text to date after the
+        // fact still holds unparseable strings, and "Invalid Date" helps nobody.
+        const formatDay = d => {
+            const parsed = new Date(d);
+            return isNaN(parsed.getTime()) ? d : parsed.toLocaleDateString(dateLocale, { timeZone: 'UTC' });
+        };
+
+        // Paths rendered by a dedicated block further down this page (genres/styles
+        // chips, comments card). Listing them by name keeps them out of the generic
+        // grid without excluding every field sharing their type.
+        const renderedElsewhere = ['comments', 'genres', 'styles'];
+
+        // The block above hides where the item is kept from a share link; this grid
+        // draws the plugin's own fields and would have printed it again right under.
+        // Same list the cards go through, so a field is kept from a visitor
+        // everywhere or nowhere.
+        const detailFields = plugin.formFields.filter(f =>
+            f.showIn.includes('detail') &&
+            !['title', plugin.creatorField].includes(f.name) &&
+            !renderedElsewhere.includes(f.name) &&
+            !(locals.isShareView && SHARE_HIDDEN_FIELDS.has(f.name)) &&
+            f.type !== 'custom'
+        );
+        const isEmptyValue = val => val === undefined || val === null || val === ''
+            || val === 0 || (Array.isArray(val) && val.length === 0);
+        // A field's value as text, for every type but tags and textarea, which are laid
+        // out by the caller.
+        const fieldText = (field, val) => {
+            if (field.type === 'boolean') return val ? t('common.yes') : t('common.no');
+            if (field.type === 'date') return formatDay(val);
+            if (field.options) {
+                // Show the option label, not the slug stored in the document.
+                // defaultValue covers the plain-text labels of user-defined
+                // fields, whose labels are not i18n keys.
+                const opt = field.options.find(o => String(o.value) === String(val));
+                return opt ? t(opt.label, { defaultValue: opt.label }) : val;
+            }
+            return val;
+        };
+
+        // The phone page is ordered for a collector: the copy on the shelf first (where it
+        // is, its condition, its notes), the edition it belongs to next. These are the
+        // fields that describe the copy rather than the release; location has a row of
+        // its own at the top of that section.
+        const copyFieldNames = ['quantity', 'sleeve_condition', 'variant_color', 'user_rating', 'rating'];
+        const shownFields = detailFields.filter(f => !isEmptyValue(item[f.name]) || f.type === 'boolean');
+        const copyFields = shownFields.filter(f => copyFieldNames.includes(f.name));
+        const editionFields = shownFields.filter(f => !copyFieldNames.includes(f.name) && f.name !== 'location');
+        const showLocation = plugin.formFields.some(f => f.name === 'location') && !locals.isShareView;
+        const extLink = externalLinkFor(plugin, item);
+        const contentZones = (plugin.partialsPath && plugin.detailZones) ? plugin.detailZones.filter(z => z.id === 'content') : [];
+        const sidebarZones = (plugin.partialsPath && plugin.detailZones) ? plugin.detailZones.filter(z => z.id === 'sidebar') : [];
+        // Copy to a new entry (e.g. the same work in a second format), for every
+        // collection type. Not for a wishlist item, nor a contained item (a TV season)
+        // or a holder (a show): those are added through their own flow, not duplicated.
+        const canCopyItem = !item.in_wishlist
+            && (item.season === null || item.season === undefined)
+            && !(locals.contains && contains.length > 0);
+        const editHref = baseUrl + plugin.routePrefix + '/edit/' + item._id + (locals.backUrl ? '?from=' + encodeURIComponent(backUrl) : '');
+        const baseFmt = item.format || item.media_type || '';
+        const baseFmtOpt = (plugin.formats || []).find(f => String(f.value) === String(baseFmt));
+        const baseFmtLabel = (baseFmt || item.format_type)
+            ? (baseFmtOpt ? t(baseFmtOpt.label, { defaultValue: baseFmtOpt.label }) : t('media.' + baseFmt, { defaultValue: baseFmt || item.format_type }))
+            : '';
+        const mobileRow = 'flex items-center justify-between gap-4 px-4 min-h-[48px] py-2 border-b border-black/5 dark:border-white/5 last:border-b-0';
+        const mobileSectionTitle = 'mb-2 ml-1 text-xs font-bold uppercase tracking-widest opacity-60';
+    %>
+
+    <%# Phone header: the cover as a thumbnail beside what the item is. The large cover
+        and its gallery are the desktop layout; here a tap opens the same lightbox, which
+        steps through every image. %>
+    <div class="md:hidden flex gap-4 mb-5">
+        <button type="button" onclick="openLightbox()" aria-label="<%= t('detail.view_fullscreen') %>"
+            class="flex-none w-32 h-32 rounded-xl overflow-hidden shadow-lg shadow-black/30 bg-black/5 dark:bg-white/5">
+            <img src="<%= itemImageUrl(item.images[0]) %>" alt="" class="w-full h-full object-cover">
+        </button>
+        <div class="min-w-0 flex flex-col gap-1">
+            <% if (baseFmtLabel) { %>
+                <span class="self-start px-2 py-0.5 rounded-md bg-black/5 dark:bg-white/10 text-[11px] font-bold uppercase tracking-wider opacity-80"><%= baseFmtLabel %></span>
+            <% } %>
+            <h1 class="text-2xl font-extrabold leading-tight tracking-tight break-words"><%= item.title %></h1>
+            <span class="text-base opacity-80 truncate"><%= item[plugin.creatorField] || 'Unknown' %></span>
+            <% if (item.year) { %><span class="text-sm opacity-60"><%= item.year %></span><% } %>
+        </div>
+    </div>
+
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
 
         <!-- Left Column: Cover and user image -->
@@ -45,8 +136,8 @@
             const coverAspect = plugin.aspectRatioClass || 'aspect-square';
             const coverMaxWidth = coverAspect === 'aspect-[2/3]' ? 'max-w-sm' : 'max-w-lg';
         %>
-        <div class="lg:col-span-6 min-w-0 flex flex-col items-center">
-            <div class="relative w-full <%= coverMaxWidth %> <%= coverAspect %> card-theme rounded-2xl shadow-xl overflow-hidden flex items-center justify-center group transition-colors">
+        <div class="lg:col-span-6 min-w-0 flex flex-col items-center <%= sidebarZones.length ? '' : 'max-md:hidden' %>">
+            <div class="max-md:hidden relative w-full <%= coverMaxWidth %> <%= coverAspect %> card-theme rounded-2xl shadow-xl overflow-hidden flex items-center justify-center group transition-colors">
                 <img id="mainImage" src="<%= itemImageUrl(item.images[0]) %>" class="w-full h-full object-contain transition-transform duration-300 group-hover:scale-[1.02] cursor-zoom-in" alt="<%= item.title %>" onclick="openLightbox()">
 
                 <span id="imageBadge" class="absolute top-4 right-4 bg-white/90 dark:bg-black/60 backdrop-blur-md text-neutral-900 dark:text-white text-xs px-3 py-1 rounded-full border border-black/5 dark:border-white/10 shadow-sm transition-colors">
@@ -59,7 +150,7 @@
                 </button>
             </div>
 
-            <div id="imageGallery" class="gallery-wrapper relative w-full max-w-lg mt-6 overflow-hidden">
+            <div id="imageGallery" class="max-md:hidden gallery-wrapper relative w-full max-w-lg mt-6 overflow-hidden">
                 <% if (item.images.length > 1) { %>
                     <button type="button" id="galleryPrevious" class="gallery-nav absolute z-10 left-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/75 dark:bg-black/55 backdrop-blur-md text-neutral-900 dark:text-white border border-black/10 dark:border-white/10 shadow-md items-center justify-center transition-all hover:bg-white dark:hover:bg-black/80 focus:opacity-100 focus:outline-none"
                         aria-label="<%= t('image_manager.previous') %>" title="<%= t('image_manager.previous') %>">
@@ -87,8 +178,7 @@
             </div>
 
             <!-- Sidebar Detail Zones from plugin (status + rating blocks under the cover) -->
-            <% if (plugin.partialsPath && plugin.detailZones) { %>
-                <% const sidebarZones = plugin.detailZones.filter(z => z.id === 'sidebar') %>
+            <% if (sidebarZones.length) { %>
                 <% for (const zone of sidebarZones) { %>
                     <div class="w-full max-w-lg">
                         <%- include('../../' + plugin.partialsPath + '/' + zone.partial, { item, contains: locals.contains || [], containsLabel: locals.containsLabel || null }) %>
@@ -98,24 +188,26 @@
         </div>
 
         <!-- Right Column: Details & Metadata -->
-        <div class="lg:col-span-6 space-y-8">
-            <div>
-                <h1 class="text-3xl md:text-5xl font-black mb-2 leading-tight transition-colors">
+        <div class="lg:col-span-6 flex flex-col gap-8 max-md:gap-6">
+            <div class="max-md:order-1">
+                <h1 class="max-md:hidden text-3xl md:text-5xl font-black mb-2 leading-tight transition-colors">
                     <%= item.title %>
                 </h1>
-                <h2 class="text-xl md:text-2xl text-primary-theme font-semibold mb-4 transition-colors">
+                <h2 class="max-md:hidden text-xl md:text-2xl text-primary-theme font-semibold mb-4 transition-colors">
                     <%= item[plugin.creatorField] || 'Unknown' %>
                 </h2>
 
                 <div class="flex flex-wrap gap-2">
+                    <%# Phone only: whether this copy is owned or wished for, the first thing a
+                        collector checks. The format moved to the phone header. %>
+                    <span class="md:hidden px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 <%= item.in_wishlist ? 'bg-pink-500/15 text-pink-600 dark:text-pink-400' : 'bg-primary-theme/15 text-primary-theme' %>">
+                        <i class="fa-solid <%= item.in_wishlist ? 'fa-gift' : 'fa-check' %>" aria-hidden="true"></i>
+                        <%= item.in_wishlist ? t('nav.wishlist') : t('detail.in_collection') %>
+                    </span>
                     <!-- Base Format Badge: physical format lives in `format`; music keeps it in media_type -->
-                    <%
-                        const baseFmt = item.format || item.media_type || '';
-                        const baseFmtOpt = (plugin.formats || []).find(f => String(f.value) === String(baseFmt));
-                    %>
-                    <% if (baseFmt || item.format_type) { %>
-                    <span class="px-3 py-1 rounded-full text-xs font-bold tracking-wider bg-primary-theme text-white shadow-sm">
-                        <%= baseFmtOpt ? t(baseFmtOpt.label, { defaultValue: baseFmtOpt.label }) : t('media.' + baseFmt, { defaultValue: baseFmt || item.format_type }) %>
+                    <% if (baseFmtLabel) { %>
+                    <span class="max-md:hidden px-3 py-1 rounded-full text-xs font-bold tracking-wider bg-primary-theme text-white shadow-sm">
+                        <%= baseFmtLabel %>
                     </span>
                     <% } %>
 
@@ -147,8 +239,119 @@
                 </div>
             </div>
 
+            <% if (user && locals.canEditCollection) { %>
+            <%# Phone actions: the four a collector reaches for, the rest in a sheet. They
+                call the same handlers as the desktop row further down. %>
+            <div class="md:hidden max-md:order-2 grid grid-cols-4 gap-2">
+                <a href="<%= editHref %>" class="flex flex-col items-center gap-1.5 py-3 rounded-2xl card-theme text-xs font-semibold">
+                    <i class="fa-solid fa-pen-to-square text-lg text-primary-theme" aria-hidden="true"></i><%= t('common.edit') %>
+                </a>
+                <button type="button" onclick="openListPicker({ kind: 'items', item: '<%= item._id %>', label: <%= JSON.stringify(item.title || '') %> })" class="flex flex-col items-center gap-1.5 py-3 rounded-2xl card-theme text-xs font-semibold">
+                    <i class="fa-solid fa-list-check text-lg text-primary-theme" aria-hidden="true"></i><%= t('lists.title') %>
+                </button>
+                <a href="<%= baseUrl %><%= plugin.routePrefix %>/<%= item._id %>/label" target="_blank" rel="noopener" class="flex flex-col items-center gap-1.5 py-3 rounded-2xl card-theme text-xs font-semibold">
+                    <i class="fa-solid fa-qrcode text-lg text-primary-theme" aria-hidden="true"></i><%= t('detail.label_short') %>
+                </a>
+                <button type="button" onclick="toggleItemActions(true)" aria-haspopup="dialog" class="flex flex-col items-center gap-1.5 py-3 rounded-2xl card-theme text-xs font-semibold">
+                    <i class="fa-solid fa-ellipsis text-lg text-primary-theme" aria-hidden="true"></i><%= t('detail.more_actions') %>
+                </button>
+            </div>
+            <% } %>
+
+            <%# Phone: the copy on the shelf. %>
+            <% if (showLocation || copyFields.length || item.added_at || item.comments) { %>
+            <section class="md:hidden max-md:order-3">
+                <h2 class="<%= mobileSectionTitle %>"><%= t('detail.my_copy') %></h2>
+                <div class="card-theme rounded-2xl overflow-hidden">
+                    <% if (showLocation) { %>
+                        <div class="flex items-center gap-3 px-4 min-h-[48px] py-2.5 border-b border-black/5 dark:border-white/5 last:border-b-0">
+                            <span class="w-10 h-10 flex-none rounded-xl bg-primary-theme/15 text-primary-theme flex items-center justify-center" aria-hidden="true"><i class="fa-solid fa-box-archive"></i></span>
+                            <span class="min-w-0 flex flex-col">
+                                <span class="text-xs opacity-60"><%= t('common.location') %></span>
+                                <span class="font-semibold truncate"><%= item.location || t('common.not_specified') %></span>
+                            </span>
+                        </div>
+                    <% } %>
+                    <% copyFields.forEach(field => { %>
+                        <div class="<%= mobileRow %>">
+                            <span class="opacity-70"><%= t(field.label) %></span>
+                            <span class="font-semibold text-right"><%= fieldText(field, item[field.name]) %></span>
+                        </div>
+                    <% }) %>
+                    <div class="<%= mobileRow %>">
+                        <span class="opacity-70"><%= t('detail.added_at') %></span>
+                        <span class="font-semibold flex items-center gap-2">
+                            <% if (locals.addedBy) { %><img src="<%= baseUrl + addedBy.img %>" alt="<%= addedBy.username %>" title="<%= addedBy.username %>" class="w-5 h-5 rounded-full object-cover"><% } %>
+                            <%= new Date(item.added_at).toLocaleDateString(dateLocale) %>
+                        </span>
+                    </div>
+                    <% if (item.modified_at) { %>
+                        <div class="<%= mobileRow %>">
+                            <span class="opacity-70"><%= t('detail.modified_at') %></span>
+                            <span class="font-semibold flex items-center gap-2">
+                                <% if (locals.modifiedBy) { %><img src="<%= baseUrl + modifiedBy.img %>" alt="<%= modifiedBy.username %>" title="<%= modifiedBy.username %>" class="w-5 h-5 rounded-full object-cover"><% } %>
+                                <%= new Date(item.modified_at).toLocaleDateString(dateLocale) %>
+                            </span>
+                        </div>
+                    <% } %>
+                    <% if (item.comments) { %>
+                        <div class="px-4 py-3 flex flex-col gap-1">
+                            <span class="text-xs opacity-60"><%= t('detail.personal_notes') %></span>
+                            <p class="text-sm leading-relaxed whitespace-pre-line"><%= item.comments %></p>
+                        </div>
+                    <% } %>
+                </div>
+            </section>
+            <% } %>
+
+            <%# Phone: the edition this copy belongs to. %>
+            <% const hasGenres = (item.genres && item.genres.length) || (item.styles && item.styles.length) || item.genre; %>
+            <% if (editionFields.length || hasGenres || extLink) { %>
+            <section class="md:hidden max-md:order-5">
+                <h2 class="<%= mobileSectionTitle %>"><%= t('detail.edition_section') %></h2>
+                <div class="card-theme rounded-2xl overflow-hidden">
+                    <% editionFields.forEach(field => { const val = item[field.name]; %>
+                        <% if (field.type === 'tags' && Array.isArray(val)) { %>
+                            <div class="px-4 py-3 flex flex-col gap-2 border-b border-black/5 dark:border-white/5 last:border-b-0">
+                                <span class="opacity-70 text-sm"><%= t(field.label) %></span>
+                                <div class="flex flex-wrap gap-1.5"><% val.forEach(tag => { %><span class="bg-black/5 dark:bg-white/10 text-xs font-medium px-2.5 py-1 rounded-full"><%= tag %></span><% }) %></div>
+                            </div>
+                        <% } else if (field.type === 'textarea') { %>
+                            <div class="px-4 py-3 flex flex-col gap-1 border-b border-black/5 dark:border-white/5 last:border-b-0">
+                                <span class="opacity-70 text-sm"><%= t(field.label) %></span>
+                                <p class="text-sm whitespace-pre-line"><%= val %></p>
+                            </div>
+                        <% } else { %>
+                            <div class="<%= mobileRow %>">
+                                <span class="opacity-70 flex-none"><%= t(field.label) %></span>
+                                <span class="font-semibold text-right min-w-0 break-words">
+                                    <%= fieldText(field, val) %>
+                                    <% if (field.name === 'barcode' && item.barcode_locked) { %><i class="fa-solid fa-lock text-[10px] text-primary-theme opacity-50 ml-1"></i><% } %>
+                                </span>
+                            </div>
+                        <% } %>
+                    <% }) %>
+                    <% if (hasGenres) { %>
+                        <div class="px-4 py-3 flex flex-col gap-2 border-b border-black/5 dark:border-white/5 last:border-b-0">
+                            <span class="opacity-70 text-sm"><%= t('confirm_vinyl.field_genres') %></span>
+                            <div class="flex flex-wrap gap-1.5">
+                                <% (item.genres && item.genres.length ? item.genres : (item.genre ? [item.genre] : [])).forEach(g => { %><span class="bg-black/5 dark:bg-white/10 text-xs font-medium px-2.5 py-1 rounded-full"><%= g %></span><% }) %>
+                                <% (item.styles || []).forEach(st => { %><span class="bg-primary-theme/10 text-primary-theme text-xs font-medium px-2.5 py-1 rounded-full"><%= st %></span><% }) %>
+                            </div>
+                        </div>
+                    <% } %>
+                    <% if (extLink) { %>
+                        <a href="<%= extLink.url %>" target="_blank" rel="noopener" class="<%= mobileRow %>">
+                            <span class="opacity-70"><%= t('detail.source') %></span>
+                            <span class="font-semibold text-primary-theme flex items-center gap-1.5"><%= extLink.label %> <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i></span>
+                        </a>
+                    <% } %>
+                </div>
+            </section>
+            <% } %>
+
             <!-- Location & Genres/Styles block -->
-            <div class="flex flex-col gap-6 ml-2">
+            <div class="max-md:hidden flex flex-col gap-6 ml-2">
                 <%# Kept even when empty, as an invitation to fill it in, but only for the
                     plugins that actually declare the field: a custom plugin created without
                     the location feature has no such data to show. Never for a share link,
@@ -215,40 +418,12 @@
             </div>
 
             <!-- Dynamic Metadata Card Grid -->
-            <div class="card-theme rounded-xl p-6 grid grid-cols-2 gap-y-6 gap-x-4 transition-colors shadow-sm">
+            <div class="max-md:hidden card-theme rounded-xl p-6 grid grid-cols-2 gap-y-6 gap-x-4 transition-colors shadow-sm">
                 <%
-                const dateLocale = dateLocaleFor(currentLng);
-                // Date-only values are stored as UTC midnight; formatting them in UTC keeps
-                // the displayed day identical to the one that was picked in the form.
-                // Falls back to the raw value: a field switched from text to date after the
-                // fact still holds unparseable strings, and "Invalid Date" helps nobody.
-                const formatDay = d => {
-                    const parsed = new Date(d);
-                    return isNaN(parsed.getTime()) ? d : parsed.toLocaleDateString(dateLocale, { timeZone: 'UTC' });
-                };
-
-                // Paths rendered by a dedicated block further down this page (genres/styles
-                // chips, comments card). Listing them by name keeps them out of the generic
-                // grid without excluding every field sharing their type.
-                const renderedElsewhere = ['comments', 'genres', 'styles'];
-
-                // The block above hides where the item is kept from a share link; this grid
-                // draws the plugin's own fields and would have printed it again right under.
-                // Same list the cards go through, so a field is kept from a visitor
-                // everywhere or nowhere.
-                const detailFields = plugin.formFields.filter(f =>
-                    f.showIn.includes('detail') &&
-                    !['title', plugin.creatorField].includes(f.name) &&
-                    !renderedElsewhere.includes(f.name) &&
-                    !(locals.isShareView && SHARE_HIDDEN_FIELDS.has(f.name)) &&
-                    f.type !== 'custom'
-                );
                 detailFields.forEach(field => {
                     const val = item[field.name];
-                    const isEmpty = val === undefined || val === null || val === ''
-                        || val === 0 || (Array.isArray(val) && val.length === 0);
                     // A boolean field is meaningful even when false, unlike an empty string
-                    if (!isEmpty || field.type === 'boolean') {
+                    if (!isEmptyValue(val) || field.type === 'boolean') {
                 %>
                     <div class="<%= field.type === 'textarea' ? 'col-span-2' : '' %>">
                         <span class="block text-xs opacity-50 uppercase font-bold mb-1">
@@ -264,19 +439,7 @@
                             <p class="font-medium whitespace-pre-line transition-colors"><%= val %></p>
                         <% } else { %>
                             <span class="font-medium transition-colors">
-                                <% if (field.type === 'boolean') { %>
-                                    <%= val ? t('common.yes') : t('common.no') %>
-                                <% } else if (field.type === 'date') { %>
-                                    <%= formatDay(val) %>
-                                <% } else if (field.options) {
-                                    // Show the option label, not the slug stored in the document.
-                                    // defaultValue covers the plain-text labels of user-defined
-                                    // fields, whose labels are not i18n keys.
-                                    const opt = field.options.find(o => String(o.value) === String(val)); %>
-                                    <%= opt ? t(opt.label, { defaultValue: opt.label }) : val %>
-                                <% } else { %>
-                                    <%= val %>
-                                <% } %>
+                                <%= fieldText(field, val) %>
                                 <% if (field.name === 'barcode' && item.barcode_locked) { %>
                                     <i class="fa-solid fa-lock text-[10px] text-primary-theme opacity-50 ml-1"></i>
                                 <% } %>
@@ -332,7 +495,6 @@
                     </div>
                 <% } %>
                 <!-- External "source" link, declared by the plugin -->
-                <% const extLink = externalLinkFor(plugin, item); %>
                 <% if (extLink) { %>
                     <div>
                         <span class="block text-xs opacity-50 uppercase font-bold mb-1"><%= t('detail.source') %></span>
@@ -342,29 +504,32 @@
                     </div>
                 <% } %>
 
-                <!-- Price estimation panel (plugins that declare supportsPriceEstimate, e.g. music) -->
-                <% const estimateId = plugin.externalIdField ? item[plugin.externalIdField] : null; %>
-                <% if (plugin.supportsPriceEstimate && estimateId) { %>
-                    <div class="col-span-2 border-t border-black/10 dark:border-white/10 mt-2 pt-4 transition-colors">
-                        <div class="flex justify-between items-center mb-2">
-                            <span class="text-xs opacity-50 uppercase font-bold"><%= t('detail.estimation_title') %></span>
-                            <button id="btnEstimate" onclick="fetchEstimation('<%= estimateId %>', '<%= item.quantity || 1 %>', '<%= item.sleeve_condition || '' %>')" class="text-xs bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-2 py-1 rounded transition-colors flex items-center gap-1 border border-transparent">
-                                <i class="fa-solid fa-calculator"></i> <%= t('detail.calculate_btn') %>
-                            </button>
-                        </div>
-                        <div id="priceResult" class="hidden text-sm"></div>
-                        <div id="priceLoader" class="hidden text-center py-2 opacity-50 text-xs italic">
-                            <i class="fa-solid fa-circle-notch fa-spin"></i> <%= t('detail.market_analysis') %>
-                        </div>
-                    </div>
-                <% } %>
             </div>
+
+            <!-- Price estimation panel (plugins that declare supportsPriceEstimate, e.g. music) -->
+            <% const estimateId = plugin.externalIdField ? item[plugin.externalIdField] : null; %>
+            <% if (plugin.supportsPriceEstimate && estimateId) { %>
+                <%# Its own card rather than a row of the field grid: the phone page shows it
+                    between the copy and the edition, and its ids allow one instance only. %>
+                <div class="max-md:order-4 card-theme rounded-xl max-md:rounded-2xl p-6 max-md:p-4 shadow-sm transition-colors">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs opacity-50 uppercase font-bold"><%= t('detail.estimation_title') %></span>
+                        <button id="btnEstimate" onclick="fetchEstimation('<%= estimateId %>', '<%= item.quantity || 1 %>', '<%= item.sleeve_condition || '' %>')" class="text-xs bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-2 py-1 rounded transition-colors flex items-center gap-1 border border-transparent">
+                            <i class="fa-solid fa-calculator"></i> <%= t('detail.calculate_btn') %>
+                        </button>
+                    </div>
+                    <div id="priceResult" class="hidden text-sm"></div>
+                    <div id="priceLoader" class="hidden text-center py-2 opacity-50 text-xs italic">
+                        <i class="fa-solid fa-circle-notch fa-spin"></i> <%= t('detail.market_analysis') %>
+                    </div>
+                </div>
+            <% } %>
 
             <!-- Synopsis / description (API-sourced: game summary, book/DVD overview).
                  A plugin declaring its own description field owns that value and has
                  already rendered it above, so the block would only repeat it. -->
             <% if (item.description && !plugin.formFields.some(f => f.name === 'description')) { %>
-                <div class="card-theme rounded-xl p-6 border border-black/10 dark:border-white/10 relative overflow-hidden shadow-sm transition-colors">
+                <div class="max-md:order-6 card-theme rounded-xl p-6 border border-black/10 dark:border-white/10 relative overflow-hidden shadow-sm transition-colors">
                     <h3 class="text-xs uppercase font-bold opacity-50 mb-3 flex items-center gap-2">
                         <i class="fa-solid fa-align-left"></i>
                         <%= t('confirm_' + plugin.i18nKey + '.description_title', { defaultValue: t('confirm_book.description_title') }) %>
@@ -377,7 +542,7 @@
 
             <!-- Personal notes -->
             <% if (item.comments) { %>
-                <div class="card-theme rounded-xl p-6 border border-black/10 dark:border-white/10 relative overflow-hidden shadow-sm transition-colors">
+                <div class="max-md:hidden card-theme rounded-xl p-6 border border-black/10 dark:border-white/10 relative overflow-hidden shadow-sm transition-colors">
                     <div class="absolute -right-2 -top-2 text-black/5 dark:text-white/5 text-6xl">
                         <i class="fa-solid fa-quote-right"></i>
                     </div>
@@ -392,11 +557,21 @@
             <% } %>
 
             <!-- Custom Content Detail Zones from plugin (like tracklist) -->
-            <% if (plugin.partialsPath && plugin.detailZones) { %>
-                <% const contentZones = plugin.detailZones.filter(z => z.id === 'content') %>
-                <% for (const zone of contentZones) { %>
-                    <%- include('../../' + plugin.partialsPath + '/' + zone.partial, { item, contains: locals.contains || [], containsLabel: locals.containsLabel || null }) %>
-                <% } %>
+            <%# On a phone the plugin's content (a tracklist) comes last and starts folded:
+                the page is about the copy, not about playing it. %>
+            <% if (contentZones.length) { %>
+                <div class="max-md:order-7 relative">
+                    <div id="detailContentZones" class="max-md:max-h-56 max-md:overflow-hidden">
+                        <% for (const zone of contentZones) { %>
+                            <%- include('../../' + plugin.partialsPath + '/' + zone.partial, { item, contains: locals.contains || [], containsLabel: locals.containsLabel || null }) %>
+                        <% } %>
+                    </div>
+                    <div id="detailContentFold" class="md:hidden absolute inset-x-0 bottom-0 pt-16 flex justify-center" style="background: linear-gradient(to bottom, transparent, var(--bg-page) 70%);">
+                        <button type="button" onclick="unfoldDetailContent()" class="px-5 py-2.5 rounded-full card-theme text-sm font-bold shadow-sm">
+                            <%= t('detail.show_all') %> <i class="fa-solid fa-chevron-down text-xs ml-1" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                </div>
             <% } %>
 
             <!-- Admin Actions Block -->
@@ -413,7 +588,7 @@
                     // off the *left* edge, where nothing scrolls, and the first two actions
                     // simply could not be reached.
                 %>
-                <div class="pt-6 border-t border-black/10 dark:border-white/10 flex flex-col gap-4 md:flex-row md:flex-wrap md:items-start md:justify-between transition-colors">
+                <div class="max-md:hidden pt-6 border-t border-black/10 dark:border-white/10 flex flex-col gap-4 md:flex-row md:flex-wrap md:items-start md:justify-between transition-colors">
                     <%
                         // The refresh date belongs to the button, not to the metadata grid:
                         // stacked under it, it reads as a caption of the action rather than
@@ -484,9 +659,7 @@
                         every collection type. Not for a wishlist item, nor a contained
                         item (a TV season) or a holder (a show): those are added through
                         their own flow, not duplicated. %>
-                    <% if (!item.in_wishlist
-                            && (item.season === null || item.season === undefined)
-                            && !(locals.contains && contains.length > 0)) { %>
+                    <% if (canCopyItem) { %>
                         <a href="<%= baseUrl %><%= plugin.routePrefix %>/copy/<%= item._id %>" class="w-full md:w-auto md:whitespace-nowrap text-center md:text-left opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
                             <i class="fa-solid fa-copy mr-2"></i>
                             <%= t('detail.copy_to_new_btn') %>
@@ -494,7 +667,7 @@
                     <% } %>
                     <%# The origin travels on the link, since the Referer of the edit page
                         is this page and not the listing anyone wants to come back to. %>
-                    <a href="<%= baseUrl %><%= plugin.routePrefix %>/edit/<%= item._id %><%= locals.backUrl ? '?from=' + encodeURIComponent(backUrl) : '' %>" class="w-full md:w-auto md:whitespace-nowrap text-center md:text-left opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
+                    <a href="<%= editHref %>" class="w-full md:w-auto md:whitespace-nowrap text-center md:text-left opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
                         <i class="fa-solid fa-pen-to-square mr-2"></i>
                         <%= t('common.edit') %>
                     </a>
@@ -516,7 +689,59 @@
 
 <% if (user && locals.canEditCollection) { %>
     <%- include('../../views/partials/list-picker') %>
+
+    <%# Phone: the actions that did not make the four buttons under the title. %>
+    <div id="itemActionsSheet" class="md:hidden fixed inset-0 z-[60] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="toggleItemActions(false)"></div>
+        <div role="dialog" aria-modal="true" aria-label="<%= t('detail.more_actions') %>"
+            class="absolute inset-x-0 bottom-0 card-theme rounded-t-[2rem] px-4 pt-3 shadow-2xl"
+            style="padding-bottom: calc(1rem + env(safe-area-inset-bottom));">
+            <div class="w-12 h-1.5 bg-black/10 dark:bg-white/10 rounded-full mx-auto mb-4" aria-hidden="true"></div>
+            <div class="rounded-2xl bg-black/5 dark:bg-white/5 divide-y divide-black/5 dark:divide-white/10 overflow-hidden">
+                <% const sheetRow = 'flex items-center gap-4 w-full text-left px-4 min-h-[52px] font-semibold'; %>
+                <% if (canRefresh(plugin)) { %>
+                    <button type="button" onclick="toggleItemActions(false); refreshMetadata('<%= item._id %>')" class="<%= sheetRow %>">
+                        <i class="fa-solid fa-arrows-rotate w-5 text-center text-primary-theme" aria-hidden="true"></i><%= t('collection.refresh_metadata_btn') %>
+                    </button>
+                <% } %>
+                <% if (!item.in_wishlist) { %>
+                    <button type="button" onclick="toggleItemActions(false); moveToWishlist('<%= item._id %>')" class="<%= sheetRow %>">
+                        <i class="fa-solid fa-heart-circle-minus w-5 text-center text-primary-theme" aria-hidden="true"></i><%= t('detail.move_to_wishlist_btn') %>
+                    </button>
+                <% } %>
+                <% if (item.barcode && item.barcode.trim()) { %>
+                    <a href="<%= baseUrl %><%= plugin.routePrefix %>/<%= item._id %>/label?type=barcode" target="_blank" rel="noopener" class="<%= sheetRow %>">
+                        <i class="fa-solid fa-barcode w-5 text-center text-primary-theme" aria-hidden="true"></i><%= t('detail.print_label_btn') %> · <%= t('detail.barcode_option') %>
+                    </a>
+                <% } %>
+                <% if (canCopyItem) { %>
+                    <a href="<%= baseUrl %><%= plugin.routePrefix %>/copy/<%= item._id %>" class="<%= sheetRow %>">
+                        <i class="fa-solid fa-copy w-5 text-center text-primary-theme" aria-hidden="true"></i><%= t('detail.copy_to_new_btn') %>
+                    </a>
+                <% } %>
+                <button type="button" onclick="toggleItemActions(false); confirmDelete('<%= item._id %>')" class="<%= sheetRow %> text-red-600 dark:text-red-500">
+                    <i class="fa-solid fa-trash w-5 text-center" aria-hidden="true"></i><%= t('admin.tooltips.delete') %>
+                </button>
+            </div>
+        </div>
+    </div>
+    <script>
+        function toggleItemActions(open) {
+            document.getElementById('itemActionsSheet').classList.toggle('hidden', !open);
+            document.body.classList.toggle('overflow-hidden', open);
+        }
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') toggleItemActions(false);
+        });
+    </script>
 <% } %>
+
+<script>
+    function unfoldDetailContent() {
+        document.getElementById('detailContentZones').classList.remove('max-md:max-h-56', 'max-md:overflow-hidden');
+        document.getElementById('detailContentFold').remove();
+    }
+</script>
 
 <!-- Fullscreen preview of the visual currently shown in the main frame -->
 <div id="imageLightbox" class="fixed inset-0 z-[200] hidden flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 md:p-10 cursor-zoom-out"

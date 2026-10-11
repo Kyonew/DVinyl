@@ -781,6 +781,12 @@
     "tracklist_label": "Lista de pistas"
   },
   "detail": {
+    "in_collection": "En la colección",
+    "my_copy": "Mi ejemplar",
+    "edition_section": "Edición",
+    "show_all": "Mostrar todo",
+    "more_actions": "Más",
+    "label_short": "Etiqueta",
     "added_at": "Agregado en",
     "added_by": "Añadido por",
     "modified_at": "Última modificación",
