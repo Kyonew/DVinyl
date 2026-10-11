@@ -1,0 +1,88 @@
+<%# ── Scroll restoration (shared by the collection and wishlist shelves) ──────
+    Returning from an item's detail page ("Back to Collection"/"Back to Wishlist")
+    lands on the correct page (it is in the URL) but at the top, forcing a re-scroll
+    to find where you were — painful on mobile with 100 items/page. On tapping a card
+    we remember the EXACT scroll offset and the list URL (plus the item id as a
+    fallback). On coming back to that same URL we restore that scroll position, so it
+    behaves like the browser's own back button: nothing jumps, the card is right where
+    it was. If the offset can't be honored (e.g. the viewport reflowed after an
+    orientation change, so the saved pixel position no longer points at the card) we
+    fall back to centering the card by id rather than landing somewhere arbitrary.
+
+    Included from both views/collection.ejs and views/wishlist.ejs so the two shelves
+    behave identically. Unconditional (works for share-view visitors too) and keyed on
+    the generic #shelfResults wrapper + .album-card[data-item-id] that every item view
+    renders; a card-less view (e.g. a future table view) simply finds nothing and no-ops. %>
+<script>
+(function () {
+    var KEY = 'shelfReturn';
+    var shelfResults = document.getElementById('shelfResults');
+    if (!shelfResults) return;
+
+    function currentListUrl() { return location.pathname + location.search; }
+
+    // Remember the scroll offset + the tapped item + the list URL it was tapped from.
+    // Capture-phase so it records before the browser follows the link; delegated on the
+    // wrapper so it keeps working after live search swaps the grid.
+    shelfResults.addEventListener('click', function (e) {
+        var card = e.target.closest('.album-card');
+        if (!card) return;
+        // Ignore clicks that aren't a navigation to the detail page (e.g. the select
+        // checkbox or the wishlist "received" button, which stay on this page).
+        var link = e.target.closest('a[href]');
+        if (!link || !card.contains(link)) return;
+        var id = card.getAttribute('data-item-id');
+        try {
+            sessionStorage.setItem(KEY, JSON.stringify({
+                url: currentListUrl(),
+                y: window.scrollY || window.pageYOffset || 0,
+                id: id || ''
+            }));
+        } catch (err) {}
+    }, true);
+
+    // Restore: if we have a saved position for THIS exact list URL, jump back to the
+    // saved scroll offset. Verify the saved offset still lands on the same card; if the
+    // layout reflowed and it doesn't, center the card by id instead.
+    function restore() {
+        var raw;
+        try { raw = sessionStorage.getItem(KEY); } catch (err) { return; }
+        if (!raw) return;
+        var saved;
+        try { saved = JSON.parse(raw); } catch (err) { return; }
+        if (!saved || saved.url !== currentListUrl()) return; // different page/filter: leave it
+
+        var card = saved.id
+            ? shelfResults.querySelector('[data-item-id="' + (window.CSS && CSS.escape ? CSS.escape(saved.id) : saved.id) + '"]')
+            : null;
+
+        // If we have an id to anchor on but the grid hasn't repopulated yet (live search),
+        // leave the key so the shelf-results:replaced handler retries once the cards exist.
+        if (saved.id && !card) return;
+
+        var maxY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+        var targetY = Math.min(saved.y || 0, maxY);
+        window.scrollTo(0, targetY);
+
+        // Did the saved offset actually put the tapped card on screen? If not (reflow,
+        // different column count, etc.), fall back to centering the card.
+        if (card) {
+            var r = card.getBoundingClientRect();
+            var onScreen = r.top >= 0 && r.bottom <= window.innerHeight;
+            if (!onScreen) card.scrollIntoView({ block: 'center', inline: 'nearest' });
+        }
+
+        // One-shot: clear so a manual reload or a later visit starts at the top.
+        try { sessionStorage.removeItem(KEY); } catch (err) {}
+    }
+
+    // Initial load (full server navigation back from the detail page).
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', restore);
+    } else {
+        restore();
+    }
+    // Live search replaced the grid: try again now that the cards exist.
+    document.addEventListener('shelf-results:replaced', restore);
+})();
+</script>
