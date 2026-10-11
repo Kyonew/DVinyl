@@ -256,7 +256,13 @@
     "history_empty": "Lancez cette estimation au moins deux fois pour voir une tendance.",
     "history_other_currency": "Un historique existe en {{currencies}}, mais les valeurs ne sont jamais converties : seule votre devise est affichée.",
     "add_hub_title": "On ajoute quoi ?",
-    "add_hub_subtitle": "Sélectionnez le type de média à intégrer à votre collection"
+    "add_hub_subtitle": "Sélectionnez le type de média à intégrer à votre collection",
+    "add_hub_scan": "Scanner un code-barres",
+    "add_hub_scan_hint": "Avec l'appareil photo",
+    "add_hub_search": "Rechercher",
+    "add_hub_search_hint": "Par titre, nom ou référence",
+    "add_hub_photo_hint": "L'IA reconnaît l'objet",
+    "add_hub_manual_hint": "Remplir la fiche soi-même"
   },
   "add_vinyl": {
     "title": "Ajouter un disque",

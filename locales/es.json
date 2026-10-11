@@ -1068,6 +1068,12 @@
   },
   "modal": {
     "add_hub_subtitle": "Seleccione el tipo de medios para agregar a su colección",
+    "add_hub_scan": "Escanear un código de barras",
+    "add_hub_scan_hint": "Con la cámara",
+    "add_hub_search": "Buscar",
+    "add_hub_search_hint": "Por título, nombre o referencia",
+    "add_hub_photo_hint": "La IA reconoce el objeto",
+    "add_hub_manual_hint": "Rellenar la ficha uno mismo",
     "add_hub_title": "¿Qué quieres agregar?",
     "avg_label": "Valor estimado (promedio)",
     "condition_hint": "Basado en condición \"Muy buena\"",

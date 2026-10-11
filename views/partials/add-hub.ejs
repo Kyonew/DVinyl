@@ -1,10 +1,11 @@
 <%
     /**
-     * Add hub: the module picker every "add" entry point opens.
+     * Add hub: the sheet every "add" entry point opens. Pick the module, then how to add:
+     * scan its barcode, search for it, read a photo of it, or fill the form by hand.
      *
      * The pages own their trigger's layout and call openAddModal(); the rule for where
      * an add actually goes lives here only. That includes the fast-add shortcut, which
-     * skips the picker when the collection has one configured.
+     * skips the sheet when the collection has one configured.
      *
      * The footer includes it on every signed-in page (see partials/footer), after the
      * page body, so pages only place triggers and never include it themselves. Renders
@@ -14,82 +15,159 @@
     const addHubFastRoutes = {};
     addHubPlugins.forEach(p => (p.fastAddOptions || []).forEach(o => { addHubFastRoutes[o.value] = o.url; }));
     const addHubFastUrl = settings.fastAdd ? addHubFastRoutes[settings.fastAdd] : null;
+
+    // The module the page is about, when it is about one: the collection filtered to a
+    // type, an add page, a detail page. The sheet opens on it rather than on the last pick.
+    const addHubParams = new URLSearchParams(locals.currentSearch || '');
+    const addHubPageType = addHubParams.get('type') || '';
+    const addHubCurrentType = String(locals.currentType || '');
+    const addHubContext = addHubPlugins.find(p =>
+        (addHubPageType && (p.collectionType === addHubPageType || p.id === addHubPageType))
+        || addHubCurrentType === 'add-' + p.id
+        || addHubCurrentType === p.collectionType);
+
+    const addHubCanManual = p => typeof p.getManualDefaults === 'function';
+    const addHubCanPhoto = p => Boolean(locals.aiPhotoSearch) && hasSearch(p);
+    const addHubRow = 'flex items-center gap-4 w-full text-left px-4 min-h-[60px] hover:bg-black/5 dark:hover:bg-white/5 transition-colors';
 %>
 <% if (locals.canEditCollection && addHubPlugins.length > 0) { %>
-<div id="addHubModal" class="fixed inset-0 z-[100] hidden bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4">
-    <%
-        let activeCount = addHubPlugins.length;
+<div id="addHubModal" data-hub-context="<%= addHubContext ? addHubContext.id : '' %>"
+    class="fixed inset-0 z-[100] hidden bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4">
 
-        let gridCols = 'grid-cols-2'; // Default to 2 columns on mobile
-        if (activeCount === 1) gridCols = 'grid-cols-1';
+    <div role="dialog" aria-modal="true" aria-labelledby="addHubTitle"
+        class="card-theme w-full sm:max-w-md rounded-t-[2rem] sm:rounded-[2rem] px-5 pt-3 sm:p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom sm:zoom-in duration-300"
+        style="padding-bottom: calc(1.25rem + env(safe-area-inset-bottom));">
 
-        let desktopGridCols = (activeCount >= 3) ? 'sm:grid-cols-3' : (activeCount === 2) ? 'sm:grid-cols-2' : 'sm:grid-cols-1';
-        if (activeCount === 4) desktopGridCols = 'sm:grid-cols-2 lg:grid-cols-4';
+        <div class="w-12 h-1.5 bg-black/10 dark:bg-white/10 rounded-full mx-auto mb-4 sm:hidden" aria-hidden="true"></div>
 
-        let maxWidth = (activeCount === 1) ? 'max-w-md' : (activeCount === 2) ? 'max-w-xl' : (activeCount === 4) ? 'max-w-4xl' : 'max-w-3xl';
-    %>
-
-    <div class="card-theme w-full <%= maxWidth %> rounded-t-[2.5rem] sm:rounded-[2.5rem] p-6 sm:p-10 shadow-2xl relative animate-in slide-in-from-bottom sm:zoom-in duration-300">
-
-        <div class="w-12 h-1.5 bg-black/10 dark:bg-white/10 rounded-full mx-auto mb-6 sm:hidden"></div>
-
-        <button onclick="closeAddModal()" class="absolute top-6 right-6 opacity-40 hover:opacity-100 transition-opacity hidden sm:block">
-            <i class="fa-solid fa-xmark text-2xl"></i>
-        </button>
-
-        <div class="text-center mb-8 sm:mb-12">
-            <h2 class="text-2xl sm:text-3xl font-black tracking-tight"><%= t('modal.add_hub_title') %></h2>
-            <p class="opacity-50 text-xs sm:text-sm mt-1"><%= t('modal.add_hub_subtitle') %></p>
+        <div class="flex items-center justify-between gap-4 mb-4">
+            <h2 id="addHubTitle" class="text-2xl font-black tracking-tight"><%= t('modal.add_hub_title') %></h2>
+            <button type="button" onclick="closeAddModal()" aria-label="<%= t('nav.close') %>"
+                class="w-10 h-10 flex-none rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 flex items-center justify-center transition-colors">
+                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+            </button>
         </div>
 
-        <div class="grid <%= gridCols %> <%= desktopGridCols %> gap-3 sm:gap-6">
-
-            <%
-                const plainHref = p => baseUrl + '/' + (hasSearch(p) ? ('add-' + p.id) : ('manual-add?type=' + p.id));
-            %>
+        <% if (addHubPlugins.length > 1) { %>
+        <div role="radiogroup" aria-label="<%= t('modal.add_hub_subtitle') %>"
+            class="flex gap-2 overflow-x-auto -mx-5 px-5 sm:-mx-6 sm:px-6 pb-1 mb-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <% addHubPlugins.forEach(p => { %>
-                <a href="<%= plainHref(p) %>" data-hub-item data-plain-href="<%= plainHref(p) %>"
-                    data-scan-href="<%= hasBarcodeScan(p) ? (baseUrl + '/add-' + p.id + '?scan=1') : '' %>"
-                    class="group flex flex-col items-center justify-center p-5 sm:p-8 rounded-[1.5rem] sm:rounded-[2rem] bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white transition-all duration-300">
-                    <div class="w-12 h-12 sm:w-20 sm:h-20 rounded-full bg-primary-theme/10 group-hover:bg-white/20 flex items-center justify-center mb-3 sm:mb-4">
-                        <i class="fa-solid fa-<%= p.icon %> text-xl sm:text-4xl"></i>
-                    </div>
-                    <span class="font-black text-[10px] sm:text-xs uppercase tracking-widest text-center"><%= t(p.label) %></span>
-                </a>
+            <button type="button" role="radio" aria-checked="false"
+                data-hub-type="<%= p.id %>" data-hub-scan="<%= hasBarcodeScan(p) ? '1' : '' %>"
+                class="flex-none flex items-center gap-2 h-10 px-4 rounded-full text-sm font-bold whitespace-nowrap bg-black/5 dark:bg-white/10 transition-colors">
+                <i class="fa-solid fa-<%= p.icon %>" aria-hidden="true"></i>
+                <%= t(p.label) %>
+            </button>
             <% }) %>
-
         </div>
+        <% } %>
 
-        <button onclick="closeAddModal()" class="w-full mt-8 py-4 bg-black/5 dark:bg-white/5 rounded-2xl font-bold text-sm sm:hidden opacity-60">
-            <%= t('common.cancel') %>
-        </button>
+        <% addHubPlugins.forEach(p => { %>
+        <div data-hub-panel="<%= p.id %>" class="<%= addHubPlugins.length > 1 ? 'hidden' : 'flex' %> flex-col gap-3">
+            <% if (hasBarcodeScan(p)) { %>
+            <a href="<%= baseUrl %>/add-<%= p.id %>?scan=1"
+                class="flex items-center gap-4 p-4 rounded-2xl bg-primary-theme hover:brightness-110 active:scale-[0.99] transition">
+                <span class="w-12 h-12 flex-none rounded-xl bg-white/20 flex items-center justify-center" aria-hidden="true">
+                    <i class="fa-solid fa-barcode text-2xl"></i>
+                </span>
+                <span class="min-w-0">
+                    <span class="block font-black text-base"><%= t('modal.add_hub_scan') %></span>
+                    <span class="block text-xs opacity-90"><%= t('modal.add_hub_scan_hint') %></span>
+                </span>
+            </a>
+            <% } %>
+
+            <div class="rounded-2xl bg-black/5 dark:bg-white/5 divide-y divide-black/5 dark:divide-white/10 overflow-hidden">
+                <% if (hasSearch(p)) { %>
+                <a href="<%= baseUrl %>/add-<%= p.id %>" class="<%= addHubRow %>">
+                    <i class="fa-solid fa-magnifying-glass w-6 text-center text-primary-theme" aria-hidden="true"></i>
+                    <span class="flex-1 min-w-0">
+                        <span class="block font-bold text-sm"><%= t('modal.add_hub_search') %></span>
+                        <span class="block text-xs opacity-60"><%= t('modal.add_hub_search_hint') %></span>
+                    </span>
+                    <i class="fa-solid fa-chevron-right text-xs opacity-40" aria-hidden="true"></i>
+                </a>
+                <% } %>
+                <% if (addHubCanPhoto(p)) { %>
+                <button type="button" data-hub-photo="<%= p.id %>" class="<%= addHubRow %>">
+                    <i class="fa-solid fa-camera w-6 text-center text-primary-theme" aria-hidden="true"></i>
+                    <span class="flex-1 min-w-0">
+                        <span class="block font-bold text-sm"><%= t('add.photo_btn') %></span>
+                        <span class="block text-xs opacity-60"><%= t('modal.add_hub_photo_hint') %></span>
+                    </span>
+                    <i data-hub-photo-icon class="fa-solid fa-chevron-right text-xs opacity-40" aria-hidden="true"></i>
+                </button>
+                <% } %>
+                <% if (addHubCanManual(p)) { %>
+                <a href="<%= baseUrl %>/manual-add?type=<%= p.id %>" class="<%= addHubRow %>">
+                    <i class="fa-solid fa-pen-to-square w-6 text-center text-primary-theme" aria-hidden="true"></i>
+                    <span class="flex-1 min-w-0">
+                        <span class="block font-bold text-sm"><%= t('add.manual_entry') %></span>
+                        <span class="block text-xs opacity-60"><%= t('modal.add_hub_manual_hint') %></span>
+                    </span>
+                    <i class="fa-solid fa-chevron-right text-xs opacity-40" aria-hidden="true"></i>
+                </a>
+                <% } %>
+            </div>
+        </div>
+        <% }) %>
+
+        <% if (addHubPlugins.some(addHubCanPhoto)) { %>
+        <%# No capture attribute, as on the add page: a phone offers the gallery as well as the camera. %>
+        <input type="file" id="addHubPhotoInput" accept="image/*" class="hidden">
+        <% } %>
     </div>
 </div>
 
+<% if (addHubPlugins.some(addHubCanPhoto)) { %>
+<%- include('image-downscale') %>
+<% } %>
+
 <script>
     const addHubFastUrl = <%- JSON.stringify(addHubFastUrl ? baseUrl + addHubFastUrl : null) %>;
+    // The last module picked, a per-device convenience: the sheet opens on it next time
+    // when the page is not about a module of its own.
+    const addHubLastKey = 'dvinyl.addHubType';
 
-    // Shared by the plain "+" trigger and the scan shortcut: same modal, same list of
-    // modules, only the destination each tile links to (and whether a manual-add-only
-    // module is even offered) changes.
-    function setHubMode(scan) {
-        document.querySelectorAll('[data-hub-item]').forEach(function (el) {
-            if (scan) {
-                if (!el.dataset.scanHref) {
-                    el.classList.add('hidden');
-                } else {
-                    el.classList.remove('hidden');
-                    el.href = el.dataset.scanHref;
-                }
-            } else {
-                el.classList.remove('hidden');
-                el.href = el.dataset.plainHref;
-            }
+    function hubSelect(id) {
+        document.querySelectorAll('[data-hub-type]').forEach(function (pill) {
+            const on = pill.dataset.hubType === id;
+            pill.setAttribute('aria-checked', on ? 'true' : 'false');
+            pill.classList.toggle('bg-primary-theme', on);
+            pill.classList.toggle('bg-black/5', !on);
+            pill.classList.toggle('dark:bg-white/10', !on);
+        });
+        document.querySelectorAll('[data-hub-panel]').forEach(function (panel) {
+            const on = panel.dataset.hubPanel === id;
+            panel.classList.toggle('hidden', !on);
+            panel.classList.toggle('flex', on);
         });
     }
 
+    // Shared by the plain "+" trigger and the scan shortcut: same sheet, but the scan
+    // shortcut only offers the modules that can scan.
+    function setHubMode(scan) {
+        const pills = Array.from(document.querySelectorAll('[data-hub-type]'));
+        if (pills.length === 0) return;
+        pills.forEach(function (pill) {
+            pill.classList.toggle('hidden', scan && !pill.dataset.hubScan);
+        });
+        const offered = pills.filter(function (pill) { return !pill.classList.contains('hidden'); })
+            .map(function (pill) { return pill.dataset.hubType; });
+        let stored = null;
+        try { stored = localStorage.getItem(addHubLastKey); } catch (e) { stored = null; }
+        const context = document.getElementById('addHubModal').dataset.hubContext;
+        const pick = [context, stored].find(function (id) { return id && offered.includes(id); }) || offered[0];
+        hubSelect(pick);
+    }
+
+    function showAddHub() {
+        document.getElementById('addHubModal').classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+    }
+
     // The plain "+" trigger: opens in normal mode, or skips straight to a configured
-    // fast add. Kept separate from closing (below) - a modal opened by the scan
+    // fast add. Kept separate from closing (below) - a sheet opened by the scan
     // shortcut must close without re-running this fast-add check on its way out.
     function openAddModal() {
         if (addHubFastUrl) {
@@ -97,23 +175,66 @@
             return;
         }
         setHubMode(false);
-        document.getElementById('addHubModal').classList.remove('hidden');
+        showAddHub();
     }
 
     // Only called when more than one module can be scanned into - a single-module
     // collection gets a direct link to that module's add page instead, no picker needed.
     function openScanPicker() {
         setHubMode(true);
-        document.getElementById('addHubModal').classList.remove('hidden');
+        showAddHub();
     }
 
     function closeAddModal() {
         document.getElementById('addHubModal').classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
     }
 
     document.getElementById('addHubModal').addEventListener('click', function(e) {
         if (e.target === this) closeAddModal();
     });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') closeAddModal();
+    });
+
+    document.querySelectorAll('[data-hub-type]').forEach(function (pill) {
+        pill.addEventListener('click', function () {
+            hubSelect(pill.dataset.hubType);
+            try { localStorage.setItem(addHubLastKey, pill.dataset.hubType); } catch (e) { /* private mode */ }
+        });
+    });
+
+    // A photo picked here is read on the module's add page, which owns the AI call and
+    // the search that follows (see core/views/add.ejs). It travels in sessionStorage
+    // because only a tap can open a file picker, and that tap happened on this page.
+    (function () {
+        const photoInput = document.getElementById('addHubPhotoInput');
+        if (!photoInput) return;
+        document.querySelectorAll('[data-hub-photo]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                photoInput.dataset.plugin = button.dataset.hubPhoto;
+                photoInput.click();
+            });
+        });
+        photoInput.addEventListener('change', async function () {
+            const file = photoInput.files && photoInput.files[0];
+            photoInput.value = '';
+            const plugin = photoInput.dataset.plugin;
+            if (!file || !plugin) return;
+            const target = <%- JSON.stringify(baseUrl) %> + '/add-' + plugin;
+            const icon = document.querySelector('[data-hub-photo="' + plugin + '"] [data-hub-photo-icon]');
+            if (icon) icon.className = 'fa-solid fa-spinner fa-spin text-xs opacity-60';
+            try {
+                const image = await window.DVDownscaleImage(file, 1600);
+                sessionStorage.setItem('dvinyl.photoSearch', JSON.stringify({ plugin: plugin, image: image, at: Date.now() }));
+                window.location.href = target + '?photo=1';
+            } catch (e) {
+                // Unreadable image or storage refused: the add page offers the same photo
+                // button, so the user lands there rather than on an error.
+                window.location.href = target;
+            }
+        });
+    })();
 
     // A trigger marked as such shows the shortcut icon, but only once the fast add has
     // actually resolved: a module disabled after the fact leaves the setting behind.

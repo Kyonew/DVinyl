@@ -256,7 +256,13 @@
     "history_empty": "Run this estimate at least twice to see a trend.",
     "history_other_currency": "History exists in {{currencies}}, but values are never converted: only your own currency is charted.",
     "add_hub_title": "What do you want to add?",
-    "add_hub_subtitle": "Select the type of media to add to your collection"
+    "add_hub_subtitle": "Select the type of media to add to your collection",
+    "add_hub_scan": "Scan a barcode",
+    "add_hub_scan_hint": "With your camera",
+    "add_hub_search": "Search",
+    "add_hub_search_hint": "By title, name or reference",
+    "add_hub_photo_hint": "AI recognises the item",
+    "add_hub_manual_hint": "Fill in the details yourself"
   },
   "add_vinyl": {
     "title": "Add a Record",

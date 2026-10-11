@@ -273,17 +273,13 @@
             errorBox.classList.remove('hidden');
         }
 
-        button.addEventListener('click', () => input.click());
-
-        input.addEventListener('change', async () => {
-            const file = input.files && input.files[0];
-            input.value = '';
-            if (!file) return;
+        // Reads an already downscaled image and runs the normal search on what the model
+        // saw. Fed by this page's own file input and by a photo taken from the add sheet.
+        async function searchWithImage(image) {
             errorBox.classList.add('hidden');
             button.disabled = true;
             button.innerHTML = readingLabel;
             try {
-                const image = await window.DVDownscaleImage(file, 1600);
                 const response = await fetch('<%= baseUrl %>/search-<%= plugin.id %>/photo', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -302,7 +298,42 @@
                     ? <%- JSON.stringify(t('ai.err_image_rejected')) %>
                     : err.message);
             }
+        }
+
+        button.addEventListener('click', () => input.click());
+
+        input.addEventListener('change', async () => {
+            const file = input.files && input.files[0];
+            input.value = '';
+            if (!file) return;
+            let image;
+            try {
+                image = await window.DVDownscaleImage(file, 1600);
+            } catch (err) {
+                showError(<%- JSON.stringify(t('ai.err_image_rejected')) %>);
+                return;
+            }
+            searchWithImage(image);
         });
+
+        // A photo picked in the add sheet (partials/add-hub) waits in sessionStorage, since
+        // a page can only open the file picker from a tap of its own. Used once, for this
+        // module only, and only while fresh: a stale one must not search on a later visit.
+        const pageParams = new URLSearchParams(window.location.search);
+        if (pageParams.has('photo')) {
+            pageParams.delete('photo');
+            const rest = pageParams.toString();
+            history.replaceState(history.state, '', window.location.pathname + (rest ? '?' + rest : '') + window.location.hash);
+            let pending = null;
+            try {
+                pending = JSON.parse(sessionStorage.getItem('dvinyl.photoSearch') || 'null');
+                sessionStorage.removeItem('dvinyl.photoSearch');
+            } catch (e) { pending = null; }
+            if (pending && pending.plugin === <%- JSON.stringify(plugin.id) %> && pending.image
+                && Date.now() - pending.at < 5 * 60 * 1000) {
+                searchWithImage(pending.image);
+            }
+        }
     })();
 </script>
 <% } %>
