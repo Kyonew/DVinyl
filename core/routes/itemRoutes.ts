@@ -1069,12 +1069,20 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         codeType = 'qr';
       }
 
+      // ?format=json: the code alone, for the phone item page's label sheet, which
+      // previews it in place rather than opening this page.
+      if (req.query.format === 'json') {
+        return res.json({ codeType, codeDataUrl, hasBarcode: !!barcodeValue });
+      }
+
       res.render('label', {
         item: plugin.formatForView(item),
         plugin,
         codeType,
         codeDataUrl,
         hasBarcode: !!barcodeValue,
+        // ?print=1: opened by a Print button, so the print dialog comes up on its own.
+        autoPrint: req.query.print === '1',
         user: res.locals.user
       });
     } catch (err: any) {

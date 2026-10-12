@@ -11,7 +11,7 @@
         const hasEstimateAction = collectionActions.some(a => a.behavior === 'estimate');
     %>
 
-    <div class="max-w-screen-xl mx-auto px-1.5 sm:px-0 pb-12">
+    <div class="max-w-screen-xl mx-auto pb-12">
 
         <% if (locals.isShareView) { %>
             <div class="mt-6 flex items-center gap-3 bg-primary-theme/10 border border-primary-theme/30 rounded-2xl px-4 py-3">
@@ -20,14 +20,42 @@
             </div>
         <% } %>
 
-        <div class="pt-6 mb-6 flex items-center justify-between">
-            <h1 class="text-3xl font-bold transition-colors flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
-                <span>
+        <%
+            // On a phone the page opens on the collection's own name, as a large title, and
+            // tapping it leads to the account page, which lists the collections, when there
+            // is another one to switch to or one to create.
+            const phoneTitle = (locals.activeCollection && activeCollection.name) || t('collection.title');
+            const phoneTitleSwitches = !locals.isShareView
+                && ((locals.userCollections || []).length > 1 || locals.canCreateCollection);
+            // The counters read as a line of text under that title rather than as badges.
+            const phoneBadge = 'max-md:p-0 max-md:bg-transparent max-md:dark:bg-transparent max-md:rounded-none';
+            // On a phone the header keeps the title alone; select mode, the plugin's actions
+            // and the collection's page move into one menu (the sheet further down).
+            const phoneInfoLink = isCollectionInfoVisible(locals.activeCollection, locals.isShareView);
+            // A collection admin also shares the collection from there, through the public
+            // share links managed on the admin page.
+            const phoneShare = !locals.isShareView && Boolean(locals.isCollectionAdmin);
+            const phoneShareLinks = phoneShare
+                ? ((locals.activeCollection && activeCollection.shareLinks) || []).filter(l => l.enabled)
+                : [];
+            const phoneMenu = phoneInfoLink || locals.canEditCollection || phoneShare;
+        %>
+        <div class="pt-2 sm:pt-6 mb-5 md:mb-6 flex items-start md:items-center justify-between gap-3">
+            <h1 class="text-[2rem] leading-tight md:text-3xl font-extrabold md:font-bold tracking-tight md:tracking-normal transition-colors flex flex-col md:flex-row md:items-center gap-1 md:gap-3 min-w-0">
+                <span class="hidden md:inline">
                     <%= t('collection.title') %>
                 </span>
-                <span class="flex flex-wrap items-center gap-2 md:mt-1.5 w-fit">
+                <% if (phoneTitleSwitches) { %>
+                    <a href="<%= baseUrl %>/account" class="md:hidden flex items-center gap-2 min-w-0">
+                        <span class="truncate"><%= phoneTitle %></span>
+                        <i class="fa-solid fa-chevron-down text-lg text-primary-theme" aria-hidden="true"></i>
+                    </a>
+                <% } else { %>
+                    <span class="md:hidden truncate"><%= phoneTitle %></span>
+                <% } %>
+                <span class="flex flex-wrap items-center gap-2 md:mt-1.5 w-fit tracking-normal">
                     <span id="totalItemsBadge"
-                        class="px-3 py-1 bg-black/5 dark:bg-white/10 rounded-full text-sm font-medium opacity-70">
+                        class="px-3 py-1 bg-black/5 dark:bg-white/10 rounded-full text-sm font-medium opacity-70 <%= phoneBadge %>">
                         <%= totalItems %>
                             <%= t('common.items') %>
                     </span>
@@ -38,18 +66,24 @@
                         unique_titles_one for 1). The live-search JS toggles it as the filter
                         changes. %>
                     <span id="uniqueTitlesBadge"
-                        class="px-3 py-1 bg-black/5 dark:bg-white/10 rounded-full text-sm font-medium opacity-70 <%= (uniqueTitles === totalItems) ? 'hidden' : '' %>"
+                        class="px-3 py-1 bg-black/5 dark:bg-white/10 rounded-full text-sm font-medium opacity-70 <%= phoneBadge %> max-md:before:content-['·'] max-md:before:mr-2 <%= (uniqueTitles === totalItems) ? 'hidden' : '' %>"
                         title="<%= t('collection.unique_titles_hint') %>">
                         <%= t('collection.unique_titles', { count: uniqueTitles }) %>
                     </span>
                 </span>
             </h1>
             <div class="flex items-center gap-2">
+            <% if (phoneMenu) { %>
+                <button type="button" onclick="toggleCollectionMenu(true)" aria-haspopup="dialog" aria-label="<%= t('detail.more_actions') %>"
+                    class="md:hidden flex-none mt-1 w-11 h-11 rounded-full card-theme flex items-center justify-center">
+                    <i class="fa-solid fa-ellipsis" aria-hidden="true"></i>
+                </button>
+            <% } %>
             <%# The collection's page, reachable from the collection itself: a share
                 visitor never sees the dashboard, and this is the page they land on. %>
             <% if (isCollectionInfoVisible(locals.activeCollection, locals.isShareView)) { %>
                 <a href="<%= baseUrl %>/info"
-                    class="flex-shrink-0 w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center gap-2 group"
+                    class="max-md:hidden flex-shrink-0 w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center gap-2 group"
                     title="<%= t('collection_info.title') %>">
                     <i class="fa-solid fa-circle-info group-hover:scale-110 transition-transform"></i>
                     <span class="hidden md:inline text-xs font-bold uppercase tracking-widest">
@@ -59,7 +93,7 @@
             <% } %>
             <% if (!locals.isShareView) { %>
                 <a href="<%= baseUrl %>/lists"
-                    class="flex-shrink-0 w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center gap-2 group"
+                    class="hidden md:flex flex-shrink-0 w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm items-center justify-center gap-2 group"
                     title="<%= t('lists.title') %>">
                     <i class="fa-solid fa-list-check group-hover:scale-110 transition-transform"></i>
                     <span class="hidden md:inline text-xs font-bold uppercase tracking-widest"><%= t('lists.title') %></span>
@@ -77,7 +111,7 @@
                     <div class="flex gap-2">
 
                         <button type="button" id="selectModeBtn" onclick="toggleSelectMode()"
-                            class="flex-shrink-0 w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center gap-2 group"
+                            class="max-md:hidden flex-shrink-0 w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center gap-2 group"
                             title="<%= t('collection.select_btn') %>">
                             <i class="fa-solid fa-check-double group-hover:scale-110 transition-transform"></i>
                             <span class="hidden md:inline text-xs font-bold uppercase tracking-widest">
@@ -87,7 +121,7 @@
 
                         <% if (addRoute) { %>
                             <a href="<%= baseUrl + addRoute %>"
-                                class="flex-shrink-0 w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center gap-2 group"
+                                class="hidden md:flex flex-shrink-0 w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm items-center justify-center gap-2 group"
                                 title="<%= t('collection.add') %>">
                                 <i class="fa-solid fa-plus group-hover:scale-110 transition-transform"></i>
                                 <span class="hidden md:inline text-xs font-bold uppercase tracking-widest">
@@ -97,10 +131,12 @@
                             <% } %>
 
                             <%# The page is already scoped to one module, so unlike the dashboard/wishlist
-                                triggers there's no picker question - straight to that module's scanner. %>
+                                triggers there's no picker question - straight to that module's scanner.
+                                Add and scan are desktop only: on a phone the "+" tab opens the add
+                                sheet on this same module. %>
                             <% if (currentPlugin && hasBarcodeScan(currentPlugin)) { %>
                                 <a href="<%= baseUrl %>/add-<%= currentPlugin.id %>?scan=1"
-                                    class="flex-shrink-0 w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center gap-2 group"
+                                    class="hidden md:flex flex-shrink-0 w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm items-center justify-center gap-2 group"
                                     title="<%= t('collection.scan') %>">
                                     <i class="fa-solid fa-barcode group-hover:scale-110 transition-transform"></i>
                                     <span class="hidden md:inline text-xs font-bold uppercase tracking-widest">
@@ -112,7 +148,7 @@
                                 <% collectionActions.forEach(action => { %>
                                     <button type="button" data-action-id="<%= action.id %>"
                                         onclick="runCollectionAction('<%= action.id %>')"
-                                        class="flex-shrink-0 w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center gap-2 group"
+                                        class="max-md:hidden flex-shrink-0 w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center gap-2 group"
                                         title="<%= t(action.tooltip || action.label) %>">
                                         <i class="fa-solid <%= action.icon %> group-hover:scale-110 transition-transform"></i>
                                         <span class="hidden md:inline text-xs font-bold uppercase tracking-widest">
@@ -127,6 +163,110 @@
 
         </div>
 
+        <% if (phoneMenu) { %>
+        <%# Phone: what the desktop header lines up as buttons. Each entry calls the same
+            handler as its desktop button. %>
+        <div id="collectionMenu" class="md:hidden fixed inset-0 z-[60] hidden">
+            <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="toggleCollectionMenu(false)"></div>
+            <div role="dialog" aria-modal="true" aria-label="<%= t('detail.more_actions') %>"
+                class="absolute inset-x-0 bottom-0 card-theme rounded-t-[2rem] px-4 pt-3 shadow-2xl"
+                style="padding-bottom: calc(1rem + env(safe-area-inset-bottom));">
+                <div class="w-12 h-1.5 bg-black/10 dark:bg-white/10 rounded-full mx-auto mb-4" aria-hidden="true"></div>
+                <div class="rounded-2xl bg-black/5 dark:bg-white/5 divide-y divide-black/5 dark:divide-white/10 overflow-hidden">
+                    <% const menuRow = 'flex items-center gap-4 w-full text-left px-4 min-h-[52px] font-semibold'; %>
+                    <% if (locals.canEditCollection) { %>
+                        <button type="button" onclick="toggleCollectionMenu(false); toggleSelectMode()" class="<%= menuRow %>">
+                            <i class="fa-solid fa-check-double w-5 text-center text-primary-theme" aria-hidden="true"></i><%= t('collection.select_btn') %>
+                        </button>
+                        <% collectionActions.forEach(action => { %>
+                            <button type="button" onclick="toggleCollectionMenu(false); runCollectionAction('<%= action.id %>')" class="<%= menuRow %>">
+                                <i class="fa-solid <%= action.icon %> w-5 text-center text-primary-theme" aria-hidden="true"></i><%= t(action.label) %>
+                            </button>
+                        <% }) %>
+                    <% } %>
+                    <% if (phoneShare) { %>
+                        <button type="button" onclick="toggleCollectionMenu(false); toggleShareSheet(true)" class="<%= menuRow %>">
+                            <i class="fa-solid fa-arrow-up-from-bracket w-5 text-center text-primary-theme" aria-hidden="true"></i><%= t('common.share') %>
+                        </button>
+                    <% } %>
+                    <% if (phoneInfoLink) { %>
+                        <a href="<%= baseUrl %>/info" class="<%= menuRow %>">
+                            <i class="fa-solid fa-circle-info w-5 text-center text-primary-theme" aria-hidden="true"></i><%= t('collection_info.title') %>
+                        </a>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+        <% if (phoneShare) { %>
+        <%# Phone: the collection's public share links, each handed to the system share
+            sheet (or copied where there is none). They are created and scoped on the admin
+            page, which the last row opens. %>
+        <div id="collectionShareSheet" class="md:hidden fixed inset-0 z-[60] hidden">
+            <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="toggleShareSheet(false)"></div>
+            <div role="dialog" aria-modal="true" aria-labelledby="collectionShareTitle"
+                class="absolute inset-x-0 bottom-0 card-theme rounded-t-[2rem] px-4 pt-3 shadow-2xl"
+                style="padding-bottom: calc(1rem + env(safe-area-inset-bottom));">
+                <div class="w-12 h-1.5 bg-black/10 dark:bg-white/10 rounded-full mx-auto mb-4" aria-hidden="true"></div>
+                <h2 id="collectionShareTitle" class="text-xl font-extrabold tracking-tight px-1 mb-1"><%= t('admin.sharing.title') %></h2>
+                <p class="text-sm opacity-60 px-1 mb-4"><%= phoneShareLinks.length ? t('collection.share_hint') : t('collection.share_none') %></p>
+                <div class="rounded-2xl bg-black/5 dark:bg-white/5 divide-y divide-black/5 dark:divide-white/10 overflow-hidden">
+                    <% phoneShareLinks.forEach(link => { %>
+                        <button type="button" data-share-path="<%= baseUrl %>/share/<%= link.token %>" data-share-title="<%= phoneTitle %>"
+                            class="flex items-center gap-4 w-full text-left px-4 min-h-[52px] font-semibold">
+                            <i class="fa-solid fa-link w-5 text-center text-primary-theme" aria-hidden="true"></i>
+                            <span class="flex-1 min-w-0 py-2.5">
+                                <span class="block truncate"><%= link.label || t('admin.sharing.untitled_link') %></span>
+                                <span data-share-row-detail class="block text-xs font-normal opacity-60 truncate"><%- include('partials/share-scope-summary', { link }) %></span>
+                            </span>
+                            <i class="fa-solid fa-arrow-up-from-bracket text-sm opacity-50" aria-hidden="true"></i>
+                        </button>
+                    <% }) %>
+                    <a href="<%= baseUrl %>/admin/sharing" class="flex items-center gap-4 w-full text-left px-4 min-h-[52px] font-semibold">
+                        <i class="fa-solid <%= phoneShareLinks.length ? 'fa-sliders' : 'fa-plus' %> w-5 text-center text-primary-theme" aria-hidden="true"></i>
+                        <span class="flex-1"><%= phoneShareLinks.length ? t('collection.share_manage') : t('admin.sharing.new_link_btn') %></span>
+                        <i class="fa-solid fa-chevron-right text-xs opacity-40" aria-hidden="true"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        <% } %>
+        <script>
+            function toggleCollectionMenu(open) {
+                document.getElementById('collectionMenu').classList.toggle('hidden', !open);
+                document.body.classList.toggle('overflow-hidden', open);
+            }
+            function toggleShareSheet(open) {
+                const sheet = document.getElementById('collectionShareSheet');
+                if (!sheet) return;
+                sheet.classList.toggle('hidden', !open);
+                document.body.classList.toggle('overflow-hidden', open);
+            }
+            document.addEventListener('keydown', function (e) {
+                if (e.key !== 'Escape') return;
+                toggleCollectionMenu(false);
+                toggleShareSheet(false);
+            });
+            document.querySelectorAll('[data-share-path]').forEach(function (button) {
+                button.addEventListener('click', async function () {
+                    const url = window.location.origin + button.dataset.sharePath;
+                    if (navigator.share) {
+                        try { await navigator.share({ title: button.dataset.shareTitle, url: url }); } catch (e) { /* dismissed */ }
+                        return;
+                    }
+                    try {
+                        await navigator.clipboard.writeText(url);
+                        const detail = button.querySelector('[data-share-row-detail]');
+                        const before = detail.textContent;
+                        detail.textContent = <%- JSON.stringify(t('admin.sharing.copied')) %>;
+                        setTimeout(function () { detail.textContent = before; }, 1600);
+                    } catch (e) {
+                        window.prompt('', url);
+                    }
+                });
+            });
+        </script>
+        <% } %>
+
         <%- include('partials/albums-filters') %>
         <div id="shelfResults" class="transition-opacity duration-150">
             <%- include('partials/shelf-results', { albums, isWishlist: false }) %>
@@ -136,9 +276,10 @@
     <% if (locals.canEditCollection) { %>
     <div id="bulkActionBar" class="hidden fixed bottom-0 md:bottom-6 inset-x-0 z-40 flex flex-col items-center md:px-4 pointer-events-none">
         <%# Folds the bar down to this tab so it stops covering the last cards; the
-            count moves onto the tab while the bar is folded. %>
+            count moves onto the tab while the bar is folded. On a phone it sits to the
+            right: folded, the centre is where the tab bar's add button rises. %>
         <button type="button" id="bulkBarToggle" onclick="toggleBulkBarCollapsed()"
-            class="card-theme border border-b-0 rounded-t-xl -mb-px relative z-10 px-4 py-1 flex items-center gap-2 text-xs font-bold shadow-lg pointer-events-auto"
+            class="max-md:self-end max-md:mr-4 card-theme border border-b-0 rounded-t-xl -mb-px relative z-10 px-4 py-1 flex items-center gap-2 text-xs font-bold shadow-lg pointer-events-auto"
             title="<%= t('collection.hide_select_bar') %>" aria-label="<%= t('collection.hide_select_bar') %>" aria-expanded="true">
             <i id="bulkBarToggleIcon" class="fa-solid fa-chevron-down"></i>
             <span id="bulkTabCount" class="hidden opacity-80"></span>

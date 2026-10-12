@@ -509,6 +509,14 @@
     "volume": "Volumen"
   },
   "collection": {
+    "share_active_count_other": "{{count}} aktive Links",
+    "share_active_count_one": "{{count}} aktiver Link",
+    "share_disabled_hint": "Ausgeschaltet: Der Link öffnet sich nicht mehr. Beim Wiedereinschalten gilt derselbe Link wieder.",
+    "share_name": "Name",
+    "share_scope_all": "Die ganze Sammlung",
+    "share_manage": "Freigabelinks verwalten",
+    "share_none": "Noch kein Freigabelink aktiv. Erstelle einen, damit jeder die Sammlung schreibgeschützt ansehen kann.",
+    "share_hint": "Sende einen schreibgeschützten Link zur Sammlung.",
     "add": "Hinzufügen",
     "scan": "Scannen",
     "share_view_banner": "Du siehst eine geteilte Sammlung - schreibgeschützt.",
@@ -632,6 +640,7 @@
     "status_off": "Aus"
   },
   "common": {
+    "share": "Teilen",
     "external_id_label": "Quellen-ID",
     "external_id_hint": "Die ID, mit der dieser Eintrag auf der Ursprungsseite verknüpft ist. Tragen Sie sie ein, um die Metadaten-Aktualisierung zurückzuholen, oder korrigieren Sie sie bei einer falschen Zuordnung.",
     "all": "Alle",
@@ -781,6 +790,13 @@
     "tracklist_label": "Titelliste"
   },
   "detail": {
+    "label_no_barcode": "Dieses Objekt hat keinen Barcode: Füge beim Bearbeiten einen hinzu.",
+    "label_save": "Bild speichern",
+    "in_collection": "In der Sammlung",
+    "my_copy": "Mein Exemplar",
+    "edition_section": "Ausgabe",
+    "more_actions": "Mehr",
+    "label_short": "Etikett",
     "added_at": "Hinzugefügt bei",
     "added_by": "Hinzugefügt von",
     "modified_at": "Zuletzt geändert",
@@ -820,8 +836,6 @@
     "print_label_btn": "Etikett drucken",
     "qr_option": "QR-Code",
     "barcode_option": "Barcode",
-    "switch_to_qr": "Zum QR-Code wechseln",
-    "switch_to_barcode": "Zum Barcode wechseln",
     "label_page_title": "Etikett"
   },
   "dvd_detail": {
@@ -1068,6 +1082,12 @@
   },
   "modal": {
     "add_hub_subtitle": "Wählen Sie den Medientyp aus, den Sie Ihrer Sammlung hinzufügen möchten",
+    "add_hub_scan": "Barcode scannen",
+    "add_hub_scan_hint": "Mit der Kamera",
+    "add_hub_search": "Suchen",
+    "add_hub_search_hint": "Nach Titel, Name oder Referenz",
+    "add_hub_photo_hint": "Die KI erkennt das Objekt",
+    "add_hub_manual_hint": "Die Angaben selbst ausfüllen",
     "add_hub_title": "Was möchten Sie hinzufügen?",
     "avg_label": "Geschätzter Wert (Durchschnitt)",
     "condition_hint": "Basierend auf dem Zustand „Sehr gut“.",
@@ -1079,6 +1099,9 @@
     "max_label": "Maximum (Neuwertig)",
     "min_label": "Minimum (G)",
     "start_btn": "Analyse starten"
+  },
+  "account": {
+    "appearance": "Darstellung"
   },
   "nav": {
     "admin": "Admin-Panel",
@@ -1096,11 +1119,16 @@
     "administration": "Verwaltung",
     "new_collection": "Neue Sammlung",
     "search": "Suche",
-    "share_view": "Geteilte Sammlung · schreibgeschützt"
+    "share_view": "Geteilte Sammlung · schreibgeschützt",
+    "add": "Hinzufügen",
+    "account": "Konto",
+    "close": "Schließen",
+    "main_navigation": "Hauptnavigation",
+    "back": "Zurück"
   },
   "search": {
     "title": "Suche",
-    "placeholder": "Titel oder Künstler in allen Sammlungen suchen...",
+    "placeholder": "In deinen Sammlungen suchen",
     "empty_prompt": "Mindestens 2 Zeichen eingeben, um alle Sammlungen zu durchsuchen.",
     "no_results": "Keine Ergebnisse gefunden.",
     "results_count": "{{count}} Ergebnisse"

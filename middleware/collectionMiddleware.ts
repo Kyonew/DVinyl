@@ -2,6 +2,7 @@ import Collection from '../models/Collection';
 import User from '../models/User';
 import { resolveActiveCollectionForUser, sessionActiveCollectionId } from '../utils/collectionHelpers';
 import { canUserCreateCollection } from '../utils/instanceSettings';
+import { isAiReady } from '../core/ai/instance';
 
 /**
  * Resolves the current user's active collection and exposes it to routes/views:
@@ -113,6 +114,11 @@ async function collectionMiddleware(req: any, res: any, next: any) {
             res.locals.isCollectionAdmin = res.locals.collectionRole === 'admin';
             res.locals.canEditCollection =
                 res.locals.collectionRole === 'admin' || res.locals.collectionRole === 'editor';
+            // The add sheet, on every page, offers the photo search only when it can run.
+            // The add page sets the same flag itself; the config read is cached.
+            if (res.locals.canEditCollection) {
+                res.locals.aiPhotoSearch = await isAiReady();
+            }
         }
 
         res.locals.userCollections = await Collection

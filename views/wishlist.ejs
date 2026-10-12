@@ -17,22 +17,26 @@
         const scanPlugins = registry.getEnabled(settings).filter(p => hasBarcodeScan(p));
         const canScan = locals.canEditCollection && scanPlugins.length > 0;
         const scanHref = scanPlugins.length === 1 ? (baseUrl + '/add-' + scanPlugins[0].id + '?scan=1') : null;
+
+        // Phone header, as on the collection page: the title and its counters alone. Add
+        // and scan are the tab bar's "+", and the plugin's sync actions go in a menu.
+        const phoneBadge = 'max-md:p-0 max-md:bg-transparent max-md:dark:bg-transparent max-md:rounded-none';
     %>
 
     <div class="max-w-screen-xl mx-auto pb-12">
 
-        <div class="flex items-center justify-between mb-6 md:mb-8 pt-6">
+        <div class="flex items-start md:items-center justify-between gap-3 mb-5 md:mb-8 pt-2 sm:pt-6">
 
-            <h1 class="text-3xl font-bold flex flex-col md:flex-row md:items-center gap-2 md:gap-3 transition-colors truncate mr-4">
-                <span class="flex items-center gap-2 md:gap-3 text-primary-theme">
-                    <i class="fa-solid fa-gift flex-shrink-0"></i>
+            <h1 class="text-[2rem] leading-tight md:text-3xl font-extrabold md:font-bold tracking-tight md:tracking-normal flex flex-col md:flex-row md:items-center gap-1 md:gap-3 transition-colors min-w-0 md:mr-4">
+                <span class="flex items-center gap-2 md:gap-3 md:text-primary-theme min-w-0">
+                    <i class="max-md:hidden fa-solid fa-gift flex-shrink-0"></i>
                     <span class="truncate">
                         <%= t('wishlist.title') %>
                     </span>
                 </span>
-                <span class="flex flex-wrap items-center gap-2 md:mt-1.5 w-fit">
+                <span class="flex flex-wrap items-center gap-2 md:mt-1.5 w-fit tracking-normal">
                     <span id="totalItemsBadge"
-                        class="px-3 py-1 bg-black/5 dark:bg-white/10 rounded-full text-sm font-medium opacity-70">
+                        class="px-3 py-1 bg-black/5 dark:bg-white/10 rounded-full text-sm font-medium opacity-70 <%= phoneBadge %>">
                         <%= totalItems %>
                             <%= t('common.items') %>
                     </span>
@@ -40,7 +44,7 @@
                         matches the collection page. Hidden when it equals the item count.
                         The label pluralizes on the count (unique_titles_one for 1). %>
                     <span id="uniqueTitlesBadge"
-                        class="px-3 py-1 bg-black/5 dark:bg-white/10 rounded-full text-sm font-medium opacity-70 <%= (uniqueTitles === totalItems) ? 'hidden' : '' %>"
+                        class="px-3 py-1 bg-black/5 dark:bg-white/10 rounded-full text-sm font-medium opacity-70 <%= phoneBadge %> max-md:before:content-['·'] max-md:before:mr-2 <%= (uniqueTitles === totalItems) ? 'hidden' : '' %>"
                         title="<%= t('collection.unique_titles_hint') %>">
                         <%= t('collection.unique_titles', { count: uniqueTitles }) %>
                     </span>
@@ -49,9 +53,15 @@
 
             <div class="flex gap-2">
 
+                <% if (wishlistActions.length) { %>
+                    <button type="button" onclick="toggleWishlistMenu(true)" aria-haspopup="dialog" aria-label="<%= t('detail.more_actions') %>"
+                        class="md:hidden flex-none mt-1 w-11 h-11 rounded-full card-theme flex items-center justify-center">
+                        <i class="fa-solid fa-ellipsis" aria-hidden="true"></i>
+                    </button>
+                <% } %>
                 <% if (canAdd) { %>
                     <button type="button" onclick="openAddModal()"
-                        class="flex-shrink-0 w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center gap-2 group"
+                        class="max-md:hidden flex-shrink-0 w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center gap-2 group"
                         title="<%= t('collection.add') %>">
                         <i class="fa-solid fa-plus group-hover:scale-110 transition-transform"></i>
                         <span class="hidden md:inline text-xs font-bold uppercase tracking-widest">
@@ -61,7 +71,7 @@
                     <% } %>
                     <% if (canScan) { %>
                     <a href="<%= scanHref || '#' %>" <%- scanHref ? '' : 'onclick="openScanPicker(); return false;"' %>
-                        class="flex-shrink-0 w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center gap-2 group"
+                        class="max-md:hidden flex-shrink-0 w-10 h-10 md:w-auto md:px-4 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center gap-2 group"
                         title="<%= t('collection.scan') %>">
                         <i class="fa-solid fa-barcode group-hover:scale-110 transition-transform"></i>
                         <span class="hidden md:inline text-xs font-bold uppercase tracking-widest">
@@ -73,7 +83,7 @@
                         <% wishlistActions.forEach(action => { %>
                             <button type="button" data-action-id="<%= action.id %>"
                                 onclick="runImporterSync('<%= action.importerId %>', '<%= action.id %>')"
-                                class="flex-shrink-0 w-10 h-10 md:w-auto md:h-auto md:p-2.5 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center active:scale-95 group"
+                                class="max-md:hidden flex-shrink-0 w-10 h-10 md:w-auto md:h-auto md:p-2.5 card-theme hover:text-primary-theme hover:border-primary-theme rounded-lg transition-all shadow-sm flex items-center justify-center active:scale-95 group"
                                 title="<%= t(action.tooltip || action.label) %>">
                                 <i class="fa-solid <%= action.icon %> group-hover:rotate-180 transition-transform duration-500"></i>
                             </button>
@@ -82,6 +92,35 @@
             </div>
 
         </div>
+
+        <% if (wishlistActions.length) { %>
+        <%# Phone: the sync actions the desktop header shows as buttons, same handlers. %>
+        <div id="wishlistMenu" class="md:hidden fixed inset-0 z-[60] hidden">
+            <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="toggleWishlistMenu(false)"></div>
+            <div role="dialog" aria-modal="true" aria-label="<%= t('detail.more_actions') %>"
+                class="absolute inset-x-0 bottom-0 card-theme rounded-t-[2rem] px-4 pt-3 shadow-2xl"
+                style="padding-bottom: calc(1rem + env(safe-area-inset-bottom));">
+                <div class="w-12 h-1.5 bg-black/10 dark:bg-white/10 rounded-full mx-auto mb-4" aria-hidden="true"></div>
+                <div class="rounded-2xl bg-black/5 dark:bg-white/5 divide-y divide-black/5 dark:divide-white/10 overflow-hidden">
+                    <% wishlistActions.forEach(action => { %>
+                        <button type="button" onclick="toggleWishlistMenu(false); runImporterSync('<%= action.importerId %>', '<%= action.id %>')"
+                            class="flex items-center gap-4 w-full text-left px-4 min-h-[52px] font-semibold">
+                            <i class="fa-solid <%= action.icon %> w-5 text-center text-primary-theme" aria-hidden="true"></i><%= t(action.label) %>
+                        </button>
+                    <% }) %>
+                </div>
+            </div>
+        </div>
+        <script>
+            function toggleWishlistMenu(open) {
+                document.getElementById('wishlistMenu').classList.toggle('hidden', !open);
+                document.body.classList.toggle('overflow-hidden', open);
+            }
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') toggleWishlistMenu(false);
+            });
+        </script>
+        <% } %>
 
         <%# The invitation below is for a wishlist that holds nothing at all. A filter
             that matches nothing keeps the normal page instead, or the controls needed
@@ -179,7 +218,5 @@
             background: rgba(255, 255, 255, 0.1);
         }
     </style>
-
-    <%- include('partials/add-hub') %>
 
     <%- include('partials/footer') %>

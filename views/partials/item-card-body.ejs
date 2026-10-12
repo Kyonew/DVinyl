@@ -9,20 +9,22 @@
 %>
 <%
   const cardSizes = {
+    // The max-md: parts go with the frameless phone card of albums-grid: no inner
+    // padding, and the title and its first line at reading size.
     collection: {
-      wrap: 'p-3',
-      title: 'font-bold text-sm truncate',
-      lead: 'text-xs opacity-60 truncate mb-2'
+      wrap: 'p-3 max-md:px-0.5 max-md:pt-2 max-md:pb-0',
+      title: 'font-bold text-sm max-md:text-[15px] max-md:font-semibold truncate',
+      lead: 'text-xs max-md:text-[13px] opacity-60 truncate mb-2 max-md:mb-1'
     },
     wishlist: {
-      wrap: 'p-3',
-      title: 'font-bold text-xs md:text-sm truncate leading-tight mb-0.5',
-      lead: 'text-[10px] md:text-xs opacity-60 truncate mb-2'
+      wrap: 'p-3 max-md:px-0.5 max-md:pt-2 max-md:pb-0',
+      title: 'font-bold text-xs md:text-sm max-md:text-[15px] max-md:font-semibold truncate leading-tight mb-0.5',
+      lead: 'text-[10px] md:text-xs max-md:text-[13px] opacity-60 truncate mb-2 max-md:mb-1'
     },
     home: {
-      wrap: 'p-3 md:p-4',
-      title: 'font-bold truncate text-sm md:text-base leading-tight',
-      lead: 'text-xs opacity-60 truncate'
+      wrap: 'p-3 md:p-4 max-md:px-0.5 max-md:pt-2 max-md:pb-0',
+      title: 'font-bold truncate text-sm md:text-base max-md:text-[15px] max-md:font-semibold leading-tight',
+      lead: 'text-xs max-md:text-[13px] opacity-60 truncate'
     }
   };
   const cs = cardSizes[locals.size] || cardSizes.collection;

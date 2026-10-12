@@ -509,6 +509,14 @@
     "volume": "Volumen"
   },
   "collection": {
+    "share_active_count_other": "{{count}} enlaces activos",
+    "share_active_count_one": "{{count}} enlace activo",
+    "share_disabled_hint": "Desactivado: el enlace ya no se abre. Al reactivarlo vuelve el mismo enlace.",
+    "share_name": "Nombre",
+    "share_scope_all": "Toda la colección",
+    "share_manage": "Gestionar los enlaces",
+    "share_none": "Aún no hay ningún enlace activo. Crea uno para que cualquiera pueda ver la colección en modo de solo lectura.",
+    "share_hint": "Envía un enlace de solo lectura a la colección.",
     "add": "Agregar",
     "scan": "Escanear",
     "share_view_banner": "Estás viendo una colección compartida - solo lectura.",
@@ -632,6 +640,7 @@
     "status_off": "Desactivada"
   },
   "common": {
+    "share": "Compartir",
     "external_id_label": "ID de origen",
     "external_id_hint": "El identificador con el que este elemento está vinculado en el sitio de origen. Complétalo para recuperar la actualización de metadatos, o corrígelo si el elemento se vinculó a la ficha equivocada.",
     "all": "Todo",
@@ -781,6 +790,13 @@
     "tracklist_label": "Lista de pistas"
   },
   "detail": {
+    "label_no_barcode": "Este objeto no tiene código de barras: añade uno al editarlo.",
+    "label_save": "Guardar imagen",
+    "in_collection": "En la colección",
+    "my_copy": "Mi ejemplar",
+    "edition_section": "Edición",
+    "more_actions": "Más",
+    "label_short": "Etiqueta",
     "added_at": "Agregado en",
     "added_by": "Añadido por",
     "modified_at": "Última modificación",
@@ -820,8 +836,6 @@
     "print_label_btn": "Imprimir la etiqueta",
     "qr_option": "Código QR",
     "barcode_option": "Código de barras",
-    "switch_to_qr": "Cambiar al código QR",
-    "switch_to_barcode": "Cambiar al código de barras",
     "label_page_title": "Etiqueta"
   },
   "dvd_detail": {
@@ -1068,6 +1082,12 @@
   },
   "modal": {
     "add_hub_subtitle": "Seleccione el tipo de medios para agregar a su colección",
+    "add_hub_scan": "Escanear un código de barras",
+    "add_hub_scan_hint": "Con la cámara",
+    "add_hub_search": "Buscar",
+    "add_hub_search_hint": "Por título, nombre o referencia",
+    "add_hub_photo_hint": "La IA reconoce el objeto",
+    "add_hub_manual_hint": "Rellenar la ficha uno mismo",
     "add_hub_title": "¿Qué quieres agregar?",
     "avg_label": "Valor estimado (promedio)",
     "condition_hint": "Basado en condición \"Muy buena\"",
@@ -1079,6 +1099,9 @@
     "max_label": "Máximo (perfecto)",
     "min_label": "Mínimo (G)",
     "start_btn": "Iniciar análisis"
+  },
+  "account": {
+    "appearance": "Apariencia"
   },
   "nav": {
     "admin": "Panel de administración",
@@ -1096,11 +1119,16 @@
     "administration": "Administración",
     "new_collection": "Nueva colección",
     "search": "Buscar",
-    "share_view": "Colección compartida · solo lectura"
+    "share_view": "Colección compartida · solo lectura",
+    "add": "Añadir",
+    "account": "Cuenta",
+    "close": "Cerrar",
+    "main_navigation": "Navegación principal",
+    "back": "Volver"
   },
   "search": {
     "title": "Buscar",
-    "placeholder": "Buscar título o artista en todas tus colecciones...",
+    "placeholder": "Buscar en tus colecciones",
     "empty_prompt": "Escribe al menos 2 caracteres para buscar en todas tus colecciones.",
     "no_results": "No se encontraron resultados.",
     "results_count": "{{count}} resultados"

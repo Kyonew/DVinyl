@@ -1,8 +1,8 @@
-<%- include('../../views/partials/header') %>
+<%- include('../../views/partials/header', { shellBack: false }) %>
 
-<div class="max-w-screen-xl mx-auto pb-20 px-4 md:px-0">
+<div class="max-w-screen-xl mx-auto pb-20 px-4 max-sm:px-0 md:px-0">
 
-    <nav class="flex mb-6 text-sm opacity-60 transition-colors">
+    <nav class="flex mb-6 max-md:mb-4 text-sm max-md:text-base max-md:font-semibold opacity-60 max-md:opacity-100 max-md:text-primary-theme transition-colors">
         <a href="<%= baseUrl %>/collection" class="hover:opacity-100 transition-opacity flex items-center py-2">
             <i class="fa-solid fa-arrow-left mr-2"></i> <%= t('common.cancel_back') %>
         </a>
@@ -10,8 +10,9 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
-        <!-- Left Side: Cover Image Preview -->
-        <div class="lg:col-span-4 space-y-6">
+        <!-- Left Side: Cover Image Preview. Not on a phone, where it filled the first
+             screen with a placeholder: the images section of the form shows what is added. -->
+        <div class="max-md:hidden lg:col-span-4 space-y-6">
             <div class="card-theme rounded-xl p-6 sticky top-24 transition-colors shadow-sm">
                 <div class="<%= plugin.aspectRatioClass || 'aspect-[2/3]' %> rounded-lg overflow-hidden shadow-lg relative group bg-black/5 dark:bg-white/5">
                     <img id="livePreview" src="<%= itemImageUrl(item.cover_image || plugin.placeholderImage || '/ressources/logo.png') %>" class="w-full h-full object-cover transition-all duration-500">
@@ -25,10 +26,12 @@
         <!-- Right Side: Selector and Forms -->
         <div class="lg:col-span-8 space-y-6">
             <!-- Segmented Selector Tab for Type -->
-            <div class="card-theme p-1.5 rounded-2xl flex gap-1 transition-colors shadow-sm">
+            <%# One row of tabs from md up. On a phone a grid of three: six module names in one
+                row pushed the page wider than the screen. %>
+            <div class="card-theme p-1.5 rounded-2xl grid grid-cols-3 md:flex gap-1 transition-colors shadow-sm">
                 <% for (const p of enabledPlugins) { %>
-                    <a href="<%= baseUrl %>/manual-add?type=<%= p.id %>" class="flex-grow flex items-center justify-center gap-2 py-3.5 text-xs font-black uppercase tracking-widest rounded-xl transition-all <%= p.id === plugin.id ? 'bg-primary-theme text-white shadow-md' : 'opacity-50 hover:opacity-100' %>">
-                        <i class="fa-solid fa-<%= p.icon %>"></i> <%= t(p.label) %>
+                    <a href="<%= baseUrl %>/manual-add?type=<%= p.id %>" class="flex-grow flex max-md:flex-col items-center justify-center gap-2 max-md:gap-1.5 py-3.5 max-md:py-3 max-md:px-1 text-xs max-md:text-[11px] max-md:leading-tight max-md:text-center font-black uppercase tracking-widest max-md:tracking-normal rounded-xl transition-all <%= p.id === plugin.id ? 'bg-primary-theme text-white shadow-md' : 'opacity-50 hover:opacity-100' %>">
+                        <i class="fa-solid fa-<%= p.icon %> max-md:text-base"></i> <%= t(p.label) %>
                     </a>
                 <% } %>
             </div>

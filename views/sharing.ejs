@@ -1,0 +1,270 @@
+<%- include('partials/header') %>
+
+<%
+    // The collection's public share links: one card per link with what it opens to, its
+    // switch and what to do with it; naming it and choosing what it shares happen in a
+    // sheet (a centred dialog from md up).
+    const shareLinks = (collectionDoc && collectionDoc.shareLinks) || [];
+    const sharePlugins = registry.getAll().filter(p => settings.modules && settings.modules[p.collectionType] === true);
+    const shareUrl = link => siteOrigin + baseUrl + '/share/' + link.token;
+    const cardAction = 'flex flex-col items-center justify-center gap-1 h-16 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-xs font-semibold transition-colors';
+    const footerAction = 'flex-1 flex items-center justify-center gap-2 h-12 text-sm font-semibold hover:bg-black/5 dark:hover:bg-white/5 transition-colors';
+    const shareMessages = ['share_enabled', 'share_disabled', 'share_regenerated', 'share_scope_updated', 'share_link_created', 'share_link_deleted', 'error_share'];
+%>
+
+<div class="max-w-2xl mx-auto pb-16">
+    <a href="<%= baseUrl %>/admin#collection" class="max-md:hidden inline-flex items-center gap-2 py-2 mb-2 text-sm opacity-60 hover:opacity-100 transition-opacity">
+        <i class="fa-solid fa-arrow-left" aria-hidden="true"></i><%= t('nav.admin') %>
+    </a>
+
+    <header class="pt-2 md:pt-2 mb-6 flex items-start justify-between gap-4">
+        <div class="min-w-0">
+            <h1 class="text-[2rem] md:text-3xl leading-tight font-extrabold tracking-tight"><%= t('admin.sharing.title') %></h1>
+            <p class="text-sm opacity-60 mt-2 max-w-lg"><%= t('admin.sharing.subtitle') %></p>
+        </div>
+        <button type="button" data-share-editor-open="new"
+            class="max-md:hidden flex-none flex items-center gap-2 h-11 px-5 rounded-xl bg-primary-theme hover:brightness-110 font-bold text-sm transition">
+            <i class="fa-solid fa-plus" aria-hidden="true"></i><%= t('admin.sharing.new_link_btn') %>
+        </button>
+    </header>
+
+    <button type="button" data-share-editor-open="new"
+        class="md:hidden w-full flex items-center justify-center gap-2 h-12 mb-6 rounded-2xl bg-primary-theme font-bold">
+        <i class="fa-solid fa-plus" aria-hidden="true"></i><%= t('admin.sharing.new_link_btn') %>
+    </button>
+
+    <% if (shareLinks.length === 0) { %>
+        <div class="card-theme rounded-2xl px-6 py-12 text-center">
+            <i class="fa-solid fa-link text-4xl opacity-20 mb-4" aria-hidden="true"></i>
+            <p class="opacity-60 max-w-sm mx-auto"><%= t('collection.share_none') %></p>
+        </div>
+    <% } %>
+
+    <div class="flex flex-col gap-4">
+        <% shareLinks.forEach(link => { %>
+            <article class="card-theme rounded-2xl overflow-hidden">
+                <div class="p-4 flex items-start gap-3">
+                    <span class="w-11 h-11 flex-none rounded-xl flex items-center justify-center <%= link.enabled ? 'bg-primary-theme/15 text-primary-theme' : 'bg-black/5 dark:bg-white/10 opacity-60' %>" aria-hidden="true">
+                        <i class="fa-solid fa-link"></i>
+                    </span>
+                    <div class="flex-1 min-w-0 <%= link.enabled ? '' : 'opacity-60' %>">
+                        <h2 class="font-bold truncate"><%= link.label || t('admin.sharing.untitled_link') %></h2>
+                        <p class="text-sm opacity-70"><%- include('partials/share-scope-summary', { link }) %></p>
+                    </div>
+                    <form action="<%= baseUrl %>/admin/share/<%= link.token %>/toggle" method="POST" class="flex-none">
+                        <button type="submit" role="switch" aria-checked="<%= link.enabled ? 'true' : 'false' %>"
+                            aria-label="<%= link.enabled ? t('admin.sharing.disable_btn') : t('admin.sharing.enable_btn') %>"
+                            class="relative block w-12 h-7 rounded-full transition-colors <%= link.enabled ? 'bg-primary-theme' : 'bg-black/15 dark:bg-white/20' %>">
+                            <span class="absolute top-1 left-1 w-5 h-5 rounded-full bg-white shadow transition-transform <%= link.enabled ? 'translate-x-5' : '' %>"></span>
+                        </button>
+                    </form>
+                </div>
+
+                <% if (link.enabled) { %>
+                    <div class="px-4 pb-4">
+                        <div class="flex items-center h-11 px-3 rounded-xl bg-black/5 dark:bg-white/5">
+                            <span class="flex-1 min-w-0 truncate font-mono text-xs opacity-80"><%= shareUrl(link) %></span>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 mt-3">
+                            <button type="button" data-share-send="<%= shareUrl(link) %>" data-share-title="<%= link.label || (activeCollection && activeCollection.name) || '' %>" class="<%= cardAction %>">
+                                <i class="fa-solid fa-arrow-up-from-bracket text-base text-primary-theme" aria-hidden="true"></i><%= t('common.share') %>
+                            </button>
+                            <button type="button" data-share-copy="<%= shareUrl(link) %>" class="<%= cardAction %>">
+                                <i class="fa-solid fa-copy text-base text-primary-theme" aria-hidden="true"></i><span data-share-copy-text><%= t('admin.sharing.copy_btn') %></span>
+                            </button>
+                            <button type="button" data-share-qr="<%= baseUrl %>/admin/share/<%= link.token %>/qr.png" data-share-qr-title="<%= link.label || t('admin.sharing.untitled_link') %>" class="<%= cardAction %>">
+                                <i class="fa-solid fa-qrcode text-base text-primary-theme" aria-hidden="true"></i><%= t('detail.qr_option') %>
+                            </button>
+                        </div>
+                    </div>
+                <% } else { %>
+                    <p class="px-4 pb-4 text-sm opacity-60"><%= t('collection.share_disabled_hint') %></p>
+                <% } %>
+
+                <div class="flex border-t border-black/5 dark:border-white/10 divide-x divide-black/5 dark:divide-white/10">
+                    <button type="button" data-share-editor-open="<%= link.token %>" class="<%= footerAction %>">
+                        <i class="fa-solid fa-pen text-xs opacity-60" aria-hidden="true"></i><%= t('common.edit') %>
+                    </button>
+                    <form action="<%= baseUrl %>/admin/share/<%= link.token %>/regenerate" method="POST" class="flex-1 flex"
+                        onsubmit="return confirm(<%= JSON.stringify(t('admin.sharing.confirm_regenerate')) %>)">
+                        <button type="submit" class="<%= footerAction %>">
+                            <i class="fa-solid fa-rotate text-xs opacity-60" aria-hidden="true"></i><%= t('admin.sharing.regenerate_btn') %>
+                        </button>
+                    </form>
+                    <form action="<%= baseUrl %>/admin/share/<%= link.token %>/delete" method="POST" class="flex-1 flex"
+                        onsubmit="return confirm(<%= JSON.stringify(t('admin.sharing.confirm_delete')) %>)">
+                        <button type="submit" class="<%= footerAction %> text-red-600 dark:text-red-500">
+                            <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i><%= t('admin.sharing.delete_btn') %>
+                        </button>
+                    </form>
+                </div>
+            </article>
+        <% }) %>
+    </div>
+</div>
+
+<%# One editor per link plus one for a new link: a bottom sheet on a phone, a dialog from md up. %>
+<% [{ token: 'new' }].concat(shareLinks).forEach((link, index) => {
+    const isNew = link.token === 'new';
+    const scopeByType = {};
+    (link.scope || []).forEach(s => { scopeByType[s.pluginId] = s.formats || []; });
+%>
+    <div data-share-editor="<%= link.token %>" class="fixed inset-0 z-[100] hidden bg-black/60 backdrop-blur-sm flex items-end md:items-center justify-center md:p-4">
+        <div role="dialog" aria-modal="true" aria-labelledby="shareEditorTitle<%= index %>"
+            class="card-theme w-full md:max-w-lg rounded-t-[2rem] md:rounded-[2rem] px-5 pt-3 md:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+            style="padding-bottom: calc(1.25rem + env(safe-area-inset-bottom));">
+            <div class="w-12 h-1.5 bg-black/10 dark:bg-white/10 rounded-full mx-auto mb-4 md:hidden" aria-hidden="true"></div>
+            <div class="flex items-center justify-between gap-4 mb-5">
+                <h2 id="shareEditorTitle<%= index %>" class="text-xl font-extrabold tracking-tight">
+                    <%= isNew ? t('admin.sharing.new_link_btn') : (link.label || t('admin.sharing.untitled_link')) %>
+                </h2>
+                <button type="button" data-share-editor-close aria-label="<%= t('nav.close') %>"
+                    class="w-10 h-10 flex-none rounded-full bg-black/5 dark:bg-white/10 flex items-center justify-center">
+                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                </button>
+            </div>
+            <form action="<%= baseUrl %>/admin/share/<%= isNew ? 'create' : link.token + '/scope' %>" method="POST" class="flex flex-col gap-5">
+                <label class="flex flex-col gap-2">
+                    <span class="text-xs font-bold uppercase tracking-widest opacity-60 px-1"><%= t('collection.share_name') %></span>
+                    <input type="text" name="label" maxlength="60" value="<%= link.label || '' %>"
+                        placeholder="<%= t('admin.sharing.label_placeholder') %>"
+                        class="w-full h-12 px-4 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 outline-none focus:border-primary-theme text-base">
+                </label>
+                <div class="flex flex-col gap-2">
+                    <span class="text-xs font-bold uppercase tracking-widest opacity-60 px-1"><%= t('admin.sharing.scope_title') %></span>
+                    <%- include('partials/share-scope-picker', { sharePlugins, scopeByType, idPrefix: 'scope' + index }) %>
+                </div>
+                <button type="submit" class="h-12 rounded-2xl bg-primary-theme hover:brightness-110 font-bold transition">
+                    <%= isNew ? t('admin.sharing.create_btn') : t('admin.sharing.scope_save_btn') %>
+                </button>
+            </form>
+        </div>
+    </div>
+<% }) %>
+
+<div id="shareQrDialog" class="fixed inset-0 z-[100] hidden bg-black/60 backdrop-blur-sm flex items-end md:items-center justify-center md:p-4">
+    <div role="dialog" aria-modal="true" aria-labelledby="shareQrTitle"
+        class="card-theme w-full md:max-w-sm rounded-t-[2rem] md:rounded-[2rem] px-5 pt-3 md:p-6 shadow-2xl text-center"
+        style="padding-bottom: calc(1.25rem + env(safe-area-inset-bottom));">
+        <div class="w-12 h-1.5 bg-black/10 dark:bg-white/10 rounded-full mx-auto mb-4 md:hidden" aria-hidden="true"></div>
+        <h2 id="shareQrTitle" class="text-xl font-extrabold tracking-tight mb-4"></h2>
+        <img id="shareQrImage" alt="" class="mx-auto w-64 h-64 rounded-2xl bg-white p-3">
+        <div class="grid grid-cols-2 gap-2 mt-5">
+            <a id="shareQrDownload" download class="h-12 rounded-2xl bg-black/5 dark:bg-white/10 font-bold flex items-center justify-center gap-2">
+                <i class="fa-solid fa-download" aria-hidden="true"></i><%= t('detail.label_save') %>
+            </a>
+            <button type="button" data-share-qr-close class="h-12 rounded-2xl bg-primary-theme font-bold"><%= t('nav.close') %></button>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function () {
+        function openLayer(layer) {
+            layer.classList.remove('hidden');
+            document.body.classList.add('overflow-hidden');
+        }
+        function closeLayers() {
+            document.querySelectorAll('[data-share-editor], #shareQrDialog').forEach(layer => layer.classList.add('hidden'));
+            document.body.classList.remove('overflow-hidden');
+        }
+
+        document.querySelectorAll('[data-share-editor-open]').forEach(button => {
+            button.addEventListener('click', () => {
+                const editor = document.querySelector('[data-share-editor="' + button.dataset.shareEditorOpen + '"]');
+                if (editor) openLayer(editor);
+            });
+        });
+        document.querySelectorAll('[data-share-editor], #shareQrDialog').forEach(layer => {
+            layer.addEventListener('click', event => { if (event.target === layer) closeLayers(); });
+        });
+        document.querySelectorAll('[data-share-editor-close], [data-share-qr-close]').forEach(button => {
+            button.addEventListener('click', closeLayers);
+        });
+        document.addEventListener('keydown', event => { if (event.key === 'Escape') closeLayers(); });
+
+        // Checking a format also checks its type: a format alone has nowhere to be saved,
+        // the server only reads the formats of a type it was told is in scope. Unchecking
+        // a type clears its formats for the same reason.
+        document.addEventListener('change', event => {
+            const target = event.target;
+            if (target.matches('input[data-share-format-for]') && target.checked) {
+                const type = document.querySelector('input[data-share-type="' + target.dataset.shareFormatFor + '"]');
+                if (type) type.checked = true;
+            }
+            if (target.matches('input[data-share-type]') && !target.checked) {
+                document.querySelectorAll('input[data-share-format-for="' + target.dataset.shareType + '"]').forEach(format => { format.checked = false; });
+            }
+        });
+
+        // navigator.clipboard does not exist outside a secure context, which an instance
+        // reached over http at its LAN address is not: the hidden-field copy covers it.
+        async function copyText(text) {
+            try {
+                if (navigator.clipboard && window.isSecureContext) {
+                    await navigator.clipboard.writeText(text);
+                    return true;
+                }
+            } catch (e) { /* falls through */ }
+            const field = document.createElement('textarea');
+            field.value = text;
+            field.setAttribute('readonly', '');
+            field.style.position = 'fixed';
+            field.style.opacity = '0';
+            document.body.appendChild(field);
+            field.select();
+            let copied = false;
+            try { copied = document.execCommand('copy'); } catch (e) { copied = false; }
+            field.remove();
+            return copied;
+        }
+
+        const copiedLabel = <%- JSON.stringify(t('admin.sharing.copied')) %>;
+        document.querySelectorAll('[data-share-copy]').forEach(button => {
+            button.addEventListener('click', async () => {
+                if (!(await copyText(button.dataset.shareCopy))) return;
+                const text = button.querySelector('[data-share-copy-text]');
+                const before = text.textContent;
+                text.textContent = copiedLabel;
+                setTimeout(() => { text.textContent = before; }, 1600);
+            });
+        });
+
+        // The system share sheet where there is one, a copy otherwise.
+        document.querySelectorAll('[data-share-send]').forEach(button => {
+            if (!navigator.share) button.classList.add('hidden');
+            button.parentElement.classList.toggle('grid-cols-2', !navigator.share);
+            button.parentElement.classList.toggle('grid-cols-3', Boolean(navigator.share));
+            button.addEventListener('click', async () => {
+                try { await navigator.share({ title: button.dataset.shareTitle, url: button.dataset.shareSend }); } catch (e) { /* dismissed */ }
+            });
+        });
+
+        const qrDialog = document.getElementById('shareQrDialog');
+        document.querySelectorAll('[data-share-qr]').forEach(button => {
+            button.addEventListener('click', () => {
+                document.getElementById('shareQrTitle').textContent = button.dataset.shareQrTitle;
+                document.getElementById('shareQrImage').src = button.dataset.shareQr;
+                const download = document.getElementById('shareQrDownload');
+                download.href = button.dataset.shareQr;
+                download.setAttribute('download', (button.dataset.shareQrTitle || 'share').replace(/[^\w\-]+/g, '-') + '-qr.png');
+                openLayer(qrDialog);
+            });
+        });
+
+        // Every action reloads the page with ?msg=: say what happened, then drop it from
+        // the address so a refresh does not say it again.
+        const messages = <%- JSON.stringify(Object.fromEntries(shareMessages.map(key => [key, t('messages.' + key)]))) %>;
+        const params = new URLSearchParams(window.location.search);
+        const message = messages[params.get('msg')];
+        if (message) {
+            if (window.showToast) window.showToast(message);
+            params.delete('msg');
+            const query = params.toString();
+            history.replaceState(null, '', window.location.pathname + (query ? '?' + query : '') + window.location.hash);
+        }
+    })();
+</script>
+
+<%- include('partials/toast') %>
+<%- include('partials/footer') %>

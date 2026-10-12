@@ -1,5 +1,6 @@
 {
   "common": {
+    "share": "Share",
     "external_id_label": "Source ID",
     "external_id_hint": "The id this item is matched to on the site it came from. Fill it in to bring back the metadata refresh, or correct it if the item was matched to the wrong entry.",
     "edit": "Edit",
@@ -256,7 +257,13 @@
     "history_empty": "Run this estimate at least twice to see a trend.",
     "history_other_currency": "History exists in {{currencies}}, but values are never converted: only your own currency is charted.",
     "add_hub_title": "What do you want to add?",
-    "add_hub_subtitle": "Select the type of media to add to your collection"
+    "add_hub_subtitle": "Select the type of media to add to your collection",
+    "add_hub_scan": "Scan a barcode",
+    "add_hub_scan_hint": "With your camera",
+    "add_hub_search": "Search",
+    "add_hub_search_hint": "By title, name or reference",
+    "add_hub_photo_hint": "AI recognises the item",
+    "add_hub_manual_hint": "Fill in the details yourself"
   },
   "add_vinyl": {
     "title": "Add a Record",
@@ -727,6 +734,14 @@
     "import_none_selected": "Tick at least one row."
   },
   "collection": {
+    "share_active_count_other": "{{count}} active links",
+    "share_active_count_one": "{{count}} active link",
+    "share_disabled_hint": "Turned off: the link no longer opens. Turning it back on brings back the same link.",
+    "share_name": "Name",
+    "share_scope_all": "The whole collection",
+    "share_manage": "Manage share links",
+    "share_none": "No share link is active yet. Create one to let anyone browse the collection read-only.",
+    "share_hint": "Send a read-only link to the collection.",
     "title": "My Collection",
     "share_view_banner": "You're viewing a shared collection - read-only.",
     "filter_placeholder": "Filter...",
@@ -899,6 +914,13 @@
     "edit_secondary_visual": "Edit secondary visual (Disc)"
   },
   "detail": {
+    "label_no_barcode": "No barcode on this item: add one when editing it.",
+    "label_save": "Save image",
+    "in_collection": "In the collection",
+    "my_copy": "My copy",
+    "edition_section": "Edition",
+    "more_actions": "More",
+    "label_short": "Label",
     "back_to_collection": "Back to collection",
     "back_to_wishlist": "Back to wishlist",
     "official_cover": "Official cover",
@@ -938,8 +960,6 @@
     "print_label_btn": "Print label",
     "qr_option": "QR code",
     "barcode_option": "Barcode",
-    "switch_to_qr": "Switch to QR code",
-    "switch_to_barcode": "Switch to barcode",
     "label_page_title": "Label"
   },
   "wishlist": {
@@ -949,6 +969,9 @@
     "scan_link": "Or scan a barcode",
     "btn_received": "I received it!",
     "confirm_move": "Great! Do you want to move this album to your official collection?"
+  },
+  "account": {
+    "appearance": "Appearance"
   },
   "nav": {
     "loading": "Loading...",
@@ -966,11 +989,16 @@
     "administration": "Administration",
     "new_collection": "New collection",
     "search": "Search",
-    "share_view": "Shared collection · read-only"
+    "share_view": "Shared collection · read-only",
+    "add": "Add",
+    "account": "Account",
+    "close": "Close",
+    "main_navigation": "Main navigation",
+    "back": "Back"
   },
   "search": {
     "title": "Search",
-    "placeholder": "Search title or artist across your collections...",
+    "placeholder": "Search across your collections",
     "empty_prompt": "Type at least 2 characters to search across all your collections.",
     "no_results": "No matches found.",
     "results_count": "{{count}} results"

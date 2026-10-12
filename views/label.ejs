@@ -11,24 +11,48 @@
   <link rel="icon" type="image/png" href="<%= baseUrl %>/ressources/logo.png">
   <style>
     * { box-sizing: border-box; }
+    :root {
+      --page: #f4f4f5;
+      --text: #18181b;
+      --muted: rgba(24, 24, 27, 0.6);
+      --chip: rgba(24, 24, 27, 0.06);
+      --chip-on: #ffffff;
+      --button: #18181b;
+      --button-text: #ffffff;
+    }
+    /* The page follows the device; the label itself stays white, as printed. */
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --page: #18181b;
+        --text: #f4f4f5;
+        --muted: rgba(244, 244, 245, 0.6);
+        --chip: rgba(255, 255, 255, 0.08);
+        --chip-on: rgba(255, 255, 255, 0.18);
+        --button: #f4f4f5;
+        --button-text: #18181b;
+      }
+    }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
+      gap: 24px;
       min-height: 100vh;
       margin: 0;
-      background: #f4f4f5;
-      color: #111;
+      padding: 24px 16px calc(24px + env(safe-area-inset-bottom));
+      background: var(--page);
+      color: var(--text);
     }
     .label-box {
       background: #fff;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      padding: 16px;
+      color: #111;
+      border-radius: 16px;
+      padding: 18px;
       width: 260px;
       text-align: center;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
     }
     .label-box img {
       width: 100%;
@@ -48,49 +72,58 @@
       margin: 0;
       word-break: break-word;
     }
-    .actions {
-      margin-top: 16px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
+    .switch {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      padding: 4px;
+      width: 260px;
+      border-radius: 12px;
+      background: var(--chip);
+    }
+    .switch a {
+      padding: 9px 0;
+      border-radius: 9px;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      text-decoration: none;
+    }
+    .switch a[aria-current] {
+      background: var(--chip-on);
+      color: var(--text);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
     .print-btn {
-      padding: 10px 20px;
+      width: 260px;
+      padding: 13px 20px;
       border: none;
-      border-radius: 6px;
-      background: #2563eb;
-      color: #fff;
+      border-radius: 999px;
+      background: var(--button);
+      color: var(--button-text);
       font-weight: 700;
-      font-size: 14px;
+      font-size: 15px;
       cursor: pointer;
     }
-    .toggle-link {
-      font-size: 13px;
-      color: #2563eb;
-      text-decoration: none;
-      font-weight: 600;
-    }
-    .toggle-link:hover {
-      text-decoration: underline;
-    }
     @media print {
-      body { background: #fff; min-height: 0; }
-      .label-box { border: none; padding: 0; width: 2in; }
-      .actions { display: none; }
+      body { background: #fff; min-height: 0; padding: 0; }
+      .label-box { padding: 0; width: 2in; box-shadow: none; border-radius: 0; }
+      .switch, .print-btn { display: none; }
     }
   </style>
 </head>
 <body>
+  <% if (locals.hasBarcode) { %>
+    <nav class="switch" aria-label="<%= t('detail.label_page_title') %>">
+      <a href="?type=qr" <%- codeType === 'qr' ? 'aria-current="true"' : '' %>><%= t('detail.qr_option') %></a>
+      <a href="?type=barcode" <%- codeType === 'barcode' ? 'aria-current="true"' : '' %>><%= t('detail.barcode_option') %></a>
+    </nav>
+  <% } %>
   <%- include('partials/label-box', { item, plugin, codeType, codeDataUrl }) %>
-  <div class="actions">
-    <button class="print-btn" onclick="window.print()"><%= t('detail.print_label_btn') %></button>
-    <% if (locals.hasBarcode) { %>
-      <% if (codeType === 'barcode') { %>
-        <a class="toggle-link" href="?type=qr"><%= t('detail.switch_to_qr') %></a>
-      <% } else { %>
-        <a class="toggle-link" href="?type=barcode"><%= t('detail.switch_to_barcode') %></a>
-      <% } %>
-    <% } %>
-  </div>
+  <button class="print-btn" onclick="window.print()"><%= t('detail.print_label_btn') %></button>
+  <% if (locals.autoPrint) { %>
+    <script>window.addEventListener('load', function () { window.print(); });</script>
+  <% } %>
 </body>
 </html>

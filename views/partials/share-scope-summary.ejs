@@ -1,0 +1,16 @@
+<%#
+    What a share link opens to, in words: the whole collection, or its types with the
+    formats picked within each ("Music (CD, Vinyl) · Books").
+    Params: link (a collection share link). %>
+<%
+    const summaryScope = (locals.link && link.scope) || [];
+    const summaryParts = summaryScope.map(entry => {
+        const summaryPlugin = registry.getAll().find(p => p.id === entry.pluginId);
+        if (!summaryPlugin) return null;
+        const formatLabels = (entry.formats || []).map(value => {
+            const option = (summaryPlugin.formats || []).find(f => String(f.value) === String(value));
+            return option ? t(option.label, { defaultValue: option.label }) : value;
+        });
+        return t(summaryPlugin.label) + (formatLabels.length ? ' (' + formatLabels.join(', ') + ')' : '');
+    }).filter(Boolean);
+%><%= summaryParts.length ? summaryParts.join(' · ') : t('collection.share_scope_all') %>

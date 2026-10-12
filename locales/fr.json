@@ -1,5 +1,6 @@
 {
   "common": {
+    "share": "Partager",
     "external_id_label": "ID source",
     "external_id_hint": "L'identifiant auquel cet élément est rattaché sur le site d'origine. Renseignez-le pour retrouver la mise à jour des métadonnées, ou corrigez-le si l'élément a été rattaché à la mauvaise fiche.",
     "edit": "Modifier",
@@ -256,7 +257,13 @@
     "history_empty": "Lancez cette estimation au moins deux fois pour voir une tendance.",
     "history_other_currency": "Un historique existe en {{currencies}}, mais les valeurs ne sont jamais converties : seule votre devise est affichée.",
     "add_hub_title": "On ajoute quoi ?",
-    "add_hub_subtitle": "Sélectionnez le type de média à intégrer à votre collection"
+    "add_hub_subtitle": "Sélectionnez le type de média à intégrer à votre collection",
+    "add_hub_scan": "Scanner un code-barres",
+    "add_hub_scan_hint": "Avec l'appareil photo",
+    "add_hub_search": "Rechercher",
+    "add_hub_search_hint": "Par titre, nom ou référence",
+    "add_hub_photo_hint": "L'IA reconnaît l'objet",
+    "add_hub_manual_hint": "Remplir la fiche soi-même"
   },
   "add_vinyl": {
     "title": "Ajouter un disque",
@@ -727,6 +734,14 @@
     "import_none_selected": "Cochez au moins une ligne."
   },
   "collection": {
+    "share_active_count_other": "{{count}} liens actifs",
+    "share_active_count_one": "{{count}} lien actif",
+    "share_disabled_hint": "Désactivé : le lien ne s'ouvre plus. Le réactiver redonne le même lien.",
+    "share_name": "Nom",
+    "share_scope_all": "Toute la collection",
+    "share_manage": "Gérer les liens de partage",
+    "share_none": "Aucun lien de partage n'est actif. Créez-en un pour permettre à n'importe qui de parcourir la collection en lecture seule.",
+    "share_hint": "Envoyez un lien en lecture seule vers la collection.",
     "title": "Ma Collection",
     "share_view_banner": "Vous consultez une collection partagée - lecture seule.",
     "filter_placeholder": "Filtrer...",
@@ -899,6 +914,13 @@
     "edit_secondary_visual": "Modifier le visuel secondaire (Disque)"
   },
   "detail": {
+    "label_no_barcode": "Pas de code-barres sur cet objet : ajoutez-en un en le modifiant.",
+    "label_save": "Enregistrer l'image",
+    "in_collection": "Dans la collection",
+    "my_copy": "Mon exemplaire",
+    "edition_section": "Édition",
+    "more_actions": "Plus",
+    "label_short": "Étiquette",
     "back_to_collection": "Retour à la collection",
     "back_to_wishlist": "Retour à la wishlist",
     "official_cover": "Pochette officielle",
@@ -938,8 +960,6 @@
     "print_label_btn": "Imprimer l'étiquette",
     "qr_option": "QR code",
     "barcode_option": "Code-barres",
-    "switch_to_qr": "Passer au QR code",
-    "switch_to_barcode": "Passer au code-barres",
     "label_page_title": "Étiquette"
   },
   "wishlist": {
@@ -949,6 +969,9 @@
     "scan_link": "Ou scanne un code-barres",
     "btn_received": "Je l'ai reçu !",
     "confirm_move": "Super ! Tu veux ajouter cet album à ta collection officielle ?"
+  },
+  "account": {
+    "appearance": "Apparence"
   },
   "nav": {
     "loading": "Chargement...",
@@ -966,11 +989,16 @@
     "administration": "Administration",
     "new_collection": "Nouvelle collection",
     "search": "Recherche",
-    "share_view": "Collection partagée · lecture seule"
+    "share_view": "Collection partagée · lecture seule",
+    "add": "Ajouter",
+    "account": "Compte",
+    "close": "Fermer",
+    "main_navigation": "Navigation principale",
+    "back": "Retour"
   },
   "search": {
     "title": "Recherche",
-    "placeholder": "Rechercher un titre ou un artiste dans toutes vos collections...",
+    "placeholder": "Rechercher dans vos collections",
     "empty_prompt": "Tapez au moins 2 caractères pour rechercher dans toutes vos collections.",
     "no_results": "Aucun résultat trouvé.",
     "results_count": "{{count}} résultats"

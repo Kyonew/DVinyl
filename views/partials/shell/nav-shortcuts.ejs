@@ -1,0 +1,105 @@
+<%
+  /**
+   * The navbar shortcuts the collection chose (settings.navbarShortcuts), filtered to
+   * what this viewer can actually open.
+   *
+   * shortcutsVariant 'bar'   - the desktop navbar list, also the collapsible menu on a
+   *                            phone when there is no tab bar (share views, signed out).
+   * shortcutsVariant 'chips' - the phone dashboard's shortcuts section, which has no top
+   *                            bar to hold them; shortcutsExclude drops what the tab bar
+   *                            already offers.
+   */
+  const shortcutVariant = locals.shortcutsVariant || 'bar';
+  const shortcutExclude = locals.shortcutsExclude || [];
+
+  // Global shortcuts plus shortcuts declared by each plugin (navbarShortcuts)
+  const shortcutConfig = {
+      // Its own path, not '/': that one lands wherever the user chose, which
+      // may be the collection, and the dashboard would then have no entry.
+      'global_home': { label: t('nav.home'), url: '/dashboard' },
+      'global_collection': { label: t('nav.collection'), url: '/collection' },
+      'global_wishlist': { label: t('nav.wishlist'), url: '/wishlist' },
+      'global_info': { label: t('collection_info.title'), url: '/info' },
+      'global_lists': { label: t('lists.title'), url: '/lists' }
+  };
+  if (typeof registry !== 'undefined' && registry) {
+      registry.getAll().forEach(p => {
+          (p.navbarShortcuts || []).forEach(s => {
+              shortcutConfig[s.id] = { label: t(s.label), url: s.url, module: p.collectionType, pluginId: p.id };
+          });
+      });
+  }
+
+  // A scoped share link only ever browses its allowlisted types/formats -
+  // drop shortcuts that would otherwise land a guest on an empty/blocked
+  // page, and drop account-only shortcuts (home, wishlist) that just
+  // bounce them to /login.
+  const shareScopeList = locals.isShareView ? (locals.shareScope || []) : null;
+  const shareScopeMap = shareScopeList && shareScopeList.length > 0
+      ? new Map(shareScopeList.map(s => [s.pluginId, s.formats || []]))
+      : null;
+
+  function shortcutAllowed(id, item) {
+      if (locals.isShareView && (id === 'global_home' || id === 'global_wishlist' || id === 'global_lists')) return false;
+      // Chosen once for the whole collection, but the page it opens can be off,
+      // empty or kept from the share links: the shortcut follows it.
+      if (id === 'global_info') return isCollectionInfoVisible(locals.activeCollection, locals.isShareView);
+      if (!shareScopeMap) return true;
+      if (!item.pluginId) return true;
+      if (!shareScopeMap.has(item.pluginId)) return false;
+      const allowedFormats = shareScopeMap.get(item.pluginId);
+      if (allowedFormats.length === 0) return true;
+      const qIndex = item.url.indexOf('?');
+      const params = new URLSearchParams(qIndex >= 0 ? item.url.slice(qIndex + 1) : '');
+      const fmt = params.get('format');
+      return !fmt || allowedFormats.includes(fmt);
+  }
+
+  // A shortcut is the current page when the path matches and so do the type and format
+  // filters: '/collection?type=books' stays off while a format of it is open.
+  const currentParams = new URLSearchParams(locals.currentSearch || '');
+  function shortcutIsCurrent(url) {
+      const qIndex = url.indexOf('?');
+      const path = qIndex >= 0 ? url.slice(0, qIndex) : url;
+      if (path !== locals.currentPath) return false;
+      const params = new URLSearchParams(qIndex >= 0 ? url.slice(qIndex + 1) : '');
+      return ['type', 'format'].every(key => (params.get(key) || '') === (currentParams.get(key) || ''));
+  }
+
+  const visibleShortcuts = [];
+  if (typeof settings !== 'undefined' && settings && settings.navbarShortcuts) {
+      settings.navbarShortcuts.forEach(id => {
+          const item = shortcutConfig[id];
+          if (!item || shortcutExclude.includes(id) || !shortcutAllowed(id, item)) return;
+          const isModuleActive = item.module
+              ? Boolean(settings.modules && (settings.modules instanceof Map ? settings.modules.get(item.module) : settings.modules[item.module]))
+              : true;
+          if (isModuleActive) visibleShortcuts.push({ ...item, current: shortcutIsCurrent(item.url) });
+      });
+  }
+%>
+<% if (shortcutVariant === 'chips') { %>
+  <% if (visibleShortcuts.length > 0) { %>
+  <ul class="flex flex-wrap gap-2">
+    <% visibleShortcuts.forEach(item => { %>
+    <li>
+      <a href="<%= baseUrl + item.url %>"
+        class="flex items-center h-10 px-4 rounded-full card-theme text-sm font-semibold whitespace-nowrap">
+        <%= item.label %>
+      </a>
+    </li>
+    <% }) %>
+  </ul>
+  <% } %>
+<% } else { %>
+  <ul class="flex flex-col font-medium p-4 md:p-0 mt-4 rounded-lg md:flex-row md:space-x-8 md:mt-0 md:border-0 md:bg-transparent">
+    <% visibleShortcuts.forEach(item => { %>
+    <li>
+      <a href="<%= baseUrl + item.url %>" <%- item.current ? 'aria-current="page"' : '' %>
+        class="block py-2 px-3 md:p-0 <%= item.current ? 'text-primary-theme' : 'text-[var(--text-sub)]' %> hover:text-primary-theme transition-colors">
+        <%= item.label %>
+      </a>
+    </li>
+    <% }) %>
+  </ul>
+<% } %>
