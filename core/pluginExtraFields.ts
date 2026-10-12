@@ -166,6 +166,35 @@ export const EXTRA_NONE = '__none__';
  */
 export type FilterableField = ExtraFieldConfig & { native?: boolean };
 
+// Types the collection search box looks into: the ones holding words. Numbers, dates
+// and booleans are reached through their filter instead.
+const SEARCHABLE_TYPES = new Set(['text', 'textarea', 'select', 'tags']);
+
+/**
+ * $or branches matching the search box against the user-defined fields of every given
+ * plugin. A select stores the slug of its option ("16_9" for "16:9"), so it is matched
+ * on what people read and type: the labels, mapped back to the values they stand for.
+ */
+export function extraSearchConditions(settings: any, plugins: PluginDefinition[], regex: RegExp): any[] {
+  const conditions: any[] = [];
+  const seen = new Set<string>();
+  for (const plugin of plugins) {
+    for (const field of getExtraFields(settings, plugin.id)) {
+      if (!SEARCHABLE_TYPES.has(field.type)) continue;
+      const path = `extra.${field.name}`;
+      if (field.type === 'select') {
+        const values = (field.options || []).filter(o => regex.test(o.label)).map(o => o.value);
+        if (values.length > 0) conditions.push({ [path]: { $in: values } });
+      } else if (!seen.has(path)) {
+        // Two plugins may declare the same name: one test on the path covers both
+        seen.add(path);
+        conditions.push({ [path]: regex });
+      }
+    }
+  }
+  return conditions;
+}
+
 export function isFilterable(field: FilterableField): boolean {
   return FILTERABLE_TYPES.has(field.type);
 }

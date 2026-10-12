@@ -7,7 +7,7 @@ import {
   sanitizeFilterSelection,
   CORE_FILTER_IDS
 } from '../core/filterFields';
-import { buildExtraFieldConditions, filterParam } from '../core/pluginExtraFields';
+import { buildExtraFieldConditions, extraSearchConditions, filterParam } from '../core/pluginExtraFields';
 
 const books: any = {
   id: 'books',
@@ -105,4 +105,30 @@ test('a user-defined field keeps its extra path and param', () => {
     buildExtraFieldConditions([field], { xf_custom_0123456789ab: 'Alex' }),
     [{ 'extra.custom_0123456789ab': 'Alex' }]
   );
+});
+
+test('the search box looks into the words of user-defined fields', () => {
+  const dvds: any = { id: 'dvds' };
+  const settings = {
+    pluginExtraFields: {
+      books: [{ name: 'audio', label: 'Audio', type: 'tags' }],
+      dvds: [
+        { name: 'audio', label: 'Audio', type: 'tags' },
+        { name: 'notes', label: 'Notes', type: 'textarea' },
+        { name: 'runtime', label: 'Runtime', type: 'number' },
+        {
+          name: 'ratio', label: 'Ratio', type: 'select',
+          options: [{ value: '16_9', label: '16:9' }, { value: '4_3', label: '4:3' }, { value: '2_39_1', label: '2.39:1' }]
+        }
+      ]
+    }
+  };
+  const regex = /6:9/i;
+  assert.deepEqual(extraSearchConditions(settings, [books, dvds], regex), [
+    { 'extra.audio': regex },
+    { 'extra.notes': regex },
+    { 'extra.ratio': { $in: ['16_9'] } }
+  ]);
+  // A select whose labels do not match adds nothing, rather than an empty $in
+  assert.deepEqual(extraSearchConditions(settings, [dvds], /1:85/i).length, 2);
 });

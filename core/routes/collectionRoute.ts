@@ -15,7 +15,7 @@ import { generateUniqueSlug, setActiveCollection } from '../../utils/collectionH
 import { resolveShelfItems, deleteItemsAndContents } from '../../utils/itemHelpers';
 import { checkCollectionCreation } from '../../utils/instanceSettings';
 import {
-  getExtraFields, buildExtraFieldConditions, parseExtraSort, extraSortKey,
+  getExtraFields, extraSearchConditions,buildExtraFieldConditions, parseExtraSort, extraSortKey,
   filterParam, filterPath, isFilterable, isRangeFilter, isPickerFilter, EXTRA_ANY, EXTRA_NONE
 } from '../pluginExtraFields';
 import { filterCandidates, filterOverrides, activeFilters, CORE_FILTER_IDS } from '../filterFields';
@@ -165,6 +165,9 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
           }
         }
       }
+      // The collection's own fields too (audio tracks, age rating...), so a value
+      // typed into one can be found without opening its filter.
+      searchOr.push(...extraSearchConditions(settings, enabledPlugins, regex));
 
       // Cast here rather than left to Mongoose: the same query also feeds an aggregate
       // (unique titles), which does not cast and would never match a plain string.
