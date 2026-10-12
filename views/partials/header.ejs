@@ -233,6 +233,54 @@
       #tabBar *, body.has-tab-bar #saveBar, body.has-tab-bar #toastContainer, body.has-tab-bar #bulkActionBar { transition: none !important; }
     }
 
+    /* Overlays (sheets, modals, lightboxes) are shown and hidden by toggling .hidden, so
+       the motion lives here rather than in each script: the layer fades, and its panel
+       slides up (.dv-sheet), pops in (.dv-pop) or does either depending on the width
+       (.dv-adaptive: a sheet on phones, a dialog from md up). @starting-style animates
+       the entry out of display:none, and allow-discrete keeps the layer displayed until
+       the exit has played. Browsers without them simply show and hide at once. */
+    .dv-overlay {
+      --dv-ease: cubic-bezier(0.32, 0.72, 0, 1);
+      transition: opacity 0.25s ease, display 0.35s allow-discrete;
+    }
+    .dv-overlay.hidden { opacity: 0; pointer-events: none; }
+    @starting-style { .dv-overlay { opacity: 0; } }
+
+    .dv-sheet { transition: transform 0.35s var(--dv-ease); }
+    .dv-overlay.hidden .dv-sheet { transform: translateY(100%); }
+    @starting-style { .dv-sheet { transform: translateY(100%); } }
+
+    .dv-pop { transition: transform 0.3s var(--dv-ease), opacity 0.2s ease; }
+    .dv-overlay.hidden .dv-pop { opacity: 0; transform: translateY(0.75rem) scale(0.96); }
+    @starting-style { .dv-pop { opacity: 0; transform: translateY(0.75rem) scale(0.96); } }
+
+    @media (max-width: 767px) {
+      .dv-adaptive { transition: transform 0.35s var(--dv-ease); }
+      .dv-overlay.hidden .dv-adaptive { transform: translateY(100%); }
+      @starting-style { .dv-adaptive { transform: translateY(100%); } }
+    }
+    @media (min-width: 768px) {
+      .dv-adaptive { transition: transform 0.3s var(--dv-ease), opacity 0.2s ease; }
+      .dv-overlay.hidden .dv-adaptive { opacity: 0; transform: translateY(0.75rem) scale(0.96); }
+      @starting-style { .dv-adaptive { opacity: 0; transform: translateY(0.75rem) scale(0.96); } }
+    }
+
+    /* Flowbite dropdowns position themselves with a transform, so they only fade. */
+    .dv-fade { transition: opacity 0.18s ease, display 0.18s allow-discrete; }
+    .dv-fade.hidden { opacity: 0; }
+    @starting-style { .dv-fade { opacity: 0; } }
+
+    /* Touch feedback: rows of a sheet and tab bar icons dip under the finger. */
+    .dv-overlay [role="dialog"] :is(a, button) { transition: background-color 0.15s ease; }
+    .dv-overlay [role="dialog"] .divide-y > :is(a, button):active { background-color: rgb(0 0 0 / 0.05); }
+    html.dark .dv-overlay [role="dialog"] .divide-y > :is(a, button):active { background-color: rgb(255 255 255 / 0.06); }
+    #tabBar [data-tab-grid] > a i { transition: transform 0.15s ease; }
+    #tabBar [data-tab-grid] > a:active i { transform: scale(0.85); }
+
+    @media (prefers-reduced-motion: reduce) {
+      .dv-overlay, .dv-sheet, .dv-pop, .dv-adaptive, .dv-fade { transition-duration: 0s !important; }
+    }
+
     /* Installed app: display-mode standalone, or html.is-standalone for iOS, which only
        exposes navigator.standalone. No browser toolbar there, so deep pages get a back
        button of their own, and the site footer has no place in an app. */
@@ -301,7 +349,7 @@
           <img class="w-8 h-8 rounded-full object-cover" src="<%= baseUrl + user.img %>" alt="user photo">
         </button>
   
-        <div class="z-50 hidden my-4 text-base list-none card-theme rounded-lg shadow-xl min-w-[200px]" id="user-dropdown">          
+        <div class="dv-fade z-50 hidden my-4 text-base list-none card-theme rounded-lg shadow-xl min-w-[200px]" id="user-dropdown">          
           <div class="flex justify-center py-4 rounded-t-lg">
             <img src="<%= baseUrl + user.img %>" alt="user photo" class="w-20 h-20 rounded-full border-4 border-white dark:border-white/10 object-cover shadow-lg">
           </div>
@@ -339,9 +387,9 @@
   <% if (locals.user && locals.canCreateCollection) { %>
   <!-- Self-service collection creation, opened from the user dropdown. Self-contained
        (its own toggle script) since the header is included by every page. -->
-  <div id="newCollectionModal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+  <div id="newCollectionModal" class="dv-overlay fixed inset-0 z-[60] hidden items-center justify-center bg-black/60 backdrop-blur-sm p-4">
     <div class="absolute inset-0" data-new-collection-close></div>
-    <div class="relative card-theme rounded-[2rem] p-8 md:p-10 shadow-2xl w-full max-w-md">
+    <div class="dv-pop relative card-theme rounded-[2rem] p-8 md:p-10 shadow-2xl w-full max-w-md">
       <button type="button" data-new-collection-close
         class="absolute top-5 right-5 w-9 h-9 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-[var(--text-main)]">
         <i class="fa-solid fa-xmark"></i>

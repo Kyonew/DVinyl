@@ -17,7 +17,7 @@
     scanning must take over the screen to be visible at all. %>
 <script src="<%= baseUrl %>/vendor/zxing-0.23.0.umd.min.js"></script>
 
-<div id="reader" class="hidden fixed inset-0 z-[100] bg-black">
+<div id="reader" class="dv-overlay hidden fixed inset-0 z-[100] bg-black">
     <button type="button" id="reader-close" aria-label="<%= t('add_vinyl.scan_stop') %>"
         class="absolute top-4 right-4 z-10 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center backdrop-blur-sm">
         <i class="fa-solid fa-xmark text-xl"></i>

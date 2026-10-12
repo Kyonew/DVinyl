@@ -95,10 +95,10 @@
 
         <% if (wishlistActions.length) { %>
         <%# Phone: the sync actions the desktop header shows as buttons, same handlers. %>
-        <div id="wishlistMenu" class="md:hidden fixed inset-0 z-[60] hidden">
+        <div id="wishlistMenu" class="dv-overlay md:hidden fixed inset-0 z-[60] hidden">
             <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="toggleWishlistMenu(false)"></div>
             <div role="dialog" aria-modal="true" aria-label="<%= t('detail.more_actions') %>"
-                class="absolute inset-x-0 bottom-0 card-theme rounded-t-[2rem] px-4 pt-3 shadow-2xl"
+                class="dv-sheet absolute inset-x-0 bottom-0 card-theme rounded-t-[2rem] px-4 pt-3 shadow-2xl"
                 style="padding-bottom: calc(1rem + env(safe-area-inset-bottom));">
                 <div class="w-12 h-1.5 bg-black/10 dark:bg-white/10 rounded-full mx-auto mb-4" aria-hidden="true"></div>
                 <div class="rounded-2xl bg-black/5 dark:bg-white/5 divide-y divide-black/5 dark:divide-white/10 overflow-hidden">

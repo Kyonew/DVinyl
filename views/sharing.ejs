@@ -109,9 +109,9 @@
     const scopeByType = {};
     (link.scope || []).forEach(s => { scopeByType[s.pluginId] = s.formats || []; });
 %>
-    <div data-share-editor="<%= link.token %>" class="fixed inset-0 z-[100] hidden bg-black/60 backdrop-blur-sm flex items-end md:items-center justify-center md:p-4">
+    <div data-share-editor="<%= link.token %>" class="dv-overlay fixed inset-0 z-[100] hidden bg-black/60 backdrop-blur-sm flex items-end md:items-center justify-center md:p-4">
         <div role="dialog" aria-modal="true" aria-labelledby="shareEditorTitle<%= index %>"
-            class="card-theme w-full md:max-w-lg rounded-t-[2rem] md:rounded-[2rem] px-5 pt-3 md:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+            class="dv-adaptive card-theme w-full md:max-w-lg rounded-t-[2rem] md:rounded-[2rem] px-5 pt-3 md:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
             style="padding-bottom: calc(1.25rem + env(safe-area-inset-bottom));">
             <div class="w-12 h-1.5 bg-black/10 dark:bg-white/10 rounded-full mx-auto mb-4 md:hidden" aria-hidden="true"></div>
             <div class="flex items-center justify-between gap-4 mb-5">
@@ -142,9 +142,9 @@
     </div>
 <% }) %>
 
-<div id="shareQrDialog" class="fixed inset-0 z-[100] hidden bg-black/60 backdrop-blur-sm flex items-end md:items-center justify-center md:p-4">
+<div id="shareQrDialog" class="dv-overlay fixed inset-0 z-[100] hidden bg-black/60 backdrop-blur-sm flex items-end md:items-center justify-center md:p-4">
     <div role="dialog" aria-modal="true" aria-labelledby="shareQrTitle"
-        class="card-theme w-full md:max-w-sm rounded-t-[2rem] md:rounded-[2rem] px-5 pt-3 md:p-6 shadow-2xl text-center"
+        class="dv-adaptive card-theme w-full md:max-w-sm rounded-t-[2rem] md:rounded-[2rem] px-5 pt-3 md:p-6 shadow-2xl text-center"
         style="padding-bottom: calc(1.25rem + env(safe-area-inset-bottom));">
         <div class="w-12 h-1.5 bg-black/10 dark:bg-white/10 rounded-full mx-auto mb-4 md:hidden" aria-hidden="true"></div>
         <h2 id="shareQrTitle" class="text-xl font-extrabold tracking-tight mb-4"></h2>

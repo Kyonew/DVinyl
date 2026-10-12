@@ -523,9 +523,9 @@
 
     <%# What a tap on a spine opens on a touch screen, where there is no pointer to hover
         with and no drag to file things away with. %>
-    <div id="shelfSheet" class="hidden fixed inset-0 z-50" role="dialog" aria-modal="true" aria-labelledby="shelfSheetTitle">
+    <div id="shelfSheet" class="dv-overlay hidden fixed inset-0 z-50" role="dialog" aria-modal="true" aria-labelledby="shelfSheetTitle">
         <div class="absolute inset-0 bg-black/60" data-sheet-close></div>
-        <div class="absolute inset-x-0 bottom-0 card-theme border-t rounded-t-2xl shadow-2xl px-4 pt-2.5 pb-6 flex flex-col gap-4">
+        <div class="dv-sheet absolute inset-x-0 bottom-0 card-theme border-t rounded-t-2xl shadow-2xl px-4 pt-2.5 pb-6 flex flex-col gap-4">
             <button type="button" data-sheet-close class="self-center w-12 h-5 flex items-center justify-center" aria-label="<%= t('collection.shelf_close') %>">
                 <span class="block w-10 h-1 rounded-full bg-black/15 dark:bg-white/20"></span>
             </button>

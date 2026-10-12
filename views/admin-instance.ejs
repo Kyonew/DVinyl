@@ -738,9 +738,9 @@
 
     <!-- Create collection -->
     <div id="createCollectionModal"
-        class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
+        class="dv-overlay fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
         <div class="absolute inset-0" onclick="toggleModal('createCollectionModal')"></div>
-        <div class="card-theme relative w-full max-w-md rounded-[2.5rem] p-8 md:p-10 shadow-2xl transition-all animate-scale-in">
+        <div class="card-theme relative w-full max-w-md rounded-[2.5rem] p-8 md:p-10 shadow-2xl dv-pop">
             <button onclick="toggleModal('createCollectionModal')"
                 class="absolute top-6 right-6 opacity-40 hover:opacity-100 hover:rotate-90 transition-all">
                 <i class="fa-solid fa-xmark text-2xl"></i>
@@ -771,9 +771,9 @@
         const nonMembers = users.filter(u => !memberIds.has(String(u._id)));
     %>
         <div id="collModal-<%= c._id %>"
-            class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
+            class="dv-overlay fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
             <div class="absolute inset-0" onclick="toggleModal('collModal-<%= c._id %>')"></div>
-            <div class="card-theme relative w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-[2.5rem] p-8 md:p-10 shadow-2xl transition-all animate-scale-in">
+            <div class="card-theme relative w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-[2.5rem] p-8 md:p-10 shadow-2xl dv-pop">
                 <button onclick="toggleModal('collModal-<%= c._id %>')"
                     class="absolute top-6 right-6 opacity-40 hover:opacity-100 hover:rotate-90 transition-all">
                     <i class="fa-solid fa-xmark text-2xl"></i>
@@ -867,10 +867,10 @@
 
     <!-- Create instance user -->
     <div id="addUserModal"
-        class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
+        class="dv-overlay fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
         <div class="absolute inset-0" onclick="toggleModal('addUserModal')"></div>
         <div
-            class="card-theme relative w-full max-w-md rounded-[2.5rem] p-8 md:p-10 shadow-2xl transition-all animate-scale-in">
+            class="card-theme relative w-full max-w-md rounded-[2.5rem] p-8 md:p-10 shadow-2xl dv-pop">
             <button onclick="toggleModal('addUserModal')"
                 class="absolute top-6 right-6 opacity-40 hover:opacity-100 hover:rotate-90 transition-all">
                 <i class="fa-solid fa-xmark text-2xl"></i>

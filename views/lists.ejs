@@ -60,8 +60,8 @@
 </div>
 
 <% if (locals.canEditCollection) { %>
-    <div id="newListModal" class="fixed inset-0 z-50 hidden bg-black/70 backdrop-blur-sm items-center justify-center p-4">
-        <form action="<%= baseUrl %>/lists" method="POST" class="card-theme w-full max-w-md rounded-2xl shadow-2xl p-6 space-y-5">
+    <div id="newListModal" class="dv-overlay fixed inset-0 z-50 hidden bg-black/70 backdrop-blur-sm items-center justify-center p-4">
+        <form action="<%= baseUrl %>/lists" method="POST" class="dv-pop card-theme w-full max-w-md rounded-2xl shadow-2xl p-6 space-y-5">
             <h3 class="text-lg font-bold"><%= t('lists.new') %></h3>
 
             <div>

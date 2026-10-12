@@ -33,12 +33,12 @@
 %>
 <% if (locals.canEditCollection && addHubPlugins.length > 0) { %>
 <div id="addHubModal" data-hub-context="<%= addHubContext ? addHubContext.id : '' %>"
-    class="fixed inset-0 z-[100] hidden bg-black/60 backdrop-blur-sm flex items-end md:items-center justify-center md:p-4">
+    class="dv-overlay fixed inset-0 z-[100] hidden bg-black/60 backdrop-blur-sm flex items-end md:items-center justify-center md:p-4">
 
     <%# Phone: a sheet that picks the module, then the method, scan first since the phone
         holds the camera. %>
     <div role="dialog" aria-modal="true" aria-labelledby="addHubTitle"
-        class="md:hidden card-theme w-full rounded-t-[2rem] px-5 pt-3 shadow-2xl relative max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom duration-300"
+        class="dv-sheet md:hidden card-theme w-full rounded-t-[2rem] px-5 pt-3 shadow-2xl relative max-h-[90vh] overflow-y-auto"
         style="padding-bottom: calc(1.25rem + env(safe-area-inset-bottom));">
 
         <div class="w-12 h-1.5 bg-black/10 dark:bg-white/10 rounded-full mx-auto mb-4" aria-hidden="true"></div>
@@ -133,7 +133,7 @@
         const addHubPlainHref = p => baseUrl + '/' + (hasSearch(p) ? ('add-' + p.id) : ('manual-add?type=' + p.id));
     %>
     <div role="dialog" aria-modal="true" aria-labelledby="addHubTitleDesktop"
-        class="hidden md:block card-theme w-full <%= addHubDesktopWidth %> rounded-[2.5rem] p-10 shadow-2xl relative animate-in zoom-in duration-300">
+        class="hidden md:block card-theme w-full <%= addHubDesktopWidth %> rounded-[2.5rem] p-10 shadow-2xl relative dv-pop">
 
         <button type="button" onclick="closeAddModal()" aria-label="<%= t('nav.close') %>" class="absolute top-6 right-6 opacity-40 hover:opacity-100 transition-opacity">
             <i class="fa-solid fa-xmark text-2xl" aria-hidden="true"></i>

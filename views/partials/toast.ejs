@@ -9,7 +9,14 @@
         from { transform: scaleX(1); }
         to { transform: scaleX(0); }
     }
+    @keyframes toast-out {
+        to { transform: translateX(1rem); opacity: 0; }
+    }
     .toast-item { animation: toast-in 0.2s ease-out; }
+    .toast-item.toast-leaving { animation: toast-out 0.18s ease-in forwards; }
+    @media (prefers-reduced-motion: reduce) {
+        .toast-item, .toast-item.toast-leaving { animation-duration: 0s; }
+    }
     .toast-timer-bar { transform-origin: left; animation-name: toast-timer; animation-timing-function: linear; animation-fill-mode: forwards; }
 </style>
 
@@ -42,8 +49,11 @@
             if (dismissed) return;
             dismissed = true;
             clearTimeout(timer);
-            toast.remove();
-            if (options.onDismiss) options.onDismiss();
+            toast.classList.add('toast-leaving');
+            setTimeout(() => {
+                toast.remove();
+                if (options.onDismiss) options.onDismiss();
+            }, 180);
         };
 
         toast.addEventListener('click', dismiss);
