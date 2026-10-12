@@ -6,13 +6,14 @@
 
     <div class="max-w-screen-xl mx-auto px-4 max-sm:px-0 pb-20 space-y-10">
 
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between py-6 gap-4">
-            <h1 class="text-2xl md:text-3xl font-bold flex items-center gap-3 transition-colors">
-                <i class="fa-solid fa-shield-halved text-primary-theme"></i>
+        <div data-settings-head class="flex flex-col sm:flex-row sm:items-center justify-between pt-2 md:py-6 gap-1 sm:gap-4">
+            <h1 class="text-[2rem] leading-tight font-extrabold tracking-tight md:text-3xl md:font-bold md:tracking-normal flex items-center gap-3 transition-colors">
+                <i class="max-md:hidden fa-solid fa-shield-halved text-primary-theme"></i>
                 <%= t('admin.title') %>
-                <span class="text-base font-bold opacity-50">- <%= locals.collectionDoc ? collectionDoc.name : '' %></span>
+                <span class="max-md:hidden text-base font-bold opacity-50">- <%= locals.collectionDoc ? collectionDoc.name : '' %></span>
             </h1>
-            <div class="flex items-center gap-3">
+            <p class="md:hidden text-sm opacity-60 truncate"><%= locals.collectionDoc ? collectionDoc.name : '' %> · v<%= appVersion %></p>
+            <div class="max-md:hidden flex items-center gap-3">
                 <% if (user.isAdmin) { %>
                     <a href="<%= baseUrl %>/admin/instance"
                         class="flex items-center gap-2 text-xs font-black uppercase tracking-widest bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-4 py-2 rounded-full transition-all">
@@ -65,7 +66,7 @@
             changes. %>
         <% if ((locals.fieldLookalikes || []).length > 0) { %>
             <% const lookalikeKey = fieldLookalikes.map(p => p.fields.map(f => f.name).join(',')).join(';'); %>
-            <div id="fieldLookalikes" data-key="<%= lookalikeKey %>"
+            <div id="fieldLookalikes" data-key="<%= lookalikeKey %>" data-settings-head
                 class="bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/20 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-start gap-3 transition-colors">
                 <i class="fa-solid fa-triangle-exclamation text-yellow-600 mt-0.5"></i>
                 <div class="flex-1 min-w-0 text-sm">
@@ -350,9 +351,11 @@
                     </form>
 
                     <div class="card-theme rounded-2xl overflow-hidden shadow-lg transition-colors">
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left text-sm opacity-80 min-w-[600px]">
-                                <thead class="bg-black/5 dark:bg-white/5 text-xs uppercase opacity-70 transition-colors">
+                        <%# On phones each member is a block of two lines (who, then role and actions)
+                            instead of a table row wider than the screen. %>
+                        <div class="md:overflow-x-auto">
+                            <table class="w-full text-left text-sm opacity-80 md:min-w-[600px] max-md:block">
+                                <thead class="max-md:hidden bg-black/5 dark:bg-white/5 text-xs uppercase opacity-70 transition-colors">
                                     <tr>
                                         <th class="px-6 py-4">
                                             <%= t('admin.table.user') %>
@@ -365,10 +368,10 @@
                                         </th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-black/5 dark:divide-white/5 transition-colors">
+                                <tbody class="max-md:block divide-y divide-black/5 dark:divide-white/5 transition-colors">
                                     <% (locals.members || []).forEach(m=> { const mu = m.user; %>
-                                        <tr class="hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
-                                            <td class="px-6 py-4 font-medium">
+                                        <tr class="max-md:flex max-md:flex-wrap max-md:items-center max-md:gap-x-3 max-md:gap-y-3 max-md:p-4 hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+                                            <td class="max-md:block max-md:w-full max-md:p-0 px-6 py-4 font-medium">
                                                 <div class="flex items-center gap-3">
                                                     <img src="<%= baseUrl + (mu.img || '/ressources/no-pp.jpg') %>"
                                                         class="w-8 h-8 rounded-full border border-black/10 dark:border-white/10 object-cover">
@@ -384,7 +387,7 @@
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td class="px-6 py-4">
+                                            <td class="max-md:block max-md:flex-1 max-md:p-0 px-6 py-4">
                                                 <% if (String(mu._id) === String(user._id)) { %>
                                                     <!-- Own role: read-only (another admin must change it) -->
                                                     <span class="inline-block bg-black/5 dark:bg-white/5 rounded-lg px-3 py-2 text-xs font-bold opacity-70">
@@ -402,7 +405,7 @@
                                                     </form>
                                                 <% } %>
                                             </td>
-                                            <td class="px-6 py-4 text-right">
+                                            <td class="max-md:block max-md:p-0 px-6 py-4 text-right">
                                                 <div class="flex justify-end gap-2">
                                                     <% if (!mu.isAdmin) { %>
                                                         <form action="<%= baseUrl %>/admin/members/reset-password" method="POST"

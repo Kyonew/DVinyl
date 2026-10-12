@@ -1,12 +1,32 @@
 <%#
     Tab bar for long settings pages. Each tab shows the element carrying the matching
     data-tab-panel attribute and hides the others.
-    Expects `tabs`: [{ id, icon, label, count? }].
+    Expects `tabs`: [{ id, icon, label, count? }], and optionally `phoneOnly`: true for a
+    page that keeps every panel on screen from md up and only splits them on phones.
     The active tab lives in the URL hash so it can be linked, and in sessionStorage so a
     form POST that redirects back to the page lands on the tab it was sent from.
+
+    On phones the bar becomes a menu, the way a phone's settings screen works: the page
+    opens on a list of the sections, a section opens on its own, and back returns to the
+    list. Elements marked data-settings-head (the page title, a banner) belong to the list
+    and step aside while a section is open; elements marked data-settings-panel-only (a
+    form's own submit button) only show with a section.
 %>
+<% const phoneOnly = locals.phoneOnly === true; %>
 <style>
     [data-tab-panel]:not(.tab-active) { display: none; }
+    @media (max-width: 767px) {
+        html:not(.settings-in-panel) [data-tab-panel] { display: none !important; }
+        html:not(.settings-in-panel) [data-settings-panel-only] { display: none !important; }
+        html.settings-in-panel [data-settings-tabs-wrap],
+        html.settings-in-panel [data-settings-head] { display: none !important; }
+        html.settings-in-panel [data-settings-tabs-wrap] ~ [data-tab-panel] { margin-top: 0 !important; }
+    }
+<% if (phoneOnly) { %>
+    @media (min-width: 768px) {
+        [data-tab-panel] { display: revert !important; }
+    }
+<% } else { %>
     /* The page stacks its blocks with space-y-10, which leaves the bar floating far from
        the header and from the panel it controls. */
     [data-settings-tabs-wrap] { margin-top: 0.5rem !important; }
@@ -15,15 +35,16 @@
         [data-settings-tabs-wrap] { margin-top: 1.5rem !important; }
         [data-settings-tabs-wrap] ~ [data-tab-panel] { margin-top: 1.5rem !important; }
     }
+<% } %>
 </style>
 <%# Sticky so a long panel (members, logs) can switch tab without scrolling back up.
     It bleeds over the page gutter so content scrolling under it does not show on the sides. %>
-<div class="sticky top-0 z-30 -mx-4 px-4 py-3 bg-[var(--bg-page)] transition-colors" data-settings-tabs-wrap>
-    <nav class="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+<div class="<%= phoneOnly ? 'md:hidden' : 'md:sticky md:top-0 z-30 md:-mx-4 md:px-4 md:py-3 bg-[var(--bg-page)] transition-colors' %>" data-settings-tabs-wrap>
+    <nav class="<%= phoneOnly ? 'hidden' : 'max-md:hidden flex' %> gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         role="tablist" data-settings-tabs>
         <% tabs.forEach(tab => { %>
             <button type="button" role="tab" data-tab="<%= tab.id %>" aria-selected="false"
-                class="shrink-0 flex items-center gap-2 text-[11px] sm:text-xs font-black uppercase tracking-wider sm:tracking-widest px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-full transition-all bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10">
+                class="shrink-0 flex items-center gap-2 text-xs font-black uppercase tracking-widest px-4 py-2.5 rounded-full transition-all bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10">
                 <i class="fa-solid fa-<%= tab.icon %>"></i>
                 <span class="whitespace-nowrap"><%= tab.label %></span>
                 <% if (typeof tab.count === 'number') { %>
@@ -32,22 +53,42 @@
             </button>
         <% }) %>
     </nav>
+
+    <nav class="md:hidden card-theme rounded-2xl overflow-hidden divide-y divide-black/5 dark:divide-white/5" data-settings-menu>
+        <% tabs.forEach(tab => { %>
+            <a href="#<%= tab.id %>" data-menu-tab="<%= tab.id %>"
+                class="flex items-center gap-4 w-full px-4 min-h-[52px] active:bg-black/5 dark:active:bg-white/5 transition-colors">
+                <span class="w-8 h-8 flex-none rounded-lg bg-primary-theme/15 text-primary-theme flex items-center justify-center" aria-hidden="true">
+                    <i class="fa-solid fa-<%= tab.icon %> text-sm"></i>
+                </span>
+                <span class="flex-1 min-w-0 truncate font-semibold"><%= tab.label %></span>
+                <% if (typeof tab.count === 'number') { %>
+                    <span class="text-sm opacity-50"><%= tab.count %></span>
+                <% } %>
+                <i class="fa-solid fa-chevron-right text-xs opacity-40" aria-hidden="true"></i>
+            </a>
+        <% }) %>
+    </nav>
 </div>
 
 <script>
     (() => {
-        const bar = document.currentScript.previousElementSibling.querySelector('[data-settings-tabs]');
+        const wrap = document.currentScript.previousElementSibling;
+        const bar = wrap.querySelector('[data-settings-tabs]');
         const buttons = [...bar.querySelectorAll('[data-tab]')];
         const ids = buttons.map(b => b.dataset.tab);
         const storageKey = 'settingsTab:' + window.location.pathname;
+        const phone = window.matchMedia('(max-width: 767px)');
+        const root = document.documentElement;
+        const setPanelOpen = open => root.classList.toggle('settings-in-panel', open);
 
         // bg-primary-theme is a theme class, not a Tailwind color, so no aria-selected: variant exists for it.
         const activeClasses = ['bg-primary-theme', 'text-white', 'shadow-lg', 'shadow-primary-theme/20'];
         const idleClasses = ['bg-black/5', 'dark:bg-white/5', 'hover:bg-black/10', 'dark:hover:bg-white/10'];
         let current = null;
 
-        // When the tabs overflow (phones), fade the edge that still hides some, so the
-        // bar reads as scrollable instead of cut off.
+        // When the tabs overflow, fade the edge that still hides some, so the bar reads as
+        // scrollable instead of cut off.
         const updateFade = () => {
             const left = bar.scrollLeft > 2;
             const right = bar.scrollLeft + bar.clientWidth < bar.scrollWidth - 2;
@@ -74,16 +115,17 @@
                 panel.classList.toggle('tab-active', panel.dataset.tabPanel === id);
             });
             // Bring the active tab into view inside the bar without scrolling the page,
-            // which scrollIntoView would do.
+            // which scrollIntoView would do. Skipped while the bar is hidden (phones).
             const btn = bar.querySelector(`[data-tab="${id}"]`);
-            const offset = btn.getBoundingClientRect().left - bar.getBoundingClientRect().left;
-            bar.scrollLeft += offset - (bar.clientWidth - btn.offsetWidth) / 2;
-            updateFade();
+            if (bar.clientWidth) {
+                const offset = btn.getBoundingClientRect().left - bar.getBoundingClientRect().left;
+                bar.scrollLeft += offset - (bar.clientWidth - btn.offsetWidth) / 2;
+                updateFade();
+            }
             try { sessionStorage.setItem(storageKey, id); } catch (e) {}
             return true;
         };
 
-        const wrap = bar.parentElement;
         buttons.forEach(b => b.addEventListener('click', () => {
             // Switching while the bar is stuck would leave the new panel scrolled halfway:
             // start it right under the bar.
@@ -95,18 +137,59 @@
                 window.scrollTo({ top: window.scrollY + panel.getBoundingClientRect().top - wrap.offsetHeight - 8 });
             }
         }));
-        window.addEventListener('hashchange', () => show(window.location.hash.slice(1)));
+
+        // Phone menu: a section gets a history entry of its own, so the system back
+        // gesture and the page's back button both return to the list.
+        wrap.querySelectorAll('[data-menu-tab]').forEach(link => link.addEventListener('click', (event) => {
+            event.preventDefault();
+            if (!show(link.dataset.menuTab)) return;
+            history.pushState(null, '', '#' + link.dataset.menuTab);
+            setPanelOpen(true);
+            window.scrollTo(0, 0);
+        }));
+
+        const followUrl = () => {
+            const opened = show(window.location.hash.slice(1));
+            if (!phone.matches) return;
+            setPanelOpen(opened);
+            window.scrollTo(0, 0);
+        };
+        window.addEventListener('hashchange', followUrl);
+        window.addEventListener('popstate', followUrl);
 
         // Page scripts that jump to a block (after a redirect, for instance) open its tab first.
-        window.showSettingsTab = show;
+        window.showSettingsTab = (id) => {
+            const opened = show(id);
+            if (opened) setPanelOpen(true);
+            return opened;
+        };
+
+        // Which section a phone opens on, decided now so the list does not flash first: the
+        // one in the URL, or the one a form was just sent from (the page reloaded on itself,
+        // either from a POST redirect or a refresh). Coming from anywhere else, the list.
+        const hashId = window.location.hash.slice(1);
+        let stored = null;
+        try { stored = sessionStorage.getItem(storageKey); } catch (e) {}
+        let fromSelf = false;
+        try {
+            const nav = performance.getEntriesByType('navigation')[0];
+            fromSelf = (nav && nav.type === 'reload')
+                || (!!document.referrer && new URL(document.referrer).pathname === window.location.pathname);
+        } catch (e) {}
+        const phoneStart = ids.includes(hashId) ? hashId : (fromSelf && ids.includes(stored) ? stored : null);
+        if (phone.matches && phoneStart) {
+            setPanelOpen(true);
+            // Keep the list one step back, whatever the way in.
+            history.replaceState(null, '', window.location.pathname + window.location.search);
+            history.pushState(null, '', '#' + phoneStart);
+        }
 
         // The panels come after this bar in the page, so wait for them to be parsed.
         // A page script may already have picked a tab by then.
         document.addEventListener('DOMContentLoaded', () => {
             if (current) return;
-            let stored = null;
-            try { stored = sessionStorage.getItem(storageKey); } catch (e) {}
-            show(window.location.hash.slice(1)) || show(stored) || show(ids[0]);
+            show(hashId) || show(stored) || show(ids[0]);
+            if (phoneStart) show(phoneStart);
         });
     })();
 </script>
