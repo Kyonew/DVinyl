@@ -1,10 +1,20 @@
 import { PluginDefinition } from '../../core/types';
-import { escapeRegExp, PermanentRefreshError } from '../../core/helpers';
+import { sourceFromProvider } from '../../core/sources';
+import { escapeRegExp } from '../../core/helpers';
 import Item from '../../models/Item';
 import { RebrickableProvider } from './rebrickable';
 import { themeBadgeColor } from './constants';
 
 const rebrickable = new RebrickableProvider();
+
+// The database this plugin has always searched. The migration attributes every item
+// saved before sources existed to this id, so it must never change.
+const rebrickableSource = sourceFromProvider(rebrickable, {
+  id: 'rebrickable',
+  requiredEnvKeys: ['REBRICKABLE_API_KEY'],
+  itemUrl: (id: string) => `https://rebrickable.com/sets/${id}/`,
+  searchImages: (query: string) => rebrickable.searchImages(query)
+});
 
 export const legoPlugin: PluginDefinition = {
   id: 'lego',
@@ -24,9 +34,8 @@ export const legoPlugin: PluginDefinition = {
   icon: 'cubes',
   routePrefix: '/lego',
   collectionType: 'lego',
-  searchProvider: rebrickable,
+  sources: [rebrickableSource],
   imageSearchType: 'lego',
-  requiredEnvKeys: ['REBRICKABLE_API_KEY'],
   duplicateCheckFields: ['format'],
   aspectRatioClass: 'aspect-square',
   partialsPath: 'plugins/lego/partials',
@@ -39,11 +48,6 @@ export const legoPlugin: PluginDefinition = {
     { value: 'lego', label: 'media.lego', icon: 'fa-cubes', color: 'peer-checked:bg-red-600', url: '/add-lego' }
   ],
 
-  imageSearchProvider: {
-    async search(query: string): Promise<string[]> {
-      return rebrickable.searchImages(query);
-    }
-  },
 
   navbarShortcuts: [
     { id: 'lego', label: 'media.legos', url: '/collection?type=lego' },
@@ -96,6 +100,16 @@ export const legoPlugin: PluginDefinition = {
     { value: 'dismantled', label: 'confirm_lego.cond_dismantled', color: 'bg-amber-600/90' },
     { value: 'incomplete', label: 'confirm_lego.cond_incomplete', color: 'bg-red-600/90' }
   ],
+
+  // Sets are shelved as boxes, and their formats describe a condition rather than a
+  // size, so what changes here is what the state implies: a sealed box keeps its shop
+  // proportions, a built model stands as its own object, a dismantled one is a bag.
+  spineSize: {
+    sealed: { thickness: 60, height: 260 },
+    built: { thickness: 90, height: 200 },
+    dismantled: { thickness: 70, height: 150 },
+    incomplete: { thickness: 70, height: 150 }
+  },
 
   formFields: [
     {
@@ -340,12 +354,7 @@ export const legoPlugin: PluginDefinition = {
     };
   },
 
-  async refreshItem(item: any): Promise<Record<string, any>> {
-    if (!item.set_num) {
-      throw new PermanentRefreshError('No LEGO set number to refresh');
-    }
-
-    const details = await rebrickable.getDetails(String(item.set_num), {});
+  mergeRefresh(item: any, details: any): Record<string, any> {
     return {
       cover_image: details.cover_image || item.cover_image,
       theme: details.theme || item.theme,

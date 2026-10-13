@@ -1,0 +1,27 @@
+<%
+    const completionTimes = [
+        item.completionHastily ? { key: 'completion_hastily', value: item.completionHastily } : null,
+        item.completionNormally ? { key: 'completion_normally', value: item.completionNormally } : null,
+        item.completionCompletely ? { key: 'completion_completely', value: item.completionCompletely } : null
+    ].filter(Boolean);
+%>
+<% if (completionTimes.length) { %>
+<div class="w-full mt-4">
+    <span class="block text-[10px] uppercase font-bold opacity-50 mb-2 text-center">
+        <%= t('confirm_game.completion_time_label') %>
+    </span>
+    <%# IGDB times one, two or all three of the estimates. The column count follows what it
+        returned, so the row always fills the same width as the status/rating row above
+        instead of leaving a card stranded at half width. The class is resolved here, not
+        in the browser: Tailwind only ever sees the rendered value. %>
+    <% const completionColumns = ['grid-cols-1', 'grid-cols-2', 'grid-cols-3'][completionTimes.length - 1] %>
+    <div class="grid <%= completionColumns %> gap-2">
+        <% completionTimes.forEach(function(entry) { %>
+        <div class="card-theme p-3 rounded-xl text-center shadow-sm">
+            <span class="block text-[9px] uppercase font-bold opacity-50 mb-1"><%= t('confirm_game.' + entry.key) %></span>
+            <span class="text-sm font-bold"><%= entry.value %>h</span>
+        </div>
+        <% }) %>
+    </div>
+</div>
+<% } %>

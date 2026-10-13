@@ -1,0 +1,344 @@
+<%- include('partials/header') %>
+<%- include('partials/markdown-styles') %>
+
+<div class="max-w-4xl mx-auto px-4 pb-20">
+
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between py-6 gap-4">
+        <h1 class="text-2xl md:text-3xl font-bold flex items-center gap-3 transition-colors">
+            <i class="fa-solid fa-circle-info text-primary-theme"></i>
+            <%= t('collection_info.editor_title') %>
+            <span class="text-base font-bold opacity-50">- <%= collectionName %></span>
+        </h1>
+        <div class="flex items-center gap-3">
+            <a href="<%= baseUrl %>/info"
+                class="flex items-center gap-2 text-xs font-black uppercase tracking-widest bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-4 py-2 rounded-full transition-all">
+                <i class="fa-solid fa-eye"></i>
+                <%= t('collection_info.open_page') %>
+            </a>
+            <a href="<%= baseUrl %>/admin"
+                class="flex items-center gap-2 text-xs font-black uppercase tracking-widest bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-4 py-2 rounded-full transition-all">
+                <i class="fa-solid fa-arrow-left"></i>
+                <%= t('admin.title') %>
+            </a>
+        </div>
+    </div>
+
+    <% if (locals.successMessage) { %>
+        <div class="bg-green-500/10 border border-green-500/20 text-green-600 dark:text-green-400 p-4 rounded-2xl mb-6 text-sm font-bold">
+            <i class="fa-solid fa-circle-check mr-2"></i><%= successMessage %>
+        </div>
+    <% } %>
+
+    <form action="<%= baseUrl %>/admin/collection-info" method="POST" id="collectionInfoForm" data-save-bar class="space-y-6">
+
+        <section class="card-theme rounded-3xl p-6 md:p-8 shadow-sm transition-colors space-y-6">
+            <p class="text-sm opacity-60 leading-relaxed"><%= t('collection_info.editor_intro') %></p>
+
+            <div class="grid gap-3 sm:grid-cols-2">
+                <label class="flex items-start gap-3 p-4 rounded-2xl bg-black/5 dark:bg-white/5 cursor-pointer">
+                    <input type="checkbox" name="enabled" class="mt-0.5 w-4 h-4 accent-primary-theme"
+                        <%= info.enabled ? 'checked' : '' %>>
+                    <span>
+                        <span class="block text-sm font-bold"><%= t('collection_info.enabled_label') %></span>
+                        <span class="block text-xs opacity-60 mt-1"><%= t('collection_info.enabled_hint') %></span>
+                    </span>
+                </label>
+                <label class="flex items-start gap-3 p-4 rounded-2xl bg-black/5 dark:bg-white/5 cursor-pointer">
+                    <input type="checkbox" name="shareVisible" class="mt-0.5 w-4 h-4 accent-primary-theme"
+                        <%= info.shareVisible ? 'checked' : '' %>>
+                    <span>
+                        <span class="block text-sm font-bold"><%= t('collection_info.share_visible_label') %></span>
+                        <span class="block text-xs opacity-60 mt-1"><%= t('collection_info.share_visible_hint') %></span>
+                    </span>
+                </label>
+            </div>
+
+            <div class="space-y-2">
+                <label for="infoTitle" class="block text-[10px] font-black uppercase tracking-widest opacity-50 ml-1">
+                    <%= t('collection_info.page_title_label') %>
+                </label>
+                <input type="text" id="infoTitle" name="title" maxlength="<%= maxTitle %>"
+                    value="<%= info.title %>" placeholder="<%= collectionName %>"
+                    class="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary-theme/40 transition-colors">
+            </div>
+        </section>
+
+        <section class="card-theme rounded-3xl p-6 md:p-8 shadow-sm transition-colors space-y-4">
+            <div class="flex items-center justify-between gap-4">
+                <h2 class="text-lg font-bold flex items-center gap-2">
+                    <i class="fa-solid fa-align-left text-primary-theme"></i>
+                    <%= t('collection_info.body_label') %>
+                </h2>
+                <div class="flex gap-1 p-1 bg-black/5 dark:bg-white/5 rounded-xl" role="tablist">
+                    <button type="button" data-info-tab="write" role="tab"
+                        class="info-tab px-4 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all bg-primary-theme text-white">
+                        <%= t('collection_info.tab_write') %>
+                    </button>
+                    <button type="button" data-info-tab="preview" role="tab"
+                        class="info-tab px-4 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all opacity-50">
+                        <%= t('collection_info.tab_preview') %>
+                    </button>
+                </div>
+            </div>
+
+            <div data-info-pane="write">
+                <textarea id="infoBody" name="body" rows="16" maxlength="<%= maxBody %>"
+                    placeholder="<%= t('collection_info.body_placeholder') %>"
+                    class="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl px-4 py-3 text-sm font-mono leading-relaxed outline-none focus:ring-2 focus:ring-primary-theme/40 transition-colors"><%= info.body %></textarea>
+                <div class="flex flex-wrap items-center justify-between gap-2 mt-2">
+                    <p class="text-[11px] opacity-50"><%= t('collection_info.markdown_hint') %></p>
+                    <p class="text-[11px] opacity-50 font-mono"><span id="infoBodyCount"><%= info.body.length %></span>/<%= maxBody %></p>
+                </div>
+            </div>
+
+            <div data-info-pane="preview" class="hidden">
+                <div id="infoPreview" class="dv-markdown min-h-[16rem] rounded-2xl bg-black/5 dark:bg-white/5 px-5 py-4 text-[15px]"><%- infoHtml %></div>
+                <p class="text-[11px] opacity-50 mt-2"><%= t('collection_info.preview_hint') %></p>
+            </div>
+        </section>
+
+        <section class="card-theme rounded-3xl p-6 md:p-8 shadow-sm transition-colors space-y-4"
+            id="infoImageManager" data-max-images="<%= maxImages %>">
+            <div>
+                <h2 class="text-lg font-bold flex items-center gap-2">
+                    <i class="fa-solid fa-images text-primary-theme"></i>
+                    <%= t('collection_info.images_label') %>
+                </h2>
+                <p class="text-xs opacity-60 mt-1"><%= t('collection_info.images_hint', { max: maxImages }) %></p>
+            </div>
+
+            <input type="hidden" name="images_json" id="infoImagesJson" value="<%= JSON.stringify(info.images) %>">
+
+            <div id="infoImageList" class="grid grid-cols-2 sm:grid-cols-3 gap-3" aria-live="polite"></div>
+            <div id="infoImageEmpty" class="hidden min-h-24 border-2 border-dashed border-black/10 dark:border-white/10 rounded-2xl items-center justify-center text-center p-6">
+                <div>
+                    <i class="fa-regular fa-images text-2xl opacity-20"></i>
+                    <p class="text-xs font-bold opacity-50 mt-2"><%= t('image_manager.empty') %></p>
+                </div>
+            </div>
+
+            <div class="grid gap-3 md:grid-cols-2">
+                <label class="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-black/10 dark:border-white/10 rounded-2xl cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-all">
+                    <i class="fa-solid fa-cloud-arrow-up text-2xl opacity-20 mb-2"></i>
+                    <p class="text-xs font-bold opacity-50 italic"><%= t('image_manager.local_hint') %></p>
+                    <input type="file" id="infoImageFile" class="hidden" accept="image/*" multiple>
+                </label>
+                <div class="flex flex-col justify-center gap-2">
+                    <div class="flex gap-2">
+                        <input type="text" inputmode="url" id="infoImageUrl" placeholder="https://site.com/image.jpg"
+                            class="flex-grow bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-primary-theme/40">
+                        <button type="button" id="infoImageAddUrl"
+                            class="bg-primary-theme text-white px-5 rounded-xl text-sm font-bold hover:brightness-110 transition-all">
+                            <i class="fa-solid fa-plus mr-1"></i><%= t('image_manager.add') %>
+                        </button>
+                    </div>
+                    <p class="text-[11px] opacity-50 italic"><%= t('image_source.url_hint') %></p>
+                    <p id="infoImageStatus" class="hidden text-xs font-bold text-primary-theme" aria-live="polite"></p>
+                </div>
+            </div>
+        </section>
+
+        <div class="flex justify-end">
+            <button type="submit"
+                class="flex items-center justify-center gap-2 bg-primary-theme hover:brightness-110 text-white px-8 py-4 rounded-2xl shadow-lg shadow-primary-theme/20 transition-all active:scale-95">
+                <i class="fa-solid fa-floppy-disk"></i>
+                <span class="text-xs font-black uppercase tracking-widest"><%= t('common.save') %></span>
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+    (() => {
+        const translations = {
+            uploading: <%- JSON.stringify(t('image_manager.uploading')) %>,
+            uploadFailed: <%- JSON.stringify(t('image_manager.upload_failed')) %>,
+            uploadInvalid: <%- JSON.stringify(t('image_manager.upload_invalid')) %>,
+            invalidUrl: <%- JSON.stringify(t('image_manager.invalid_url')) %>,
+            tooMany: <%- JSON.stringify(t('collection_info.images_too_many', { max: maxImages })) %>,
+            remove: <%- JSON.stringify(t('image_manager.remove')) %>,
+            confirmRemove: <%- JSON.stringify(t('image_manager.confirm_remove')) %>,
+            moveBefore: <%- JSON.stringify(t('image_manager.move_before')) %>,
+            moveAfter: <%- JSON.stringify(t('image_manager.move_after')) %>
+        };
+
+        const manager = document.getElementById('infoImageManager');
+        const maxImages = Number(manager.dataset.maxImages);
+        const hiddenField = document.getElementById('infoImagesJson');
+        const list = document.getElementById('infoImageList');
+        const empty = document.getElementById('infoImageEmpty');
+        const status = document.getElementById('infoImageStatus');
+        let images = [];
+        try { images = JSON.parse(hiddenField.value || '[]'); } catch (_) { images = []; }
+
+        // Stored paths stay deployment independent, so the prefix is added for display only.
+        const baseUrl = <%- JSON.stringify(baseUrl) %>;
+        const displaySrc = (image) => image.startsWith('/uploads/') ? baseUrl + image : image;
+
+        function render() {
+            hiddenField.value = JSON.stringify(images);
+            list.innerHTML = '';
+            list.classList.toggle('hidden', images.length === 0);
+            empty.classList.toggle('hidden', images.length > 0);
+            empty.classList.toggle('flex', images.length === 0);
+
+            images.forEach((image, index) => {
+                const card = document.createElement('div');
+                card.className = 'relative group rounded-2xl overflow-hidden bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10';
+                card.innerHTML = `
+                    <img src="${displaySrc(image)}" alt="" class="w-full h-32 object-cover">
+                    <div class="absolute inset-x-0 bottom-0 flex justify-between p-1.5 bg-black/50 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity">
+                        <div class="flex gap-1">
+                            <button type="button" data-move="-1" title="${translations.moveBefore}" class="w-7 h-7 rounded-lg bg-white/15 hover:bg-white/30 text-white text-xs transition-colors"><i class="fa-solid fa-chevron-left"></i></button>
+                            <button type="button" data-move="1" title="${translations.moveAfter}" class="w-7 h-7 rounded-lg bg-white/15 hover:bg-white/30 text-white text-xs transition-colors"><i class="fa-solid fa-chevron-right"></i></button>
+                        </div>
+                        <button type="button" data-remove title="${translations.remove}" class="w-7 h-7 rounded-lg bg-red-500/80 hover:bg-red-500 text-white text-xs transition-colors"><i class="fa-solid fa-trash"></i></button>
+                    </div>`;
+                card.querySelectorAll('[data-move]').forEach(button => button.addEventListener('click', () => {
+                    const target = index + Number(button.dataset.move);
+                    if (target < 0 || target >= images.length) return;
+                    [images[index], images[target]] = [images[target], images[index]];
+                    render();
+                }));
+                card.querySelector('[data-remove]').addEventListener('click', () => {
+                    if (!confirm(translations.confirmRemove)) return;
+                    images.splice(index, 1);
+                    render();
+                });
+                list.appendChild(card);
+            });
+        }
+
+        function addImage(image) {
+            if (images.length >= maxImages) {
+                alert(translations.tooMany);
+                return false;
+            }
+            if (!images.includes(image)) images.push(image);
+            render();
+            return true;
+        }
+
+        // Same path as the item galleries: resized and re-encoded in the browser, then
+        // stored by the upload endpoint, which only ever accepts JPEG.
+        function compressImage(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onerror = reject;
+                reader.onload = event => {
+                    const image = new Image();
+                    image.onerror = reject;
+                    image.onload = () => {
+                        const maxSize = 1600;
+                        const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+                        const canvas = document.createElement('canvas');
+                        canvas.width = Math.max(1, Math.round(image.width * scale));
+                        canvas.height = Math.max(1, Math.round(image.height * scale));
+                        canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+                        canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('compression_failed')), 'image/jpeg', 0.85);
+                    };
+                    image.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function uploadImage(blob) {
+            const form = new FormData();
+            form.append('image', blob, 'collection-info.jpg');
+            const response = await fetch(baseUrl + '/api/item-images/upload', { method: 'POST', body: form });
+            let data = {};
+            try { data = await response.json(); } catch (_) {}
+            if (!response.ok || typeof data.url !== 'string') {
+                throw new Error(data.error || translations.uploadFailed);
+            }
+            return data.url;
+        }
+
+        document.getElementById('infoImageFile').addEventListener('change', async event => {
+            const input = event.target;
+            const files = Array.from(input.files || []);
+            input.disabled = true;
+            status.textContent = translations.uploading;
+            status.classList.remove('hidden');
+            try {
+                for (const file of files) {
+                    if (images.length >= maxImages) {
+                        alert(translations.tooMany);
+                        break;
+                    }
+                    try {
+                        addImage(await uploadImage(await compressImage(file)));
+                    } catch (err) {
+                        alert(err?.message || translations.uploadInvalid);
+                    }
+                }
+            } finally {
+                input.disabled = false;
+                input.value = '';
+                status.textContent = '';
+                status.classList.add('hidden');
+            }
+        });
+
+        document.getElementById('infoImageAddUrl').addEventListener('click', () => {
+            const input = document.getElementById('infoImageUrl');
+            const value = input.value.trim();
+            if (!/^https?:\/\/[^/\s]+/i.test(value)) {
+                alert(translations.invalidUrl);
+                return;
+            }
+            if (addImage(value)) input.value = '';
+        });
+
+        render();
+
+        // Write / preview
+        const bodyField = document.getElementById('infoBody');
+        const preview = document.getElementById('infoPreview');
+        const counter = document.getElementById('infoBodyCount');
+        let previewedText = bodyField.value;
+        let previewTimer = null;
+
+        async function refreshPreview() {
+            if (bodyField.value === previewedText) return;
+            const text = bodyField.value;
+            try {
+                const response = await fetch(baseUrl + '/admin/collection-info/preview', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ body: text })
+                });
+                if (!response.ok) return;
+                const data = await response.json();
+                preview.innerHTML = data.html;
+                previewedText = text;
+            } catch (_) {
+                // The preview is a convenience; a failed round trip just leaves the
+                // last rendering in place and the text itself is untouched.
+            }
+        }
+
+        bodyField.addEventListener('input', () => {
+            counter.textContent = bodyField.value.length;
+            clearTimeout(previewTimer);
+            previewTimer = setTimeout(refreshPreview, 500);
+        });
+
+        document.querySelectorAll('.info-tab').forEach(tab => tab.addEventListener('click', () => {
+            const selected = tab.dataset.infoTab;
+            document.querySelectorAll('.info-tab').forEach(button => {
+                const active = button.dataset.infoTab === selected;
+                button.classList.toggle('bg-primary-theme', active);
+                button.classList.toggle('text-white', active);
+                button.classList.toggle('opacity-50', !active);
+            });
+            document.querySelectorAll('[data-info-pane]').forEach(pane => {
+                pane.classList.toggle('hidden', pane.dataset.infoPane !== selected);
+            });
+            if (selected === 'preview') refreshPreview();
+        }));
+    })();
+</script>
+
+<%- include('partials/footer') %>

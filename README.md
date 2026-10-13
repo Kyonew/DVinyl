@@ -15,9 +15,10 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT">
-  <img src="https://img.shields.io/badge/Version-3.1.4-blue.svg" alt="Version">
+  <img src="https://img.shields.io/badge/Version-3.2.1-blue.svg" alt="Version">
   <img src="https://img.shields.io/badge/Self--Hosted-Yes-green.svg" alt="Self-Hosted">
   <img src="https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white" alt="Docker">
+  <img src="https://img.shields.io/badge/ZimaOS-App_Store-black.svg" alt="ZimaOS">
 </p>
 
 ---
@@ -25,8 +26,9 @@
 ## Hey there 👋
 
 DVinyl is a little home for your physical collection. It lives on your own server, pulls in cover
-art and metadata from the big databases (Discogs, Hardcover, TMDB, IGDB, Rebrickable), can even
-estimate what your music is worth, and lays it all out on a dashboard you get to shape yourself.
+art and metadata from the big databases (Discogs, Hardcover, Open Library, TMDB, IGDB, ScreenScraper,
+Rebrickable, BoardGameGeek), can even estimate what your music is worth, and lays it all out on a dashboard you
+get to shape yourself.
 
 DVinyl is **plugin based**: every media type is a plugin, so you turn on only what you
 care about, and you can add your own type without touching the core.
@@ -38,23 +40,27 @@ read-only preview of a finished instance.
 
 ### 📦 Your whole shelf, in one place
 - **Many formats.** Music (vinyls, CDs, cassettes), books (manga, comics, hardcover), movies
-  (Blu-ray, 4K, DVD, VHS, LaserDisc), video games and LEGO sets.
-- **Multiple collections.** Keep separate libraries (yours, the family's, a specific room) and
-  switch between them whenever you like.
-- **Smart import.** Add an item by ID or barcode, or bulk import a whole existing collection
-  (a full Discogs library, for example) in one click.
-- **Barcode scanner.** Point at the barcode of a physical item and let DVinyl find it for you.
+  (Blu-ray, 4K, DVD, VHS, LaserDisc), video games, LEGO sets, board games and trading card games.
+- **Multiple views & virtual shelves.** Browse in a grid, a compact table, or as realistic virtual
+  shelves with spine view and customizable furniture.
+- **Lists & playlists.** Curate custom lists within a collection and assemble tracks into playlists.
+- **Multiple collections.** Keep separate libraries (yours, the family's, by room) and switch in one click.
+- **Smart import & barcode scanner.** Add items by ID, scan physical barcodes with your camera, or
+  bulk import existing libraries (Discogs, Goodreads).
 - **AI assist.** Bring-your-own-key support for text, photo or barcode-fallback import, and for
   drafting a new no-code plugin from a one-sentence description. See the
   [AI Assist guide](./docs/ai.md) to set it up.
-- **Market value.** Live low, median and high estimates for your music collection.
-- **Wishlist.** Keep an eye on the pieces you are still hunting for.
+- **Market value & price history.** Live valuation estimates for your music collection with historical
+  charts over time.
+- **Game completion times.** Playtime estimates powered by IGDB.
+- **Printable labels.** Generate printable QR codes and barcodes for your physical media.
+- **Wishlist.** Keep track of items you are hunting for.
 
 ### 🎨 Make it yours
-- **14 color themes.** Ocean, Forest, Sunset, Sakura, Midnight and more, each with a light and a
-  dark variant, and you can even set a different theme per category.
-- **Modular dashboard.** Pick the stat widgets you want and add your own navbar shortcuts.
-- **Responsive.** Built to feel right on mobile too.
+- **14 color themes.** Ocean, Forest, Sunset, Sakura, Midnight and more, with light and dark variants.
+- **Modular dashboard.** Pick your stat widgets and add custom navigation shortcuts.
+- **Collection info page.** Add a rich Markdown presentation page with photos for your collections.
+- **Responsive.** Designed to feel natural on desktop, tablet and mobile.
 - **Multilingual.** English, French, German, Spanish and Italian.
 
 ### 👥 Share it, your way
@@ -71,10 +77,11 @@ read-only preview of a finished instance.
 | Plugin | Media | Metadata source |
 | :----- | :---- | :-------------- |
 | Music  | Vinyls, CDs, cassettes | Discogs |
-| Books  | Books, manga, comics   | Hardcover |
+| Books  | Books, manga, comics   | Hardcover, Open Library |
 | Movies | Blu-ray, 4K, DVD, VHS  | TMDB |
-| Games  | Video games            | IGDB |
+| Games  | Video games            | IGDB, ScreenScraper |
 | LEGO   | LEGO sets              | Rebrickable |
+| Board games | Board games       | BoardGameGeek |
 
 Every plugin can be turned on or off per collection from the admin panel.
 
@@ -107,10 +114,11 @@ DVinyl is made to grow with you. There are two ways to add a new kind of collect
   See the [Plugin development guide](./docs/plugin-development.md).
   Built one you are proud of? Do not hesitate to open a PR, I would genuinely love to see it! 🙌
 
-## Quick start (Docker)
+## Quick start
 
-The fastest way to run DVinyl is the pre-built Docker image. All you need is a `docker-compose.yml`
-and a `.env` file.
+### 🐳 Docker (Compose)
+
+The fastest way to run DVinyl on any Linux/macOS/Windows host is the pre-built Docker image:
 
 1. Create a `docker-compose.yml` (the [Docker guide](./docs/docker.md) has the full file).
 2. Set your environment variables in a `.env` file (see [API keys](./docs/api-keys.md)).
@@ -125,16 +133,34 @@ Then open `http://localhost:3099` and you are good to go.
 > If you have `make` installed, `make docker-up` runs step 3 for you. Run `make help` to see every
 > available command.
 
-No Docker? No worries. Have a look at the other ways to install and run DVinyl in the
+### 🧊 ZimaOS / CasaOS
+
+DVinyl is available through the community **TwoBytes Store**:
+
+1. In ZimaOS, open **App Store → Sources → Add**, and enter:
+   ```
+   https://raw.githubusercontent.com/NoNoBzH22/TwoBytes-Store/gh-pages
+   ```
+   *(For older ZimaOS / CasaOS versions requiring a zip source, use: `https://github.com/NoNoBzH22/TwoBytes-Store/archive/refs/heads/main.zip`)*
+2. Find and install **DVinyl** from the store.
+3. Open `http://<server-ip>:3099` to complete setup.
+
+### 🧡 Unraid
+
+An official Community Application template is available:
+- Install via Community Applications or add the [XML template](https://raw.githubusercontent.com/Kyonew/DVinyl/main/unraid-template/dvinyl.xml).
+- Follow the [Unraid setup instructions](./docs/getting-started.md#-unraid).
+
+No Docker or NAS? Have a look at the other ways to install and run DVinyl in the
 [Getting started guide](./docs/getting-started.md).
 
 ## Documentation
 
 | Guide | What is inside |
 | :---- | :------------- |
-| [Getting started](./docs/getting-started.md) | Manual installation and requirements |
+| [Getting started](./docs/getting-started.md) | Installation options and requirements |
 | [Docker deployment](./docs/docker.md) | Deploy with Docker Compose (recommended) |
-| [API keys](./docs/api-keys.md) | Get your Discogs, Hardcover, TMDB, IGDB and Rebrickable keys |
+| [API keys](./docs/api-keys.md) | Get your Discogs, Hardcover, TMDB, IGDB, ScreenScraper, Rebrickable and BoardGameGeek keys |
 | [AI Assist](./docs/ai.md) | Optional bring-your-own-key AI for text, photo and barcode-fallback import, and for drafting a no-code plugin |
 | [Plugin development](./docs/plugin-development.md) | Build your own media type as a code plugin |
 | [Public share links](./docs/sharing.md) | Let anyone browse a collection (or part of it) read-only, no account needed |
@@ -149,7 +175,7 @@ No Docker? No worries. Have a look at the other ways to install and run DVinyl i
 | Frontend | EJS templates |
 | Styling | Tailwind CSS |
 | Localization | i18next |
-| Metadata APIs | Discogs, Hardcover, TMDB, IGDB, Rebrickable, plus 8 free TCG APIs (see [Trading card games](#trading-card-games)) |
+| Metadata APIs | Discogs, Hardcover, Open Library, TMDB, IGDB, ScreenScraper, Rebrickable, BoardGameGeek, plus 8 free TCG APIs (see [Trading card games](#trading-card-games)) |
 
 ## Contributing
 

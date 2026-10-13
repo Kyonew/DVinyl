@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { registry } from './registry';
 import { PluginDefinition } from './types';
+import { EXTRA_FIELD_PREFIX } from './extraFieldIdentity';
 
 export const PLUGINS_DIR = path.join(__dirname, '..', 'plugins');
 
@@ -118,6 +119,21 @@ function validatePlugin(p: PluginDefinition, dir: string): string[] {
   if (!p.schemaDefinition || typeof p.schemaDefinition !== 'object') problems.push('missing schemaDefinition object');
   if (!Array.isArray(p.formFields) || p.formFields.length === 0) problems.push('formFields must be a non-empty array');
   if (!Array.isArray(p.formats)) problems.push('formats must be an array');
+  // The generated identities of per-collection fields live here. No code plugin may
+  // claim the namespace, otherwise a later plugin update could recreate the ambiguity
+  // this boundary is meant to prevent. Existing no-code plugins are grandfathered by
+  // their builder validation and avoid generated keys during migration.
+  if (!(p as any).customConfig) {
+    const declaredNames = new Set([
+      ...Object.keys(p.schemaDefinition || {}),
+      ...(p.formFields || []).map(field => field.name)
+    ]);
+    for (const name of declaredNames) {
+      if (name.startsWith(EXTRA_FIELD_PREFIX)) {
+        problems.push(`field name "${name}" uses the reserved "${EXTRA_FIELD_PREFIX}" namespace`);
+      }
+    }
+  }
   for (const fn of ['getStats', 'formatForView', 'findDuplicate', 'getVariants'] as const) {
     if (typeof (p as any)[fn] !== 'function') problems.push(`missing required method "${fn}()"`);
   }

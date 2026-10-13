@@ -1,6 +1,6 @@
 <%- include('partials/header') %>
 
-    <div class="max-w-screen-xl mx-auto pb-12 px-4 md:px-0 pt-8">
+    <div class="max-w-screen-xl mx-auto pb-12 pt-8">
 
         <div class="mb-8">
             <h1 class="text-3xl font-bold flex items-center gap-3 transition-colors">
@@ -154,6 +154,72 @@
                 </div>
 
                 <div class="card-theme rounded-2xl p-6 transition-colors shadow-sm">
+                    <h2 class="text-lg font-bold flex items-center gap-2 mb-2 transition-colors">
+                        <i class="fas fa-house opacity-50"></i>
+                        <%= t('settings.home_title') %>
+                    </h2>
+                    <p class="opacity-50 text-xs mb-6 transition-colors">
+                        <%= t('settings.home_hint') %>
+                    </p>
+
+                    <form action="<%= baseUrl %>/settings/update-home" method="POST" class="space-y-4">
+                        <div
+                            class="flex items-center justify-between gap-4 p-4 bg-black/5 dark:bg-white/5 rounded-xl border border-transparent transition-colors">
+                            <span class="opacity-60 text-sm">
+                                <%= t('settings.home_collection_label') %>
+                            </span>
+                            <select name="homeCollectionId" onchange="this.form.submit()"
+                                class="bg-black/5 dark:bg-white/5 border border-transparent text-gray-900 dark:text-white text-sm rounded-lg focus:ring-primary-theme focus:border-primary-theme block p-3 transition-colors outline-none cursor-pointer">
+                                <option value="" class="bg-white dark:bg-[#1a1a1a]" <%=!user.homeCollectionId ? 'selected' : '' %>>
+                                    <%= t('settings.home_collection_last') %>
+                                </option>
+                                <% (locals.userCollections || []).forEach(c => { %>
+                                    <option value="<%= c._id %>" class="bg-white dark:bg-[#1a1a1a]"
+                                        <%=String(user.homeCollectionId)===String(c._id) ? 'selected' : '' %>>
+                                        <%= c.name %>
+                                    </option>
+                                <% }) %>
+                            </select>
+                        </div>
+
+                        <div
+                            class="flex items-center justify-between gap-4 p-4 bg-black/5 dark:bg-white/5 rounded-xl border border-transparent transition-colors">
+                            <span class="opacity-60 text-sm">
+                                <%= t('settings.home_page_label') %>
+                            </span>
+                            <select name="homePage" onchange="this.form.submit()"
+                                class="bg-black/5 dark:bg-white/5 border border-transparent text-gray-900 dark:text-white text-sm rounded-lg focus:ring-primary-theme focus:border-primary-theme block p-3 transition-colors outline-none cursor-pointer">
+                                <% homePages.forEach(page => { %>
+                                    <option value="<%= page %>" class="bg-white dark:bg-[#1a1a1a]"
+                                        <%=user.homePage===page ? 'selected' : '' %>>
+                                        <%= t('settings.home_page_' + page) %>
+                                    </option>
+                                <% }) %>
+                            </select>
+                        </div>
+
+                        <div
+                            class="flex items-center justify-between gap-4 p-4 bg-black/5 dark:bg-white/5 rounded-xl border border-transparent transition-colors">
+                            <span class="opacity-60 text-sm">
+                                <%= t('settings.home_view_label') %>
+                            </span>
+                            <select name="homeView" onchange="this.form.submit()"
+                                class="bg-black/5 dark:bg-white/5 border border-transparent text-gray-900 dark:text-white text-sm rounded-lg focus:ring-primary-theme focus:border-primary-theme block p-3 transition-colors outline-none cursor-pointer">
+                                <option value="" class="bg-white dark:bg-[#1a1a1a]" <%=!user.homeView ? 'selected' : '' %>>
+                                    <%= t('settings.home_view_last') %>
+                                </option>
+                                <% collectionViews.forEach(view => { %>
+                                    <option value="<%= view.id %>" class="bg-white dark:bg-[#1a1a1a]"
+                                        <%=user.homeView===view.id ? 'selected' : '' %>>
+                                        <%= t(view.label) %>
+                                    </option>
+                                <% }) %>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="card-theme rounded-2xl p-6 transition-colors shadow-sm mt-6">
                     <div class="flex items-center justify-between mb-6">
                         <h2 class="text-lg font-bold flex items-center gap-2 transition-colors">
                             <i class="fas fa-shield-alt opacity-50"></i>

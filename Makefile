@@ -15,7 +15,9 @@ install: ## Install Node dependencies
 	npm install
 
 env: ## Create .env from .env.example if it does not exist yet
-	@test -f .env || (cp .env.example .env && echo "Created .env from .env.example, now fill in your keys")
+	@test -f .env || (sed -e "s|^PASSJWT=.*|PASSJWT=$$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))" 2>/dev/null || openssl rand -hex 32)|" \
+	                      -e "s|^SESSION_SECRET=.*|SESSION_SECRET=$$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))" 2>/dev/null || openssl rand -hex 32)|" \
+	                      .env.example > .env && echo "Created .env with generated secrets, now fill in your keys")
 
 dev: ## Start DVinyl in the foreground (Node + tsx)
 	npm start

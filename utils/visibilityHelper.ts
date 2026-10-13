@@ -22,6 +22,36 @@ export function applyContainedFilter(query: any): void {
     query.parent = { $exists: false };
 }
 
+/**
+ * The condition that matches the items belonging to one plugin.
+ *
+ * Items carry their plugin in `kind`, the Mongoose discriminator. The one exception is the
+ * pre-plugins era, whose items have no `kind` at all: the boot migration backfills them,
+ * but a dump restored on an older path can still hold some, so the plugin that claims that
+ * legacy stock (`matchesLegacyItems`, music today) matches them too.
+ */
+export function pluginKindCondition(plugin: { kind: string; matchesLegacyItems?: boolean }): any {
+    return plugin.matchesLegacyItems
+        ? { $or: [{ kind: plugin.kind }, { kind: { $exists: false } }] }
+        : { kind: plugin.kind };
+}
+
+/**
+ * Restricts a query to one plugin's items.
+ *
+ * The plugin behind a request comes from the URL prefix (`/album/...` is music), not from
+ * the item the id points at, so without this an id can be handed to any plugin's route and
+ * be answered by the wrong one. Pushed onto `$and` rather than merged in, because the
+ * condition is itself an `$or` for the legacy-claiming plugin and would collide with the
+ * `$or` another filter may already have put on the same query.
+ */
+export function applyPluginKindFilter(query: any, plugin: { kind: string; matchesLegacyItems?: boolean }): void {
+    if (!query.$and) {
+        query.$and = [];
+    }
+    query.$and.push(pluginKindCondition(plugin));
+}
+
 export function applyEnabledModulesFilter(query: any, settings: any): void {
     const all = registry.getAll();
     const enabled = registry.getEnabled(settings);
@@ -70,9 +100,7 @@ export function applyShareScopeFilter(query: any, shareScope: ShareScopeEntry[] 
         const plugin = registry.get(entry.pluginId);
         if (!plugin) continue; // plugin removed/renamed since the scope was saved
 
-        const kindMatch = plugin.matchesLegacyItems
-            ? { $or: [{ kind: plugin.kind }, { kind: { $exists: false } }] }
-            : { kind: plugin.kind };
+        const kindMatch = pluginKindCondition(plugin);
 
         // The format value lives under `format` for most plugins but under
         // `media_type` for music (legacy field name) - same convention the generic

@@ -48,7 +48,14 @@
             </div>
         </div>
 
-        <% if (locals.successMessage && !locals.newPassword) { %>
+        <% if (locals.successMessage && !locals.newPassword && locals.messageIsError) { %>
+            <div class="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 p-4 rounded-2xl text-center mb-6 transition-colors">
+                <p class="text-sm font-bold text-red-600 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-circle-exclamation"></i>
+                    <%= successMessage %>
+                </p>
+            </div>
+        <% } else if (locals.successMessage && !locals.newPassword) { %>
             <div class="bg-primary-theme/10 border border-primary-theme/30 p-4 rounded-2xl text-center mb-6 transition-colors">
                 <p class="text-sm font-bold text-primary-theme flex items-center justify-center gap-2">
                     <i class="fa-solid fa-check-circle"></i>
@@ -74,8 +81,16 @@
             </div>
             <% } %>
 
+        <%- include('partials/settings-tabs', { tabs: [
+            { id: 'collections', icon: 'layer-group', label: t('admin.instance.tabs.collections'), count: (locals.collections || []).length },
+            { id: 'users', icon: 'users', label: t('admin.instance.tabs.users'), count: users.length },
+            { id: 'backup', icon: 'database', label: t('admin.instance.tabs.backup') },
+            { id: 'security', icon: 'ban', label: t('admin.instance.tabs.security'), count: blockedIps.length },
+            { id: 'logs', icon: 'satellite-dish', label: t('admin.instance.tabs.logs') }
+        ] }) %>
+
                 <!-- ============ COLLECTIONS ============ -->
-                <section>
+                <section data-tab-panel="collections">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between py-6 gap-4 mb-2">
                         <h2 class="text-xl md:text-2xl font-bold flex items-center gap-3 transition-colors">
                             <i class="fa-solid fa-layer-group text-primary-theme"></i>
@@ -156,7 +171,7 @@
                 </section>
 
                 <!-- ============ SELF-SERVICE COLLECTIONS (instance policy) ============ -->
-                <section>
+                <section data-tab-panel="users">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between py-6 gap-4 mb-2">
                         <h2 class="text-xl md:text-2xl font-bold flex items-center gap-3 transition-colors">
                             <i class="fa-solid fa-user-plus text-primary-theme"></i>
@@ -164,7 +179,7 @@
                         </h2>
                     </div>
 
-                    <form action="<%= baseUrl %>/admin/instance/settings" method="POST"
+                    <form action="<%= baseUrl %>/admin/instance/settings" method="POST" data-save-bar
                         class="card-theme rounded-3xl p-6 md:p-8 shadow-sm transition-colors space-y-6">
 
                         <label class="flex items-start justify-between gap-6 cursor-pointer">
@@ -300,7 +315,7 @@
                 </section>
 
                 <!-- ============ USERS ============ -->
-                <section>
+                <section data-tab-panel="users">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between py-6 gap-4 mb-4">
                         <h2 class="text-xl md:text-2xl font-bold flex items-center gap-3 transition-colors">
                             <i class="fa-solid fa-users text-primary-theme"></i>
@@ -330,6 +345,9 @@
                                     </th>
                                     <th class="px-6 py-4">
                                         <%= t('admin.instance.stat_collections') %>
+                                    </th>
+                                    <th class="px-6 py-4">
+                                        <%= t('admin.table.home_collection') %>
                                     </th>
                                     <th class="px-6 py-4">
                                         <%= t('admin.table.last_change') %>
@@ -364,6 +382,27 @@
                                                 <%= memberOf.map(c => c.name).join(', ') %>
                                             <% } else { %>
                                                 <span class="opacity-40">-</span>
+                                            <% } %>
+                                        </td>
+                                        <td class="px-6 py-4">
+                                            <% if (memberOf.length > 0) { %>
+                                                <form action="<%= baseUrl %>/admin/users/home-collection" method="POST">
+                                                    <input type="hidden" name="userId" value="<%= u._id %>">
+                                                    <select name="collectionId" onchange="this.form.submit()"
+                                                        class="bg-black/5 dark:bg-white/5 border border-transparent text-xs rounded-lg focus:ring-primary-theme focus:border-primary-theme p-2 transition-colors outline-none cursor-pointer">
+                                                        <option value="" class="bg-white dark:bg-[#1a1a1a]" <%=!u.homeCollectionId ? 'selected' : '' %>>
+                                                            <%= t('admin.table.home_collection_last') %>
+                                                        </option>
+                                                        <% memberOf.forEach(c => { %>
+                                                            <option value="<%= c._id %>" class="bg-white dark:bg-[#1a1a1a]"
+                                                                <%=String(u.homeCollectionId)===String(c._id) ? 'selected' : '' %>>
+                                                                <%= c.name %>
+                                                            </option>
+                                                        <% }) %>
+                                                    </select>
+                                                </form>
+                                            <% } else { %>
+                                                <span class="text-xs opacity-40">-</span>
                                             <% } %>
                                         </td>
                                         <td class="px-6 py-4 text-xs opacity-70">
@@ -403,6 +442,7 @@
                     <div class="md:hidden space-y-4">
                         <% users.forEach(u=> {
                             const isOtherAdmin = u.isAdmin && u._id.toString() !== user._id.toString();
+                            const memberOf = (locals.collections || []).filter(c => (c.members || []).some(m => String(m.user._id) === String(u._id)));
                         %>
                             <div class="card-theme p-5 rounded-2xl shadow-sm space-y-4 transition-colors">
                                 <div class="flex items-center gap-4">
@@ -417,6 +457,27 @@
                                         </p>
                                     </div>
                                 </div>
+                                <% if (memberOf.length > 0) { %>
+                                    <form action="<%= baseUrl %>/admin/users/home-collection" method="POST"
+                                        class="flex items-center justify-between gap-3 pt-4 border-t border-black/5 dark:border-white/5">
+                                        <input type="hidden" name="userId" value="<%= u._id %>">
+                                        <span class="text-[9px] opacity-50 uppercase font-bold tracking-wider">
+                                            <%= t('admin.table.home_collection') %>
+                                        </span>
+                                        <select name="collectionId" onchange="this.form.submit()"
+                                            class="bg-black/5 dark:bg-white/5 border border-transparent text-xs rounded-lg focus:ring-primary-theme focus:border-primary-theme p-2 transition-colors outline-none cursor-pointer">
+                                            <option value="" class="bg-white dark:bg-[#1a1a1a]" <%=!u.homeCollectionId ? 'selected' : '' %>>
+                                                <%= t('admin.table.home_collection_last') %>
+                                            </option>
+                                            <% memberOf.forEach(c => { %>
+                                                <option value="<%= c._id %>" class="bg-white dark:bg-[#1a1a1a]"
+                                                    <%=String(u.homeCollectionId)===String(c._id) ? 'selected' : '' %>>
+                                                    <%= c.name %>
+                                                </option>
+                                            <% }) %>
+                                        </select>
+                                    </form>
+                                <% } %>
                                 <div
                                     class="flex items-center justify-between pt-4 border-t border-black/5 dark:border-white/5">
                                     <div class="flex flex-col">
@@ -457,7 +518,7 @@
                 </section>
 
                 <!-- ============ INSTANCE BACKUP (whole instance, not a single collection) ============ -->
-                <section>
+                <section data-tab-panel="backup">
                     <div class="flex items-center gap-4 mb-6">
                         <h2 class="text-xl font-bold flex items-center gap-2 transition-colors whitespace-nowrap">
                             <i class="fa-solid fa-database text-primary-theme"></i>
@@ -482,16 +543,21 @@
                                 </p>
                             </div>
                             <div class="flex flex-wrap gap-3">
+                                <a href="<%= baseUrl %>/backup/export-archive"
+                                    class="flex-1 sm:flex-none bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-file-zipper"></i>
+                                    <%= t('admin.backup.export_zip_btn') %>
+                                </a>
                                 <a href="<%= baseUrl %>/backup/export"
                                     class="flex-1 sm:flex-none bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-file-export"></i>
-                                    <%= t('admin.backup.export_btn') %>
+                                    <i class="fa-solid fa-file-code"></i>
+                                    <%= t('admin.backup.export_json_btn') %>
                                 </a>
                                 <label
                                     class="flex-1 sm:flex-none bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500 hover:text-white px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer">
                                     <i class="fa-solid fa-file-import"></i>
                                     <%= t('admin.backup.import_btn') %>
-                                        <input type="file" id="backupInput" class="hidden" accept=".json">
+                                        <input type="file" id="backupInput" class="hidden" accept=".json,.zip,application/zip">
                                 </label>
                             </div>
                         </div>
@@ -499,7 +565,7 @@
                 </section>
 
                 <!-- ============ BLOCKED IPS ============ -->
-                <section>
+                <section data-tab-panel="security">
                     <h2 class="text-xl font-bold mb-6 flex items-center gap-2 transition-colors">
                         <i class="fa-solid fa-ban text-red-500"></i>
                         <%= t('admin.blocked_ips_title', { count: blockedIps.length }) %>
@@ -539,7 +605,7 @@
                 </section>
 
                 <!-- ============ LOGIN LOGS ============ -->
-                <section>
+                <section data-tab-panel="logs">
                     <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
                         <h2 class="text-xl font-bold flex items-center gap-2 transition-colors">
                             <i class="fa-solid fa-satellite-dish text-primary-theme"></i>
@@ -1048,27 +1114,36 @@
                 const file = e.target.files[0];
                 if (!file) return;
                 if (confirm(<%- JSON.stringify(t('admin.instance.backup_confirm_import')) %>)) {
-                    const reader = new FileReader();
-                    reader.onload = async (event) => {
+                    (async () => {
                         try {
-                            const backupData = JSON.parse(event.target.result);
-                            const response = await fetch('<%= baseUrl %>/backup/import', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(backupData)
-                            });
+                            const isArchive = file.name.toLowerCase().endsWith('.zip');
+                            let response;
+                            if (isArchive) {
+                                const form = new FormData();
+                                form.append('backup', file);
+                                response = await fetch('<%= baseUrl %>/backup/import-archive', { method: 'POST', body: form });
+                            } else {
+                                const backupData = JSON.parse(await file.text());
+                                response = await fetch('<%= baseUrl %>/backup/import', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify(backupData)
+                                });
+                            }
                             if (response.ok) {
                                 const result = await response.json();
                                 alert(result.warning || <%- JSON.stringify(t('admin.backup.import_success')) %>);
                                 window.location.href = '<%= baseUrl %>/login';
                             } else {
-                                alert(<%- JSON.stringify(t('admin.backup.import_error')) %>);
+                                // A refusal worded for the reader (a collection backup
+                                // posted here) says what to do instead.
+                                const failure = await response.json().catch(() => ({}));
+                                alert(failure.userMessage || <%- JSON.stringify(t('admin.backup.import_error')) %>);
                             }
                         } catch (err) {
-                            alert(<%- JSON.stringify(t('admin.backup.json_error')) %>);
+                            alert(<%- JSON.stringify(t('admin.backup.file_error')) %>);
                         }
-                    };
-                    reader.readAsText(file);
+                    })();
                 }
                 this.value = '';
             };

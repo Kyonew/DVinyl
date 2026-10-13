@@ -1,3 +1,4 @@
+import bwipjs from 'bwip-js';
 import { BASE_URL } from '../config/constants';
 
 /**
@@ -266,6 +267,37 @@ export async function fuzzyCardSearch<T>(
 }
 
 /**
+ * Path (without BASE_URL) of the confirm page for one search result, or '' when the
+ * result carries no id. Shared by the result cards and the scan mode redirect, so a
+ * result opened either way asks the same source for the same details.
+ */
+export function confirmPathFor(
+  pluginId: string,
+  item: any,
+  opts: { searchType?: string; scannedBarcode?: string } = {}
+): string {
+  const externalId = item?.id || item?.hardcover_id || item?.tmdb_id || item?.igdb_id;
+  if (!externalId) return '';
+
+  const params = new URLSearchParams();
+  if (opts.searchType && opts.searchType !== pluginId) params.set('type', opts.searchType);
+  if (opts.scannedBarcode) params.set('barcode', opts.scannedBarcode);
+  // The id belongs to the database that returned it; the confirm page has to ask that
+  // same one for the details.
+  if (item.source) params.set('source', String(item.source));
+  // Whatever the provider needs back to narrow the details down to this exact result
+  // (the searched ISBN's edition for books), forwarded to getDetails() as is.
+  if (item.confirmQuery && typeof item.confirmQuery === 'object') {
+    for (const [key, value] of Object.entries(item.confirmQuery)) {
+      if (['type', 'barcode', 'source'].includes(key) || value === undefined || value === null) continue;
+      params.set(key, String(value));
+    }
+  }
+  const qs = params.toString();
+  return `/confirm-${pluginId}/${externalId}${qs ? '?' + qs : ''}`;
+}
+
+/**
  * Returns true when a search query looks like a scanned product barcode.
  */
 export function isBarcodeQuery(query: string): boolean {
@@ -277,6 +309,30 @@ export function isBarcodeQuery(query: string): boolean {
  */
 export function escapeRegExp(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// The named entities external databases actually send in their texts.
+const HTML_ENTITIES: Record<string, string> = {
+  nbsp: ' ', mdash: '—', ndash: '–', hellip: '…',
+  lsquo: '‘', rsquo: '’', ldquo: '“', rdquo: '”',
+  amp: '&', lt: '<', gt: '>', quot: '"', apos: "'"
+};
+
+/**
+ * Turns the HTML entities of a text an external database sent already escaped (`&quot;`,
+ * `&#10;`) back into the characters they stand for. The views escape what they print,
+ * so a text stored still escaped would reach the reader as `&quot;` in plain sight.
+ * One pass only: `&amp;quot;` becomes `&quot;`, never a quote.
+ */
+export function decodeHtmlEntities(text: string): string {
+  return text.replace(/&(?:#(\d+)|#x([0-9a-fA-F]+)|([a-z]+));/g, (entity, dec, hex, name) => {
+    if (dec || hex) {
+      const code = parseInt(dec || hex, dec ? 10 : 16);
+      // Past the last code point there is no character to give back.
+      return code <= 0x10ffff ? String.fromCodePoint(code) : entity;
+    }
+    return HTML_ENTITIES[name] ?? entity;
+  });
 }
 
 /** Separators a CSV export in the wild may use, in detection order. */
@@ -395,6 +451,50 @@ export function stringifyCsv(rows: string[][]): string {
     return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
   };
   return rows.map(row => row.map(escapeCell).join(',')).join('\r\n');
+}
+
+/**
+ * True protocol DVinyl is served over. Trusts the operator's own PROD flag over
+ * req.protocol, which depends on the reverse proxy correctly forwarding
+ * X-Forwarded-Proto - a single misconfigured proxy hop otherwise silently downgrades
+ * a generated absolute URL (share link, QR code, item label) to http.
+ */
+export function getPublicProtocol(req: any): string {
+  return process.env.PROD === 'true' ? 'https' : req.protocol;
+}
+
+/**
+ * Renders an item's stored barcode (whatever a scan or a manual entry left in it) as a
+ * scannable Code128 image, base64-encoded for direct embedding in a label view.
+ *
+ * Code128 over EAN-13/UPC-A: the barcode field holds whatever was scanned or typed,
+ * which is not always a clean 12/13-digit retail code (an ISBN-10, a manually corrected
+ * value, an import artifact). Code128 encodes any of that without a digit-count or
+ * checksum requirement that would otherwise reject it. Returns null rather than
+ * throwing so one unprintable value skips its barcode instead of failing the label.
+ */
+export async function generateBarcodeDataUrl(value: string): Promise<string | null> {
+  try {
+    const png = await bwipjs.toBuffer({
+      bcid: 'code128',
+      text: value,
+      scale: 3,
+      height: 10,
+      includetext: true,
+      textxalign: 'center',
+      // Without an explicit background, bwip-js leaves the PNG's background
+      // transparent (alpha 0) rather than opaque white. That renders fine on
+      // screen over a light page, but a scanner reading the raw pixels (zbar,
+      // and likely some dedicated barcode readers) fails to detect the symbol
+      // at all against transparency - confirmed by testing this exact output
+      // against zbarimg before and after adding this option.
+      backgroundcolor: 'FFFFFF',
+    });
+    return `data:image/png;base64,${png.toString('base64')}`;
+  } catch (err: any) {
+    console.warn(`[LABELS] Barcode generation failed for "${value}":`, err.message);
+    return null;
+  }
 }
 
 /**

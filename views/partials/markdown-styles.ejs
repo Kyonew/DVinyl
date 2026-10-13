@@ -1,0 +1,53 @@
+<%# Renders the HTML produced by core/markdown.ts. The renderer emits plain semantic
+    tags and no classes at all, so everything it can produce is styled here, once, and
+    the info page and its editor preview read exactly the same. %>
+<style>
+    .dv-markdown { line-height: 1.7; }
+    .dv-markdown > *:first-child { margin-top: 0; }
+    .dv-markdown > *:last-child { margin-bottom: 0; }
+    .dv-markdown h1,
+    .dv-markdown h2,
+    .dv-markdown h3,
+    .dv-markdown h4,
+    .dv-markdown h5,
+    .dv-markdown h6 { font-weight: 800; line-height: 1.25; margin: 1.8em 0 0.6em; }
+    .dv-markdown h1 { font-size: 1.75rem; }
+    .dv-markdown h2 { font-size: 1.4rem; }
+    .dv-markdown h3 { font-size: 1.15rem; }
+    .dv-markdown h4,
+    .dv-markdown h5,
+    .dv-markdown h6 { font-size: 1rem; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.75; }
+    .dv-markdown p { margin: 0 0 1.1em; }
+    .dv-markdown a { color: var(--highlight); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+    .dv-markdown a:hover { filter: brightness(1.15); }
+    .dv-markdown strong { font-weight: 800; }
+    .dv-markdown ul,
+    .dv-markdown ol { margin: 0 0 1.1em; padding-left: 1.4em; }
+    .dv-markdown ul { list-style: disc; }
+    .dv-markdown ol { list-style: decimal; }
+    .dv-markdown li { margin: 0.25em 0; }
+    .dv-markdown blockquote {
+        margin: 0 0 1.1em;
+        padding: 0.6em 1.1em;
+        border-left: 3px solid var(--highlight);
+        background: rgb(var(--highlight-rgb) / 0.07);
+        border-radius: 0 0.9rem 0.9rem 0;
+    }
+    .dv-markdown blockquote p { margin: 0; }
+    .dv-markdown code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.875em;
+        padding: 0.15em 0.4em;
+        border-radius: 0.4rem;
+        background: rgb(127 127 127 / 0.15);
+    }
+    .dv-markdown pre {
+        margin: 0 0 1.1em;
+        padding: 1em 1.2em;
+        border-radius: 1rem;
+        overflow-x: auto;
+        background: rgb(127 127 127 / 0.12);
+    }
+    .dv-markdown pre code { padding: 0; background: none; }
+    .dv-markdown hr { margin: 2em 0; border: 0; border-top: 1px solid var(--border-color); }
+</style>

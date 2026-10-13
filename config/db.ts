@@ -12,7 +12,7 @@ import mongoose from 'mongoose';
 const MONGODB_URL = process.env.MONGODB_URL;
 
 if (!MONGODB_URL) {
-  throw new Error("The environement variable MONDODB_URL is missing.");
+  throw new Error("The environment variable MONGODB_URL is missing.");
 }
 
 export const connectDB = async () => {

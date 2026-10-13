@@ -1,0 +1,15 @@
+<%# Move up / move down / take out, for one line of a list. Wired by views/list.ejs. %>
+<div class="flex items-center gap-0.5 shrink-0 justify-end">
+    <button type="button" data-list-move="up" title="<%= t('lists.move_up') %>" aria-label="<%= t('lists.move_up') %>"
+        class="w-8 h-8 rounded-lg opacity-40 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/10 transition-all">
+        <i class="fa-solid fa-chevron-up text-xs"></i>
+    </button>
+    <button type="button" data-list-move="down" title="<%= t('lists.move_down') %>" aria-label="<%= t('lists.move_down') %>"
+        class="w-8 h-8 rounded-lg opacity-40 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/10 transition-all">
+        <i class="fa-solid fa-chevron-down text-xs"></i>
+    </button>
+    <button type="button" data-list-remove title="<%= t('lists.remove') %>" aria-label="<%= t('lists.remove') %>"
+        class="w-8 h-8 rounded-lg opacity-40 hover:opacity-100 hover:text-red-500 hover:bg-red-500/10 transition-all">
+        <i class="fa-solid fa-xmark text-xs"></i>
+    </button>
+</div>

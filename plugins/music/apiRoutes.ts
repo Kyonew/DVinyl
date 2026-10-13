@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { PluginApiRoute } from '../../core/types';
 import Item from '../../models/Item';
+import PriceHistory from '../../models/PriceHistory';
 import { editStamp } from '../../core/helpers';
 
 const fetchJson = async (url: string, options?: RequestInit): Promise<any> => {
@@ -128,34 +129,106 @@ async function getEstimate(req: any, res: any) {
   }
 }
 
-
-// DISCOGS IMAGE GALLERY (secondary "disc" image search in the item editor)
-async function searchDiscogsGallery(req: any, res: any) {
+// SAVE A COLLECTION VALUE SNAPSHOT (called client-side after the Estimate modal finishes)
+async function saveEstimateSnapshot(req: any, res: any) {
   try {
-    let { q } = req.query;
-    q = typeof q === 'string' ? q.trim() : '';
-    const headers = {
-      'User-Agent': 'DVinylApp/2.0',
-      Authorization: `Discogs token=${process.env.DISCOGS_TOKEN || ''}`,
-    };
+    const { value, minValue, maxValue, itemCount } = req.body || {};
 
-    const searchRes = await fetchJson(
-      `https://api.discogs.com/database/search?q=${encodeURIComponent(q)}&type=release&per_page=3`,
-      { headers }
-    );
-    const results = searchRes.results || [];
-    const galleryPromises = results.map(async (item: any) => {
-      try {
-        const detail = await fetchJson(`https://api.discogs.com/releases/${item.id}`, { headers });
-        return (detail.images || []).map((img: any) => img.resource_url);
-      } catch (e) {
-        return [];
-      }
+    if (
+      typeof value !== 'number' || typeof minValue !== 'number' ||
+      typeof maxValue !== 'number' || typeof itemCount !== 'number'
+    ) {
+      return res.status(400).json({ success: false, error: 'invalid_payload' });
+    }
+
+    // Stamped here rather than taken from the payload: getEstimate above asks Discogs for
+    // prices in this same setting, so it is the currency the numbers are actually in, and
+    // reading the history back uses the same source. A client sending its own value could
+    // otherwise file a snapshot under a currency the reader never looks for.
+    const currency = res.locals.user.currency || 'USD';
+
+    await PriceHistory.create({
+      collection: res.locals.activeCollectionId,
+      value,
+      minValue,
+      maxValue,
+      currency,
+      itemCount
     });
 
-    const allGalleries = await Promise.all(galleryPromises);
-    const finalImages = [...new Set(allGalleries.flat())];
-    res.json(finalImages);
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('[ERR] saveEstimateSnapshot:', err.message);
+    res.status(500).json({ success: false, error: 'server_error' });
+  }
+}
+
+// COLLECTION VALUE HISTORY (chart data source)
+async function getEstimateHistory(req: any, res: any) {
+  try {
+    // History is collection-scoped but the estimate runs in the currency of whoever asked
+    // for it, so a collection whose members differ on that holds several series at once.
+    // Only the reader's own is returned: nothing here converts between currencies, and
+    // drawing them as one line would invent a trend that never happened.
+    const currency = res.locals.user.currency || 'USD';
+    const collection = res.locals.activeCollectionId;
+
+    const snapshots = await PriceHistory.find({ collection, currency })
+      .sort({ capturedAt: 1 })
+      .select('capturedAt value minValue maxValue currency itemCount -_id')
+      .lean();
+
+    // What the scope above left out, so the page can say the history exists in another
+    // currency instead of the "run it twice" invitation meant for a collection with none.
+    const otherCurrencies = await PriceHistory.distinct('currency', {
+      collection,
+      currency: { $ne: currency }
+    });
+
+    res.json({ success: true, currency, snapshots, otherCurrencies });
+  } catch (err: any) {
+    console.error('[ERR] getEstimateHistory:', err.message);
+    res.status(500).json({ success: false, error: 'server_error' });
+  }
+}
+
+
+// DISCOGS IMAGE GALLERY
+//
+// Not the same pictures as a cover search: this walks the top release matches and returns
+// every image each one holds, which for a record means the back, the labels, the inner
+// sleeve and the vinyl itself. What a collector of the physical object actually wants,
+// and why music has always had a second image service behind the first.
+export async function discogsGalleryImages(query: string): Promise<string[]> {
+  const headers = {
+    'User-Agent': 'DVinylApp/2.0',
+    Authorization: `Discogs token=${process.env.DISCOGS_TOKEN || ''}`,
+  };
+
+  const searchRes = await fetchJson(
+    `https://api.discogs.com/database/search?q=${encodeURIComponent(query)}&type=release&per_page=3`,
+    { headers }
+  );
+
+  const galleries = await Promise.all((searchRes.results || []).map(async (item: any) => {
+    try {
+      const detail = await fetchJson(`https://api.discogs.com/releases/${item.id}`, { headers });
+      return (detail.images || []).map((img: any) => img.resource_url);
+    } catch (e) {
+      // One release refusing to load is not worth losing the other two over.
+      return [];
+    }
+  }));
+
+  return [...new Set(galleries.flat())];
+}
+
+// Kept as an endpoint of its own: it is what secondaryImageSearchPath used to point at,
+// and a third-party plugin or an instance still declaring that path reaches it here.
+async function searchDiscogsGallery(req: any, res: any) {
+  try {
+    const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    res.json(await discogsGalleryImages(q));
   } catch (err: any) {
     console.error('[ERR] Discogs Global Gallery:', err.message);
     res.status(500).json({ error: 'ERROR Discogs search' });
@@ -310,7 +383,9 @@ export const musicApiRoutes: PluginApiRoute[] = [
   { method: 'get', path: '/api/collection/ids', handler: getCollectionIds },
   { method: 'post', path: '/api/album/:id/track/:trackId/meta', requireEditor: true, handler: updateTrackMeta },
   { method: 'get', path: '/api/album/:id/track/:trackId/lyrics', handler: getTrackLyrics },
+  { method: 'get', path: '/api/estimate/history', handler: getEstimateHistory },
   { method: 'get', path: '/api/estimate/:discogsId', handler: getEstimate },
+  { method: 'post', path: '/api/estimate/snapshot', requireEditor: true, handler: saveEstimateSnapshot },
   { method: 'get', path: '/api/search-discogs-gallery', requireAdmin: true, handler: searchDiscogsGallery },
   { method: 'post', path: '/api/batch-update-barcodes', requireAdmin: true, handler: batchUpdateBarcodes }
 ];

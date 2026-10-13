@@ -55,7 +55,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>DVinyl</title>
   
-  <script src="https://cdn.tailwindcss.com"></script>
+  <%# Served from the instance rather than cdn.tailwindcss.com. The Play CDN is a
+      script that has to run before a single utility class exists, so anything that
+      stops it reaching the browser - an ad blocker, a DNS filter, a company network,
+      or simply an install with no outbound internet - leaves every page here with no
+      layout at all (issue #133). Same build, same runtime config below. %>
+  <script src="<%= baseUrl %>/vendor/tailwind-3.4.17.min.js"></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -82,8 +87,12 @@
     };
   </script>
 
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/1.6.5/flowbite.min.js"></script>
+  <%# Both served from the instance, for the same reason as Tailwind above: an ad blocker, a
+      DNS filter or an instance with no outbound access takes them out, and every icon in the
+      interface is a Font Awesome glyph while every dropdown and modal is driven by Flowbite.
+      See public/vendor/README.md for how to update them. %>
+  <link rel="stylesheet" href="<%= baseUrl %>/vendor/font-awesome-6.7.2/css/all.min.css">
+  <script src="<%= baseUrl %>/vendor/flowbite-1.6.5.min.js"></script>
   <link rel="icon" type="image/png" href="<%= baseUrl %>/ressources/logo.png">
 
   <style>
@@ -159,7 +168,7 @@
   </div>
 
   <nav class="nav-custom transition-colors duration-300">
-      <div class="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto p-4">
+      <div class="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto px-2.5 py-4 sm:p-4">
       
       <a href="<%= baseUrl || '/' %>" class="flex items-center space-x-3 group">
         <img src="<%= baseUrl %>/ressources/logo.png" alt="Logo" class="h-8 w-8 rounded-full object-cover group-hover:rotate-12 transition-transform">
@@ -292,9 +301,13 @@
           <%
             // Global shortcuts plus shortcuts declared by each plugin (navbarShortcuts)
             const shortcutConfig = {
-                'global_home': { label: t('nav.home'), url: '/' },
+                // Its own path, not '/': that one lands wherever the user chose, which
+                // may be the collection, and the dashboard would then have no entry.
+                'global_home': { label: t('nav.home'), url: '/dashboard' },
                 'global_collection': { label: t('nav.collection'), url: '/collection' },
-                'global_wishlist': { label: t('nav.wishlist'), url: '/wishlist' }
+                'global_wishlist': { label: t('nav.wishlist'), url: '/wishlist' },
+                'global_info': { label: t('collection_info.title'), url: '/info' },
+                'global_lists': { label: t('lists.title'), url: '/lists' }
             };
             if (typeof registry !== 'undefined' && registry) {
                 registry.getAll().forEach(p => {
@@ -314,7 +327,10 @@
                 : null;
 
             function shortcutAllowed(id, item) {
-                if (locals.isShareView && (id === 'global_home' || id === 'global_wishlist')) return false;
+                if (locals.isShareView && (id === 'global_home' || id === 'global_wishlist' || id === 'global_lists')) return false;
+                // Chosen once for the whole collection, but the page it opens can be off,
+                // empty or kept from the share links: the shortcut follows it.
+                if (id === 'global_info') return isCollectionInfoVisible(locals.activeCollection, locals.isShareView);
                 if (!shareScopeMap) return true;
                 if (!item.pluginId) return true;
                 if (!shareScopeMap.has(item.pluginId)) return false;
@@ -330,7 +346,9 @@
               settings.navbarShortcuts.forEach(id => {
                 const item = shortcutConfig[id];
                 if (item && shortcutAllowed(id, item)) {
-                  const isModuleActive = item.module ? settings.modules[item.module] : true;
+                  const isModuleActive = item.module
+                    ? Boolean(settings && settings.modules && (settings.modules instanceof Map ? settings.modules.get(item.module) : settings.modules[item.module]))
+                    : true;
 
                   if (isModuleActive) { %>
                     <li>
@@ -445,4 +463,4 @@
     });
   </script>
 
-  <main class="p-6 flex-1">
+  <main class="px-2.5 py-6 sm:p-6 flex-1">

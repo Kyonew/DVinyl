@@ -1,44 +1,116 @@
 import express from 'express';
 import mongoose from 'mongoose';
+import multer from 'multer';
+import os from 'os';
+import { promises as fs } from 'fs';
 import Item from '../models/Item';
 import User from '../models/User';
 import LoginLog from '../models/LoginLog';
 import Settings from '../models/Settings';
 import Collection from '../models/Collection';
 import CustomPlugin from '../models/CustomPlugin';
+import PriceHistory from '../models/PriceHistory';
 import InstanceSettings from '../models/InstanceSettings';
+import Furniture from '../models/Furniture';
+import List from '../models/List';
 import { invalidateInstanceSettingsCache } from '../utils/instanceSettings';
 import { requireAuth, requireAdmin, requireCollectionRole } from '../middleware/authMiddleware';
 import { registry } from '../core/registry';
-import { buildSortTitle, stringifyCsv } from '../core/helpers';
+import { buildSortTitle, stringifyCsv, getPublicProtocol } from '../core/helpers';
 import { importableFields, fieldValue, ImportTargetField } from '../core/csvMapping';
 
 // Stamped into every dump so a restore log says which build produced the file.
 // Read from package.json rather than copied, which is how it came to say 3.1.0 on 3.1.1.
 const pkg = require('../package.json');
 import { migrateDatabase, normalizeThemePresets } from '../utils/migrate';
+import { migrateExtraFieldIdentities } from '../utils/migrateExtraFieldIdentities';
+import { seedFurnitureFromLocations } from '../core/shelfStore';
+import { findDuplicateCellKey } from '../utils/shelfHelpers';
+import { collectionInfoFromBackup, collectionInfoOf } from '../core/collectionInfo';
 import { applyCustomPluginsFromDB } from '../core/customPluginSync';
 import { collectExtraDateFields, reviveExtraDates } from '../core/pluginExtraFields';
+import { deleteUnusedManagedItemImages, managedItemImageFile, managedItemImagesForQuery } from '../core/itemImageStorage';
+import { MAX_BACKUP_UPLOAD_BYTES, readBackupArchive, sendBackupArchive } from '../core/backupArchive';
+import { BASE_URL } from '../config/constants';
 
 const router = express.Router();
+const backupArchiveUpload = multer({
+    dest: os.tmpdir(),
+    limits: { files: 1, fileSize: MAX_BACKUP_UPLOAD_BYTES }
+});
+
+const requireInstanceImportAccess = async (req: any, res: any, next: any) => {
+    try {
+        const userCount = await User.countDocuments();
+        if (userCount === 0 || res.locals.user?.isAdmin) return next();
+        console.warn(`[SECURITY] import unauthorized : ${req.ip}`);
+        return res.status(403).json({ error: 'Import unauthorized.' });
+    } catch (err) {
+        next(err);
+    }
+};
+
+const receiveBackupArchive = (req: any, res: any, next: any) => {
+    backupArchiveUpload.single('backup')(req, res, (err: any) => {
+        if (!err) return next();
+        const tooLarge = err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE';
+        return res.status(tooLarge ? 413 : 400).json({ error: tooLarge ? 'Backup archive too large' : 'Invalid backup archive' });
+    });
+};
+
+const loadBackupArchive = async (req: any, res: any, next: any) => {
+    if (!req.file?.path) return res.status(400).json({ error: 'Backup archive missing' });
+    try {
+        const imported = await readBackupArchive(req.file.path);
+        req.body = imported.data;
+        req.importedManagedImagePaths = imported.importedImages;
+        next();
+    } catch (err) {
+        console.warn('[BACKUP] Invalid archive:', err);
+        res.status(400).json({ error: 'Backup archive corrupted or invalid' });
+    } finally {
+        try {
+            await fs.unlink(req.file.path);
+        } catch (err: any) {
+            if (err?.code !== 'ENOENT') console.warn('[BACKUP] Temporary archive cleanup failed:', err);
+        }
+    }
+};
+
+async function cleanupImportedImages(req: any): Promise<void> {
+    const images = Array.isArray(req.importedManagedImagePaths) ? req.importedManagedImagePaths : [];
+    if (images.length === 0) return;
+    try {
+        await deleteUnusedManagedItemImages(images);
+    } catch (err) {
+        console.warn('[BACKUP] Imported image cleanup failed:', err);
+    }
+}
 
 // ============ WHOLE-INSTANCE BACKUP (instance admin) ============
 
+async function buildInstanceBackup(): Promise<any> {
+    return {
+        users: await User.find({}).lean(),
+        albums: await Item.find({}).lean(),
+        logs: await LoginLog.find({}).lean(),
+        settings: await Settings.find({}).lean(),
+        collections: await Collection.find({}).lean(),
+        furniture: await Furniture.find({}).lean(),
+        lists: await List.find({}).lean(),
+        customPlugins: await CustomPlugin.find({}).lean(),
+        priceHistory: await PriceHistory.find({}).lean(),
+        instanceSettings: await InstanceSettings.findOne({ key: 'instance' }).lean(),
+        metadata: {
+            version: pkg.version,
+            date: new Date()
+        }
+    };
+}
+
 router.get('/export', requireAuth, requireAdmin, async (req, res) => {
     try {
-        const data = {
-            users: await User.find({}).lean(),
-            albums: await Item.find({}).lean(),
-            logs: await LoginLog.find({}).lean(),
-            settings: await Settings.find({}).lean(),
-            collections: await Collection.find({}).lean(),
-            customPlugins: await CustomPlugin.find({}).lean(),
-            instanceSettings: await InstanceSettings.findOne({ key: 'instance' }).lean(),
-            metadata: {
-                version: pkg.version,
-                date: new Date()
-            }
-        };
+        const data = await buildInstanceBackup();
 
         const fileName = `dvinyl_instance_${new Date().toISOString().split('T')[0]}.json`;
         console.log(`[BACKUP] Instance export: ${data.users.length} user(s), ${data.albums.length} item(s), ${data.collections.length} collection(s)`);
@@ -51,6 +123,19 @@ router.get('/export', requireAuth, requireAdmin, async (req, res) => {
     }
 });
 
+router.get('/export-archive', requireAuth, requireAdmin, async (req, res) => {
+    try {
+        const data = await buildInstanceBackup();
+        const fileName = `dvinyl_instance_${new Date().toISOString().split('T')[0]}.zip`;
+        console.log(`[BACKUP] Instance archive export: ${data.users.length} user(s), ${data.albums.length} item(s), ${data.collections.length} collection(s)`);
+        await sendBackupArchive(res, data, fileName);
+    } catch (err) {
+        console.error('[BACKUP] Instance archive export failed:', err);
+        if (!res.headersSent) res.status(500).send('Export failed');
+        else res.destroy(err as Error);
+    }
+});
+
 /**
  * POST /import - whole-instance restore (wipe & replace).
  * Supports three dump generations:
@@ -59,21 +144,8 @@ router.get('/export', requireAuth, requireAdmin, async (req, res) => {
  *    fields are stripped and the boot migration is re-run to rebuild a default
  *    collection and re-stamp everything.
  */
-router.post('/import', async (req, res) => {
+const importInstanceBackup = async (req: any, res: any) => {
     try {
-        const userCount = await User.countDocuments();
-
-        if (userCount > 0) {
-            const currentUser = res.locals.user;
-
-            if (!currentUser || !currentUser.isAdmin) {
-                console.warn(`[SECURITY] import unauthorized : ${req.ip}`);
-                return res.status(403).json({
-                    error: "Import unauthorized."
-                });
-            }
-        }
-
         // Setup
         let data = req.body;
 
@@ -81,15 +153,39 @@ router.post('/import', async (req, res) => {
             try {
                 data = typeof data.backupData === 'string' ? JSON.parse(data.backupData) : data.backupData;
             } catch (e) {
+                await cleanupImportedImages(req);
                 return res.status(400).json({ error: "Invalid JSON format" });
             }
         }
 
-        if (!data || (!data.users && !data.albums)) {
+        if (!data || (!Array.isArray(data.users) && !Array.isArray(data.albums))) {
+            await cleanupImportedImages(req);
             return res.status(400).json({ error: "Backup file missing required fields" });
         }
 
+        // A collection's own backup (what a collection's admin page exports) carries no
+        // accounts. Restored here, it would wipe every user and every other collection and
+        // leave its items in none, with nobody left able to sign in. Refused before
+        // anything is touched, with a message saying where it goes instead.
+        const isCollectionDump = typeof data.collectionName === 'string' || data.metadata?.type === 'collection';
+        if (isCollectionDump || !Array.isArray(data.users) || data.users.length === 0) {
+            await cleanupImportedImages(req);
+            return res.status(400).json({
+                error: "Collection backup (no user accounts) posted to the instance import",
+                userMessage: req.t('admin.backup.error_collection_dump')
+            });
+        }
+
         const hasCollections = Array.isArray(data.collections) && data.collections.length > 0;
+        // Lists name items by id, and a whole-instance restore keeps every id as it was, so
+        // they go back untouched. Settled here, before the wipe.
+        const listsToRestore = hasCollections ? restorableLists(data.lists, list => list) : [];
+        const replacedImagePaths = await managedItemImagesForQuery({});
+        // The wipe below takes the info pages with it, so their uploads are candidates
+        // for release too, exactly like the items' own images.
+        for (const current of await Collection.find({}).select('info.images').lean()) {
+            replacedImagePaths.push(...collectionInfoOf(current).images);
+        }
 
         console.log(`[BACKUP] Instance import started (dump version ${data.metadata?.version || 'unknown'}, ${hasCollections ? 'with' : 'without'} collections): ${data.users?.length || 0} user(s), ${data.albums?.length || 0} item(s). Wiping current data...`);
 
@@ -99,7 +195,10 @@ router.post('/import', async (req, res) => {
             User.deleteMany({}),
             Settings.deleteMany({}),
             Collection.deleteMany({}),
+            Furniture.deleteMany({}),
+            List.deleteMany({}),
             CustomPlugin.deleteMany({}),
+            PriceHistory.deleteMany({}),
             InstanceSettings.deleteMany({})
         ]);
         // The singleton is cached in memory; the wipe above must not leave a stale copy
@@ -110,11 +209,45 @@ router.post('/import', async (req, res) => {
             await Collection.insertMany(data.collections);
         }
 
+        // Furniture belongs to a collection, so it only means anything alongside them.
+        if (hasCollections && Array.isArray(data.furniture) && data.furniture.length > 0) {
+            const toId = (v: any) => (typeof v === 'string' && mongoose.Types.ObjectId.isValid(v))
+                ? new mongoose.Types.ObjectId(v) : v;
+            // Cast back to their BSON types like the items below: the native insert skips the
+            // schema, and `created_at` orders the pieces of one collection after `order`.
+            await Furniture.collection.insertMany(data.furniture.map((piece: any) => ({
+                ...piece,
+                _id: toId(piece._id),
+                collection: toId(piece.collection),
+                createdBy: piece.createdBy ? toId(piece.createdBy) : undefined,
+                ...(piece.created_at ? { created_at: new Date(piece.created_at) } : {}),
+                ...(piece.updated_at ? { updated_at: new Date(piece.updated_at) } : {})
+            })));
+        }
+
+        // Whether the migration below still has free-text locations to turn into shelves.
+        // A dump that carries a furniture list, even an empty one, comes from an instance
+        // where that already happened: its collections hold the shelves they want, and an
+        // empty list is furniture taken down on purpose, which stays that way. Whatever
+        // flag each collection was dumped with is not trusted for this, since one created
+        // after its instance's last boot could carry it unset. A dump from before the
+        // shelves carries no list at all: its collections are handed to the migration,
+        // which rebuilds the shelves from those very locations.
+        if (hasCollections) {
+            await Collection.updateMany({}, { $set: { shelvesSeeded: Array.isArray(data.furniture) } });
+        }
+
+        // Inserted through the model so the ids a JSON dump carries as strings are cast
+        // back to ObjectIds.
+        if (listsToRestore.length > 0) {
+            await List.insertMany(listsToRestore);
+        }
+
         if (data.users && data.users.length > 0) {
             const cleanUsers = hasCollections
                 ? data.users
                 : data.users.map((u: any) => {
-                    const { lastActiveCollectionId, ...rest } = u;
+                    const { lastActiveCollectionId, homeCollectionId, ...rest } = u;
                     return rest;
                 });
             await User.insertMany(cleanUsers);
@@ -164,6 +297,22 @@ router.post('/import', async (req, res) => {
             await LoginLog.insertMany(data.logs);
         }
 
+        // Value snapshots are collection-scoped, so a dump restored without its collections
+        // has nothing for them to describe: they are dropped rather than left pointing at
+        // ids this instance does not have. A dump older than the feature simply has none.
+        if (hasCollections && Array.isArray(data.priceHistory) && data.priceHistory.length > 0) {
+            const toId = (v: any) => (typeof v === 'string' && mongoose.Types.ObjectId.isValid(v))
+                ? new mongoose.Types.ObjectId(v) : v;
+            const cleanHistory = data.priceHistory.map((snapshot: any) => {
+                const fixed: any = { ...snapshot };
+                if (fixed._id) fixed._id = toId(fixed._id);
+                if (fixed.collection) fixed.collection = toId(fixed.collection);
+                if (fixed.capturedAt) fixed.capturedAt = new Date(fixed.capturedAt);
+                return fixed;
+            });
+            await PriceHistory.collection.insertMany(cleanHistory);
+        }
+
         // v3.1 exports settings as an array (one per collection); older dumps as one object
         const settingsDocs = Array.isArray(data.settings)
             ? data.settings
@@ -206,6 +355,16 @@ router.post('/import', async (req, res) => {
         // Reconcile no-code plugins with the freshly imported DB: re-materialize the
         // plugins/<id>/ folders and hot-register them, pruning any from the old instance.
         await applyCustomPluginsFromDB();
+        await upgradeRestoredExtraFields();
+
+        // A JSON restore can keep paths already present on this installation, while a ZIP
+        // restore has already rewritten its files to fresh paths. In both cases, remove only
+        // files that the replacement no longer references.
+        try {
+            await deleteUnusedManagedItemImages(replacedImagePaths);
+        } catch (cleanupError) {
+            console.warn('[ITEM IMAGE] Post-import cleanup failed:', cleanupError);
+        }
 
         const restoredCollectionCount = await Collection.countDocuments();
         console.log(`[BACKUP] Instance import finished: ${restoredCollectionCount} collection(s) rebuilt, ${await Item.countDocuments()} item(s) restored`);
@@ -222,25 +381,31 @@ router.post('/import', async (req, res) => {
 
     } catch (err: any) {
         console.error("[ERR] Import :", err);
+        await cleanupImportedImages(req);
         res.status(500).json({ error: err.message });
     }
-});
+};
+
+router.post('/import', requireInstanceImportAccess, importInstanceBackup);
+router.post(
+    '/import-archive',
+    requireInstanceImportAccess,
+    receiveBackupArchive,
+    loadBackupArchive,
+    importInstanceBackup
+);
 
 // ============ PER-COLLECTION BACKUP (collection admin) ============
 
-router.get('/collection/export', requireAuth, requireCollectionRole('admin'), async (req: any, res: any) => {
-    try {
-        const activeCollectionId = res.locals.activeCollectionId;
-        const collection = res.locals.activeCollection;
+async function buildCollectionBackup(activeCollectionId: any, collection: any): Promise<any> {
+    const settings = await Settings.findOne({ collection: activeCollectionId }).lean() as any;
+    if (settings) {
+        delete settings._id;
+        delete settings.collection;
+        delete settings.__v;
+    }
 
-        const settings = await Settings.findOne({ collection: activeCollectionId }).lean() as any;
-        if (settings) {
-            delete settings._id;
-            delete settings.collection;
-            delete settings.__v;
-        }
-
-        const albums = (await Item.find({ collection: activeCollectionId }).lean()).map((a: any) => {
+    const albums = (await Item.find({ collection: activeCollectionId }).lean()).map((a: any) => {
             // Owner and collection are re-stamped at import time (a dump may be restored
             // into another collection, or another instance), so they go. The id stays: a
             // season points at the show that holds it, and the import can only rebuild
@@ -248,18 +413,45 @@ router.get('/collection/export', requireAuth, requireCollectionRole('admin'), as
             // the import draws a new one and rewrites the links against it.
             const { __v, owner, collection, ...rest } = a;
             return rest;
-        });
+    });
 
-        const data = {
-            collectionName: collection?.name || 'Collection',
-            albums,
-            settings: settings || null,
-            metadata: {
-                version: pkg.version,
-                type: "collection",
-                date: new Date()
-            }
-        };
+    // Stripped of what the import re-stamps. Everything a shelf is made of is its name
+    // and its place in the grid, and the items find it by name, so nothing else is needed
+    // for the restore to put the collection back exactly as it stood.
+    const furniture = (await Furniture.find({ collection: activeCollectionId }).lean()).map((piece: any) => {
+        const { _id, __v, collection: owner, createdBy, created_at, updated_at, ...rest } = piece;
+        return rest;
+    });
+
+    // Kept with the item ids they point at: the import draws new ids for the items and
+    // rewrites these against them, like it does for a season and its show.
+    const lists = (await List.find({ collection: activeCollectionId }).lean()).map((list: any) => {
+        const { _id, __v, collection: owner, createdBy, ...rest } = list;
+        return rest;
+    });
+
+    return {
+        collectionName: collection?.name || 'Collection',
+        albums,
+        furniture,
+        lists,
+        // The collection's own page travels with it: it is written about these items,
+        // and its pictures are picked up by the archive alongside theirs.
+        info: collectionInfoOf(collection),
+        settings: settings || null,
+        metadata: {
+            version: pkg.version,
+            type: 'collection',
+            date: new Date()
+        }
+    };
+}
+
+router.get('/collection/export', requireAuth, requireCollectionRole('admin'), async (req: any, res: any) => {
+    try {
+        const activeCollectionId = res.locals.activeCollectionId;
+        const collection = res.locals.activeCollection;
+        const data = await buildCollectionBackup(activeCollectionId, collection);
 
         const slug = collection?.slug || 'collection';
         const fileName = `dvinyl_collection-${slug}_${new Date().toISOString().split('T')[0]}.json`;
@@ -269,6 +461,21 @@ router.get('/collection/export', requireAuth, requireCollectionRole('admin'), as
     } catch (err) {
         console.error("[ERR] Collection export:", err);
         res.status(500).send("Export failed");
+    }
+});
+
+router.get('/collection/export-archive', requireAuth, requireCollectionRole('admin'), async (req: any, res: any) => {
+    try {
+        const activeCollectionId = res.locals.activeCollectionId;
+        const collection = res.locals.activeCollection;
+        const data = await buildCollectionBackup(activeCollectionId, collection);
+        const slug = collection?.slug || 'collection';
+        const fileName = `dvinyl_collection-${slug}_${new Date().toISOString().split('T')[0]}.zip`;
+        await sendBackupArchive(res, data, fileName);
+    } catch (err) {
+        console.error('[BACKUP] Collection archive export failed:', err);
+        if (!res.headersSent) res.status(500).send('Export failed');
+        else res.destroy(err as Error);
     }
 });
 
@@ -348,12 +555,21 @@ router.get('/collection/export-csv', requireAuth, requireCollectionRole('admin')
 
         const header = [typeLabel, ...columns.map(c => c.label), wishlistLabel];
 
+        // An image uploaded from an item form is stored as a portable `/uploads/items/...`
+        // path, which is what the item document and the ZIP archive want: neither is tied
+        // to the address this instance answers on. A spreadsheet is read outside the app,
+        // where that path resolves nowhere, so the column headed "Cover (URL)" is given the
+        // absolute URL this deployment actually serves the file at. Linked images already
+        // carry their own absolute URL and are handed through untouched.
+        const publicOrigin = `${getPublicProtocol(req)}://${req.get('host')}${BASE_URL.replace(/\/+$/, '')}`;
+        const asPublicUrl = (value: string) => (managedItemImageFile(value) ? `${publicOrigin}${value}` : value);
+
         const rows: string[][] = [header];
         for (const album of albums) {
             const kind = String((album as any).kind || '');
             const plugin = registry.getByKind(kind);
             const typeName = plugin ? req.t(plugin.label, { defaultValue: plugin.id }) : kind;
-            const cells = columns.map(c => (c.kinds.has(kind) ? fieldValue(album, c.field) : ''));
+            const cells = columns.map(c => (c.kinds.has(kind) ? asPublicUrl(fieldValue(album, c.field)) : ''));
             rows.push([typeName, ...cells, (album as any).in_wishlist ? 'true' : 'false']);
         }
 
@@ -372,11 +588,101 @@ router.get('/collection/export-csv', requireAuth, requireCollectionRole('admin')
 });
 
 /**
+ * The custom-field identity upgrade, run on data a restore has just finished writing.
+ * Logged rather than thrown: the restore itself went through, and reporting it as failed
+ * would also release the images the archive brought in for it. The migration is
+ * idempotent, so the next boot takes it up again.
+ */
+async function upgradeRestoredExtraFields(options: { collectionId?: any } = {}): Promise<void> {
+    try {
+        await migrateExtraFieldIdentities(options);
+    } catch (err) {
+        console.error('[BACKUP] Custom field identity migration failed after the restore:', err);
+    }
+}
+
+/**
+ * The furniture a collection restore puts back as it is, or null when the shelves have
+ * to be rebuilt from the restored items' locations instead.
+ *
+ * Rebuilt when the dump has no furniture of this collection to offer: one from before
+ * the shelves, or a whole-instance dump, whose pieces belong to several collections and
+ * can name the same shelf twice once poured into one. Rebuilt too when the pieces would
+ * not pass the model or claim one shelf twice (a file edited by hand): the insert would
+ * only refuse them after the collection's items were already replaced.
+ *
+ * An empty list comes back empty: that collection had its furniture taken down on purpose.
+ */
+function restorableFurniture(data: any, collectionId: any, userId: any): any[] | null {
+    if (!Array.isArray(data.furniture) || Array.isArray(data.collections)) return null;
+
+    const pieces = data.furniture.map((piece: any, index: number) => {
+        // The export strips these already. A file that still carries them must not bring
+        // back an id this instance may hold for another piece.
+        const { _id, __v, collection: _owner, createdBy: _by, created_at, updated_at, ...rest } = piece || {};
+        return {
+            ...rest,
+            collection: collectionId,
+            order: typeof rest.order === 'number' ? rest.order : 100 + index,
+            createdBy: userId
+        };
+    });
+
+    const cells = pieces.flatMap((piece: any) => (Array.isArray(piece.cells) ? piece.cells : []));
+    const duplicate = findDuplicateCellKey(cells);
+    const invalid = pieces.find((piece: any) => new Furniture(piece).validateSync());
+    if (duplicate || invalid) {
+        console.warn(`[BACKUP] The dump's furniture cannot be restored as it is (${duplicate ? `shelf "${duplicate}" appears twice` : 'invalid piece'}); rebuilding the shelves from the item locations.`);
+        return null;
+    }
+    return pieces;
+}
+
+// An id as a dump writes one: 24 hex digits, or already an ObjectId. isValid() alone
+// would also take any 12-character string.
+const isDumpId = (value: unknown) =>
+    value instanceof mongoose.Types.ObjectId || /^[a-f0-9]{24}$/i.test(String(value ?? ''));
+
+/**
+ * The lists of a dump that can go back, each in the shape `place` gives it. Settled
+ * before anything is wiped, for the same reason as the furniture: a list the model
+ * refuses (a kind this version does not know, a name left blank in a file edited by
+ * hand) would only fail its insert once the replacement had already started, and a
+ * whole-instance restore inserts the lists before the accounts. Such a list is left out
+ * rather than costing the rest of the restore, and so is a line naming no valid item.
+ */
+function restorableLists(lists: unknown, place: (list: any) => any): any[] {
+    if (!Array.isArray(lists)) return [];
+
+    const kept: any[] = [];
+    let dropped = 0;
+    for (const raw of lists) {
+        if (!raw || typeof raw !== 'object') {
+            dropped++;
+            continue;
+        }
+        const entries = (Array.isArray(raw.entries) ? raw.entries : []).filter((entry: any) =>
+            entry && isDumpId(entry.item) && (entry.track === undefined || entry.track === null || isDumpId(entry.track))
+        );
+        const list = place({ ...raw, entries });
+        if (new List(list).validateSync()) {
+            dropped++;
+            continue;
+        }
+        kept.push(list);
+    }
+    if (dropped > 0) {
+        console.warn(`[BACKUP] ${dropped} list(s) of the dump could not be restored as they are and were left out.`);
+    }
+    return kept;
+}
+
+/**
  * POST /collection/import - replaces the ACTIVE collection's items (and settings,
  * when present in the file) with the backup's content. Accepts both per-collection
  * dumps (albums pre-stripped) and whole-instance dumps (albums re-stamped here).
  */
-router.post('/collection/import', requireAuth, requireCollectionRole('admin'), async (req: any, res: any) => {
+const importCollectionBackup = async (req: any, res: any) => {
     try {
         const activeCollectionId = res.locals.activeCollectionId;
 
@@ -385,49 +691,137 @@ router.post('/collection/import', requireAuth, requireCollectionRole('admin'), a
             try {
                 data = typeof data.backupData === 'string' ? JSON.parse(data.backupData) : data.backupData;
             } catch (e) {
+                await cleanupImportedImages(req);
                 return res.status(400).json({ error: "Invalid JSON format" });
             }
         }
 
         if (!data || !Array.isArray(data.albums)) {
+            await cleanupImportedImages(req);
             return res.status(400).json({ error: "Backup file missing required fields" });
         }
 
-        // Replacement semantics: the collection's current items are wiped first.
-        await Item.deleteMany({ collection: activeCollectionId });
+        // Settled before anything is wiped, so furniture that cannot go back as it is
+        // turns into a rebuild rather than an error halfway through the replacement.
+        const furnitureToRestore = restorableFurniture(data, activeCollectionId, req.user._id);
 
-        if (data.albums.length > 0) {
-            const legacyKind = registry.getAll().find(p => p.matchesLegacyItems)?.kind || 'Music';
-            const extraDateFields = collectExtraDateFields(
-                Array.isArray(data.settings) ? data.settings : (data.settings ? [data.settings] : [])
-            );
-            // Ids are reassigned here (the same dump may be restored twice into different
-            // collections), which would leave every "contained in" pointing at an item that
-            // no longer exists. So the new ids are drawn up front and the links rewritten
-            // against them, keeping a show and its seasons together through the restore.
-            const idMap = new Map<string, mongoose.Types.ObjectId>();
-            for (const album of data.albums) {
-                if (album._id) idMap.set(String(album._id), new mongoose.Types.ObjectId());
+        // Old item id -> new one. Ids are reassigned (the same dump may be restored twice
+        // into different collections), which would leave every "contained in" and every
+        // list line pointing at an item that no longer exists. So the new ids are drawn up
+        // front and the links rewritten against them, keeping a show and its seasons, and
+        // the lists, together through the restore.
+        const idMap = new Map<string, mongoose.Types.ObjectId>();
+        for (const album of data.albums) {
+            if (album?._id) idMap.set(String(album._id), new mongoose.Types.ObjectId());
+        }
+
+        const legacyKind = registry.getAll().find(p => p.matchesLegacyItems)?.kind || 'Music';
+        const extraDateFields = collectExtraDateFields(
+            Array.isArray(data.settings) ? data.settings : (data.settings ? [data.settings] : [])
+        );
+        // A file edited by hand can name one id twice. The second copy gets an id of its
+        // own, since sharing one would fail the insert after the wipe.
+        const usedIds = new Set<string>();
+        const cleanAlbums = data.albums.map((album: any) => {
+            const { _id, __v, ...rest } = album || {};
+            const fixed: any = {
+                ...rest,
+                kind: rest.kind || legacyKind,
+                owner: req.user._id,
+                collection: activeCollectionId
+            };
+            const newId = _id ? idMap.get(String(_id)) : undefined;
+            if (newId && !usedIds.has(String(newId))) {
+                fixed._id = newId;
+                usedIds.add(String(newId));
             }
+            // A holder left outside the dump would strand the item in no listing at all,
+            // so it becomes standalone rather than invisible.
+            fixed.parent = rest.parent ? idMap.get(String(rest.parent)) : undefined;
+            if (!fixed.parent) delete fixed.parent;
+            if (fixed.extra) fixed.extra = { ...fixed.extra };
+            reviveExtraDates(fixed, extraDateFields);
+            return fixed;
+        });
 
-            const cleanAlbums = data.albums.map((album: any) => {
-                const { _id, __v, ...rest } = album;
-                const fixed: any = {
-                    ...rest,
-                    kind: rest.kind || legacyKind,
-                    owner: req.user._id,
-                    collection: activeCollectionId
-                };
-                if (_id && idMap.has(String(_id))) fixed._id = idMap.get(String(_id));
-                // A holder left outside the dump would strand the item in no listing at all,
-                // so it becomes standalone rather than invisible.
-                fixed.parent = rest.parent ? idMap.get(String(rest.parent)) : undefined;
-                if (!fixed.parent) delete fixed.parent;
-                if (fixed.extra) fixed.extra = { ...fixed.extra };
-                reviveExtraDates(fixed, extraDateFields);
-                return fixed;
-            });
+        // Checked against their models before the wipe: the insert below validates too,
+        // and an item it refused there would leave the collection emptied. Refused here,
+        // the collection stays exactly as it was.
+        for (const album of cleanAlbums) {
+            const Model: any = (Item as any).discriminators?.[album.kind] || Item;
+            const invalid = new Model(album).validateSync();
+            if (invalid) {
+                await cleanupImportedImages(req);
+                const field = Object.keys(invalid.errors || {})[0] || '?';
+                return res.status(400).json({
+                    error: invalid.message,
+                    userMessage: req.t('admin.collection_backup.error_invalid_item', {
+                        title: String(album.title || '?').slice(0, 100),
+                        field
+                    })
+                });
+            }
+        }
+
+        // A line whose item did not come back with the dump has nothing to point at and is
+        // left out; tracks keep their own ids through the restore, so only the item half of
+        // a playlist line is rewritten.
+        const listsToRestore = restorableLists(data.lists, (list: any) => {
+            const { _id, __v, collection: _owner, createdBy: _by, ...rest } = list;
+            return {
+                ...rest,
+                collection: activeCollectionId,
+                createdBy: req.user._id,
+                entries: rest.entries
+                    .filter((entry: any) => idMap.has(String(entry.item)))
+                    .map((entry: any) => ({ ...entry, item: idMap.get(String(entry.item)) }))
+            };
+        });
+
+        // Replacement semantics: the collection's current items are wiped first.
+        const replacedImagePaths = await managedItemImagesForQuery({ collection: activeCollectionId });
+        await Item.deleteMany({ collection: activeCollectionId });
+        if (cleanAlbums.length > 0) {
             await Item.insertMany(cleanAlbums);
+        }
+
+        // Replacement semantics for the lists too.
+        await List.deleteMany({ collection: activeCollectionId });
+        if (listsToRestore.length > 0) {
+            await List.insertMany(listsToRestore);
+        }
+
+        // Replacement semantics again: the collection's own furniture goes with its items.
+        await Furniture.deleteMany({ collection: activeCollectionId });
+
+        if (furnitureToRestore) {
+            if (furnitureToRestore.length > 0) await Furniture.insertMany(furnitureToRestore);
+        } else {
+            // The restored items still say where each one is kept. Rebuilt into furniture
+            // the same way the boot migration does it, so the restore does not land a
+            // collection whose every item is unsorted.
+            const seeded = await seedFurnitureFromLocations(
+                activeCollectionId,
+                res.locals.activeCollection?.name || 'Collection'
+            );
+            if (seeded.shelves > 0) {
+                console.log(`[BACKUP] ${seeded.shelves} shelf/shelves rebuilt from the restored locations.`);
+            }
+        }
+
+        // The collection's shelves are now whatever this restore made of them, so the boot
+        // migration has nothing left to convert here, and must not rebuild pieces its
+        // owners take down from now on.
+        await Collection.updateOne({ _id: activeCollectionId }, { $set: { shelvesSeeded: true } });
+
+        // The info page is replaced like everything else, and the pictures the previous
+        // one held are released once the new page is in place (nothing else points at
+        // them, and the release checks every other reference before it unlinks a file).
+        const previousInfo = collectionInfoOf(await Collection.findById(activeCollectionId).lean());
+        if (data.info && typeof data.info === 'object') {
+            const info = collectionInfoFromBackup(data.info);
+            await Collection.updateOne({ _id: activeCollectionId }, { $set: { info } });
+            replacedImagePaths.push(...previousInfo.images.filter(image => !info.images.includes(image)));
         }
 
         // Restore the collection's settings container when the dump carries one
@@ -441,11 +835,32 @@ router.post('/collection/import', requireAuth, requireCollectionRole('admin'), a
             await Settings.create(clean);
         }
 
+        // Collection restores do not run the whole boot migration. Apply the same
+        // custom-field identity upgrade explicitly before the restored data is used.
+        await upgradeRestoredExtraFields({ collectionId: activeCollectionId });
+
+        try {
+            await deleteUnusedManagedItemImages(replacedImagePaths);
+        } catch (cleanupError) {
+            console.warn('[ITEM IMAGE] Collection import cleanup failed:', cleanupError);
+        }
+
         res.status(200).json({ success: true, message: "Import successful", count: data.albums.length });
     } catch (err: any) {
         console.error("[ERR] Collection import:", err);
+        await cleanupImportedImages(req);
         res.status(500).json({ error: err.message });
     }
-});
+};
+
+router.post('/collection/import', requireAuth, requireCollectionRole('admin'), importCollectionBackup);
+router.post(
+    '/collection/import-archive',
+    requireAuth,
+    requireCollectionRole('admin'),
+    receiveBackupArchive,
+    loadBackupArchive,
+    importCollectionBackup
+);
 
 export = router;

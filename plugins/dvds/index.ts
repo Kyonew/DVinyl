@@ -1,11 +1,33 @@
 import path from 'path';
 import mongoose from 'mongoose';
 import { PluginDefinition } from '../../core/types';
+import { sourceFromProvider } from '../../core/sources';
 import { TMDBProvider } from './tmdb';
 import { dvdImporters } from './importers';
 import { escapeRegExp, fetchJson, PermanentRefreshError, editStamp } from '../../core/helpers';
 import Item from '../../models/Item';
 import { TMDB_LANG_MAP, formatSeasonCount, describeOwnedSeasons } from './constants';
+
+const tmdbProvider = new TMDBProvider();
+
+// The database this plugin has always searched. The migration attributes every item
+// saved before sources existed to this id, so it must never change.
+const tmdb = sourceFromProvider(tmdbProvider, {
+  id: 'tmdb',
+  requiredEnvKeys: ['TMDB_API_KEY'],
+  async searchImages(query: string, options?: { language?: string }): Promise<string[]> {
+    const tmdbApiKey = process.env.TMDB_API_KEY;
+    if (!tmdbApiKey) throw new Error('Missing TMDB API Key');
+    const tmdbLang = TMDB_LANG_MAP[options?.language || ''] || 'en-US';
+    const data = await fetchJson(
+      `https://api.themoviedb.org/3/search/multi?api_key=${tmdbApiKey}&query=${encodeURIComponent(query)}&language=${tmdbLang}`,
+      { headers: { 'User-Agent': 'DVinylApp/2.0' }, signal: AbortSignal.timeout(10000) }
+    );
+    return (data.results || [])
+      .filter((item: any) => item.poster_path)
+      .map((item: any) => `https://image.tmdb.org/t/p/w500${item.poster_path}`);
+  }
+});
 
 export const dvdPlugin: PluginDefinition = {
   id: 'dvd',
@@ -26,9 +48,8 @@ export const dvdPlugin: PluginDefinition = {
   extraSearchFields: ['studio'],
   supportsBarcodeSearch: true,
   barcodeNoiseTerms: ['DVD', 'Blu-ray', 'Blu Ray', 'Bluray', '4K', 'UHD', 'Ultra HD', 'Coffret', 'Edition', 'Édition', 'Steelbook', 'Combo'],
-  searchProvider: new TMDBProvider(),
+  sources: [tmdb],
   imageSearchType: 'movie',
-  requiredEnvKeys: ['TMDB_API_KEY'],
   duplicateCheckFields: ['format', 'zone'],
   aspectRatioClass: 'aspect-[2/3]',
   importers: dvdImporters,
@@ -166,20 +187,6 @@ export const dvdPlugin: PluginDefinition = {
     }
   ],
 
-  imageSearchProvider: {
-    async search(query: string, options?: { language?: string }): Promise<string[]> {
-      const tmdbApiKey = process.env.TMDB_API_KEY;
-      if (!tmdbApiKey) throw new Error('Missing TMDB API Key');
-      const tmdbLang = TMDB_LANG_MAP[options?.language || ''] || 'en-US';
-      const data = await fetchJson(
-        `https://api.themoviedb.org/3/search/multi?api_key=${tmdbApiKey}&query=${encodeURIComponent(query)}&language=${tmdbLang}`,
-        { headers: { 'User-Agent': 'DVinylApp/2.0' }, signal: AbortSignal.timeout(10000) }
-      );
-      return (data.results || [])
-        .filter((item: any) => item.poster_path)
-        .map((item: any) => `https://image.tmdb.org/t/p/w500${item.poster_path}`);
-    }
-  },
 
   navbarShortcuts: [
     { id: 'dvd', label: 'media.dvd_gen', url: '/collection?type=dvd' },
@@ -272,6 +279,17 @@ export const dvdPlugin: PluginDefinition = {
     { value: 'laserdisc', label: 'media.laserdisc', color: 'bg-purple-600/90' },
     { value: 'digital', label: 'media.digital', color: 'bg-cyan-600/90' }
   ],
+
+  // A DVD keep case against the slimmer Blu-ray case, the VHS cassette that dwarfs
+  // both, and the LaserDisc, which is a 12" sleeve by another name.
+  spineSize: {
+    dvd: { thickness: 14, height: 190 },
+    bluray: { thickness: 12, height: 171 },
+    '4k': { thickness: 12, height: 171 },
+    vhs: { thickness: 25, height: 188 },
+    laserdisc: { thickness: 4, height: 315 },
+    digital: { thickness: 5, height: 171 }
+  },
 
   formFields: [
     {
@@ -535,6 +553,10 @@ export const dvdPlugin: PluginDefinition = {
       collection: ctx.collectionId,
       kind: 'Dvd',
       tmdb_id: { $in: [numericId, String(numericId)] },
+      // TMDB ids are unique only within a media type, so a movie can share this numeric
+      // id with an unrelated show. Only a TV item can hold seasons; scoping to it stops
+      // the seasons being filed under a same-id movie.
+      media_type: 'tv',
       parent: { $exists: false }
     });
 
@@ -638,7 +660,12 @@ export const dvdPlugin: PluginDefinition = {
         collection: collectionId,
         in_wishlist: false,
         kind: 'Dvd',
-        tmdb_id: parseInt(tmdbId)
+        tmdb_id: parseInt(tmdbId),
+        // TMDB ids are only unique within a media type: movie 155 and tv 155 are
+        // different works. Without this, adding a show whose id matches an owned movie
+        // (or vice versa) treats it as a duplicate of that movie. A legacy movie item
+        // without media_type is matched as a movie as well.
+        media_type: data.media_type === 'tv' ? 'tv' : { $in: ['movie', null] }
       };
       if (matchFormat) {
         query.format = matchFormat;
@@ -674,7 +701,12 @@ export const dvdPlugin: PluginDefinition = {
   async findPotentialDuplicates(collectionId: any, data: Record<string, any>): Promise<any[]> {
     const or: any[] = [];
     if (data.tmdb_id) {
-      or.push({ tmdb_id: parseInt(data.tmdb_id) });
+      // Match the id together with the media type: a movie and a show can share a numeric
+      // tmdb_id, so the id alone would flag an unrelated work as a potential duplicate.
+      or.push({
+        tmdb_id: parseInt(data.tmdb_id),
+        media_type: data.media_type === 'tv' ? 'tv' : { $in: ['movie', null] }
+      });
     }
     const title = (data.title || '').trim();
     const director = (data.director || data.creator || '').trim();

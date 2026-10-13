@@ -1,0 +1,115 @@
+<%#
+    Floating "unsaved changes" bar for long settings forms. A form opts in with the
+    data-save-bar attribute; once its values differ from what the page loaded with, the
+    bar slides in with a button that submits that form, so saving never needs a scroll
+    down to the form's own button. The bar steps aside while that button is on screen,
+    and while the form sits in a hidden tab panel.
+
+    Changes are found by comparing the form's values against a snapshot, not by counting
+    events: scripts rewrite hidden fields (source order, image lists, hidden items)
+    without firing any input event.
+%>
+<style>
+    #saveBar { transform: translateY(calc(100% + 2rem)); opacity: 0; visibility: hidden;
+        transition: transform .25s ease, opacity .25s ease, visibility 0s linear .25s; }
+    #saveBar.save-bar-shown { transform: none; opacity: 1; visibility: visible;
+        transition: transform .25s ease, opacity .25s ease; }
+    @media (prefers-reduced-motion: reduce) { #saveBar, #saveBar.save-bar-shown { transition: none; } }
+</style>
+<div id="saveBar" class="fixed bottom-6 inset-x-0 z-40 flex justify-center px-4 pointer-events-none" role="status" aria-live="polite">
+    <div class="card-theme border rounded-2xl shadow-2xl pl-5 pr-2 py-2 flex items-center gap-4 pointer-events-auto">
+        <span class="text-sm font-bold opacity-80 flex items-center gap-2">
+            <i class="fa-solid fa-circle-exclamation text-primary-theme"></i>
+            <%= t('common.unsaved_changes') %>
+        </span>
+        <button type="button" id="saveBarBtn"
+            class="px-5 py-2.5 bg-primary-theme text-white rounded-xl text-sm font-black hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-primary-theme/20 flex items-center gap-2 disabled:opacity-60">
+            <i class="fa-solid fa-floppy-disk"></i>
+            <%= t('common.save') %>
+        </button>
+    </div>
+</div>
+<script>
+    (function () {
+        const bar = document.getElementById('saveBar');
+        const forms = [...document.querySelectorAll('form[data-save-bar]')];
+        if (!bar || !forms.length) return;
+        const saveBtn = document.getElementById('saveBarBtn');
+
+        // File inputs are left out: the snapshot only needs to notice text-like values.
+        const snapshot = form => JSON.stringify(
+            [...new FormData(form)].filter(([, value]) => typeof value === 'string'));
+        const isVisible = el => el.checkVisibility ? el.checkVisibility() : el.getClientRects().length > 0;
+
+        const state = new Map();
+        let lastTouched = null;
+        let submitting = false;
+        let pending = false;
+
+        const update = () => {
+            pending = false;
+            if (submitting) return;
+            const dirty = forms.filter(f => isVisible(f) && snapshot(f) !== state.get(f).baseline);
+            const target = dirty.includes(lastTouched) ? lastTouched : dirty[0];
+            bar.classList.toggle('save-bar-shown', !!target && !state.get(target).buttonOnScreen);
+            bar._target = target || null;
+        };
+        const schedule = () => {
+            if (pending) return;
+            pending = true;
+            requestAnimationFrame(update);
+        };
+
+        const observer = 'IntersectionObserver' in window
+            ? new IntersectionObserver(entries => {
+                entries.forEach(entry => {
+                    const form = entry.target.form;
+                    if (state.has(form)) state.get(form).buttonOnScreen = entry.isIntersecting;
+                });
+                schedule();
+            })
+            : null;
+
+        const init = () => {
+            forms.forEach(form => {
+                const button = form.querySelector('button[type="submit"], input[type="submit"]');
+                state.set(form, { baseline: snapshot(form), button, buttonOnScreen: false });
+                if (button && observer) observer.observe(button);
+
+                const touch = () => { lastTouched = form; schedule(); };
+                ['input', 'change', 'click'].forEach(type => form.addEventListener(type, touch, true));
+                new MutationObserver(touch).observe(form, { childList: true, subtree: true, attributes: true });
+                form.addEventListener('submit', () => {
+                    submitting = true;
+                    bar.classList.remove('save-bar-shown');
+                });
+            });
+            // Tab switches happen outside the form and change which forms are on show.
+            document.addEventListener('click', schedule);
+            window.addEventListener('hashchange', schedule);
+            // Coming back to a page kept in the browser's history cache after a save.
+            window.addEventListener('pageshow', event => {
+                if (!event.persisted) return;
+                submitting = false;
+                schedule();
+            });
+            schedule();
+        };
+
+        saveBtn.addEventListener('click', () => {
+            const form = bar._target;
+            if (!form) return;
+            const button = state.get(form).button;
+            if (form.requestSubmit) form.requestSubmit(button || undefined);
+            else form.submit();
+        });
+
+        // Let the page's own load scripts settle the form first, so their setup is not
+        // mistaken for an edit.
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => setTimeout(init, 0));
+        } else {
+            setTimeout(init, 0);
+        }
+    })();
+</script>

@@ -28,7 +28,10 @@
     <div class="grid grid-cols-1 <%= row.length === 2 ? 'md:grid-cols-2' : '' %> gap-6">
         <% row.forEach(field => { %>
             <div>
-                <%- include('fields/' + field.type, { field, value: item[field.name], item, isEdit: locals.isEdit === true }) %>
+                <%# `location` is a core path every module carries, and the core draws it its
+                    own way: a picker over the collection's shelves rather than the plain
+                    text box its type asks for. %>
+                <%- include('fields/' + (field.name === 'location' ? 'location' : field.type), { field, value: item[field.name], item, isEdit: locals.isEdit === true }) %>
             </div>
         <% }) %>
     </div>

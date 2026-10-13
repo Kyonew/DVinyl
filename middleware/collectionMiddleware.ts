@@ -1,6 +1,6 @@
 import Collection from '../models/Collection';
 import User from '../models/User';
-import { resolveActiveCollectionForUser } from '../utils/collectionHelpers';
+import { resolveActiveCollectionForUser, sessionActiveCollectionId } from '../utils/collectionHelpers';
 import { canUserCreateCollection } from '../utils/instanceSettings';
 
 /**
@@ -21,8 +21,10 @@ import { canUserCreateCollection } from '../utils/instanceSettings';
  *                                     `shareLinks`) - empty array means the whole
  *                                     collection; only meaningful when isShareView
  *
- * Self-heals: if the persisted lastActiveCollectionId is stale/missing, it resolves a
- * valid one and persists it back. For anonymous requests, falls back to a share-link
+ * The active collection belongs to the browser session (see setActiveCollection), so
+ * each device browses its own. The user's lastActiveCollectionId seeds a session that
+ * has not chosen yet. Self-heals: if both are stale/missing, it resolves a valid one and
+ * persists it back. For anonymous requests, falls back to a share-link
  * cookie if present; otherwise no-ops.
  */
 async function collectionMiddleware(req: any, res: any, next: any) {
@@ -65,25 +67,33 @@ async function collectionMiddleware(req: any, res: any, next: any) {
     }
 
     try {
-        let active = req.user.lastActiveCollectionId
+        // The session's own choice first, so each device stays on the collection it
+        // switched to; the user's last collection only seeds a session that has none.
+        const wanted = sessionActiveCollectionId(req) || req.user.lastActiveCollectionId;
+        let active = wanted
             ? await Collection.findOne({
-                _id: req.user.lastActiveCollectionId,
+                _id: wanted,
                 'members.user': req.user._id
             })
             : null;
 
         if (!active) {
             active = await resolveActiveCollectionForUser(req.user);
-        }
 
-        if (active) {
-            // Persist the resolved collection if it drifted from what's on the user.
-            if (String(req.user.lastActiveCollectionId) !== String(active._id)) {
+            // Self-heal the user's value only when it is the one that went stale. A
+            // session that fell back is no reason to move the user's other devices.
+            if (active && String(req.user.lastActiveCollectionId) !== String(active._id)) {
                 await User.updateOne(
                     { _id: req.user._id },
                     { $set: { lastActiveCollectionId: active._id } }
                 );
                 req.user.lastActiveCollectionId = active._id;
+            }
+        }
+
+        if (active) {
+            if (req.session && String(sessionActiveCollectionId(req)) !== String(active._id)) {
+                req.session.activeCollection = { user: String(req.user._id), collection: String(active._id) };
             }
 
             res.locals.activeCollectionId = active._id;

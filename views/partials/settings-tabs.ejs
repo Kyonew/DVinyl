@@ -1,0 +1,112 @@
+<%#
+    Tab bar for long settings pages. Each tab shows the element carrying the matching
+    data-tab-panel attribute and hides the others.
+    Expects `tabs`: [{ id, icon, label, count? }].
+    The active tab lives in the URL hash so it can be linked, and in sessionStorage so a
+    form POST that redirects back to the page lands on the tab it was sent from.
+%>
+<style>
+    [data-tab-panel]:not(.tab-active) { display: none; }
+    /* The page stacks its blocks with space-y-10, which leaves the bar floating far from
+       the header and from the panel it controls. */
+    [data-settings-tabs-wrap] { margin-top: 0.5rem !important; }
+    [data-settings-tabs-wrap] ~ [data-tab-panel] { margin-top: 1rem !important; }
+    @media (min-width: 640px) {
+        [data-settings-tabs-wrap] { margin-top: 1.5rem !important; }
+        [data-settings-tabs-wrap] ~ [data-tab-panel] { margin-top: 1.5rem !important; }
+    }
+</style>
+<%# Sticky so a long panel (members, logs) can switch tab without scrolling back up.
+    It bleeds over the page gutter so content scrolling under it does not show on the sides. %>
+<div class="sticky top-0 z-30 -mx-4 px-4 py-3 bg-[var(--bg-page)] transition-colors" data-settings-tabs-wrap>
+    <nav class="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        role="tablist" data-settings-tabs>
+        <% tabs.forEach(tab => { %>
+            <button type="button" role="tab" data-tab="<%= tab.id %>" aria-selected="false"
+                class="shrink-0 flex items-center gap-2 text-[11px] sm:text-xs font-black uppercase tracking-wider sm:tracking-widest px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-full transition-all bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10">
+                <i class="fa-solid fa-<%= tab.icon %>"></i>
+                <span class="whitespace-nowrap"><%= tab.label %></span>
+                <% if (typeof tab.count === 'number') { %>
+                    <span class="text-[10px] opacity-60"><%= tab.count %></span>
+                <% } %>
+            </button>
+        <% }) %>
+    </nav>
+</div>
+
+<script>
+    (() => {
+        const bar = document.currentScript.previousElementSibling.querySelector('[data-settings-tabs]');
+        const buttons = [...bar.querySelectorAll('[data-tab]')];
+        const ids = buttons.map(b => b.dataset.tab);
+        const storageKey = 'settingsTab:' + window.location.pathname;
+
+        // bg-primary-theme is a theme class, not a Tailwind color, so no aria-selected: variant exists for it.
+        const activeClasses = ['bg-primary-theme', 'text-white', 'shadow-lg', 'shadow-primary-theme/20'];
+        const idleClasses = ['bg-black/5', 'dark:bg-white/5', 'hover:bg-black/10', 'dark:hover:bg-white/10'];
+        let current = null;
+
+        // When the tabs overflow (phones), fade the edge that still hides some, so the
+        // bar reads as scrollable instead of cut off.
+        const updateFade = () => {
+            const left = bar.scrollLeft > 2;
+            const right = bar.scrollLeft + bar.clientWidth < bar.scrollWidth - 2;
+            const mask = (left || right)
+                ? `linear-gradient(to right, ${left ? 'transparent' : '#000'}, #000 32px, #000 calc(100% - 32px), ${right ? 'transparent' : '#000'})`
+                : '';
+            bar.style.maskImage = mask;
+            bar.style.webkitMaskImage = mask;
+        };
+        bar.addEventListener('scroll', updateFade, { passive: true });
+        window.addEventListener('resize', updateFade);
+
+        const show = (id) => {
+            if (!ids.includes(id)) return false;
+            current = id;
+            buttons.forEach(b => {
+                const active = b.dataset.tab === id;
+                b.setAttribute('aria-selected', String(active));
+                b.classList.toggle('pointer-events-none', active);
+                activeClasses.forEach(c => b.classList.toggle(c, active));
+                idleClasses.forEach(c => b.classList.toggle(c, !active));
+            });
+            document.querySelectorAll('[data-tab-panel]').forEach(panel => {
+                panel.classList.toggle('tab-active', panel.dataset.tabPanel === id);
+            });
+            // Bring the active tab into view inside the bar without scrolling the page,
+            // which scrollIntoView would do.
+            const btn = bar.querySelector(`[data-tab="${id}"]`);
+            const offset = btn.getBoundingClientRect().left - bar.getBoundingClientRect().left;
+            bar.scrollLeft += offset - (bar.clientWidth - btn.offsetWidth) / 2;
+            updateFade();
+            try { sessionStorage.setItem(storageKey, id); } catch (e) {}
+            return true;
+        };
+
+        const wrap = bar.parentElement;
+        buttons.forEach(b => b.addEventListener('click', () => {
+            // Switching while the bar is stuck would leave the new panel scrolled halfway:
+            // start it right under the bar.
+            const stuck = wrap.getBoundingClientRect().top <= 0;
+            show(b.dataset.tab);
+            history.replaceState(null, '', '#' + b.dataset.tab);
+            const panel = document.querySelector(`[data-tab-panel="${b.dataset.tab}"]`);
+            if (stuck && panel) {
+                window.scrollTo({ top: window.scrollY + panel.getBoundingClientRect().top - wrap.offsetHeight - 8 });
+            }
+        }));
+        window.addEventListener('hashchange', () => show(window.location.hash.slice(1)));
+
+        // Page scripts that jump to a block (after a redirect, for instance) open its tab first.
+        window.showSettingsTab = show;
+
+        // The panels come after this bar in the page, so wait for them to be parsed.
+        // A page script may already have picked a tab by then.
+        document.addEventListener('DOMContentLoaded', () => {
+            if (current) return;
+            let stored = null;
+            try { stored = sessionStorage.getItem(storageKey); } catch (e) {}
+            show(window.location.hash.slice(1)) || show(stored) || show(ids[0]);
+        });
+    })();
+</script>

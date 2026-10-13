@@ -1,11 +1,15 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import User from '../models/User';
+import Collection from '../models/Collection';
 import { requireAuth } from '../middleware/authMiddleware';
+import { viewRegistry } from '../core/viewRegistry';
+import { applyHomeCollection, HOME_PAGES, isHomePage } from '../utils/homePage';
 
 const router = express.Router();
 
@@ -58,7 +62,14 @@ const upload = multer({
 
 // Render settings page
 router.get('/', requireAuth, (req, res) => {
-    res.render('settings', { user: res.locals.user });
+    res.render('settings', {
+        user: res.locals.user,
+        homePages: HOME_PAGES,
+        // Every registered view, not the ones available on this page: the selector is
+        // about a page the user is not on, and a combination that does not apply (the
+        // shelf on a wishlist) resolves back to the grid when they get there.
+        collectionViews: viewRegistry.getAll()
+    });
 });
 
 // Check whether a username is available
@@ -242,6 +253,46 @@ router.post('/update-language', requireAuth, async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).send(req.t('errors.lang_change_error'));
+    }
+});
+
+// Update where opening the app lands: which collection, which page, and the view that
+// page opens in. One form, so a partial submission never leaves half a preference set.
+router.post('/update-home', requireAuth, async (req: any, res) => {
+    const { homePage, homeView } = req.body;
+    const userId = res.locals.user._id;
+
+    try {
+        // An empty value means "wherever I left off". Anything else has to be a
+        // collection this user actually belongs to, or they would be sent, every launch,
+        // to a collection the middleware immediately has to heal away from.
+        let homeCollectionId = null;
+        if (req.body.homeCollectionId) {
+            const member = await Collection.findOne({
+                _id: mongoose.Types.ObjectId.isValid(req.body.homeCollectionId) ? req.body.homeCollectionId : null,
+                'members.user': userId
+            }).select('_id');
+            if (!member) {
+                return res.redirect('/settings');
+            }
+            homeCollectionId = member._id;
+        }
+
+        await User.findByIdAndUpdate(userId, {
+            homeCollectionId,
+            homePage: isHomePage(homePage) ? homePage : 'dashboard',
+            homeView: viewRegistry.get(homeView) ? homeView : ''
+        });
+
+        // Move there now instead of waiting for the next launch: picking a home
+        // collection and watching the header keep the old one reads as a setting that
+        // did not save.
+        await applyHomeCollection(req, homeCollectionId);
+
+        res.redirect('/settings');
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: req.t('messages.generic_error') });
     }
 });
 

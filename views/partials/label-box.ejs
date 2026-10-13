@@ -1,0 +1,12 @@
+<%# Label box shared by the single-item label view and the bulk label sheet. One
+    scannable code per box - QR or barcode, never both (the caller picks which to
+    generate).
+    Params: item, plugin, codeType ('qr' | 'barcode'), codeDataUrl %>
+<div class="label-box">
+    <img src="<%= codeDataUrl %>" alt="<%= codeType === 'barcode' ? t('detail.barcode_option') : t('detail.qr_option') %>">
+    <h1><%= item.title %></h1>
+    <% const creatorValue = item[plugin.creatorField]; %>
+    <% if (creatorValue) { %>
+        <p><%= creatorValue %></p>
+    <% } %>
+</div>

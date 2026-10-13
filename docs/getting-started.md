@@ -1,11 +1,12 @@
 # 🚀 Installation
 
-There are three ways to run DVinyl. Pick the one that fits your setup, they all end up at the same
+There are several ways to run DVinyl. Pick the one that fits your setup, they all end up at the same
 app. Whatever you choose, DVinyl always needs a **MongoDB** database to store your collection.
 
 | Method | Best for | Guide |
 | :----- | :------- | :---- |
 | 🐳 Docker | Most people, quickest path | [Docker deployment](./docker.md) (recommended) |
+| 🧊 ZimaOS | ZimaOS / CasaOS users (1-click app store) | [Section below](#-zimaos) |
 | 🧡 Unraid | Unraid server users | [Section below](#-unraid) |
 | 🛠️ Manual (Node.js) | Developers and custom setups | [Section below](#-manual-nodejs) |
 
@@ -24,6 +25,18 @@ install.
 The [Docker deployment guide](./docker.md) has the full compose file, update instructions and
 troubleshooting tips.
 
+## 🧊 ZimaOS
+
+DVinyl can be installed via the community **TwoBytes Store**:
+
+1. In ZimaOS, go to **App Store → Sources → Add**, and paste:
+   ```
+   https://raw.githubusercontent.com/NoNoBzH22/TwoBytes-Store/gh-pages
+   ```
+   *(Older versions requiring a zip archive can use: `https://github.com/NoNoBzH22/TwoBytes-Store/archive/refs/heads/main.zip`)*
+2. Install **DVinyl** from the store.
+3. Open `http://<server-ip>:3099` to complete setup.
+
 ## 🧡 Unraid
 
 DVinyl ships with an Unraid Community App template.
@@ -37,7 +50,9 @@ DVinyl ships with an Unraid Community App template.
 3. **Fill in the required settings:**
    - `MONGODB_URL`: point it to your MongoDB container, for example
      `mongodb://<mongodb-ip>:27017/dvinyl`.
-   - `PASSJWT` and `SESSION_SECRET`: set two different, complex secrets.
+   - `PASSJWT` and `SESSION_SECRET`: two different random secrets, both required. Generate
+     each with `openssl rand -hex 32`. The container will not start while one is empty or
+     left at the placeholder the template used to ship.
    - **Uploads volume**: map it to a persistent path, for example
      `/mnt/user/appdata/dvinyl/uploads`.
 4. **Add API keys** (optional, in the advanced settings) for the media types you want, see
@@ -99,8 +114,15 @@ These are the core variables. See [API keys](./api-keys.md) for the metadata ser
 
 > [!IMPORTANT]
 > Use `PROD=true` **only with HTTPS**. For localhost or a local IP, leave `PROD=false`.
-> Set `PASSJWT` and `SESSION_SECRET` to two different, complex values. They are what keep your
-> sessions secure.
+
+> [!WARNING]
+> `PASSJWT` and `SESSION_SECRET` must be two different random values, and DVinyl **refuses to
+> start** while either one is missing or still set to a placeholder published in `.env.example`
+> or in the Unraid template. Those values are public, so anyone could forge a session token
+> with them. Generate each secret with `openssl rand -hex 32`.
+>
+> Changing them logs everyone out once, which is expected: existing tokens were signed with
+> the old value.
 
 Single sign-on (OIDC) is optional and configured through extra environment variables. See the
 commented block in `.env.example` for the details.

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="<%= locals.currentLng || 'en' %>">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title><%= item.title %> — <%= t('detail.label_page_title') %></title>
+  <%# This page stands on its own rather than including partials/header, so it declares the
+      icon itself: without it the browser falls back to requesting /favicon.ico, which DVinyl
+      does not serve and which shows up as a 404 in the logs on every print. %>
+  <link rel="icon" type="image/png" href="<%= baseUrl %>/ressources/logo.png">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background: #f4f4f5;
+      color: #111;
+    }
+    .label-box {
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 16px;
+      width: 260px;
+      text-align: center;
+    }
+    .label-box img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .label-box h1 {
+      font-size: 14px;
+      font-weight: 700;
+      margin: 10px 0 2px;
+      line-height: 1.2;
+      word-break: break-word;
+    }
+    .label-box p {
+      font-size: 12px;
+      opacity: .7;
+      margin: 0;
+      word-break: break-word;
+    }
+    .actions {
+      margin-top: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .print-btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      background: #2563eb;
+      color: #fff;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .toggle-link {
+      font-size: 13px;
+      color: #2563eb;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .toggle-link:hover {
+      text-decoration: underline;
+    }
+    @media print {
+      body { background: #fff; min-height: 0; }
+      .label-box { border: none; padding: 0; width: 2in; }
+      .actions { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <%- include('partials/label-box', { item, plugin, codeType, codeDataUrl }) %>
+  <div class="actions">
+    <button class="print-btn" onclick="window.print()"><%= t('detail.print_label_btn') %></button>
+    <% if (locals.hasBarcode) { %>
+      <% if (codeType === 'barcode') { %>
+        <a class="toggle-link" href="?type=qr"><%= t('detail.switch_to_qr') %></a>
+      <% } else { %>
+        <a class="toggle-link" href="?type=barcode"><%= t('detail.switch_to_barcode') %></a>
+      <% } %>
+    <% } %>
+  </div>
+</body>
+</html>

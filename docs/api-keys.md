@@ -9,10 +9,19 @@ need the keys for the media types you actually plan to use, and **every key is f
 | Books | Hardcover | `HARDCOVER_API_KEY` | Books, manga, comics |
 | Movies | TMDB | `TMDB_API_KEY` | Blu-ray, 4K, DVD, VHS |
 | Games | IGDB (Twitch) | `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET` | Video games |
+| Games | ScreenScraper (optional) | Built into the official image; optionally `SCREENSCRAPER_USER`, `SCREENSCRAPER_PASSWORD` | Retro, arcade and MS-DOS games |
 | LEGO | Rebrickable | `REBRICKABLE_API_KEY` | LEGO sets |
+| Board games | BoardGameGeek | `BGG_API_KEY` | Board games |
 
 Add the keys you need to your `.env` file. Any media type whose key is missing simply stays disabled
 in the admin panel until you provide it.
+
+A media type can look things up in more than one service, and it is usable as soon as **one** of
+them is configured. The admin panel lists them per module, behind the ⚙ button: each line says what
+the service answers (search, images, or both) and which variable it is still waiting for. Some are
+picture-only and need no key at all, so cover art keeps working on an instance that configured
+nothing: Open Library for books, iTunes for music and games. Games also uses TMDB for extra artwork
+if `TMDB_API_KEY` happens to be set, and quietly skips it otherwise.
 
 The eight trading-card-game plugins (Pokémon, Magic: The Gathering, Yu-Gi-Oh!, One Piece, Lorcana,
 Star Wars: Unlimited, Digimon, Flesh and Blood) need **no key at all** — see
@@ -35,9 +44,13 @@ Used for album metadata, tracklists and market value.
 Used for book metadata and covers.
 
 1. Create an account on the [Hardcover website](https://hardcover.app/).
-2. Open the [API section](https://hardcover.app/account/api) and copy your **token** (do not include
-   the word "bearer", so it should look like `eyJhb...`).
-3. Paste it into your `.env` as `HARDCOVER_API_KEY`.
+2. Open the [API section](https://hardcover.app/account/api)
+3. Click **+ New API Key**
+4. Choose a name (e.g. *DVinyl*) and expiration date
+5. Use *Start from preset* and select *E-reader/Sync client*
+6. Click **Create Key**
+7. Copy your **token**
+8. Paste it into your `.env` as `HARDCOVER_API_KEY`.
 
 ## 📀 TMDB (Movies)
 
@@ -60,6 +73,34 @@ the Twitch developer console.
 4. Once created, copy the **Client ID**.
 5. Click **New Secret** to generate a **Client Secret**.
 6. Paste both into your `.env` as `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET`.
+
+## 🕹️ ScreenScraper (Games, optional)
+
+A second source for video games, next to IGDB: [ScreenScraper](https://www.screenscraper.fr/)
+documents retro consoles, arcade and MS-DOS games far better. Once it is configured, the games
+add page offers a choice between the two, and the admin panel sets which one comes first.
+
+ScreenScraper asks for two pairs of credentials:
+
+- **The developer pair** (`SCREENSCRAPER_DEV_ID`, `SCREENSCRAPER_DEV_PASSWORD`) identifies the
+  software. The official Docker image already carries DVinyl's own, so there is nothing to set.
+  Only a build of your own (from source, or a fork) needs a pair, which ScreenScraper issues on
+  its [developer forum](https://www.screenscraper.fr/forumsujets.php?frub=12&numpage=0). A pair
+  set in `.env` always takes precedence over the built-in one.
+- **Your member account** (`SCREENSCRAPER_USER`, `SCREENSCRAPER_PASSWORD`) is optional: it is the
+  login of a free [screenscraper.fr](https://www.screenscraper.fr/) account. ScreenScraper counts
+  its quotas per member, so without one every lookup draws on the smallest allowance there is.
+  Set it as soon as you use the source for more than a few games.
+
+ScreenScraper is slow: a search across every system takes up to a minute, one within a single
+system a few seconds. The add page therefore offers a platform list while ScreenScraper is the
+source picked, and remembers the last one chosen. A CSV import that fills its rows in from
+ScreenScraper looks each game up in the system its platform names, so give the rows a platform
+(a column, or the importer's default platform).
+
+DVinyl keeps within the quota ScreenScraper reports (requests per day, requests at once) and stops
+asking once the day's allowance is spent. Covers are copied into your instance when you add a game,
+so browsing your collection never counts against it.
 
 ## 🧱 Rebrickable (LEGO)
 
@@ -89,6 +130,20 @@ Just enable the ones you want per collection from the admin panel and they work 
 > [!NOTE]
 > These are community-run, best-effort sources: card coverage can lag behind the very newest
 > set releases. If a search comes up empty for a card you know exists, "Add manually" still works.
+
+## 🎲 BoardGameGeek (Board games)
+
+Used for board game metadata, designers, publishers and covers. Since July 2025 BGG requires a
+registered application token for every XML API request (unauthenticated calls now fail with 401).
+
+1. Read [Using the XML API](https://boardgamegeek.com/using_the_xml_api) and the
+   [registration thread](https://boardgamegeek.com/thread/3525319/registration-to-use-the-xml-api-and-obtain-soon-to)
+   for BGG's current registration process.
+2. Register your application and obtain an application token.
+   > [!NOTE]
+   > BGG approves these by hand, so it can take up to 7 days to get your token. Apply before you
+   > need it.
+3. Paste it into your `.env` as `BGG_API_KEY`.
 
 ---
 

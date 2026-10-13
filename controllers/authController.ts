@@ -91,9 +91,14 @@ export const handleErrors = (err: any) => {
  * Render the login page, or hand the visitor straight to the identity provider
  * when the instance has no local sign-in. An OIDC error is still shown here, so
  * a failed SSO round-trip reports what happened instead of bouncing forever.
+ *
+ * Someone arriving straight from /logout is shown the page too. The provider's
+ * own session outlives ours, so bouncing them at it would have it hand the same
+ * identity back without a prompt and land them logged in again, which is what
+ * signing out on an SSO-only instance used to do.
  */
 export const login_get = (req: any, res: any) => {
-  if (isLocalLoginDisabled() && !req.query.error) {
+  if (isLocalLoginDisabled() && !req.query.error && !req.query.logged_out) {
     return res.redirect(`${res.locals.baseUrl || ''}/login/oidc`);
   }
   res.render('login', { oidcError: req.query.error || null });
@@ -146,42 +151,51 @@ export const login_post = async (req: any, res: any) => {
     return res.status(403).json({ errors: { login: req.t('login.local_disabled') } });
   }
 
-  const { email, password } = req.body;
+  // The field is still posted as `email`, but it holds an email or a username.
+  const { password } = req.body;
+  const identifier = String(req.body.email || '').trim().toLowerCase();
   const now = Date.now();
 
-  // Check whether this email is temporarily blocked due to repeated failures.
-  if (loginAttempts[email] && loginAttempts[email].blockedUntil && now < loginAttempts[email].blockedUntil) {
-    const secondsLeft = Math.ceil((loginAttempts[email].blockedUntil - now) / 1000);
+  // Failures are counted per account when the identifier names one, so its email and its
+  // username share one counter: alternating between the two would otherwise double the
+  // attempts allowed. An identifier naming no account keeps a counter of its own, keyed
+  // lowercased so casing cannot dodge it.
+  const account = await (User as any).findByLoginIdentifier(req.body.email);
+  const key = account ? `user:${account._id}` : `id:${identifier}`;
+
+  // Check whether this account is temporarily blocked due to repeated failures.
+  if (loginAttempts[key] && loginAttempts[key].blockedUntil && now < loginAttempts[key].blockedUntil) {
+    const secondsLeft = Math.ceil((loginAttempts[key].blockedUntil - now) / 1000);
     return res.status(429).json({
       errors: { login: req.t('errors.too_many_attempts_timed', { seconds: secondsLeft }) }
     });
   }
 
   try {
-    const user = await (User as any).login(email, password);
+    const user = await (User as any).login(req.body.email, password);
 
     // Clear failed attempts on successful login.
-    if (loginAttempts[email]) delete loginAttempts[email];
+    if (loginAttempts[key]) delete loginAttempts[key];
 
     await issueSession(req, res, user);
     res.status(200).json({ user: user._id });
 
   } catch (err) {
-    // Increment failure counter for this email address.
-    if (!loginAttempts[email]) loginAttempts[email] = { count: 0, lastTry: now };
-    loginAttempts[email].count++;
-    loginAttempts[email].lastTry = now;
+    // Increment the failure counter for this account.
+    if (!loginAttempts[key]) loginAttempts[key] = { count: 0, lastTry: now };
+    loginAttempts[key].count++;
+    loginAttempts[key].lastTry = now;
 
     // If threshold reached, set a temporary block window.
-    if (loginAttempts[email].count >= MAX_ATTEMPTS) {
-      loginAttempts[email].blockedUntil = now + BLOCK_TIME;
-      console.warn(`[AUTH] ${email} temporarily blocked after ${loginAttempts[email].count} failed attempts (from ${getClientIp(req)})`);
+    if (loginAttempts[key].count >= MAX_ATTEMPTS) {
+      loginAttempts[key].blockedUntil = now + BLOCK_TIME;
+      console.warn(`[AUTH] ${identifier} temporarily blocked after ${loginAttempts[key].count} failed attempts (from ${getClientIp(req)})`);
       return res.status(429).json({
         errors: { login: req.t('errors.too_many_attempts_blocked') }
       });
     }
 
-    console.warn(`[AUTH] Login failed for ${email}: ${(err as any)?.message} (attempt ${loginAttempts[email].count}/${MAX_ATTEMPTS})`);
+    console.warn(`[AUTH] Login failed for ${identifier}: ${(err as any)?.message} (attempt ${loginAttempts[key].count}/${MAX_ATTEMPTS})`);
 
     // Retrieve the error key from handleErrors.
     const errorKeys = handleErrors(err);
@@ -195,9 +209,25 @@ export const login_post = async (req: any, res: any) => {
 
 /**
  * GET /logout
+ *
+ * Goes to the login page rather than to '/', which only bounced there anyway once
+ * the session cookie was gone. Naming it explicitly is what lets the SSO-only
+ * instances above tell a sign-out apart from an ordinary visit.
  */
 export const logout_get = (req: any, res: any) => {
   console.log(`[AUTH] Logout${req.user?.email ? ': ' + req.user.email : ''}`);
   res.cookie('jwt', '', { maxAge: 1 });
-  res.redirect('/');
+
+  const target = `${res.locals.baseUrl || ''}/login?logged_out=1`;
+
+  // The express session outlives the jwt cookie otherwise. It only carries the
+  // in-flight OIDC handshake today, but leaving a signed-out visitor's session
+  // standing is the kind of thing that quietly becomes a hole the day anything
+  // worth keeping is put in it. A failure to destroy it must not strand someone
+  // on a page that no longer has a session either, hence the redirect regardless.
+  if (!req.session) return res.redirect(target);
+  req.session.destroy((err: any) => {
+    if (err) console.warn('[AUTH] Could not destroy session on logout:', err.message);
+    res.redirect(target);
+  });
 };
