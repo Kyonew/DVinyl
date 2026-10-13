@@ -1,26 +1,26 @@
 <%- include('partials/header') %>
 
-    <div class="max-w-screen-xl mx-auto px-4 pb-20 space-y-10">
+    <div class="max-w-screen-xl mx-auto px-4 max-sm:px-0 pb-20 space-y-10">
 
         <!-- Distinct "console" banner: theme-aware (light/dark) but visually set apart
              from collection pages by its strong contrast block + server iconography -->
-        <div class="mt-6 rounded-[2rem] bg-neutral-100 text-neutral-900 dark:bg-neutral-900 dark:text-white border border-black/10 dark:border-white/10 shadow-xl overflow-hidden relative transition-colors">
+        <div data-settings-head class="md:mt-6 rounded-3xl md:rounded-[2rem] bg-neutral-100 text-neutral-900 dark:bg-neutral-900 dark:text-white border border-black/10 dark:border-white/10 shadow-xl overflow-hidden relative transition-colors">
             <div class="absolute inset-0 opacity-15 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary-theme via-transparent to-transparent"></div>
-            <div class="relative p-8 md:p-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div class="relative p-5 md:p-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div class="flex items-center gap-5">
-                    <div class="w-14 h-14 rounded-2xl bg-primary-theme/15 text-primary-theme flex items-center justify-center shrink-0">
+                    <div class="max-md:hidden w-14 h-14 rounded-2xl bg-primary-theme/15 text-primary-theme flex items-center justify-center shrink-0">
                         <i class="fa-solid fa-server text-2xl"></i>
                     </div>
                     <div>
                         <h1 class="text-2xl md:text-3xl font-black tracking-tight flex items-center gap-3">
                             <%= t('admin.instance.title') %> DVinyl
                         </h1>
-                        <p class="text-xs md:text-sm opacity-50 mt-1">
+                        <p class="max-md:hidden text-xs md:text-sm opacity-50 mt-1">
                             <%= t('admin.instance.subtitle') %>
                         </p>
                     </div>
                 </div>
-                <div class="flex items-center gap-3">
+                <div class="max-md:hidden flex items-center gap-3">
                     <div class="text-[10px] font-black tracking-widest opacity-40 border border-black/15 dark:border-white/15 px-3 py-1 rounded-full">
                         v<%= appVersion %>
                     </div>
@@ -28,22 +28,22 @@
             </div>
 
             <!-- Instance stats -->
-            <div class="relative grid grid-cols-2 md:grid-cols-4 divide-x divide-black/10 dark:divide-white/10 border-t border-black/10 dark:border-white/10">
-                <div class="p-5 md:p-6 text-center">
-                    <p class="text-2xl md:text-3xl font-black"><%= users.length %></p>
-                    <p class="text-[10px] uppercase tracking-widest opacity-40 font-bold mt-1"><%= t('admin.instance.stat_users') %></p>
+            <div class="relative grid grid-cols-4 divide-x divide-black/10 dark:divide-white/10 border-t border-black/10 dark:border-white/10">
+                <div class="px-1 py-3 md:p-6 text-center">
+                    <p class="text-xl md:text-3xl font-black"><%= users.length %></p>
+                    <p class="text-[9px] md:text-[10px] uppercase md:tracking-widest opacity-40 font-bold mt-1 truncate"><%= t('admin.instance.stat_users') %></p>
                 </div>
-                <div class="p-5 md:p-6 text-center">
-                    <p class="text-2xl md:text-3xl font-black"><%= (locals.collections || []).length %></p>
-                    <p class="text-[10px] uppercase tracking-widest opacity-40 font-bold mt-1"><%= t('admin.instance.stat_collections') %></p>
+                <div class="px-1 py-3 md:p-6 text-center">
+                    <p class="text-xl md:text-3xl font-black"><%= (locals.collections || []).length %></p>
+                    <p class="text-[9px] md:text-[10px] uppercase md:tracking-widest opacity-40 font-bold mt-1 truncate"><%= t('admin.instance.stat_collections') %></p>
                 </div>
-                <div class="p-5 md:p-6 text-center">
-                    <p class="text-2xl md:text-3xl font-black"><%= locals.itemsTotal || 0 %></p>
-                    <p class="text-[10px] uppercase tracking-widest opacity-40 font-bold mt-1"><%= t('admin.instance.stat_items') %></p>
+                <div class="px-1 py-3 md:p-6 text-center">
+                    <p class="text-xl md:text-3xl font-black"><%= locals.itemsTotal || 0 %></p>
+                    <p class="text-[9px] md:text-[10px] uppercase md:tracking-widest opacity-40 font-bold mt-1 truncate"><%= t('admin.instance.stat_items') %></p>
                 </div>
-                <div class="p-5 md:p-6 text-center">
-                    <p class="text-2xl md:text-3xl font-black"><%= blockedIps.length %></p>
-                    <p class="text-[10px] uppercase tracking-widest opacity-40 font-bold mt-1"><%= t('admin.instance.stat_blocked') %></p>
+                <div class="px-1 py-3 md:p-6 text-center">
+                    <p class="text-xl md:text-3xl font-black"><%= blockedIps.length %></p>
+                    <p class="text-[9px] md:text-[10px] uppercase md:tracking-widest opacity-40 font-bold mt-1 truncate"><%= t('admin.instance.stat_blocked') %></p>
                 </div>
             </div>
         </div>
@@ -86,6 +86,7 @@
             { id: 'users', icon: 'users', label: t('admin.instance.tabs.users'), count: users.length },
             { id: 'backup', icon: 'database', label: t('admin.instance.tabs.backup') },
             { id: 'security', icon: 'ban', label: t('admin.instance.tabs.security'), count: blockedIps.length },
+            { id: 'ai', icon: 'wand-magic-sparkles', label: t('ai.title') },
             { id: 'logs', icon: 'satellite-dish', label: t('admin.instance.tabs.logs') }
         ] }) %>
 
@@ -223,7 +224,7 @@
                 </section>
 
                 <!-- ============ AI ASSIST ============ -->
-                <section>
+                <section data-tab-panel="ai">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between py-6 gap-4 mb-2">
                         <h2 class="text-xl md:text-2xl font-bold flex items-center gap-3 transition-colors">
                             <i class="fa-solid fa-wand-magic-sparkles text-primary-theme"></i>
@@ -737,9 +738,9 @@
 
     <!-- Create collection -->
     <div id="createCollectionModal"
-        class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
+        class="dv-overlay fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
         <div class="absolute inset-0" onclick="toggleModal('createCollectionModal')"></div>
-        <div class="card-theme relative w-full max-w-md rounded-[2.5rem] p-8 md:p-10 shadow-2xl transition-all animate-scale-in">
+        <div class="card-theme relative w-full max-w-md rounded-[2.5rem] p-8 md:p-10 shadow-2xl dv-pop">
             <button onclick="toggleModal('createCollectionModal')"
                 class="absolute top-6 right-6 opacity-40 hover:opacity-100 hover:rotate-90 transition-all">
                 <i class="fa-solid fa-xmark text-2xl"></i>
@@ -770,9 +771,9 @@
         const nonMembers = users.filter(u => !memberIds.has(String(u._id)));
     %>
         <div id="collModal-<%= c._id %>"
-            class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
+            class="dv-overlay fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
             <div class="absolute inset-0" onclick="toggleModal('collModal-<%= c._id %>')"></div>
-            <div class="card-theme relative w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-[2.5rem] p-8 md:p-10 shadow-2xl transition-all animate-scale-in">
+            <div class="card-theme relative w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-[2.5rem] p-8 md:p-10 shadow-2xl dv-pop">
                 <button onclick="toggleModal('collModal-<%= c._id %>')"
                     class="absolute top-6 right-6 opacity-40 hover:opacity-100 hover:rotate-90 transition-all">
                     <i class="fa-solid fa-xmark text-2xl"></i>
@@ -866,10 +867,10 @@
 
     <!-- Create instance user -->
     <div id="addUserModal"
-        class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
+        class="dv-overlay fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
         <div class="absolute inset-0" onclick="toggleModal('addUserModal')"></div>
         <div
-            class="card-theme relative w-full max-w-md rounded-[2.5rem] p-8 md:p-10 shadow-2xl transition-all animate-scale-in">
+            class="card-theme relative w-full max-w-md rounded-[2.5rem] p-8 md:p-10 shadow-2xl dv-pop">
             <button onclick="toggleModal('addUserModal')"
                 class="absolute top-6 right-6 opacity-40 hover:opacity-100 hover:rotate-90 transition-all">
                 <i class="fa-solid fa-xmark text-2xl"></i>
@@ -971,7 +972,7 @@
                     // enabledEl is deliberately excluded: even when the rest of the panel is
                     // locked by an env-provided config, the toggle must stay clickable so a
                     // key-less local-endpoint env config (no AI_API_KEY) can still be turned
-                    // on by hand — resolveCandidate() only force-enables when an env key is
+                    // on by hand: resolveCandidate() only force-enables when an env key is
                     // present, so without this the toggle would be the only way to flip
                     // `enabled` and it would be stuck disabled.
                     [providerEl, baseUrlEl, modelEl, visionModelEl, apiKeyEl, clearKeyBtn, saveBtn, testBtn]
@@ -1001,7 +1002,7 @@
                     const data = await response.json();
 
                     providers = data.providers || [];
-                    providerEl.innerHTML = providers.map(p => `<option value="${p.id}">${p.label}</option>`).join('');
+                    providerEl.innerHTML = providers.map(p => `<option value="${p.id}" class="bg-white dark:bg-[#1a1a1a]">${p.label}</option>`).join('');
 
                     enabledEl.checked = data.enabled;
                     providerEl.value = data.provider;
@@ -1025,7 +1026,9 @@
                 providerEl.addEventListener('change', () => {
                     syncProviderFields();
                     const preset = providers.find(p => p.id === providerEl.value);
-                    if (preset && preset.id !== 'custom') {
+                    // A custom endpoint has no default, and a hosted provider's model ids mean
+                    // nothing to it: the vision model would otherwise be saved as one.
+                    if (preset) {
                         modelEl.value = preset.defaultModel;
                         visionModelEl.value = preset.defaultVisionModel;
                     }
@@ -1038,7 +1041,7 @@
                 });
 
                 // If the user clears the key and then types/pastes a new one, that new
-                // input supersedes the pending clear — otherwise the save would still send
+                // input supersedes the pending clear, otherwise the save would still send
                 // the clear sentinel and silently discard what they just typed.
                 apiKeyEl.addEventListener('input', () => {
                     pendingClear = false;
@@ -1072,7 +1075,7 @@
                 saveBtn.addEventListener('click', persistAiSettings);
 
                 // The enable toggle is the one field a user expects to take effect the
-                // moment they flip it, without a separate Save click — every other field
+                // moment they flip it, without a separate Save click; every other field
                 // still needs Save since typing a key/model is not itself a decision to commit.
                 enabledEl.addEventListener('change', persistAiSettings);
 

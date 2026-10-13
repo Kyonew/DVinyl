@@ -1,43 +1,51 @@
-<div class="space-y-6 mb-8">
+<style>
+    /* Phone: the search, the type pills, the sort and the views stay in sight; the
+       other filters fold behind the toggle at the end of the pills row. */
+    @media (max-width: 639px) {
+        #filterContainer:not(.filters-open) .filter-advanced { display: none; }
+    }
+</style>
+<div class="flex flex-col gap-4 sm:gap-6 mb-6 sm:mb-8">
 
-    <div class="flex flex-wrap items-center justify-between gap-4">
-        <div class="flex flex-wrap gap-2" id="formatFilters">
+    <%# One row on a phone: the pills scroll sideways and the filters toggle stays at the
+        end; from sm up the pills wrap as before. %>
+    <div class="max-sm:order-2 flex items-center gap-2 sm:flex-wrap sm:justify-between sm:gap-4">
+        <div class="flex flex-1 min-w-0 gap-2 overflow-x-auto sm:flex-wrap sm:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,black_85%,transparent)] sm:[mask-image:none]" id="formatFilters">
             <% const mainTypes = [{ id: 'all', label: t('common.all') },
                 ...registry.getEnabled(settings).map(p => ({ id: p.collectionType, label: t(p.label) }))]; %>
 
                 <% if (currentType==='all' ) { %>
                     <% mainTypes.forEach(type=> { %>
                         <button onclick="currentType = '<%= type.id %>'; currentFormat = 'all'; reloadPage();"
-                            class="px-4 py-2 rounded-full text-xs font-bold transition-all active:scale-95 <%= currentType === type.id ? 'bg-primary-theme text-white shadow-lg' : 'bg-black/5 dark:bg-white/10 opacity-60' %>">
+                            class="flex-none whitespace-nowrap px-4 py-2 rounded-full text-sm sm:text-xs font-bold transition-all active:scale-95 <%= currentType === type.id ? 'bg-primary-theme text-white shadow-lg' : 'bg-black/5 dark:bg-white/10 opacity-60' %>">
                             <%= type.label %>
                         </button>
                         <% }) %>
                             <% } else { %>
                                 <button onclick="currentType = 'all'; currentFormat = 'all'; reloadPage();"
-                                    class="px-4 py-2 rounded-full text-xs font-bold transition-all active:scale-95 bg-black/5 dark:bg-white/10 opacity-60">
+                                    class="flex-none whitespace-nowrap px-4 py-2 rounded-full text-sm sm:text-xs font-bold transition-all active:scale-95 bg-black/5 dark:bg-white/10 opacity-60">
                                     <i class="fa-solid fa-arrow-left mr-2"></i>
                                     <%= t('common.all') %>
                                 </button>
                                 <% const activeFilters = currentType !== 'all' ? (filterMap[currentType] || []) : []; %>
                                 <% activeFilters.forEach(filter=> { %>
                                     <button onclick="currentFormat = '<%= filter.id %>'; reloadPage();"
-                                        class="px-4 py-2 rounded-full text-xs font-bold transition-all active:scale-95 <%= (currentFormat === filter.id) ? 'bg-primary-theme text-white shadow-lg' : 'bg-black/5 dark:bg-white/10 opacity-60' %>">
+                                        class="flex-none whitespace-nowrap px-4 py-2 rounded-full text-sm sm:text-xs font-bold transition-all active:scale-95 <%= (currentFormat === filter.id) ? 'bg-primary-theme text-white shadow-lg' : 'bg-black/5 dark:bg-white/10 opacity-60' %>">
                                         <%= filter.label %>
                                     </button>
                                     <% }) %>
                                 <% } %>
         </div>
 
-        <button onclick="toggleMobileFilters()"
-            class="sm:hidden flex items-center gap-2 px-4 py-2 rounded-lg card-theme border text-sm font-bold opacity-70 hover:opacity-100 transition-all">
-            <i class="fa-solid fa-filter"></i>
-            <%= t('common.filters') %>
+        <button type="button" onclick="toggleMobileFilters()" data-filters-toggle aria-expanded="false" title="<%= t('common.filters') %>" aria-label="<%= t('common.filters') %>"
+            class="sm:hidden flex-none w-10 h-10 flex items-center justify-center rounded-full card-theme border opacity-80 hover:opacity-100 transition-all">
+            <i class="fa-solid fa-sliders"></i>
         </button>
     </div>
 
     <div id="filterContainer"
-        class="hidden sm:grid lg:flex grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:flex-row gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
-        <div class="relative sm:col-span-2 md:col-span-3 lg:flex-grow">
+        class="max-sm:contents sm:grid lg:flex grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:flex-row gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
+        <div class="max-sm:order-1 relative sm:col-span-2 md:col-span-3 lg:flex-grow">
             <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                 <i class="fa-solid fa-search opacity-40"></i>
             </div>
@@ -65,7 +73,7 @@
 
         <%# Not for a share link: see SHARE_HIDDEN_FIELDS in core/cardFields.ts. %>
         <% if (!locals.isShareView) { %>
-        <div class="w-full lg:w-44 relative">
+        <div class="filter-advanced max-sm:order-4 w-full lg:w-44 relative">
             <input type="text" id="locationInput" list="locations-list"
                 placeholder="<%= t('common.location') %>" value="<%= locals.queryLocation || '' %>"
                 class="filter-input-textbox block w-full p-2.5 <%= locals.queryLocation ? 'pr-8' : '' %> text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme outline-none placeholder-opacity-50">
@@ -84,7 +92,7 @@
         <%# Each control below is dropped when the selected type has nothing to
             offer for it, rather than showing an empty or foreign list %>
         <% if (locals.hasYear) { %>
-        <div class="w-full lg:w-36 relative">
+        <div class="filter-advanced max-sm:order-4 w-full lg:w-36 relative">
             <button onclick="toggleDecadeMenu(event)" id="decadeSelectorBtn"
                 class="block w-full p-2.5 text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme outline-none transition-all flex justify-between items-center group">
                 <span class="truncate transition-opacity <%= locals.queryDecade ? '' : 'opacity-50 group-hover:opacity-100' %>">
@@ -120,7 +128,7 @@
 
         <% if (currentType !=='all' ) { %>
             <% if (genres.length > 0) { %>
-            <div class="w-full lg:w-48 relative">
+            <div class="filter-advanced max-sm:order-4 w-full lg:w-48 relative">
                 <button onclick="toggleGenreMenu(event)" id="genreSelectorBtn"
                     class="block w-full p-2.5 text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme outline-none transition-all flex justify-between items-center group">
                     <span class="truncate opacity-50 group-hover:opacity-100 transition-opacity">
@@ -165,7 +173,7 @@
 
             <% const stylesPlugin = registry.getAll().find(p => p.collectionType === currentType); %>
             <% if (stylesPlugin && stylesPlugin.schemaDefinition && stylesPlugin.schemaDefinition.styles && styles.length > 0) { %>
-                <div class="w-full lg:w-48 relative">
+                <div class="filter-advanced max-sm:order-4 w-full lg:w-48 relative">
                     <button onclick="toggleStyleMenu(event)" id="styleSelectorBtn"
                         class="block w-full p-2.5 text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme outline-none transition-all flex justify-between items-center group">
                         <span class="truncate opacity-50 group-hover:opacity-100 transition-opacity">
@@ -208,7 +216,7 @@
             <% } %>
 
             <% if (stylesPlugin && stylesPlugin.schemaDefinition && stylesPlugin.schemaDefinition.platform && platforms.length > 0) { %>
-                <div class="w-full lg:w-48 relative">
+                <div class="filter-advanced max-sm:order-4 w-full lg:w-48 relative">
                     <button onclick="togglePlatformMenu(event)" id="platformSelectorBtn"
                         class="block w-full p-2.5 text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme outline-none transition-all flex justify-between items-center group">
                         <span class="truncate opacity-50 group-hover:opacity-100 transition-opacity">
@@ -251,7 +259,8 @@
             <% } %>
         <% } %>
 
-        <div class="w-full lg:w-44 relative">
+        <% if (locals.showCreatorFilter !== false) { %>
+        <div class="filter-advanced max-sm:order-4 w-full lg:w-44 relative">
             <div class="relative">
                 <%# The selected type names its own creator field ("Fabricant", "Réalisateur"...) %>
                 <input type="text" id="artistInput" placeholder="<%= locals.creatorFilterLabel || t('collection.artist_filter') %>"
@@ -267,8 +276,12 @@
                 </div>
             </div>
         </div>
+        <% } %>
 
-        <div class="w-full lg:w-48 relative">
+        <%# Sort and views share one row on a phone; from sm up the wrapper steps aside
+            (display: contents) and both sit in the grid as they always have. %>
+        <div class="max-sm:order-3 flex flex-wrap items-center gap-2 sm:contents">
+        <div class="max-sm:flex-1 max-sm:min-w-[9rem] w-full lg:w-48 relative">
             <button onclick="toggleSortMenu(event)" id="sortSelectorBtn"
                 class="block w-full p-2.5 text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme outline-none transition-all flex justify-between items-center group">
                 <span class="truncate opacity-50 group-hover:opacity-100 transition-opacity"
@@ -330,11 +343,11 @@
                                     <% } %>
                                 </button>
                             <% }) %>
-                            <% (locals.extraFilters || []).forEach(xf => {
-                                const xfActive = currentSort.startsWith(xf.sortKey + '_');
+                            <% (locals.extraSortOptions || []).forEach(xf => {
+                                const xfActive = currentSort.startsWith(xf.key + '_');
                                 const xfDir = xfActive ? (currentSort.endsWith('_asc') ? 'asc' : 'desc') : 'asc';
                             %>
-                                <button onclick="handleSort('<%= xf.sortKey %>', '<%= xfDir %>', false)"
+                                <button onclick="handleSort('<%= xf.key %>', '<%= xfDir %>', false)"
                                     class="w-full flex items-center justify-between gap-2 p-2.5 text-sm rounded-lg transition-all cursor-pointer
                                     <%= xfActive ? 'bg-primary-theme/10 text-primary-theme font-semibold' : 'hover:bg-black/5 dark:hover:bg-white/5 opacity-70 hover:opacity-100' %>">
                                     <span class="truncate"><%= xf.label %></span>
@@ -346,7 +359,7 @@
             </div>
         </div>
 
-        <div class="flex items-center gap-2 w-full lg:w-auto">
+        <div class="max-sm:flex-none max-sm:w-auto max-sm:flex-wrap flex items-center gap-2 w-full lg:w-auto">
             <%# Built from core/viewRegistry.ts, so a new way of looking at a collection
                 shows up here on its own. Left out while there is only one to pick. %>
             <% if ((locals.collectionViews || []).length > 1) { %>
@@ -361,7 +374,7 @@
                 </div>
             <% } %>
 
-            <div class="flex bg-black/5 dark:bg-white/5 p-1 rounded-lg h-10 items-center">
+            <div class="filter-advanced flex bg-black/5 dark:bg-white/5 p-1 rounded-lg h-10 items-center">
                 <button onclick="setFilterMode('show')"
                     title="<%= t('collection.filter_mode_show') %>"
                     class="w-10 h-8 flex items-center justify-center rounded-md transition-all <%= (locals.queryFilterMode !== 'hide') ? 'bg-white dark:bg-white/20 shadow-sm text-primary-theme' : 'opacity-40 hover:opacity-100' %>">
@@ -374,24 +387,25 @@
                 </button>
             </div>
             
-            <div class="w-12">
+            <div class="filter-advanced w-12">
                 <button onclick="reloadPage()"
                     class="block w-full h-10 flex items-center justify-center rounded-lg border hover:text-primary-theme hover:border-primary-theme card-theme transition-all bg-primary-theme/5">
                     <i class="fa-solid fa-magnifying-glass opacity-60"></i>
                 </button>
             </div>
         </div>
+        </div>
     </div>
 
-    <!-- User-defined field filters, on their own row: their number depends on what
-            the collection admin declared, so they must not squeeze the main row. -->
+    <!-- Field filters, on their own row: their number depends on what the collection
+            admin declared and switched on, so they must not squeeze the main row. -->
     <% const xFilters = locals.extraFilters || []; %>
     <% if (xFilters.length > 0) { %>
         <!-- Wrapping grid rather than a single flex row: the number of controls is
                 whatever the collection admin declared, so the row must reflow instead
                 of squeezing everything onto one line. A range takes two columns, which
                 leaves each of its two inputs about the width of a normal filter. -->
-        <div id="extraFilterContainer" class="hidden sm:grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
+        <div id="extraFilterContainer" class="max-sm:order-4 hidden sm:grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
             <% xFilters.forEach(xf => { %>
                 <div class="min-w-0 <%= xf.kind === 'range' ? 'sm:col-span-2' : '' %>">
                     <label class="block mb-1 text-[10px] font-bold uppercase tracking-widest opacity-40 truncate" title="<%= xf.label %>"><%= xf.label %></label>
@@ -413,10 +427,13 @@
                                 <option value="true" class="bg-white dark:bg-[#1a1a1a]" <%= xf.value === 'true' ? 'selected' : '' %>><%= t('common.yes') %></option>
                                 <option value="false" class="bg-white dark:bg-[#1a1a1a]" <%= xf.value === 'false' ? 'selected' : '' %>><%= t('common.no') %></option>
                             <% } else { %>
-                                <option value="<%= locals.extraAny %>" class="bg-white dark:bg-[#1a1a1a]" <%= xf.value === locals.extraAny ? 'selected' : '' %>><%= t('collection.xf_any') %></option>
-                                <option value="<%= locals.extraNone %>" class="bg-white dark:bg-[#1a1a1a]" <%= xf.value === locals.extraNone ? 'selected' : '' %>><%= t('collection.xf_none') %></option>
+                                <% if (xf.offerPresence) { %>
+                                    <option value="<%= locals.extraAny %>" class="bg-white dark:bg-[#1a1a1a]" <%= xf.value === locals.extraAny ? 'selected' : '' %>><%= t('collection.xf_any') %></option>
+                                    <option value="<%= locals.extraNone %>" class="bg-white dark:bg-[#1a1a1a]" <%= xf.value === locals.extraNone ? 'selected' : '' %>><%= t('collection.xf_none') %></option>
+                                <% } %>
+                                <%# Labels arrive already translated (see shownLabel in collectionRoute.ts) %>
                                 <% xf.choices.forEach(c => { %>
-                                    <option value="<%= c.value %>" class="bg-white dark:bg-[#1a1a1a]" <%= xf.value === c.value ? 'selected' : '' %>><%= t(c.label, { defaultValue: c.label }) %></option>
+                                    <option value="<%= c.value %>" class="bg-white dark:bg-[#1a1a1a]" <%= xf.value === c.value ? 'selected' : '' %>><%= c.label %></option>
                                 <% }) %>
                             <% } %>
                         </select>
@@ -427,7 +444,7 @@
     <% } %>
 
     <!-- Active Filter Badges/Pills -->
-    <div id="activeFilterPills">
+    <div id="activeFilterPills" class="max-sm:order-5">
         <%- include('active-filter-pills') %>
     </div>
 </div>
@@ -450,6 +467,12 @@
         // (see CollectionView.liveRedraw); any other one applies it on Enter.
         const liveSearchEnabled = <%= !!(locals.activeView && activeView.liveRedraw) %>;
         const itemsLabel = <%- JSON.stringify(t('common.items')) %>;
+        // i18next pluralization is server-side only, so both plural forms are resolved
+        // here with a %CNT% placeholder (count is interpolated by i18next, so a literal
+        // token keeps each locale's wording and word order). The badge-update code picks
+        // the _one form when the count is 1 and swaps %CNT% for the number.
+        const uniqueTitlesLabelOne = <%- JSON.stringify(t('collection.unique_titles_one', { count: '%CNT%' })) %>;
+        const uniqueTitlesLabelOther = <%- JSON.stringify(t('collection.unique_titles_other', { count: '%CNT%' })) %>;
 
         // Builds the URL for the current filter state without navigating. reloadPage()
         // (every filter control except live search) navigates to it directly; live
@@ -544,6 +567,21 @@
                 const badge = document.getElementById('totalItemsBadge');
                 if (badge) badge.textContent = data.totalItems + ' ' + itemsLabel;
 
+                // The distinct-works count travels with the results (see renderShelfPartial),
+                // so it tracks the filter as it is typed. Hidden when it equals the item
+                // count, matching the server-rendered state on first load.
+                const uniqueBadge = document.getElementById('uniqueTitlesBadge');
+                if (uniqueBadge) {
+                    const u = data.uniqueTitles;
+                    if (typeof u === 'number' && u !== data.totalItems) {
+                        const template = u === 1 ? uniqueTitlesLabelOne : uniqueTitlesLabelOther;
+                        uniqueBadge.textContent = template.replace('%CNT%', u);
+                        uniqueBadge.classList.remove('hidden');
+                    } else {
+                        uniqueBadge.classList.add('hidden');
+                    }
+                }
+
                 updateSearchClearButton(!!filterInput.value.trim());
                 history.replaceState(null, '', url.toString());
             } catch (e) {
@@ -616,12 +654,20 @@
             reloadPage();
         }
 
+        // Phone only (the toggle is hidden from sm up): unfolds the filters kept behind
+        // it, see the .filter-advanced rule at the top of this partial.
         function toggleMobileFilters() {
-            const containers = [document.getElementById('filterContainer'), document.getElementById('extraFilterContainer')];
-            const opening = containers[0].classList.contains('hidden');
-            containers.filter(Boolean).forEach(container => {
-                container.classList.toggle('hidden', !opening);
-                if (opening) container.classList.add('grid');
+            const container = document.getElementById('filterContainer');
+            const opening = !container.classList.contains('filters-open');
+            container.classList.toggle('filters-open', opening);
+            const extra = document.getElementById('extraFilterContainer');
+            if (extra) {
+                extra.classList.toggle('hidden', !opening);
+                if (opening) extra.classList.add('grid');
+            }
+            document.querySelectorAll('[data-filters-toggle]').forEach(button => {
+                button.setAttribute('aria-expanded', opening ? 'true' : 'false');
+                button.classList.toggle('text-primary-theme', opening);
             });
         }
 

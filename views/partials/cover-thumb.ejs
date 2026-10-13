@@ -1,0 +1,19 @@
+<%# A square thumbnail of an item's image, for the places too small for item-cover and its
+    badge: the phone dashboard's wishlist rows, the phone header of the item page.
+    Same rule as item-cover: an image whose plugin declares another ratio than the square
+    (a poster, a book) is contained over a blurred copy of itself rather than cropped.
+
+    Params: src (the image URL), plugin (may be null), boxClass (size and rounding). %>
+<%
+    // No plugin (module turned off, custom plugin deleted) means no declared ratio either:
+    // treat the image as a poster, the safe non-cropping case, as item-cover does.
+    const thumbFits = ((locals.plugin && plugin.aspectRatioClass) || 'aspect-[2/3]') === 'aspect-square';
+%>
+<span class="relative block overflow-hidden bg-black/5 dark:bg-white/5 <%= locals.boxClass || '' %>">
+    <% if (!thumbFits) { %>
+        <img src="<%= src %>" alt="" aria-hidden="true" loading="lazy"
+            class="absolute inset-0 w-full h-full object-cover blur-md opacity-40 scale-110 pointer-events-none">
+    <% } %>
+    <img src="<%= src %>" alt="" loading="lazy"
+        class="relative w-full h-full <%= thumbFits ? 'object-cover' : 'object-contain' %>">
+</span>

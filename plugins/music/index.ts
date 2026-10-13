@@ -55,14 +55,12 @@ export const musicPlugin: PluginDefinition = {
   routePrefix: '/album',
   collectionType: 'music',
   creatorField: 'artist',
-  includeCreatorInSearch: true,
   extraSearchFields: ['tracklist.title', 'tracklist.tags'],
-  supportsBarcodeSearch: true,
-  barcodeSearchFallback: true,
-  barcodeNoiseTerms: ['Vinyl', 'CD', 'LP', 'EP', '2LP', 'Reissue', 'Remastered', 'Deluxe Edition', 'Deluxe', 'Special Edition', 'Limited Edition', 'Explicit', 'Gatefold', 'Colored Vinyl', 'Picture Disc'],
+  supportsBarcodeSearch: false,
   aspectRatioClass: 'aspect-square',
   imageLabels: { main: 'detail.official_cover' },
   duplicateCheckFields: ['media_type', 'variant_color'],
+  copyDropFields: ['discogs_id', 'source', 'source_id'],
 
   fastAddOptions: [
     { value: 'vinyl', label: 'media.vinyls', icon: 'fa-record-vinyl', color: 'peer-checked:bg-green-600', url: '/add-music?format=vinyl' },
@@ -178,9 +176,9 @@ export const musicPlugin: PluginDefinition = {
   // 3mm this scale is anchored on. A jewel case is more than three times thicker and
   // barely a third as tall.
   spineSize: {
-    vinyl: { thickness: 3, height: 315 },
-    cd: { thickness: 10, height: 125 },
-    cassette: { thickness: 17, height: 109 },
+    vinyl: { thickness: 3, height: 315, shape: 'sleeve' },
+    cd: { thickness: 10, height: 125, shape: 'jewel' },
+    cassette: { thickness: 17, height: 109, shape: 'jewel' },
     digital: { thickness: 3, height: 125 }
   },
 
@@ -229,7 +227,7 @@ export const musicPlugin: PluginDefinition = {
       name: 'format_type',
       label: 'confirm_vinyl.field_format',
       type: 'text',
-      showIn: ['edit', 'confirm', 'manual'],
+      showIn: ['edit', 'confirm', 'detail', 'manual'],
       group: 'main'
     },
     {
@@ -346,6 +344,10 @@ export const musicPlugin: PluginDefinition = {
 
   sources: [discogs, itunes],
   searchFormPartial: 'search-form',
+  // The advanced filters, handed back so a second search keeps them. format_filter takes
+  // any Discogs format name, for the formats the three buttons do not cover (8-track,
+  // MiniDisc, shellac...), and replaces the button's format in the Discogs query.
+  searchFormFields: ['year', 'country', 'genre_filter', 'label_filter', 'format_filter'],
   imageSearchType: 'music',
   importers: musicImporters,
   apiRoutes: musicApiRoutes,

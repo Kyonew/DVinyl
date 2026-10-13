@@ -9,7 +9,7 @@ import { CARD_ASPECT_RATIOS, DEFAULT_ASPECT_RATIO } from '../customPlugin';
 
 /**
  * A first-draft custom-plugin config, shaped for `applyConfigToForm()` in
- * create-plugin.ejs — the same shape that page already uses to prefill itself
+ * create-plugin.ejs, the same shape that page already uses to prefill itself
  * when editing an existing plugin. Never persisted directly: the admin reviews
  * and edits it in the builder, and the existing `/create-plugin/save` route does
  * the real validation (id collisions, the 30-plugin cap, reserved names) when
@@ -50,14 +50,14 @@ export function buildPluginGenerationPrompt(description: string): AiMessage[] {
         '"formats": [{"label": string}]}\n' +
         '"label" is a short plain-text name for the collection type (e.g. "Vintage Cameras"). ' +
         '"icon" is a single FontAwesome free-solid icon name prefixed "fa-" that fits the ' +
-        'concept (e.g. "fa-camera-retro") — pick whatever fits best, not limited to any list. ' +
+        'concept (e.g. "fa-camera-retro"); pick whatever fits best, not limited to any list. ' +
         `"color" must be exactly one of: ${paletteList}. ` +
         '"creatorLabel" is the label for the "who or what made this" field, worded for the ' +
         'concept (e.g. "Bottler" for bottles, "Photographer" for photos, "Manufacturer" for toys). ' +
         '"aspectRatioClass" must be exactly one of: "aspect-[2/3]" (tall, for anything book-, ' +
         'bottle- or box-shaped), "aspect-square" (for anything roughly as wide as tall, like ' +
         'coins or records), "aspect-[16/9]" (for anything wider than tall). ' +
-        `"features" may set true for any of: ${featureList} — only the ones that genuinely fit ` +
+        `"features" may set true for any of: ${featureList}, only the ones that genuinely fit ` +
         '(a "rating" makes sense for most collectibles; "barcode" only for retail-boxed items). ' +
         `Provide 3-${MAX_DRAFT_FIELDS} custom fields: attributes ` +
         'specific to the concept that are not already covered by the features above (e.g. for ' +
@@ -66,7 +66,7 @@ export function buildPluginGenerationPrompt(description: string): AiMessage[] {
         'short choices. Only mark a field "required" when it is truly essential to identify ' +
         'the item. ' +
         `Provide 0-${MAX_DRAFT_FORMATS} "formats" only when the concept genuinely has ` +
-        'format-like variants (e.g. bottle sizes, card conditions) — many concepts have none; ' +
+        'format-like variants (e.g. bottle sizes, card conditions). Many concepts have none: ' +
         'in that case return an empty formats array rather than inventing hollow ones.'
     },
     {
@@ -99,7 +99,7 @@ function sanitizeOptions(raw: any): { value: string; label: string }[] {
  * Clamps whatever JSON the model returned into a shape `applyConfigToForm()` can
  * always render safely. Never throws, never rejects the whole draft over one bad
  * field: unusable pieces fall back to a safe default (see the design spec's
- * rationale — a draft is not a save, and the real validation happens once, at
+ * rationale: a draft is not a save, and the real validation happens once, at
  * `/create-plugin/save`, when the admin actually commits to it).
  */
 export function sanitizePluginDraft(raw: any): PluginDraft {
@@ -166,7 +166,7 @@ export function sanitizePluginDraft(raw: any): PluginDraft {
  * when the call succeeded but returned nothing usable (unparsable JSON). Never
  * persists anything. Can throw when the AI call itself fails (transport/provider
  * error propagated from `aiChat`, e.g. a bad API key, wrong model name, or an
- * unreachable endpoint) — callers should catch and surface that error rather
+ * unreachable endpoint); callers should catch and surface that error rather
  * than treat it the same as a `null` result.
  */
 export async function generatePluginDraft(config: AiConfig, description: string): Promise<PluginDraft | null> {

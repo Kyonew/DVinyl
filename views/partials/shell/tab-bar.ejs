@@ -1,0 +1,94 @@
+<%
+  /**
+   * Phone shell: the bottom tab bar. Rendered below md only; from md up the top navbar
+   * carries all of it. Shown on the same condition as header.ejs's showTabBar, which
+   * also reserves its height.
+   *
+   * Included from the footer so it comes after the page: the add hub, included right
+   * after it, then finds every trigger on the page when it swaps in the fast-add icon.
+   */
+  const tabPath = locals.currentPath || '';
+  const tabPathIn = (prefix) => tabPath === prefix || tabPath.startsWith(prefix + '/');
+  // Everything that is not one of the other sections is part of browsing the collection:
+  // the grid, the wishlist, the shelf, a detail page, an add or edit form.
+  let activeTab = 'collection';
+  if (tabPathIn('/dashboard')) activeTab = 'home';
+  else if (tabPathIn('/lists')) activeTab = 'lists';
+  else if (tabPathIn('/account') || tabPathIn('/settings') || tabPathIn('/admin') || tabPathIn('/create-plugin')) activeTab = 'account';
+
+  const tabCanAdd = Boolean(locals.canEditCollection) && registry.getEnabled(settings).length > 0;
+  const tabClass = (id) => 'flex flex-col items-center justify-center gap-1 h-full min-w-0 text-[10.5px] font-bold transition-colors '
+      + (activeTab === id ? 'text-primary-theme' : 'text-[var(--text-main)] opacity-60 hover:opacity-100');
+%>
+<nav id="tabBar" aria-label="<%= t('nav.main_navigation') %>"
+  class="md:hidden fixed bottom-0 inset-x-0 z-40 text-[var(--text-main)]"
+  style="background-color: var(--bg-nav); border-top: 1px solid var(--border-color); padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);">
+  <div data-tab-grid class="grid <%= tabCanAdd ? 'grid-cols-5' : 'grid-cols-4' %> h-16">
+    <a href="<%= baseUrl %>/dashboard" class="<%= tabClass('home') %>" <%- activeTab === 'home' ? 'aria-current="page"' : '' %>>
+      <span class="h-6 flex items-center" aria-hidden="true"><i class="fa-solid fa-house text-lg"></i></span>
+      <span data-tab-label class="truncate max-w-full px-1"><%= t('nav.home') %></span>
+    </a>
+    <a href="<%= baseUrl %>/collection" class="<%= tabClass('collection') %>" <%- activeTab === 'collection' ? 'aria-current="page"' : '' %>>
+      <span class="h-6 flex items-center" aria-hidden="true"><i class="fa-solid fa-layer-group text-lg"></i></span>
+      <span data-tab-label class="truncate max-w-full px-1"><%= t('nav.collection') %></span>
+    </a>
+    <% if (tabCanAdd) { %>
+    <div class="flex items-start justify-center">
+      <button type="button" data-tab-add onclick="openAddModal()" aria-label="<%= t('nav.add') %>"
+        class="-mt-5 w-14 h-14 rounded-full bg-primary-theme flex items-center justify-center active:scale-95 transition-transform"
+        style="box-shadow: 0 0 0 4px var(--bg-nav), 0 8px 20px rgba(0,0,0,0.3);">
+        <i data-add-hub-icon class="fa-solid fa-plus text-xl" aria-hidden="true"></i>
+      </button>
+    </div>
+    <% } %>
+    <a href="<%= baseUrl %>/lists" class="<%= tabClass('lists') %>" <%- activeTab === 'lists' ? 'aria-current="page"' : '' %>>
+      <span class="h-6 flex items-center" aria-hidden="true"><i class="fa-solid fa-list-ul text-lg"></i></span>
+      <span data-tab-label class="truncate max-w-full px-1"><%= t('lists.title') %></span>
+    </a>
+    <a href="<%= baseUrl %>/account" class="<%= tabClass('account') %>" <%- activeTab === 'account' ? 'aria-current="page"' : '' %>>
+      <img src="<%= baseUrl + user.img %>" alt="" class="w-6 h-6 rounded-full object-cover <%= activeTab === 'account' ? 'ring-2 ring-primary-theme' : '' %>">
+      <span data-tab-label class="truncate max-w-full px-1"><%= t('nav.account') %></span>
+    </a>
+  </div>
+</nav>
+
+<script>
+  // Shrunk to its icons while reading down the collection, back in full as soon as the
+  // page moves up, as iOS and Safari do with their own bars. A little travel is needed in each direction
+  // so a finger's jitter does not make it flicker. Always shown at the top and the bottom
+  // of the page, and when it takes the keyboard focus.
+  (function () {
+    const tabBar = document.getElementById('tabBar');
+    if (!tabBar) return;
+    const phone = window.matchMedia('(max-width: 767px)');
+    const hideAfter = 24;
+    const showAfter = 12;
+    let lastY = window.scrollY;
+    let travel = 0;
+    let frame = null;
+
+    function setCompact(compact) {
+      document.body.classList.toggle('tab-bar-compact', compact);
+    }
+
+    function onScroll() {
+      frame = null;
+      const y = window.scrollY;
+      const delta = y - lastY;
+      lastY = y;
+      if (!phone.matches) return setCompact(false);
+      const atTop = y < 80;
+      const atBottom = window.innerHeight + y >= document.documentElement.scrollHeight - 8;
+      if (atTop || atBottom) { travel = 0; return setCompact(false); }
+      // Restart the count whenever the direction changes.
+      travel = (Math.sign(delta) === Math.sign(travel)) ? travel + delta : delta;
+      if (travel > hideAfter) setCompact(true);
+      else if (travel < -showAfter) setCompact(false);
+    }
+
+    window.addEventListener('scroll', function () {
+      if (frame === null) frame = window.requestAnimationFrame(onScroll);
+    }, { passive: true });
+    tabBar.addEventListener('focusin', function () { setCompact(false); });
+  })();
+</script>

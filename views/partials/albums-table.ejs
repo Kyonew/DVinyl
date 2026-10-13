@@ -37,6 +37,7 @@
                         const infoHtml = cardLines.map(lineHtml).join(' · ');
                     %>
                     <tr class="album-card even:bg-black/[0.045] dark:even:bg-white/[0.045] hover:bg-black/[0.09] dark:hover:bg-white/[0.09] transition-colors"
+                        data-item-id="<%= album._id %>"
                         <% if (locals.selectable) { %>data-id="<%= album._id %>"<% } %>>
                         <% if (locals.selectable) { %>
                             <%# The padding sits on the checkbox, so the column takes no room outside select mode. %>

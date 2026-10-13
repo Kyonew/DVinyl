@@ -396,7 +396,10 @@ router.post("/instance/ai/test", requireAuth, requireAdmin, async (req: any, res
     apiKey: typeof req.body?.apiKey === 'string' ? req.body.apiKey.trim() : ''
   }, stored);
   if (!isAiConfigured(config)) {
-    return res.status(400).json({ success: false, error: req.t('ai.err_not_configured') });
+    // A hosted provider other than the saved one is tested with a key typed for it: the
+    // held key never leaves for another endpoint (see resolveTestConfig).
+    const error = !config.apiKey && config.provider !== 'custom' ? 'ai.err_test_key_required' : 'ai.err_not_configured';
+    return res.status(400).json({ success: false, error: req.t(error) });
   }
   try {
     const result = await aiChat(
@@ -821,6 +824,23 @@ function parseShareScope(body: any): { pluginId: string; formats: string[] }[] {
     .filter((entry): entry is { pluginId: string; formats: string[] } => !!entry);
 }
 
+// The share links page: every link of the collection with what it opens to, and the
+// sheets that create and edit them. The actions below all come back here.
+router.get("/sharing", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
+  try {
+    const collectionDoc = await Collection.findById(res.locals.activeCollectionId).lean();
+    res.render("sharing", {
+      collectionDoc,
+      // Absolute, as on the admin page: a baseUrl-relative path cannot be pasted elsewhere.
+      siteOrigin: `${getPublicProtocol(req)}://${req.get("host")}`,
+      user: res.locals.user,
+    });
+  } catch (err) {
+    console.error("Sharing page error:", err);
+    res.redirect("/admin?msg=error_share");
+  }
+});
+
 // Create a new share link with the submitted scope (and optional label).
 router.post("/share/create", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
   try {
@@ -831,10 +851,10 @@ router.post("/share/create", requireAuth, requireCollectionRole("admin"), async 
       { _id: res.locals.activeCollectionId },
       { $push: { shareLinks: { token: generateShareToken(), label, enabled: true, scope } } },
     );
-    res.redirect("/admin?msg=share_link_created");
+    res.redirect("/admin/sharing?msg=share_link_created");
   } catch (err) {
     console.error("Share create error:", err);
-    res.redirect("/admin?msg=error_share");
+    res.redirect("/admin/sharing?msg=error_share");
   }
 });
 
@@ -847,16 +867,16 @@ router.post("/share/:token/toggle", requireAuth, requireCollectionRole("admin"),
       { "shareLinks.$": 1 },
     );
     const link = coll?.shareLinks?.[0];
-    if (!link) return res.redirect("/admin?msg=error_share");
+    if (!link) return res.redirect("/admin/sharing?msg=error_share");
 
     await Collection.updateOne(
       { _id: res.locals.activeCollectionId, "shareLinks.token": req.params.token },
       { $set: { "shareLinks.$.enabled": !link.enabled } },
     );
-    res.redirect(`/admin?msg=${link.enabled ? "share_disabled" : "share_enabled"}`);
+    res.redirect(`/admin/sharing?msg=${link.enabled ? "share_disabled" : "share_enabled"}`);
   } catch (err) {
     console.error("Share toggle error:", err);
-    res.redirect("/admin?msg=error_share");
+    res.redirect("/admin/sharing?msg=error_share");
   }
 });
 
@@ -870,11 +890,11 @@ router.post("/share/:token/scope", requireAuth, requireCollectionRole("admin"), 
       { _id: res.locals.activeCollectionId, "shareLinks.token": req.params.token },
       { $set: { "shareLinks.$.scope": scope, "shareLinks.$.label": label } },
     );
-    if (result.matchedCount === 0) return res.redirect("/admin?msg=error_share");
-    res.redirect("/admin?msg=share_scope_updated");
+    if (result.matchedCount === 0) return res.redirect("/admin/sharing?msg=error_share");
+    res.redirect("/admin/sharing?msg=share_scope_updated");
   } catch (err) {
     console.error("Share scope error:", err);
-    res.redirect("/admin?msg=error_share");
+    res.redirect("/admin/sharing?msg=error_share");
   }
 });
 
@@ -886,11 +906,11 @@ router.post("/share/:token/regenerate", requireAuth, requireCollectionRole("admi
       { _id: res.locals.activeCollectionId, "shareLinks.token": req.params.token },
       { $set: { "shareLinks.$.token": generateShareToken(), "shareLinks.$.enabled": true } },
     );
-    if (result.matchedCount === 0) return res.redirect("/admin?msg=error_share");
-    res.redirect("/admin?msg=share_regenerated");
+    if (result.matchedCount === 0) return res.redirect("/admin/sharing?msg=error_share");
+    res.redirect("/admin/sharing?msg=share_regenerated");
   } catch (err) {
     console.error("Share regenerate error:", err);
-    res.redirect("/admin?msg=error_share");
+    res.redirect("/admin/sharing?msg=error_share");
   }
 });
 
@@ -905,11 +925,11 @@ router.post("/share/:token/delete", requireAuth, requireCollectionRole("admin"),
       { _id: res.locals.activeCollectionId, "shareLinks.token": req.params.token },
       { $pull: { shareLinks: { token: req.params.token } } },
     );
-    if (result.matchedCount === 0) return res.redirect("/admin?msg=error_share");
-    res.redirect("/admin?msg=share_link_deleted");
+    if (result.matchedCount === 0) return res.redirect("/admin/sharing?msg=error_share");
+    res.redirect("/admin/sharing?msg=share_link_deleted");
   } catch (err) {
     console.error("Share delete error:", err);
-    res.redirect("/admin?msg=error_share");
+    res.redirect("/admin/sharing?msg=error_share");
   }
 });
 

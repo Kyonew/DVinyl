@@ -5,7 +5,7 @@
     .border-primary-theme { border-color: var(--highlight) !important; }
 </style>
 
-<div class="max-w-screen-xl mx-auto px-4 pb-20 space-y-10">
+<div class="max-w-screen-xl mx-auto px-4 max-sm:px-0 pb-20 space-y-10">
 
     <div class="flex flex-col sm:flex-row sm:items-center justify-between py-6 gap-4">
         <h1 class="text-2xl md:text-3xl font-bold flex items-center gap-3 transition-colors">
@@ -361,8 +361,8 @@
 </div>
 
 <!-- Per-collection cosmetic customization modal (icon + badge colors) -->
-<div id="customizeModal" class="hidden fixed inset-0 z-50 bg-black/60 items-center justify-center p-4">
-    <div class="card-theme rounded-3xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto space-y-5">
+<div id="customizeModal" class="dv-overlay hidden fixed inset-0 z-50 bg-black/60 items-center justify-center p-4">
+    <div class="dv-pop card-theme rounded-3xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto space-y-5">
         <div class="flex items-center justify-between">
             <h3 class="font-bold text-lg flex items-center gap-2">
                 <i class="fa-solid fa-palette text-primary-theme"></i>
@@ -437,6 +437,12 @@
                 </div>
                 <p class="text-xs opacity-50 mt-2"><%= t('create_plugin.corner_taken') %></p>
             </div>
+        </div>
+
+        <div id="czFiltersWrap">
+            <label class="block mb-1 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('create_plugin.filters') %></label>
+            <p class="text-xs opacity-50 mb-2"><%= t('create_plugin.filters_hint') %></p>
+            <div id="czFilters" class="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-52 overflow-y-auto custom-scrollbar pr-1"></div>
         </div>
 
         <div>
@@ -1223,6 +1229,32 @@
         czSyncCardFieldLimit();
     }
 
+    // ---- Filters (on/off per filter, in the order the collection page lays them out) --
+    function czRenderFilters(data) {
+        const wrap = $('czFilters');
+        wrap.innerHTML = '';
+        const choices = data.filterChoices || [];
+        $('czFiltersWrap').classList.toggle('hidden', choices.length === 0);
+
+        choices.forEach(choice => {
+            const label = document.createElement('label');
+            label.className = 'flex items-center gap-2 text-sm px-2 py-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer transition-colors';
+
+            const box = document.createElement('input');
+            box.type = 'checkbox';
+            box.className = 'cz-filter accent-primary-theme w-4 h-4 shrink-0';
+            box.value = choice.id;
+            box.checked = !!choice.on;
+
+            const text = document.createElement('span');
+            text.className = 'truncate';
+            text.textContent = choice.label;
+
+            label.append(box, text);
+            wrap.appendChild(label);
+        });
+    }
+
     window.openCustomize = function (id) {
         const data = customizable.find(p => p.id === id);
         if (!data) return;
@@ -1237,6 +1269,7 @@
 
         czRenderCardFields(data);
         czRenderCornerField(data);
+        czRenderFilters(data);
 
         const wrap = $('czFormats');
         wrap.innerHTML = '';
@@ -1301,6 +1334,8 @@
             // of falling back to the plugin's own fields
             body.cardFields = Array.from(document.querySelectorAll('.cz-card-field'))
                 .filter(b => b.checked).map(b => b.value);
+            body.filters = Array.from(document.querySelectorAll('.cz-filter'))
+                .filter(b => b.checked).map(b => b.value);
             body.extraFields = Array.from(document.querySelectorAll('.cz-field-row')).map(r => ({
                 name: r.dataset.name || undefined,
                 label: r.querySelector('.czf-label').value.trim(),
@@ -1349,7 +1384,7 @@
     };
 
     // ---- Init ---------------------------------------------------------------------------
-    // Fills every builder field from a config object — used both to prefill an
+    // Fills every builder field from a config object, used both to prefill an
     // existing plugin for editing (below) and, via the "Describe it" box, to drop
     // in an AI-generated first draft. Re-callable: clears the dynamic field/format
     // rows first, so a second AI draft replaces the first rather than appending to it.
@@ -1359,7 +1394,6 @@
         state.icon = config.icon || 'fa-box';
         state.color = config.color || 'teal';
         state.shape = shapeFromConfig(config);
-        $('secondaryImage').checked = config.secondaryImage === true;
         const features = config.features || {};
         document.querySelectorAll('.feature-toggle').forEach(cb => { cb.checked = features[cb.dataset.feature] === true; });
         $('formatRows').innerHTML = '';

@@ -6,7 +6,9 @@
         id: p.id,
         label: t(p.label),
         icon: 'fa-' + p.icon,
-        canEnrich: !!p.searchProvider
+        canEnrich: hasSearch(p),
+        // Offered only when there is a choice to make, as in the CSV import.
+        sources: searchableSources(p, settings).map(src => ({ id: src.id, name: src.name, note: src.importNote ? t(src.importNote) : '' }))
     }));
 %>
 
@@ -27,9 +29,9 @@
     </div>
 </div>
 
-<div id="aiImportModal" class="fixed inset-0 z-[120] hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+<div id="aiImportModal" class="dv-overlay fixed inset-0 z-[120] hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="absolute inset-0" onclick="toggleAiImportModal()"></div>
-    <div class="relative card-theme w-full max-w-4xl rounded-3xl p-6 md:p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
+    <div class="dv-pop relative card-theme w-full max-w-4xl rounded-3xl p-6 md:p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
         <button type="button" onclick="toggleAiImportModal()" class="absolute top-5 right-5 opacity-40 hover:opacity-100 transition-opacity">
             <i class="fa-solid fa-xmark text-xl"></i>
         </button>
@@ -99,6 +101,16 @@
                     <span class="opacity-50"><%= t('admin.csv_import.enrich_hint') %></span>
                 </span>
             </label>
+
+            <div id="aiSourceRow" class="hidden items-center gap-3 bg-black/5 dark:bg-white/5 rounded-2xl p-4 mt-2">
+                <span class="text-xs font-bold shrink-0"><%= t('admin.csv_import.source_label') %></span>
+                <select id="aiSource" class="flex-1 bg-white dark:bg-black/20 border-transparent rounded-xl p-2 text-xs outline-none focus:ring-2 focus:ring-primary-theme"></select>
+            </div>
+
+            <div id="aiSourceNote" class="hidden mt-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[11px] text-amber-600 dark:text-amber-400 items-start gap-2">
+                <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
+                <span data-note-text></span>
+            </div>
         </div>
 
         <div id="importErr_ai" class="hidden mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-500">
@@ -112,6 +124,7 @@
     </div>
 </div>
 
+<%- include('image-downscale') %>
 <script>
     (function () {
         const modules = <%- JSON.stringify(aiModules) %>;
@@ -123,6 +136,7 @@
             failed: <%- JSON.stringify(t('admin.modal.import_failed')) %>,
             unenriched: <%- JSON.stringify(t('admin.modal.import_unenriched')) %>,
             missingRequired: <%- JSON.stringify(t('ai.import_missing_required')) %>,
+            missingEnrich: <%- JSON.stringify(t('ai.import_missing_enrich')) %>,
             noneSelected: <%- JSON.stringify(t('ai.import_none_selected')) %>,
             confirm: <%- JSON.stringify(t('ai.import_confirm')) %>,
             noInput: <%- JSON.stringify(t('ai.err_no_input')) %>,
@@ -171,10 +185,41 @@
 
         function refreshEnrichRow() {
             const row = el('aiEnrichRow');
-            const canEnrich = currentModule().canEnrich;
+            const module = currentModule();
+            const canEnrich = module.canEnrich;
             row.classList.toggle('hidden', !canEnrich);
             row.classList.toggle('flex', canEnrich);
             if (!canEnrich) el('aiEnrichCheck').checked = false;
+
+            // Same rule as the CSV import: a single source is not a choice, it is the answer.
+            const sourceRow = el('aiSourceRow');
+            const sources = module.sources || [];
+            const offer = canEnrich && sources.length > 1;
+            sourceRow.classList.toggle('hidden', !offer);
+            sourceRow.classList.toggle('flex', offer);
+            const select = el('aiSource');
+            select.replaceChildren();
+            if (offer) {
+                for (const source of sources) {
+                    const option = document.createElement('option');
+                    option.value = source.id;
+                    option.className = 'bg-white dark:bg-[#1a1a1a]';
+                    option.textContent = source.name;
+                    select.appendChild(option);
+                }
+            }
+            refreshSourceNote();
+        }
+
+        // The source the import will ask: the one picked, or the only one there is.
+        function refreshSourceNote() {
+            const sources = currentModule().sources || [];
+            const source = sources.find(s => s.id === el('aiSource').value) || sources[0];
+            const note = el('aiEnrichCheck').checked && source && source.note ? source.note : '';
+            const box = el('aiSourceNote');
+            box.querySelector('[data-note-text]').innerText = note;
+            box.classList.toggle('hidden', !note);
+            box.classList.toggle('flex', !!note);
         }
 
         window.aiBackToStep1 = function () {
@@ -183,31 +228,6 @@
             el('aiImportBtn').classList.add('hidden');
             clearError();
         };
-
-        /** Longest edge capped to MAX_PHOTO_EDGE, re-encoded as JPEG - what actually
-         * leaves the browser is a few hundred kB, never the multi-MB original. */
-        function downscaleImage(file) {
-            return new Promise((resolve, reject) => {
-                const url = URL.createObjectURL(file);
-                const img = new Image();
-                img.onload = () => {
-                    URL.revokeObjectURL(url);
-                    let { width, height } = img;
-                    if (width <= 0 || height <= 0) { reject(new Error('empty image')); return; }
-                    const scale = Math.min(1, MAX_PHOTO_EDGE / Math.max(width, height));
-                    width = Math.max(1, Math.round(width * scale));
-                    height = Math.max(1, Math.round(height * scale));
-                    const canvas = document.createElement('canvas');
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
-                    resolve(canvas.toDataURL('image/jpeg', 0.8));
-                };
-                img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('could not load image')); };
-                img.src = url;
-            });
-        }
 
         function renderPhotoThumbs() {
             el('aiPhotoThumbs').innerHTML = photos.map((src, index) =>
@@ -234,7 +254,7 @@
             for (const file of files) {
                 if (photos.length >= MAX_PHOTOS) break;
                 try {
-                    photos.push(await downscaleImage(file));
+                    photos.push(await window.DVDownscaleImage(file, MAX_PHOTO_EDGE));
                 } catch {
                     showError(T.imageRejected);
                 }
@@ -279,8 +299,8 @@
         function fieldInputHtml(field, value) {
             const val = escapeHtml(value || '');
             if (field.options && field.options.length > 0) {
-                const options = ['<option value=""></option>'].concat(field.options.map(o =>
-                    '<option value="' + escapeHtml(o.value) + '"' + (o.value === value ? ' selected' : '') + '>'
+                const options = ['<option value="" class="bg-white dark:bg-[#1a1a1a]"></option>'].concat(field.options.map(o =>
+                    '<option value="' + escapeHtml(o.value) + '" class="bg-white dark:bg-[#1a1a1a]"' + (o.value === value ? ' selected' : '') + '>'
                     + escapeHtml(o.label) + '</option>'
                 )).join('');
                 return '<select data-ai-field="' + escapeHtml(field.name) + '" class="bg-black/5 dark:bg-white/5 border border-transparent text-xs rounded-lg block w-full p-2 outline-none cursor-pointer">' + options + '</select>';
@@ -292,7 +312,7 @@
 
         /**
          * One column per field the AI actually populated on at least one row, not every
-         * field the plugin could accept — a book plugin alone has twenty-odd fields, and
+         * field the plugin could accept: a book plugin alone has twenty-odd fields, and
          * most rows from a short text list only ever fill title and author.
          */
         function columnsInUse() {
@@ -315,10 +335,15 @@
 
             el('aiReviewBody').innerHTML = preview.rows.map((row, index) => {
                 const hasMissing = row.missingRequired.length > 0;
+                // A pasted list rarely names a film's director: the source fills such a gap
+                // in during the import, so the row stays selected. A missing title cannot
+                // be looked up, and neither can anything once enrichment is unavailable.
+                const fillable = hasMissing && preview.module.canEnrich && !row.missingRequired.includes('title');
+                const note = !hasMissing ? '' : fillable ? T.missingEnrich : T.missingRequired;
                 return '<tr data-ai-row="' + index + '" class="border-t border-black/5 dark:border-white/5' + (hasMissing ? ' bg-amber-500/10' : '') + '">'
-                    + '<td class="p-2 align-top"><input type="checkbox" data-ai-row-check class="w-4 h-4 accent-current mt-1"' + (hasMissing ? '' : ' checked') + '></td>'
+                    + '<td class="p-2 align-top"><input type="checkbox" data-ai-row-check class="w-4 h-4 accent-current mt-1"' + (hasMissing && !fillable ? '' : ' checked') + '></td>'
                     + columns.map(f => '<td class="p-2 align-top">' + fieldInputHtml(f, row.values[f.name]) + '</td>').join('')
-                    + '<td class="p-2 align-top text-[10px] text-amber-600 dark:text-amber-400 whitespace-nowrap">' + (hasMissing ? escapeHtml(T.missingRequired) : '') + '</td>'
+                    + '<td class="p-2 align-top text-[10px] text-amber-600 dark:text-amber-400 whitespace-nowrap">' + escapeHtml(note) + '</td>'
                     + '</tr>';
             }).join('');
         }
@@ -407,7 +432,8 @@
                     body: JSON.stringify({
                         plugin: preview.module.id,
                         rows,
-                        enrich: el('aiEnrichCheck').checked
+                        enrich: el('aiEnrichCheck').checked,
+                        source: el('aiSource').value || undefined
                     })
                 });
                 if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Error'); }
@@ -420,6 +446,8 @@
         };
 
         el('aiModule').addEventListener('change', refreshEnrichRow);
+        el('aiEnrichCheck').addEventListener('change', refreshSourceNote);
+        el('aiSource').addEventListener('change', refreshSourceNote);
         ensureSocket();
     })();
 </script>

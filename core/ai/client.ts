@@ -25,10 +25,38 @@ const DEFAULT_TEMPERATURE = 0.2;
 export const textPart = (text: string): AiContentPart => ({ type: 'text', text });
 export const imagePart = (url: string): AiContentPart => ({ type: 'image_url', image_url: { url } });
 
+/**
+ * The detail an aggregator tucks under `error.metadata` when its own message is generic.
+ * OpenRouter answers "Provider returned error" and puts the upstream's actual reason
+ * (rate limited, data policy, a refused parameter) in `metadata.raw`, with the upstream's
+ * name in `metadata.provider_name`.
+ */
+function upstreamDetail(body: any): string {
+  const metadata = body?.error?.metadata;
+  if (!metadata || typeof metadata !== 'object') return '';
+
+  let raw = metadata.raw;
+  if (typeof raw === 'string') {
+    try { raw = JSON.parse(raw); } catch { /* a plain sentence, kept as is */ }
+  }
+  const detail = typeof raw === 'string' ? raw
+    : typeof raw?.error?.message === 'string' ? raw.error.message
+    : typeof raw?.message === 'string' ? raw.message
+    : typeof raw?.error === 'string' ? raw.error
+    : '';
+  const reason = detail.replace(/\s+/g, ' ').trim().slice(0, 300);
+  if (!reason) return '';
+
+  const provider = typeof metadata.provider_name === 'string' ? metadata.provider_name : '';
+  return provider ? `${provider}: ${reason}` : reason;
+}
+
 /** Digs the useful sentence out of a provider error body, whatever shape it arrived in. */
 function providerMessage(body: any, status: number): string {
   const message = body?.error?.message || body?.message || body?.error;
-  return typeof message === 'string' && message ? message : `HTTP error! status: ${status}`;
+  const base = typeof message === 'string' && message ? message : `HTTP error! status: ${status}`;
+  const detail = upstreamDetail(body);
+  return detail && !base.includes(detail) ? `${base} (${detail})` : base;
 }
 
 /**

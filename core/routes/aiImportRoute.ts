@@ -8,7 +8,7 @@ import { isAiConfigured } from '../ai/config';
 import { extractRows } from '../ai/extract';
 import { textPart, imagePart } from '../ai/client';
 import { AiExtractedRow } from '../ai/types';
-import { isValidImageDataUrl } from '../ai/image';
+import { isAcceptedImage } from '../ai/images';
 
 /**
  * Import through the AI assist: the user describes what they own, in prose or from a
@@ -33,12 +33,12 @@ const guards = [requireAuth, requireCollectionRole('admin')];
 const MAX_INPUT_CHARS = 20000;
 const MAX_ROWS = 200;
 
-/** Data URIs the browser has already downscaled. Four photos is a shelf, not a library. */
+/** Four photos is a shelf, not a library. */
 const MAX_IMAGES = 4;
 
 function validImages(raw: any): string[] {
   if (!Array.isArray(raw)) return [];
-  return raw.filter(isValidImageDataUrl).slice(0, MAX_IMAGES);
+  return raw.filter(isAcceptedImage).slice(0, MAX_IMAGES);
 }
 
 function resolvePlugin(req: any, res: any) {
@@ -133,13 +133,6 @@ router.post('/import/ai', ...guards, (req: any, res: any) => {
     plugin,
     rows,
     mapRow,
-    // Without a searchQuery, enrichment falls back to the title alone (runCsvImport's
-    // own default). Only combined with the creator for a plugin that opts in - see
-    // includeCreatorInSearch's own comment for why this isn't the default for every
-    // provider.
-    ...(plugin.includeCreatorInSearch ? {
-      searchQuery: (_row: any, data: Record<string, any>) => [data[plugin.creatorField], data.title].filter(Boolean).join(' ')
-    } : {}),
     searchOptions: (_row: any, data: Record<string, any>) => (data.media_type ? { type: data.media_type } : {})
   });
 });

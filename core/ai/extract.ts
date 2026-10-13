@@ -37,7 +37,7 @@ export function validateRows(raw: Record<string, any>[], fields: ImportTargetFie
     let hasAnyValue = false;
 
     // Iterating the declared fields, not the model's keys, is what keeps an unexpected
-    // key out — including the ones that are dangerous to copy onto a plain object.
+    // key out, including the ones that are dangerous to copy onto a plain object.
     for (const [name, field] of byName) {
       if (!Object.prototype.hasOwnProperty.call(entry, name)) continue;
       let value = toStringValue(entry[name]);

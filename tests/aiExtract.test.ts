@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { validateRows } from './extract';
-import { ImportTargetField } from '../csvMapping';
+import { validateRows } from '../core/ai/extract';
+import { ImportTargetField } from '../core/csvMapping';
 
 const fields: ImportTargetField[] = [
   { name: 'title', label: 'Title', type: 'text', required: true, group: 'plugin' },

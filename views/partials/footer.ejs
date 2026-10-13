@@ -25,6 +25,17 @@
     </div>
 </footer>
 
+<%
+  // Same condition as showTabBar in header.ejs, which reserves the tab bar's height.
+  const shellReady = Boolean(locals.user) && !locals.isShareView
+      && typeof settings !== 'undefined' && settings && typeof registry !== 'undefined' && registry;
+%>
+<% if (shellReady) { %>
+<%- include('shell/tab-bar') %>
+<%# One add hub per page, opened by the "+" tab and by the page's own add buttons alike. %>
+<%- include('add-hub') %>
+<% } %>
+
 <%- include('save-bar') %>
 
 <script>

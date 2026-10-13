@@ -8,7 +8,7 @@ let decryptSecret: (stored: string) => string;
 let keyHint: (plain: string) => string;
 
 before(async () => {
-  ({ encryptSecret, decryptSecret, keyHint } = await import('./secret'));
+  ({ encryptSecret, decryptSecret, keyHint } = await import('../core/ai/secret'));
 });
 
 test('round-trips a secret', () => {

@@ -1,5 +1,9 @@
 import mongoose from 'mongoose';
 
+// What a spine on the shelf is the edge of: a cardboard sleeve, a hinged plastic case,
+// a moulded media case, a bound book or a box.
+export type SpineShape = 'sleeve' | 'jewel' | 'case' | 'book' | 'box';
+
 export interface PluginDefinition {
   id: string;
   kind: string;
@@ -75,19 +79,13 @@ export interface PluginDefinition {
   // but far shorter, and that is what makes a mixed shelf read as a real one.
   // A plugin that declares nothing, or a format missing from the map, falls back to
   // SPINE_FALLBACK in core/spine.ts.
-  spineSize?: Record<string, { thickness: number; height: number }>;
+  //
+  // `shape` says what kind of object the spine belongs to, which is how the shelf draws
+  // its few telling details (a jewel case hinge, the rounded top of a DVD case, the
+  // bands of a bound book). Left out, the spine is drawn plain.
+  spineSize?: Record<string, { thickness: number; height: number; shape?: SpineShape }>;
 
   creatorField: string;
-
-  /**
-   * Whether an enrichment search should combine creatorField with the title, the way
-   * this plugin's own dedicated importers already do (see each plugin's importers.ts).
-   * True for a marketplace-style catalog (Discogs, Hardcover) that needs the extra
-   * context to find the right release among many same-titled ones. Left unset for a
-   * provider (TMDB, IGDB) whose search already works from the title alone and is not
-   * proven to tolerate an extra name appended to the query.
-   */
-  includeCreatorInSearch?: boolean;
 
   extraSearchFields?: string[];
 
@@ -131,17 +129,11 @@ export interface PluginDefinition {
   // True for a plugin whose items have no scannable retail barcode of their own (a single
   // trading card, unlike its sealed booster box). Swaps the add page's barcode scanner for
   // a "Scan card" photo flow: a photo of the card is identified by the AI assist
-  // (core/ai/cardScan.ts) into a search query, handed to this plugin's own searchProvider
-  // exactly like a typed search — see POST /add-{id}/card-scan in itemRoutes.ts.
+  // (core/ai/cardScan.ts) into a search query, handed to this plugin's own source exactly
+  // like a typed search — see POST /add-{id}/card-scan in itemRoutes.ts. Implies no barcode
+  // scan (see hasBarcodeScan in core/sources.ts) and hides the generic AI photo search,
+  // which this replaces for card plugins.
   supportsCardScan?: boolean;
-
-  // True only for a provider whose own free-text search can match raw barcode digits
-  // directly (Discogs indexes release barcodes). When UPCitemdb and the AI fallback both
-  // fail to resolve a title, this lets the route search with the scanned digits instead
-  // of dead-ending — the exact behavior this plugin had before it declared
-  // supportsBarcodeSearch. Left unset for a provider (TMDB, IGDB) that only matches on
-  // title, where searching raw digits cannot succeed and dead-ending is correct.
-  barcodeSearchFallback?: boolean;
 
   // Noise terms stripped from the title returned by the barcode lookup (e.g. 'DVD', 'Blu-ray', 'PS5'),
   // to sharpen the external search query. Plugin-specific (keeps the core agnostic).
@@ -198,6 +190,11 @@ export interface PluginDefinition {
   // Extra fields copied onto the existing record when merging a duplicate,
   // on top of externalIdField and barcode (e.g. books -> ['isbn']).
   backfillFields?: string[];
+
+  // Fields dropped when copying an item into a new entry, on top of its own id and
+  // barcode. For ids that name one edition rather than the work (music's Discogs release
+  // and the source pair pointing at it, a book's ISBN). Optional.
+  copyDropFields?: string[];
 
   // Shortcuts offered for the navbar (personalisation); ids are stored in settings.navbarShortcuts
   navbarShortcuts?: NavbarShortcut[];
@@ -597,4 +594,12 @@ export interface CollectionViewContext {
 
   // The ordering the page resolved, for a view keeping a list of items of its own.
   itemSort: any;
+
+  // The same narrowing as itemQuery minus everything the user asked for (search, type,
+  // filters): what the collection holds on this page whatever is being looked for. A view
+  // that keeps its own shape under a filter draws this and marks what itemQuery matches.
+  unfilteredQuery: any;
+
+  // Whether itemQuery narrows anything beyond unfilteredQuery.
+  isNarrowed: boolean;
 }

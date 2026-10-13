@@ -1,5 +1,37 @@
 import bwipjs from 'bwip-js';
 import { BASE_URL } from '../config/constants';
+import type { PluginDefinition } from './types';
+
+/**
+ * Builds the seed object for the "copy an item to a new entry" flow from an already
+ * `formatForView`'d source, so the result saves as a brand-new document: server-managed
+ * bookkeeping goes, along with the barcode and its lock, which belong to one physical
+ * copy. The external link stays by default, since for most plugins it names the work
+ * (the same film on TMDB whatever the disc, the same Lego set sealed or built) and keeps
+ * the copy refreshable. A plugin whose ids name one edition instead lists them in
+ * `copyDropFields`, so a refresh never pulls the original's edition over the copy.
+ * Quantity is reset to a single copy. Mutates and returns the passed object.
+ */
+export function buildCopySeed(formatted: any, plugin: PluginDefinition): any {
+  const seed: any = formatted;
+  for (const key of ['_id', 'mongo_id', '__v', 'added_at', 'modified_at', 'synced_at',
+    'owner', 'modified_by', 'parent', 'in_wishlist', 'quantity', 'barcode', 'barcode_locked']) {
+    delete seed[key];
+  }
+  for (const f of plugin.copyDropFields || []) delete seed[f];
+  // Subdocuments (a tracklist) get ids of their own on the new document, rather than
+  // sharing the source's, which lists use to address one track of one item.
+  for (const [key, value] of Object.entries(seed)) {
+    if (!Array.isArray(value)) continue;
+    seed[key] = value.map((entry: any) => {
+      if (!entry || typeof entry !== 'object' || !('_id' in entry)) return entry;
+      const { _id, ...rest } = entry;
+      return rest;
+    });
+  }
+  seed.quantity = 1;
+  return seed;
+}
 
 /**
  * Fetches JSON data from a URL.
@@ -119,6 +151,92 @@ export function buildSortTitle(title: string | null | undefined): string {
   if (!base) return '';
   // A title made of nothing but an article keeps it, otherwise it would sort as empty.
   return base.replace(/^(?:a|an|the)\s+/, '') || base;
+}
+
+// Minimal shape the distinct-titles group key needs off a plugin: which `kind` its
+// items carry and which field names their creator. Kept narrow (not the full
+// PluginDefinition) so the builder stays a pure function a unit test can call with
+// plain fakes, no registry wiring.
+export interface CreatorFieldSource {
+  kind: string;
+  creatorField: string;
+  matchesLegacyItems?: boolean;
+}
+
+// Folds a creator value to the same shape across editions: lowercased and trimmed.
+// Matches the case/space-insensitive intent of each plugin's getVariants(), which
+// compares title and creator with an `^...$`/`i` regex.
+//
+// Anything that is not a string (missing, null, or a number or array left by a native
+// backup insert that skipped the schema cast) stands in as "". $trim throws on a
+// non-string input, and one such item would otherwise fail the whole aggregate.
+function normalizeCreatorExpr(creatorExpr: any): any {
+  return {
+    $let: {
+      vars: { c: creatorExpr },
+      in: {
+        $cond: [
+          { $eq: [{ $type: '$$c' }, 'string'] },
+          { $toLower: { $trim: { input: '$$c' } } },
+          ''
+        ]
+      }
+    }
+  };
+}
+
+// The $switch case picking one plugin's items. The plugin claiming the pre-plugins stock
+// (matchesLegacyItems) also takes the items with no `kind` at all, as the shelf query
+// does, so they key on its creator field instead of falling to the title-only default.
+function kindCaseExpr(plugin: CreatorFieldSource): any {
+  const own = { $eq: ['$kind', plugin.kind] };
+  return plugin.matchesLegacyItems
+    ? { $or: [own, { $eq: [{ $type: '$kind' }, 'missing'] }] }
+    : own;
+}
+
+/**
+ * Builds the `$group._id` expression that counts distinct works behind the raw item
+ * count on the collection shelf: editions of one work (several formats, a reissue) fold
+ * together, while a remake stays apart through its different creator.
+ *
+ * The key is the normalized title plus the normalized creator. The title component uses
+ * `sort_title` (already lowercased, accent-folded and article-stripped by
+ * buildSortTitle), guarded with $ifNull so a legacy doc missing it still groups.
+ *
+ * The creator component depends on the view:
+ * - A selected type names one creator field (artist, director, author...), so the key
+ *   reads that field directly.
+ * - The all-types view has no single creator field, so the component is a $switch on
+ *   `kind` with one branch per enabled plugin (`then: '$' + creatorField`), driven by
+ *   the registry so custom plugins are covered too, and a '' default for any unknown
+ *   kind. This keeps the all-types number equal to the sum of the per-type counts: two
+ *   different-type items sharing a title do not collapse, because their kinds pick
+ *   different creator fields.
+ *
+ * The creator is normalized (see normalizeCreatorExpr), so "The Beatles", "the beatles"
+ * and a trailing-space variant fold into one.
+ */
+export function buildUniqueTitlesGroupKey(
+  selectedPlugin: CreatorFieldSource | undefined,
+  enabledPlugins: CreatorFieldSource[]
+): { title: any; creator: any } {
+  const creatorExpr = selectedPlugin
+    ? `$${selectedPlugin.creatorField}`
+    : {
+        $switch: {
+          branches: enabledPlugins.map(p => ({
+            case: kindCaseExpr(p),
+            then: `$${p.creatorField}`
+          })),
+          default: ''
+        }
+      };
+
+  return {
+    title: { $ifNull: ['$sort_title', ''] },
+    creator: normalizeCreatorExpr(creatorExpr)
+  };
 }
 
 /**
@@ -264,6 +382,26 @@ export async function fuzzyCardSearch<T>(
   const broad = await fetchByQuery(firstWord);
   const needle = normalizeCardName(query);
   return broad.filter(row => normalizeCardName(getName(row)).includes(needle));
+}
+
+/**
+ * Runs a search on what a model identified (from a barcode or a photo). With the creator
+ * first, which is what a catalog of many same-titled releases needs (Discogs); then on the
+ * title alone, which is all some providers match on (TMDB returns nothing for "Inception
+ * Christopher Nolan"); then on shorter forms of the title, as for a seller's product name.
+ */
+export async function searchWithGuess<T>(
+  guess: { title: string; creator?: string },
+  search: (query: string) => Promise<T[]>
+): Promise<{ results: T[]; query: string }> {
+  const title = guess.title.trim();
+  const creator = (guess.creator || '').trim();
+  if (creator) {
+    const query = `${title} ${creator}`;
+    const results = await search(query);
+    if (results.length > 0) return { results, query };
+  }
+  return searchWithTitleFallback(title, search);
 }
 
 /**

@@ -1,0 +1,26 @@
+<%# Shared by every photo that is sent to a vision model (the AI import, the photo search):
+    the longest edge is capped and the image re-encoded as JPEG, so what leaves the browser
+    is a few hundred kB, never the multi-MB original. %>
+<script>
+    window.DVDownscaleImage = window.DVDownscaleImage || function (file, maxEdge) {
+        return new Promise((resolve, reject) => {
+            const url = URL.createObjectURL(file);
+            const img = new Image();
+            img.onload = () => {
+                URL.revokeObjectURL(url);
+                let { width, height } = img;
+                if (width <= 0 || height <= 0) { reject(new Error('empty image')); return; }
+                const scale = Math.min(1, maxEdge / Math.max(width, height));
+                width = Math.max(1, Math.round(width * scale));
+                height = Math.max(1, Math.round(height * scale));
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', 0.8));
+            };
+            img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('could not load image')); };
+            img.src = url;
+        });
+    };
+</script>

@@ -1,5 +1,6 @@
 {
   "common": {
+    "share": "Share",
     "external_id_label": "Source ID",
     "external_id_hint": "The id this item is matched to on the site it came from. Fill it in to bring back the metadata refresh, or correct it if the item was matched to the wrong entry.",
     "edit": "Edit",
@@ -277,7 +278,13 @@
     "add_hub_subtitle": "Select the type of media to add to your collection",
     "history_title": "Value History",
     "history_empty": "Run this estimate at least twice to see a trend.",
-    "history_other_currency": "History exists in {{currencies}}, but values are never converted: only your own currency is charted."
+    "history_other_currency": "History exists in {{currencies}}, but values are never converted: only your own currency is charted.",
+    "add_hub_scan": "Scan a barcode",
+    "add_hub_scan_hint": "With your camera",
+    "add_hub_search": "Search",
+    "add_hub_search_hint": "By title, name or reference",
+    "add_hub_photo_hint": "AI recognises the item",
+    "add_hub_manual_hint": "Fill in the details yourself"
   },
   "add_vinyl": {
     "title": "Add a Record",
@@ -305,7 +312,10 @@
     "filter_ex_label": "Ex: EMI",
     "manual_entry": "Not on Discogs? Add manually",
     "source_label": "Source",
-    "scan_hint": "Still nothing. Try filling the width of the frame with the barcode, holding it steady in good light, and moving slightly further away if it will not focus. You can also type the number in above."
+    "scan_hint": "Still nothing. Try filling the width of the frame with the barcode, holding it steady in good light, and moving slightly further away if it will not focus. You can also type the number in above.",
+    "filter_format": "Format",
+    "filter_ex_format": "Ex: 8-Track Cartridge",
+    "filter_format_hint": "Any Discogs format name. It replaces the format picked above."
   },
   "admin": {
     "title": "Administration",
@@ -722,6 +732,7 @@
     "get_key": "Get an API key",
     "err_save": "Could not save the AI settings.",
     "err_not_configured": "AI assist is not configured yet.",
+    "err_test_key_required": "Type this provider's API key to test it.",
     "err_no_input": "Enter something to import first.",
     "err_input_too_long": "That is too long. Import at most {{max}} characters at a time.",
     "err_no_rows": "No rows to import.",
@@ -741,10 +752,19 @@
     "import_review_title": "Check before importing",
     "import_review_hint": "The AI can be wrong. Correct anything that looks off, and untick what you do not want.",
     "import_missing_required": "Missing required information",
+    "import_missing_enrich": "Missing required information, the source will fill it in during the import",
     "import_confirm": "Import the ticked rows",
     "import_none_selected": "Tick at least one row."
   },
   "collection": {
+    "share_active_count_other": "{{count}} active links",
+    "share_active_count_one": "{{count}} active link",
+    "share_disabled_hint": "Turned off: the link no longer opens. Turning it back on brings back the same link.",
+    "share_name": "Name",
+    "share_scope_all": "The whole collection",
+    "share_manage": "Manage share links",
+    "share_none": "No share link is active yet. Create one to let anyone browse the collection read-only.",
+    "share_hint": "Send a read-only link to the collection.",
     "title": "My Collection",
     "share_view_banner": "You're viewing a shared collection - read-only.",
     "filter_placeholder": "Filter...",
@@ -757,6 +777,11 @@
     "shelf_empty_cell": "Empty",
     "shelf_unsorted": "Unsorted",
     "shelf_more_hidden": "not shown",
+    "shelf_map": "Furniture map",
+    "shelf_open_item": "Open item",
+    "shelf_move_one": "Move elsewhere",
+    "shelf_close": "Close",
+    "shelf_matches": "{{matched}} of {{total}} match, the rest is dimmed",
     "shelf_none": "Unsorted",
     "shelf_new_option": "+ New shelf…",
     "shelf_new_placeholder": "Shelf name",
@@ -792,6 +817,9 @@
     "add": "Add",
     "scan": "Scan",
     "sort_label": "Sort by",
+    "unique_titles_one": "{{count}} unique title",
+    "unique_titles_other": "{{count}} unique titles",
+    "unique_titles_hint": "Distinct works, counting a title's several formats or editions as one (remakes stay apart through their creator).",
     "sort_added": "Date added",
     "sort_title": "Title",
     "sort_artist": "Artist",
@@ -880,6 +908,13 @@
     "edit_secondary_visual": "Edit secondary visual (Disc)"
   },
   "detail": {
+    "label_no_barcode": "No barcode on this item: add one when editing it.",
+    "label_save": "Save image",
+    "in_collection": "In the collection",
+    "my_copy": "My copy",
+    "edition_section": "Edition",
+    "more_actions": "More",
+    "label_short": "Label",
     "back_to_collection": "Back to collection",
     "back_to_wishlist": "Back to wishlist",
     "official_cover": "Official cover",
@@ -906,6 +941,7 @@
     "unavailable_data": "Data unavailable",
     "confirm_delete": "Are you sure you want to delete this album from your collection? This action is irreversible.",
     "move_to_wishlist_btn": "Back to wishlist",
+    "copy_to_new_btn": "Copy to a new entry",
     "move_to_wishlist_confirm": "Move this item back to your wishlist? It will leave your collection.",
     "duration_label": "Duration",
     "import_tracklist_btn": "Import Tracklist",
@@ -918,8 +954,6 @@
     "print_label_btn": "Print label",
     "qr_option": "QR code",
     "barcode_option": "Barcode",
-    "switch_to_qr": "Switch to QR code",
-    "switch_to_barcode": "Switch to barcode",
     "label_page_title": "Label"
   },
   "wishlist": {
@@ -929,6 +963,9 @@
     "scan_link": "Or scan a barcode",
     "btn_received": "I received it!",
     "confirm_move": "Great! Do you want to move this album to your official collection?"
+  },
+  "account": {
+    "appearance": "Appearance"
   },
   "nav": {
     "loading": "Loading...",
@@ -946,11 +983,16 @@
     "administration": "Administration",
     "new_collection": "New collection",
     "search": "Search",
-    "share_view": "Shared collection · read-only"
+    "share_view": "Shared collection · read-only",
+    "add": "Add",
+    "account": "Account",
+    "close": "Close",
+    "main_navigation": "Main navigation",
+    "back": "Back"
   },
   "search": {
     "title": "Search",
-    "placeholder": "Search title or artist across your collections...",
+    "placeholder": "Search across your collections",
     "empty_prompt": "Type at least 2 characters to search across all your collections.",
     "no_results": "No matches found.",
     "results_count": "{{count}} results"
@@ -1337,7 +1379,11 @@
     "instant_blocked": "Something the form needs is missing here. Fill it in and add it.",
     "added": "“{{title}}” added.",
     "added_again": "“{{title}}” was already there: you now have {{quantity}}.",
-    "identifier_no_match": "Nothing found for {{code}}."
+    "identifier_no_match": "Nothing found for {{code}}.",
+    "photo_btn": "Search with a photo",
+    "photo_reading": "Reading the photo…",
+    "photo_unknown": "Nothing recognisable in that photo. Try closer, with the title in view.",
+    "photo_no_match": "Nothing found for what the photo shows. Adjust the title and search again."
   },
   "no_collection": {
     "title": "No collection access",
@@ -1438,6 +1484,8 @@
     "card_fields_hint": "Shown under the cover in every grid, in the order the plugin declares them. Up to {{count}}.",
     "corner_field": "Corner of the cover",
     "corner_field_hint": "Shown in the bottom-left corner of every cover, opposite the format badge. The stored value is used as is, so it stays short.",
+    "filters": "Filters",
+    "filters_hint": "Shown on the collection page once this type is selected. Fields with a fixed list of values, like a status, can be added.",
     "corner_field_none": "Nothing",
     "corner_position": "Which corner",
     "corner_top_left": "Top left",
@@ -1447,6 +1495,8 @@
     "default_color": "Default color",
     "reset": "Reset",
     "customized": "Customized",
+    "field_lookalike": "Looks like the built-in \"{{native}}\" field. Keep both only if they hold different things.",
+    "fields_to_review": "Fields to review: {{count}}",
     "ai_err_empty": "Describe what you want to track first.",
     "ai_err_too_long": "Keep the description under {{max}} characters.",
     "ai_err_failed": "AI generation could not produce a draft. Try rephrasing, or fill in the form by hand.",
@@ -1455,9 +1505,7 @@
     "ai_section_hint": "A sentence is enough. You will review and edit every field before saving.",
     "ai_placeholder": "e.g. \"Old glass Coca-Cola bottles\"",
     "ai_generate_btn": "Generate",
-    "ai_generating": "Generating…",
-    "field_lookalike": "Looks like the built-in \"{{native}}\" field. Keep both only if they hold different things.",
-    "fields_to_review": "Fields to review: {{count}}"
+    "ai_generating": "Generating…"
   },
   "add_lego": {
     "title": "Add a LEGO set",

@@ -1,5 +1,6 @@
 {
   "common": {
+    "share": "Partager",
     "external_id_label": "ID source",
     "external_id_hint": "L'identifiant auquel cet élément est rattaché sur le site d'origine. Renseignez-le pour retrouver la mise à jour des métadonnées, ou corrigez-le si l'élément a été rattaché à la mauvaise fiche.",
     "edit": "Modifier",
@@ -277,7 +278,13 @@
     "add_hub_subtitle": "Sélectionnez le type de média à intégrer à votre collection",
     "history_title": "Historique de valeur",
     "history_empty": "Lancez cette estimation au moins deux fois pour voir une tendance.",
-    "history_other_currency": "Un historique existe en {{currencies}}, mais les valeurs ne sont jamais converties : seule votre devise est affichée."
+    "history_other_currency": "Un historique existe en {{currencies}}, mais les valeurs ne sont jamais converties : seule votre devise est affichée.",
+    "add_hub_scan": "Scanner un code-barres",
+    "add_hub_scan_hint": "Avec l'appareil photo",
+    "add_hub_search": "Rechercher",
+    "add_hub_search_hint": "Par titre, nom ou référence",
+    "add_hub_photo_hint": "L'IA reconnaît l'objet",
+    "add_hub_manual_hint": "Remplir la fiche soi-même"
   },
   "add_vinyl": {
     "title": "Ajouter un disque",
@@ -305,7 +312,10 @@
     "filter_ex_label": "Ex: EMI",
     "manual_entry": "Introuvable sur Discogs ? Ajouter manuellement",
     "source_label": "Source",
-    "scan_hint": "Toujours rien. Essayez de faire occuper toute la largeur de l'image au code-barres, de le tenir bien stable et bien éclairé, et de reculer un peu s'il ne fait pas la mise au point. Vous pouvez aussi saisir le numéro ci-dessus."
+    "scan_hint": "Toujours rien. Essayez de faire occuper toute la largeur de l'image au code-barres, de le tenir bien stable et bien éclairé, et de reculer un peu s'il ne fait pas la mise au point. Vous pouvez aussi saisir le numéro ci-dessus.",
+    "filter_format": "Format",
+    "filter_ex_format": "Ex: 8-Track Cartridge",
+    "filter_format_hint": "N'importe quel nom de format Discogs. Il remplace le format choisi au-dessus."
   },
   "admin": {
     "title": "Administration",
@@ -701,7 +711,7 @@
   },
   "ai": {
     "title": "Assistant IA",
-    "subtitle": "Utilisez votre propre clé. Sert à identifier les codes-barres inconnus et à importer des articles depuis du texte ou des photos.",
+    "subtitle": "Utilisez votre propre clé. Sert à identifier les codes-barres inconnus et à importer des items depuis du texte ou des photos.",
     "enable": "Activer l'assistant IA",
     "provider": "Fournisseur",
     "base_url": "URL de base",
@@ -722,13 +732,14 @@
     "get_key": "Obtenir une clé API",
     "err_save": "Impossible d'enregistrer les paramètres IA.",
     "err_not_configured": "L'assistant IA n'est pas encore configuré.",
+    "err_test_key_required": "Saisissez la clé API de ce fournisseur pour la tester.",
     "err_no_input": "Saisissez d'abord quelque chose à importer.",
     "err_input_too_long": "C'est trop long. Importez au maximum {{max}} caractères à la fois.",
     "err_no_rows": "Aucune ligne à importer.",
     "err_extract_failed": "L'IA n'a pas pu lire cela : {{error}}",
     "err_card_not_recognized": "Cette carte n'a pas pu être reconnue. Essayez une photo plus nette et mieux éclairée, ou cherchez par nom.",
     "import_title": "Importer avec l'IA",
-    "import_subtitle": "Collez une liste de ce que vous possédez et laissez l'IA la transformer en articles. Vous vérifiez tout avant l'enregistrement.",
+    "import_subtitle": "Collez une liste de ce que vous possédez et laissez l'IA la transformer en items. Vous vérifiez tout avant l'enregistrement.",
     "import_module": "Ajouter à",
     "import_text_label": "Votre liste",
     "import_text_placeholder": "Dune, Frank Herbert, Pocket 1980\nLe Petit Prince, Gallimard",
@@ -741,10 +752,19 @@
     "import_review_title": "Vérifiez avant d'importer",
     "import_review_hint": "L'IA peut se tromper. Corrigez ce qui semble incorrect et décochez ce que vous ne voulez pas.",
     "import_missing_required": "Information requise manquante",
+    "import_missing_enrich": "Information requise manquante, la source la complétera pendant l'import",
     "import_confirm": "Importer les lignes cochées",
     "import_none_selected": "Cochez au moins une ligne."
   },
   "collection": {
+    "share_active_count_other": "{{count}} liens actifs",
+    "share_active_count_one": "{{count}} lien actif",
+    "share_disabled_hint": "Désactivé : le lien ne s'ouvre plus. Le réactiver redonne le même lien.",
+    "share_name": "Nom",
+    "share_scope_all": "Toute la collection",
+    "share_manage": "Gérer les liens de partage",
+    "share_none": "Aucun lien de partage n'est actif. Créez-en un pour permettre à n'importe qui de parcourir la collection en lecture seule.",
+    "share_hint": "Envoyez un lien en lecture seule vers la collection.",
     "title": "Ma Collection",
     "share_view_banner": "Vous consultez une collection partagée - lecture seule.",
     "filter_placeholder": "Filtrer...",
@@ -757,6 +777,11 @@
     "shelf_empty_cell": "Vide",
     "shelf_unsorted": "Non rangés",
     "shelf_more_hidden": "non affichés",
+    "shelf_map": "Plan du meuble",
+    "shelf_open_item": "Ouvrir la fiche",
+    "shelf_move_one": "Ranger ailleurs",
+    "shelf_close": "Fermer",
+    "shelf_matches": "{{matched}} sur {{total}} correspondent, le reste est estompé",
     "shelf_none": "Non rangé",
     "shelf_new_option": "+ Nouvelle étagère…",
     "shelf_new_placeholder": "Nom de l'étagère",
@@ -795,6 +820,9 @@
     "sort_added": "Date d'ajout",
     "sort_artist": "Artiste",
     "sort_label": "Trier par",
+    "unique_titles_one": "{{count}} titre unique",
+    "unique_titles_other": "{{count}} titres uniques",
+    "unique_titles_hint": "Œuvres distinctes, comptant les formats ou éditions d'un même titre comme un seul (les remakes restent distincts par leur créateur).",
     "sort_title": "Titre",
     "sort_year": "Année",
     "decade_filter": "Décennie",
@@ -880,6 +908,13 @@
     "edit_secondary_visual": "Modifier le visuel secondaire (Disque)"
   },
   "detail": {
+    "label_no_barcode": "Pas de code-barres sur cet objet : ajoutez-en un en le modifiant.",
+    "label_save": "Enregistrer l'image",
+    "in_collection": "Dans la collection",
+    "my_copy": "Mon exemplaire",
+    "edition_section": "Édition",
+    "more_actions": "Plus",
+    "label_short": "Étiquette",
     "back_to_collection": "Retour à la collection",
     "back_to_wishlist": "Retour à la wishlist",
     "official_cover": "Pochette officielle",
@@ -906,6 +941,7 @@
     "unavailable_data": "Données indisponibles",
     "confirm_delete": "Es-tu sûr de vouloir supprimer cet album de ta collection ? Cette action est irréversible.",
     "move_to_wishlist_btn": "Remettre en wishlist",
+    "copy_to_new_btn": "Copier vers une nouvelle entrée",
     "move_to_wishlist_confirm": "Remettre cet élément dans votre liste de souhaits ? Il quittera votre collection.",
     "duration_label": "Durée",
     "import_tracklist_btn": "Importer Tracklist",
@@ -918,8 +954,6 @@
     "print_label_btn": "Imprimer l'étiquette",
     "qr_option": "QR code",
     "barcode_option": "Code-barres",
-    "switch_to_qr": "Passer au QR code",
-    "switch_to_barcode": "Passer au code-barres",
     "label_page_title": "Étiquette"
   },
   "wishlist": {
@@ -929,6 +963,9 @@
     "scan_link": "Ou scanne un code-barres",
     "btn_received": "Je l'ai reçu !",
     "confirm_move": "Super ! Tu veux ajouter cet album à ta collection officielle ?"
+  },
+  "account": {
+    "appearance": "Apparence"
   },
   "nav": {
     "loading": "Chargement...",
@@ -946,11 +983,16 @@
     "administration": "Administration",
     "new_collection": "Nouvelle collection",
     "search": "Recherche",
-    "share_view": "Collection partagée · lecture seule"
+    "share_view": "Collection partagée · lecture seule",
+    "add": "Ajouter",
+    "account": "Compte",
+    "close": "Fermer",
+    "main_navigation": "Navigation principale",
+    "back": "Retour"
   },
   "search": {
     "title": "Recherche",
-    "placeholder": "Rechercher un titre ou un artiste dans toutes vos collections...",
+    "placeholder": "Rechercher dans vos collections",
     "empty_prompt": "Tapez au moins 2 caractères pour rechercher dans toutes vos collections.",
     "no_results": "Aucun résultat trouvé.",
     "results_count": "{{count}} résultats"
@@ -1337,7 +1379,11 @@
     "instant_blocked": "Il manque ici une information obligatoire. Complétez-la puis ajoutez.",
     "added": "« {{title}} » ajouté.",
     "added_again": "« {{title}} » y était déjà : vous en avez maintenant {{quantity}}.",
-    "identifier_no_match": "Rien trouvé pour {{code}}."
+    "identifier_no_match": "Rien trouvé pour {{code}}.",
+    "photo_btn": "Chercher avec une photo",
+    "photo_reading": "Lecture de la photo…",
+    "photo_unknown": "Rien de reconnaissable sur cette photo. Essayez de plus près, avec le titre bien visible.",
+    "photo_no_match": "Rien trouvé pour ce que montre la photo. Corrigez le titre et relancez la recherche."
   },
   "no_collection": {
     "title": "Aucune collection",
@@ -1438,6 +1484,8 @@
     "card_fields_hint": "Affichés sous la pochette dans toutes les grilles, dans l'ordre déclaré par le plugin. {{count}} maximum.",
     "corner_field": "Coin de la pochette",
     "corner_field_hint": "Affiché dans le coin bas-gauche de chaque pochette, à l’opposé du badge de format. La valeur stockée est utilisée telle quelle, pour rester courte.",
+    "filters": "Filtres",
+    "filters_hint": "Affichés sur la page de la collection quand ce type est sélectionné. Les champs à liste de valeurs, comme un statut, peuvent y être ajoutés.",
     "corner_field_none": "Rien",
     "corner_position": "Quel coin",
     "corner_top_left": "En haut à gauche",
@@ -1447,6 +1495,8 @@
     "default_color": "Couleur par défaut",
     "reset": "Réinitialiser",
     "customized": "Personnalisé",
+    "field_lookalike": "Ressemble au champ intégré « {{native}} ». Ne gardez les deux que s'ils contiennent des choses différentes.",
+    "fields_to_review": "Champs à vérifier : {{count}}",
     "ai_err_empty": "Décrivez d'abord ce que vous voulez suivre.",
     "ai_err_too_long": "Limitez la description à {{max}} caractères.",
     "ai_err_failed": "La génération par IA n'a rien produit d'utilisable. Reformulez, ou remplissez le formulaire à la main.",
@@ -1455,9 +1505,7 @@
     "ai_section_hint": "Une phrase suffit. Vous relirez et modifierez chaque champ avant d'enregistrer.",
     "ai_placeholder": "ex : « Vieilles bouteilles en verre Coca-Cola »",
     "ai_generate_btn": "Générer",
-    "ai_generating": "Génération…",
-    "field_lookalike": "Ressemble au champ intégré « {{native}} ». Ne gardez les deux que s'ils contiennent des choses différentes.",
-    "fields_to_review": "Champs à vérifier : {{count}}"
+    "ai_generating": "Génération…"
   },
   "add_lego": {
     "title": "Ajouter un set LEGO",

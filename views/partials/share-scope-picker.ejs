@@ -1,33 +1,36 @@
 <%
   // Expected locals: sharePlugins (enabled plugins for this collection), scopeByType
   // (map pluginId -> already-selected formats[]), idPrefix (unique per form on the
-  // page, so the type<->format auto-check script in admin.ejs can pair them up).
+  // page, so the type<->format auto-check script in sharing.ejs can pair them up).
+  // One row per type, its formats as chips under it. Nothing checked shares everything.
 %>
-<div class="space-y-3">
+<div class="flex flex-col gap-2">
     <% sharePlugins.forEach((p) => { %>
         <div class="rounded-2xl bg-black/5 dark:bg-white/5 p-3">
-            <label class="flex items-center gap-3 cursor-pointer">
+            <label class="flex items-center gap-3 min-h-[36px] cursor-pointer">
                 <input type="checkbox" name="scopeTypes" value="<%= p.id %>"
                     data-share-type="<%= idPrefix %>_<%= p.id %>"
                     <%= scopeByType.hasOwnProperty(p.id) ? 'checked' : '' %>
-                    class="w-4 h-4 rounded accent-primary-theme">
-                <i class="fa-solid fa-<%= p.icon %> text-primary-theme text-sm"></i>
-                <span class="text-sm font-bold"><%= t(p.label) %></span>
+                    class="w-5 h-5 rounded accent-primary-theme flex-none">
+                <i class="fa-solid fa-<%= p.icon %> w-5 text-center text-primary-theme" aria-hidden="true"></i>
+                <span class="font-bold"><%= t(p.label) %></span>
             </label>
             <% if ((p.formats || []).length > 0) { %>
-                <div class="mt-2 ml-7 flex flex-wrap gap-3">
+                <div class="mt-2 flex flex-wrap gap-1.5">
                     <% p.formats.forEach((f) => { %>
-                        <label class="flex items-center gap-1.5 text-xs cursor-pointer opacity-80">
+                        <label class="cursor-pointer">
                             <input type="checkbox" name="scopeFormats_<%= p.id %>" value="<%= f.value %>"
                                 data-share-format-for="<%= idPrefix %>_<%= p.id %>"
                                 <%= (scopeByType[p.id] || []).includes(f.value) ? 'checked' : '' %>
-                                class="w-3.5 h-3.5 rounded accent-primary-theme">
-                            <%= t(f.label) %>
+                                class="peer sr-only">
+                            <span class="inline-flex items-center h-8 px-3 rounded-full text-xs font-semibold bg-black/5 dark:bg-white/10 peer-checked:bg-primary-theme peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-primary-theme transition-colors">
+                                <%= t(f.label) %>
+                            </span>
                         </label>
                     <% }) %>
                 </div>
             <% } %>
         </div>
     <% }) %>
-    <p class="text-[11px] opacity-50"><%= t('admin.sharing.scope_empty_hint') %></p>
+    <p class="text-xs opacity-60 px-1"><%= t('admin.sharing.scope_empty_hint') %></p>
 </div>

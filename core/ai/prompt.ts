@@ -5,7 +5,7 @@ import { AiContentPart, AiMessage } from './types';
  * The destination fields, written for a model.
  *
  * Built from importableFields(), which already derives the full destination list from any
- * PluginDefinition — its form fields, its schema paths and the collection's user-defined
+ * PluginDefinition: its form fields, its schema paths and the collection's user-defined
  * extra fields. So this is correct for books, music, board games and a plugin somebody
  * writes next month, without any of them being named here.
  */

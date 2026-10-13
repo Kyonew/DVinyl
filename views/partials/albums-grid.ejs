@@ -16,15 +16,18 @@
     const cardSize = locals.size || 'collection';
     const showReceived = locals.wishlist === true && locals.canEditCollection;
 %>
-<div class="grid <%= gridClass %> gap-3 md:gap-6" <% if (locals.gridId) { %>id="<%= locals.gridId %>"<% } %>>
+<%# On a phone the card loses its frame, as in an app: the cover carries the shape
+    (rounded, shadowed) and the text sits under it on the page. %>
+<div class="grid <%= gridClass %> gap-x-3.5 gap-y-5 md:gap-6" <% if (locals.gridId) { %>id="<%= locals.gridId %>"<% } %>>
     <% albums.forEach(album => { %>
         <%
             const itemPlugin = registry.getByKind(album.kind);
             const routePrefix = itemPlugin ? itemPlugin.routePrefix : '/album';
         %>
-        <div class="album-card group relative card-theme rounded-xl overflow-hidden hover:border-primary-theme transition-all duration-300 hover:shadow-lg hover:-translate-y-1 flex flex-col justify-between"
+        <div class="album-card group relative card-theme rounded-xl overflow-hidden hover:border-primary-theme transition-all duration-300 hover:shadow-lg hover:-translate-y-1 flex flex-col justify-between max-md:!bg-transparent max-md:!border-0 max-md:overflow-visible max-md:hover:translate-y-0 max-md:hover:shadow-none"
             data-location="<%= locals.isShareView ? '' : (album.location || '') %>"
             data-format="<%= album.format || album.media_type || '' %>"
+            data-item-id="<%= album._id %>"
             <% if (locals.selectable) { %>data-id="<%= album._id %>"<% } %>>
             <% if (locals.selectable) { %>
                 <div class="select-checkbox-overlay hidden absolute top-2 left-2 z-20 items-center justify-center w-6 h-6 rounded-md bg-white/90 dark:bg-black/70 border border-black/10 dark:border-white/20 shadow">
@@ -32,12 +35,14 @@
                 </div>
             <% } %>
             <a href="<%= baseUrl + routePrefix %>/<%= album._id %>" class="block flex-grow">
-                <%- include('item-cover', { item: album, plugin: itemPlugin, gridAspect, settings, badgeSize: locals.badgeSize || '' }) %>
+                <div class="max-md:rounded-xl max-md:overflow-hidden max-md:shadow-lg max-md:shadow-black/25">
+                    <%- include('item-cover', { item: album, plugin: itemPlugin, gridAspect, settings, badgeSize: locals.badgeSize || '' }) %>
+                </div>
                 <%- include('item-card-body', { item: album, plugin: itemPlugin, size: cardSize, reserveExtraRow: locals.reserveExtraRow === true }) %>
             </a>
             <% if (showReceived) { %>
                 <button onclick="moveToCollection('<%= album._id %>', '<%= routePrefix %>')"
-                    class="w-full py-2.5 md:py-2 bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white text-primary-theme text-[10px] md:text-xs font-bold uppercase transition-colors flex items-center justify-center gap-1.5 border-t border-black/10 dark:border-white/10 active:brightness-90 mt-auto">
+                    class="w-full py-2.5 md:py-2 bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white text-primary-theme text-[10px] md:text-xs font-bold uppercase transition-colors flex items-center justify-center gap-1.5 border-t border-black/10 dark:border-white/10 active:brightness-90 mt-auto max-md:mt-2 max-md:rounded-lg max-md:border-0">
                     <i class="fa-solid fa-check"></i>
                     <span><%= t('wishlist.btn_received') %></span>
                 </button>
