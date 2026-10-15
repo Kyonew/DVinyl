@@ -53,7 +53,8 @@ Used for book metadata and covers.
 Used for movie metadata and posters.
 
 1. Create an account on [The Movie Database](https://www.themoviedb.org/).
-2. Find your API key (not the "token") on [this page](https://www.themoviedb.org/settings/api).
+2. On [this page](https://www.themoviedb.org/settings/api), copy either the **API Key** or the **API Read
+   Access Token** (the long one starting with `eyJ`). Both work.
 3. Paste it into your `.env` as `TMDB_API_KEY`.
 
 ## 🎮 IGDB (Games)

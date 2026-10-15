@@ -3,6 +3,27 @@ import { fetchJson } from '../../core/helpers';
 import { TMDB_LANG_MAP, formatSeasonCount, formatEpisodeCount } from './constants';
 
 /**
+ * Reads a TMDB v3 endpoint with whichever credential TMDB_API_KEY holds.
+ *
+ * TMDB's settings page hands out two: the short API key, sent as a query parameter, and
+ * the API Read Access Token, a JWT sent as a bearer header. The token is listed first, so
+ * it is the one people paste most often, and v3 answers it with a 401 when it arrives as
+ * an api_key. Both are accepted on every v3 endpoint, so the shape of the value decides.
+ */
+export function tmdbFetch(path: string, params: Record<string, string | number>, init: RequestInit = {}): Promise<any> {
+  const credential = (process.env.TMDB_API_KEY || '').trim();
+  const url = new URL(`https://api.themoviedb.org/3/${path}`);
+  for (const [key, value] of Object.entries(params)) url.searchParams.set(key, String(value));
+  const headers = new Headers(init.headers);
+  if (credential.split('.').length === 3) {
+    headers.set('Authorization', `Bearer ${credential}`);
+  } else {
+    url.searchParams.set('api_key', credential);
+  }
+  return fetchJson(url.toString(), { ...init, headers });
+}
+
+/**
  * The episodes of a TMDB season payload, in the shape the item stores.
  *
  * Runtime is left out when TMDB has none rather than written as zero: a season nobody has
@@ -46,8 +67,8 @@ export class TMDBProvider implements SearchProvider {
     const tmdbLang = TMDB_LANG_MAP[lang] || "en-US";
 
     const [page1, page2] = await Promise.all([
-      fetchJson(`https://api.themoviedb.org/3/search/multi?api_key=${tmdbApiKey}&query=${encodeURIComponent(query)}&language=${tmdbLang}&page=1`),
-      fetchJson(`https://api.themoviedb.org/3/search/multi?api_key=${tmdbApiKey}&query=${encodeURIComponent(query)}&language=${tmdbLang}&page=2`)
+      tmdbFetch('search/multi', { query, language: tmdbLang, page: 1 }),
+      tmdbFetch('search/multi', { query, language: tmdbLang, page: 2 })
     ]);
 
     const allResults = [
@@ -68,8 +89,7 @@ export class TMDBProvider implements SearchProvider {
     const [mediaType, tmdbId] = id.split('_');
     if (!mediaType || !tmdbId) throw new Error("Invalid TMDB format ID (expected mediaType_tmdbId)");
 
-    const url = `https://api.themoviedb.org/3/${mediaType}/${tmdbId}?api_key=${tmdbApiKey}&language=${tmdbLang}&append_to_response=credits`;
-    const data = await fetchJson(url);
+    const data = await tmdbFetch(`${mediaType}/${tmdbId}`, { language: tmdbLang, append_to_response: 'credits' });
 
     let director = "Unknown";
     if (mediaType === "movie" && data.credits && data.credits.crew) {
@@ -124,8 +144,7 @@ export class TMDBProvider implements SearchProvider {
       return show;
     }
 
-    const seasonUrl = `https://api.themoviedb.org/3/tv/${tmdbId}/season/${wanted}?api_key=${tmdbApiKey}&language=${tmdbLang}`;
-    const seasonData = await fetchJson(seasonUrl);
+    const seasonData = await tmdbFetch(`tv/${tmdbId}/season/${wanted}`, { language: tmdbLang });
     const listed = show.seasons.find((s: any) => s.number === wanted);
 
     // The season's own poster, air date and synopsis where it has them, the show's where
@@ -167,7 +186,7 @@ export class TMDBProvider implements SearchProvider {
     if (!tmdbApiKey) throw new Error("TMDB_API_KEY missing");
     const tmdbLang = TMDB_LANG_MAP[lang || ''] || "en-US";
 
-    const show = await fetchJson(`https://api.themoviedb.org/3/tv/${tmdbId}?api_key=${tmdbApiKey}&language=${tmdbLang}`);
+    const show = await tmdbFetch(`tv/${tmdbId}`, { language: tmdbLang });
     const seasons = (show.seasons || [])
       .filter((s: any) => s.season_number > 0)
       .map((s: any) => ({
@@ -182,7 +201,7 @@ export class TMDBProvider implements SearchProvider {
     const season = seasons.some((s: any) => s.number === asked) ? asked : (seasons[0]?.number ?? null);
     if (season === null) return { seasons, season: null, episodes: [] };
 
-    const data = await fetchJson(`https://api.themoviedb.org/3/tv/${tmdbId}/season/${season}?api_key=${tmdbApiKey}&language=${tmdbLang}`);
+    const data = await tmdbFetch(`tv/${tmdbId}/season/${season}`, { language: tmdbLang });
     return { seasons, season, episodes: toEpisodes(data) };
   }
 }
