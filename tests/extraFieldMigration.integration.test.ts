@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import mongoose from 'mongoose';
+import { integrationDbUrl } from './integrationDb';
 import Item from '../models/Item';
 import Settings from '../models/Settings';
 import CustomPlugin from '../models/CustomPlugin';
@@ -9,13 +10,12 @@ import { loadPluginFromDir } from '../core/loadPlugins';
 import { EXTRA_FIELD_KEY_VERSION, migratedExtraFieldKey } from '../core/extraFieldIdentity';
 import { migrateExtraFieldIdentities } from '../utils/migrateExtraFieldIdentities';
 
-const mongoUrl = process.env.TEST_MONGODB_URL || '';
-const safeDatabaseName = 'dvinyl_issue151_test';
+// Its own database on the server TEST_MONGODB_URL points at (see integrationDb.ts).
+const mongoUrl = integrationDbUrl('dvinyl_issue151_test');
 
 test('legacy custom fields migrate without overwriting data and remain idempotent', {
   skip: !mongoUrl
 }, async t => {
-  assert.match(mongoUrl, new RegExp(`/${safeDatabaseName}(?:[?]|$)`), 'integration test must use its isolated database');
   await mongoose.connect(mongoUrl);
 
   const loaded = loadPluginFromDir('games');

@@ -1,6 +1,6 @@
 import InstanceSettings from '../../models/InstanceSettings';
 import { AiConfig } from './types';
-import { resolveAiConfig, normalizeStoredBaseUrl, isAiConfigured, StoredAiSettings } from './config';
+import { resolveAiConfig, normalizeStoredBaseUrl, isAiConfigured, storedKeyFollows, StoredAiSettings } from './config';
 import { encryptSecret } from './secret';
 
 /**
@@ -59,6 +59,17 @@ export interface AiSettingsInput {
 }
 
 export async function saveAiSettings(input: AiSettingsInput): Promise<void> {
+  const stored = await getStoredAiSettings();
+
+  // While AI_* variables are in charge the panel locks every field but the switch, and
+  // the server holds to the same rule: otherwise a request could point an environment
+  // key at an endpoint of its choosing.
+  if (resolveAiConfig(stored).fromEnv) {
+    await InstanceSettings.updateOne({ key: 'instance' }, { $set: { 'ai.enabled': input.enabled } }, { upsert: true });
+    invalidateAiConfigCache();
+    return;
+  }
+
   const update: Record<string, any> = {
     'ai.enabled': input.enabled,
     'ai.provider': input.provider,
@@ -73,6 +84,8 @@ export async function saveAiSettings(input: AiSettingsInput): Promise<void> {
     update['ai.apiKeyEncrypted'] = '';
   } else if (input.apiKey) {
     update['ai.apiKeyEncrypted'] = encryptSecret(input.apiKey.trim());
+  } else if (!storedKeyFollows(stored, input)) {
+    update['ai.apiKeyEncrypted'] = '';
   }
 
   await InstanceSettings.updateOne({ key: 'instance' }, { $set: update }, { upsert: true });

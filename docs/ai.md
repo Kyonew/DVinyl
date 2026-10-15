@@ -124,7 +124,10 @@ Your API key is stored encrypted in the database, not as plain text. Encryption 
   on an instance with a different `SESSION_SECRET`.
 - **The key stays with its endpoint:** **Test connection** only sends the saved key (or
   `AI_API_KEY`) to the endpoint it was saved for. To test another provider or another base URL,
-  type that provider's key in the form.
+  type that provider's key in the form. Saving another provider or base URL without typing a key
+  removes the saved one, so it never reaches the new endpoint.
+- **The environment is in charge:** while any `AI_*` variable is set, the admin panel can only
+  switch the assist on or off; the provider, base URL, model and key come from the environment.
 - **Environment variables bypass encryption:** Keys set through `AI_API_KEY` are never stored; they
   are read fresh on every request from the environment.
 

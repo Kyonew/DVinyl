@@ -111,6 +111,27 @@ export function resolveTestConfig(
 }
 
 /**
+ * Whether the stored key may stay once a save points the settings at `next`. The same
+ * rule as resolveTestConfig: a held key only ever goes to the endpoint it was saved for,
+ * so a save that moves the instance to another endpoint without typing a key for it drops
+ * the old one rather than sending it to the new URL on the next call.
+ */
+export function storedKeyFollows(
+  stored: StoredAiSettings | null | undefined,
+  next: { provider: string; baseUrl: string }
+): boolean {
+  const moved: StoredAiSettings = {
+    enabled: stored?.enabled === true,
+    provider: next.provider,
+    baseUrl: normalizeStoredBaseUrl(next.provider, next.baseUrl),
+    model: stored?.model || '',
+    visionModel: stored?.visionModel || '',
+    apiKeyEncrypted: ''
+  };
+  return resolveAiConfig(moved).baseUrl === resolveAiConfig(stored).baseUrl;
+}
+
+/**
  * The base URL a save should actually persist. Only the custom provider has a
  * user-supplied endpoint; every hosted preset's URL is fixed by the provider choice
  * itself, so a value here would be persisted as an explicit override that shadows the

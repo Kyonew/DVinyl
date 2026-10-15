@@ -784,9 +784,10 @@
     </div>
     <script>
         (function () {
-            const labelUrl = <%- JSON.stringify(baseUrl + plugin.routePrefix + '/' + item._id + '/label') %>;
-            const labelTitle = <%- JSON.stringify(item.title || '') %>;
-            const labelCreator = <%- JSON.stringify(item[plugin.creatorField] || '') %>;
+            // '<' is escaped so a stored title containing a closing script tag cannot break out of this inline script.
+            const labelUrl = <%- JSON.stringify(baseUrl + plugin.routePrefix + '/' + item._id + '/label').replace(/</g, '\\u003c') %>;
+            const labelTitle = <%- JSON.stringify(item.title || '').replace(/</g, '\\u003c') %>;
+            const labelCreator = <%- JSON.stringify(item[plugin.creatorField] || '').replace(/</g, '\\u003c') %>;
             const sheet = document.getElementById('labelSheet');
             const image = document.getElementById('labelPreviewImage');
             const spinner = document.getElementById('labelPreviewSpinner');

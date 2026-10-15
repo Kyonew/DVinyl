@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import mongoose from 'mongoose';
+import { integrationDbUrl } from './integrationDb';
 import { buildUniqueTitlesGroupKey, CreatorFieldSource } from '../core/helpers';
 
-const mongoUrl = process.env.TEST_MONGODB_URL || '';
-const safeDatabaseName = 'dvinyl_distinct_titles_test';
+// Its own database on the server TEST_MONGODB_URL points at (see integrationDb.ts).
+const mongoUrl = integrationDbUrl('dvinyl_distinct_titles_test');
 
 const music: CreatorFieldSource = { kind: 'Music', creatorField: 'artist', matchesLegacyItems: true };
 const dvd: CreatorFieldSource = { kind: 'Dvd', creatorField: 'director' };
@@ -13,7 +14,6 @@ const book: CreatorFieldSource = { kind: 'Book', creatorField: 'author' };
 test('distinct titles count runs on real data, including malformed creators', {
   skip: !mongoUrl
 }, async t => {
-  assert.match(mongoUrl, new RegExp(`/${safeDatabaseName}(?:[?]|$)`), 'integration test must use its isolated database');
   await mongoose.connect(mongoUrl);
   t.after(async () => {
     await mongoose.connection.dropDatabase();

@@ -8,10 +8,11 @@ let resolveAiConfig: (typeof import('../core/ai/config'))['resolveAiConfig'];
 let resolveTestConfig: (typeof import('../core/ai/config'))['resolveTestConfig'];
 let isAiConfigured: (typeof import('../core/ai/config'))['isAiConfigured'];
 let normalizeStoredBaseUrl: (typeof import('../core/ai/config'))['normalizeStoredBaseUrl'];
+let storedKeyFollows: (typeof import('../core/ai/config'))['storedKeyFollows'];
 
 before(async () => {
   ({ encryptSecret } = await import('../core/ai/secret'));
-  ({ resolveAiConfig, resolveTestConfig, isAiConfigured, normalizeStoredBaseUrl } = await import('../core/ai/config'));
+  ({ resolveAiConfig, resolveTestConfig, isAiConfigured, normalizeStoredBaseUrl, storedKeyFollows } = await import('../core/ai/config'));
 });
 
 const AI_ENV = ['AI_API_KEY', 'AI_BASE_URL', 'AI_MODEL', 'AI_PROVIDER'];
@@ -185,4 +186,20 @@ test('resolveTestConfig never sends a held key to an endpoint other than its own
     provider: 'openrouter', baseUrl: '', model: '', visionModel: '', apiKey: ''
   }, stored);
   assert.equal(same.apiKey, 'sk-from-env', 'its own endpoint still gets the held key');
+});
+
+test('storedKeyFollows keeps the key only while the endpoint stays the same', () => {
+  const stored = {
+    enabled: true, provider: 'openrouter', baseUrl: '', model: 'openai/gpt-4o-mini',
+    visionModel: '', apiKeyEncrypted: encryptSecret('sk-stored-openrouter')
+  };
+  assert.equal(storedKeyFollows(stored, { provider: 'openrouter', baseUrl: '' }), true, 'unchanged provider');
+  assert.equal(storedKeyFollows(stored, { provider: 'openrouter', baseUrl: 'https://openrouter.ai/api/v1' }), true,
+    'the preset URL the panel echoes back is the same endpoint');
+  assert.equal(storedKeyFollows(stored, { provider: 'custom', baseUrl: 'https://attacker.example/v1' }), false, 'custom URL');
+  assert.equal(storedKeyFollows(stored, { provider: 'openai', baseUrl: '' }), false, 'another hosted provider');
+
+  const custom = { ...stored, provider: 'custom', baseUrl: 'http://localhost:11434/v1' };
+  assert.equal(storedKeyFollows(custom, { provider: 'custom', baseUrl: 'http://localhost:11434/v1/' }), true, 'trailing slash');
+  assert.equal(storedKeyFollows(custom, { provider: 'custom', baseUrl: 'http://other:11434/v1' }), false, 'another host');
 });
