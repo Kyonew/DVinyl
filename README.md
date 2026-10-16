@@ -40,7 +40,7 @@ read-only preview of a finished instance.
 
 ### 📦 Your whole shelf, in one place
 - **Many formats.** Music (vinyls, CDs, cassettes), books (manga, comics, hardcover), movies
-  (Blu-ray, 4K, DVD, VHS, LaserDisc), video games, LEGO sets and board games.
+  (Blu-ray, 4K, DVD, VHS, LaserDisc), video games, LEGO sets, board games and trading card games.
 - **Multiple views & virtual shelves.** Browse in a grid, a compact table, or as realistic virtual
   shelves with spine view and customizable furniture.
 - **Lists & playlists.** Curate custom lists within a collection and assemble tracks into playlists.
@@ -84,6 +84,23 @@ read-only preview of a finished instance.
 | Board games | Board games       | BoardGameGeek |
 
 Every plugin can be turned on or off per collection from the admin panel.
+
+## Trading card games
+
+| Plugin | Metadata source | Price estimate |
+| :----- | :--------------- | :---: |
+| Pokémon | TCGdex | ✅ |
+| Magic: The Gathering | Scryfall | ✅ |
+| Yu-Gi-Oh! | YGOPRODeck | ✅ |
+| One Piece | optcgapi.com | ✅ |
+| Lorcana | Lorcana API | — |
+| Star Wars: Unlimited | SWU-DB | ✅ |
+| Digimon | DigimonCard.io | — |
+| Flesh and Blood | goagain.dev | — |
+
+All eight are free and fully keyless — no `.env` setup, just enable the ones you want per
+collection from the admin panel. "Price estimate" sums your collection's live market value from
+the collection page; the three without it use sources that don't publish pricing data.
 
 ## Build your own type
 
@@ -158,7 +175,7 @@ No Docker or NAS? Have a look at the other ways to install and run DVinyl in the
 | Frontend | EJS templates |
 | Styling | Tailwind CSS |
 | Localization | i18next |
-| Metadata APIs | Discogs, Hardcover, Open Library, TMDB, IGDB, ScreenScraper, Rebrickable, BoardGameGeek |
+| Metadata APIs | Discogs, Hardcover, Open Library, TMDB, IGDB, ScreenScraper, Rebrickable, BoardGameGeek, plus 8 free TCG APIs (see [Trading card games](#trading-card-games)) |
 
 ## Contributing
 

@@ -4,6 +4,7 @@ node_modules
 mongo_data
 mongo_data_test
 dist
+.claude
 
 # Runtime uploads (avatars, item images). Kept out of the image so a local
 # `docker compose up --build` never bakes the builder's own files into it; every

@@ -80,17 +80,25 @@
 
         <div class="flex flex-col items-center justify-center mt-6 gap-3">
             <div class="flex flex-wrap items-center justify-center gap-3">
-                <% if (!plugin.noBarcodeScan) { %>
+                <% if (plugin.supportsCardScan) { %>
+                    <input type="file" id="card-scan-input" accept="image/*" capture="environment" class="hidden">
+                    <button type="button" id="start-card-scan"
+                        class="bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 active:scale-95">
+                        <i class="fa-solid fa-camera"></i>
+                        <span id="card-scan-label"><%= t('add_' + plugin.i18nKey + '.btn_scan', { defaultValue: t('add_vinyl.btn_scan') }) %></span>
+                    </button>
+                <% } else if (!plugin.noBarcodeScan) { %>
                     <button type="button" id="start-scan"
                         class="bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 active:scale-95">
                         <i class="fa-solid fa-barcode"></i>
                         <%= t('add_' + plugin.i18nKey + '.btn_scan', { defaultValue: t('add_vinyl.btn_scan') }) %>
                     </button>
                 <% } %>
-                <%# Offered only with the AI assist configured: a model reads the photo and the
-                    normal search runs on what it read. No capture attribute, so a phone offers
-                    the gallery as well as the camera. %>
-                <% if (locals.aiPhotoSearch) { %>
+                <%# Offered only with the AI assist configured, and never for a card-scan
+                    plugin: its own "Scan card" button above is that plugin's photo flow. A
+                    model reads the photo and the normal search runs on what it read. No
+                    capture attribute, so a phone offers the gallery as well as the camera. %>
+                <% if (locals.aiPhotoSearch && !plugin.supportsCardScan) { %>
                     <button type="button" id="photo-search"
                         class="bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 active:scale-95 disabled:opacity-70 disabled:cursor-wait">
                         <i class="fa-solid fa-camera"></i>
@@ -99,7 +107,10 @@
                     <input type="file" id="photo-search-input" accept="image/*" class="hidden">
                 <% } %>
             </div>
-            <% if (locals.aiPhotoSearch) { %>
+            <% if (plugin.supportsCardScan) { %>
+                <p id="card-scan-error" class="hidden text-xs text-red-500 text-center max-w-xs"></p>
+            <% } %>
+            <% if (locals.aiPhotoSearch && !plugin.supportsCardScan) { %>
                 <p id="photo-search-error" role="alert" class="hidden text-xs font-bold text-red-500 text-center max-w-md"></p>
             <% } %>
 
@@ -118,7 +129,7 @@
             <% } %>
         </div>
 
-        <% if (!plugin.noBarcodeScan) { %>
+        <% if (!plugin.supportsCardScan && !plugin.noBarcodeScan) { %>
             <%- include('../../views/partials/barcode-scanner') %>
         <% } %>
     </form>
@@ -171,6 +182,11 @@
                             <% const creatorLine = item.artist || item.author || item.director || item.developer || item.creator; %>
                             <% if (creatorLine) { %>
                                 <p class="opacity-60 text-xs mb-1 transition-colors line-clamp-1"><%= creatorLine %></p>
+                            <% } %>
+                            <% if (item.rarity) { %>
+                                <p class="text-[10px] font-bold text-amber-600 dark:text-amber-400 mb-1 flex items-center gap-1">
+                                    <i class="fa-solid fa-star text-[9px]"></i> <%= item.rarity %>
+                                </p>
                             <% } %>
                             <%# Where the release is from, or what it runs on for a game: one title is
                                 often several results that only this tells apart. %>
@@ -231,6 +247,7 @@
         document.querySelector('input[name="query"]').focus();
     }
 
+<script>
     // A plain form POST, so this spinner just rides out the page navigation. Every way in
     // goes through it (typing, a scan, a photo), and a barcode or a photo handed to the AI
     // assist can take a few seconds more than a typed title.
@@ -244,8 +261,98 @@
     })();
 </script>
 
-<% if (locals.aiPhotoSearch) { %>
+<% if (plugin.supportsCardScan || locals.aiPhotoSearch) { %>
 <%- include('../../views/partials/image-downscale') %>
+<% } %>
+
+<% if (plugin.supportsCardScan) { %>
+<script>
+    (() => {
+        const T = {
+            default: <%- JSON.stringify(t('add_' + plugin.i18nKey + '.btn_scan', { defaultValue: t('add_vinyl.btn_scan') })) %>,
+            analyzing: <%- JSON.stringify(t('add_vinyl.scan_card_analyzing')) %>
+        };
+        const input = document.getElementById('card-scan-input');
+        const button = document.getElementById('start-card-scan');
+        const label = document.getElementById('card-scan-label');
+        const errorBox = document.getElementById('card-scan-error');
+        const searchInput = document.querySelector('input[name="query"]');
+        const form = document.querySelector('form[action="<%= baseUrl %>/search-<%= plugin.id %>"]');
+
+        function resetButton() {
+            button.disabled = false;
+            label.textContent = T.default;
+        }
+
+        // Reads an already downscaled image and hands it to this plugin's own card-scan
+        // route, which answers with the search query the model produced for the card. Fed
+        // by this page's own file input and by a photo taken from the add sheet.
+        async function scanCard(image) {
+            errorBox.classList.add('hidden');
+            button.disabled = true;
+            label.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> ' + T.analyzing;
+            try {
+                const res = await fetch('<%= baseUrl %>/add-<%= plugin.id %>/card-scan', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || !data.query) throw new Error(data.error || <%- JSON.stringify(t('errors.api_error')) %>);
+                searchInput.value = data.query;
+                form.requestSubmit();
+            } catch (err) {
+                errorBox.textContent = err.message;
+                errorBox.classList.remove('hidden');
+                resetButton();
+            }
+        }
+
+        button.addEventListener('click', () => input.click());
+
+        input.addEventListener('change', async () => {
+            const file = input.files && input.files[0];
+            input.value = '';
+            if (!file) return;
+            let image;
+            try {
+                image = await window.DVDownscaleImage(file, 1600);
+            } catch (err) {
+                errorBox.textContent = <%- JSON.stringify(t('ai.err_image_rejected')) %>;
+                errorBox.classList.remove('hidden');
+                return;
+            }
+            scanCard(image);
+        });
+
+        // A photo picked in the add sheet (partials/add-hub) waits in sessionStorage, since
+        // a page can only open the file picker from a tap of its own. Used once, for this
+        // module only, and only while fresh: a stale one must not search on a later visit.
+        const pageParams = new URLSearchParams(window.location.search);
+        if (pageParams.has('photo')) {
+            pageParams.delete('photo');
+            const rest = pageParams.toString();
+            history.replaceState(history.state, '', window.location.pathname + (rest ? '?' + rest : '') + window.location.hash);
+            let pending = null;
+            try {
+                pending = JSON.parse(sessionStorage.getItem('dvinyl.photoSearch') || 'null');
+                sessionStorage.removeItem('dvinyl.photoSearch');
+            } catch (e) { pending = null; }
+            if (pending && pending.plugin === <%- JSON.stringify(plugin.id) %> && pending.image
+                && Date.now() - pending.at < 5 * 60 * 1000) {
+                scanCard(pending.image);
+            }
+        } else if (pageParams.has('scan')) {
+            // A scan shortcut elsewhere (the collection's shortcut button) opens the card
+            // picker. Dropped once used, so a reload shows the plain form again.
+            pageParams.delete('scan');
+            const rest = pageParams.toString();
+            history.replaceState(history.state, '', window.location.pathname + (rest ? '?' + rest : '') + window.location.hash);
+            input.click();
+        }
+    })();
+</script>
+<% } else if (locals.aiPhotoSearch) { %>
 <script>
     (() => {
         const button = document.getElementById('photo-search');
@@ -338,7 +445,7 @@
 </script>
 <% } %>
 
-<% if (!plugin.noBarcodeScan) { %>
+<% if (!plugin.supportsCardScan && !plugin.noBarcodeScan) { %>
 <script>
     const scanTranslations = {
         btnDefault: '<i class="fa-solid fa-barcode text-primary-theme text-xl"></i> <span><%= t("add_" + plugin.i18nKey + ".btn_scan", { defaultValue: t("add_vinyl.btn_scan") }) %></span>',

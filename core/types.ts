@@ -126,6 +126,15 @@ export interface PluginDefinition {
 
   supportsBarcodeSearch?: boolean;
 
+  // True for a plugin whose items have no scannable retail barcode of their own (a single
+  // trading card, unlike its sealed booster box). Swaps the add page's barcode scanner for
+  // a "Scan card" photo flow: a photo of the card is identified by the AI assist
+  // (core/ai/cardScan.ts) into a search query, handed to this plugin's own source exactly
+  // like a typed search — see POST /add-{id}/card-scan in itemRoutes.ts. Implies no barcode
+  // scan (see hasBarcodeScan in core/sources.ts) and hides the generic AI photo search,
+  // which this replaces for card plugins.
+  supportsCardScan?: boolean;
+
   // Noise terms stripped from the title returned by the barcode lookup (e.g. 'DVD', 'Blu-ray', 'PS5'),
   // to sharpen the external search query. Plugin-specific (keeps the core agnostic).
   barcodeNoiseTerms?: string[];
