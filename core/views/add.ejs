@@ -1,6 +1,6 @@
 <%- include('../../views/partials/header') %>
 
-<div class="max-w-screen-lg mx-auto pb-20 px-4">
+<div class="max-w-screen-lg mx-auto pb-20 px-4 max-sm:px-0">
     
     <div class="text-center mb-8 md:mb-12 pt-4 md:pt-8">
         <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary-theme/10 text-primary-theme mb-4">
@@ -47,10 +47,10 @@
                     class="block w-full p-4 pl-12 text-base bg-black/5 dark:bg-white/5 border border-transparent focus:border-primary-theme rounded-2xl focus:ring-2 focus:ring-primary-theme/50 placeholder-opacity-50 transition-all outline-none"
                     placeholder="<%= t('add_' + plugin.i18nKey + '.search_placeholder', { defaultValue: t('add_vinyl.search_placeholder') }) %>" required>
             </div>
-            <button type="submit"
+            <button type="submit" id="searchSubmitBtn"
                 class="bg-primary-theme hover:brightness-110 text-white font-bold px-8 py-4 rounded-2xl shadow-lg shadow-primary-theme/20 transition-all active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap">
                 <i class="fa-solid fa-search"></i>
-                <%= t('common.search') %>
+                <span><%= t('common.search') %></span>
             </button>
         </div>
 
@@ -79,12 +79,28 @@
         </div>
 
         <div class="flex flex-col items-center justify-center mt-6 gap-3">
-            <% if (!plugin.noBarcodeScan) { %>
-                <button type="button" id="start-scan"
-                    class="bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 active:scale-95">
-                    <i class="fa-solid fa-barcode"></i>
-                    <%= t('add_' + plugin.i18nKey + '.btn_scan', { defaultValue: t('add_vinyl.btn_scan') }) %>
-                </button>
+            <div class="flex flex-wrap items-center justify-center gap-3">
+                <% if (!plugin.noBarcodeScan) { %>
+                    <button type="button" id="start-scan"
+                        class="bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 active:scale-95">
+                        <i class="fa-solid fa-barcode"></i>
+                        <%= t('add_' + plugin.i18nKey + '.btn_scan', { defaultValue: t('add_vinyl.btn_scan') }) %>
+                    </button>
+                <% } %>
+                <%# Offered only with the AI assist configured: a model reads the photo and the
+                    normal search runs on what it read. No capture attribute, so a phone offers
+                    the gallery as well as the camera. %>
+                <% if (locals.aiPhotoSearch) { %>
+                    <button type="button" id="photo-search"
+                        class="bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 active:scale-95 disabled:opacity-70 disabled:cursor-wait">
+                        <i class="fa-solid fa-camera"></i>
+                        <span><%= t('add.photo_btn') %></span>
+                    </button>
+                    <input type="file" id="photo-search-input" accept="image/*" class="hidden">
+                <% } %>
+            </div>
+            <% if (locals.aiPhotoSearch) { %>
+                <p id="photo-search-error" role="alert" class="hidden text-xs font-bold text-red-500 text-center max-w-md"></p>
             <% } %>
 
             <% if (plugin.getManualDefaults) { %>
@@ -214,7 +230,113 @@
     if (!window.matchMedia('(pointer: coarse)').matches) {
         document.querySelector('input[name="query"]').focus();
     }
+
+    // A plain form POST, so this spinner just rides out the page navigation. Every way in
+    // goes through it (typing, a scan, a photo), and a barcode or a photo handed to the AI
+    // assist can take a few seconds more than a typed title.
+    (() => {
+        const searchSubmitBtn = document.getElementById('searchSubmitBtn');
+        document.querySelector('form[action="<%= baseUrl %>/search-<%= plugin.id %>"]').addEventListener('submit', () => {
+            searchSubmitBtn.disabled = true;
+            searchSubmitBtn.classList.add('opacity-70', 'cursor-not-allowed');
+            searchSubmitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span><%= t("common.searching") %></span>';
+        });
+    })();
 </script>
+
+<% if (locals.aiPhotoSearch) { %>
+<%- include('../../views/partials/image-downscale') %>
+<script>
+    (() => {
+        const button = document.getElementById('photo-search');
+        const input = document.getElementById('photo-search-input');
+        const errorBox = document.getElementById('photo-search-error');
+        const form = document.querySelector('form[action="<%= baseUrl %>/search-<%= plugin.id %>"]');
+        const idleLabel = button.innerHTML;
+        const readingLabel = '<i class="fa-solid fa-spinner fa-spin"></i> <span>' + <%- JSON.stringify(t('add.photo_reading')) %> + '</span>';
+
+        // The answer travels with the form: the title in the box, the creator in a hidden
+        // field, so the search tries both together before the title alone.
+        function setHidden(name, value) {
+            let field = form.querySelector('input[type="hidden"][name="' + name + '"]');
+            if (!field) {
+                field = document.createElement('input');
+                field.type = 'hidden';
+                field.name = name;
+                form.appendChild(field);
+            }
+            field.value = value;
+        }
+
+        function showError(message) {
+            errorBox.textContent = message;
+            errorBox.classList.remove('hidden');
+        }
+
+        // Reads an already downscaled image and runs the normal search on what the model
+        // saw. Fed by this page's own file input and by a photo taken from the add sheet.
+        async function searchWithImage(image) {
+            errorBox.classList.add('hidden');
+            button.disabled = true;
+            button.innerHTML = readingLabel;
+            try {
+                const response = await fetch('<%= baseUrl %>/search-<%= plugin.id %>/photo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image })
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || !data.title) throw new Error(data.error || <%- JSON.stringify(t('add.photo_unknown')) %>);
+                form.querySelector('input[name="query"]').value = data.title;
+                setHidden('guess_from', 'photo');
+                setHidden('guess_creator', data.creator || '');
+                form.requestSubmit();
+            } catch (err) {
+                button.disabled = false;
+                button.innerHTML = idleLabel;
+                showError(err.message === 'could not load image' || err.message === 'empty image'
+                    ? <%- JSON.stringify(t('ai.err_image_rejected')) %>
+                    : err.message);
+            }
+        }
+
+        button.addEventListener('click', () => input.click());
+
+        input.addEventListener('change', async () => {
+            const file = input.files && input.files[0];
+            input.value = '';
+            if (!file) return;
+            let image;
+            try {
+                image = await window.DVDownscaleImage(file, 1600);
+            } catch (err) {
+                showError(<%- JSON.stringify(t('ai.err_image_rejected')) %>);
+                return;
+            }
+            searchWithImage(image);
+        });
+
+        // A photo picked in the add sheet (partials/add-hub) waits in sessionStorage, since
+        // a page can only open the file picker from a tap of its own. Used once, for this
+        // module only, and only while fresh: a stale one must not search on a later visit.
+        const pageParams = new URLSearchParams(window.location.search);
+        if (pageParams.has('photo')) {
+            pageParams.delete('photo');
+            const rest = pageParams.toString();
+            history.replaceState(history.state, '', window.location.pathname + (rest ? '?' + rest : '') + window.location.hash);
+            let pending = null;
+            try {
+                pending = JSON.parse(sessionStorage.getItem('dvinyl.photoSearch') || 'null');
+                sessionStorage.removeItem('dvinyl.photoSearch');
+            } catch (e) { pending = null; }
+            if (pending && pending.plugin === <%- JSON.stringify(plugin.id) %> && pending.image
+                && Date.now() - pending.at < 5 * 60 * 1000) {
+                searchWithImage(pending.image);
+            }
+        }
+    })();
+</script>
+<% } %>
 
 <% if (!plugin.noBarcodeScan) { %>
 <script>
@@ -251,7 +373,7 @@
             onCode(code) {
                 resetScanButton(scanTranslations.found);
                 searchInput.value = code;
-                form.submit();
+                form.requestSubmit();
             },
             // The overlay's own close button: the camera is already stopped.
             onClose: () => resetScanButton(scanTranslations.btnDefault)

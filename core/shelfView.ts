@@ -2,7 +2,7 @@ import Furniture from '../models/Furniture';
 import Item from '../models/Item';
 import { resolveShelfItems } from '../utils/itemHelpers';
 import { registry } from './registry';
-import { measureSpines, tallestFormat, SPINE_MAX_HEIGHT_PX } from './spine';
+import { measureSpines, tallestFormat, arrangeCompartment, pileUp, formatOf, SPINE_MAX_HEIGHT_PX } from './spine';
 import { CollectionView } from './types';
 
 // A reserve holding a whole collection is a wall of spines nobody can read, and a page
@@ -47,7 +47,7 @@ export const SHELF_VIEW: CollectionView = {
   },
 
   buildData: async (context, base) => {
-    const { req, res, itemQuery, itemSort } = context;
+    const { req, res, itemQuery, itemSort, unfilteredQuery, isNarrowed } = context;
     const collectionId = res.locals.activeCollectionId;
 
     const furnitureList = await Furniture.find({ collection: collectionId })
@@ -67,7 +67,7 @@ export const SHELF_VIEW: CollectionView = {
     const requestedId = String(req.query.furniture || '');
     const activeFurniture = furnitureList.find(f => String(f._id) === requestedId) || furnitureList[0];
     if (!activeFurniture) {
-      return { furnitureList, activeFurniture: null, shelfRows: [], shelfColumns: 1, unsorted: [], unsortedTotal: 0, unsortedShown: 0 };
+      return { furnitureList, activeFurniture: null, shelfRows: [], shelfColumns: 1, shelfNarrowed: false, shelfMatched: 0, shelfTotal: 0, unsorted: [], unsortedPiles: [], unsortedTotal: 0, unsortedShown: 0 };
     }
 
     const cells: any[] = activeFurniture.cells || [];
@@ -83,8 +83,16 @@ export const SHELF_VIEW: CollectionView = {
     // The reserve is the complement of that same list rather than "no location at all",
     // which also catches a value that names no shelf, e.g. one typed straight into the
     // database or restored from an older backup. $nin matches a missing field too.
-    const [shelved, unsortedRaw, unsortedTotal] = await Promise.all([
-      Item.find({ ...itemQuery, location: { $in: cells.map(c => c.name) } }).sort(itemSort).lean(),
+    //
+    // The compartments are drawn from everything the collection holds, whatever the page
+    // is narrowed to: a filter that emptied half the shelves would change the shape of the
+    // furniture under the user's eyes, when what they asked is where things are. What the
+    // filters do match is marked instead, and the rest is dimmed. The reserve is not a
+    // piece of furniture and has no shape to keep, so it simply follows the filters.
+    const inCells = { location: { $in: cells.map(c => c.name) } };
+    const [shelved, matchingIds, unsortedRaw, unsortedTotal] = await Promise.all([
+      Item.find({ ...unfilteredQuery, ...inCells }).sort(itemSort).lean(),
+      isNarrowed ? Item.distinct('_id', { ...itemQuery, ...inCells }) : Promise.resolve(null),
       Item.find({ ...itemQuery, location: { $nin: shelvedNames } }).sort(itemSort).limit(UNSORTED_LIMIT).lean(),
       Item.countDocuments({ ...itemQuery, location: { $nin: shelvedNames } })
     ]);
@@ -93,6 +101,8 @@ export const SHELF_VIEW: CollectionView = {
     // the living room stays there even when the page draws its only season instead of
     // it, and the season carries no location of its own.
     const shelfLocations = shelved.map((item: any) => item.location);
+    const matching = matchingIds ? new Set(matchingIds.map(String)) : null;
+    const shelfMatches = shelved.map((item: any) => !matching || matching.has(String(item._id)));
 
     const decorate = async (items: any[]) => {
       const resolved = await resolveShelfItems(items, res);
@@ -103,7 +113,10 @@ export const SHELF_VIEW: CollectionView = {
     };
 
     const [shelvedView, unsorted] = await Promise.all([decorate(shelved), decorate(unsortedRaw)]);
-    shelvedView.forEach((item: any, index: number) => { item.shelfLocation = shelfLocations[index]; });
+    shelvedView.forEach((item: any, index: number) => {
+      item.shelfLocation = shelfLocations[index];
+      item.shelfMatch = shelfMatches[index];
+    });
 
     // One scale for the whole piece of furniture, read from what the collection's own
     // types can hold rather than from what survived the filters, so the shelf keeps its
@@ -127,10 +140,12 @@ export const SHELF_VIEW: CollectionView = {
       const slots = [];
       for (let column = 0; column < columnCount; column++) {
         const cell = cells.find(c => c.row === row && c.column === column);
+        const items = cell ? byLocation.get(cell.name) || [] : [];
         slots.push(cell ? {
           name: cell.name,
           capacity: cell.capacity || 0,
-          items: byLocation.get(cell.name) || []
+          items,
+          ...arrangeCompartment(items, cell.capacity || 0)
         } : null);
       }
       shelfRows.push(slots);
@@ -152,8 +167,15 @@ export const SHELF_VIEW: CollectionView = {
         })),
       shelfRows,
       shelfColumns: columnCount,
+      // How much of the furniture the filters pick out, said above it while they do.
+      shelfNarrowed: isNarrowed,
+      shelfMatched: shelfMatches.filter(Boolean).length,
+      shelfTotal: shelved.length,
       shelfMaxSpineHeight: SPINE_MAX_HEIGHT_PX,
       unsorted,
+      // The same items laid in piles, one kind of object per pile, which is how the
+      // reserve is drawn.
+      unsortedPiles: pileUp(unsorted, (item: any) => item.kind + '|' + formatOf(item)),
       unsortedTotal,
       unsortedShown: unsorted.length
     };

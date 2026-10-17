@@ -1,5 +1,9 @@
 import mongoose from 'mongoose';
 
+// What a spine on the shelf is the edge of: a cardboard sleeve, a hinged plastic case,
+// a moulded media case, a bound book or a box.
+export type SpineShape = 'sleeve' | 'jewel' | 'case' | 'book' | 'box';
+
 export interface PluginDefinition {
   id: string;
   kind: string;
@@ -75,7 +79,11 @@ export interface PluginDefinition {
   // but far shorter, and that is what makes a mixed shelf read as a real one.
   // A plugin that declares nothing, or a format missing from the map, falls back to
   // SPINE_FALLBACK in core/spine.ts.
-  spineSize?: Record<string, { thickness: number; height: number }>;
+  //
+  // `shape` says what kind of object the spine belongs to, which is how the shelf draws
+  // its few telling details (a jewel case hinge, the rounded top of a DVD case, the
+  // bands of a bound book). Left out, the spine is drawn plain.
+  spineSize?: Record<string, { thickness: number; height: number; shape?: SpineShape }>;
 
   creatorField: string;
 
@@ -173,6 +181,11 @@ export interface PluginDefinition {
   // Extra fields copied onto the existing record when merging a duplicate,
   // on top of externalIdField and barcode (e.g. books -> ['isbn']).
   backfillFields?: string[];
+
+  // Fields dropped when copying an item into a new entry, on top of its own id and
+  // barcode. For ids that name one edition rather than the work (music's Discogs release
+  // and the source pair pointing at it, a book's ISBN). Optional.
+  copyDropFields?: string[];
 
   // Shortcuts offered for the navbar (personalisation); ids are stored in settings.navbarShortcuts
   navbarShortcuts?: NavbarShortcut[];
@@ -572,4 +585,12 @@ export interface CollectionViewContext {
 
   // The ordering the page resolved, for a view keeping a list of items of its own.
   itemSort: any;
+
+  // The same narrowing as itemQuery minus everything the user asked for (search, type,
+  // filters): what the collection holds on this page whatever is being looked for. A view
+  // that keeps its own shape under a filter draws this and marks what itemQuery matches.
+  unfilteredQuery: any;
+
+  // Whether itemQuery narrows anything beyond unfilteredQuery.
+  isNarrowed: boolean;
 }

@@ -38,7 +38,7 @@ const RESERVED_IDS = new Set([
   'search', 'estimate', 'create-plugin', 'personnalisation', 'no-collection',
   'ressources', 'styles', 'socket.io', 'manifest.json', 'sw.js', 'core', 'plugins',
   'plugin-assets',
-  'home', 'index', 'detail', 'edit', 'user', 'users'
+  'home', 'index', 'detail', 'edit', 'user', 'users', 'account'
 ]);
 
 // Paths of the base Item schema + form plumbing: custom fields may not redefine them.

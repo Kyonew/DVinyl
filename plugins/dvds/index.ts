@@ -2,9 +2,9 @@ import path from 'path';
 import mongoose from 'mongoose';
 import { PluginDefinition } from '../../core/types';
 import { sourceFromProvider } from '../../core/sources';
-import { TMDBProvider } from './tmdb';
+import { TMDBProvider, tmdbFetch } from './tmdb';
 import { dvdImporters } from './importers';
-import { escapeRegExp, fetchJson, PermanentRefreshError, editStamp } from '../../core/helpers';
+import { escapeRegExp, PermanentRefreshError, editStamp } from '../../core/helpers';
 import Item from '../../models/Item';
 import { TMDB_LANG_MAP, formatSeasonCount, describeOwnedSeasons } from './constants';
 
@@ -19,8 +19,9 @@ const tmdb = sourceFromProvider(tmdbProvider, {
     const tmdbApiKey = process.env.TMDB_API_KEY;
     if (!tmdbApiKey) throw new Error('Missing TMDB API Key');
     const tmdbLang = TMDB_LANG_MAP[options?.language || ''] || 'en-US';
-    const data = await fetchJson(
-      `https://api.themoviedb.org/3/search/multi?api_key=${tmdbApiKey}&query=${encodeURIComponent(query)}&language=${tmdbLang}`,
+    const data = await tmdbFetch(
+      'search/multi',
+      { query, language: tmdbLang },
       { headers: { 'User-Agent': 'DVinylApp/2.0' }, signal: AbortSignal.timeout(10000) }
     );
     return (data.results || [])
@@ -279,11 +280,11 @@ export const dvdPlugin: PluginDefinition = {
   // A DVD keep case against the slimmer Blu-ray case, the VHS cassette that dwarfs
   // both, and the LaserDisc, which is a 12" sleeve by another name.
   spineSize: {
-    dvd: { thickness: 14, height: 190 },
-    bluray: { thickness: 12, height: 171 },
-    '4k': { thickness: 12, height: 171 },
-    vhs: { thickness: 25, height: 188 },
-    laserdisc: { thickness: 4, height: 315 },
+    dvd: { thickness: 14, height: 190, shape: 'case' },
+    bluray: { thickness: 12, height: 171, shape: 'case' },
+    '4k': { thickness: 12, height: 171, shape: 'case' },
+    vhs: { thickness: 25, height: 188, shape: 'case' },
+    laserdisc: { thickness: 4, height: 315, shape: 'sleeve' },
     digital: { thickness: 5, height: 171 }
   },
 
@@ -793,8 +794,7 @@ export const dvdPlugin: PluginDefinition = {
     }
 
     const mediaType = item.media_type || 'movie';
-    const url = `https://api.themoviedb.org/3/${mediaType}/${item.tmdb_id}?api_key=${tmdbApiKey}&language=${tmdbLang}&append_to_response=credits`;
-    const data = await fetchJson(url);
+    const data = await tmdbFetch(`${mediaType}/${item.tmdb_id}`, { language: tmdbLang, append_to_response: 'credits' });
 
     let director = "Unknown";
     if (mediaType === "movie" && data.credits && data.credits.crew) {

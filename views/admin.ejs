@@ -4,15 +4,16 @@
          their own socket as they are parsed, so `io` has to exist before they run. -->
     <script src="<%= baseUrl %>/socket.io/socket.io.js"></script>
 
-    <div class="max-w-screen-xl mx-auto px-4 pb-20 space-y-10">
+    <div class="max-w-screen-xl mx-auto px-4 max-sm:px-0 pb-20 space-y-10">
 
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between py-6 gap-4">
-            <h1 class="text-2xl md:text-3xl font-bold flex items-center gap-3 transition-colors">
-                <i class="fa-solid fa-shield-halved text-primary-theme"></i>
+        <div data-settings-head class="flex flex-col sm:flex-row sm:items-center justify-between pt-2 md:py-6 gap-1 sm:gap-4">
+            <h1 class="text-[2rem] leading-tight font-extrabold tracking-tight md:text-3xl md:font-bold md:tracking-normal flex items-center gap-3 transition-colors">
+                <i class="max-md:hidden fa-solid fa-shield-halved text-primary-theme"></i>
                 <%= t('admin.title') %>
-                <span class="text-base font-bold opacity-50">- <%= locals.collectionDoc ? collectionDoc.name : '' %></span>
+                <span class="max-md:hidden text-base font-bold opacity-50">- <%= locals.collectionDoc ? collectionDoc.name : '' %></span>
             </h1>
-            <div class="flex items-center gap-3">
+            <p class="md:hidden text-sm opacity-60 truncate"><%= locals.collectionDoc ? collectionDoc.name : '' %> · v<%= appVersion %></p>
+            <div class="max-md:hidden flex items-center gap-3">
                 <% if (user.isAdmin) { %>
                     <a href="<%= baseUrl %>/admin/instance"
                         class="flex items-center gap-2 text-xs font-black uppercase tracking-widest bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-4 py-2 rounded-full transition-all">
@@ -65,7 +66,7 @@
             changes. %>
         <% if ((locals.fieldLookalikes || []).length > 0) { %>
             <% const lookalikeKey = fieldLookalikes.map(p => p.fields.map(f => f.name).join(',')).join(';'); %>
-            <div id="fieldLookalikes" data-key="<%= lookalikeKey %>"
+            <div id="fieldLookalikes" data-key="<%= lookalikeKey %>" data-settings-head
                 class="bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/20 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-start gap-3 transition-colors">
                 <i class="fa-solid fa-triangle-exclamation text-yellow-600 mt-0.5"></i>
                 <div class="flex-1 min-w-0 text-sm">
@@ -350,9 +351,11 @@
                     </form>
 
                     <div class="card-theme rounded-2xl overflow-hidden shadow-lg transition-colors">
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left text-sm opacity-80 min-w-[600px]">
-                                <thead class="bg-black/5 dark:bg-white/5 text-xs uppercase opacity-70 transition-colors">
+                        <%# On phones each member is a block of two lines (who, then role and actions)
+                            instead of a table row wider than the screen. %>
+                        <div class="md:overflow-x-auto">
+                            <table class="w-full text-left text-sm opacity-80 md:min-w-[600px] max-md:block">
+                                <thead class="max-md:hidden bg-black/5 dark:bg-white/5 text-xs uppercase opacity-70 transition-colors">
                                     <tr>
                                         <th class="px-6 py-4">
                                             <%= t('admin.table.user') %>
@@ -365,10 +368,10 @@
                                         </th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-black/5 dark:divide-white/5 transition-colors">
+                                <tbody class="max-md:block divide-y divide-black/5 dark:divide-white/5 transition-colors">
                                     <% (locals.members || []).forEach(m=> { const mu = m.user; %>
-                                        <tr class="hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
-                                            <td class="px-6 py-4 font-medium">
+                                        <tr class="max-md:flex max-md:flex-wrap max-md:items-center max-md:gap-x-3 max-md:gap-y-3 max-md:p-4 hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+                                            <td class="max-md:block max-md:w-full max-md:p-0 px-6 py-4 font-medium">
                                                 <div class="flex items-center gap-3">
                                                     <img src="<%= baseUrl + (mu.img || '/ressources/no-pp.jpg') %>"
                                                         class="w-8 h-8 rounded-full border border-black/10 dark:border-white/10 object-cover">
@@ -384,7 +387,7 @@
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td class="px-6 py-4">
+                                            <td class="max-md:block max-md:flex-1 max-md:p-0 px-6 py-4">
                                                 <% if (String(mu._id) === String(user._id)) { %>
                                                     <!-- Own role: read-only (another admin must change it) -->
                                                     <span class="inline-block bg-black/5 dark:bg-white/5 rounded-lg px-3 py-2 text-xs font-bold opacity-70">
@@ -402,7 +405,7 @@
                                                     </form>
                                                 <% } %>
                                             </td>
-                                            <td class="px-6 py-4 text-right">
+                                            <td class="max-md:block max-md:p-0 px-6 py-4 text-right">
                                                 <div class="flex justify-end gap-2">
                                                     <% if (!mu.isAdmin) { %>
                                                         <form action="<%= baseUrl %>/admin/members/reset-password" method="POST"
@@ -525,109 +528,19 @@
                             </div>
                         </div>
 
-                        <div id="shareLinks" class="border-t border-black/5 dark:border-white/5 pt-6 scroll-mt-6">
-                            <h3 class="text-lg font-bold flex items-center gap-2 mb-1">
-                                <i class="fa-solid fa-qrcode text-primary-theme"></i>
-                                <%= t('admin.sharing.title') %>
-                            </h3>
-                            <p class="text-xs opacity-60 max-w-md mb-4">
-                                <%= t('admin.sharing.subtitle') %>
-                            </p>
-
-                            <%
-                                const shareLinks = (locals.collectionDoc && collectionDoc.shareLinks) || [];
-                                const sharePlugins = registry.getAll().filter(p => settings.modules && settings.modules[p.collectionType] === true);
-                            %>
-
-                            <div class="space-y-4">
-                                <% shareLinks.forEach((link, idx) => { %>
-                                    <%
-                                        const scopeByType = {};
-                                        (link.scope || []).forEach((s) => { scopeByType[s.pluginId] = s.formats || []; });
-                                        const idPrefix = 'link' + idx;
-                                    %>
-                                    <div class="rounded-2xl bg-black/5 dark:bg-white/5 p-4 space-y-4">
-                                        <div class="flex flex-wrap items-center justify-between gap-3">
-                                            <div class="flex items-center gap-2 min-w-0">
-                                                <span class="w-2 h-2 rounded-full <%= link.enabled ? 'bg-green-500' : 'bg-gray-400' %> shrink-0"></span>
-                                                <span class="text-sm font-bold truncate"><%= link.label || t('admin.sharing.untitled_link') %></span>
-                                            </div>
-                                            <div class="flex flex-wrap gap-2">
-                                                <form action="<%= baseUrl %>/admin/share/<%= link.token %>/toggle" method="POST">
-                                                    <button type="submit"
-                                                        class="bg-black/5 dark:bg-white/10 hover:bg-<%= link.enabled ? 'red' : 'green' %>-500 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all">
-                                                        <%= link.enabled ? t('admin.sharing.disable_btn') : t('admin.sharing.enable_btn') %>
-                                                    </button>
-                                                </form>
-                                                <form action="<%= baseUrl %>/admin/share/<%= link.token %>/regenerate" method="POST"
-                                                    onsubmit="return confirm(<%= JSON.stringify(t('admin.sharing.confirm_regenerate')) %>)">
-                                                    <button type="submit" title="<%= t('admin.sharing.regenerate_btn') %>"
-                                                        class="bg-black/5 dark:bg-white/10 hover:bg-amber-500 hover:text-white w-8 h-8 rounded-lg text-xs transition-all">
-                                                        <i class="fa-solid fa-rotate"></i>
-                                                    </button>
-                                                </form>
-                                                <form action="<%= baseUrl %>/admin/share/<%= link.token %>/delete" method="POST"
-                                                    onsubmit="return confirm(<%= JSON.stringify(t('admin.sharing.confirm_delete')) %>)">
-                                                    <button type="submit" title="<%= t('admin.sharing.delete_btn') %>"
-                                                        class="bg-black/5 dark:bg-white/10 hover:bg-red-600 hover:text-white w-8 h-8 rounded-lg text-xs transition-all">
-                                                        <i class="fa-solid fa-trash"></i>
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        </div>
-
-                                        <% if (link.enabled) { %>
-                                            <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                                                <img src="<%= baseUrl %>/admin/share/<%= link.token %>/qr.png" alt="QR code"
-                                                    class="w-24 h-24 rounded-xl border border-black/10 dark:border-white/10 bg-white p-2 shrink-0">
-                                                <div class="flex-1 min-w-0 flex items-center gap-2">
-                                                    <input type="text" readonly id="shareLinkInput_<%= idPrefix %>"
-                                                        value="<%= locals.siteOrigin || '' %><%= baseUrl %>/share/<%= link.token %>"
-                                                        class="flex-1 min-w-0 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl px-3 py-2 text-xs font-mono outline-none">
-                                                    <button type="button" data-copy-target="shareLinkInput_<%= idPrefix %>"
-                                                        title="<%= t('admin.sharing.copy_btn') %>"
-                                                        class="js-copy-share shrink-0 bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white w-9 h-9 rounded-xl text-xs transition-all">
-                                                        <i class="fa-solid fa-copy"></i>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        <% } %>
-
-                                        <form action="<%= baseUrl %>/admin/share/<%= link.token %>/scope" method="POST"
-                                            class="space-y-3 pt-3 border-t border-black/5 dark:border-white/10">
-                                            <input type="text" name="label" maxlength="60" value="<%= link.label || '' %>"
-                                                placeholder="<%= t('admin.sharing.label_placeholder') %>"
-                                                class="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl px-3 py-2 text-xs outline-none focus:border-primary-theme">
-                                            <%- include('partials/share-scope-picker', { sharePlugins, scopeByType, idPrefix }) %>
-                                            <button type="submit"
-                                                class="bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-4 py-2 rounded-xl text-xs font-black transition-all">
-                                                <%= t('admin.sharing.scope_save_btn') %>
-                                            </button>
-                                        </form>
-                                    </div>
-                                <% }) %>
-                            </div>
-
-                            <div class="mt-4">
-                                <button type="button" data-toggle-new-share-link
-                                    class="bg-primary-theme hover:brightness-110 text-white px-5 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2">
-                                    <i class="fa-solid fa-plus"></i>
-                                    <%= t('admin.sharing.new_link_btn') %>
-                                </button>
-
-                                <div id="newShareLinkForm" class="hidden mt-4 rounded-2xl bg-black/5 dark:bg-white/5 p-4">
-                                    <form action="<%= baseUrl %>/admin/share/create" method="POST" class="space-y-3">
-                                        <input type="text" name="label" maxlength="60"
-                                            placeholder="<%= t('admin.sharing.label_placeholder') %>"
-                                            class="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl px-3 py-2 text-xs outline-none focus:border-primary-theme">
-                                        <%- include('partials/share-scope-picker', { sharePlugins, scopeByType: {}, idPrefix: 'new' }) %>
-                                        <button type="submit"
-                                            class="bg-primary-theme hover:brightness-110 text-white px-5 py-2.5 rounded-xl text-xs font-black transition-all">
-                                            <%= t('admin.sharing.create_btn') %>
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
+                        <%# The links themselves live on their own page (admin/sharing). %>
+                        <% const activeShareLinks = ((locals.collectionDoc && collectionDoc.shareLinks) || []).filter(l => l.enabled).length; %>
+                        <div id="shareLinks" class="border-t border-black/5 dark:border-white/5 pt-6">
+                            <a href="<%= baseUrl %>/admin/sharing" class="flex items-center gap-4 rounded-2xl bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 p-4 transition-colors">
+                                <span class="w-11 h-11 flex-none rounded-xl bg-primary-theme/15 text-primary-theme flex items-center justify-center" aria-hidden="true">
+                                    <i class="fa-solid fa-link"></i>
+                                </span>
+                                <span class="flex-1 min-w-0">
+                                    <span class="block font-bold"><%= t('admin.sharing.title') %></span>
+                                    <span class="block text-sm opacity-60"><%= t('collection.share_active_count', { count: activeShareLinks }) %></span>
+                                </span>
+                                <i class="fa-solid fa-chevron-right text-xs opacity-40" aria-hidden="true"></i>
+                            </a>
                         </div>
                     </div>
                 </section>
@@ -644,6 +557,8 @@
                         <%= t('admin.external_imports.subtitle') %>
                     </p>
 
+                    <%- include('partials/toast') %>
+                    <%- include('partials/ai-review') %>
                     <%- include('partials/admin-csv-import') %>
                     <%- include('partials/admin-imports') %>
                 </section>
@@ -773,10 +688,10 @@
 
 
     <div id="addMemberModal"
-        class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
+        class="dv-overlay fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
         <div class="absolute inset-0" onclick="toggleModal('addMemberModal')"></div>
         <div
-            class="card-theme relative w-full max-w-md rounded-[2.5rem] p-8 md:p-10 shadow-2xl transition-all animate-scale-in">
+            class="card-theme relative w-full max-w-md rounded-[2.5rem] p-8 md:p-10 shadow-2xl dv-pop">
             <button onclick="toggleModal('addMemberModal')"
                 class="absolute top-6 right-6 opacity-40 hover:opacity-100 hover:rotate-90 transition-all">
                 <i class="fa-solid fa-xmark text-2xl"></i>
@@ -827,80 +742,6 @@
                 modal.classList.toggle('hidden');
                 document.body.style.overflow = modal.classList.contains('hidden') ? 'auto' : 'hidden';
             }
-
-            // Share scope pickers: checking a format under a type also checks that
-            // type's own box - a format checked alone has nowhere to be saved (the
-            // server only reads formats for a type it was told is in scope).
-            document.addEventListener('change', (e) => {
-                const target = e.target;
-                if (target.matches('input[type="checkbox"][data-share-format-for]') && target.checked) {
-                    const typeCheckbox = document.querySelector(
-                        `input[data-share-type="${target.getAttribute('data-share-format-for')}"]`
-                    );
-                    if (typeCheckbox) typeCheckbox.checked = true;
-                }
-            });
-
-            const newShareLinkToggle = document.querySelector('[data-toggle-new-share-link]');
-            if (newShareLinkToggle) {
-                newShareLinkToggle.addEventListener('click', () => {
-                    const form = document.getElementById('newShareLinkForm');
-                    form.classList.toggle('hidden');
-                    // The panel sits at the bottom of a long page: opening the form off
-                    // screen looks like the button did nothing.
-                    if (!form.classList.contains('hidden')) {
-                        form.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }
-                });
-            }
-
-            // Every share action reloads the whole admin page, which lands back at the top
-            // while the link that was just created is far below. Come back to the panel.
-            const adminMsg = new URLSearchParams(window.location.search).get('msg') || '';
-            if (adminMsg.startsWith('share') || adminMsg === 'error_share') {
-                window.showSettingsTab?.('collection');
-                document.getElementById('shareLinks')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-
-            // Copying is what the panel is for, so the button says when it worked.
-            // navigator.clipboard does not exist outside a secure context, which an
-            // instance reached over http at its LAN address is not: the selection fallback
-            // is what stands between "copied" and a button that silently does nothing.
-            const copiedLabel = <%- JSON.stringify(t('admin.sharing.copied')) %>;
-            document.querySelectorAll('.js-copy-share').forEach(button => {
-                const input = document.getElementById(button.dataset.copyTarget);
-                if (!input) return;
-
-                button.addEventListener('click', async () => {
-                    let copied = false;
-                    try {
-                        if (navigator.clipboard && window.isSecureContext) {
-                            await navigator.clipboard.writeText(input.value);
-                            copied = true;
-                        }
-                    } catch (err) {
-                        copied = false;
-                    }
-                    if (!copied) {
-                        input.select();
-                        input.setSelectionRange(0, input.value.length);
-                        try { copied = document.execCommand('copy'); } catch (err) { copied = false; }
-                    }
-                    if (!copied) return; // the link stays selected, ready for a manual copy
-
-                    const icon = button.querySelector('i');
-                    const iconClass = icon.className;
-                    const label = button.getAttribute('title');
-                    icon.className = 'fa-solid fa-check';
-                    button.classList.add('bg-primary-theme', 'text-white');
-                    button.setAttribute('title', copiedLabel);
-                    setTimeout(() => {
-                        icon.className = iconClass;
-                        button.classList.remove('bg-primary-theme', 'text-white');
-                        button.setAttribute('title', label);
-                    }, 1600);
-                });
-            });
 
             document.getElementById('collectionBackupInput').onchange = function (e) {
                 const file = e.target.files[0];

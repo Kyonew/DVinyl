@@ -29,9 +29,9 @@
     </div>
 </div>
 
-<div id="csvImportModal" class="fixed inset-0 z-[120] hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+<div id="csvImportModal" class="dv-overlay fixed inset-0 z-[120] hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="absolute inset-0" onclick="toggleCsvImportModal()"></div>
-    <div class="relative card-theme w-full max-w-3xl rounded-3xl p-6 md:p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
+    <div class="dv-pop relative card-theme w-full max-w-3xl rounded-3xl p-6 md:p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
         <button type="button" onclick="toggleCsvImportModal()" class="absolute top-5 right-5 opacity-40 hover:opacity-100 transition-opacity">
             <i class="fa-solid fa-xmark text-xl"></i>
         </button>
@@ -469,8 +469,11 @@
                 // Said out loud: these look imported but have no cover and no metadata,
                 // and the refresh tools cannot fill them in afterwards.
                 if (data.unenriched) message += '\n' + data.unenriched + ' ' + T.unenriched;
-                alert(message);
-                window.location.reload();
+                // Reload once the toast is actually dismissed (click, or its own 5s
+                // timeout) rather than the instant it appears - same order the old
+                // blocking alert() gave for free by pausing until "OK" was clicked.
+                if (window.showToast) window.showToast(message, { onDismiss: () => window.location.reload() });
+                else { alert(message); window.location.reload(); }
             });
             socket.on('import_error', (data) => {
                 if (!running) return;

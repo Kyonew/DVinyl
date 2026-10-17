@@ -5,7 +5,7 @@
     .border-primary-theme { border-color: var(--highlight) !important; }
 </style>
 
-<div class="max-w-screen-xl mx-auto px-4 pb-20 space-y-10">
+<div class="max-w-screen-xl mx-auto px-4 max-sm:px-0 pb-20 space-y-10">
 
     <div class="flex flex-col sm:flex-row sm:items-center justify-between py-6 gap-4">
         <h1 class="text-2xl md:text-3xl font-bold flex items-center gap-3 transition-colors">
@@ -105,6 +105,26 @@
         </h2>
         <p class="text-sm opacity-60 mt-2 max-w-3xl"><%= t('create_plugin.subtitle') %></p>
     </div>
+
+    <% if (locals.aiConfigured && !editConfig) { %>
+    <div class="card-theme rounded-3xl p-6 shadow-sm transition-colors space-y-3">
+        <div class="flex items-center gap-2">
+            <i class="fa-solid fa-wand-magic-sparkles text-primary-theme"></i>
+            <h3 class="font-bold text-sm"><%= t('create_plugin.ai_section_title') %></h3>
+        </div>
+        <p class="text-xs opacity-60"><%= t('create_plugin.ai_section_hint') %></p>
+        <div class="flex flex-col md:flex-row gap-3">
+            <input id="aiPluginDescription" type="text" maxlength="<%= maxAiDescriptionChars %>"
+                placeholder="<%= t('create_plugin.ai_placeholder') %>"
+                class="flex-1 bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme p-3 outline-none">
+            <button type="button" id="aiGenerateBtn"
+                class="bg-primary-theme text-white font-bold px-6 py-3 rounded-xl hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2 shrink-0">
+                <i id="aiGenerateBtnIcon" class="fa-solid fa-wand-magic-sparkles"></i>
+                <span id="aiGenerateBtnText"><%= t('create_plugin.ai_generate_btn') %></span>
+            </button>
+        </div>
+    </div>
+    <% } %>
 
     <div class="grid grid-cols-1 xl:grid-cols-[1fr_420px] gap-8 items-start">
 
@@ -341,8 +361,8 @@
 </div>
 
 <!-- Per-collection cosmetic customization modal (icon + badge colors) -->
-<div id="customizeModal" class="hidden fixed inset-0 z-50 bg-black/60 items-center justify-center p-4">
-    <div class="card-theme rounded-3xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto space-y-5">
+<div id="customizeModal" class="dv-overlay hidden fixed inset-0 z-50 bg-black/60 items-center justify-center p-4">
+    <div class="dv-pop card-theme rounded-3xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto space-y-5">
         <div class="flex items-center justify-between">
             <h3 class="font-bold text-lg flex items-center gap-2">
                 <i class="fa-solid fa-palette text-primary-theme"></i>
@@ -419,6 +439,12 @@
             </div>
         </div>
 
+        <div id="czFiltersWrap">
+            <label class="block mb-1 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('create_plugin.filters') %></label>
+            <p class="text-xs opacity-50 mb-2"><%= t('create_plugin.filters_hint') %></p>
+            <div id="czFilters" class="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-52 overflow-y-auto custom-scrollbar pr-1"></div>
+        </div>
+
         <div>
             <label class="block mb-1 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('create_plugin.extra_fields') %></label>
             <p class="text-xs opacity-50 mb-2"><%= t('create_plugin.extra_fields_hint') %></p>
@@ -475,6 +501,7 @@
         optionsPh: t('create_plugin.field_options_ph'),
         deleteConfirm: t('create_plugin.delete_confirm'),
         saving: t('create_plugin.saving'),
+        aiGenerating: t('create_plugin.ai_generating'),
         pvTitle: t('create_plugin.preview_sample_title'),
         pvCreator: t('create_plugin.preview_sample_creator'),
         pvComments: t('create_plugin.feature_comments'),
@@ -963,6 +990,44 @@
         }
     });
 
+    // ---- AI plugin generation --------------------------------------------------------
+    if ($('aiGenerateBtn')) {
+        $('aiGenerateBtn').addEventListener('click', async () => {
+            const btn = $('aiGenerateBtn');
+            const icon = $('aiGenerateBtnIcon');
+            const txt = $('aiGenerateBtnText');
+            const errBox = $('builderError');
+            const description = $('aiPluginDescription').value.trim();
+            errBox.classList.add('hidden');
+
+            btn.disabled = true;
+            const prevText = txt.textContent;
+            const prevIconClass = icon.className;
+            txt.textContent = i18n.aiGenerating;
+            icon.className = 'fa-solid fa-spinner fa-spin';
+
+            try {
+                const res = await fetch(baseUrl + '/create-plugin/ai-generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ description })
+                });
+                const data = await res.json();
+                if (!res.ok || !data.success) {
+                    throw new Error((data.errors || []).join(' · ') || 'Error');
+                }
+                applyConfigToForm(data.draft);
+            } catch (err) {
+                errBox.textContent = err.message;
+                errBox.classList.remove('hidden');
+            } finally {
+                btn.disabled = false;
+                txt.textContent = prevText;
+                icon.className = prevIconClass;
+            }
+        });
+    }
+
     // ---- Per-collection cosmetic customization modal -----------------------------------
     const customizable = <%- JSON.stringify(customizablePlugins).replace(/</g, '\\u003c') %>;
     const czDefaultColor = <%- JSON.stringify(t('create_plugin.default_color')) %>;
@@ -1164,6 +1229,32 @@
         czSyncCardFieldLimit();
     }
 
+    // ---- Filters (on/off per filter, in the order the collection page lays them out) --
+    function czRenderFilters(data) {
+        const wrap = $('czFilters');
+        wrap.innerHTML = '';
+        const choices = data.filterChoices || [];
+        $('czFiltersWrap').classList.toggle('hidden', choices.length === 0);
+
+        choices.forEach(choice => {
+            const label = document.createElement('label');
+            label.className = 'flex items-center gap-2 text-sm px-2 py-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer transition-colors';
+
+            const box = document.createElement('input');
+            box.type = 'checkbox';
+            box.className = 'cz-filter accent-primary-theme w-4 h-4 shrink-0';
+            box.value = choice.id;
+            box.checked = !!choice.on;
+
+            const text = document.createElement('span');
+            text.className = 'truncate';
+            text.textContent = choice.label;
+
+            label.append(box, text);
+            wrap.appendChild(label);
+        });
+    }
+
     window.openCustomize = function (id) {
         const data = customizable.find(p => p.id === id);
         if (!data) return;
@@ -1178,6 +1269,7 @@
 
         czRenderCardFields(data);
         czRenderCornerField(data);
+        czRenderFilters(data);
 
         const wrap = $('czFormats');
         wrap.innerHTML = '';
@@ -1242,6 +1334,8 @@
             // of falling back to the plugin's own fields
             body.cardFields = Array.from(document.querySelectorAll('.cz-card-field'))
                 .filter(b => b.checked).map(b => b.value);
+            body.filters = Array.from(document.querySelectorAll('.cz-filter'))
+                .filter(b => b.checked).map(b => b.value);
             body.extraFields = Array.from(document.querySelectorAll('.cz-field-row')).map(r => ({
                 name: r.dataset.name || undefined,
                 label: r.querySelector('.czf-label').value.trim(),
@@ -1290,17 +1384,29 @@
     };
 
     // ---- Init ---------------------------------------------------------------------------
-    if (editConfig) {
-        $('pluginLabel').value = editConfig.label || '';
-        $('creatorLabel').value = editConfig.creatorLabel || '';
-        state.icon = editConfig.icon || 'fa-box';
-        state.color = editConfig.color || 'teal';
-        state.shape = shapeFromConfig(editConfig);
-        const features = editConfig.features || {};
+    // Fills every builder field from a config object, used both to prefill an
+    // existing plugin for editing (below) and, via the "Describe it" box, to drop
+    // in an AI-generated first draft. Re-callable: clears the dynamic field/format
+    // rows first, so a second AI draft replaces the first rather than appending to it.
+    function applyConfigToForm(config) {
+        $('pluginLabel').value = config.label || '';
+        $('creatorLabel').value = config.creatorLabel || '';
+        state.icon = config.icon || 'fa-box';
+        state.color = config.color || 'teal';
+        state.shape = shapeFromConfig(config);
+        const features = config.features || {};
         document.querySelectorAll('.feature-toggle').forEach(cb => { cb.checked = features[cb.dataset.feature] === true; });
-        (editConfig.formats || []).forEach(addFormatRow);
-        (editConfig.fields || []).forEach(addFieldRow);
-        state.defaultFormat = editConfig.defaultFormat || '';
+        $('formatRows').innerHTML = '';
+        $('fieldRows').innerHTML = '';
+        (config.formats || []).forEach(addFormatRow);
+        (config.fields || []).forEach(addFieldRow);
+        state.defaultFormat = config.defaultFormat || '';
+        syncPickers();
+        renderPreview();
+    }
+
+    if (editConfig) {
+        applyConfigToForm(editConfig);
         if (editPlaceholder) {
             // state.defaultCover stays null: previewing the stored image is not editing it
             if (/^https?:\/\//i.test(editPlaceholder)) {
@@ -1309,9 +1415,9 @@
             }
             setCoverPreview(editPlaceholder);
         }
+    } else {
+        syncPickers();
+        renderPreview();
     }
-
-    syncPickers();
-    renderPreview();
 })();
 </script>

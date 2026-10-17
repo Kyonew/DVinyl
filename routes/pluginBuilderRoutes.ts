@@ -15,9 +15,13 @@ import {
 import { sanitizeExtraFields, getExtraFields, nativeLookalikesByPlugin } from '../core/pluginExtraFields';
 import { SUPPORTED_LANGUAGES } from '../config/constants';
 import { placeholderUrl } from '../core/placeholderImage';
-import { cardFieldCandidates, getCardLines, MAX_CARD_LINES, CORNER_POSITIONS, DEFAULT_CORNER_POSITION } from '../core/cardFields';
+import { cardFieldCandidates, isTranslationKey, getCardLines, MAX_CARD_LINES, CORNER_POSITIONS, DEFAULT_CORNER_POSITION } from '../core/cardFields';
+import { filterCandidates, filterOverrides, activeFilters, sanitizeFilterSelection } from '../core/filterFields';
 import { registerPluginDirAtRuntime, unregisterPluginAtRuntime } from '../core/pluginRuntime';
 import { saveCustomPluginToDB, deleteCustomPluginFromDB } from '../core/customPluginSync';
+import { generatePluginDraft } from '../core/ai/pluginGenerate';
+import { getAiConfig } from '../core/ai/instance';
+import { isAiConfigured } from '../core/ai/config';
 
 /**
  * /create-plugin: builder for user-created ("custom") plugins.
@@ -29,6 +33,9 @@ import { saveCustomPluginToDB, deleteCustomPluginFromDB } from '../core/customPl
 const router = express.Router();
 
 router.use(requireAuth, requireCollectionRole('admin'));
+
+/** A description is a sentence, not a pasted list: generous but not import-sized. */
+const MAX_DESCRIPTION_CHARS = 2000;
 
 async function listCustomPlugins() {
   const out: { config: any; itemCount: number }[] = [];
@@ -91,7 +98,19 @@ router.get('/', async (req: any, res: any) => {
         label: req.t(f.label, { defaultValue: f.label })
       })),
       // What the cards show today, so an untouched plugin opens on its real state
-      cardFields: p.defaultCardFields || [p.creatorField]
+      cardFields: p.defaultCardFields || [p.creatorField],
+      // Read on the bare plugin for the same reason as the lookalikes above
+      filterChoices: (() => {
+        const bare = registry.get(p.id);
+        if (!bare) return [];
+        const candidates = filterCandidates(bare, getExtraFields(settings, p.id));
+        const on = new Set(activeFilters(candidates, filterOverrides(customization, p.id)).map(c => c.id));
+        return candidates.map(c => ({
+          id: c.id,
+          label: isTranslationKey(c.label) ? req.t(c.label, { defaultValue: c.label }) : c.label,
+          on: on.has(c.id)
+        }));
+      })()
     }));
 
     res.render('create-plugin', {
@@ -102,7 +121,9 @@ router.get('/', async (req: any, res: any) => {
       editPlaceholder,
       palette: CUSTOM_PLUGIN_PALETTE,
       iconChoices: CUSTOM_PLUGIN_ICONS,
-      maxCardLines: MAX_CARD_LINES
+      maxCardLines: MAX_CARD_LINES,
+      aiConfigured: isAiConfigured(await getAiConfig()),
+      maxAiDescriptionChars: MAX_DESCRIPTION_CHARS
     });
   } catch (err: any) {
     console.error('[PluginBuilder] page error:', err);
@@ -169,6 +190,16 @@ router.post('/customize/:pluginId', async (req: any, res: any) => {
         .slice(0, MAX_CARD_LINES);
     }
 
+    // Filters shown on the collection page once this type is selected. Only what differs
+    // from the default is kept (see core/filterFields.ts), so leaving every box as it
+    // came stores nothing. Read against the fields declared before this save: one added
+    // in the same submission has no box yet and simply keeps its default.
+    if (Array.isArray(req.body.filters)) {
+      const candidates = filterCandidates(plugin, getExtraFields(res.locals.settings, plugin.id));
+      const filters = sanitizeFilterSelection(candidates, req.body.filters);
+      if (Object.keys(filters).length > 0) cosmetics.filters = filters;
+    }
+
     // User-defined fields. Only validated and written when the submission carries the
     // key, so a caller that only changes the icon never touches the declared fields.
     let extraUpdate: { set?: any; unset?: string } | null = null;
@@ -185,7 +216,7 @@ router.post('/customize/:pluginId', async (req: any, res: any) => {
     const cosmeticsPath = `pluginCustomization.${plugin.id}`;
     const $set: any = {};
     const $unset: any = {};
-    if (cosmetics.icon || cosmetics.formatColors || cosmetics.cardFields || cosmetics.sortFormats || cosmetics.cornerField) $set[cosmeticsPath] = cosmetics;
+    if (cosmetics.icon || cosmetics.formatColors || cosmetics.cardFields || cosmetics.sortFormats || cosmetics.cornerField || cosmetics.filters) $set[cosmeticsPath] = cosmetics;
     else $unset[cosmeticsPath] = '';
     if (extraUpdate?.set) Object.assign($set, extraUpdate.set);
     if (extraUpdate?.unset) $unset[extraUpdate.unset] = '';
@@ -199,6 +230,45 @@ router.post('/customize/:pluginId', async (req: any, res: any) => {
   } catch (err: any) {
     console.error('[PluginBuilder] customize error:', err);
     res.status(500).json({ success: false, error: req.t('errors.generic_server_error') });
+  }
+});
+
+// POST /create-plugin/ai-generate -> draft a plugin config from a text description
+router.post('/ai-generate', async (req: any, res: any) => {
+  try {
+    const description = typeof req.body?.description === 'string' ? req.body.description.trim() : '';
+    if (!description) {
+      return res.status(400).json({ success: false, errors: [req.t('create_plugin.ai_err_empty')] });
+    }
+    if (description.length > MAX_DESCRIPTION_CHARS) {
+      return res.status(400).json({
+        success: false,
+        errors: [req.t('create_plugin.ai_err_too_long', { max: MAX_DESCRIPTION_CHARS })]
+      });
+    }
+
+    const config = await getAiConfig();
+    if (!isAiConfigured(config)) {
+      return res.status(400).json({ success: false, errors: [req.t('ai.err_not_configured')] });
+    }
+
+    let draft;
+    try {
+      draft = await generatePluginDraft(config, description);
+    } catch (err: any) {
+      return res.status(502).json({
+        success: false,
+        errors: [req.t('create_plugin.ai_err_generation_failed', { error: err.message })]
+      });
+    }
+    if (!draft) {
+      return res.status(502).json({ success: false, errors: [req.t('create_plugin.ai_err_failed')] });
+    }
+
+    res.json({ success: true, draft });
+  } catch (err: any) {
+    console.error('[PluginBuilder] AI generate error:', err);
+    res.status(500).json({ success: false, errors: [req.t('errors.generic_server_error')] });
   }
 });
 

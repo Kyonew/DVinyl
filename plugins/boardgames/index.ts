@@ -37,6 +37,7 @@ export const boardGamesPlugin: PluginDefinition = {
   creatorField: 'designer',
   creatorSearchFields: ['designer', 'publisher'],
   extraSearchFields: ['bgg_id'],
+  duplicateCheckFields: ['format'],
   summaryField: { label: 'confirm_boardgame.field_designer', field: 'designer' },
 
   sources: [bggSource],
@@ -101,9 +102,9 @@ export const boardGamesPlugin: PluginDefinition = {
   // "height" the side standing up: roughly a square 295mm box for a big game. Expansions
   // ship in the same footprint but a fraction of the depth, and a promo is a sleeve.
   spineSize: {
-    boxed: { thickness: 75, height: 295 },
-    expansion: { thickness: 40, height: 240 },
-    promo: { thickness: 10, height: 120 }
+    boxed: { thickness: 75, height: 295, shape: 'box' },
+    expansion: { thickness: 40, height: 240, shape: 'box' },
+    promo: { thickness: 10, height: 120, shape: 'box' }
   },
 
   formFields: [

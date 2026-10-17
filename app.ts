@@ -55,8 +55,10 @@ import collectionInfoRoute from './core/routes/collectionInfoRoute.js';
 import shelfRoute from './core/routes/shelfRoute.js';
 import listRoute from './core/routes/listRoute.js';
 import searchRoute from './core/routes/searchRoute.js';
+import accountRoute from './core/routes/accountRoute.js';
 import manualAddRoute from './core/routes/manualAddRoute.js';
 import csvImportRoute from './core/routes/csvImportRoute.js';
+import aiImportRoute from './core/routes/aiImportRoute.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -222,6 +224,13 @@ app.use(async (req: any, res, next) => {
   res.locals.currentLng = req.language;
   res.locals.appVersion = pkg.version;
   res.locals.baseUrl = BASE_URL;
+  // Where the request lands inside the app, BASE_URL stripped, so the shell can tell
+  // which tab and which navbar shortcut is the current page.
+  res.locals.currentPath = BASE_URL && req.path.startsWith(BASE_URL)
+    ? (req.path.slice(BASE_URL.length) || '/')
+    : req.path;
+  const queryStart = req.originalUrl.indexOf('?');
+  res.locals.currentSearch = queryStart >= 0 ? req.originalUrl.slice(queryStart + 1) : '';
   res.locals.oidcEnabled = isOidcEnabled();
   res.locals.oidcButtonLabel = getOidcButtonLabel();
   res.locals.localLoginDisabled = isLocalLoginDisabled();
@@ -324,9 +333,11 @@ app.use(BASE_URL, collectionInfoRoute);
 app.use(BASE_URL, shelfRoute);
 app.use(BASE_URL, listRoute);
 app.use(BASE_URL, searchRoute);
+app.use(BASE_URL, accountRoute);
 app.use(BASE_URL, manualAddRoute);
 // Before the plugin dispatcher, which also serves /import/:id routes
 app.use(BASE_URL, csvImportRoute);
+app.use(BASE_URL, aiImportRoute);
 
 // Plugin routers live behind a runtime dispatcher (not mounted directly on `app`)
 // so custom plugins created via /create-plugin are reachable without a restart.

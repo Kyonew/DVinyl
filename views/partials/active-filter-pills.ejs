@@ -20,14 +20,16 @@
         activePills.push({ key: 'platform', label: t('collection.platform_filter') + ': ' + locals.queryPlatform.split(',').join(', ') });
     }
 
-    // One pill per active user-defined filter; a range contributes one per bound
+    // One pill per active field filter; a range contributes one per bound
     const xFilters = locals.extraFilters || [];
     xFilters.forEach(xf => {
+        const choice = (xf.choices || []).find(c => c.value === xf.value);
         const readable = (v) => v === locals.extraAny ? t('collection.xf_any')
             : v === locals.extraNone ? t('collection.xf_none')
-            : v === 'true' ? t('common.yes')
-            : v === 'false' ? t('common.no')
-            : t(v, { defaultValue: v });
+            : xf.kind === 'boolean' && v === 'true' ? t('common.yes')
+            : xf.kind === 'boolean' && v === 'false' ? t('common.no')
+            : choice ? choice.label
+            : v;
         if (xf.value) activePills.push({ key: xf.param, label: xf.label + ': ' + readable(xf.value) });
         if (xf.from) activePills.push({ key: xf.paramFrom, label: xf.label + ' ≥ ' + xf.from });
         if (xf.to) activePills.push({ key: xf.paramTo, label: xf.label + ' ≤ ' + xf.to });

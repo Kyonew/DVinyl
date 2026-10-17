@@ -29,6 +29,9 @@ export interface PluginCosmetics {
   // Which corner it sits in, among those the format badge does not occupy. See
   // CORNER_POSITIONS in core/cardFields.ts.
   cornerPosition?: string;
+  // Filters switched on or off for this type on the collection page, by id. Only what
+  // differs from the default is stored; see core/filterFields.ts.
+  filters?: Record<string, boolean>;
 }
 
 export type PluginCustomizationMap = Record<string, PluginCosmetics>;

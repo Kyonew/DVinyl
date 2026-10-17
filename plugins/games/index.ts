@@ -66,10 +66,22 @@ const tmdbImages = imageSourceFrom({
   async searchImages(query: string, options?: { language?: string }): Promise<string[]> {
     const langMap: Record<string, string> = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', it: 'it-IT', de: 'de-DE' };
     const tmdbLang = langMap[options?.language || ''] || 'en-US';
-    const data = await fetchJson(
-      `https://api.themoviedb.org/3/search/multi?api_key=${process.env.TMDB_API_KEY}&query=${encodeURIComponent(query)}&language=${tmdbLang}`,
-      { headers: { 'User-Agent': 'DVinylApp/2.0' }, signal: AbortSignal.timeout(10000) }
-    );
+    // Same rule as the Movies plugin: TMDB_API_KEY may hold the short API key or the
+    // Read Access Token, a JWT that only works as a bearer header. Kept here rather than
+    // imported from that plugin, so this one still loads on an instance without it.
+    const credential = (process.env.TMDB_API_KEY || '').trim();
+    const isToken = credential.split('.').length === 3;
+    const url = new URL('https://api.themoviedb.org/3/search/multi');
+    url.searchParams.set('query', query);
+    url.searchParams.set('language', tmdbLang);
+    if (!isToken) url.searchParams.set('api_key', credential);
+    const data = await fetchJson(url.toString(), {
+      headers: {
+        'User-Agent': 'DVinylApp/2.0',
+        ...(isToken ? { Authorization: `Bearer ${credential}` } : {})
+      },
+      signal: AbortSignal.timeout(10000)
+    });
     return (data.results || [])
       .filter((item: any) => item.poster_path)
       .map((item: any) => `https://image.tmdb.org/t/p/w500${item.poster_path}`);
@@ -220,10 +232,10 @@ export const gamesPlugin: PluginDefinition = {
   // The standard disc-console case, which every format here shares; the collector and
   // limited editions are boxes rather than cases, so they get the room they take.
   spineSize: {
-    physical: { thickness: 14, height: 170 },
-    collector: { thickness: 60, height: 200 },
-    limited: { thickness: 30, height: 180 },
-    steelbook: { thickness: 15, height: 170 },
+    physical: { thickness: 14, height: 170, shape: 'case' },
+    collector: { thickness: 60, height: 200, shape: 'box' },
+    limited: { thickness: 30, height: 180, shape: 'box' },
+    steelbook: { thickness: 15, height: 170, shape: 'case' },
     digital: { thickness: 5, height: 170 }
   },
 

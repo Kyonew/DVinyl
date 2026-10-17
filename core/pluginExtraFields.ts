@@ -159,21 +159,64 @@ const PICKER_TYPES = new Set(['text', 'select', 'tags']);
 export const EXTRA_ANY = '__any__';
 export const EXTRA_NONE = '__none__';
 
-export function isFilterable(field: ExtraFieldConfig): boolean {
+/**
+ * A field the collection page can filter on. Either a user-defined field, stored in
+ * item.extra, or one of the plugin's own fields (`native`), stored on a real schema
+ * path. See core/filterFields.ts for which of them a collection shows.
+ */
+export type FilterableField = ExtraFieldConfig & { native?: boolean };
+
+// Types the collection search box looks into: the ones holding words. Numbers, dates
+// and booleans are reached through their filter instead.
+const SEARCHABLE_TYPES = new Set(['text', 'textarea', 'select', 'tags']);
+
+/**
+ * $or branches matching the search box against the user-defined fields of every given
+ * plugin. A select stores the slug of its option ("16_9" for "16:9"), so it is matched
+ * on what people read and type: the labels, mapped back to the values they stand for.
+ */
+export function extraSearchConditions(settings: any, plugins: PluginDefinition[], regex: RegExp): any[] {
+  const conditions: any[] = [];
+  const seen = new Set<string>();
+  for (const plugin of plugins) {
+    for (const field of getExtraFields(settings, plugin.id)) {
+      if (!SEARCHABLE_TYPES.has(field.type)) continue;
+      const path = `extra.${field.name}`;
+      if (field.type === 'select') {
+        const values = (field.options || []).filter(o => regex.test(o.label)).map(o => o.value);
+        if (values.length > 0) conditions.push({ [path]: { $in: values } });
+      } else if (!seen.has(path)) {
+        // Two plugins may declare the same name: one test on the path covers both
+        seen.add(path);
+        conditions.push({ [path]: regex });
+      }
+    }
+  }
+  return conditions;
+}
+
+export function isFilterable(field: FilterableField): boolean {
   return FILTERABLE_TYPES.has(field.type);
 }
 
-export function isRangeFilter(field: ExtraFieldConfig): boolean {
+export function isRangeFilter(field: FilterableField): boolean {
   return field.type === 'date' || field.type === 'number';
 }
 
-export function isPickerFilter(field: ExtraFieldConfig): boolean {
+export function isPickerFilter(field: FilterableField): boolean {
   return PICKER_TYPES.has(field.type);
 }
 
-/** Query param carrying this field's filter value. */
-export function filterParam(field: ExtraFieldConfig, bound?: 'from' | 'to'): string {
-  return bound ? `xf_${field.name}_${bound}` : `xf_${field.name}`;
+/** Query param carrying this field's filter value. Each source has its own prefix, so a
+ *  plugin field and a user-defined one can never answer to the same param. */
+export function filterParam(field: FilterableField, bound?: 'from' | 'to'): string {
+  const prefix = field.native ? 'nf' : 'xf';
+  return bound ? `${prefix}_${field.name}_${bound}` : `${prefix}_${field.name}`;
+}
+
+/** Where the value lives on an item. */
+export function filterPath(field: FilterableField): string {
+  return field.native ? field.name : `extra.${field.name}`;
 }
 
 function parseDateBound(raw: any, endOfDay: boolean): Date | null {
@@ -183,16 +226,17 @@ function parseDateBound(raw: any, endOfDay: boolean): Date | null {
 }
 
 /**
- * Mongo conditions for the user-defined filters present in a query string. Field
+ * Mongo conditions for the field filters present in a query string. User-defined
  * names come from the settings and were validated against FIELD_NAME_RE on the way
- * in, so interpolating them into a dotted path is safe.
+ * in, and native ones are declared by the plugin itself, so interpolating them into
+ * a path is safe.
  */
-export function buildExtraFieldConditions(defs: ExtraFieldConfig[], query: any): any[] {
+export function buildExtraFieldConditions(defs: FilterableField[], query: any): any[] {
   const conditions: any[] = [];
 
   for (const field of defs) {
     if (!isFilterable(field)) continue;
-    const path = `extra.${field.name}`;
+    const path = filterPath(field);
 
     if (isRangeFilter(field)) {
       const rawFrom = query[filterParam(field, 'from')];
@@ -235,6 +279,10 @@ export function buildExtraFieldConditions(defs: ExtraFieldConfig[], query: any):
       // Items predating the field have no key at all, so "no" is "not true" rather
       // than an equality test on false.
       conditions.push(value === 'true' ? { [path]: true } : { [path]: { $ne: true } });
+    } else if (field.native && typeof field.default === 'string' && field.default && value === field.default) {
+      // A plugin field shows its default when nothing is stored (items saved before
+      // the field existed, or emptied by an import), so those match its default too.
+      conditions.push({ [path]: { $in: [value, null, ''] } });
     } else {
       // text, select and tags alike: the values offered are the ones actually stored,
       // and an equality test on an array path matches "contains" for tags.

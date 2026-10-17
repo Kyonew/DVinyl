@@ -7,7 +7,7 @@ import Item from '../../models/Item';
 import User from '../../models/User';
 import { BASE_URL } from '../../config/constants';
 import { requireAuth, requireAuthOrShareView, requireCollectionRole } from '../../middleware/authMiddleware';
-import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback, editStamp, syncStamp, safeReturnPath, confirmPathFor, getPublicProtocol, generateBarcodeDataUrl, escapeRegExp } from '../helpers';
+import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback, searchWithGuess, editStamp, syncStamp, safeReturnPath, confirmPathFor, getPublicProtocol, generateBarcodeDataUrl, escapeRegExp, buildCopySeed } from '../helpers';
 import { DEFAULT_PLACEHOLDER_IMAGE } from '../placeholderImage';
 import { alignImagesAfterRefresh, imagesForItem, imagesFromForm, ItemImageValidationError, MAX_ITEM_IMAGES, MAX_ITEM_IMAGE_BYTES } from '../itemImages';
 import { deleteUnusedManagedItemImages } from '../itemImageStorage';
@@ -17,6 +17,12 @@ import { resolveShelfLocation } from '../shelfStore';
 import { deleteItemsAndContents, moveContentsToWishlist } from '../../utils/itemHelpers';
 import { applyVisibilityFilter, applyShareScopeFilter, applyPluginKindFilter, isWithinShareScope } from '../../utils/visibilityHelper';
 import { hasSearch, searchableSources, resolveSource, canRefresh, refreshPatchFor } from '../sources';
+import { resolveBarcodeWithAi } from '../ai/barcode';
+import { identifyFromPhoto } from '../ai/photo';
+import { IdentificationGuess } from '../ai/identify';
+import { isAcceptedImage } from '../ai/images';
+import { getAiConfig, isAiReady } from '../ai/instance';
+import { isAiConfigured } from '../ai/config';
 
 /**
  * Names what was just saved in the path an add comes back to, so the add page can say so.
@@ -78,6 +84,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           currentType: `add-${plugin.id}`,
           sources: searchableSources(plugin, res.locals.settings),
           activeSource: resolveSource(plugin, null, res.locals.settings)?.id || '',
+          aiPhotoSearch: await isAiReady(),
           plugin
         });
       } catch (err: any) {
@@ -90,6 +97,17 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
     router.post(`/search-${plugin.id}`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
       const { query, type, year, country, genre_filter, label_filter } = req.body;
       const rawQuery = typeof query === 'string' ? query.trim() : '';
+      // Every render of the page below offers the photo search again.
+      res.locals.aiPhotoSearch = await isAiReady();
+      // What a model identified, searched with its creator first (see searchWithGuess).
+      // A photo search posts its answer back with the form: the title in the box, the
+      // creator alongside. A barcode nothing else knew gets one further down.
+      let guess: IdentificationGuess | null = null;
+      const fromPhoto = req.body.guess_from === 'photo' && !!rawQuery;
+      if (fromPhoto) {
+        const creator = typeof req.body.guess_creator === 'string' ? req.body.guess_creator.trim() : '';
+        guess = { title: rawQuery, creator, year: '', confidence: 1 };
+      }
       // The fields the plugin's own search form partial adds, as strings only. Every
       // render of the page below hands them back, so the partial shows them as picked.
       const searchFields: Record<string, string> = {};
@@ -126,7 +144,13 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         if (plugin.supportsBarcodeSearch && isBarcodeQuery(rawQuery)) {
           const { barcode, title } = await lookupBarcodeTitle(rawQuery, plugin.barcodeNoiseTerms);
           scannedBarcode = barcode;
-          if (!title) {
+
+          // UPCitemdb's free tier is 100 lookups a day per IP, so a null title covers an
+          // unknown code and an exhausted quota alike. The AI assist, when configured, turns
+          // the digits into a search for the plugin's own source; off or failing, the
+          // barcode is reported unknown exactly as before.
+          if (!title) guess = await resolveBarcodeWithAi(barcode, plugin.id);
+          if (!title && !guess) {
             // Searching the digits themselves cannot match: these providers index titles,
             // not barcodes. Say the barcode is unknown rather than show an empty result
             // list, which reads as "you don't own this" instead of "I couldn't look it up".
@@ -143,9 +167,12 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
               plugin
             });
           }
-          searchQuery = title;
-          resolvedTitle = title;
+          searchQuery = title || '';
+          resolvedTitle = title || '';
         }
+        // A guess is shown and handled like a resolved product name: never added on its
+        // own, and put back in the box when nothing matched so it can be corrected.
+        if (guess) resolvedTitle = guess.title;
 
         const settings = res.locals.settings;
         if (!source) {
@@ -178,7 +205,11 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         });
 
         let results;
-        if (resolvedTitle) {
+        if (guess) {
+          const attempt = await searchWithGuess(guess, runSearch);
+          results = attempt.results;
+          searchQuery = attempt.query;
+        } else if (resolvedTitle) {
           const attempt = await searchWithTitleFallback(resolvedTitle, runSearch);
           results = attempt.results;
           searchQuery = attempt.query;
@@ -223,6 +254,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           // typed into having been emptied for the next item.
           error: results.length > 0 ? undefined
             : exactIdentifier ? req.t('add.identifier_no_match', { code: rawQuery })
+            : fromPhoto ? req.t('add.photo_no_match')
             : resolvedTitle ? req.t('add_vinyl.barcode_no_match')
             : undefined,
           searchType: type || plugin.id,
@@ -252,6 +284,28 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           activeSource: source?.id || '',
           plugin
         });
+      }
+    });
+
+    // POST /search-{type}/photo -> what the photographed item probably is, for the search
+    // form to run. Nothing is searched or saved here: the page posts the answer back
+    // through the normal search, so the results still come from the plugin's own source.
+    router.post(`/search-${plugin.id}/photo`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
+      const config = await getAiConfig();
+      if (!isAiConfigured(config)) {
+        return res.status(400).json({ error: req.t('ai.err_not_configured') });
+      }
+      const image = req.body?.image;
+      if (!isAcceptedImage(image)) {
+        return res.status(400).json({ error: req.t('ai.err_image_rejected') });
+      }
+      try {
+        const guess = await identifyFromPhoto(config, image, plugin.id, plugin.creatorField);
+        if (!guess) return res.status(422).json({ error: req.t('add.photo_unknown') });
+        res.json({ title: guess.title, creator: guess.creator });
+      } catch (err: any) {
+        console.error(`[ERR] AI photo search for ${plugin.id}:`, err.message);
+        res.status(502).json({ error: req.t('ai.err_extract_failed', { error: err.message }) });
       }
     });
 
@@ -673,10 +727,18 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           // Detaching the external id detaches the record it pointed at. refreshPatchFor()
           // prefers the stored source pair over the plugin's own id field, so leaving the
           // pair behind would keep refreshing the item from the very match its owner just
-          // rejected, which is what emptying the id is for. Skipped when the form posts a
-          // pair of its own, which is a re-attachment rather than a detachment.
+          // rejected, which is what emptying the id is for. Typing a different id in is the
+          // same rejection: the pair would still name the old record and win over the new
+          // one, while without it the refresh falls back to the id field the owner just
+          // set. Skipped when the form posts a pair of its own, which is a re-attachment
+          // rather than a detachment.
           const detachedIdField = plugin.externalIdField;
-          if (detachedIdField && unsetObj[detachedIdField] !== undefined && !saveObj.source_id) {
+          const storedId = detachedIdField ? existingItem[detachedIdField] : undefined;
+          const postedId = detachedIdField ? saveObj[detachedIdField] : undefined;
+          const idReplaced = postedId !== undefined && postedId !== null && String(postedId).trim() !== ''
+            && storedId !== undefined && storedId !== null && String(storedId).trim() !== ''
+            && String(postedId).trim() !== String(storedId).trim();
+          if (detachedIdField && (unsetObj[detachedIdField] !== undefined || idReplaced) && !saveObj.source_id) {
             if (existingItem.source) unsetObj.source = '';
             if (existingItem.source_id) unsetObj.source_id = '';
             delete saveObj.source;
@@ -819,6 +881,62 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
     }
   });
 
+  // COPY TO A NEW ENTRY (e.g. the same work in a second format)
+  // Renders the confirm/manual form pre-filled from an existing item, minus what belongs
+  // to that one copy (see buildCopySeed), so it saves as a brand-new document through the
+  // create path. Generic across every plugin. No format is preselected: the duplicate
+  // banner lights up on its own from the fields that tell two copies apart, until the
+  // user changes one.
+  router.get(`${plugin.routePrefix}/copy/:id`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(404).send(req.t('errors.not_found'));
+      }
+      const activeCollectionId = res.locals.activeCollectionId;
+
+      const copyQuery: any = { _id: req.params.id, collection: activeCollectionId };
+      applyPluginKindFilter(copyQuery, plugin);
+      const source = await Item.findOne(copyQuery);
+      // Same rule as the button on the detail page: a wishlist entry is not owned yet, and
+      // a season or a show holding seasons is added through its own flow. Copying a season
+      // would also leave a season number on an item attached to no show.
+      const isNested = (source?.season !== undefined && source?.season !== null) || !!source?.parent;
+      if (!source || source.in_wishlist || isNested || await Item.exists({ parent: source._id })) {
+        return res.status(404).send(req.t('errors.not_found'));
+      }
+
+      const formatted = plugin.formatForView(source);
+      // getVariants leaves the source out, so a single copy would come back empty and the
+      // banner would stay dark on load although the form starts on the source's format.
+      const variants = await filterVisible(await plugin.getVariants(formatted), res);
+      const existingItems = [{ ...formatted }, ...variants.map(v => plugin.formatForView(v))];
+      const seed: any = buildCopySeed(formatted, plugin);
+
+      const suggestions = await buildFieldSuggestions(plugin, activeCollectionId, seed);
+      const genres = await Item.distinct('genre', {
+        collection: activeCollectionId,
+        genre: { $ne: '' },
+        $or: [{ kind: plugin.kind }, { kind: { $exists: false } }]
+      });
+
+      res.render('confirm', {
+        item: seed,
+        user: res.locals.user,
+        suggestions,
+        genres,
+        currentType: plugin.collectionType,
+        existingItems,
+        plugin,
+        isManual: true,
+        // Started from the item, not from a search: leaving the form goes back there.
+        backHref: `${plugin.routePrefix}/${source._id}`
+      });
+    } catch (err: any) {
+      console.error(`Error loading copy form for ${plugin.id}:`, err.message);
+      res.status(500).send(req.t('errors.generic_server_error'));
+    }
+  });
+
   // GET /{prefix}/:id -> details view
   router.get(`${plugin.routePrefix}/:id`, requireAuthOrShareView, async (req: any, res: any) => {
     try {
@@ -951,12 +1069,20 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         codeType = 'qr';
       }
 
+      // ?format=json: the code alone, for the phone item page's label sheet, which
+      // previews it in place rather than opening this page.
+      if (req.query.format === 'json') {
+        return res.json({ codeType, codeDataUrl, hasBarcode: !!barcodeValue });
+      }
+
       res.render('label', {
         item: plugin.formatForView(item),
         plugin,
         codeType,
         codeDataUrl,
         hasBarcode: !!barcodeValue,
+        // ?print=1: opened by a Print button, so the print dialog comes up on its own.
+        autoPrint: req.query.print === '1',
         user: res.locals.user
       });
     } catch (err: any) {

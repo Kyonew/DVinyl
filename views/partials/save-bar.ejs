@@ -67,7 +67,10 @@
                     if (state.has(form)) state.get(form).buttonOnScreen = entry.isIntersecting;
                 });
                 schedule();
-            })
+            // On phones the tab bar covers the bottom of the screen: a button behind it
+            // is not one the user can see.
+            }, document.body.classList.contains('has-tab-bar') && window.matchMedia('(max-width: 767px)').matches
+                ? { rootMargin: '0px 0px -80px 0px' } : undefined)
             : null;
 
         const init = () => {
