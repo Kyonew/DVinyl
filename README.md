@@ -137,6 +137,10 @@ An official Community Application template is available:
 No Docker or NAS? Have a look at the other ways to install and run DVinyl in the
 [Getting started guide](./docs/getting-started.md).
 
+## One-click deploy
+
+[![Deploy on RepoCloud](https://d16t0pc4846x52.cloudfront.net/deploylobe.svg)](https://repocloud.io/details/DVinyl/)
+
 ## Documentation
 
 | Guide | What is inside |
