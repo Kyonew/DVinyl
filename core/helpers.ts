@@ -134,6 +134,25 @@ export function safeReturnPath(candidate: any, host?: string): string {
 }
 
 /**
+ * True when `path` points at one of a plugin's own item pages rather than a listing:
+ * the detail page `/{prefix}/{id}`, its sub-pages `/{prefix}/edit/{id}`,
+ * `/{prefix}/copy/{id}`, and a trailing segment like `/{prefix}/{id}/label`.
+ *
+ * The detail route uses this to decide whether a Referer is worth returning to. An item
+ * page is NOT a listing, so trusting it as the "back" target made the detail page and its
+ * Copy/Edit form send each other back and forth with no way out. The optional `[a-z]+/`
+ * before the id is what catches the edit/ and copy/ sub-routes (the original pattern only
+ * matched a bare id and so missed them).
+ */
+export function isItemSubPage(path: string, routePrefix: string): boolean {
+  const re = new RegExp(
+    `^${escapeRegExp(BASE_URL)}${escapeRegExp(routePrefix)}/(?:[a-z]+/)?[a-f0-9]{24}(?:[/?#]|$)`,
+    'i'
+  );
+  return re.test(path);
+}
+
+/**
  * Builds the key a title is sorted on: lowercased, accent folded, and without a leading
  * article. "The Wall" files under W and "Ámbar" next to "Amber", the way a record shop
  * shelves them.

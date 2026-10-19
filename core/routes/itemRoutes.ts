@@ -7,7 +7,7 @@ import Item from '../../models/Item';
 import User from '../../models/User';
 import { BASE_URL } from '../../config/constants';
 import { requireAuth, requireAuthOrShareView, requireCollectionRole } from '../../middleware/authMiddleware';
-import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback, searchWithGuess, editStamp, syncStamp, safeReturnPath, confirmPathFor, getPublicProtocol, generateBarcodeDataUrl, escapeRegExp, buildCopySeed } from '../helpers';
+import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback, searchWithGuess, editStamp, syncStamp, safeReturnPath, confirmPathFor, getPublicProtocol, generateBarcodeDataUrl, isItemSubPage, buildCopySeed } from '../helpers';
 import { DEFAULT_PLACEHOLDER_IMAGE } from '../placeholderImage';
 import { alignImagesAfterRefresh, imagesForItem, imagesFromForm, ItemImageValidationError, MAX_ITEM_IMAGES, MAX_ITEM_IMAGE_BYTES } from '../itemImages';
 import { deleteUnusedManagedItemImages } from '../itemImageStorage';
@@ -989,13 +989,13 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       // such pages send "back" to each other with no way out. It is dropped, and the view
       // falls back to the collection itself. safeReturnPath keeps BASE_URL on what it
       // returns, hence the prefix in the pattern.
+      //
+      // The id may be preceded by an item sub-route (edit/, copy/) and followed by one
+      // (e.g. /label): those pages are item pages too, so coming back from the Copy or
+      // Edit form must not treat the form's URL as a listing (that looped detail <-> copy).
       const refererPath = safeReturnPath(req.get('Referer'), req.get('host'));
-      const itemPagePattern = new RegExp(
-        `^${escapeRegExp(BASE_URL)}${escapeRegExp(plugin.routePrefix)}/[a-f0-9]{24}(?:[/?#]|$)`,
-        'i'
-      );
       const backUrl = safeReturnPath(req.query.from, req.get('host'))
-        || (itemPagePattern.test(refererPath) ? '' : refererPath);
+        || (isItemSubPage(refererPath, plugin.routePrefix) ? '' : refererPath);
 
       // And what holds this one, if anything: a season is absent from every listing, so
       // "back to the collection" would send its page nowhere useful. The show it belongs
