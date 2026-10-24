@@ -1,6 +1,5 @@
-import mongoose from 'mongoose';
-import Item from '../models/Item';
-import List from '../models/List';
+import { db } from './db';
+import { and, eq, idOf, isId, isIn } from './db/query';
 import { registry } from './registry';
 
 export const LIST_KINDS = ['items', 'tracks'] as const;
@@ -27,14 +26,11 @@ export function cleanListDescription(value: unknown): string {
   return String(value ?? '').trim().slice(0, MAX_LIST_DESCRIPTION);
 }
 
-const toId = (value: unknown) =>
-  mongoose.Types.ObjectId.isValid(value as any) ? new mongoose.Types.ObjectId(String(value)) : null;
-
 /** The list named by `id`, if it belongs to the given collection. */
-export async function ownList(collectionId: any, id: unknown) {
-  const listId = toId(id);
-  if (!listId) return null;
-  return List.findOne({ _id: listId, collection: collectionId });
+export async function ownList(collectionId: any, id: unknown): Promise<any | null> {
+  const listId = idOf(id);
+  if (!isId(listId)) return null;
+  return db.lists.findOne(and(eq('_id', listId), eq('collection', idOf(collectionId))), { defaults: true });
 }
 
 /** Whether any enabled plugin keeps a tracklist, which is what a playlist is made from. */
@@ -65,7 +61,7 @@ export async function resolveListEntries(list: any, collectionId: any): Promise<
   if (entries.length === 0) return [];
 
   const itemIds = [...new Set(entries.map(e => String(e.item)))];
-  const items = await Item.find({ _id: { $in: itemIds }, collection: collectionId }).lean();
+  const items = await db.items.find(and(isIn('_id', itemIds), eq('collection', idOf(collectionId))));
   const byId = new Map(items.map((item: any) => [String(item._id), item]));
 
   const resolved: (ResolvedItemEntry | ResolvedTrackEntry)[] = [];
@@ -104,7 +100,7 @@ export async function resolveListEntries(list: any, collectionId: any): Promise<
   }
 
   if (dangling.length > 0) {
-    await List.updateOne({ _id: list._id }, { $pull: { entries: { _id: { $in: dangling } } } });
+    await db.lists.updateOne(eq('_id', idOf(list._id)), { pull: { entries: isIn('_id', dangling.map(idOf)) } });
   }
   return resolved;
 }
@@ -112,10 +108,8 @@ export async function resolveListEntries(list: any, collectionId: any): Promise<
 /** Takes deleted items out of every list that held them, tracks included. */
 export async function pullItemsFromLists(itemIds: any[]): Promise<void> {
   if (!itemIds || itemIds.length === 0) return;
-  await List.updateMany(
-    { 'entries.item': { $in: itemIds } },
-    { $pull: { entries: { item: { $in: itemIds } } } }
-  );
+  const ids = itemIds.map(idOf);
+  await db.lists.updateMany(isIn('entries.item', ids), { pull: { entries: isIn('item', ids) } });
 }
 
 /**
@@ -131,7 +125,7 @@ export async function listCovers(lists: any[], collectionId: any): Promise<Map<s
   const allIds = [...new Set([...wanted.values()].flat())];
   if (allIds.length === 0) return new Map();
 
-  const items = await Item.find({ _id: { $in: allIds }, collection: collectionId }).lean();
+  const items = await db.items.find(and(isIn('_id', allIds), eq('collection', idOf(collectionId))));
   const coverById = new Map<string, string>();
   for (const raw of items as any[]) {
     const plugin = registry.getByKind(raw.kind);

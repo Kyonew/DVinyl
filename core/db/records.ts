@@ -20,6 +20,13 @@ export interface ReadOptions {
 export interface UpdateOptions {
   /** Create the record from the filter and the patch when none matches. */
   upsert?: boolean;
+  /** Check the written values against the record type's rules (required, bounds...). */
+  validate?: boolean;
+  /**
+   * Write exactly what the patch says, past every rule of the record type, including
+   * fields it no longer declares. For the migrations repairing what older versions stored.
+   */
+  asStored?: boolean;
 }
 
 export type WriteResult = { matched: number; modified: number; upserted: boolean };
@@ -30,10 +37,19 @@ export interface RecordStore {
   findById(id: string, options?: Pick<ReadOptions, 'fields' | 'defaults'>): Promise<any | null>;
   count(filter: Filter): Promise<number>;
   exists(filter: Filter): Promise<boolean>;
+  /** The values a field holds across the matching records, list fields contributing each element. */
+  distinct(field: string, filter: Filter): Promise<any[]>;
   /** Stores a new record, checked against its type, and returns it as stored. */
   create(record: Record<string, any>): Promise<any>;
+  /**
+   * Stores many records in one go, checked against their type, or exactly as given with
+   * `asStored` (a backup being restored: authoritative, never re-validated).
+   */
+  insertMany(records: Record<string, any>[], options?: { asStored?: boolean }): Promise<void>;
+  /** Why the record would be refused, without storing it: the first failing field, or null. */
+  validate(record: Record<string, any>): { field: string; message: string } | null;
   updateOne(filter: Filter, patch: Patch, options?: UpdateOptions): Promise<WriteResult>;
-  updateMany(filter: Filter, patch: Patch): Promise<WriteResult>;
+  updateMany(filter: Filter, patch: Patch, options?: UpdateOptions): Promise<WriteResult>;
   /** Changes the first matching record and returns it as it is afterwards, or null. */
   updateAndGet(filter: Filter, patch: Patch, options?: UpdateOptions): Promise<any | null>;
   /**

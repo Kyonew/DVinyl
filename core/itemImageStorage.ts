@@ -3,7 +3,6 @@ import path from 'path';
 import { promises as fs } from 'fs';
 import { db } from './db';
 import { Filter, isIn, or } from './db/query';
-import Collection from '../models/Collection';
 import { BASE_URL } from '../config/constants';
 
 export const ITEM_IMAGES_URL_PREFIX = '/uploads/items/';
@@ -76,10 +75,7 @@ export async function deleteUnusedManagedItemImages(candidates: unknown[]): Prom
   // Uploads are one pool, and an item is not their only reader: a collection info page
   // (core/collectionInfo.ts) points at the same files, and the periodic sweep below
   // would carry them off within a day if they looked unused here.
-  const referencedCollections = await Collection
-    .find({ 'info.images': { $in: managed } })
-    .select('info.images')
-    .lean();
+  const referencedCollections = await db.collections.find(isIn('info.images', managed), { fields: ['info.images'] });
   for (const collection of referencedCollections) {
     for (const image of (collection as any).info?.images || []) {
       if (typeof image === 'string') referenced.add(image);

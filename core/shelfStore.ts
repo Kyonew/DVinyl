@@ -1,5 +1,6 @@
-import Furniture from '../models/Furniture';
-import Item from '../models/Item';
+import { db } from './db';
+import { isDuplicateError } from './db/errors';
+import { and, asc, eq, idOf, notIn } from './db/query';
 import {
   locationKey, normalizeLocationName, pickDisplayName, capacityPerFurniture, fitGrid,
   MAX_FURNITURE_ROWS
@@ -7,7 +8,7 @@ import {
 
 /** Every shelf in a collection, in the spelling its furniture holds. */
 export async function shelfNames(collectionId: any): Promise<string[]> {
-  const furnitureList = await Furniture.find({ collection: collectionId }).select('cells.name').lean();
+  const furnitureList = await db.furniture.find(eq('collection', idOf(collectionId)), { fields: ['cells.name'] });
   return furnitureList.flatMap((piece: any) => (piece.cells || []).map((cell: any) => cell.name));
 }
 
@@ -20,7 +21,7 @@ export async function shelfNames(collectionId: any): Promise<string[]> {
 export async function shelfChoices(collectionId: any): Promise<string[]> {
   const [names, stored] = await Promise.all([
     shelfNames(collectionId),
-    Item.distinct('location', { collection: collectionId, location: { $nin: ['', null] } })
+    db.items.distinct('location', and(eq('collection', idOf(collectionId)), notIn('location', ['', null])))
   ]);
 
   const byKey = new Map<string, string>();
@@ -47,7 +48,7 @@ export async function resolveShelfLocation(collectionId: any, raw: unknown): Pro
   const key = locationKey(name);
   if (!key) return '';
 
-  const furnitureList = await Furniture.find({ collection: collectionId }).sort({ order: 1, created_at: 1 });
+  const furnitureList = await db.furniture.find(eq('collection', idOf(collectionId)), { sort: [asc('order'), asc('created_at')], defaults: true });
 
   const holder = furnitureList.find((piece: any) => (piece.cells || []).some((cell: any) => cell.key === key));
   if (holder) {
@@ -75,13 +76,13 @@ export async function resolveShelfLocation(collectionId: any, raw: unknown): Pro
       }
 
       if (placed) {
-        await target.save();
+        await db.furniture.updateOne(eq('_id', idOf(target._id)), { set: { cells: target.cells, rows: target.rows } }, { validate: true });
         return name;
       }
     }
 
     const { columns, rows } = fitGrid(1);
-    await Furniture.create({
+    await db.furniture.create({
       collection: collectionId,
       name,
       layout: 'cubes',
@@ -96,9 +97,9 @@ export async function resolveShelfLocation(collectionId: any, raw: unknown): Pro
     // (collection, cells.key) lets one through and rejects the other. The loser reads
     // back what the winner created instead of failing, which is the whole point of
     // having the index rather than trusting the check above.
-    if (err?.code !== 11000) throw err;
+    if (!isDuplicateError(err)) throw err;
 
-    const winner = await Furniture.findOne({ collection: collectionId, 'cells.key': key }).select('cells').lean();
+    const winner = await db.furniture.findOne(and(eq('collection', idOf(collectionId)), eq('cells.key', key)), { fields: ['cells'] });
     const cell = ((winner as any)?.cells || []).find((c: any) => c.key === key);
     return cell ? cell.name : name;
   }
@@ -141,14 +142,11 @@ export async function seedFurnitureFromLocations(
   furnitureName: string
 ): Promise<{ shelves: number; renamed: number; blanked: number }> {
   // Counted per spelling, since the most used one is the one kept.
-  const storedLocations = await Item.collection.aggregate([
-    { $match: { collection: collectionId, location: { $nin: ['', null] } } },
-    { $group: { _id: '$location', count: { $sum: 1 } } }
-  ]).toArray();
+  const storedLocations = await db.items.countBy('location', and(eq('collection', idOf(collectionId)), notIn('location', ['', null])));
 
   // Shelf key -> the spelling the furniture holds, for the shelves that already exist.
   const existing = new Map<string, string>();
-  const furnitureList = await Furniture.find({ collection: collectionId }).select('cells.name cells.key').lean();
+  const furnitureList = await db.furniture.find(eq('collection', idOf(collectionId)), { fields: ['cells.name', 'cells.key'] });
   for (const piece of furnitureList as any[]) {
     for (const cell of piece.cells || []) existing.set(cell.key, cell.name);
   }
@@ -156,16 +154,13 @@ export async function seedFurnitureFromLocations(
   const groups = new Map<string, { name: string; count: number }[]>();
   let blanked = 0;
   for (const entry of storedLocations) {
-    const raw = String(entry._id ?? '');
+    const raw = String(entry.value ?? '');
     const key = locationKey(raw);
     // A value made of nothing but spaces is not a place; it is an empty field that looks
     // filled, and it would seed a nameless shelf.
     if (!key) {
-      const cleared = await Item.updateMany(
-        { collection: collectionId, location: raw },
-        { $set: { location: '' } }
-      );
-      blanked += cleared.modifiedCount;
+      const cleared = await db.items.updateMany(and(eq('collection', idOf(collectionId)), eq('location', raw)), { set: { location: '' } });
+      blanked += cleared.modified;
       continue;
     }
     groups.set(key, [...(groups.get(key) || []), { name: raw, count: entry.count }]);
@@ -179,11 +174,8 @@ export async function seedFurnitureFromLocations(
     if (shelved === undefined) shelves.push({ name, key });
     for (const variant of variants) {
       if (variant.name === name) continue;
-      const merged = await Item.updateMany(
-        { collection: collectionId, location: variant.name },
-        { $set: { location: name } }
-      );
-      renamed += merged.modifiedCount;
+      const merged = await db.items.updateMany(and(eq('collection', idOf(collectionId)), eq('location', variant.name)), { set: { location: name } });
+      renamed += merged.modified;
     }
   }
   shelves.sort((a, b) => a.name.localeCompare(b.name));
@@ -194,7 +186,7 @@ export async function seedFurnitureFromLocations(
   for (let start = 0, page = 0; start < shelves.length; start += perFurniture, page += 1) {
     const chunk = shelves.slice(start, start + perFurniture);
     const { columns, rows } = fitGrid(chunk.length);
-    await Furniture.create({
+    await db.furniture.create({
       collection: collectionId,
       name: page === 0 ? furnitureName : `${furnitureName} (${page + 1})`,
       layout: 'cubes',

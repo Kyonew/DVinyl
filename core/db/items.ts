@@ -5,11 +5,13 @@
 
 import mongoose from 'mongoose';
 import Item from '../../models/Item';
-import { buildUniqueTitlesGroupKey, CreatorFieldSource } from '../helpers';
+import type { CreatorFieldSource } from '../helpers';
+import { buildUniqueTitlesGroupKey } from './mongo/distinctWorks';
 import { Filter, Scalar, Sort } from './filter';
 import { toMongoFilter, toMongoSort, toMongoUpdate } from './mongo/compile';
 import type { Patch } from './patch';
 import { toMongooseDefinition } from './mongo/schema';
+import { firstInvalid } from './mongo/recordStore';
 import type { StoredFields } from './storedFields';
 
 export interface FindOptions {
@@ -97,6 +99,11 @@ export interface WriteOptions {
   kind?: string;
   /** Also write fields the type does not declare (a collection's own fields, under extra). */
   allowUndeclared?: boolean;
+  /**
+   * Write exactly what the patch says, past every rule of the type, including fields no
+   * type declares any more. For the migrations repairing what older versions stored.
+   */
+  asStored?: boolean;
 }
 
 // The model of one item type, which knows its stored fields, or the base one.
@@ -111,11 +118,20 @@ export async function create(record: Record<string, any>): Promise<any> {
 }
 
 /**
- * Stores many items in one go, as a backup or an import hands them over: through the
- * base model, so each is stored as given.
+ * Stores many items in one go, each checked against its own type, or exactly as given
+ * with `asStored` (a backup being restored: authoritative, never re-validated against
+ * rules that may have grown stricter since).
  */
-export async function insertMany(records: Record<string, any>[]): Promise<void> {
-  if (records.length > 0) await Item.insertMany(records);
+export async function insertMany(records: Record<string, any>[], options: { asStored?: boolean } = {}): Promise<void> {
+  if (records.length === 0) return;
+  if (options.asStored) await Item.collection.insertMany(records);
+  else await Item.insertMany(records);
+}
+
+/** Why the item would be refused by its type, without storing it, or null. */
+export function validate(record: Record<string, any>): { field: string; message: string } | null {
+  const Model: any = (Item as any).discriminators?.[record.kind] || Item;
+  return firstInvalid(new Model(record).validateSync());
 }
 
 type WriteResult = { matched: number; modified: number };
@@ -123,6 +139,11 @@ type WriteResult = { matched: number; modified: number };
 async function update(many: boolean, filter: Filter, patch: Patch, options: WriteOptions): Promise<WriteResult> {
   const change = toMongoUpdate(patch);
   if (Object.keys(change).length === 0) return { matched: 0, modified: 0 };
+  if (options.asStored) {
+    const query = Item.find(toMongoFilter(filter)).cast(Item);
+    const raw = many ? await Item.collection.updateMany(query, change) : await Item.collection.updateOne(query, change);
+    return { matched: raw.matchedCount, modified: raw.modifiedCount };
+  }
   const Model = modelFor(options.kind);
   const settings = options.allowUndeclared ? { strict: false } : {};
   const result = many
@@ -233,4 +254,52 @@ export async function valuesByKind(filter: Filter, fields: string[]): Promise<Re
   const out: Record<string, any[]> = {};
   for (const row of rows) if (row._id) out[row._id] = row.values;
   return out;
+}
+
+/**
+ * Replaces, on the matching items, each value of a field by the one it maps to, all in
+ * one pass: two values swapping places ("A" to "B" and "B" to "A") end up swapped rather
+ * than both on the same one. Returns how many items changed.
+ */
+export async function remapValues(filter: Filter, field: string, mapping: [from: Scalar, to: Scalar][]): Promise<number> {
+  if (mapping.length === 0) return 0;
+  const result = await Item.updateMany(
+    { $and: [toMongoFilter(filter), { [field]: { $in: mapping.map(([from]) => from) } }] },
+    [{
+      $set: {
+        [field]: {
+          $switch: {
+            branches: mapping.map(([from, to]) => ({ case: { $eq: [`$${field}`, from] }, then: to })),
+            default: `$${field}`
+          }
+        }
+      }
+    }]
+  );
+  return result.modifiedCount;
+}
+
+/**
+ * A change of its own for each item, sent in batches: what a migration needs when the
+ * new value depends on each item's old one. Written as stored, like `asStored`.
+ */
+export async function updateEach(changes: { id: any; patch: Patch }[]): Promise<number> {
+  let modified = 0;
+  for (let i = 0; i < changes.length; i += 500) {
+    const ops = changes.slice(i, i + 500).map(({ id, patch }) => ({
+      updateOne: { filter: { _id: typeof id === 'string' ? new mongoose.Types.ObjectId(id) : id }, update: toMongoUpdate(patch) }
+    }));
+    if (ops.length > 0) modified += (await Item.collection.bulkWrite(ops)).modifiedCount;
+  }
+  return modified;
+}
+
+/**
+ * Copies, on the matching items, the value of one field into another. Returns how many
+ * items changed.
+ */
+export async function copyField(filter: Filter, from: string, to: string): Promise<number> {
+  const query = Item.find(toMongoFilter(filter)).cast(Item);
+  const result = await Item.collection.updateMany(query, [{ $set: { [to]: `$${from}` } }]);
+  return result.modifiedCount;
 }

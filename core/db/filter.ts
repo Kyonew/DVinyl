@@ -32,8 +32,12 @@ export type Filter =
   | { op: 'blank'; field: string }
   /** Within bounds, both included. Numbers compare as numbers, dates as dates. */
   | { op: 'range'; field: string; gte?: number | Date; lte?: number | Date }
-  /** A list holding no element at all (not an absent field). */
-  | { op: 'emptyList'; field: string }
+  /** A list holding exactly `size` elements (an absent field holds none of any size). */
+  | { op: 'size'; field: string; size: number }
+  /** The field holds the same value as `other`, a field of the same record. */
+  | { op: 'sameAs'; field: string; other: string }
+  /** The stored value is of this type (a number kept as text is `text`). */
+  | { op: 'type'; field: string; type: 'text' | 'number' | 'boolean' | 'date' | 'list' | 'record' }
   /** One record of a list of records matches `filter`, whose fields are the record's own. */
   | { op: 'some'; field: string; filter: Filter };
 
@@ -101,7 +105,11 @@ export function range(field: string, bounds: { gte?: number | Date; lte?: number
 }
 
 export const some = (field: string, filter: Filter): Filter => ({ op: 'some', field, filter });
-export const emptyList = (field: string): Filter => ({ op: 'emptyList', field });
+export const sameAs = (field: string, other: string): Filter => ({ op: 'sameAs', field, other });
+export const ofType = (field: string, type: 'text' | 'number' | 'boolean' | 'date' | 'list' | 'record'): Filter =>
+  ({ op: 'type', field, type });
+export const size = (field: string, count: number): Filter => ({ op: 'size', field, size: count });
+export const emptyList = (field: string): Filter => size(field, 0);
 
 export const asc = (field: string) => ({ field, dir: 'asc' as const });
 export const desc = (field: string) => ({ field, dir: 'desc' as const });

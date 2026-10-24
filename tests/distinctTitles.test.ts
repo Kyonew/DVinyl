@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildUniqueTitlesGroupKey, CreatorFieldSource } from '../core/helpers';
+import { CreatorFieldSource } from '../core/helpers';
+import { buildUniqueTitlesGroupKey } from '../core/db/mongo/distinctWorks';
 
 // Stand-ins for the registry's plugins: the builder only reads `kind`, `creatorField`
 // and `matchesLegacyItems`, so plain objects are enough (no DB, no registry wiring).

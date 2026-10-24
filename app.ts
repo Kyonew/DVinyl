@@ -3,7 +3,6 @@ import session from 'express-session';
 import path from 'path';
 import { checkUser } from './middleware/authMiddleware.js';
 import cookieParser from 'cookie-parser';
-import mongoose from 'mongoose';
 import http from 'http';
 import { Server } from "socket.io";
 

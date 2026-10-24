@@ -1,7 +1,6 @@
 import { PluginApiRoute } from '../../core/types';
 import { db } from '../../core/db';
-import { and, eq, idOf, isId, missing, or } from '../../core/db/query';
-import PriceHistory from '../../models/PriceHistory';
+import { and, asc, eq, idOf, isId, missing, ne, or } from '../../core/db/query';
 import { editStamp } from '../../core/helpers';
 
 const fetchJson = async (url: string, options?: RequestInit): Promise<any> => {
@@ -147,7 +146,7 @@ async function saveEstimateSnapshot(req: any, res: any) {
     // otherwise file a snapshot under a currency the reader never looks for.
     const currency = res.locals.user.currency || 'USD';
 
-    await PriceHistory.create({
+    await db.priceHistory.create({
       collection: res.locals.activeCollectionId,
       value,
       minValue,
@@ -173,17 +172,14 @@ async function getEstimateHistory(req: any, res: any) {
     const currency = res.locals.user.currency || 'USD';
     const collection = res.locals.activeCollectionId;
 
-    const snapshots = await PriceHistory.find({ collection, currency })
-      .sort({ capturedAt: 1 })
-      .select('capturedAt value minValue maxValue currency itemCount -_id')
-      .lean();
+    const snapshots = (await db.priceHistory.find(
+      and(eq('collection', idOf(collection)), eq('currency', currency)),
+      { sort: [asc('capturedAt')], fields: ['capturedAt', 'value', 'minValue', 'maxValue', 'currency', 'itemCount'] }
+    )).map(({ _id, ...snapshot }: any) => snapshot);
 
     // What the scope above left out, so the page can say the history exists in another
     // currency instead of the "run it twice" invitation meant for a collection with none.
-    const otherCurrencies = await PriceHistory.distinct('currency', {
-      collection,
-      currency: { $ne: currency }
-    });
+    const otherCurrencies = await db.priceHistory.distinct('currency', and(eq('collection', idOf(collection)), ne('currency', currency)));
 
     res.json({ success: true, currency, snapshots, otherCurrencies });
   } catch (err: any) {

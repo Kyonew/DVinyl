@@ -2,7 +2,7 @@
  * A change to apply to stored records, said without reference to any database.
  */
 
-import type { Scalar } from './filter';
+import type { Filter, Scalar } from './filter';
 
 export interface Patch {
   /** Values to write, by field path. */
@@ -17,9 +17,9 @@ export interface Patch {
   addToSet?: Record<string, any>;
   /**
    * Entries to take out of a list, by list field: a plain value, or for a list of
-   * records the fields an entry must hold to go.
+   * records a filter on the entry's own fields.
    */
-  pull?: Record<string, Scalar | Record<string, Scalar>>;
+  pull?: Record<string, Scalar | Filter>;
 }
 
 /** Several values for `push`, appended in order. */

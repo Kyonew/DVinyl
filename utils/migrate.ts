@@ -1,7 +1,7 @@
-import Item from '../models/Item';
-import Settings from '../models/Settings';
-import User from '../models/User';
-import Collection from '../models/Collection';
+import { db } from '../core/db';
+import {
+    all, and, eq, exists, idOf, isIn, missing, ne, notIn, ofType, or
+} from '../core/db/query';
 import { registry } from '../core/registry';
 import { buildSortTitle } from '../core/helpers';
 import { findOrCreateDefaultCollection } from './collectionHelpers';
@@ -12,8 +12,8 @@ import { legacySource, legacyIdFieldFor } from '../core/sources';
  * Legacy Settings could store theme.<key>.preset as an object (e.g. { default: 'default' })
  * instead of the string the current schema expects. Coerce every malformed preset to a string,
  * in place, and report whether anything changed. Shared by the boot migration (below) and the
- * whole-instance import, which inserts settings via Mongoose (Settings.create) and would
- * otherwise throw a CastError on such a doc before the migration ever runs.
+ * whole-instance import, which creates settings through their record rules and would
+ * otherwise have such a doc refused before the migration ever runs.
  */
 export const normalizeThemePresets = (theme: any): boolean => {
     if (!theme || typeof theme !== 'object') return false;
@@ -31,12 +31,10 @@ export const normalizeThemePresets = (theme: any): boolean => {
 export const migrateDatabase = async () => {
     try {
         // Legacy Settings could store theme.<key>.preset as an object (e.g. { default: 'default' })
-        // instead of the string the current schema expects. Normalize via the native driver
-        // BEFORE any Mongoose hydration of Settings, otherwise findOne() below throws a
-        // CastError and the try/catch aborts the entire migration. Idempotent: a second run
-        // finds no object-typed presets left to fix.
-        const settingsColl = (Settings.collection as any);
-        const themeDocs = await settingsColl.find({ theme: { $exists: true } }).toArray();
+        // instead of the string the current rules expect. Read and written as stored, past
+        // those rules, which would refuse such a doc. Idempotent: a second run finds no
+        // object-typed presets left to fix.
+        const themeDocs = await db.settings.find(exists('theme'));
         for (const doc of themeDocs) {
             if (!doc.theme || typeof doc.theme !== 'object') continue;
             const fixes: Record<string, string> = {};
@@ -49,55 +47,45 @@ export const migrateDatabase = async () => {
                 }
             }
             if (Object.keys(fixes).length > 0) {
-                await settingsColl.updateOne({ _id: doc._id }, { $set: fixes });
+                await db.settings.updateOne(eq('_id', idOf(doc._id)), { set: fixes }, { asStored: true });
                 console.log(`[MIGRATION] normalized ${Object.keys(fixes).length} malformed theme preset(s) in settings ${doc._id}.`);
             }
         }
 
-        const oldItemsCount = await Item.countDocuments({ kind: { $exists: false } });
+        const oldItemsCount = await db.items.count(missing('kind'));
 
         if (oldItemsCount > 0) {
             // Backfill the pre-plugins era items with the kind of the plugin that claims legacy items
             const legacyKind = registry.getAll().find(p => p.matchesLegacyItems)?.kind || 'Music';
             console.log(`[MIGRATION] : Found ${oldItemsCount} old items...`);
             console.log('[MIGRATION] Updating...');
-            // MUST go through the native driver: `kind` is the Mongoose discriminatorKey,
-            // and Mongoose silently strips it from $set on updates (guarding against changing
-            // a document's discriminator). A plain Item.updateMany() therefore touches the docs
-            // (updated_at bumps) but never actually writes `kind`, leaving pre-plugins items
-            // discriminator-less, so registry.getByKind() can't resolve their plugin and they
-            // render unformatted. The native collection bypasses that stripping.
-            const result = await Item.collection.updateMany(
-                { kind: { $exists: false } },
-                { $set: { kind: legacyKind } }
-            );
+            // Written as stored: an ordinary update never changes the type of an item (the
+            // store guards `kind`), so it would touch the items without ever writing it,
+            // leaving pre-plugins items with no type that registry.getByKind() can resolve.
+            const result = await db.items.updateMany(missing('kind'), { set: { kind: legacyKind } }, { asStored: true });
 
-            console.log(`[MIGRATION] ${result.modifiedCount} old items updated.`);
+            console.log(`[MIGRATION] ${result.modified} old items updated.`);
         }
 
         // advancedCD moved from a fake module toggle to a music plugin setting.
         // We only reach this branch on a legacy install (modules.advancedCD present),
         // and it deletes the key afterwards, so the legacy value always wins (idempotent).
         //
-        // Isolated in its own try/catch on purpose: this is the ONLY place we HYDRATE a
-        // legacy Settings doc (findOne, not .lean(), the block needs .modules.get/delete
-        // and .save()). If an install carries some other malformed Settings field beyond
-        // the theme.preset case normalized above, hydration throws a CastError. Without
-        // this guard that error would bubble to the outer catch and silently skip the
-        // collection-merge block below, leaving items collection-less and non-admin users
-        // without a membership (empty app) on every boot. The advancedCD backfill is
-        // best-effort; the collection migration is not, it must always run.
+        // Isolated in its own try/catch on purpose: if an install carries some other
+        // malformed Settings field beyond the theme.preset case normalized above, writing
+        // this one can fail. Without this guard that error would bubble to the outer catch
+        // and silently skip the collection-merge block below, leaving items
+        // collection-less and non-admin users without a membership (empty app) on every
+        // boot. The advancedCD backfill is best-effort; the collection migration is not,
+        // it must always run.
         try {
-            const s: any = await Settings.findOne();
-            if (s && s.modules && typeof s.modules.get === 'function' && s.modules.get('advancedCD') !== undefined) {
-                const legacy = s.modules.get('advancedCD');
-                const ps = s.pluginSettings || {};
-                ps.music = ps.music || {};
-                ps.music.advancedCD = legacy;
-                s.modules.delete('advancedCD');
-                s.pluginSettings = ps;
-                s.markModified('pluginSettings');
-                await s.save();
+            const s: any = await db.settings.findOne(all());
+            if (s && s.modules && s.modules.advancedCD !== undefined) {
+                const legacy = s.modules.advancedCD;
+                await db.settings.updateOne(eq('_id', idOf(s._id)), {
+                    set: { 'pluginSettings.music.advancedCD': legacy },
+                    unset: ['modules.advancedCD']
+                });
                 console.log(`[MIGRATION] advancedCD (${legacy}) moved to pluginSettings.music.`);
             }
         } catch (advancedCDError) {
@@ -105,25 +93,20 @@ export const migrateDatabase = async () => {
         }
 
         // discogsUsername moved from a core User field to plugin-scoped pluginData.music.
-        // discogsUsername is no longer in the User schema, so we go through the native driver
-        // (Mongoose strict mode would silently strip the obsolete field from these ops).
-        const usersColl = (User.collection as any);
-        const legacyUsers = await usersColl
-            .find({ discogsUsername: { $exists: true, $ne: '' } }, { projection: { discogsUsername: 1 } })
-            .toArray();
+        // discogsUsername is no longer an account field, so it is read and dropped as stored
+        // (the account rules would ignore an undeclared field).
+        const legacyUsers = await db.users.find(and(exists('discogsUsername'), ne('discogsUsername', '')));
         for (const u of legacyUsers) {
-            await usersColl.updateOne(
-                { _id: u._id },
-                { $set: { 'pluginData.music.discogsUsername': u.discogsUsername } }
+            await db.users.updateOne(
+                eq('_id', idOf(u._id)),
+                { set: { 'pluginData.music.discogsUsername': u.discogsUsername } },
+                { asStored: true }
             );
         }
         // Drop the now-obsolete field from every user (including empty ones).
-        const cleared = await usersColl.updateMany(
-            { discogsUsername: { $exists: true } },
-            { $unset: { discogsUsername: '' } }
-        );
-        if (legacyUsers.length > 0 || cleared.modifiedCount > 0) {
-            console.log(`[MIGRATION] discogsUsername → pluginData.music for ${legacyUsers.length} user(s); field removed from ${cleared.modifiedCount}.`);
+        const cleared = await db.users.updateMany(exists('discogsUsername'), { unset: ['discogsUsername'] }, { asStored: true });
+        if (legacyUsers.length > 0 || cleared.modified > 0) {
+            console.log(`[MIGRATION] discogsUsername → pluginData.music for ${legacyUsers.length} user(s); field removed from ${cleared.modified}.`);
         }
 
         // Pre-multi-collection installs had no Collection document; every item implicitly
@@ -132,37 +115,34 @@ export const migrateDatabase = async () => {
         // Idempotent: only touches items/users still missing the new fields.
         const defaultCollection = await findOrCreateDefaultCollection();
         if (defaultCollection) {
-            const itemsBackfill = await Item.updateMany(
-                { collection: { $exists: false } },
-                { $set: { collection: defaultCollection._id } }
-            );
-            if (itemsBackfill.modifiedCount > 0) {
-                console.log(`[MIGRATION] ${itemsBackfill.modifiedCount} item(s) attached to the default collection.`);
+            const itemsBackfill = await db.items.updateMany(missing('collection'), { set: { collection: defaultCollection._id } });
+            if (itemsBackfill.modified > 0) {
+                console.log(`[MIGRATION] ${itemsBackfill.modified} item(s) attached to the default collection.`);
             }
 
             // Is this run the one-time merge of a pre-multi-collection instance? Decided
             // from the leftovers of that era, and BEFORE the backfills below erase them.
             //
             // The state of a user cannot answer it: `lastActiveCollectionId` is missing
-            // only on documents Mongoose never touched, and a legacy dump is restored
-            // through User.insertMany, which applies the schema default. Every restored
+            // only on accounts the record rules never touched, and a legacy dump is
+            // restored through them, which applies the default. Every restored
             // account therefore comes back with the field present (null) and reads as
             // modern, which used to leave everyone but the seeding admin with no
             // membership at all after a 2.6.0 restore.
-            const legacyItemCount = await Item.countDocuments({ collection: { $exists: false } });
-            const legacySettingsCount = await Settings.countDocuments({ collection: { $exists: false } });
+            const legacyItemCount = await db.items.count(missing('collection'));
+            const legacySettingsCount = await db.settings.count(missing('collection'));
             const isLegacyMerge = legacyItemCount > 0 || legacySettingsCount > 0;
 
-            const usersBackfill = await User.updateMany(
+            const usersBackfill = await db.users.updateMany(
                 // A null is only stale during the legacy merge; outside of it, it is the
                 // honest state of a user an admin has not placed in any collection yet.
                 isLegacyMerge
-                    ? { $or: [{ lastActiveCollectionId: { $exists: false } }, { lastActiveCollectionId: null }] }
-                    : { lastActiveCollectionId: { $exists: false } },
-                { $set: { lastActiveCollectionId: defaultCollection._id } }
+                    ? or(missing('lastActiveCollectionId'), eq('lastActiveCollectionId', null))
+                    : missing('lastActiveCollectionId'),
+                { set: { lastActiveCollectionId: defaultCollection._id } }
             );
-            if (usersBackfill.modifiedCount > 0) {
-                console.log(`[MIGRATION] ${usersBackfill.modifiedCount} user(s) given an active collection.`);
+            if (usersBackfill.modified > 0) {
+                console.log(`[MIGRATION] ${usersBackfill.modified} user(s) given an active collection.`);
             }
 
             // Make every user a member of the default collection (idempotent via $addToSet),
@@ -177,12 +157,12 @@ export const migrateDatabase = async () => {
                 const existingMemberIds = new Set(
                     (defaultCollection.members || []).map((m: any) => String(m.user))
                 );
-                const allUsers = await User.find({}, '_id isAdmin').lean();
+                const allUsers = await db.users.find(all(), { fields: ['_id', 'isAdmin'] });
                 for (const u of allUsers) {
                     if (existingMemberIds.has(String(u._id))) continue;
-                    await Collection.updateOne(
-                        { _id: defaultCollection._id },
-                        { $addToSet: { members: { user: u._id, role: u.isAdmin ? 'admin' : 'viewer' } } }
+                    await db.collections.updateOne(
+                        eq('_id', idOf(defaultCollection._id)),
+                        { addToSet: { members: { user: u._id, role: u.isAdmin ? 'admin' : 'viewer' } } }
                     );
                     addedMembers += 1;
                 }
@@ -195,53 +175,38 @@ export const migrateDatabase = async () => {
             // the default collection so its theme/modules/visibility carry over unchanged.
             // Robust against a placeholder doc the app may have auto-created for the
             // collection on an earlier (aborted) boot + a first visit (settingsMiddleware
-            // upserts a defaults doc): the unique `collection` index would otherwise make a
-            // blind updateMany throw E11000 and leave the real theme orphaned. Resolve in
+            // upserts a defaults doc): the unique `collection` rule would otherwise make a
+            // blind update refuse it and leave the real theme orphaned. Resolve in
             // favour of the historical doc; idempotent on re-run.
-            const orphans = await Settings.find({ collection: { $exists: false } }).select('_id').lean();
+            const orphans = await db.settings.find(missing('collection'), { fields: ['_id'] });
             const canonical = orphans[0];
             if (canonical) {
-                const canonicalId = canonical._id;
-                await Settings.deleteMany({
-                    $or: [
-                        { collection: defaultCollection._id },                         // placeholder(s) for this collection
-                        { collection: { $exists: false }, _id: { $ne: canonicalId } }, // extra global docs
-                    ],
-                });
-                await Settings.updateOne(
-                    { _id: canonicalId },
-                    { $set: { collection: defaultCollection._id } }
-                );
+                const canonicalId = idOf(canonical._id);
+                await db.settings.deleteMany(or(
+                    eq('collection', idOf(defaultCollection._id)),                // placeholder(s) for this collection
+                    and(missing('collection'), ne('_id', canonicalId))          // extra global docs
+                ));
+                await db.settings.updateOne(eq('_id', canonicalId), { set: { collection: defaultCollection._id } });
                 console.log(`[MIGRATION] historical settings attached to the default collection (theme/modules preserved).`);
             }
         }
 
         // `sort_title` is derived at write time, so every item that predates the field has
-        // none and would sort as an empty string, ahead of the whole collection. Computed
-        // here through the native driver, like the `kind` backfill above: a Mongoose
-        // updateMany cannot give each document a different value anyway. Idempotent, it
-        // only looks at documents where the field is missing.
-        const staleTitles = await Item.collection
-            .find({ sort_title: { $exists: false } }, { projection: { title: 1 } })
-            .toArray();
+        // none and would sort as an empty string, ahead of the whole collection. Each item
+        // gets its own value, written as stored like the `kind` backfill above. Idempotent,
+        // it only looks at items where the field is missing.
+        const staleTitles = await db.items.find(missing('sort_title'), { fields: ['title'] });
         if (staleTitles.length > 0) {
-            // Chunked so a large collection does not build one giant bulk payload.
-            for (let i = 0; i < staleTitles.length; i += 500) {
-                await Item.collection.bulkWrite(
-                    staleTitles.slice(i, i + 500).map((doc: any) => ({
-                        updateOne: {
-                            filter: { _id: doc._id },
-                            update: { $set: { sort_title: buildSortTitle(doc.title) } }
-                        }
-                    }))
-                );
-            }
+            await db.items.updateEach(staleTitles.map((doc: any) => ({
+                id: doc._id,
+                patch: { set: { sort_title: buildSortTitle(doc.title) } }
+            })));
             console.log(`[MIGRATION] sort_title computed for ${staleTitles.length} item(s).`);
         }
 
-        // Until 3.1.2 an edit went through the base Item model with strict mode off. The
-        // form posts every value as a string and the base schema knows nothing of
-        // `tmdb_id` or `discogs_id`, so one save was enough to store "1396" instead of
+        // Until 3.1.2 an edit was written past the rules of the item's type. The form posts
+        // every value as a string and an item of no type knows nothing of `tmdb_id` or
+        // `discogs_id`, so one save was enough to store "1396" instead of
         // 1396. Nothing looked broken: the item still displayed, but every lookup
         // comparing the id as a number missed it, starting with duplicate detection, and
         // the same record could be added a second time. The write path is fixed; this
@@ -256,23 +221,16 @@ export const migrateDatabase = async () => {
             const isNumeric = plugin.storedFields?.[field]?.type === 'number';
             if (!isNumeric) continue;
 
-            const broken = await Item.collection
-                .find({ kind: plugin.kind, [field]: { $type: 'string' } }, { projection: { [field]: 1 } })
-                .toArray();
+            const broken = await db.items.find(and(eq('kind', plugin.kind), ofType(field, 'text')), { fields: [field] });
 
             // A value that is not a number at all is left alone rather than turned into
             // NaN: it would be no more findable, and the original would be gone.
             const ops = broken
                 .filter((doc: any) => /^\d+$/.test(String(doc[field]).trim()))
-                .map((doc: any) => ({
-                    updateOne: {
-                        filter: { _id: doc._id },
-                        update: { $set: { [field]: parseInt(String(doc[field]), 10) } }
-                    }
-                }));
+                .map((doc: any) => ({ id: doc._id, patch: { set: { [field]: parseInt(String(doc[field]), 10) } } }));
 
             if (ops.length > 0) {
-                await Item.collection.bulkWrite(ops);
+                await db.items.updateEach(ops);
                 console.log(`[MIGRATION] ${ops.length} ${plugin.kind} item(s) had their ${field} stored as text, now numeric.`);
             }
             if (broken.length > ops.length) {
@@ -284,12 +242,13 @@ export const migrateDatabase = async () => {
         // items are scoped by media_type ('movie' | 'tv'). Backfill legacy Dvd items
         // missing media_type with the schema default ('movie') so duplicate detection
         // and TMDB linking find them reliably. Idempotent.
-        const missingMediaType = await Item.collection.updateMany(
-            { kind: 'Dvd', media_type: { $exists: false } },
-            { $set: { media_type: 'movie' } }
+        const missingMediaType = await db.items.updateMany(
+            and(eq('kind', 'Dvd'), missing('media_type')),
+            { set: { media_type: 'movie' } },
+            { asStored: true }
         );
-        if (missingMediaType.modifiedCount > 0) {
-            console.log(`[MIGRATION] ${missingMediaType.modifiedCount} Dvd item(s) backfilled with media_type "movie".`);
+        if (missingMediaType.modified > 0) {
+            console.log(`[MIGRATION] ${missingMediaType.modified} Dvd item(s) backfilled with media_type "movie".`);
         }
 
         // An item used to carry its provider id on a typed path of its own (discogs_id,
@@ -312,16 +271,17 @@ export const migrateDatabase = async () => {
         for (const plugin of registry.getAll()) {
             if (!plugin.sources || plugin.sources.length === 0) continue;
             const declared = plugin.sources.map(s => s.id);
-            const cleared = await Item.collection.updateMany(
-                {
-                    kind: plugin.kind,
-                    source: { $nin: ['', null, ...declared] },
-                    $or: [{ source_id: { $exists: false } }, { source_id: { $in: ['', null] } }]
-                },
-                { $set: { source: '' } }
+            const cleared = await db.items.updateMany(
+                and(
+                    eq('kind', plugin.kind),
+                    notIn('source', ['', null, ...declared]),
+                    or(missing('source_id'), isIn('source_id', ['', null]))
+                ),
+                { set: { source: '' } },
+                { asStored: true }
             );
-            if (cleared.modifiedCount > 0) {
-                console.log(`[MIGRATION] ${cleared.modifiedCount} ${plugin.kind} item(s) held a "source" naming none of the plugin's sources; cleared.`);
+            if (cleared.modified > 0) {
+                console.log(`[MIGRATION] ${cleared.modified} ${plugin.kind} item(s) held a "source" naming none of the plugin's sources; cleared.`);
             }
         }
 
@@ -330,24 +290,15 @@ export const migrateDatabase = async () => {
             const field = legacyIdFieldFor(plugin, source);
             if (!field || !source) continue;
 
-            const unattributed = await Item.collection
-                .find({
-                    kind: plugin.kind,
-                    [field]: { $nin: [null, ''] },
-                    $or: [{ source: { $exists: false } }, { source: '' }]
-                }, { projection: { [field]: 1 } })
-                .toArray();
+            const unattributed = await db.items.find(
+                and(eq('kind', plugin.kind), notIn(field, [null, '']), or(missing('source'), eq('source', ''))),
+                { fields: [field] }
+            );
 
-            for (let i = 0; i < unattributed.length; i += 500) {
-                await Item.collection.bulkWrite(
-                    unattributed.slice(i, i + 500).map((doc: any) => ({
-                        updateOne: {
-                            filter: { _id: doc._id },
-                            update: { $set: { source: source.id, source_id: String(doc[field]) } }
-                        }
-                    }))
-                );
-            }
+            await db.items.updateEach(unattributed.map((doc: any) => ({
+                id: doc._id,
+                patch: { set: { source: source.id, source_id: String(doc[field]) } }
+            })));
 
             if (unattributed.length > 0) {
                 console.log(`[MIGRATION] ${unattributed.length} ${plugin.kind} item(s) attributed to source "${source.id}".`);
@@ -361,7 +312,7 @@ export const migrateDatabase = async () => {
         // Nothing is invented and nothing is lost: an item keeps carrying its shelf's
         // name in `location`, which is what leaves the location filter, the CSV
         // mapping, the exports and the backups working untouched.
-        const collectionsToSeed = await Collection.find({ shelvesSeeded: { $ne: true } }, '_id name').lean();
+        const collectionsToSeed = await db.collections.find(ne('shelvesSeeded', true), { fields: ['_id', 'name'] });
         for (const coll of collectionsToSeed) {
             // One collection at a time: a failure here leaves that collection unmarked, to
             // be tried again on the next boot, without holding back the others.
@@ -376,7 +327,7 @@ export const migrateDatabase = async () => {
             // Marked even when the collection had no location at all: this converts what
             // the free-text era left behind, once. Shelves created from now on come from
             // the shelf editor, not from here.
-            await Collection.updateOne({ _id: coll._id }, { $set: { shelvesSeeded: true } });
+            await db.collections.updateOne(eq('_id', idOf(coll._id)), { set: { shelvesSeeded: true } });
 
             if (seeded.shelves > 0 || seeded.renamed > 0 || seeded.blanked > 0) {
                 console.log(`[MIGRATION] ${seeded.shelves} shelf/shelves seeded for collection "${coll.name}"` +

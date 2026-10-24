@@ -7,12 +7,20 @@ import type { RecordStore, ReadOptions, WriteResult } from '../records';
 import type { Filter } from '../filter';
 import { toMongoFilter, toMongoSort, toMongoUpdate } from './compile';
 
+/** The first field a Mongoose validation error names, with its message. */
+export function firstInvalid(error: any): { field: string; message: string } | null {
+  if (!error) return null;
+  const field = Object.keys(error.errors || {})[0] || '?';
+  return { field, message: error.message };
+}
+
 /**
  * `model` is read on each call rather than once: the models load the plugin registry,
  * which loads this store, so at import time a model may not be defined yet.
  */
 export function mongoRecordStore(model: () => Model<any>): RecordStore {
   const target = (): any => model();
+  const castFilter = (filter: Filter) => target().find(toMongoFilter(filter)).cast(target());
   const withDefaults = (record: any) => (record ? target().hydrate(record).toObject() : record);
   const result = (r: any): WriteResult => ({
     matched: r.matchedCount ?? 0,
@@ -43,14 +51,30 @@ export function mongoRecordStore(model: () => Model<any>): RecordStore {
     },
     count: filter => target().countDocuments(toMongoFilter(filter)),
     exists: async filter => !!(await target().exists(toMongoFilter(filter))),
+    distinct: (field, filter) => target().distinct(field, toMongoFilter(filter)),
     async create(record) {
       return (await target().create(record)).toObject();
     },
-    async updateOne(filter, patch, options = {}) {
-      return result(await target().updateOne(toMongoFilter(filter), toMongoUpdate(patch), { upsert: !!options.upsert }));
+    async insertMany(records, options = {}) {
+      if (records.length === 0) return;
+      if (options.asStored) await target().collection.insertMany(records);
+      else await target().insertMany(records);
     },
-    async updateMany(filter, patch) {
-      return result(await target().updateMany(toMongoFilter(filter), toMongoUpdate(patch)));
+    validate(record) {
+      return firstInvalid(new (target())(record).validateSync());
+    },
+    async updateOne(filter, patch, options = {}) {
+      if (options.asStored) {
+        return result(await target().collection.updateOne(castFilter(filter), toMongoUpdate(patch), { upsert: !!options.upsert }));
+      }
+      return result(await target().updateOne(toMongoFilter(filter), toMongoUpdate(patch), {
+        upsert: !!options.upsert,
+        runValidators: !!options.validate
+      }));
+    },
+    async updateMany(filter, patch, options = {}) {
+      if (options.asStored) return result(await target().collection.updateMany(castFilter(filter), toMongoUpdate(patch)));
+      return result(await target().updateMany(toMongoFilter(filter), toMongoUpdate(patch), { runValidators: !!options.validate }));
     },
     async updateAndGet(filter, patch, options = {}) {
       return target().findOneAndUpdate(toMongoFilter(filter), toMongoUpdate(patch), {

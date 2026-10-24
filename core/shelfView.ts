@@ -1,6 +1,5 @@
-import Furniture from '../models/Furniture';
 import { db } from './db';
-import { and, isIn, notIn } from './db/filter';
+import { and, asc, eq, idOf, isIn, notIn } from './db/query';
 import { resolveShelfItems } from '../utils/itemHelpers';
 import { registry } from './registry';
 import { measureSpines, tallestFormat, arrangeCompartment, pileUp, formatOf, SPINE_MAX_HEIGHT_PX } from './spine';
@@ -39,7 +38,7 @@ export const SHELF_VIEW: CollectionView = {
 
     const collectionId = context.res.locals.activeCollectionId;
     if (!collectionId) return false;
-    if ((await Furniture.countDocuments({ collection: collectionId })) > 0) return true;
+    if (await db.furniture.exists(eq('collection', idOf(collectionId)))) return true;
 
     // Nothing to stand anything on yet. Whoever is allowed to build the furniture still
     // needs the view that builds it, or deleting the last piece would be a one-way door
@@ -51,9 +50,7 @@ export const SHELF_VIEW: CollectionView = {
     const { req, res, itemQuery, itemSort, unfilteredQuery, isNarrowed } = context;
     const collectionId = res.locals.activeCollectionId;
 
-    const furnitureList = await Furniture.find({ collection: collectionId })
-      .sort({ order: 1, created_at: 1 })
-      .lean();
+    const furnitureList = await db.furniture.find(eq('collection', idOf(collectionId)), { sort: [asc('order'), asc('created_at')] });
 
     // Moving from one piece of furniture to the next is paging, so it keeps the filters
     // and the search the page is under, exactly as the item pager does.

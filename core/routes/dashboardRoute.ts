@@ -1,10 +1,9 @@
 import express from 'express';
 import { registry } from '../registry';
-import List from '../../models/List';
 import { requireAuth } from '../../middleware/authMiddleware';
 import { shelfFilter } from '../../utils/visibilityHelper';
 import { db } from '../db';
-import { desc } from '../db/filter';
+import { desc, eq, idOf } from '../db/query';
 import { resolveShelfItems } from '../../utils/itemHelpers';
 import { applyHomeCollection, homePathFor } from '../../utils/homePage';
 
@@ -87,7 +86,7 @@ router.get('/dashboard', requireAuth, async (req: any, res: any) => {
     // The counters of the phone dashboard's tiles, next to the collection total above.
     const [wishlistCount, listsCount] = await Promise.all([
       db.items.count(wished),
-      List.countDocuments({ collection: activeCollectionId })
+      db.lists.count(eq('collection', idOf(activeCollectionId)))
     ]);
 
     res.render('index', {

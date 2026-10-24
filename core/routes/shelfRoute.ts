@@ -1,7 +1,7 @@
 import express from 'express';
-import mongoose from 'mongoose';
-import Item from '../../models/Item';
-import Furniture from '../../models/Furniture';
+import { db } from '../db';
+import { isDuplicateError } from '../db/errors';
+import { and, eq, idOf, isId, isIn, ne } from '../db/query';
 import { requireAuth, requireCollectionRole } from '../../middleware/authMiddleware';
 import { resolveShelfLocation } from '../shelfStore';
 import {
@@ -27,8 +27,8 @@ const clamp = (value: any, min: number, max: number, fallback: number) => {
 /** The piece of furniture named by :id, if it belongs to the caller's own collection. */
 async function ownFurniture(req: any, res: any) {
   const id = req.params.id;
-  if (!mongoose.Types.ObjectId.isValid(id)) return null;
-  return Furniture.findOne({ _id: id, collection: res.locals.activeCollectionId });
+  if (!isId(id)) return null;
+  return db.furniture.findOne(and(eq('_id', id), eq('collection', idOf(res.locals.activeCollectionId))), { defaults: true });
 }
 
 /**
@@ -47,7 +47,7 @@ router.post('/shelf/move', requireAuth, requireCollectionRole('editor'), async (
 
     const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
     const valid = ids
-      .filter((id: any) => mongoose.Types.ObjectId.isValid(id))
+      .filter(isId)
       .slice(0, MAX_MOVE);
 
     if (valid.length === 0) {
@@ -60,12 +60,12 @@ router.post('/shelf/move', requireAuth, requireCollectionRole('editor'), async (
 
     // Scoped to the active collection, like every other item mutation: an id belonging
     // to a collection the caller is merely a member of elsewhere moves nothing.
-    const result = await Item.updateMany(
-      { _id: { $in: valid }, collection: activeCollectionId },
-      { $set: { location } }
+    const result = await db.items.updateMany(
+      and(isIn('_id', valid), eq('collection', idOf(activeCollectionId))),
+      { set: { location } }
     );
 
-    res.json({ success: true, moved: result.modifiedCount, matched: result.matchedCount, location });
+    res.json({ success: true, moved: result.modified, matched: result.matched, location });
   } catch (err: any) {
     console.error('Shelf move error:', err.message);
     res.status(500).json({ success: false, error: 'server_error' });
@@ -83,10 +83,10 @@ router.post('/shelf/furniture', requireAuth, requireCollectionRole('editor'), as
     const name = cleanName(req.body?.name);
     if (!name) return res.status(400).json({ success: false, error: 'name_required' });
 
-    const count = await Furniture.countDocuments({ collection: activeCollectionId });
+    const count = await db.furniture.count(eq('collection', idOf(activeCollectionId)));
     const { columns, rows } = fitGrid(4);
 
-    const created = await Furniture.create({
+    const created = await db.furniture.create({
       collection: activeCollectionId,
       name,
       layout: req.body?.layout === 'rows' ? 'rows' : 'cubes',
@@ -148,11 +148,11 @@ router.post('/shelf/furniture/:id', requireAuth, requireCollectionRole('editor')
 
     // The unique index would catch this too, but only as a write failure with nothing to
     // tell the user. Named here, before anything is touched.
-    const elsewhere = await Furniture.findOne({
-      collection: res.locals.activeCollectionId,
-      _id: { $ne: furniture._id },
-      'cells.key': { $in: cells.map(c => c.key) }
-    }).select('name cells.key').lean();
+    const elsewhere = await db.furniture.findOne(and(
+      eq('collection', idOf(res.locals.activeCollectionId)),
+      ne('_id', idOf(furniture._id)),
+      isIn('cells.key', cells.map(c => c.key))
+    ), { fields: ['name', 'cells.key'] });
     if (elsewhere) {
       return res.status(409).json({ success: false, error: 'shelf_elsewhere', furniture: (elsewhere as any).name });
     }
@@ -174,31 +174,24 @@ router.post('/shelf/furniture/:id', requireAuth, requireCollectionRole('editor')
       Math.max(clamp(req.body?.rows, 1, MAX_FURNITURE_ROWS, furniture.rows), Math.ceil(cells.length / columns) || 1)
     );
     furniture.cells = cells.map(({ from, ...cell }) => cell) as any;
-    await furniture.save();
+    await db.furniture.updateOne(eq('_id', idOf(furniture._id)), {
+      set: { name: furniture.name, layout: furniture.layout, columns: furniture.columns, rows: furniture.rows, cells: furniture.cells }
+    }, { validate: true });
 
     // One pass, so a pair of shelves swapping names cannot see each other's work: run in
     // sequence, "A becomes B" then "B becomes A" would land everything on A.
     let moved = 0;
     if (renames.length > 0) {
-      const result = await Item.updateMany(
-        { collection: res.locals.activeCollectionId, location: { $in: renames.map(r => r.before.name) } },
-        [{
-          $set: {
-            location: {
-              $switch: {
-                branches: renames.map(r => ({ case: { $eq: ['$location', r.before.name] }, then: r.after })),
-                default: '$location'
-              }
-            }
-          }
-        }]
+      moved = await db.items.remapValues(
+        eq('collection', idOf(res.locals.activeCollectionId)),
+        'location',
+        renames.map(r => [r.before.name, r.after])
       );
-      moved = result.modifiedCount;
     }
 
     res.json({ success: true, renamed: renames.length, moved });
   } catch (err: any) {
-    if (err?.code === 11000) {
+    if (isDuplicateError(err)) {
       return res.status(409).json({ success: false, error: 'duplicate_shelf' });
     }
     console.error('Furniture save error:', err.message);
@@ -216,7 +209,7 @@ router.post('/shelf/furniture/:id/delete', requireAuth, requireCollectionRole('e
     const furniture = await ownFurniture(req, res);
     if (!furniture) return res.status(404).json({ success: false, error: 'not_found' });
 
-    await Furniture.deleteOne({ _id: furniture._id });
+    await db.furniture.deleteOne(eq('_id', idOf(furniture._id)));
     res.json({ success: true });
   } catch (err: any) {
     console.error('Furniture delete error:', err.message);
@@ -237,13 +230,13 @@ router.post('/shelf/cell/move', requireAuth, requireCollectionRole('editor'), as
     const key = locationKey(req.body?.key);
     const targetId = req.body?.to;
 
-    if (!key || !mongoose.Types.ObjectId.isValid(targetId)) {
+    if (!key || !isId(targetId)) {
       return res.status(400).json({ success: false, error: 'bad_request' });
     }
 
     const [source, target] = await Promise.all([
-      Furniture.findOne({ collection: activeCollectionId, 'cells.key': key }),
-      Furniture.findOne({ _id: targetId, collection: activeCollectionId })
+      db.furniture.findOne(and(eq('collection', idOf(activeCollectionId)), eq('cells.key', key)), { defaults: true }),
+      db.furniture.findOne(and(eq('_id', targetId), eq('collection', idOf(activeCollectionId))), { defaults: true })
     ]);
     if (!source || !target) return res.status(404).json({ success: false, error: 'not_found' });
     if (String(source._id) === String(target._id)) return res.json({ success: true, moved: false });
@@ -270,8 +263,8 @@ router.post('/shelf/cell/move', requireAuth, requireCollectionRole('editor'), as
 
     // The source first: while both hold the shelf, the unique index would refuse the
     // second write and leave the move half done.
-    await source.save();
-    await target.save();
+    await db.furniture.updateOne(eq('_id', idOf(source._id)), { set: { cells: source.cells } }, { validate: true });
+    await db.furniture.updateOne(eq('_id', idOf(target._id)), { set: { cells: target.cells, rows: target.rows } }, { validate: true });
 
     res.json({ success: true, moved: true });
   } catch (err: any) {

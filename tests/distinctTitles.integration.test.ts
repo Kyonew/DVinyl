@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import mongoose from 'mongoose';
 import { integrationDbUrl } from './integrationDb';
-import { buildUniqueTitlesGroupKey, CreatorFieldSource } from '../core/helpers';
+import { CreatorFieldSource } from '../core/helpers';
+import { buildUniqueTitlesGroupKey } from '../core/db/mongo/distinctWorks';
 
 // Its own database on the server TEST_MONGODB_URL points at (see integrationDb.ts).
 const mongoUrl = integrationDbUrl('dvinyl_distinct_titles_test');

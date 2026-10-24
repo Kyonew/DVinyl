@@ -13,9 +13,6 @@ import { generateUniqueSlug, generateShareToken } from "../utils/collectionHelpe
 import { BASE_URL, SUPPORTED_LANGUAGES } from "../config/constants";
 import { getInstanceSettings, saveInstanceSettings, InstanceSettingsData } from "../utils/instanceSettings";
 import PRESETS from "../config/themes";
-import PriceHistory from "../models/PriceHistory";
-import Furniture from "../models/Furniture";
-import List from "../models/List";
 
 import { registry } from "../core/registry.js";
 import { canRefresh, refreshPatchFor, gatherImages, pluginSources } from "../core/sources.js";
@@ -459,10 +456,10 @@ router.post("/collections/:id/delete", requireAuth, requireAdmin, async (req: an
     await db.settings.deleteMany(ofTarget);
     // The value snapshots describe a collection that is about to stop existing, and
     // nothing else points at them: left behind they would only be unreachable rows.
-    await PriceHistory.deleteMany({ collection: target._id });
+    await db.priceHistory.deleteMany(ofTarget);
     // Shelves and lists only mean anything next to the items they arrange.
-    await Furniture.deleteMany({ collection: target._id });
-    await List.deleteMany({ collection: target._id });
+    await db.furniture.deleteMany(ofTarget);
+    await db.lists.deleteMany(ofTarget);
     // Users pointing at this collection self-heal to another membership on next request
     await db.users.updateMany(eq("lastActiveCollectionId", idOf(target._id)), { set: { lastActiveCollectionId: null } });
     await db.users.updateMany(eq("homeCollectionId", idOf(target._id)), { set: { homeCollectionId: null } });
@@ -557,7 +554,7 @@ function activeCollection(res: any): Filter {
  * sending it somewhere it can no longer enter.
  */
 async function clearMembership(collectionId: string, userId: string): Promise<void> {
-  await db.collections.updateOne(eq("_id", collectionId), { pull: { members: { user: userId } } });
+  await db.collections.updateOne(eq("_id", collectionId), { pull: { members: eq("user", userId) } });
   await db.users.updateOne(and(eq("_id", userId), eq("lastActiveCollectionId", collectionId)), { set: { lastActiveCollectionId: null } });
   await db.users.updateOne(and(eq("_id", userId), eq("homeCollectionId", collectionId)), { set: { homeCollectionId: null } });
 }
@@ -848,7 +845,7 @@ router.post("/share/:token/delete", requireAuth, requireCollectionRole("admin"),
     // modification whether or not anything came out of the array.
     const result = await db.collections.updateOne(
       and(activeCollection(res), eq("shareLinks.token", req.params.token)),
-      { pull: { shareLinks: { token: req.params.token } } }
+      { pull: { shareLinks: eq("token", req.params.token) } }
     );
     if (result.matched === 0) return res.redirect("/admin/sharing?msg=error_share");
     res.redirect("/admin/sharing?msg=share_link_deleted");
@@ -938,7 +935,7 @@ router.post("/delete-user", requireAuth, requireAdmin, async (req: any, res: any
     if (target && target.isAdmin)
       return res.redirect("/admin/instance?msg=delete_admin_error");
     await db.users.deleteOne(eq("_id", req.body.userId));
-    await db.collections.updateMany(all(), { pull: { members: { user: req.body.userId } } });
+    await db.collections.updateMany(all(), { pull: { members: eq("user", req.body.userId) } });
     console.log(`[ADMIN] User deleted: ${req.body.userId} by ${res.locals.user?.email}`);
     res.redirect("/admin/instance?msg=user_deleted");
   } catch (err) {

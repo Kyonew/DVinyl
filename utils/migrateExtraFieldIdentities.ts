@@ -1,6 +1,5 @@
-import Item from '../models/Item';
-import Settings from '../models/Settings';
-import CustomPlugin from '../models/CustomPlugin';
+import { db } from '../core/db';
+import { all, and, eq, exists, idOf, missing, not, or, sameAs } from '../core/db/query';
 import { registry } from '../core/registry';
 import { ExtraFieldConfig, ExtraFieldMap, reservedNamesFor } from '../core/pluginExtraFields';
 import { FIELD_NAME_RE } from '../core/customPluginStore';
@@ -76,19 +75,12 @@ async function candidateHasConflictingValue(
   oldName: string,
   candidate: string
 ): Promise<boolean> {
-  const conflict = await Item.collection.findOne(
-    {
-      collection,
-      kind,
-      [`extra.${candidate}`]: { $exists: true },
-      $or: [
-        { [`extra.${oldName}`]: { $exists: false } },
-        { $expr: { $ne: [`$extra.${oldName}`, `$extra.${candidate}`] } }
-      ]
-    },
-    { projection: { _id: 1 } }
-  );
-  return !!conflict;
+  return db.items.exists(and(
+    eq('collection', idOf(collection)),
+    eq('kind', kind),
+    exists(`extra.${candidate}`),
+    or(missing(`extra.${oldName}`), not(sameAs(`extra.${oldName}`, `extra.${candidate}`)))
+  ));
 }
 
 /**
@@ -104,14 +96,14 @@ export async function migrateExtraFieldIdentities(
   options: { collectionId?: any } = {}
 ): Promise<ExtraFieldIdentityMigrationSummary> {
   const summary: ExtraFieldIdentityMigrationSummary = { fields: 0, values: 0, references: 0, skipped: 0 };
-  const settingsQuery = options.collectionId ? { collection: options.collectionId } : {};
-  const settingsDocs = await Settings.find(settingsQuery).lean() as any[];
+  const settingsQuery = options.collectionId ? eq('collection', idOf(options.collectionId)) : all();
+  const settingsDocs = await db.settings.find(settingsQuery);
 
   // A freshly restored instance materializes no-code plugins just before this runs,
   // but the database remains a useful fallback for a partially rebuilt installation.
   const kindsByPluginId = new Map<string, string>();
   for (const plugin of registry.getAll()) kindsByPluginId.set(plugin.id, plugin.kind);
-  const storedCustomPlugins = await CustomPlugin.find({}, 'id kind config').lean() as any[];
+  const storedCustomPlugins = await db.customPlugins.find(all(), { fields: ['id', 'kind', 'config'] });
   for (const stored of storedCustomPlugins) {
     const id = stored.id || stored.config?.id;
     const kind = stored.kind || stored.config?.kind;
@@ -168,7 +160,7 @@ export async function migrateExtraFieldIdentities(
           nextFields.push(field);
           continue;
         }
-        // The name ends up in dotted Mongo paths below. The editors never stored anything
+        // The name ends up in dotted field paths below. The editors never stored anything
         // else, so a name outside that shape comes from a hand-edited backup.
         if (!FIELD_NAME_RE.test(field.name)) {
           nextFields.push(field);
@@ -193,25 +185,26 @@ export async function migrateExtraFieldIdentities(
         }
         unavailable.add(candidate);
 
-        const copied = await Item.collection.updateMany(
-          {
-            collection: settings.collection,
-            kind,
-            [`extra.${field.name}`]: { $exists: true },
-            [`extra.${candidate}`]: { $exists: false }
-          },
-          [{ $set: { [`extra.${candidate}`]: `$extra.${field.name}` } }]
+        const copied = await db.items.copyField(
+          and(
+            eq('collection', idOf(settings.collection)),
+            eq('kind', kind),
+            exists(`extra.${field.name}`),
+            missing(`extra.${candidate}`)
+          ),
+          `extra.${field.name}`,
+          `extra.${candidate}`
         );
 
         nextFields.push({ ...field, name: candidate, keyVersion: EXTRA_FIELD_KEY_VERSION });
         renames.push({ from: field.name, to: candidate });
         cleanups.push({ kind, from: field.name, to: candidate });
         summary.fields += 1;
-        summary.values += copied.modifiedCount;
+        summary.values += copied;
         settingsChanged = true;
         console.log(
           `[EXTRA FIELD MIGRATION] ${pluginId}.${field.name} -> ${candidate}; `
-          + `${copied.modifiedCount} item value(s) copied.`
+          + `${copied} item value(s) copied.`
         );
       }
 
@@ -224,23 +217,25 @@ export async function migrateExtraFieldIdentities(
     }
 
     if (settingsChanged) {
-      await Settings.collection.updateOne(
-        { _id: settings._id },
-        { $set: { pluginExtraFields: nextMap, pluginCustomization: nextCustomization } }
+      await db.settings.updateOne(
+        eq('_id', idOf(settings._id)),
+        { set: { pluginExtraFields: nextMap, pluginCustomization: nextCustomization } },
+        { asStored: true }
       );
 
       for (const { kind, from, to } of cleanups) {
-        const removed = await Item.collection.updateMany(
-          {
-            collection: settings.collection,
-            kind,
-            [`extra.${from}`]: { $exists: true },
-            $expr: { $eq: [`$extra.${from}`, `$extra.${to}`] }
-          },
-          { $unset: { [`extra.${from}`]: '' } }
+        const removed = await db.items.updateMany(
+          and(
+            eq('collection', idOf(settings.collection)),
+            eq('kind', kind),
+            exists(`extra.${from}`),
+            sameAs(`extra.${from}`, `extra.${to}`)
+          ),
+          { unset: [`extra.${from}`] },
+          { asStored: true }
         );
-        if (removed.modifiedCount > 0) {
-          console.log(`[EXTRA FIELD MIGRATION] ${from}: legacy key removed from ${removed.modifiedCount} item(s).`);
+        if (removed.modified > 0) {
+          console.log(`[EXTRA FIELD MIGRATION] ${from}: legacy key removed from ${removed.modified} item(s).`);
         }
       }
     }

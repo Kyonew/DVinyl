@@ -1,5 +1,6 @@
 import fs from 'fs';
-import CustomPlugin from '../models/CustomPlugin';
+import { db } from './db';
+import { all, eq } from './db/query';
 import { PLUGINS_DIR } from './loadPlugins';
 import { registry } from './registry';
 import { CustomPluginConfig } from './customPlugin';
@@ -19,18 +20,14 @@ import { registerPluginDirAtRuntime, unregisterPluginAtRuntime } from './pluginR
 /** Upsert a custom plugin config into the DB. `previousId` drops the old doc on rename. */
 export async function saveCustomPluginToDB(config: CustomPluginConfig, previousId?: string): Promise<void> {
   if (previousId && previousId !== config.id) {
-    await CustomPlugin.deleteOne({ id: previousId });
+    await db.customPlugins.deleteOne(eq('id', previousId));
   }
-  await CustomPlugin.updateOne(
-    { id: config.id },
-    { $set: { id: config.id, kind: config.kind, config } },
-    { upsert: true }
-  );
+  await db.customPlugins.updateOne(eq('id', config.id), { set: { id: config.id, kind: config.kind, config } }, { upsert: true });
 }
 
 /** Remove a custom plugin from the DB. */
 export async function deleteCustomPluginFromDB(id: string): Promise<void> {
-  await CustomPlugin.deleteOne({ id });
+  await db.customPlugins.deleteOne(eq('id', id));
 }
 
 /**
@@ -42,7 +39,7 @@ export async function backfillCustomPluginsToDB(): Promise<void> {
   for (const plugin of registry.getAll()) {
     const config = getCustomConfig(plugin);
     if (!config) continue;
-    if (await CustomPlugin.exists({ id: config.id })) continue;
+    if (await db.customPlugins.exists(eq('id', config.id))) continue;
     try {
       await saveCustomPluginToDB(config);
       console.log(`[CustomPluginSync] Backfilled "${config.id}" into the database.`);
@@ -61,7 +58,7 @@ export async function backfillCustomPluginsToDB(): Promise<void> {
  * skipped so it never blocks boot.
  */
 export async function applyCustomPluginsFromDB(): Promise<void> {
-  const stored = await CustomPlugin.find({}).lean() as any[];
+  const stored = await db.customPlugins.find(all());
   const storedIds = new Set(stored.map(d => d?.config?.id).filter(Boolean));
 
   // Prune custom plugins that the DB no longer knows about (e.g. after a restore

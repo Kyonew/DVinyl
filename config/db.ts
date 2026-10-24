@@ -1,13 +1,9 @@
 /**
- * config/db.js
- *
- * Simple module to connect to MongoDB using Mongoose. Exports an async
- * function that establishes the connection using the `MONGODB_URL`
- * environment variable. This keeps connection logic separated from the
- * application entrypoint and makes testing easier.
+ * Opens the storage the app runs on, named by the `MONGODB_URL` environment variable.
+ * Kept apart from the application entrypoint so the variable is checked in one place.
  */
 
-import mongoose from 'mongoose';
+import { db } from '../core/db';
 
 const MONGODB_URL = process.env.MONGODB_URL;
 
@@ -17,6 +13,6 @@ if (!MONGODB_URL) {
 
 export const connectDB = async () => {
   console.log('[DB] Connecting to MongoDB...');
-  await mongoose.connect(MONGODB_URL);
-  console.log(`[DB] MongoDB connected (${mongoose.connection.name})`);
+  const name = await db.connect(MONGODB_URL);
+  console.log(`[DB] MongoDB connected (${name})`);
 };
