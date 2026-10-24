@@ -4,15 +4,13 @@
  */
 
 import mongoose from 'mongoose';
-import Item from '../../models/Item';
-import type { CreatorFieldSource } from '../helpers';
-import { buildUniqueTitlesGroupKey } from './mongo/distinctWorks';
-import { Filter, Scalar, Sort } from './filter';
-import { toMongoFilter, toMongoSort, toMongoUpdate } from './mongo/compile';
-import type { Patch } from './patch';
-import { toMongooseDefinition } from './mongo/schema';
-import { firstInvalid } from './mongo/recordStore';
-import type { StoredFields } from './storedFields';
+import Item from '../../../models/Item';
+import type { CreatorFieldSource } from '../../helpers';
+import { buildUniqueTitlesGroupKey } from './distinctWorks';
+import { Filter, Scalar, Sort } from '../filter';
+import { toMongoFilter, toMongoSort, toMongoUpdate } from './compile';
+import type { Patch } from '../patch';
+import { modelFor } from '../itemTypes';
 
 export interface FindOptions {
   sort?: Sort;
@@ -106,11 +104,6 @@ export interface WriteOptions {
   asStored?: boolean;
 }
 
-// The model of one item type, which knows its stored fields, or the base one.
-function modelFor(kind?: string): any {
-  return kind && mongoose.modelNames().includes(kind) ? mongoose.model(kind) : Item;
-}
-
 /** Stores a new item, cast and checked against its type, and returns it as stored. */
 export async function create(record: Record<string, any>): Promise<any> {
   const doc = await modelFor(record.kind).create(record);
@@ -128,11 +121,6 @@ export async function insertMany(records: Record<string, any>[], options: { asSt
   else await Item.insertMany(records);
 }
 
-/** Why the item would be refused by its type, without storing it, or null. */
-export function validate(record: Record<string, any>): { field: string; message: string } | null {
-  const Model: any = (Item as any).discriminators?.[record.kind] || Item;
-  return firstInvalid(new Model(record).validateSync());
-}
 
 type WriteResult = { matched: number; modified: number };
 
@@ -196,23 +184,6 @@ export async function updateListRecord(
   return { matched: result.matchedCount, modified: result.modifiedCount };
 }
 
-/** The fields every item has, whatever its type. */
-export function baseFieldNames(): string[] {
-  return [...new Set(Object.keys(Item.schema.paths).map(path => path.split('.')[0]!))];
-}
-
-/**
- * Declares an item type, so its items are read and written with its stored fields.
- * Throws for a type already declared: drop it first (a custom plugin edited at runtime).
- */
-export function registerType(kind: string, fields: StoredFields): void {
-  Item.discriminator(kind, new mongoose.Schema(toMongooseDefinition(fields)));
-}
-
-export function unregisterType(kind: string): void {
-  if ((Item as any).discriminators?.[kind]) delete (Item as any).discriminators[kind];
-  if (mongoose.modelNames().includes(kind)) mongoose.deleteModel(kind);
-}
 
 /** How many matching items hold each value of a field, most frequent first. */
 export async function countBy(field: string, filter: Filter): Promise<{ value: any; count: number }[]> {
@@ -303,3 +274,5 @@ export async function copyField(filter: Filter, from: string, to: string): Promi
   const result = await Item.collection.updateMany(query, [{ $set: { [to]: `$${from}` } }]);
   return result.modifiedCount;
 }
+
+export { baseFieldNames, registerType, unregisterType, validate } from '../itemTypes';

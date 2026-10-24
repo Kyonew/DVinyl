@@ -1,11 +1,23 @@
 # syntax=docker/dockerfile:1
-FROM node:20-alpine
+
+# Dependencies, built apart: better-sqlite3 compiles a native module when no prebuilt
+# binary matches the platform (Alpine's musl, ARM boards), which needs a toolchain the
+# final image has no use for.
+FROM node:24-alpine AS deps
 
 WORKDIR /app
+
+RUN apk add --no-cache python3 make g++
 
 COPY package*.json ./
 
 RUN npm install
+
+FROM node:24-alpine
+
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
 
 COPY . .
 

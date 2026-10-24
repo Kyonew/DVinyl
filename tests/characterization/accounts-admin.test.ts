@@ -141,6 +141,18 @@ describe('accounts and administration', { skip: !backend }, () => {
     await login(app, 'taken', second);
   });
 
+  it('refuses a second account with a name or an email already taken', async () => {
+    let reply = await admin.postForm('/admin/add-user', { username: 'taken', email: 'other@example.test' });
+    assert.equal(reply.location, '/admin/instance?msg=error_username_taken');
+    reply = await admin.postForm('/admin/add-user', { username: 'someone', email: 'TAKEN@example.test' });
+    assert.equal(reply.location, '/admin/instance?msg=error_email_taken');
+    reply = await admin.postForm('/admin/add-user', { username: 'someone', email: 'not-an-email' });
+    assert.equal(reply.location, '/admin/instance?msg=error_user_invalid');
+    const names = (await refresh()).users.map(u => u.username);
+    assert.equal(names.filter(n => n === 'taken').length, 1);
+    assert.ok(!names.includes('someone'));
+  });
+
   it('lets an account change its own password', async () => {
     const page = await admin.postForm('/admin/add-user', { username: 'mover', email: 'mover@example.test' });
     const first = shownPassword(page.text);

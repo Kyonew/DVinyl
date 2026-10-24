@@ -12,8 +12,15 @@
  *
  * The raised file limit matters: every test file creates databases of its own, and a
  * server left at a low default dies with "Too many open files" halfway through the run.
+ *
+ * Or against SQLite, with no server at all:
+ *
+ *   TEST_DB_DRIVER=sqlite npm run test:characterization
  */
 
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import mongoose from 'mongoose';
 import { integrationDbUrl } from '../integrationDb';
 
@@ -26,9 +33,20 @@ export interface Backend {
 
 /**
  * A throwaway database for one test file, or null when the suite has nowhere to run
- * (TEST_MONGODB_URL unset), in which case the tests skip.
+ * (TEST_MONGODB_URL unset), in which case the tests skip. With TEST_DB_DRIVER=sqlite it
+ * is a SQLite file of its own instead, and needs no server at all.
  */
 export function backendFor(name: string): Backend | null {
+  if (process.env.TEST_DB_DRIVER === 'sqlite') {
+    const file = path.join(os.tmpdir(), `dvinyl-char-${name}.sqlite`);
+    return {
+      env: { DB_DRIVER: 'sqlite', SQLITE_PATH: file },
+      async reset() {
+        for (const suffix of ['', '-wal', '-shm']) fs.rmSync(file + suffix, { force: true });
+      }
+    };
+  }
+
   const url = integrationDbUrl(`dvinyl_char_${name}_test`);
   if (!url) return null;
   return {

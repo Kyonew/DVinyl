@@ -6,14 +6,16 @@
   "scripts": {
     "start": "node --env-file=.env --import tsx app.ts",
     "test": "node --import tsx --test tests/extraFieldIdentity.test.ts tests/hardcoverEditions.test.ts tests/hardcoverRefresh.test.ts tests/searchHighlight.test.ts tests/markdown.test.ts tests/shelfHelpers.test.ts tests/spine.test.ts tests/screenscraper.test.ts tests/openLibraryEdition.test.ts tests/releaseValidation.test.ts tests/distinctTitles.test.ts tests/copySeed.test.ts tests/filterFields.test.ts tests/aiBarcode.test.ts tests/aiClient.test.ts tests/aiConfig.test.ts tests/aiExtract.test.ts tests/aiJsonExtract.test.ts tests/aiPluginGenerate.test.ts tests/aiPrompt.test.ts tests/aiProviders.test.ts tests/aiSecret.test.ts tests/aiPhoto.test.ts tests/searchWithGuess.test.ts tests/tmdbAuth.test.ts tests/inlineScriptEscape.test.ts",
-    "test:integration": "node --import tsx --test tests/extraFieldMigration.integration.test.ts tests/distinctTitles.integration.test.ts",
+    "test:integration": "node --import tsx --test tests/extraFieldMigration.integration.test.ts tests/distinctTitles.integration.test.ts tests/dbSemantics.integration.test.ts",
     "test:characterization": "node --import tsx --test tests/characterization/*.test.ts",
+    "test:characterization:sqlite": "TEST_DB_DRIVER=sqlite node --import tsx --test tests/characterization/*.test.ts",
     "build:css": "npx tailwindcss -i ./website/src/input.css -o ./website/public/styles/tailwind.css --watch"
   },
   "author": "Kyo'",
   "license": "ISC",
   "dependencies": {
     "bcrypt": "^6.0.0",
+    "better-sqlite3": "^13.0.3",
     "bwip-js": "^4.11.4",
     "cookie-parser": "^1.4.7",
     "ejs": "^3.1.10",
@@ -33,6 +35,7 @@
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
+    "@types/better-sqlite3": "^9.6.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.6",
     "@types/express-session": "^1.19.0",

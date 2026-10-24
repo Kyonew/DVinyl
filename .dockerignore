@@ -12,3 +12,6 @@ public/uploads
 
 # ScreenScraper developer pair: only the CI build may write it into an image
 plugins/games/screenscraper.dev.json
+
+# The SQLite database of a local run
+data

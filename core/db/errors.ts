@@ -22,3 +22,10 @@ export function validationMessages(err: any): Record<string, string> {
   return Object.fromEntries(Object.entries(err.errors || {}).map(([field, e]: [string, any]) =>
     [e?.properties?.path ?? field, e?.properties?.message ?? e?.message]));
 }
+
+/** The first field a refused record names, with the message of the refusal, or null. */
+export function firstInvalid(error: any): { field: string; message: string } | null {
+  if (!error) return null;
+  const field = Object.keys(error.errors || {})[0] || '?';
+  return { field, message: error.message };
+}

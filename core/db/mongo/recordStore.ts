@@ -6,13 +6,7 @@ import type { Model } from 'mongoose';
 import type { RecordStore, ReadOptions, WriteResult } from '../records';
 import type { Filter } from '../filter';
 import { toMongoFilter, toMongoSort, toMongoUpdate } from './compile';
-
-/** The first field a Mongoose validation error names, with its message. */
-export function firstInvalid(error: any): { field: string; message: string } | null {
-  if (!error) return null;
-  const field = Object.keys(error.errors || {})[0] || '?';
-  return { field, message: error.message };
-}
+import { firstInvalid } from '../errors';
 
 /**
  * `model` is read on each call rather than once: the models load the plugin registry,
