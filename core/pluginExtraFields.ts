@@ -44,7 +44,7 @@ export function getExtraFields(settings: any, pluginId: string): ExtraFieldConfi
  */
 export function reservedNamesFor(plugin: PluginDefinition): Set<string> {
   const taken = new Set<string>(RESERVED_FIELD_NAMES);
-  for (const key of Object.keys(plugin.schemaDefinition || {})) taken.add(key);
+  for (const key of Object.keys(plugin.storedFields || {})) taken.add(key);
   for (const f of plugin.formFields || []) taken.add(f.name);
   if (plugin.creatorField) taken.add(plugin.creatorField);
   if (plugin.externalIdField) taken.add(plugin.externalIdField);

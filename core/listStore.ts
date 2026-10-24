@@ -39,7 +39,7 @@ export async function ownList(collectionId: any, id: unknown) {
 
 /** Whether any enabled plugin keeps a tracklist, which is what a playlist is made from. */
 export function pluginsWithTracks(settings: any) {
-  return registry.getEnabled(settings).filter(p => !!(p.schemaDefinition as any)?.tracklist);
+  return registry.getEnabled(settings).filter(p => p.storedFields?.tracklist?.type === 'records');
 }
 
 export type ResolvedItemEntry = {

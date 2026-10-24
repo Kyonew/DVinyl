@@ -7,7 +7,8 @@ import {
 import { gamesImporters } from './importers';
 import { escapeRegExp, fetchJson } from '../../core/helpers';
 import { igdbRequest } from './igdbHelper';
-import Item from '../../models/Item';
+import { db } from '../../core/db';
+import { and, ci, eq, idOf, missing, ne, or, textOrUnset, Filter } from '../../core/db/query';
 
 const igdbProvider = new IGDBProvider();
 
@@ -188,37 +189,24 @@ export const gamesPlugin: PluginDefinition = {
 
   defaultCardFields: ['developer'],
 
-  schemaDefinition: {
-    developer: { type: String, default: '' },
-    publisher: { type: String, default: '' },
-    platform: { type: String, default: 'other' },
-    igdb_id: Number,
-    region: { type: String, default: '' },
-    format: {
-      type: String,
-      enum: ['physical', 'collector', 'limited', 'steelbook', 'digital'],
-      default: 'physical'
-    },
-    playStatus: {
-      type: String,
-      enum: ['to_play', 'playing', 'played'],
-      default: 'to_play'
-    },
-    user_rating: {
-      type: Number,
-      min: 0,
-      max: 5,
-      default: 0
-    },
-    genre: { type: String, default: '' },
-    genres: { type: [String], default: [] },
-    styles: { type: [String], default: [] },
-    description: { type: String, default: '' },
+  storedFields: {
+    developer: { type: 'text', default: '' },
+    publisher: { type: 'text', default: '' },
+    platform: { type: 'text', default: 'other' },
+    igdb_id: { type: 'number' },
+    region: { type: 'text', default: '' },
+    format: { type: 'text', values: ['physical', 'collector', 'limited', 'steelbook', 'digital'], default: 'physical' },
+    playStatus: { type: 'text', values: ['to_play', 'playing', 'played'], default: 'to_play' },
+    user_rating: { type: 'number', min: 0, max: 5, default: 0 },
+    genre: { type: 'text', default: '' },
+    genres: { type: 'texts', default: [] },
+    styles: { type: 'texts', default: [] },
+    description: { type: 'text', default: '' },
     // Estimated hours to beat, from IGDB's own time-to-beat data. Absent (not 0) for a
     // game nobody has timed yet, or one added before this existed.
-    completionHastily: Number,
-    completionNormally: Number,
-    completionCompletely: Number
+    completionHastily: { type: 'number' },
+    completionNormally: { type: 'number' },
+    completionCompletely: { type: 'number' }
   },
 
   formats: [
@@ -427,84 +415,50 @@ export const gamesPlugin: PluginDefinition = {
     // A different-region edition (PAL/NTSC, etc.) or a different (non-empty) barcode is a
     // distinct copy, not a duplicate: it gets its own entry instead of bumping the first one's
     // quantity. An item with no region/barcode yet still matches (and gets those backfilled).
-    const applyVariant = (query: any) => {
-      if (matchRegion) {
-        query.region = { $regex: new RegExp(`^${escapeRegExp(matchRegion)}$`, 'i') };
-      }
-      const and: any[] = [];
-      if (!matchRegion) {
-        and.push({ $or: [{ region: { $exists: false } }, { region: '' }] });
-      }
-      if (matchBarcode) {
-        and.push({ $or: [{ barcode: { $exists: false } }, { barcode: '' }, { barcode: matchBarcode }] });
-      }
-      if (and.length) query.$and = and;
-    };
+    const variant = and(
+      textOrUnset('region', matchRegion),
+      matchBarcode ? or(missing('barcode'), eq('barcode', ''), eq('barcode', matchBarcode)) : null
+    );
+    const owned = and(
+      eq('collection', idOf(collectionId)),
+      eq('in_wishlist', false),
+      eq('kind', 'Game'),
+      matchPlatform ? eq('platform', matchPlatform) : null,
+      matchFormat ? eq('format', matchFormat) : null,
+      variant
+    );
 
     if (igdbId) {
-      const query: any = {
-        collection: collectionId,
-        in_wishlist: false,
-        kind: 'Game',
-        igdb_id: parseInt(igdbId)
-      };
-      if (matchPlatform) {
-        query.platform = matchPlatform;
-      }
-      if (matchFormat) {
-        query.format = matchFormat;
-      }
-      applyVariant(query);
-      const item = await Item.findOne(query);
+      const item = await db.items.findOne(and(owned, eq('igdb_id', parseInt(igdbId))), { defaults: true });
       if (item) return item;
     }
 
-    const matchTitle = (data.title || '').trim();
-
-    const query: any = {
-      collection: collectionId,
-      in_wishlist: false,
-      kind: 'Game',
-      title: { $regex: new RegExp(`^${escapeRegExp(matchTitle)}$`, 'i') }
-    };
-
-    if (matchPlatform) {
-      query.platform = matchPlatform;
-    }
-    if (matchFormat) {
-      query.format = matchFormat;
-    }
-    applyVariant(query);
-    return await Item.findOne(query);
+    return db.items.findOne(and(owned, ci('title', (data.title || '').trim())), { defaults: true });
   },
 
   async findPotentialDuplicates(collectionId: any, data: Record<string, any>): Promise<any[]> {
-    const or: any[] = [];
-    if (data.igdb_id) {
-      or.push({ igdb_id: parseInt(data.igdb_id) });
-    }
+    const matches: Filter[] = [];
+    if (data.igdb_id) matches.push(eq('igdb_id', parseInt(data.igdb_id)));
     const title = (data.title || '').trim();
-    if (title) {
-      or.push({ title: { $regex: new RegExp(`^${escapeRegExp(title)}$`, 'i') } });
-    }
-    if (or.length === 0) return [];
-    return Item.find({
-      collection: collectionId,
-      in_wishlist: false,
-      kind: 'Game',
-      $or: or
-    }).lean();
+    if (title) matches.push(ci('title', title));
+    if (matches.length === 0) return [];
+    return db.items.find(and(
+      eq('collection', idOf(collectionId)),
+      eq('in_wishlist', false),
+      eq('kind', 'Game'),
+      or(...matches)
+    ));
   },
 
   async getVariants(item: any): Promise<any[]> {
     if (!item) return [];
-    return await Item.find({
-      collection: item.collection,
-      in_wishlist: false,
-      kind: 'Game',
-      _id: { $ne: item._id },
-      title: { $regex: new RegExp(`^${escapeRegExp(item.title)}$`, 'i') }
-    }).lean();
+    return db.items.find(and(
+      eq('collection', idOf(item.collection)),
+      eq('in_wishlist', false),
+      eq('kind', 'Game'),
+      ne('_id', idOf(item._id)),
+      ci('title', String(item.title ?? ''))
+    ));
   },
 
   mergeRefresh(item: any, details: any): Record<string, any> {

@@ -1,5 +1,5 @@
-import mongoose from 'mongoose';
 import type { Filter, Sort } from './db/filter';
+import type { StoredFields } from './db/storedFields';
 
 // What a spine on the shelf is the edge of: a cardboard sleeve, a hinged plastic case,
 // a moulded media case, a bound book or a box.
@@ -69,7 +69,9 @@ export interface PluginDefinition {
   // undefined leaves the generic reading in place; an empty string drops the line.
   cardFieldValue?(name: string, item: any): string | null | undefined;
 
-  schemaDefinition: mongoose.SchemaDefinition;
+  // What the plugin's items store on top of the fields every item has (see
+  // core/db/storedFields.ts). Declared without reference to any database.
+  storedFields: StoredFields;
 
   formFields: FieldDefinition[];
 

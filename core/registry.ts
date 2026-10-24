@@ -1,7 +1,6 @@
-import mongoose from 'mongoose';
+import { db } from './db';
 import { PluginDefinition } from './types';
 import { DEFAULT_PLACEHOLDER_IMAGE } from './placeholderImage';
-import Item from '../models/Item';
 import { imagesForItem } from './itemImages';
 import { pluginSources, isSourceConfigured, isSearchable, requiredEnvKeysFor } from './sources';
 
@@ -24,8 +23,8 @@ function flattenExtraValues(plugin: PluginDefinition): void {
   if ((plugin as any)[FLATTENS_EXTRA]) return;
   const original = plugin.formatForView.bind(plugin);
   const nativeNames = new Set<string>([
-    ...Object.keys(Item.schema.paths).map(p => p.split('.')[0]!),
-    ...Object.keys(plugin.schemaDefinition || {}),
+    ...db.items.baseFieldNames(),
+    ...Object.keys(plugin.storedFields || {}),
     ...(plugin.formFields || []).map(f => f.name)
   ]);
   if (plugin.creatorField) nativeNames.add(plugin.creatorField);
@@ -79,28 +78,23 @@ class PluginRegistry {
     this.plugins.set(plugin.id, plugin);
 
     try {
-      const schema = new mongoose.Schema(plugin.schemaDefinition);
-      Item.discriminator(plugin.kind, schema);
-      console.log(`[PluginRegistry] Registered Mongoose discriminator for ${plugin.kind}`);
+      db.items.registerType(plugin.kind, plugin.storedFields || {});
+      console.log(`[PluginRegistry] Registered item type ${plugin.kind}`);
     } catch (err: any) {
-      console.warn(`[PluginRegistry] Mongoose discriminator ${plugin.kind} registry warning: ${err.message}`);
+      console.warn(`[PluginRegistry] Item type ${plugin.kind} registry warning: ${err.message}`);
     }
   }
 
   /**
-   * Removes a plugin (custom-plugin edit/delete at runtime). Also drops the
-   * Mongoose discriminator model so re-registering with an updated schema works
-   * without restart.
+   * Removes a plugin (custom-plugin edit/delete at runtime). Also drops its item type,
+   * so re-registering with updated fields works without restart.
    */
   unregister(id: string): void {
     const plugin = this.plugins.get(id);
     if (!plugin) return;
     this.plugins.delete(id);
     try {
-      if ((Item as any).discriminators) {
-        delete (Item as any).discriminators[plugin.kind];
-      }
-      mongoose.deleteModel(plugin.kind);
+      db.items.unregisterType(plugin.kind);
       console.log(`[PluginRegistry] Unregistered plugin ${id} (${plugin.kind})`);
     } catch (err: any) {
       console.warn(`[PluginRegistry] Unregister ${id} warning: ${err.message}`);

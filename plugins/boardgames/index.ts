@@ -1,7 +1,7 @@
 import { PluginDefinition } from '../../core/types';
 import { sourceFromProvider } from '../../core/sources';
-import { escapeRegExp } from '../../core/helpers';
-import Item from '../../models/Item';
+import { db } from '../../core/db';
+import { and, ci, eq, idOf, ne, or, Filter } from '../../core/db/query';
 import { BggProvider } from './bgg';
 
 const bgg = new BggProvider();
@@ -67,29 +67,20 @@ export const boardGamesPlugin: PluginDefinition = {
 
   defaultCardFields: ['designer', 'players'],
 
-  schemaDefinition: {
-    bgg_id: { type: String, default: '' },
-    designer: { type: String, default: '' },
-    publisher: { type: String, default: '' },
-    players: { type: String, default: '' },
-    playtime: { type: String, default: '' },
-    min_age: { type: Number, default: 0 },
-    bgg_rating: { type: Number, default: 0 },
-    format: {
-      type: String,
-      enum: ['boxed', 'expansion', 'promo'],
-      default: 'boxed'
-    },
-    user_rating: {
-      type: Number,
-      min: 0,
-      max: 5,
-      default: 0
-    },
-    genre: { type: String, default: '' },
-    genres: { type: [String], default: [] },
-    styles: { type: [String], default: [] },
-    description: { type: String, default: '' }
+  storedFields: {
+    bgg_id: { type: 'text', default: '' },
+    designer: { type: 'text', default: '' },
+    publisher: { type: 'text', default: '' },
+    players: { type: 'text', default: '' },
+    playtime: { type: 'text', default: '' },
+    min_age: { type: 'number', default: 0 },
+    bgg_rating: { type: 'number', default: 0 },
+    format: { type: 'text', values: ['boxed', 'expansion', 'promo'], default: 'boxed' },
+    user_rating: { type: 'number', min: 0, max: 5, default: 0 },
+    genre: { type: 'text', default: '' },
+    genres: { type: 'texts', default: [] },
+    styles: { type: 'texts', default: [] },
+    description: { type: 'text', default: '' }
   },
 
   formats: [
@@ -188,56 +179,45 @@ export const boardGamesPlugin: PluginDefinition = {
 
   async findDuplicate(collectionId: any, data: Record<string, any>): Promise<any | null> {
     const bggId = (data.bgg_id || '').trim();
-    const matchFormat = data.format || 'boxed';
+    const owned = and(
+      eq('collection', idOf(collectionId)),
+      eq('in_wishlist', false),
+      eq('kind', 'BoardGame'),
+      eq('format', data.format || 'boxed')
+    );
 
     if (bggId) {
-      const item = await Item.findOne({
-        collection: collectionId,
-        in_wishlist: false,
-        kind: 'BoardGame',
-        bgg_id: bggId,
-        format: matchFormat
-      });
+      const item = await db.items.findOne(and(owned, eq('bgg_id', bggId)), { defaults: true });
       if (item) return item;
     }
 
-    const matchTitle = (data.title || '').trim();
-    return await Item.findOne({
-      collection: collectionId,
-      in_wishlist: false,
-      kind: 'BoardGame',
-      title: { $regex: new RegExp(`^${escapeRegExp(matchTitle)}$`, 'i') },
-      format: matchFormat
-    });
+    return db.items.findOne(and(owned, ci('title', (data.title || '').trim())), { defaults: true });
   },
 
   async findPotentialDuplicates(collectionId: any, data: Record<string, any>): Promise<any[]> {
-    const or: any[] = [];
+    const matches: Filter[] = [];
     const bggId = (data.bgg_id || '').trim();
-    if (bggId) or.push({ bgg_id: bggId });
+    if (bggId) matches.push(eq('bgg_id', bggId));
     const title = (data.title || '').trim();
-    if (title) or.push({ title: { $regex: new RegExp(`^${escapeRegExp(title)}$`, 'i') } });
-    if (or.length === 0) return [];
-    return Item.find({
-      collection: collectionId,
-      in_wishlist: false,
-      kind: 'BoardGame',
-      $or: or
-    }).lean();
+    if (title) matches.push(ci('title', title));
+    if (matches.length === 0) return [];
+    return db.items.find(and(
+      eq('collection', idOf(collectionId)),
+      eq('in_wishlist', false),
+      eq('kind', 'BoardGame'),
+      or(...matches)
+    ));
   },
 
   async getVariants(item: any): Promise<any[]> {
     if (!item) return [];
-    const or: any[] = [];
-    if (item.bgg_id) or.push({ bgg_id: item.bgg_id });
-    or.push({ title: { $regex: new RegExp(`^${escapeRegExp(item.title)}$`, 'i') } });
-    return await Item.find({
-      collection: item.collection,
-      in_wishlist: false,
-      kind: 'BoardGame',
-      _id: { $ne: item._id },
-      $or: or
-    }).lean();
+    return db.items.find(and(
+      eq('collection', idOf(item.collection)),
+      eq('in_wishlist', false),
+      eq('kind', 'BoardGame'),
+      ne('_id', idOf(item._id)),
+      or(item.bgg_id ? eq('bgg_id', item.bgg_id) : null, ci('title', String(item.title ?? '')))
+    ));
   },
 
   getManualDefaults(): Record<string, any> {

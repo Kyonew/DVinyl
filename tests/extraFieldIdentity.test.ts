@@ -16,7 +16,7 @@ import { registry } from '../core/registry';
 const plugin: any = {
   id: 'games',
   kind: 'Game',
-  schemaDefinition: { igdb_id: Number, playtime: Number },
+  storedFields: { igdb_id: { type: 'number' }, playtime: { type: 'number' } },
   formFields: [
     { name: 'title', label: 'Title', type: 'text', showIn: ['edit'] },
     { name: 'playtime', label: 'Playtime', type: 'number', showIn: ['edit'] }

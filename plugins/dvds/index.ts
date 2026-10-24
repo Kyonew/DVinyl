@@ -1,11 +1,11 @@
 import path from 'path';
-import mongoose from 'mongoose';
 import { PluginDefinition } from '../../core/types';
 import { sourceFromProvider } from '../../core/sources';
 import { TMDBProvider, tmdbFetch } from './tmdb';
 import { dvdImporters } from './importers';
 import { escapeRegExp, PermanentRefreshError, editStamp } from '../../core/helpers';
-import Item from '../../models/Item';
+import { db } from '../../core/db';
+import { and, ci, eq, idOf, isId, isIn, missing, ne, or, textOrUnset, Filter } from '../../core/db/query';
 import { TMDB_LANG_MAP, formatSeasonCount, describeOwnedSeasons } from './constants';
 
 const tmdbProvider = new TMDBProvider();
@@ -29,6 +29,12 @@ const tmdb = sourceFromProvider(tmdbProvider, {
       .map((item: any) => `https://image.tmdb.org/t/p/w500${item.poster_path}`);
   }
 });
+
+// A show and a film may share a TMDB id, so an id only matches within its media type.
+// An item stored before the media type existed is a film.
+function sameMediaType(mediaType: unknown): Filter {
+  return mediaType === 'tv' ? eq('media_type', 'tv') : isIn('media_type', ['movie', null]);
+}
 
 export const dvdPlugin: PluginDefinition = {
   id: 'dvd',
@@ -77,15 +83,15 @@ export const dvdPlugin: PluginDefinition = {
       async handler(req: any, res: any): Promise<any> {
         try {
           const number = parseInt(req.params.number, 10);
-          if (!mongoose.Types.ObjectId.isValid(req.params.id) || !Number.isInteger(number)) {
+          if (!isId(req.params.id) || !Number.isInteger(number)) {
             return res.status(404).json({ success: false, error: 'Not found' });
           }
 
           const body = req.body || {};
           const set: Record<string, any> = {};
-          const unset: Record<string, any> = {};
+          const unset: string[] = [];
 
-          if ('watched' in body) set['episodes.$.watched'] = body.watched === true || body.watched === 'true';
+          if ('watched' in body) set.watched = body.watched === true || body.watched === 'true';
 
           if ('rating' in body) {
             const rating = Number(body.rating);
@@ -93,36 +99,28 @@ export const dvdPlugin: PluginDefinition = {
               return res.status(400).json({ success: false, error: 'Invalid rating' });
             }
             // Clicking the star already lit means "no rating", not "zero stars".
-            if (rating === 0) unset['episodes.$.rating'] = 1;
-            else set['episodes.$.rating'] = rating;
+            if (rating === 0) unset.push('rating');
+            else set.rating = rating;
           }
 
           if ('notes' in body) {
             const notes = String(body.notes || '').trim().slice(0, 2000);
-            if (notes) set['episodes.$.notes'] = notes;
-            else unset['episodes.$.notes'] = 1;
+            if (notes) set.notes = notes;
+            else unset.push('notes');
           }
 
-          const update: any = {};
-          if (Object.keys(set).length) update.$set = set;
-          if (Object.keys(unset).length) update.$unset = unset;
-          if (!Object.keys(update).length) {
+          if (Object.keys(set).length === 0 && unset.length === 0) {
             return res.status(400).json({ success: false, error: 'Nothing to update' });
           }
-          update.$set = { ...(update.$set || {}), ...editStamp(req.user._id) };
 
-          // `kind` in the filter makes Mongoose cast against the Dvd schema; without it the
-          // base schema knows no `episodes` path and strict mode drops the whole update.
-          const result = await Item.updateOne(
-            {
-              _id: req.params.id,
-              collection: res.locals.activeCollectionId,
-              kind: 'Dvd',
-              'episodes.number': number
-            },
-            update
+          // Written as a Dvd item: only that type stores episodes.
+          const result = await db.items.updateListRecord(
+            and(eq('_id', req.params.id), eq('collection', idOf(res.locals.activeCollectionId)), eq('kind', 'Dvd')),
+            { list: 'episodes', where: { number }, set, unset },
+            { set: editStamp(req.user._id) },
+            { kind: 'Dvd' }
           );
-          if (result.matchedCount === 0) {
+          if (result.matched === 0) {
             return res.status(404).json({ success: false, error: 'Not found' });
           }
           res.json({ success: true });
@@ -144,11 +142,11 @@ export const dvdPlugin: PluginDefinition = {
       allowShareView: true,
       async handler(req: any, res: any): Promise<any> {
         try {
-          const item: any = await Item.findOne({
-            _id: req.params.id,
-            collection: res.locals.activeCollectionId,
-            kind: 'Dvd'
-          }).lean();
+          const item: any = isId(req.params.id) ? await db.items.findOne(and(
+            eq('_id', req.params.id),
+            eq('collection', idOf(res.locals.activeCollectionId)),
+            eq('kind', 'Dvd')
+          )) : null;
 
           if (!item || item.media_type !== 'tv' || !item.tmdb_id) {
             return res.status(404).send(req.t('errors.not_found'));
@@ -213,59 +211,45 @@ export const dvdPlugin: PluginDefinition = {
 
   defaultCardFields: ['director'],
 
-  schemaDefinition: {
-    director: { type: String, required: true },
-    studio: String,
-    duration: String,
-    rating: String,
-    zone: String,
-    tmdb_id: Number,
-    media_type: {
-      type: String,
-      enum: ['movie', 'tv'],
-      default: 'movie'
-    },
+  storedFields: {
+    director: { type: 'text', required: true },
+    studio: { type: 'text' },
+    duration: { type: 'text' },
+    rating: { type: 'text' },
+    zone: { type: 'text' },
+    tmdb_id: { type: 'number' },
+    media_type: { type: 'text', values: ['movie', 'tv'], default: 'movie' },
     // Which season of a show this item is, when it is one season rather than the whole
     // series. Absent on films and on a series held as a single item, which is what every
     // item added before this existed is.
-    season: Number,
+    season: { type: 'number' },
     // The episodes of that season, stored rather than read from TMDB on each visit: this
     // is what a personal note, a rating or a "seen" mark will be attached to, and none of
     // that can hang off something refetched every time. Filled when the season is added
     // and on a metadata refresh, so a show added before this existed picks them up.
-    episodes: [{
-      number: Number,
-      name: String,
-      runtime: Number,
-      air_date: String,
-      overview: String,
-      // What the owner adds, as opposed to what TMDB provides above. Kept on the same
-      // subdocument so a refresh has to preserve it deliberately rather than by luck.
-      watched: { type: Boolean, default: false },
-      rating: { type: Number, min: 0, max: 5 },
-      notes: String
-    }],
-    format: {
-      type: String,
-      enum: ['dvd', 'bluray', '4k', 'vhs', 'laserdisc', 'digital'],
-      default: 'dvd'
+    episodes: {
+      type: 'records',
+      fields: {
+        number: { type: 'number' },
+        name: { type: 'text' },
+        runtime: { type: 'number' },
+        air_date: { type: 'text' },
+        overview: { type: 'text' },
+        // What the owner adds, as opposed to what TMDB provides above. Kept on the same
+        // record so a refresh has to preserve it deliberately rather than by luck.
+        watched: { type: 'boolean', default: false },
+        rating: { type: 'number', min: 0, max: 5 },
+        notes: { type: 'text' }
+      }
     },
-    is_boxset: { type: Boolean, default: false },
-    watchStatus: {
-      type: String,
-      enum: ['to_watch', 'watching', 'watched'],
-      default: 'to_watch'
-    },
-    user_rating: {
-      type: Number,
-      min: 0,
-      max: 5,
-      default: 0
-    },
-    genre: { type: String, default: '' },
-    genres: { type: [String], default: [] },
-    styles: { type: [String], default: [] },
-    description: { type: String, default: '' }
+    format: { type: 'text', values: ['dvd', 'bluray', '4k', 'vhs', 'laserdisc', 'digital'], default: 'dvd' },
+    is_boxset: { type: 'boolean', default: false },
+    watchStatus: { type: 'text', values: ['to_watch', 'watching', 'watched'], default: 'to_watch' },
+    user_rating: { type: 'number', min: 0, max: 5, default: 0 },
+    genre: { type: 'text', default: '' },
+    genres: { type: 'texts', default: [] },
+    styles: { type: 'texts', default: [] },
+    description: { type: 'text', default: '' }
   },
 
   formats: [
@@ -546,24 +530,23 @@ export const dvdPlugin: PluginDefinition = {
     // string still hold a few of those, and the holder must be found all the same rather
     // than silently duplicated.
     const numericId = parseInt(String(data.tmdb_id));
-    const holder = await Item.findOne({
-      collection: ctx.collectionId,
-      kind: 'Dvd',
-      tmdb_id: { $in: [numericId, String(numericId)] },
+    const holder = await db.items.findOne(and(
+      eq('collection', idOf(ctx.collectionId)),
+      eq('kind', 'Dvd'),
+      isIn('tmdb_id', [numericId, String(numericId)]),
       // TMDB ids are unique only within a media type, so a movie can share this numeric
       // id with an unrelated show. Only a TV item can hold seasons; scoping to it stops
       // the seasons being filed under a same-id movie.
-      media_type: 'tv',
-      parent: { $exists: false }
-    });
+      eq('media_type', 'tv'),
+      missing('parent')
+    ));
 
-    // Through the discriminator model, not the base one: director, tmdb_id and season are
-    // Dvd paths, which strict mode on the base schema would drop without a word.
-    const Dvd = mongoose.model('Dvd');
-
+    // Created as Dvd items (the `kind` below): director, tmdb_id and season are fields of
+    // that type, which an item of no type would drop without a word.
     const holderId = holder
       ? holder._id
-      : (await Dvd.create({
+      : (await db.items.create({
+        kind: 'Dvd',
         ...shared,
         title: show.title,
         year: show.year,
@@ -573,12 +556,12 @@ export const dvdPlugin: PluginDefinition = {
         director: show.director || data.director,
         owner: ctx.ownerId,
         collection: ctx.collectionId
-      }) as any)._id;
+      }))._id;
 
     // Seasons already owned are left alone rather than duplicated: ticking the whole list
     // when one season is already there adds only what is missing.
     const owned = new Set(
-      (await Item.find({ parent: holderId }).select('season').lean())
+      (await db.items.find(eq('parent', idOf(holderId)), { fields: ['season'] }))
         .map((s: any) => s.season)
     );
 
@@ -586,8 +569,9 @@ export const dvdPlugin: PluginDefinition = {
     for (const number of wanted) {
       if (owned.has(number)) continue;
       const seasonData = await provider.getDetails(externalId, { language: ctx.language, season: number });
-      await Dvd.create({
+      await db.items.create({
         ...shared,
+        kind: 'Dvd',
         title: seasonData.title,
         year: seasonData.year,
         cover_image: seasonData.cover_image,
@@ -610,10 +594,7 @@ export const dvdPlugin: PluginDefinition = {
     // list sorted by recent additions, where nobody would look for what they just added.
     // Same reasoning as a move to or from the wishlist, which already resets this.
     if (holder && added > 0) {
-      await Item.updateOne(
-        { _id: holderId },
-        { $set: { added_at: new Date(), ...editStamp(ctx.ownerId) } }
-      );
+      await db.items.updateOne(eq('_id', idOf(holderId)), { set: { added_at: new Date(), ...editStamp(ctx.ownerId) } });
     }
 
     return true;
@@ -635,98 +616,69 @@ export const dvdPlugin: PluginDefinition = {
     // A different-zone edition or a different (non-empty) barcode is a distinct copy, not a
     // duplicate: it gets its own entry. An item with no zone/barcode yet still matches
     // (and gets those backfilled).
-    const applyVariant = (query: any) => {
-      if (matchZone) {
-        query.zone = { $regex: new RegExp(`^${escapeRegExp(matchZone)}$`, 'i') };
-      }
-      const and: any[] = [];
-      if (!matchZone) {
-        and.push({ $or: [{ zone: { $exists: false } }, { zone: '' }] });
-      }
-      if (matchBarcode) {
-        and.push({ $or: [{ barcode: { $exists: false } }, { barcode: '' }, { barcode: matchBarcode }] });
-      }
-      and.push(matchSeason !== null && !Number.isNaN(matchSeason)
-        ? { season: matchSeason }
-        : { $or: [{ season: { $exists: false } }, { season: null }] });
-      if (and.length) query.$and = and;
-    };
+    const owned = and(
+      eq('collection', idOf(collectionId)),
+      eq('in_wishlist', false),
+      eq('kind', 'Dvd'),
+      matchFormat ? eq('format', matchFormat) : null,
+      textOrUnset('zone', matchZone),
+      matchBarcode ? or(missing('barcode'), eq('barcode', ''), eq('barcode', matchBarcode)) : null,
+      matchSeason !== null && !Number.isNaN(matchSeason)
+        ? eq('season', matchSeason)
+        : or(missing('season'), eq('season', null))
+    );
 
     if (tmdbId) {
-      const query: any = {
-        collection: collectionId,
-        in_wishlist: false,
-        kind: 'Dvd',
-        tmdb_id: parseInt(tmdbId),
+      const item = await db.items.findOne(and(
+        owned,
+        eq('tmdb_id', parseInt(tmdbId)),
         // TMDB ids are only unique within a media type: movie 155 and tv 155 are
         // different works. Without this, adding a show whose id matches an owned movie
         // (or vice versa) treats it as a duplicate of that movie. A legacy movie item
         // without media_type is matched as a movie as well.
-        media_type: data.media_type === 'tv' ? 'tv' : { $in: ['movie', null] }
-      };
-      if (matchFormat) {
-        query.format = matchFormat;
-      }
-      applyVariant(query);
-      const item = await Item.findOne(query);
+        sameMediaType(data.media_type)
+      ), { defaults: true });
       if (item) return item;
     }
 
-    const matchTitle = (data.title || '').trim();
-    const matchDirector = (data.director || data.creator || '').trim();
-
-    const query: any = {
-      collection: collectionId,
-      in_wishlist: false,
-      kind: 'Dvd',
-      title: { $regex: new RegExp(`^${escapeRegExp(matchTitle)}$`, 'i') },
-      director: { $regex: new RegExp(`^${escapeRegExp(matchDirector)}$`, 'i') }
-    };
-
-    if (matchFormat) {
-      query.format = matchFormat;
-    }
-    applyVariant(query);
-    return await Item.findOne(query);
+    return db.items.findOne(and(
+      owned,
+      ci('title', (data.title || '').trim()),
+      ci('director', (data.director || data.creator || '').trim())
+    ), { defaults: true });
   },
 
   async findPotentialDuplicates(collectionId: any, data: Record<string, any>): Promise<any[]> {
-    const or: any[] = [];
+    const matches: Filter[] = [];
     if (data.tmdb_id) {
       // Match the id together with the media type: a movie and a show can share a numeric
       // tmdb_id, so the id alone would flag an unrelated work as a potential duplicate.
-      or.push({
-        tmdb_id: parseInt(data.tmdb_id),
-        media_type: data.media_type === 'tv' ? 'tv' : { $in: ['movie', null] }
-      });
+      matches.push(and(eq('tmdb_id', parseInt(data.tmdb_id)), sameMediaType(data.media_type)));
     }
     const title = (data.title || '').trim();
     const director = (data.director || data.creator || '').trim();
     if (title && director) {
-      or.push({
-        title: { $regex: new RegExp(`^${escapeRegExp(title)}$`, 'i') },
-        director: { $regex: new RegExp(`^${escapeRegExp(director)}$`, 'i') }
-      });
+      matches.push(and(ci('title', title), ci('director', director)));
     }
-    if (or.length === 0) return [];
-    return Item.find({
-      collection: collectionId,
-      in_wishlist: false,
-      kind: 'Dvd',
-      $or: or
-    }).lean();
+    if (matches.length === 0) return [];
+    return db.items.find(and(
+      eq('collection', idOf(collectionId)),
+      eq('in_wishlist', false),
+      eq('kind', 'Dvd'),
+      or(...matches)
+    ));
   },
 
   async getVariants(item: any): Promise<any[]> {
     if (!item) return [];
-    return await Item.find({
-      collection: item.collection,
-      in_wishlist: false,
-      kind: 'Dvd',
-      _id: { $ne: item._id },
-      title: { $regex: new RegExp(`^${escapeRegExp(item.title)}$`, 'i') },
-      director: { $regex: new RegExp(`^${escapeRegExp(item.director)}$`, 'i') }
-    }).lean();
+    return db.items.find(and(
+      eq('collection', idOf(item.collection)),
+      eq('in_wishlist', false),
+      eq('kind', 'Dvd'),
+      ne('_id', idOf(item._id)),
+      ci('title', String(item.title ?? '')),
+      ci('director', String(item.director ?? ''))
+    ));
   },
 
   getManualDefaults(): Record<string, any> {

@@ -4,7 +4,8 @@ import { DiscogsProvider } from './discogs';
 import { musicImporters } from './importers';
 import { musicApiRoutes, discogsGalleryImages } from './apiRoutes';
 import { escapeRegExp, fetchJson, PermanentRefreshError, syncStamp } from '../../core/helpers';
-import Item from '../../models/Item';
+import { db } from '../../core/db';
+import { and, ci, eq, idOf, ne, or, textOrUnset, Filter } from '../../core/db/query';
 
 const discogsProvider = new DiscogsProvider();
 
@@ -132,37 +133,36 @@ export const musicPlugin: PluginDefinition = {
     return kept;
   },
 
-  schemaDefinition: {
-    artist: { type: String, required: true },
-    label: String,
-    catalog_number: String,
-    media_type: {
-      type: String,
-      enum: ['vinyl', 'cd', 'cassette', 'digital'],
-      default: 'vinyl'
-    },
-    format_type: { type: String, default: 'Vinyl' },
-    variant_color: String,
-    sleeve_condition: { type: String, default: '' },
-    discogs_id: Number,
-    country: { type: String, default: '' },
-    // Base Item paths, redeclared like the other native plugins do: the collection page
-    // reads schemaDefinition to know which taxonomies a type actually uses, and Discogs
+  storedFields: {
+    artist: { type: 'text', required: true },
+    label: { type: 'text' },
+    catalog_number: { type: 'text' },
+    media_type: { type: 'text', values: ['vinyl', 'cd', 'cassette', 'digital'], default: 'vinyl' },
+    format_type: { type: 'text', default: 'Vinyl' },
+    variant_color: { type: 'text' },
+    sleeve_condition: { type: 'text', default: '' },
+    discogs_id: { type: 'number' },
+    country: { type: 'text', default: '' },
+    // Base Item fields, redeclared like the other native plugins do: the collection page
+    // reads storedFields to know which taxonomies a type actually uses, and Discogs
     // fills all three.
-    genre: { type: String, default: '' },
-    genres: { type: [String], default: [] },
-    styles: { type: [String], default: [] },
-    tracklist: [{
-      position: String,
-      title: String,
-      duration: String,
-      rating: { type: Number, min: 0, max: 5 },
-      tags: [String],
-      notes: String,
-      bpm: Number,
-      key: String,
-      lyrics: String
-    }]
+    genre: { type: 'text', default: '' },
+    genres: { type: 'texts', default: [] },
+    styles: { type: 'texts', default: [] },
+    tracklist: {
+      type: 'records',
+      fields: {
+        position: { type: 'text' },
+        title: { type: 'text' },
+        duration: { type: 'text' },
+        rating: { type: 'number', min: 0, max: 5 },
+        tags: { type: 'texts' },
+        notes: { type: 'text' },
+        bpm: { type: 'number' },
+        key: { type: 'text' },
+        lyrics: { type: 'text' }
+      }
+    }
   },
 
   formats: [
@@ -431,79 +431,52 @@ export const musicPlugin: PluginDefinition = {
     const mediaType = data.media_type || 'vinyl';
     const variantColor = (data.variant_color || '').trim();
 
+    const owned = and(
+      eq('collection', idOf(collectionId)),
+      eq('in_wishlist', false),
+      eq('kind', 'Music'),
+      eq('media_type', mediaType),
+      textOrUnset('variant_color', variantColor)
+    );
+
     if (discogsId) {
-      const query: any = {
-        collection: collectionId,
-        in_wishlist: false,
-        kind: 'Music',
-        discogs_id: parseInt(discogsId),
-        media_type: mediaType
-      };
-      if (variantColor) {
-        query.variant_color = { $regex: new RegExp(`^${escapeRegExp(variantColor)}$`, 'i') };
-      } else {
-        query.$or = [
-          { variant_color: { $exists: false } },
-          { variant_color: "" }
-        ];
-      }
-      const item = await Item.findOne(query);
+      const item = await db.items.findOne(and(owned, eq('discogs_id', parseInt(discogsId))), { defaults: true });
       if (item) return item;
     }
 
-    const matchTitle = (title || '').trim();
-    const matchArtist = (artist || '').trim();
-
-    const query: any = {
-      collection: collectionId,
-      in_wishlist: false,
-      kind: 'Music',
-      title: { $regex: new RegExp(`^${escapeRegExp(matchTitle)}$`, 'i') },
-      artist: { $regex: new RegExp(`^${escapeRegExp(matchArtist)}$`, 'i') },
-      media_type: mediaType
-    };
-
-    if (variantColor) {
-      query.variant_color = { $regex: new RegExp(`^${escapeRegExp(variantColor)}$`, 'i') };
-    } else {
-      query.$or = [
-        { variant_color: { $exists: false } },
-        { variant_color: "" }
-      ];
-    }
-
-    return await Item.findOne(query);
+    return db.items.findOne(and(
+      owned,
+      ci('title', (title || '').trim()),
+      ci('artist', (artist || '').trim())
+    ), { defaults: true });
   },
 
   async findPotentialDuplicates(collectionId: any, data: Record<string, any>): Promise<any[]> {
-    const or: any[] = [];
+    const matches: Filter[] = [];
     if (data.discogs_id) {
-      or.push({ discogs_id: parseInt(data.discogs_id) });
+      matches.push(eq('discogs_id', parseInt(data.discogs_id)));
     }
     if (data.title && data.artist) {
-      or.push({
-        title: { $regex: new RegExp(`^${escapeRegExp(String(data.title).trim())}$`, 'i') },
-        artist: { $regex: new RegExp(`^${escapeRegExp(String(data.artist).trim())}$`, 'i') }
-      });
+      matches.push(and(ci('title', String(data.title).trim()), ci('artist', String(data.artist).trim())));
     }
-    if (or.length === 0) return [];
-    return Item.find({
-      collection: collectionId,
-      in_wishlist: false,
-      kind: 'Music',
-      $or: or
-    }).lean();
+    if (matches.length === 0) return [];
+    return db.items.find(and(
+      eq('collection', idOf(collectionId)),
+      eq('in_wishlist', false),
+      eq('kind', 'Music'),
+      or(...matches)
+    ));
   },
 
   async getVariants(item: any): Promise<any[]> {
-    return Item.find({
-      collection: item.collection,
-      kind: 'Music',
-      _id: { $ne: item._id },
-      in_wishlist: false,
-      title: { $regex: new RegExp(`^${escapeRegExp(item.title)}$`, 'i') },
-      artist: { $regex: new RegExp(`^${escapeRegExp(item.artist)}$`, 'i') }
-    }).lean();
+    return db.items.find(and(
+      eq('collection', idOf(item.collection)),
+      eq('kind', 'Music'),
+      ne('_id', idOf(item._id)),
+      eq('in_wishlist', false),
+      ci('title', String(item.title ?? '')),
+      ci('artist', String(item.artist ?? ''))
+    ));
   },
 
   getManualDefaults() {
@@ -610,10 +583,9 @@ export const musicPlugin: PluginDefinition = {
       updateData.genre = data.genres[0];
     }
 
-    // `kind` in the filter makes Mongoose cast against the Music discriminator
-    // schema; without it, strict mode silently strips `tracklist` (not a base
-    // Item path) and the refresh looks successful while persisting nothing.
-    await Item.updateOne({ _id: item._id, kind: 'Music' }, { $set: { ...updateData, ...syncStamp() } });
+    // Written as a Music item: without the kind, only the fields every item has would be
+    // stored, and `tracklist` would be dropped while the refresh looked successful.
+    await db.items.updateOne(eq('_id', idOf(item._id)), { set: { ...updateData, ...syncStamp() } }, { kind: 'Music' });
     return updateData;
   }
 };

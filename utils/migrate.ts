@@ -247,14 +247,13 @@ export const migrateDatabase = async () => {
         // the same record could be added a second time. The write path is fixed; this
         // repairs what it left behind.
         //
-        // Only fields a plugin declares as `Number` are touched. `hardcover_slug` (books)
+        // Only fields a plugin declares as numbers are touched. `hardcover_slug` (books)
         // and `set_num` (LEGO) are external ids too and are legitimately strings.
         for (const plugin of registry.getAll()) {
             const field = plugin.externalIdField;
             if (!field) continue;
 
-            const declared: any = (plugin.schemaDefinition || {})[field];
-            const isNumeric = declared === Number || declared?.type === Number;
+            const isNumeric = plugin.storedFields?.[field]?.type === 'number';
             if (!isNumeric) continue;
 
             const broken = await Item.collection

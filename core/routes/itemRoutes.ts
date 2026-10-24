@@ -1,9 +1,7 @@
 import express, { Router } from 'express';
 import crypto from 'crypto';
-import mongoose from 'mongoose';
 import QRCode from 'qrcode';
 import { PluginDefinition } from '../types';
-import Item from '../../models/Item';
 import User from '../../models/User';
 import { BASE_URL } from '../../config/constants';
 import { requireAuth, requireAuthOrShareView, requireCollectionRole } from '../../middleware/authMiddleware';
@@ -352,11 +350,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         }
 
         const suggestions = await buildFieldSuggestions(plugin, activeCollectionId, details);
-        const genres = await Item.distinct('genre', {
-          collection: activeCollectionId,
-          genre: { $ne: "" },
-          $or: [{ kind: plugin.kind }, { kind: { $exists: false } }]
-        });
+        const genres = await genresInUse(activeCollectionId);
 
         let existingItemsArray: any[];
         if (plugin.findPotentialDuplicates) {
@@ -507,11 +501,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         }
 
         const suggestions = await buildFieldSuggestions(plugin, activeCollectionId, defaults);
-        const genres = await Item.distinct('genre', {
-          collection: activeCollectionId,
-          genre: { $ne: "" },
-          $or: [{ kind: plugin.kind }, { kind: { $exists: false } }]
-        });
+        const genres = await genresInUse(activeCollectionId);
 
         res.render('confirm', {
           item: defaults,
@@ -645,7 +635,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
 
       // Plugin schema fields without a form field (external ids like discogs_id,
       // tmdb_id, igdb_id, hardcover_slug...) are posted as hidden inputs
-      for (const key of Object.keys(plugin.schemaDefinition)) {
+      for (const key of Object.keys(plugin.storedFields || {})) {
         if (updateData[key] === undefined && req.body[key] !== undefined && req.body[key] !== '') {
           updateData[key] = req.body[key];
         }
@@ -727,15 +717,15 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
 
           // An emptied input now clears the stored value instead of being ignored, which
           // is the only way to detach a wrong external id (a CSV import matching the
-          // wrong Discogs release) or to blank a number field. Written as $unset rather
-          // than $set: a Number path would reject the empty string it is posted as.
+          // wrong Discogs release) or to blank a number field. Written as a removal rather
+          // than as the empty string it is posted as, which a number field would reject.
           //
           // Eligible: a path the form posted back blank, and that nothing above already
           // resolved. A key absent from the body means the form does not carry that path
           // at all, not that the owner emptied it, so it stays untouched: tracklist comes
           // back as `tracklist_json`, episodes never come back, and unsetting either
           // would wipe the ratings and notes the owner attached to them.
-          for (const fieldName of Object.keys(plugin.schemaDefinition)) {
+          for (const fieldName of Object.keys(plugin.storedFields || {})) {
             const postedValue = req.body[fieldName];
             const isBlank = typeof postedValue === 'string' && postedValue.trim() === '';
             const alreadyResolved = saveObj[fieldName] !== undefined;
@@ -793,8 +783,8 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           }
         }
 
-        // Address the extra values one key at a time: `$set: { extra: {...} }` would
-        // replace the whole bag and drop the values of any field this form did not
+        // Address the extra values one key at a time: writing `extra` as a whole would
+        // replace the bag and drop the values of any field this form did not
         // carry (one removed from the settings, or declared in another collection).
         if (saveObj.extra && typeof saveObj.extra === 'object') {
           for (const [key, value] of Object.entries(saveObj.extra)) {
@@ -803,24 +793,18 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           delete saveObj.extra;
         }
 
-        // Through the discriminator model, not the base one. The form posts every value as
-        // a string, and the base schema knows nothing of `tmdb_id` or `discogs_id`, so with
-        // strict off they were written raw: one edit was enough to turn a numeric external
-        // id into "1396", which then matched nothing that looked it up as a number.
-        // `strict: false` still lets the user-defined `extra.*` keys through.
-        const EditModel = mongoose.model(plugin.kind);
-        const updateDoc: any = { $set: { ...saveObj, ...editStamp(adminId) } };
-        if (Object.keys(unsetObj).length > 0) {
-          updateDoc.$unset = unsetObj;
-        }
-        await EditModel.updateOne(
-          { _id: existingItem._id },
-          updateDoc,
-          { strict: false }
+        // Written as this plugin's type. The form posts every value as a string, and an
+        // item of no type knows nothing of `tmdb_id` or `discogs_id`, so they were once
+        // written raw: one edit was enough to turn a numeric external id into "1396",
+        // which then matched nothing that looked it up as a number. The collection's own
+        // `extra.*` fields still go through, undeclared as they are.
+        await db.items.updateOne(
+          eq('_id', idOf(existingItem._id)),
+          { set: { ...saveObj, ...editStamp(adminId) }, unset: Object.keys(unsetObj) },
+          { kind: plugin.kind, allowUndeclared: true }
         );
       } else {
-        const Model = mongoose.model(plugin.kind);
-        await Model.create({
+        await db.items.create({
           ...updateData,
           owner: adminId,
           collection: activeCollectionId
@@ -1127,17 +1111,13 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         // against the database that actually holds it.
         const result = await refreshPatchFor(plugin, item, req);
         // Persist the refreshed metadata (some plugins already persist internally; this is
-        // idempotent). The filter needs `kind` so Mongoose casts against the discriminator
-        // schema; without it, plugin-only paths like tracklist are silently stripped by
-        // strict mode.
+        // idempotent). Written as this plugin's type, or fields only it stores, like a
+        // tracklist, would be dropped.
         // Stamped even when the provider returned nothing new: the question the date
         // answers is when the metadata was last checked, not when it last changed.
         const update = { ...(result || {}) };
         const replacedCover = alignImagesAfterRefresh(item, update);
-        await Item.updateOne(
-          { _id: item._id, kind: plugin.kind },
-          { $set: { ...update, ...syncStamp() } }
-        );
+        await db.items.updateOne(eq('_id', idOf(item._id)), { set: { ...update, ...syncStamp() } }, { kind: plugin.kind });
         if (replacedCover) {
           try {
             await deleteUnusedManagedItemImages([replacedCover]);
@@ -1158,14 +1138,13 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
     try {
       const stamp = editStamp(req.user._id);
       const moved = isId(req.params.id)
-        ? await db.items.updateOne(ownItem(req.params.id, res), { set: { in_wishlist: false, added_at: new Date(), ...stamp } })
-        : null;
+        && (await db.items.updateOne(ownItem(req.params.id, res), { set: { in_wishlist: false, added_at: new Date(), ...stamp } })).matched > 0;
       // A miss means the id is not this plugin's to move (or not in this collection).
       // Saying "success" there would tell the page a move happened that never did.
       if (!moved) {
         return res.status(404).json({ success: false, error: req.t('errors.not_found') });
       }
-      await moveContentsToWishlist(moved._id, false, stamp);
+      await moveContentsToWishlist(req.params.id, false, stamp);
       res.json({ success: true });
     } catch (err: any) {
       console.error(`Move to collection error for ${plugin.id}:`, err.message);
@@ -1181,14 +1160,13 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
     try {
       const stamp = editStamp(req.user._id);
       const moved = isId(req.params.id)
-        ? await db.items.updateOne(ownItem(req.params.id, res), { set: { in_wishlist: true, added_at: new Date(), ...stamp } })
-        : null;
+        && (await db.items.updateOne(ownItem(req.params.id, res), { set: { in_wishlist: true, added_at: new Date(), ...stamp } })).matched > 0;
       // A miss means the id is not this plugin's to move (or not in this collection).
       // Saying "success" there would tell the page a move happened that never did.
       if (!moved) {
         return res.status(404).json({ success: false, error: req.t('errors.not_found') });
       }
-      await moveContentsToWishlist(moved._id, true, stamp);
+      await moveContentsToWishlist(req.params.id, true, stamp);
       res.json({ success: true });
     } catch (err: any) {
       console.error(`Move to wishlist error for ${plugin.id}:`, err.message);

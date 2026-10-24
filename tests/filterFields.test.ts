@@ -14,9 +14,9 @@ const books: any = {
   kind: 'Book',
   creatorField: 'author',
   externalIdField: 'isbn',
-  schemaDefinition: {
-    author: String,
-    readingStatus: { type: String, enum: ['to_read', 'reading', 'read'], default: 'to_read' }
+  storedFields: {
+    author: { type: 'text' },
+    readingStatus: { type: 'text', values: ['to_read', 'reading', 'read'], default: 'to_read' }
   },
   formFields: [
     { name: 'author', label: 'confirm_book.field_author', type: 'text', showIn: ['edit'] },

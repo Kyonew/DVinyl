@@ -42,7 +42,7 @@
                     if (plugin.externalIdField) editVisible.add(plugin.externalIdField);
 
                     const editHidden = [];
-                    Object.keys(plugin.schemaDefinition).forEach(k => {
+                    Object.keys(plugin.storedFields || {}).forEach(k => {
                         if (editVisible.has(k)) return;
                         const v = item[k];
                         if (v === undefined || v === null) return;

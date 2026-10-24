@@ -1,7 +1,7 @@
 import { PluginDefinition } from '../../core/types';
 import { sourceFromProvider } from '../../core/sources';
-import { escapeRegExp } from '../../core/helpers';
-import Item from '../../models/Item';
+import { db } from '../../core/db';
+import { and, ci, eq, idOf, ne, or, Filter } from '../../core/db/query';
 import { RebrickableProvider } from './rebrickable';
 import { themeBadgeColor } from './constants';
 
@@ -69,27 +69,18 @@ export const legoPlugin: PluginDefinition = {
 
   defaultCardFields: ['theme'],
 
-  schemaDefinition: {
-    set_num: { type: String, default: '' },
-    theme: { type: String, default: '' },
-    pieces: { type: Number, default: 0 },
-    minifigs: { type: Number, default: 0 },
-    rebrickable_url: { type: String, default: '' },
-    format: {
-      type: String,
-      enum: ['sealed', 'built', 'dismantled', 'incomplete'],
-      default: 'built'
-    },
-    user_rating: {
-      type: Number,
-      min: 0,
-      max: 5,
-      default: 0
-    },
-    genre: { type: String, default: '' },
-    genres: { type: [String], default: [] },
-    styles: { type: [String], default: [] },
-    description: { type: String, default: '' }
+  storedFields: {
+    set_num: { type: 'text', default: '' },
+    theme: { type: 'text', default: '' },
+    pieces: { type: 'number', default: 0 },
+    minifigs: { type: 'number', default: 0 },
+    rebrickable_url: { type: 'text', default: '' },
+    format: { type: 'text', values: ['sealed', 'built', 'dismantled', 'incomplete'], default: 'built' },
+    user_rating: { type: 'number', min: 0, max: 5, default: 0 },
+    genre: { type: 'text', default: '' },
+    genres: { type: 'texts', default: [] },
+    styles: { type: 'texts', default: [] },
+    description: { type: 'text', default: '' }
   },
 
   // Physical condition of the boxed set (drives the filter chips); the card badge
@@ -273,66 +264,50 @@ export const legoPlugin: PluginDefinition = {
 
   async findDuplicate(collectionId: any, data: Record<string, any>): Promise<any | null> {
     const setNum = (data.set_num || '').trim();
-    const matchFormat = data.format || 'built';
+    const owned = and(
+      eq('collection', idOf(collectionId)),
+      eq('in_wishlist', false),
+      eq('kind', 'Lego'),
+      eq('format', data.format || 'built')
+    );
 
     if (setNum) {
-      const item = await Item.findOne({
-        collection: collectionId,
-        in_wishlist: false,
-        kind: 'Lego',
-        set_num: setNum,
-        format: matchFormat
-      });
+      const item = await db.items.findOne(and(owned, eq('set_num', setNum)), { defaults: true });
       if (item) return item;
     }
 
-    const matchTitle = (data.title || '').trim();
     const matchTheme = (data.theme || data.creator || '').trim();
-
-    const query: any = {
-      collection: collectionId,
-      in_wishlist: false,
-      kind: 'Lego',
-      title: { $regex: new RegExp(`^${escapeRegExp(matchTitle)}$`, 'i') },
-      format: matchFormat
-    };
-    if (matchTheme) {
-      query.theme = { $regex: new RegExp(`^${escapeRegExp(matchTheme)}$`, 'i') };
-    }
-    return await Item.findOne(query);
+    return db.items.findOne(and(
+      owned,
+      ci('title', (data.title || '').trim()),
+      matchTheme ? ci('theme', matchTheme) : null
+    ), { defaults: true });
   },
 
   async findPotentialDuplicates(collectionId: any, data: Record<string, any>): Promise<any[]> {
-    const or: any[] = [];
+    const matches: Filter[] = [];
     const setNum = (data.set_num || '').trim();
-    if (setNum) {
-      or.push({ set_num: setNum });
-    }
+    if (setNum) matches.push(eq('set_num', setNum));
     const title = (data.title || '').trim();
-    if (title) {
-      or.push({ title: { $regex: new RegExp(`^${escapeRegExp(title)}$`, 'i') } });
-    }
-    if (or.length === 0) return [];
-    return Item.find({
-      collection: collectionId,
-      in_wishlist: false,
-      kind: 'Lego',
-      $or: or
-    }).lean();
+    if (title) matches.push(ci('title', title));
+    if (matches.length === 0) return [];
+    return db.items.find(and(
+      eq('collection', idOf(collectionId)),
+      eq('in_wishlist', false),
+      eq('kind', 'Lego'),
+      or(...matches)
+    ));
   },
 
   async getVariants(item: any): Promise<any[]> {
     if (!item) return [];
-    const or: any[] = [];
-    if (item.set_num) or.push({ set_num: item.set_num });
-    or.push({ title: { $regex: new RegExp(`^${escapeRegExp(item.title)}$`, 'i') } });
-    return await Item.find({
-      collection: item.collection,
-      in_wishlist: false,
-      kind: 'Lego',
-      _id: { $ne: item._id },
-      $or: or
-    }).lean();
+    return db.items.find(and(
+      eq('collection', idOf(item.collection)),
+      eq('in_wishlist', false),
+      eq('kind', 'Lego'),
+      ne('_id', idOf(item._id)),
+      or(item.set_num ? eq('set_num', item.set_num) : null, ci('title', String(item.title ?? '')))
+    ));
   },
 
   getManualDefaults(): Record<string, any> {

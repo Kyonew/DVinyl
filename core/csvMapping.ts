@@ -1,4 +1,5 @@
 import { PluginDefinition, FieldDefinition } from './types';
+import type { StoredField } from './db/storedFields';
 import { getExtraFields, toFieldDefinitions } from './pluginExtraFields';
 import { CsvRow } from './csvImport';
 
@@ -68,26 +69,23 @@ const UNMAPPABLE_TYPES = new Set<FieldDefinition['type']>(['custom']);
  * Structured paths (a tracklist, a list of objects) are the ones left out: they hold a
  * shape a spreadsheet cell cannot carry.
  */
-function scalarType(def: any): FieldDefinition['type'] | null {
-  const spec = def && typeof def === 'object' && !Array.isArray(def) && def.type !== undefined ? def.type : def;
-  if (Array.isArray(spec)) return spec[0] === String ? 'tags' : null;
-  if (spec === String) return 'text';
-  if (spec === Number) return 'number';
-  if (spec === Boolean) return 'boolean';
-  if (spec === Date) return 'date';
-  return null;
+function scalarType(field: StoredField): FieldDefinition['type'] | null {
+  switch (field.type) {
+    case 'texts': return 'tags';
+    case 'text': case 'number': case 'boolean': case 'date': return field.type;
+    default: return null;
+  }
 }
 
 /**
- * Schema paths the plugin declares as required (books need an author, every custom
- * plugin needs a creator). Leaving one unmapped is not a detail the user can discover
- * on their own: Mongo rejects every single row and the import ends on "0 imported".
+ * Fields the plugin declares as required (books need an author, every custom plugin
+ * needs a creator). Leaving one unmapped is not a detail the user can discover on their
+ * own: the store rejects every single row and the import ends on "0 imported".
  */
 function requiredPaths(plugin: PluginDefinition): Set<string> {
   const required = new Set<string>();
-  for (const [name, def] of Object.entries(plugin.schemaDefinition || {})) {
-    const spec: any = Array.isArray(def) ? def[0] : def;
-    if (spec && typeof spec === 'object' && spec.required === true) required.add(name);
+  for (const [name, field] of Object.entries(plugin.storedFields || {})) {
+    if (field.required === true) required.add(name);
   }
   return required;
 }
@@ -156,8 +154,8 @@ export function importableFields(plugin: PluginDefinition, settings: any, t?: Tr
   // the interface never asks for. An export routinely carries them, and leaving them out
   // would make the destination list depend on what the plugin chose to draw a form for
   // rather than on what it can actually store.
-  for (const [name, def] of Object.entries(plugin.schemaDefinition || {})) {
-    const type = scalarType(def);
+  for (const [name, field] of Object.entries(plugin.storedFields || {})) {
+    const type = scalarType(field);
     if (!type) continue;
     // Those paths have no label of their own. The common ones (a description, a source)
     // are translated like the base fields; anything else shows its raw path name, which

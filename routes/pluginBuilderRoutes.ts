@@ -1,5 +1,6 @@
 import express from 'express';
-import Item from '../models/Item';
+import { db } from '../core/db';
+import { eq } from '../core/db/query';
 import Settings from '../models/Settings';
 import { requireAuth, requireCollectionRole } from '../middleware/authMiddleware';
 import { registry } from '../core/registry';
@@ -43,7 +44,7 @@ async function listCustomPlugins() {
     const config = getCustomConfig(p);
     if (!config) continue;
     // Instance-wide count: the plugin folder is global, not per-collection
-    const itemCount = await Item.countDocuments({ kind: p.kind });
+    const itemCount = await db.items.count(eq('kind', p.kind));
     out.push({ config, itemCount });
   }
   return out;

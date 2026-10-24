@@ -1,6 +1,6 @@
-import mongoose from 'mongoose';
 import { PluginApiRoute } from '../../core/types';
-import Item from '../../models/Item';
+import { db } from '../../core/db';
+import { and, eq, idOf, isId, missing, or } from '../../core/db/query';
 import PriceHistory from '../../models/PriceHistory';
 import { editStamp } from '../../core/helpers';
 
@@ -15,11 +15,11 @@ const fetchJson = async (url: string, options?: RequestInit): Promise<any> => {
 // GET ALL COLLECTION DISCOGS IDs (used for global estimates)
 async function getCollectionIds(req: any, res: any) {
   try {
-    const albums = await Item.find({
-      collection: res.locals.activeCollectionId,
-      in_wishlist: false,
-      $or: [{ kind: 'Music' }, { kind: { $exists: false } }]
-    }).select('discogs_id quantity').lean();
+    const albums = await db.items.find(and(
+      eq('collection', idOf(res.locals.activeCollectionId)),
+      eq('in_wishlist', false),
+      or(eq('kind', 'Music'), missing('kind'))
+    ), { fields: ['discogs_id', 'quantity'] });
 
     console.log(`📦 Global estimate: ${albums.length} albums sent to front-end.`);
     res.json({ success: true, albums });
@@ -250,11 +250,11 @@ async function batchUpdateBarcodes(req: any, res: any) {
     for (const line of lines) {
       const [discogsId, barcode] = line.split(':').map((s: string) => s.trim());
       if (discogsId && barcode) {
-        const result = await Item.updateMany(
-          { discogs_id: parseInt(discogsId), kind: 'Music', collection: res.locals.activeCollectionId },
-          { $set: { barcode: barcode, barcode_locked: true, ...editStamp(req.user._id) } }
+        const result = await db.items.updateMany(
+          and(eq('discogs_id', parseInt(discogsId)), eq('kind', 'Music'), eq('collection', idOf(res.locals.activeCollectionId))),
+          { set: { barcode: barcode, barcode_locked: true, ...editStamp(req.user._id) } }
         );
-        count += result.modifiedCount;
+        count += result.modified;
       }
     }
 
@@ -270,12 +270,12 @@ async function batchUpdateBarcodes(req: any, res: any) {
 async function updateTrackMeta(req: any, res: any) {
   try {
     const { id, trackId } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(trackId)) {
+    if (!isId(id) || !isId(trackId)) {
       return res.status(404).json({ success: false, error: 'Not found' });
     }
 
     const set: Record<string, any> = {};
-    const unset: Record<string, any> = {};
+    const unset: string[] = [];
     const body = req.body || {};
 
     if ('rating' in body) {
@@ -283,46 +283,44 @@ async function updateTrackMeta(req: any, res: any) {
       if (!Number.isFinite(rating) || rating < 0 || rating > 5) {
         return res.status(400).json({ success: false, error: 'Invalid rating' });
       }
-      if (rating === 0) unset['tracklist.$.rating'] = 1;
-      else set['tracklist.$.rating'] = rating;
+      if (rating === 0) unset.push('rating');
+      else set.rating = rating;
     }
     if ('bpm' in body) {
       const bpm = Number(body.bpm);
-      if (body.bpm === '' || body.bpm === null) unset['tracklist.$.bpm'] = 1;
+      if (body.bpm === '' || body.bpm === null) unset.push('bpm');
       else if (!Number.isFinite(bpm) || bpm <= 0 || bpm > 1000) {
         return res.status(400).json({ success: false, error: 'Invalid bpm' });
-      } else set['tracklist.$.bpm'] = bpm;
+      } else set.bpm = bpm;
     }
-    if ('key' in body) set['tracklist.$.key'] = String(body.key || '').slice(0, 20);
-    if ('notes' in body) set['tracklist.$.notes'] = String(body.notes || '').slice(0, 2000);
+    if ('key' in body) set.key = String(body.key || '').slice(0, 20);
+    if ('notes' in body) set.notes = String(body.notes || '').slice(0, 2000);
     if ('lyrics' in body) {
       const lyrics = String(body.lyrics || '').trim().slice(0, 20000);
-      if (lyrics) set['tracklist.$.lyrics'] = lyrics;
-      else unset['tracklist.$.lyrics'] = 1; // emptying the field clears the cache too
+      if (lyrics) set.lyrics = lyrics;
+      else unset.push('lyrics'); // emptying the field clears the cache too
     }
     if ('tags' in body) {
       const tags = Array.isArray(body.tags) ? body.tags : String(body.tags || '').split(',');
-      set['tracklist.$.tags'] = tags
+      set.tags = tags
         .map((t: any) => String(t).trim().slice(0, 40))
         .filter(Boolean)
         .slice(0, 20);
     }
 
-    const update: any = {};
-    if (Object.keys(set).length) update.$set = set;
-    if (Object.keys(unset).length) update.$unset = unset;
-    if (!Object.keys(update).length) {
+    if (Object.keys(set).length === 0 && unset.length === 0) {
       return res.status(400).json({ success: false, error: 'Nothing to update' });
     }
+
     // Rating, key, notes and the rest are typed in by hand, so they count as an edit of
     // the item that carries the track.
-    update.$set = { ...(update.$set || {}), ...editStamp(req.user._id) };
-
-    const result = await Item.updateOne(
-      { _id: id, collection: res.locals.activeCollectionId, kind: 'Music', 'tracklist._id': trackId },
-      update
+    const result = await db.items.updateListRecord(
+      and(eq('_id', id), eq('collection', idOf(res.locals.activeCollectionId)), eq('kind', 'Music')),
+      { list: 'tracklist', where: { _id: trackId }, set, unset },
+      { set: editStamp(req.user._id) },
+      { kind: 'Music' }
     );
-    if (result.matchedCount === 0) {
+    if (result.matched === 0) {
       return res.status(404).json({ success: false, error: 'Not found' });
     }
     res.json({ success: true });
@@ -336,15 +334,15 @@ async function updateTrackMeta(req: any, res: any) {
 async function getTrackLyrics(req: any, res: any) {
   try {
     const { id, trackId } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(trackId)) {
+    if (!isId(id) || !isId(trackId)) {
       return res.status(404).json({ success: false, error: 'Not found' });
     }
 
-    const item: any = await Item.findOne(
-      { _id: id, collection: res.locals.activeCollectionId, kind: 'Music', 'tracklist._id': trackId },
-      { artist: 1, 'tracklist.$': 1 }
-    ).lean();
-    const track = item?.tracklist?.[0];
+    const item: any = await db.items.findOne(
+      and(eq('_id', id), eq('collection', idOf(res.locals.activeCollectionId)), eq('kind', 'Music')),
+      { fields: ['artist', 'tracklist'] }
+    );
+    const track = (item?.tracklist || []).find((t: any) => idOf(t._id) === trackId);
     if (!track) return res.status(404).json({ success: false, error: 'Not found' });
 
     if (track.lyrics) {
@@ -364,12 +362,12 @@ async function getTrackLyrics(req: any, res: any) {
     const lyrics = String(data.lyrics || '').trim();
     if (!lyrics) return res.json({ success: false, error: 'not_found' });
 
-    // The filter needs `kind` so Mongoose casts against the Music discriminator
-    // schema. Without it, the base Item schema (which has no `tracklist` path)
-    // silently strips the $set under strict mode.
-    await Item.updateOne(
-      { _id: id, kind: 'Music', 'tracklist._id': trackId },
-      { $set: { 'tracklist.$.lyrics': lyrics } }
+    // Written as a Music item: only that type stores a tracklist.
+    await db.items.updateListRecord(
+      and(eq('_id', id), eq('kind', 'Music')),
+      { list: 'tracklist', where: { _id: trackId }, set: { lyrics } },
+      {},
+      { kind: 'Music' }
     );
     res.json({ success: true, lyrics });
   } catch (err: any) {

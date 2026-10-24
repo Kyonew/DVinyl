@@ -1,7 +1,8 @@
 import crypto from 'crypto';
 import path from 'path';
 import { promises as fs } from 'fs';
-import Item from '../models/Item';
+import { db } from './db';
+import { Filter, isIn, or } from './db/query';
 import Collection from '../models/Collection';
 import { BASE_URL } from '../config/constants';
 
@@ -52,8 +53,8 @@ export async function storeItemImage(buffer: Buffer): Promise<string> {
 }
 
 /** Collects managed file paths before a destructive query removes their item documents. */
-export async function managedItemImagesForQuery(query: Record<string, any>): Promise<string[]> {
-  const items = await Item.find(query).select('cover_image user_image images').lean();
+export async function managedItemImagesForQuery(filter: Filter): Promise<string[]> {
+  const items = await db.items.find(filter, { fields: ['cover_image', 'user_image', 'images'] });
   return [...new Set(items.flatMap(managedItemImagesFrom))];
 }
 
@@ -66,13 +67,10 @@ export async function deleteUnusedManagedItemImages(candidates: unknown[]): Prom
   const managed = [...new Set(candidates.filter(value => managedItemImageFile(value)) as string[])];
   if (managed.length === 0) return 0;
 
-  const referencedItems = await Item.find({
-    $or: [
-      { images: { $in: managed } },
-      { cover_image: { $in: managed } },
-      { user_image: { $in: managed } }
-    ]
-  }).select('cover_image user_image images').lean();
+  const referencedItems = await db.items.find(
+    or(isIn('images', managed), isIn('cover_image', managed), isIn('user_image', managed)),
+    { fields: ['cover_image', 'user_image', 'images'] }
+  );
   const referenced = new Set(referencedItems.flatMap(managedItemImagesFrom));
 
   // Uploads are one pool, and an item is not their only reader: a collection info page

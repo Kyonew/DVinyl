@@ -1,4 +1,5 @@
-import Item from '../models/Item';
+import { db } from './db';
+import { and, eq, idOf, notIn } from './db/query';
 import { PluginDefinition } from './types';
 import { shelfChoices } from './shelfStore';
 
@@ -31,10 +32,7 @@ export async function buildFieldSuggestions(
       return;
     }
 
-    const stored = await Item.distinct(name, {
-      collection: collectionId,
-      [name]: { $nin: ['', null] }
-    }) as any[];
+    const stored = await db.items.distinct(name, and(eq('collection', idOf(collectionId)), notIn(name, ['', null])));
     const fromPlugin = item && plugin.suggestionsFor ? plugin.suggestionsFor(name, item) : [];
     const merged = [...stored, ...fromPlugin].map(v => String(v ?? '').trim()).filter(Boolean);
     suggestions[name] = Array.from(new Set(merged)).sort((a, b) => a.localeCompare(b));

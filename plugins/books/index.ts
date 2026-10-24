@@ -3,7 +3,8 @@ import { sourceFromProvider, imageSourceFrom } from '../../core/sources';
 import { HardcoverProvider, normalizeIsbn, editionsQuery, preferPickedEdition } from './hardcover';
 import { booksImporters } from './importers';
 import { escapeRegExp, fetchJson, PermanentRefreshError } from '../../core/helpers';
-import Item from '../../models/Item';
+import { db } from '../../core/db';
+import { and, ci, eq, idOf, ne, or, Filter } from '../../core/db/query';
 
 const hardcoverProvider = new HardcoverProvider();
 
@@ -102,35 +103,26 @@ export const booksPlugin: PluginDefinition = {
 
   defaultCardFields: ['author'],
 
-  schemaDefinition: {
-    author: { type: String, required: true },
-    hardcover_slug: { type: String, default: '' },
-    publisher: String,
-    isbn: String,
-    pages: Number,
-    language: String,
+  storedFields: {
+    author: { type: 'text', required: true },
+    hardcover_slug: { type: 'text', default: '' },
+    publisher: { type: 'text' },
+    isbn: { type: 'text' },
+    pages: { type: 'number' },
+    language: { type: 'text' },
     format: {
-      type: String,
-      enum: ['hardcover', 'paperback', 'manga', 'comic', 'graphic_novel', 'digital'],
+      type: 'text',
+      values: ['hardcover', 'paperback', 'manga', 'comic', 'graphic_novel', 'digital'],
       default: 'paperback'
     },
-    series: String,
-    volume: Number,
-    readingStatus: {
-      type: String,
-      enum: ['to_read', 'reading', 'read'],
-      default: 'to_read'
-    },
-    rating: {
-      type: Number,
-      min: 0,
-      max: 5,
-      default: 0
-    },
-    genre: { type: String, default: '' },
-    genres: { type: [String], default: [] },
-    styles: { type: [String], default: [] },
-    description: { type: String, default: '' }
+    series: { type: 'text' },
+    volume: { type: 'number' },
+    readingStatus: { type: 'text', values: ['to_read', 'reading', 'read'], default: 'to_read' },
+    rating: { type: 'number', min: 0, max: 5, default: 0 },
+    genre: { type: 'text', default: '' },
+    genres: { type: 'texts', default: [] },
+    styles: { type: 'texts', default: [] },
+    description: { type: 'text', default: '' }
   },
 
   formats: [
@@ -357,75 +349,56 @@ export const booksPlugin: PluginDefinition = {
   async findDuplicate(collectionId: any, data: Record<string, any>): Promise<any | null> {
     const matchFormat = data.format || 'paperback';
     const isbn = data.isbn || data.barcode;
+    const owned = and(
+      eq('collection', idOf(collectionId)),
+      eq('in_wishlist', false),
+      eq('kind', 'Book'),
+      matchFormat ? eq('format', matchFormat) : null
+    );
 
     if (isbn) {
       const cleanIsbn = String(isbn).replace(/[- ]/g, '');
-      const query: any = {
-        collection: collectionId,
-        in_wishlist: false,
-        kind: 'Book',
-        $or: [
-          { isbn: cleanIsbn },
-          { barcode: cleanIsbn }
-        ]
-      };
-      if (matchFormat) {
-        query.format = matchFormat;
-      }
-      const item = await Item.findOne(query);
+      const item = await db.items.findOne(and(owned, or(eq('isbn', cleanIsbn), eq('barcode', cleanIsbn))), { defaults: true });
       if (item) return item;
     }
 
-    const matchTitle = (data.title || '').trim();
-    const matchAuthor = (data.author || data.creator || '').trim();
-
-    const query: any = {
-      collection: collectionId,
-      in_wishlist: false,
-      kind: 'Book',
-      title: { $regex: new RegExp(`^${escapeRegExp(matchTitle)}$`, 'i') },
-      author: { $regex: new RegExp(`^${escapeRegExp(matchAuthor)}$`, 'i') }
-    };
-
-    if (matchFormat) {
-      query.format = matchFormat;
-    }
-    return await Item.findOne(query);
+    return db.items.findOne(and(
+      owned,
+      ci('title', (data.title || '').trim()),
+      ci('author', (data.author || data.creator || '').trim())
+    ), { defaults: true });
   },
 
   async findPotentialDuplicates(collectionId: any, data: Record<string, any>): Promise<any[]> {
-    const or: any[] = [];
+    const matches: Filter[] = [];
     const cleanIsbn = String(data.isbn || data.barcode || '').replace(/[- ]/g, '');
     if (cleanIsbn) {
-      or.push({ isbn: cleanIsbn }, { barcode: cleanIsbn });
+      matches.push(eq('isbn', cleanIsbn), eq('barcode', cleanIsbn));
     }
     const title = (data.title || '').trim();
     const author = (data.author || data.creator || '').trim();
     if (title && author) {
-      or.push({
-        title: { $regex: new RegExp(`^${escapeRegExp(title)}$`, 'i') },
-        author: { $regex: new RegExp(`^${escapeRegExp(author)}$`, 'i') }
-      });
+      matches.push(and(ci('title', title), ci('author', author)));
     }
-    if (or.length === 0) return [];
-    return Item.find({
-      collection: collectionId,
-      in_wishlist: false,
-      kind: 'Book',
-      $or: or
-    }).lean();
+    if (matches.length === 0) return [];
+    return db.items.find(and(
+      eq('collection', idOf(collectionId)),
+      eq('in_wishlist', false),
+      eq('kind', 'Book'),
+      or(...matches)
+    ));
   },
 
   async getVariants(item: any): Promise<any[]> {
     if (!item) return [];
-    return await Item.find({
-      collection: item.collection,
-      in_wishlist: false,
-      kind: 'Book',
-      _id: { $ne: item._id },
-      title: { $regex: new RegExp(`^${escapeRegExp(item.title)}$`, 'i') },
-      author: { $regex: new RegExp(`^${escapeRegExp(item.author)}$`, 'i') }
-    }).lean();
+    return db.items.find(and(
+      eq('collection', idOf(item.collection)),
+      eq('in_wishlist', false),
+      eq('kind', 'Book'),
+      ne('_id', idOf(item._id)),
+      ci('title', String(item.title ?? '')),
+      ci('author', String(item.author ?? ''))
+    ));
   },
 
   // For books the ISBN and the generic barcode are the same identifier; keep both in

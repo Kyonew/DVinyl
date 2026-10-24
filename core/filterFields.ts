@@ -52,7 +52,7 @@ const NATIVE_FILTER_TYPES = new Set(['select', 'boolean']);
 const CORE_COVERED_FIELDS = new Set(['platform']);
 
 function nativeFilterFields(plugin: PluginDefinition): FilterableField[] {
-  const schema: any = plugin.schemaDefinition || {};
+  const stored = plugin.storedFields || {};
   const out: FilterableField[] = [];
   for (const f of plugin.formFields || []) {
     if (f.extraField || !NATIVE_FILTER_TYPES.has(f.type)) continue;
@@ -66,7 +66,7 @@ function nativeFilterFields(plugin: PluginDefinition): FilterableField[] {
       options: (f.options || []).filter(o => o.value !== '').map(o => ({ value: o.value, label: o.label })),
       // What an item without a stored value is shown as (a book nobody marked is "to
       // read"), so the filter can count those items under it too.
-      default: schema[f.name]?.default ?? f.default,
+      default: (stored[f.name]?.default as string | undefined) ?? f.default,
       native: true
     });
   }
@@ -79,17 +79,17 @@ function nativeFilterFields(plugin: PluginDefinition): FilterableField[] {
  * among its own, and they come in through `extraDefs` instead.
  */
 export function filterCandidates(plugin: PluginDefinition, extraDefs: ExtraFieldConfig[]): FilterCandidate[] {
-  const schema: any = plugin.schemaDefinition || {};
+  const stored = plugin.storedFields || {};
   const creatorDef = (plugin.formFields || []).find(f => f.name === plugin.creatorField);
 
   const out: FilterCandidate[] = [
     { id: CORE_FILTER_IDS.decade, label: 'collection.decade_filter', source: 'core', defaultOn: true },
     { id: CORE_FILTER_IDS.genre, label: 'confirm_vinyl.field_genres', source: 'core', defaultOn: true }
   ];
-  if (schema.styles) {
+  if (stored.styles) {
     out.push({ id: CORE_FILTER_IDS.style, label: 'collection.styles_filter', source: 'core', defaultOn: true });
   }
-  if (schema.platform) {
+  if (stored.platform) {
     out.push({ id: CORE_FILTER_IDS.platform, label: 'collection.platform_filter', source: 'core', defaultOn: true });
   }
   out.push({

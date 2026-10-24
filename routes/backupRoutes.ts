@@ -1,4 +1,5 @@
 import express from 'express';
+import { all, eq, idOf } from '../core/db/query';
 import mongoose from 'mongoose';
 import multer from 'multer';
 import os from 'os';
@@ -181,7 +182,7 @@ const importInstanceBackup = async (req: any, res: any) => {
         // Lists name items by id, and a whole-instance restore keeps every id as it was, so
         // they go back untouched. Settled here, before the wipe.
         const listsToRestore = hasCollections ? restorableLists(data.lists, list => list) : [];
-        const replacedImagePaths = await managedItemImagesForQuery({});
+        const replacedImagePaths = await managedItemImagesForQuery(all());
         // The wipe below takes the info pages with it, so their uploads are candidates
         // for release too, exactly like the items' own images.
         for (const current of await Collection.find({}).select('info.images').lean()) {
@@ -782,7 +783,7 @@ const importCollectionBackup = async (req: any, res: any) => {
         });
 
         // Replacement semantics: the collection's current items are wiped first.
-        const replacedImagePaths = await managedItemImagesForQuery({ collection: activeCollectionId });
+        const replacedImagePaths = await managedItemImagesForQuery(eq('collection', idOf(activeCollectionId)));
         await Item.deleteMany({ collection: activeCollectionId });
         if (cleanAlbums.length > 0) {
             await Item.insertMany(cleanAlbums);

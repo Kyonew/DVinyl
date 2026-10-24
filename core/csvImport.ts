@@ -1,7 +1,8 @@
-import mongoose from 'mongoose';
 import { PluginDefinition, SearchResult } from './types';
 import { resolveSource, SearchableSource } from './sources';
-import { escapeRegExp, parseCsvRecords, syncStamp } from './helpers';
+import { parseCsvRecords, syncStamp } from './helpers';
+import { db } from './db';
+import { and, ci, eq, idOf } from './db/query';
 import { createShelfLocationResolver } from './shelfStore';
 
 /**
@@ -84,21 +85,16 @@ const isEmptyValue = (value: any): boolean =>
  * of the same file see a different item and import everything a second time.
  */
 function enrichableFields(plugin: PluginDefinition): Set<string> {
-  const fields = new Set([...Object.keys(plugin.schemaDefinition || {}), ...ENRICHABLE_BASE_FIELDS]);
+  const fields = new Set([...Object.keys(plugin.storedFields || {}), ...ENRICHABLE_BASE_FIELDS]);
   for (const field of plugin.duplicateCheckFields || []) fields.delete(field);
   return fields;
 }
 
-/**
- * Value each path of the plugin falls back to when the import fed it nothing. Computed
- * defaults (Date.now and friends) are left out: they are stamps, never a stale choice.
- */
+/** Value each field of the plugin falls back to when the import fed it nothing. */
 function schemaDefaults(plugin: PluginDefinition): Map<string, any> {
   const defaults = new Map<string, any>();
-  const schema = mongoose.model(plugin.kind).schema;
-  for (const name of Object.keys(plugin.schemaDefinition || {})) {
-    const value = (schema.path(name) as any)?.options?.default;
-    if (value !== undefined && typeof value !== 'function' && !isEmptyValue(value)) defaults.set(name, value);
+  for (const [name, field] of Object.entries(plugin.storedFields || {})) {
+    if (field.default !== undefined && !isEmptyValue(field.default)) defaults.set(name, field.default);
   }
   return defaults;
 }
@@ -140,23 +136,18 @@ function fillEmptyFields(
  * fields, among wishlist items.
  */
 async function findWishlistDuplicate(plugin: PluginDefinition, collectionId: any, data: Record<string, any>): Promise<any | null> {
-  const exact = (value: string) => ({ $regex: new RegExp(`^${escapeRegExp(value)}$`, 'i') });
-
-  const query: Record<string, any> = {
-    collection: collectionId,
-    in_wishlist: true,
-    title: exact(String(data.title || '').trim())
-  };
-
   const creator = String(data[plugin.creatorField] || '').trim();
-  if (creator) query[plugin.creatorField] = exact(creator);
-
-  for (const field of plugin.duplicateCheckFields || []) {
-    const value = data[field];
-    if (typeof value === 'string' && value.trim()) query[field] = exact(value.trim());
-  }
-
-  return mongoose.model(plugin.kind).findOne(query);
+  return db.items.findOne(and(
+    eq('collection', idOf(collectionId)),
+    eq('kind', plugin.kind),
+    eq('in_wishlist', true),
+    ci('title', String(data.title || '').trim()),
+    creator ? ci(plugin.creatorField, creator) : null,
+    ...(plugin.duplicateCheckFields || []).map(field => {
+      const value = data[field];
+      return typeof value === 'string' && value.trim() ? ci(field, value.trim()) : null;
+    })
+  ), { defaults: true });
 }
 
 /** Rejects instead of hanging forever: providers have no timeout of their own. */
@@ -429,7 +420,6 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
       return;
     }
 
-    const Model = mongoose.model(plugin.kind);
     // One source answers for the whole file: a per-row choice would mean asking several
     // databases the same question, and the quota of the smallest one is what gives out.
     // Whichever the import screen picked, or the collection's first working choice, which
@@ -509,7 +499,7 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
 
         // A sync, not an edit: this branch only ever writes what the provider returned,
         // never what the row said. The importer's own rows land through create() below.
-        await Model.updateOne({ _id: existing._id }, { $set: { ...patch, ...syncStamp() } });
+        await db.items.updateOne(eq('_id', idOf(existing._id)), { set: { ...patch, ...syncStamp() } }, { kind: plugin.kind });
         return 'updated';
       }
 
@@ -540,7 +530,7 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
       // distinct value in the file, the rest served from the resolver's memory.
       if (data.location !== undefined) data.location = await resolveLocation(data.location);
 
-      await Model.create({
+      await db.items.create({
         ...data,
         kind: plugin.kind,
         owner: ctx.userId,

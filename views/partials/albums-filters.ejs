@@ -172,7 +172,7 @@
             <% } %>
 
             <% const stylesPlugin = registry.getAll().find(p => p.collectionType === currentType); %>
-            <% if (stylesPlugin && stylesPlugin.schemaDefinition && stylesPlugin.schemaDefinition.styles && styles.length > 0) { %>
+            <% if (stylesPlugin && stylesPlugin.storedFields && stylesPlugin.storedFields.styles && styles.length > 0) { %>
                 <div class="filter-advanced max-sm:order-4 w-full lg:w-48 relative">
                     <button onclick="toggleStyleMenu(event)" id="styleSelectorBtn"
                         class="block w-full p-2.5 text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme outline-none transition-all flex justify-between items-center group">
@@ -215,7 +215,7 @@
                 </div>
             <% } %>
 
-            <% if (stylesPlugin && stylesPlugin.schemaDefinition && stylesPlugin.schemaDefinition.platform && platforms.length > 0) { %>
+            <% if (stylesPlugin && stylesPlugin.storedFields && stylesPlugin.storedFields.platform && platforms.length > 0) { %>
                 <div class="filter-advanced max-sm:order-4 w-full lg:w-48 relative">
                     <button onclick="togglePlatformMenu(event)" id="platformSelectorBtn"
                         class="block w-full p-2.5 text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme outline-none transition-all flex justify-between items-center group">

@@ -98,3 +98,13 @@ export function range(field: string, bounds: { gte?: number | Date; lte?: number
 
 export const asc = (field: string) => ({ field, dir: 'asc' as const });
 export const desc = (field: string) => ({ field, dir: 'desc' as const });
+
+/**
+ * The same text as `value` ignoring case, or, when `value` is empty, no text at all
+ * (absent or empty). How two copies are told apart by an optional detail such as a
+ * colour variant: two copies that both leave it out are the same edition.
+ */
+export function textOrUnset(field: string, value: string | null | undefined): Filter {
+  const text = (value ?? '').trim();
+  return text ? ci(field, text) : or(missing(field), eq(field, ''));
+}

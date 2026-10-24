@@ -7,7 +7,8 @@ import {
   libibComments, libibCreator, libibImportFields, libibPrice, libibQuantity, libibTags,
   libibTypeFilter, libibYear
 } from '../../utils/libib';
-import Item from '../../models/Item';
+import { db } from '../../core/db';
+import { and, ci, eq, idOf, ne } from '../../core/db/query';
 import User from '../../models/User';
 import { STANDARD_FORMAT_TERMS } from './constants';
 
@@ -63,11 +64,11 @@ async function importDiscogs(req: any, res: any) {
         // Scoped to the list being imported: a release owned in the collection must not
         // cancel its wantlist entry, exactly as Discogs keeps the two lists apart.
         // Items predating the in_wishlist field count as owned.
-        const existing = await Item.findOne({
-          discogs_id: info.id,
-          collection: activeCollectionId,
-          in_wishlist: isWishlist ? true : { $ne: true }
-        }) as any;
+        const existing = await db.items.findOne(and(
+          eq('discogs_id', info.id),
+          eq('collection', idOf(activeCollectionId)),
+          isWishlist ? eq('in_wishlist', true) : ne('in_wishlist', true)
+        ), { defaults: true });
 
         if (existing) {
           if (full === true && (!existing.tracklist || existing.tracklist.length === 0)) {
@@ -79,10 +80,10 @@ async function importDiscogs(req: any, res: any) {
               const fetchedTracklist = detailData.tracklist || [];
 
               if (fetchedTracklist.length > 0) {
-                await Item.updateOne(
-                  { _id: existing._id },
-                  { $set: { tracklist: fetchedTracklist, ...syncStamp() } },
-                  { strict: false }
+                await db.items.updateOne(
+                  eq('_id', idOf(existing._id)),
+                  { set: { tracklist: fetchedTracklist, ...syncStamp() } },
+                  { allowUndeclared: true }
                 );
               }
               await new Promise(resolve => setTimeout(resolve, 1000));
@@ -162,7 +163,7 @@ async function importDiscogs(req: any, res: any) {
       }
 
       if (albumsToInsert.length > 0) {
-        await Item.insertMany(albumsToInsert);
+        await db.items.insertMany(albumsToInsert);
         totalImported += albumsToInsert.length;
       }
 
@@ -250,12 +251,12 @@ async function importMusikSammler(req: any, res: any) {
       // list being targeted: the wishlist and the collection are two separate lists, so
       // an album already owned must not cancel its wishlist entry (and vice versa).
       // Items predating the in_wishlist field count as owned.
-      const existing = await Item.findOne({
-        collection: activeCollectionId,
-        in_wishlist: isWishlist ? true : { $ne: true },
-        title: new RegExp(`^${escapeRegExp(title)}$`, 'i'),
-        artist: new RegExp(`^${escapeRegExp(artist)}$`, 'i')
-      }) as any;
+      const existing = await db.items.findOne(and(
+        eq('collection', idOf(activeCollectionId)),
+        isWishlist ? eq('in_wishlist', true) : ne('in_wishlist', true),
+        ci('title', title),
+        ci('artist', artist)
+      ));
       if (existing) {
         totalProcessed++;
         req.io.emit('import_progress', { current: totalProcessed, total: totalItems });
@@ -334,7 +335,7 @@ async function importMusikSammler(req: any, res: any) {
         }
       }
 
-      await Item.create({
+      await db.items.create({
         title,
         artist,
         year,

@@ -1,4 +1,5 @@
 import express from "express";
+import { eq, idOf } from '../core/db/query';
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
 import QRCode from "qrcode";
@@ -479,7 +480,7 @@ router.post("/collections/:id/delete", requireAuth, requireAdmin, async (req: an
       return res.redirect("/admin/instance?msg=error_delete_default_collection");
     }
 
-    const itemImages = await managedItemImagesForQuery({ collection: target._id });
+    const itemImages = await managedItemImagesForQuery(eq('collection', idOf(target._id)));
     await Item.deleteMany({ collection: target._id });
     await Settings.deleteMany({ collection: target._id });
     // The value snapshots describe a collection that is about to stop existing, and

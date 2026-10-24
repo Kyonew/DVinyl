@@ -1,4 +1,3 @@
-import mongoose from 'mongoose';
 import { PluginImporter } from '../../core/types';
 import { fetchText } from '../../core/helpers';
 import { CsvImportContext, CsvRow, runCsvImport } from '../../core/csvImport';
@@ -8,7 +7,8 @@ import {
   libibComments, libibCreator, libibImportFields, libibPrice, libibProgress, libibQuantity,
   libibRating, libibTags, libibTypeFilter, libibYear
 } from '../../utils/libib';
-import Item from '../../models/Item';
+import { db } from '../../core/db';
+import { and, eq, idOf } from '../../core/db/query';
 import { fetchOpenLibraryEdition } from './openLibrary';
 
 function parseRssXml(xmlText: string): any[] {
@@ -59,7 +59,6 @@ async function importGoodreads(req: any, res: any) {
   res.status(202).json({ success: true, message: "Import started" });
 
   try {
-    const Book = mongoose.model('Book');
     let page = 1;
     let totalImported = 0;
     let totalFetched = 0;
@@ -77,7 +76,9 @@ async function importGoodreads(req: any, res: any) {
         const author = item['author_name']?.trim() || '';
         if (!title || !author) continue;
 
-        const existing = await Item.findOne({ collection: activeCollectionId, title, author, kind: 'Book' });
+        const existing = await db.items.findOne(and(
+          eq('collection', idOf(activeCollectionId)), eq('title', title), eq('author', author), eq('kind', 'Book')
+        ));
         if (existing) continue;
 
         const isbn = item['isbn13']?.trim() || item['isbn']?.trim() || '';
@@ -154,7 +155,7 @@ async function importGoodreads(req: any, res: any) {
           await new Promise(resolve => setTimeout(resolve, 300));
         }
 
-        await Book.create({
+        await db.items.create({
           kind: 'Book',
           media_type: 'book',
           owner: userId,

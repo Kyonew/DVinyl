@@ -1,6 +1,7 @@
 import express from 'express';
 import { registry } from '../registry';
-import Item from '../../models/Item';
+import { db } from '../db';
+import { and, eq, idOf, missing, ne, or } from '../db/query';
 import { requireAuth, requireCollectionRole } from '../../middleware/authMiddleware';
 import { buildFieldSuggestions } from '../fieldSuggestions';
 
@@ -27,11 +28,11 @@ router.get('/manual-add', requireAuth, requireCollectionRole('editor'), async (r
     const activeCollectionId = res.locals.activeCollectionId;
 
     const suggestions = await buildFieldSuggestions(selectedPlugin, activeCollectionId, defaults);
-    const genres = await Item.distinct('genre', {
-      collection: activeCollectionId,
-      genre: { $ne: "" },
-      $or: [{ kind: selectedPlugin.kind }, { kind: { $exists: false } }]
-    });
+    const genres = await db.items.distinct('genre', and(
+      eq('collection', idOf(activeCollectionId)),
+      ne('genre', ''),
+      or(eq('kind', selectedPlugin.kind), missing('kind'))
+    ));
 
     res.render('manual-add', {
       enabledPlugins,
