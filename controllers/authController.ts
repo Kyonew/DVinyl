@@ -1,6 +1,7 @@
-import User from '../models/User';
+import { db } from '../core/db';
+import { findByLoginIdentifier, login } from '../core/accounts';
+import { validationMessages } from '../core/db/errors';
 import jwt from 'jsonwebtoken';
-import LoginLog from '../models/LoginLog';
 import { isLocalLoginDisabled } from '../config/oidc';
 
 /**
@@ -70,17 +71,15 @@ const BLOCK_TIME = 5 * 60 * 1000; // 5 minutes (can be adjusted as needed)
 export const handleErrors = (err: any) => {
   let errors = { login: '' };
 
-  // Manual check for login logic (custom errors thrown by User.login static method)
+  // Manual check for login logic (custom errors thrown by login() in core/accounts.ts)
   if (err.message === 'incorrect email' || err.message === 'incorrect password') {
     errors.login = 'errors.invalid_credentials';
   }
 
-  // If the error is a validation error, we extract the key defined in the User Schema.
-  if (err.message.includes('user validation failed')) {
-    Object.values(err.errors).forEach(({ properties }: any) => {
-      // The properties.message contains the i18n key (e.g., "auth.email_required")
-      errors.login = properties.message;
-    });
+  // A refused account carries, per field, the i18n key its rule declares
+  // (e.g. "auth.email_required").
+  for (const message of Object.values(validationMessages(err))) {
+    errors.login = message;
   }
 
   return errors;
@@ -112,7 +111,7 @@ export const issueSession = async (req: any, res: any, user: any) => {
   const clientIp = getClientIp(req);
   const geo = await getGeoLocation(clientIp);
 
-  await LoginLog.create({
+  await db.loginLogs.create({
     user: user._id,
     username: user.username,
     email: user.email,
@@ -160,7 +159,7 @@ export const login_post = async (req: any, res: any) => {
   // username share one counter: alternating between the two would otherwise double the
   // attempts allowed. An identifier naming no account keeps a counter of its own, keyed
   // lowercased so casing cannot dodge it.
-  const account = await (User as any).findByLoginIdentifier(req.body.email);
+  const account = await findByLoginIdentifier(req.body.email);
   const key = account ? `user:${account._id}` : `id:${identifier}`;
 
   // Check whether this account is temporarily blocked due to repeated failures.
@@ -172,7 +171,7 @@ export const login_post = async (req: any, res: any) => {
   }
 
   try {
-    const user = await (User as any).login(req.body.email, password);
+    const user = await login(req.body.email, password);
 
     // Clear failed attempts on successful login.
     if (loginAttempts[key]) delete loginAttempts[key];

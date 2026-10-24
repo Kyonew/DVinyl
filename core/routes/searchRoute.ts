@@ -1,11 +1,9 @@
 import express from 'express';
 import { registry } from '../registry';
-import Collection from '../../models/Collection';
-import Settings from '../../models/Settings';
 import { requireAuth } from '../../middleware/authMiddleware';
 import { shelfFilter } from '../../utils/visibilityHelper';
 import { db } from '../db';
-import { and, contains, desc, or } from '../db/filter';
+import { and, contains, desc, eq, idOf, isIn, or } from '../db/query';
 
 const router = express.Router();
 
@@ -35,10 +33,7 @@ router.get('/search', requireAuth, async (req: any, res: any) => {
 
     // Names and roles only: a whole Collection document also carries its share link
     // tokens, which have no business being read for a search page.
-    const memberships = await Collection.find(
-      { 'members.user': req.user._id },
-      { name: 1, members: 1 }
-    ).lean();
+    const memberships = await db.collections.find(eq('members.user', idOf(req.user._id)), { fields: ['name', 'members'] });
     if (memberships.length === 0) {
       return res.render('search', emptyResult);
     }
@@ -52,7 +47,7 @@ router.get('/search', requireAuth, async (req: any, res: any) => {
       nameById.set(String(c._id), c.name);
     });
 
-    const settingsDocs = await Settings.find({ collection: { $in: collectionIds } }).lean();
+    const settingsDocs = await db.settings.find(isIn('collection', collectionIds.map(idOf)));
     const settingsById = new Map<string, any>();
     settingsDocs.forEach((s: any) => settingsById.set(String(s.collection), s));
 

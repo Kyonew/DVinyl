@@ -31,7 +31,11 @@ export type Filter =
   /** Absent, null, an empty text or an empty list: nothing filled in. */
   | { op: 'blank'; field: string }
   /** Within bounds, both included. Numbers compare as numbers, dates as dates. */
-  | { op: 'range'; field: string; gte?: number | Date; lte?: number | Date };
+  | { op: 'range'; field: string; gte?: number | Date; lte?: number | Date }
+  /** A list holding no element at all (not an absent field). */
+  | { op: 'emptyList'; field: string }
+  /** One record of a list of records matches `filter`, whose fields are the record's own. */
+  | { op: 'some'; field: string; filter: Filter };
 
 export type SortDirection = 'asc' | 'desc';
 export type Sort = { field: string; dir: SortDirection }[];
@@ -95,6 +99,9 @@ export function range(field: string, bounds: { gte?: number | Date; lte?: number
   if (bounds.lte !== undefined) filter.lte = bounds.lte;
   return filter.gte === undefined && filter.lte === undefined ? all() : filter;
 }
+
+export const some = (field: string, filter: Filter): Filter => ({ op: 'some', field, filter });
+export const emptyList = (field: string): Filter => ({ op: 'emptyList', field });
 
 export const asc = (field: string) => ({ field, dir: 'asc' as const });
 export const desc = (field: string) => ({ field, dir: 'desc' as const });

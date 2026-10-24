@@ -9,7 +9,6 @@ import {
 } from '../../utils/libib';
 import { db } from '../../core/db';
 import { and, ci, eq, idOf, ne } from '../../core/db/query';
-import User from '../../models/User';
 import { STANDARD_FORMAT_TERMS } from './constants';
 
 // DISCOGS COLLECTION/WISHLIST IMPORT ROUTE
@@ -27,12 +26,12 @@ async function importDiscogs(req: any, res: any) {
     if (!usernameMatch) return res.status(400).json({ error: "Invalid Discogs URL" });
     username = usernameMatch[1];
   } else {
-    const u = await User.findById(userId).select('pluginData').lean() as any;
+    const u = await db.users.findById(idOf(userId), { fields: ['pluginData'] });
     username = u?.pluginData?.music?.discogsUsername;
   }
   if (!username) return res.status(400).json({ error: "Invalid Discogs URL" });
 
-  await User.findByIdAndUpdate(userId, { $set: { 'pluginData.music.discogsUsername': username } });
+  await db.users.updateOne(eq('_id', idOf(userId)), { set: { 'pluginData.music.discogsUsername': username } });
 
   res.status(202).json({ success: true, message: "Import started" });
 

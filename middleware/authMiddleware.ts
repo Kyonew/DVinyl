@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import User from '../models/User';
+import { db } from '../core/db';
 
 export const requireAuth = async (req: Record<string, any>, res: any, next: any) => {
   const token = req.cookies.jwt;
@@ -18,7 +18,7 @@ export const requireAuth = async (req: Record<string, any>, res: any, next: any)
         return res.redirect('/login');
       } else {
         // Retrieve the user and attach it to req.user
-        const user = await User.findById(decodedToken.id);
+        const user = await db.users.findById(decodedToken.id, { defaults: true });
         if (!user || (user && user.lastChange && decodedToken.iat * 1000 < user.lastChange.getTime())) {
           if (res.cookie('jwt')) res.cookie('jwt', '', { maxAge: 1 });
           return res.redirect('/login');
@@ -67,7 +67,7 @@ export const checkUser = (req: Record<string, any>, res: any, next: any) => {
         req.user = null;
         next();
       } else {
-        let user = await User.findById(decodedToken.id);
+        let user = await db.users.findById(decodedToken.id, { defaults: true });
         if (user && user.lastChange && decodedToken.iat * 1000 < user.lastChange.getTime()) {
           user = null;
         }

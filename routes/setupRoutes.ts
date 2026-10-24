@@ -1,6 +1,6 @@
 import express from 'express';
-import User from '../models/User';
-import Collection from '../models/Collection';
+import { db } from '../core/db';
+import { all, eq, idOf } from '../core/db/query';
 import { generateUniqueSlug } from '../utils/collectionHelpers';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
@@ -23,14 +23,14 @@ const createToken = (id: any) => {
 
 // GET /setup - render initial setup page if no users exist
 router.get('/', async (req, res) => {
-    const count = await User.countDocuments();
+    const count = await db.users.count(all());
     if (count > 0) return res.redirect('/login'); // safety: only allow setup when DB empty
     res.render('setup', { error: null });
 });
 
 // POST /setup - create initial admin user and issue a JWT
 router.post('/', async (req, res) => {
-    const count = await User.countDocuments();
+    const count = await db.users.count(all());
     if (count > 0) return res.redirect('/login'); // safety: only allow setup when DB empty
 
     try {
@@ -47,7 +47,7 @@ router.post('/', async (req, res) => {
         // Create the initial admin user (isAdmin: true)
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        const newAdmin = await User.create({
+        const newAdmin = await db.users.create({
             username,
             email,
             password: password,
@@ -60,11 +60,11 @@ router.post('/', async (req, res) => {
         });
 
         // Force-update the stored password hash
-        await User.updateOne({ _id: newAdmin._id }, { $set: { password: hashedPassword } });
+        await db.users.updateOne(eq('_id', idOf(newAdmin._id)), { set: { password: hashedPassword } });
 
         // Create the default collection for the first admin (migrate.ts can't have done this
         // at boot: there were zero users then). The admin becomes its first member/owner.
-        const collection = await Collection.create({
+        const collection = await db.collections.create({
             name: 'Vinyl',
             slug: await generateUniqueSlug('Vinyl'),
             createdBy: newAdmin._id,
@@ -72,10 +72,7 @@ router.post('/', async (req, res) => {
             shelvesSeeded: true,
             members: [{ user: newAdmin._id, role: 'admin' }]
         });
-        await User.updateOne(
-            { _id: newAdmin._id },
-            { $set: { lastActiveCollectionId: collection._id } }
-        );
+        await db.users.updateOne(eq('_id', idOf(newAdmin._id)), { set: { lastActiveCollectionId: collection._id } });
 
         // Issue JWT and set cookie
         const token = createToken(newAdmin._id);

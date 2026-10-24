@@ -1,19 +1,18 @@
 import express from "express";
-import { eq, idOf } from '../core/db/query';
-import mongoose from "mongoose";
+import { db } from "../core/db";
+import {
+  all, and, contains, desc, emptyList, eq, exists, Filter, idOf, isId, isIn, missing, ne, notIn, or, some
+} from "../core/db/query";
+import { isDuplicateError, isValidationError } from "../core/db/errors";
+import { withMemberAccounts } from "../core/collectionMembers";
+import { pluginKindFilter } from "../utils/visibilityHelper";
 import bcrypt from "bcrypt";
 import QRCode from "qrcode";
-import User from "../models/User";
-import BlockedIP from "../models/blockedIP";
-import LoginLog from "../models/LoginLog";
-import Settings from "../models/Settings";
-import Collection from "../models/Collection";
 import { requireAuth, requireAdmin, requireCollectionRole } from "../middleware/authMiddleware";
 import { generateUniqueSlug, generateShareToken } from "../utils/collectionHelpers";
 import { BASE_URL, SUPPORTED_LANGUAGES } from "../config/constants";
 import { getInstanceSettings, saveInstanceSettings, InstanceSettingsData } from "../utils/instanceSettings";
 import PRESETS from "../config/themes";
-import Item from "../models/Item";
 import PriceHistory from "../models/PriceHistory";
 import Furniture from "../models/Furniture";
 import List from "../models/List";
@@ -53,7 +52,6 @@ const createPassword = (length = 12): string => {
 };
 
 
-const escapeRegExp = (str: string): string => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 interface CollectionAdminData {
   allGenres: Record<string, string[]>;
@@ -77,47 +75,29 @@ interface InstanceAdminData {
  * the collection document itself and its members (user info populated).
  */
 async function loadCollectionAdminData(activeCollectionId: any): Promise<CollectionAdminData> {
-  // Get distinct genres grouped by kind (scoped to the active collection)
-  const pipeline = [
-    // Contained items carry their holder's genres, so counting them here would just
-    // repeat what the holder already contributed.
-    { $match: { collection: activeCollectionId, parent: { $exists: false } } },
-    {
-      $project: {
-        kind: 1,
-        allGenres: {
-          $concatArrays: [
-            { $cond: [{ $in: ["$genre", ["", null]] }, [], ["$genre"]] },
-            { $ifNull: ["$genres", []] },
-            { $ifNull: ["$styles", []] },
-          ],
-        },
-      },
-    },
-    { $unwind: "$allGenres" },
-    {
-      $group: {
-        _id: "$kind",
-        genres: { $addToSet: "$allGenres" },
-      },
-    },
-  ];
-
-  const genreGroupsRaw = await Item.aggregate(pipeline);
+  // Contained items carry their holder's genres, so counting them here would just
+  // repeat what the holder already contributed.
+  const genreGroups = await db.items.valuesByKind(
+    and(eq('collection', idOf(activeCollectionId)), missing('parent')),
+    ['genre', 'genres', 'styles']
+  );
 
   const allGenres: Record<string, string[]> = {};
-  genreGroupsRaw.forEach((group: any) => {
-    if (group._id && group.genres && group.genres.length > 0) {
-      allGenres[group._id] = group.genres.filter(Boolean).sort();
-    }
-  });
+  for (const [kind, genres] of Object.entries(genreGroups)) {
+    const kept = genres.filter(Boolean).sort();
+    if (kept.length > 0) allGenres[kind] = kept;
+  }
 
-  const visibilitySettings =
-    (await Settings.findOne({ collection: activeCollectionId }).populate("visibility.hiddenItems").lean()) || {};
+  const visibilitySettings: any = (await db.settings.findOne(eq("collection", idOf(activeCollectionId)))) || {};
+  // The hidden items themselves, in the order they were hidden, for the panel listing them
+  const hiddenIds = (visibilitySettings.visibility?.hiddenItems || []).map(idOf);
+  if (hiddenIds.length > 0) {
+    const hidden = new Map((await db.items.find(isIn("_id", hiddenIds))).map((item: any) => [idOf(item._id), item]));
+    visibilitySettings.visibility.hiddenItems = hiddenIds.map((id: string) => hidden.get(id)).filter(Boolean);
+  }
 
-  const collectionDoc = await Collection.findById(activeCollectionId)
-    .populate("members.user", "username email img isAdmin lastChange")
-    .lean();
+  const found = await db.collections.findById(idOf(activeCollectionId));
+  const collectionDoc = found ? (await withMemberAccounts([found], ["username", "email", "img", "isAdmin", "lastChange"]))[0] : null;
 
   const members = (collectionDoc?.members || []).filter((m: any) => m.user);
 
@@ -130,25 +110,22 @@ async function loadCollectionAdminData(activeCollectionId: any): Promise<Collect
  * to drive the per-collection management modal).
  */
 async function loadInstanceAdminData(): Promise<InstanceAdminData> {
-  const users = await User.find().sort({ lastChange: -1 });
-  const blockedIps = await BlockedIP.find().sort({ createdAt: -1 });
-  const logs = await LoginLog.find().sort({ timestamp: -1 }).limit(20);
-  const collections: any[] = await Collection.find()
-    .sort({ created_at: -1 })
-    .populate("members.user", "username email img isAdmin")
-    .lean();
+  const users = await db.users.find(all(), { sort: [desc("lastChange")], defaults: true });
+  const blockedIps = await db.blockedIps.find(all(), { sort: [desc("createdAt")], defaults: true });
+  const logs = await db.loginLogs.find(all(), { sort: [desc("timestamp")], limit: 20, defaults: true });
+  const collections: any[] = await withMemberAccounts(
+    await db.collections.find(all(), { sort: [desc("created_at")] }),
+    ["username", "email", "img", "isAdmin"]
+  );
 
   // Counted like the grid shows: a show with five seasons is one line and counts as one,
   // so the number here always matches what a member can count on screen.
-  const counts = await Item.aggregate([
-    { $match: { parent: { $exists: false } } },
-    { $group: { _id: "$collection", n: { $sum: 1 } } },
-  ]);
+  const counts = await db.items.countBy("collection", missing("parent"));
   const countByCollection: Record<string, number> = {};
   let itemsTotal = 0;
   for (const c of counts) {
-    countByCollection[String(c._id)] = c.n;
-    itemsTotal += c.n;
+    countByCollection[String(c.value)] = c.count;
+    itemsTotal += c.count;
   }
   for (const c of collections) {
     c.itemCount = countByCollection[String(c._id)] || 0;
@@ -238,10 +215,10 @@ router.get("/instance", requireAuth, requireAdmin, async (req: any, res: any) =>
 // Names why an account could not be created: a duplicate key names the field
 // already in use, anything else falls back to a generic failure.
 function userCreationErrorKey(err: any): string {
-  if (err?.code === 11000) {
-    return err.keyPattern?.username ? "error_username_taken" : "error_email_taken";
+  if (isDuplicateError(err)) {
+    return isDuplicateError(err, "username") ? "error_username_taken" : "error_email_taken";
   }
-  if (err?.name === "ValidationError") return "error_user_invalid";
+  if (isValidationError(err)) return "error_user_invalid";
   return "error_user_create";
 }
 
@@ -254,17 +231,14 @@ router.post("/add-user", requireAuth, requireAdmin, async (req: any, res: any) =
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create user then force-update the stored password hash.
-    const newUser = await User.create({
+    const newUser = await db.users.create({
       username,
       email,
       password: password,
       lastChange: new Date(),
     });
 
-    await User.updateOne(
-      { _id: newUser._id },
-      { $set: { password: hashedPassword } },
-    );
+    await db.users.updateOne(eq("_id", idOf(newUser._id)), { set: { password: hashedPassword } });
 
     console.log(`[ADMIN] User created: ${username} <${email}> by ${res.locals.user?.email}`);
 
@@ -290,26 +264,25 @@ router.post("/add-user", requireAuth, requireAdmin, async (req: any, res: any) =
 router.post("/users/home-collection", requireAuth, requireAdmin, async (req: any, res: any) => {
   try {
     const { userId, collectionId } = req.body;
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
+    if (!isId(userId)) {
       return res.redirect("/admin/instance");
     }
 
     if (!collectionId) {
-      await User.updateOne({ _id: userId }, { $set: { homeCollectionId: null } });
+      await db.users.updateOne(eq("_id", userId), { set: { homeCollectionId: null } });
       return res.redirect("/admin/instance?msg=home_collection_updated");
     }
 
     // Only a collection the user belongs to: anything else would send them, every
     // launch, somewhere the collection middleware has to heal them away from.
-    const member = await Collection.findOne({
-      _id: mongoose.Types.ObjectId.isValid(collectionId) ? collectionId : null,
-      "members.user": userId,
-    }).select("_id");
+    const member = isId(collectionId)
+      ? await db.collections.findOne(and(eq("_id", collectionId), eq("members.user", userId)), { fields: ["_id"] })
+      : null;
     if (!member) {
       return res.redirect("/admin/instance?msg=error_member_not_found");
     }
 
-    await User.updateOne({ _id: userId }, { $set: { homeCollectionId: member._id } });
+    await db.users.updateOne(eq("_id", userId), { set: { homeCollectionId: member._id } });
     res.redirect("/admin/instance?msg=home_collection_updated");
   } catch (err) {
     console.error("[ADMIN] Home collection error:", err);
@@ -424,7 +397,7 @@ router.post("/collections/create", requireAuth, requireAdmin, async (req: any, r
     }
 
     const slug = await generateUniqueSlug(name);
-    await Collection.create({
+    await db.collections.create({
       name,
       slug,
       createdBy: req.user._id,
@@ -448,7 +421,7 @@ router.post("/collections/:id/rename", requireAuth, requireCollectionRole("admin
     if (!name) {
       return res.redirect("/admin?msg=error_collection_name");
     }
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    if (!isId(req.params.id)) {
       return res.redirect("/admin");
     }
 
@@ -457,7 +430,7 @@ router.post("/collections/:id/rename", requireAuth, requireCollectionRole("admin
       return res.redirect("/admin");
     }
 
-    await Collection.updateOne({ _id: req.params.id }, { $set: { name } });
+    await db.collections.updateOne(eq("_id", req.params.id), { set: { name } });
     res.redirect(isOwnActive ? "/admin?msg=collection_renamed" : "/admin/instance?msg=collection_renamed");
   } catch (err) {
     console.error("Collection rename error:", err);
@@ -469,10 +442,10 @@ router.post("/collections/:id/rename", requireAuth, requireCollectionRole("admin
 // collection's items and settings. The default collection cannot be deleted.
 router.post("/collections/:id/delete", requireAuth, requireAdmin, async (req: any, res: any) => {
   try {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    if (!isId(req.params.id)) {
       return res.redirect("/admin/instance");
     }
-    const target = await Collection.findById(req.params.id);
+    const target = await db.collections.findById(req.params.id);
     if (!target) {
       return res.redirect("/admin/instance");
     }
@@ -481,8 +454,9 @@ router.post("/collections/:id/delete", requireAuth, requireAdmin, async (req: an
     }
 
     const itemImages = await managedItemImagesForQuery(eq('collection', idOf(target._id)));
-    await Item.deleteMany({ collection: target._id });
-    await Settings.deleteMany({ collection: target._id });
+    const ofTarget = eq("collection", idOf(target._id));
+    await db.items.deleteMany(ofTarget);
+    await db.settings.deleteMany(ofTarget);
     // The value snapshots describe a collection that is about to stop existing, and
     // nothing else points at them: left behind they would only be unreachable rows.
     await PriceHistory.deleteMany({ collection: target._id });
@@ -490,15 +464,9 @@ router.post("/collections/:id/delete", requireAuth, requireAdmin, async (req: an
     await Furniture.deleteMany({ collection: target._id });
     await List.deleteMany({ collection: target._id });
     // Users pointing at this collection self-heal to another membership on next request
-    await User.updateMany(
-      { lastActiveCollectionId: target._id },
-      { $set: { lastActiveCollectionId: null } },
-    );
-    await User.updateMany(
-      { homeCollectionId: target._id },
-      { $set: { homeCollectionId: null } },
-    );
-    await Collection.deleteOne({ _id: target._id });
+    await db.users.updateMany(eq("lastActiveCollectionId", idOf(target._id)), { set: { lastActiveCollectionId: null } });
+    await db.users.updateMany(eq("homeCollectionId", idOf(target._id)), { set: { homeCollectionId: null } });
+    await db.collections.deleteOne(eq("_id", idOf(target._id)));
     try {
       await deleteUnusedManagedItemImages(itemImages);
     } catch (cleanupError) {
@@ -519,23 +487,20 @@ router.post("/instance/collections/:id/members/add", requireAuth, requireAdmin, 
   try {
     const { userId } = req.body;
     const role = ["admin", "editor", "viewer"].includes(req.body.role) ? req.body.role : "viewer";
-    if (!mongoose.Types.ObjectId.isValid(req.params.id) || !mongoose.Types.ObjectId.isValid(userId)) {
+    if (!isId(req.params.id) || !isId(userId)) {
       return res.redirect("/admin/instance");
     }
 
-    const target = await User.findById(userId).select("_id lastActiveCollectionId");
+    const target = await db.users.findById(userId, { fields: ["_id", "lastActiveCollectionId"] });
     if (!target) return res.redirect("/admin/instance?msg=error_member_not_found");
 
-    const already = await Collection.findOne({ _id: req.params.id, "members.user": userId });
+    const already = await db.collections.exists(and(eq("_id", req.params.id), eq("members.user", userId)));
     if (already) return res.redirect("/admin/instance?msg=error_member_exists");
 
-    await Collection.updateOne(
-      { _id: req.params.id },
-      { $addToSet: { members: { user: userId, role } } },
-    );
+    await db.collections.updateOne(eq("_id", req.params.id), { addToSet: { members: { user: userId, role } } });
     // Give homeless users a landing collection right away
     if (!target.lastActiveCollectionId) {
-      await User.updateOne({ _id: userId }, { $set: { lastActiveCollectionId: req.params.id } });
+      await db.users.updateOne(eq("_id", userId), { set: { lastActiveCollectionId: req.params.id } });
     }
 
     res.redirect("/admin/instance?msg=member_added");
@@ -549,14 +514,11 @@ router.post("/instance/collections/:id/members/role", requireAuth, requireAdmin,
   try {
     const { userId } = req.body;
     const role = ["admin", "editor", "viewer"].includes(req.body.role) ? req.body.role : null;
-    if (!role || !mongoose.Types.ObjectId.isValid(req.params.id) || !mongoose.Types.ObjectId.isValid(userId)) {
+    if (!role || !isId(req.params.id) || !isId(userId)) {
       return res.redirect("/admin/instance");
     }
 
-    await Collection.updateOne(
-      { _id: req.params.id, "members.user": userId },
-      { $set: { "members.$.role": role } },
-    );
+    await db.collections.updateListRecord(eq("_id", req.params.id), { list: "members", where: { user: userId }, set: { role } });
     res.redirect("/admin/instance?msg=member_role_updated");
   } catch (err) {
     console.error("Instance member role error:", err);
@@ -567,22 +529,11 @@ router.post("/instance/collections/:id/members/role", requireAuth, requireAdmin,
 router.post("/instance/collections/:id/members/remove", requireAuth, requireAdmin, async (req: any, res: any) => {
   try {
     const { userId } = req.body;
-    if (!mongoose.Types.ObjectId.isValid(req.params.id) || !mongoose.Types.ObjectId.isValid(userId)) {
+    if (!isId(req.params.id) || !isId(userId)) {
       return res.redirect("/admin/instance");
     }
 
-    await Collection.updateOne(
-      { _id: req.params.id },
-      { $pull: { members: { user: userId } } },
-    );
-    await User.updateOne(
-      { _id: userId, lastActiveCollectionId: req.params.id },
-      { $set: { lastActiveCollectionId: null } },
-    );
-    await User.updateOne(
-      { _id: userId, homeCollectionId: req.params.id },
-      { $set: { homeCollectionId: null } },
-    );
+    await clearMembership(req.params.id, userId);
 
     res.redirect("/admin/instance?msg=member_removed");
   } catch (err) {
@@ -594,6 +545,22 @@ router.post("/instance/collections/:id/members/remove", requireAuth, requireAdmi
 // ============ COLLECTION MEMBERS (collection-admin scope) ============
 
 const MEMBER_ROLES = ["admin", "editor", "viewer"];
+
+/** The active collection of the request, as a filter. */
+function activeCollection(res: any): Filter {
+  return eq("_id", idOf(res.locals.activeCollectionId));
+}
+
+/**
+ * Takes a member out of a collection, and out of the account's pointers to it: the
+ * collection it last browsed and its home collection, which would otherwise keep
+ * sending it somewhere it can no longer enter.
+ */
+async function clearMembership(collectionId: string, userId: string): Promise<void> {
+  await db.collections.updateOne(eq("_id", collectionId), { pull: { members: { user: userId } } });
+  await db.users.updateOne(and(eq("_id", userId), eq("lastActiveCollectionId", collectionId)), { set: { lastActiveCollectionId: null } });
+  await db.users.updateOne(and(eq("_id", userId), eq("homeCollectionId", collectionId)), { set: { homeCollectionId: null } });
+}
 
 /** True if the collection keeps at least one 'admin' member besides `excludedUserId`. */
 function hasAnotherCollectionAdmin(collectionDoc: any, excludedUserId: any): boolean {
@@ -610,22 +577,16 @@ router.post("/members/create", requireAuth, requireCollectionRole("admin"), asyn
     const password = createPassword();
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newUser = await User.create({
+    const newUser = await db.users.create({
       username,
       email,
       password: password,
       lastChange: new Date(),
     });
-    await User.updateOne({ _id: newUser._id }, { $set: { password: hashedPassword } });
+    await db.users.updateOne(eq("_id", idOf(newUser._id)), { set: { password: hashedPassword } });
 
-    await Collection.updateOne(
-      { _id: res.locals.activeCollectionId },
-      { $addToSet: { members: { user: newUser._id, role } } },
-    );
-    await User.updateOne(
-      { _id: newUser._id },
-      { $set: { lastActiveCollectionId: res.locals.activeCollectionId } },
-    );
+    await db.collections.updateOne(activeCollection(res), { addToSet: { members: { user: newUser._id, role } } });
+    await db.users.updateOne(eq("_id", idOf(newUser._id)), { set: { lastActiveCollectionId: res.locals.activeCollectionId } });
 
     const data = await loadCollectionAdminData(res.locals.activeCollectionId);
     res.render("admin", {
@@ -647,21 +608,13 @@ router.post("/members/invite", requireAuth, requireCollectionRole("admin"), asyn
     const role = MEMBER_ROLES.includes(req.body.role) ? req.body.role : "viewer";
     if (!identifier) return res.redirect("/admin?msg=error_member_not_found");
 
-    const target: any = await User.findOne({
-      $or: [{ email: identifier.toLowerCase() }, { username: identifier }],
-    });
+    const target: any = await db.users.findOne(or(eq("email", identifier.toLowerCase()), eq("username", identifier)));
     if (!target) return res.redirect("/admin?msg=error_member_not_found");
 
-    const already = await Collection.findOne({
-      _id: res.locals.activeCollectionId,
-      "members.user": target._id,
-    });
+    const already = await db.collections.exists(and(activeCollection(res), eq("members.user", idOf(target._id))));
     if (already) return res.redirect("/admin?msg=error_member_exists");
 
-    await Collection.updateOne(
-      { _id: res.locals.activeCollectionId },
-      { $addToSet: { members: { user: target._id, role } } },
-    );
+    await db.collections.updateOne(activeCollection(res), { addToSet: { members: { user: target._id, role } } });
 
     res.redirect("/admin?msg=member_added");
   } catch (err) {
@@ -676,13 +629,13 @@ router.post("/members/role", requireAuth, requireCollectionRole("admin"), async 
   try {
     const { userId } = req.body;
     const role = MEMBER_ROLES.includes(req.body.role) ? req.body.role : null;
-    if (!role || !mongoose.Types.ObjectId.isValid(userId)) return res.redirect("/admin");
+    if (!role || !isId(userId)) return res.redirect("/admin");
 
     if (String(userId) === String(req.user._id)) {
       return res.redirect("/admin?msg=error_self_role");
     }
 
-    const coll = await Collection.findById(res.locals.activeCollectionId);
+    const coll = await db.collections.findById(idOf(res.locals.activeCollectionId));
     const member = (coll?.members || []).find((m: any) => String(m.user) === String(userId));
     if (!member) return res.redirect("/admin?msg=error_member_not_found");
 
@@ -690,10 +643,7 @@ router.post("/members/role", requireAuth, requireCollectionRole("admin"), async 
       return res.redirect("/admin?msg=error_last_admin");
     }
 
-    await Collection.updateOne(
-      { _id: res.locals.activeCollectionId, "members.user": userId },
-      { $set: { "members.$.role": role } },
-    );
+    await db.collections.updateListRecord(activeCollection(res), { list: "members", where: { user: userId }, set: { role } });
     res.redirect("/admin?msg=member_role_updated");
   } catch (err) {
     console.error("Member role error:", err);
@@ -705,9 +655,9 @@ router.post("/members/role", requireAuth, requireCollectionRole("admin"), async 
 router.post("/members/remove", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
   try {
     const { userId } = req.body;
-    if (!mongoose.Types.ObjectId.isValid(userId)) return res.redirect("/admin");
+    if (!isId(userId)) return res.redirect("/admin");
 
-    const coll = await Collection.findById(res.locals.activeCollectionId);
+    const coll = await db.collections.findById(idOf(res.locals.activeCollectionId));
     const member = (coll?.members || []).find((m: any) => String(m.user) === String(userId));
     if (!member) return res.redirect("/admin?msg=error_member_not_found");
 
@@ -715,19 +665,8 @@ router.post("/members/remove", requireAuth, requireCollectionRole("admin"), asyn
       return res.redirect("/admin?msg=error_last_admin");
     }
 
-    await Collection.updateOne(
-      { _id: res.locals.activeCollectionId },
-      { $pull: { members: { user: userId } } },
-    );
     // If they were browsing this collection, let the middleware pick another one
-    await User.updateOne(
-      { _id: userId, lastActiveCollectionId: res.locals.activeCollectionId },
-      { $set: { lastActiveCollectionId: null } },
-    );
-    await User.updateOne(
-      { _id: userId, homeCollectionId: res.locals.activeCollectionId },
-      { $set: { homeCollectionId: null } },
-    );
+    await clearMembership(idOf(res.locals.activeCollectionId), userId);
 
     res.redirect("/admin?msg=member_removed");
   } catch (err) {
@@ -742,31 +681,25 @@ router.post("/members/remove", requireAuth, requireCollectionRole("admin"), asyn
 router.post("/members/reset-password", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
   try {
     const { userId } = req.body;
-    if (!mongoose.Types.ObjectId.isValid(userId)) return res.redirect("/admin");
+    if (!isId(userId)) return res.redirect("/admin");
 
-    const isMember = await Collection.findOne({
-      _id: res.locals.activeCollectionId,
-      "members.user": userId,
-    });
-    const target: any = await User.findById(userId);
+    const isMember = await db.collections.exists(and(activeCollection(res), eq("members.user", userId)));
+    const target: any = await db.users.findById(userId);
     if (!isMember || !target || target.isAdmin) {
       return res.redirect("/admin?msg=error_member_not_found");
     }
 
-    const otherMembership = await Collection.findOne({
-      _id: { $ne: res.locals.activeCollectionId },
-      "members.user": userId,
-    });
+    const otherMembership = await db.collections.exists(and(
+      ne("_id", idOf(res.locals.activeCollectionId)),
+      eq("members.user", userId)
+    ));
     if (otherMembership && !res.locals.user.isAdmin) {
       return res.redirect("/admin?msg=error_shared_member_reset");
     }
 
     const password = createPassword();
     const hashedPassword = await bcrypt.hash(password, 10);
-    await User.updateOne(
-      { _id: userId },
-      { $set: { password: hashedPassword, lastChange: new Date() } },
-    );
+    await db.users.updateOne(eq("_id", userId), { set: { password: hashedPassword, lastChange: new Date() } });
 
     const data = await loadCollectionAdminData(res.locals.activeCollectionId);
     res.render("admin", {
@@ -829,7 +762,7 @@ function parseShareScope(body: any): { pluginId: string; formats: string[] }[] {
 // sheets that create and edit them. The actions below all come back here.
 router.get("/sharing", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
   try {
-    const collectionDoc = await Collection.findById(res.locals.activeCollectionId).lean();
+    const collectionDoc = await db.collections.findById(idOf(res.locals.activeCollectionId));
     res.render("sharing", {
       collectionDoc,
       // Absolute, as on the admin page: a baseUrl-relative path cannot be pasted elsewhere.
@@ -848,10 +781,7 @@ router.post("/share/create", requireAuth, requireCollectionRole("admin"), async 
     const label = String(req.body.label || "").trim().slice(0, 60);
     const scope = parseShareScope(req.body);
 
-    await Collection.updateOne(
-      { _id: res.locals.activeCollectionId },
-      { $push: { shareLinks: { token: generateShareToken(), label, enabled: true, scope } } },
-    );
+    await db.collections.updateOne(activeCollection(res), { push: { shareLinks: { token: generateShareToken(), label, enabled: true, scope } } });
     res.redirect("/admin/sharing?msg=share_link_created");
   } catch (err) {
     console.error("Share create error:", err);
@@ -863,17 +793,13 @@ router.post("/share/create", requireAuth, requireCollectionRole("admin"), async 
 // same link/QR code instead of forcing a reprint).
 router.post("/share/:token/toggle", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
   try {
-    const coll: any = await Collection.findOne(
-      { _id: res.locals.activeCollectionId, "shareLinks.token": req.params.token },
-      { "shareLinks.$": 1 },
-    );
-    const link = coll?.shareLinks?.[0];
+    const coll: any = await db.collections.findById(idOf(res.locals.activeCollectionId), { fields: ["shareLinks"] });
+    const link = (coll?.shareLinks || []).find((l: any) => l.token === req.params.token);
     if (!link) return res.redirect("/admin/sharing?msg=error_share");
 
-    await Collection.updateOne(
-      { _id: res.locals.activeCollectionId, "shareLinks.token": req.params.token },
-      { $set: { "shareLinks.$.enabled": !link.enabled } },
-    );
+    await db.collections.updateListRecord(activeCollection(res), {
+      list: "shareLinks", where: { token: req.params.token }, set: { enabled: !link.enabled }
+    });
     res.redirect(`/admin/sharing?msg=${link.enabled ? "share_disabled" : "share_enabled"}`);
   } catch (err) {
     console.error("Share toggle error:", err);
@@ -887,11 +813,10 @@ router.post("/share/:token/scope", requireAuth, requireCollectionRole("admin"), 
     const label = String(req.body.label || "").trim().slice(0, 60);
     const scope = parseShareScope(req.body);
 
-    const result = await Collection.updateOne(
-      { _id: res.locals.activeCollectionId, "shareLinks.token": req.params.token },
-      { $set: { "shareLinks.$.scope": scope, "shareLinks.$.label": label } },
-    );
-    if (result.matchedCount === 0) return res.redirect("/admin/sharing?msg=error_share");
+    const result = await db.collections.updateListRecord(activeCollection(res), {
+      list: "shareLinks", where: { token: req.params.token }, set: { scope, label }
+    });
+    if (result.matched === 0) return res.redirect("/admin/sharing?msg=error_share");
     res.redirect("/admin/sharing?msg=share_scope_updated");
   } catch (err) {
     console.error("Share scope error:", err);
@@ -903,11 +828,10 @@ router.post("/share/:token/scope", requireAuth, requireCollectionRole("admin"), 
 // there, without touching this collection's other links.
 router.post("/share/:token/regenerate", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
   try {
-    const result = await Collection.updateOne(
-      { _id: res.locals.activeCollectionId, "shareLinks.token": req.params.token },
-      { $set: { "shareLinks.$.token": generateShareToken(), "shareLinks.$.enabled": true } },
-    );
-    if (result.matchedCount === 0) return res.redirect("/admin/sharing?msg=error_share");
+    const result = await db.collections.updateListRecord(activeCollection(res), {
+      list: "shareLinks", where: { token: req.params.token }, set: { token: generateShareToken(), enabled: true }
+    });
+    if (result.matched === 0) return res.redirect("/admin/sharing?msg=error_share");
     res.redirect("/admin/sharing?msg=share_regenerated");
   } catch (err) {
     console.error("Share regenerate error:", err);
@@ -922,11 +846,11 @@ router.post("/share/:token/delete", requireAuth, requireCollectionRole("admin"),
     // do it: a token belonging to another collection would otherwise pull nothing while
     // still reporting a success, since the schema's timestamps count every update as a
     // modification whether or not anything came out of the array.
-    const result = await Collection.updateOne(
-      { _id: res.locals.activeCollectionId, "shareLinks.token": req.params.token },
-      { $pull: { shareLinks: { token: req.params.token } } },
+    const result = await db.collections.updateOne(
+      and(activeCollection(res), eq("shareLinks.token", req.params.token)),
+      { pull: { shareLinks: { token: req.params.token } } }
     );
-    if (result.matchedCount === 0) return res.redirect("/admin/sharing?msg=error_share");
+    if (result.matched === 0) return res.redirect("/admin/sharing?msg=error_share");
     res.redirect("/admin/sharing?msg=share_link_deleted");
   } catch (err) {
     console.error("Share delete error:", err);
@@ -941,13 +865,10 @@ router.get("/share/:token/qr.png", requireAuth, requireCollectionRole("admin"), 
     // $elemMatch, because a collection holds several links: named separately, the two
     // conditions can be met by two different ones, and the QR of a link someone just
     // disabled would keep being served as long as any other link is still on.
-    const coll = await Collection.findOne(
-      {
-        _id: res.locals.activeCollectionId,
-        shareLinks: { $elemMatch: { token: req.params.token, enabled: true } },
-      },
-      { _id: 1 },
-    );
+    const coll = await db.collections.exists(and(
+      activeCollection(res),
+      some("shareLinks", and(eq("token", req.params.token), eq("enabled", true)))
+    ));
     if (!coll) return res.status(404).send(req.t("errors.not_found"));
 
     const url = `${getPublicProtocol(req)}://${req.get("host")}${BASE_URL}/share/${req.params.token}`;
@@ -966,7 +887,7 @@ router.get("/share/:token/qr.png", requireAuth, requireCollectionRole("admin"), 
 router.post("/reset-password", requireAuth, requireAdmin, async (req: any, res: any) => {
   try {
     const { userId } = req.body;
-    const userToUpdate = await User.findById(userId);
+    const userToUpdate = await db.users.findById(userId);
 
     // Instance admins are peers: none may reset another instance admin's
     // password (that would let them hijack the account). Resetting your own is
@@ -983,10 +904,7 @@ router.post("/reset-password", requireAuth, requireAdmin, async (req: any, res: 
       const password = createPassword();
       const hashedPassword = await bcrypt.hash(password, 10);
 
-      await User.updateOne(
-        { _id: userId },
-        { $set: { password: hashedPassword, lastChange: new Date() } },
-      );
+      await db.users.updateOne(eq("_id", userId), { set: { password: hashedPassword, lastChange: new Date() } });
 
       // Reload data for the view after change.
       const data = await loadInstanceAdminData();
@@ -1016,11 +934,11 @@ router.post("/delete-user", requireAuth, requireAdmin, async (req: any, res: any
     if (req.body.userId === res.locals.user._id.toString())
       return res.redirect("/admin/instance?msg=delete_self_error");
     // Instance admins are peers: none may delete another instance admin.
-    const target = await User.findById(req.body.userId);
+    const target = await db.users.findById(req.body.userId);
     if (target && target.isAdmin)
       return res.redirect("/admin/instance?msg=delete_admin_error");
-    await User.findByIdAndDelete(req.body.userId);
-    await Collection.updateMany({}, { $pull: { members: { user: req.body.userId } } });
+    await db.users.deleteOne(eq("_id", req.body.userId));
+    await db.collections.updateMany(all(), { pull: { members: { user: req.body.userId } } });
     console.log(`[ADMIN] User deleted: ${req.body.userId} by ${res.locals.user?.email}`);
     res.redirect("/admin/instance?msg=user_deleted");
   } catch (err) {
@@ -1032,8 +950,8 @@ router.post("/delete-user", requireAuth, requireAdmin, async (req: any, res: any
 router.post("/block-ip", requireAuth, requireAdmin, async (req: any, res: any) => {
   try {
     const { ipAddress } = req.body;
-    const exists = await BlockedIP.findOne({ ip: ipAddress });
-    if (!exists) await BlockedIP.create({ ip: ipAddress });
+    const exists = await db.blockedIps.exists(eq("ip", ipAddress));
+    if (!exists) await db.blockedIps.create({ ip: ipAddress });
     console.log(`[ADMIN] IP blocked: ${ipAddress} by ${res.locals.user?.email}${exists ? ' (already blocked)' : ''}`);
     res.redirect("/admin/instance?msg=ip_blocked");
   } catch (err) {
@@ -1044,7 +962,7 @@ router.post("/block-ip", requireAuth, requireAdmin, async (req: any, res: any) =
 
 router.post("/unblock-ip", requireAuth, requireAdmin, async (req: any, res: any) => {
   try {
-    await BlockedIP.findByIdAndDelete(req.body.ipId);
+    await db.blockedIps.deleteOne(eq("_id", req.body.ipId));
     console.log(`[ADMIN] IP unblocked: ${req.body.ipId} by ${res.locals.user?.email}`);
     res.redirect("/admin/instance?msg=ip_unblocked");
   } catch (err) {
@@ -1059,10 +977,9 @@ router.post("/delete-last-logs", requireAuth, requireAdmin, async (req: any, res
   if (!n || n < 1) return res.status(400).json({ error: "Invalid count" });
 
   try {
-    const logs = await LoginLog.find().sort({ timestamp: -1 }).limit(n).select("_id");
-    const ids = logs.map((l) => l._id);
-    const result = await LoginLog.deleteMany({ _id: { $in: ids } });
-    res.json({ deleted: result.deletedCount });
+    const logs = await db.loginLogs.find(all(), { sort: [desc("timestamp")], limit: n, fields: ["_id"] });
+    const deleted = await db.loginLogs.deleteMany(isIn("_id", logs.map((l: any) => idOf(l._id))));
+    res.json({ deleted });
   } catch (err: any) {
     console.error("[ERR] delete-last-logs:", err.message);
     res.status(500).json({ error: err.message });
@@ -1074,7 +991,7 @@ router.post("/delete-last-logs", requireAuth, requireAdmin, async (req: any, res
 // only a collection admin gets to write it.
 router.get("/collection-info", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
   try {
-    const collection = await Collection.findById(res.locals.activeCollectionId).lean();
+    const collection = await db.collections.findById(idOf(res.locals.activeCollectionId));
     if (!collection) return res.redirect("/admin");
 
     const info = collectionInfoOf(collection);
@@ -1097,13 +1014,10 @@ router.get("/collection-info", requireAuth, requireCollectionRole("admin"), asyn
 router.post("/collection-info", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
   try {
     const collectionId = res.locals.activeCollectionId;
-    const previous = collectionInfoOf(await Collection.findById(collectionId).lean());
+    const previous = collectionInfoOf(await db.collections.findById(idOf(collectionId)));
     const info = collectionInfoFromForm(req.body);
 
-    await Collection.updateOne(
-      { _id: collectionId },
-      { $set: { info: { ...info, updated_at: new Date() } } },
-    );
+    await db.collections.updateOne(eq("_id", idOf(collectionId)), { set: { info: { ...info, updated_at: new Date() } } });
 
     // An upload dropped from the page is nothing's image any more. The release is
     // guarded against every other reference (items, other collections), so a picture
@@ -1197,11 +1111,7 @@ router.post(
         if (preset) update[`theme.${p.collectionType}.preset`] = preset;
       }
 
-      await Settings.findOneAndUpdate(
-      { collection: res.locals.activeCollectionId },
-      { $set: update },
-      { upsert: true },
-    );
+      await db.settings.updateOne(eq("collection", idOf(res.locals.activeCollectionId)), { set: update }, { upsert: true });
 
       res.redirect("/admin/personnalisation?msg=saved");
     } catch (err) {
@@ -1245,11 +1155,7 @@ router.post("/modules/save", requireAuth, requireCollectionRole("admin"), async 
       if (ids.length > 0) update[`sourceOrder.${p.id}`] = ids;
     }
 
-    await Settings.findOneAndUpdate(
-      { collection: res.locals.activeCollectionId },
-      { $set: update },
-      { upsert: true },
-    );
+    await db.settings.updateOne(eq("collection", idOf(res.locals.activeCollectionId)), { set: update }, { upsert: true });
 
     res.redirect("/admin?msg=saved");
   } catch (err) {
@@ -1288,11 +1194,7 @@ router.post("/visibility/save", requireAuth, requireCollectionRole("admin"), asy
           : [],
     };
 
-    await Settings.findOneAndUpdate(
-      { collection: res.locals.activeCollectionId },
-      { $set: update },
-      { upsert: true },
-    );
+    await db.settings.updateOne(eq("collection", idOf(res.locals.activeCollectionId)), { set: update }, { upsert: true });
 
     res.redirect("/admin?msg=saved");
   } catch (err) {
@@ -1311,23 +1213,23 @@ router.get(
       const trimmedQ = typeof q === 'string' ? q.trim() : '';
       if (!trimmedQ) return res.json([]);
 
-      const regex = new RegExp(escapeRegExp(trimmedQ), 'i');
-      const searchOr: any[] = [
-        { title: regex },
-        { artist: regex },
-        { author: regex },
-        { director: regex },
-        { barcode: regex },
-        { 'tracklist.title': regex }
-      ];
-      if (mongoose.Types.ObjectId.isValid(trimmedQ)) {
-        searchOr.push({ _id: trimmedQ });
+      // Every type's creator, and the title of whatever a type lists inside its items
+      // (an album's tracks), so a hidden track can be found by its name too.
+      const fields = new Set<string>(["title", "barcode"]);
+      for (const plugin of registry.getAll()) {
+        fields.add(plugin.creatorField);
+        for (const [name, field] of Object.entries(plugin.storedFields || {})) {
+          if (field.type === "records" && field.fields?.title) fields.add(`${name}.title`);
+        }
       }
 
-      const items = await Item.find({
-        collection: res.locals.activeCollectionId,
-        $or: searchOr
-      }).limit(10).select('_id title artist author director kind cover_image format format_type platform media_type').lean();
+      const items = await db.items.find(and(
+        eq("collection", idOf(res.locals.activeCollectionId)),
+        or(...[...fields].map(field => contains(field, trimmedQ)), isId(trimmedQ) ? eq("_id", trimmedQ) : null)
+      ), {
+        limit: 10,
+        fields: ["_id", "title", "artist", "author", "director", "kind", "cover_image", "format", "format_type", "platform", "media_type"]
+      });
 
       res.json(items);
     } catch (err) {
@@ -1388,16 +1290,12 @@ router.post(
     try {
       // Counted the way the grid counts: "the last 3 items" means the last 3 lines someone
       // can see, and a show leaves with its seasons rather than counting as several.
-      const items = await Item.find({
-        collection: res.locals.activeCollectionId,
-        kind,
-        parent: { $exists: false }
-      })
-        .sort({ added_at: -1, _id: -1 })
-        .limit(n)
-        .select("_id");
+      const items = await db.items.find(
+        and(eq("collection", idOf(res.locals.activeCollectionId)), eq("kind", kind), missing("parent")),
+        { sort: [desc("added_at"), desc("_id")], limit: n, fields: ["_id"] }
+      );
 
-      const deleted = await deleteItemsAndContents(items.map((i) => i._id));
+      const deleted = await deleteItemsAndContents(items.map((i: any) => i._id));
 
       res.json({ deleted });
     } catch (err: any) {
@@ -1425,36 +1323,21 @@ router.post(
       // everything added before sources existed carries, or the stored source pair, which
       // is the only thing an item filled in from another database has. Selecting on the id
       // field alone is what would leave those out of every bulk run, silently.
-      let query: any = {
-        collection: res.locals.activeCollectionId,
-        $or: [
-          { [idField]: { $exists: true, $ne: null } },
-          { source_id: { $exists: true, $nin: [null, ''] } }
-        ]
-      };
+      const query = and(
+        eq("collection", idOf(res.locals.activeCollectionId)),
+        // Something to refresh from: the plugin's own id, or a source pair
+        or(and(exists(idField), ne(idField, null)), and(exists("source_id"), notIn("source_id", [null, ""]))),
+        pluginKindFilter(plugin),
+        mode === "missing"
+          ? or(
+            missing("genre"), eq("genre", ""), eq("genre", null),
+            missing("genres"), emptyList("genres"),
+            missing("styles"), emptyList("styles")
+          )
+          : null
+      );
 
-      if (plugin.matchesLegacyItems) {
-        query.$and = [{ $or: [{ kind: plugin.kind }, { kind: { $exists: false } }] }];
-      } else {
-        query.kind = plugin.kind;
-      }
-
-      if (mode === "missing") {
-        query.$and = query.$and || [];
-        query.$and.push({
-          $or: [
-            { genre: { $exists: false } },
-            { genre: "" },
-            { genre: null },
-            { genres: { $exists: false } },
-            { genres: { $size: 0 } },
-            { styles: { $exists: false } },
-            { styles: { $size: 0 } }
-          ]
-        });
-      }
-
-      const items = await Item.find(query).lean();
+      const items = await db.items.find(query);
       if (items.length === 0) return res.json({ success: true, count: 0 });
 
       res.status(202).json({ success: true, total: items.length });
@@ -1499,8 +1382,7 @@ router.post(
               // and strict mode drops them without a word. A bulk run reported every item
               // as refreshed while writing back only the fields the base schema shares.
               // The single-item route sidesteps this by casting through `kind` in its filter.
-              const RefreshModel = mongoose.model(plugin.kind);
-              await RefreshModel.updateOne({ _id: item._id }, { $set: { ...update, ...syncStamp() } });
+              await db.items.updateOne(eq("_id", idOf(item._id)), { set: { ...update, ...syncStamp() } }, { kind: plugin.kind });
               if (replacedCover) {
                 try {
                   await deleteUnusedManagedItemImages([replacedCover]);

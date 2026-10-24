@@ -7,7 +7,8 @@ import mongoose from 'mongoose';
 import Item from '../../models/Item';
 import { buildUniqueTitlesGroupKey, CreatorFieldSource } from '../helpers';
 import { Filter, Scalar, Sort } from './filter';
-import { toMongoFilter, toMongoSort } from './mongo/compile';
+import { toMongoFilter, toMongoSort, toMongoUpdate } from './mongo/compile';
+import type { Patch } from './patch';
 import { toMongooseDefinition } from './mongo/schema';
 import type { StoredFields } from './storedFields';
 
@@ -86,20 +87,6 @@ export async function countDistinctWorks(
   return result[0]?.total ?? 0;
 }
 
-/** A change to apply to records: values to write, fields to remove. */
-export interface Patch {
-  set?: Record<string, any>;
-  unset?: string[];
-}
-
-function toMongoUpdate(patch: Patch): Record<string, any> {
-  const update: Record<string, any> = {};
-  if (patch.set && Object.keys(patch.set).length > 0) update.$set = patch.set;
-  if (patch.unset && patch.unset.length > 0) {
-    update.$unset = Object.fromEntries(patch.unset.map(field => [field, '']));
-  }
-  return update;
-}
 
 export interface WriteOptions {
   /**
@@ -204,4 +191,46 @@ export function registerType(kind: string, fields: StoredFields): void {
 export function unregisterType(kind: string): void {
   if ((Item as any).discriminators?.[kind]) delete (Item as any).discriminators[kind];
   if (mongoose.modelNames().includes(kind)) mongoose.deleteModel(kind);
+}
+
+/** How many matching items hold each value of a field, most frequent first. */
+export async function countBy(field: string, filter: Filter): Promise<{ value: any; count: number }[]> {
+  const match = Item.find(toMongoFilter(filter)).cast(Item);
+  const rows = await Item.aggregate([
+    { $match: match },
+    { $group: { _id: `$${field}`, count: { $sum: 1 } } },
+    { $sort: { count: -1 } }
+  ]);
+  return rows.map((row: any) => ({ value: row._id, count: row.count }));
+}
+
+/**
+ * The distinct values the given fields hold across the matching items, grouped by item
+ * type. Single values and lists are pooled: genre, genres and styles give one set per
+ * type. Empty values are left out.
+ */
+export async function valuesByKind(filter: Filter, fields: string[]): Promise<Record<string, any[]>> {
+  const match = Item.find(toMongoFilter(filter)).cast(Item);
+  const rows = await Item.aggregate([
+    { $match: match },
+    {
+      $project: {
+        kind: 1,
+        values: {
+          $concatArrays: fields.map(field => ({
+            $cond: [
+              { $isArray: `$${field}` },
+              `$${field}`,
+              { $cond: [{ $in: [`$${field}`, ['', null]] }, [], [`$${field}`]] }
+            ]
+          }))
+        }
+      }
+    },
+    { $unwind: '$values' },
+    { $group: { _id: '$kind', values: { $addToSet: '$values' } } }
+  ]);
+  const out: Record<string, any[]> = {};
+  for (const row of rows) if (row._id) out[row._id] = row.values;
+  return out;
 }

@@ -4,5 +4,20 @@
  */
 
 import * as items from './items';
+import { mongoRecordStore } from './mongo/recordStore';
+import User from '../../models/User';
+import Collection from '../../models/Collection';
+import Settings from '../../models/Settings';
+import InstanceSettings from '../../models/InstanceSettings';
+import LoginLog from '../../models/LoginLog';
+import BlockedIP from '../../models/blockedIP';
 
-export const db = { items: { ...items } };
+export const db = {
+  items: { ...items },
+  users: mongoRecordStore(() => User as any),
+  collections: mongoRecordStore(() => Collection as any),
+  settings: mongoRecordStore(() => Settings as any),
+  instanceSettings: mongoRecordStore(() => InstanceSettings as any),
+  loginLogs: mongoRecordStore(() => LoginLog as any),
+  blockedIps: mongoRecordStore(() => BlockedIP as any)
+};

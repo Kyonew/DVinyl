@@ -4,7 +4,6 @@ import { registry } from '../registry';
 import { viewRegistry } from '../viewRegistry';
 import { shelfChoices } from '../shelfStore';
 import { CollectionViewContext } from '../types';
-import Collection from '../../models/Collection';
 import { BASE_URL } from '../../config/constants';
 import { requireAuth, requireAuthOrShareView, requireCollectionRole } from '../../middleware/authMiddleware';
 import { pluginKindFilter, shareScopeFilter, shelfFilter } from '../../utils/visibilityHelper';
@@ -753,7 +752,7 @@ router.post('/collection/create', requireAuth, async (req: any, res: any) => {
       return res.redirect('/?msg=error_collection_name');
     }
 
-    const collection = await Collection.create({
+    const collection = await db.collections.create({
       name,
       slug: await generateUniqueSlug(name),
       createdBy: req.user._id,
@@ -784,10 +783,7 @@ router.post('/collection/switch', requireAuth, async (req: any, res: any) => {
       return res.redirect(back);
     }
 
-    const target = await Collection.findOne({
-      _id: collectionId,
-      'members.user': req.user._id
-    });
+    const target = await db.collections.findOne(and(eq('_id', collectionId), eq('members.user', idOf(req.user._id))));
     if (!target) {
       return res.redirect(back);
     }

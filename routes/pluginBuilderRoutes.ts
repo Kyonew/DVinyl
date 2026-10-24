@@ -1,7 +1,6 @@
 import express from 'express';
 import { db } from '../core/db';
-import { eq } from '../core/db/query';
-import Settings from '../models/Settings';
+import { eq, idOf } from '../core/db/query';
 import { requireAuth, requireCollectionRole } from '../middleware/authMiddleware';
 import { registry } from '../core/registry';
 import {
@@ -215,17 +214,14 @@ router.post('/customize/:pluginId', async (req: any, res: any) => {
     }
 
     const cosmeticsPath = `pluginCustomization.${plugin.id}`;
-    const $set: any = {};
-    const $unset: any = {};
-    if (cosmetics.icon || cosmetics.formatColors || cosmetics.cardFields || cosmetics.sortFormats || cosmetics.cornerField || cosmetics.filters) $set[cosmeticsPath] = cosmetics;
-    else $unset[cosmeticsPath] = '';
-    if (extraUpdate?.set) Object.assign($set, extraUpdate.set);
-    if (extraUpdate?.unset) $unset[extraUpdate.unset] = '';
+    const set: Record<string, any> = {};
+    const unset: string[] = [];
+    if (cosmetics.icon || cosmetics.formatColors || cosmetics.cardFields || cosmetics.sortFormats || cosmetics.cornerField || cosmetics.filters) set[cosmeticsPath] = cosmetics;
+    else unset.push(cosmeticsPath);
+    if (extraUpdate?.set) Object.assign(set, extraUpdate.set);
+    if (extraUpdate?.unset) unset.push(extraUpdate.unset);
 
-    const update: any = {};
-    if (Object.keys($set).length > 0) update.$set = $set;
-    if (Object.keys($unset).length > 0) update.$unset = $unset;
-    await Settings.updateOne({ collection: activeCollectionId }, update);
+    await db.settings.updateOne(eq('collection', idOf(activeCollectionId)), { set, unset });
 
     res.json({ success: true });
   } catch (err: any) {
@@ -311,11 +307,10 @@ router.post('/save', async (req: any, res: any) => {
     // Enable the module right away for the admin's active collection
     const activeCollectionId = res.locals.activeCollectionId;
     if (activeCollectionId) {
-      const update: any = { $set: { [`modules.${config.id}`]: true } };
-      if (existing && existing.id !== config.id) {
-        update.$unset = { [`modules.${existing.id}`]: '' };
-      }
-      await Settings.updateOne({ collection: activeCollectionId }, update);
+      await db.settings.updateOne(eq('collection', idOf(activeCollectionId)), {
+        set: { [`modules.${config.id}`]: true },
+        unset: existing && existing.id !== config.id ? [`modules.${existing.id}`] : []
+      });
     }
 
     res.json({ success: true, id: config.id });

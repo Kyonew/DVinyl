@@ -1,4 +1,5 @@
-import Settings from '../models/Settings';
+import { db } from '../core/db';
+import { eq, idOf } from '../core/db/query';
 import themesConfig from '../config/themes';
 import { BASE_URL } from '../config/constants';
 import { registry } from '../core/registry';
@@ -16,11 +17,11 @@ async function settingsMiddleware(req: any, res: any, next: any) {
             // Atomic upsert (+ the unique index on `collection` in models/Settings.ts):
             // concurrent first-visits to a brand-new collection (e.g. the page load and
             // its automatic manifest.json fetch) must not create two Settings documents.
-            dbSettings = await Settings.findOneAndUpdate(
-                { collection: activeCollectionId },
-                { $setOnInsert: { collection: activeCollectionId } },
-                { upsert: true, new: true, setDefaultsOnInsert: true }
-            ).lean();
+            dbSettings = await db.settings.updateAndGet(
+                eq('collection', idOf(activeCollectionId)),
+                { setOnInsert: { collection: idOf(activeCollectionId) } },
+                { upsert: true }
+            );
         }
 
         // All defaults derive from the registered plugins (anonymous requests / fresh install)

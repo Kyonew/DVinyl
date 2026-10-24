@@ -1,12 +1,11 @@
 import express from 'express';
-import mongoose from 'mongoose';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
-import User from '../models/User';
-import Collection from '../models/Collection';
+import { db } from '../core/db';
+import { and, eq, idOf, isId } from '../core/db/query';
 import { requireAuth } from '../middleware/authMiddleware';
 import { viewRegistry } from '../core/viewRegistry';
 import { applyHomeCollection, HOME_PAGES, isHomePage } from '../utils/homePage';
@@ -81,7 +80,7 @@ router.post('/check-username', requireAuth, async (req, res) => {
             return res.json({ success: true, message: req.t('messages.username_current') });
         }
 
-        const userExists = await User.findOne({ username: username });
+        const userExists = await db.users.findOne(eq('username', username));
         if (userExists) {
             return res.status(400).json({ success: false, message: req.t('errors.username_taken') });
         }
@@ -95,11 +94,11 @@ router.post('/check-username', requireAuth, async (req, res) => {
 router.post('/update-username', requireAuth, async (req, res) => {
     const { username } = req.body;
     try {
-        const userExists = await User.findOne({ username: username });
+        const userExists = await db.users.findOne(eq('username', username));
         if (userExists && userExists._id.toString() !== res.locals.user._id.toString()) {
             return res.status(400).json({ success: false, message: req.t('errors.username_taken') });
         }
-        await User.findByIdAndUpdate(res.locals.user._id, { username: username });
+        await db.users.updateOne(eq('_id', idOf(res.locals.user._id)), { set: { username: username } });
         res.redirect('/settings');
     } catch (error) {
         res.status(500).json({ success: false, message: req.t('messages.generic_error') });
@@ -115,12 +114,12 @@ router.post('/upload-avatar', requireAuth, upload.single('avatar'), async (req, 
         const userId = res.locals.user._id;
 
         // Retrieve previous avatar to remove it from disk
-        const currentUser = await User.findById(userId);
+        const currentUser = await db.users.findById(idOf(userId), { defaults: true });
         removeAvatarFile(currentUser?.img);
 
         // Update DB with new path
         const newAvatarPath = `/uploads/avatars/${req.file.filename}`;
-        await User.findByIdAndUpdate(userId, { img: newAvatarPath });
+        await db.users.updateOne(eq('_id', idOf(userId)), { set: { img: newAvatarPath } });
 
         res.json({ success: true, message: req.t('messages.avatar_updated'), avatarPath: newAvatarPath });
 
@@ -134,7 +133,7 @@ router.post('/upload-avatar', requireAuth, upload.single('avatar'), async (req, 
 router.post('/import-gravatar', requireAuth, async (req, res) => {
     try {
         const userId = res.locals.user._id;
-        const currentUser = await User.findById(userId);
+        const currentUser = await db.users.findById(idOf(userId), { defaults: true });
         if (!currentUser) return res.status(404).json({ success: false, message: req.t('messages.generic_error') });
 
         const hash = crypto.createHash('sha256').update(currentUser.email.trim().toLowerCase()).digest('hex');
@@ -159,7 +158,7 @@ router.post('/import-gravatar', requireAuth, async (req, res) => {
         removeAvatarFile(currentUser.img);
 
         const newAvatarPath = `/uploads/avatars/${filename}`;
-        await User.findByIdAndUpdate(userId, { img: newAvatarPath });
+        await db.users.updateOne(eq('_id', idOf(userId)), { set: { img: newAvatarPath } });
 
         res.json({ success: true, message: req.t('messages.avatar_updated'), avatarPath: newAvatarPath });
     } catch (error) {
@@ -172,10 +171,10 @@ router.post('/import-gravatar', requireAuth, async (req, res) => {
 router.post('/remove-avatar', requireAuth, async (req, res) => {
     try {
         const userId = res.locals.user._id;
-        const currentUser = await User.findById(userId);
+        const currentUser = await db.users.findById(idOf(userId), { defaults: true });
         removeAvatarFile(currentUser?.img);
 
-        await User.findByIdAndUpdate(userId, { img: DEFAULT_AVATAR });
+        await db.users.updateOne(eq('_id', idOf(userId)), { set: { img: DEFAULT_AVATAR } });
 
         res.json({ success: true, message: req.t('messages.avatar_updated'), avatarPath: DEFAULT_AVATAR });
     } catch (error) {
@@ -189,7 +188,7 @@ router.post('/update-password', requireAuth, async (req, res) => {
     const { currentPassword, newPassword } = req.body;
     try {
         // Verify current password
-        const user = await User.findById(res.locals.user._id);
+        const user = await db.users.findById(idOf(res.locals.user._id), { defaults: true });
         if (!user) {
             res.status(500).json({ success: false, message: "User not found" });
             return;
@@ -205,10 +204,10 @@ router.post('/update-password', requireAuth, async (req, res) => {
         }
 
         const hashedPassword = await bcrypt.hash(newPassword, 10);
-        await User.findByIdAndUpdate(res.locals.user._id, {
+        await db.users.updateOne(eq('_id', idOf(res.locals.user._id)), { set: {
             password: hashedPassword,
             lastChange: Date.now()
-        });
+        } });
 
         res.json({ success: true, message: req.t('messages.password_updated') });
     } catch (error) {
@@ -226,7 +225,7 @@ router.post('/update-theme', requireAuth, async (req, res) => {
     }
 
     try {
-        await User.findByIdAndUpdate(res.locals.user._id, { theme: theme });
+        await db.users.updateOne(eq('_id', idOf(res.locals.user._id)), { set: { theme: theme } });
         res.json({ success: true, message: req.t('messages.theme_updated') });
     } catch (error) {
         console.error(error);
@@ -241,7 +240,7 @@ router.post('/update-language', requireAuth, async (req, res) => {
 
     try {
         // Update language in DB
-        await User.findByIdAndUpdate(userId, { language });
+        await db.users.updateOne(eq('_id', idOf(userId)), { set: { language } });
 
         // Update i18n language for current session
         await req.i18n.changeLanguage(language);
@@ -268,21 +267,20 @@ router.post('/update-home', requireAuth, async (req: any, res) => {
         // to a collection the middleware immediately has to heal away from.
         let homeCollectionId = null;
         if (req.body.homeCollectionId) {
-            const member = await Collection.findOne({
-                _id: mongoose.Types.ObjectId.isValid(req.body.homeCollectionId) ? req.body.homeCollectionId : null,
-                'members.user': userId
-            }).select('_id');
+            const member = isId(req.body.homeCollectionId)
+                ? await db.collections.findOne(and(eq('_id', req.body.homeCollectionId), eq('members.user', idOf(userId))), { fields: ['_id'] })
+                : null;
             if (!member) {
                 return res.redirect('/settings');
             }
             homeCollectionId = member._id;
         }
 
-        await User.findByIdAndUpdate(userId, {
+        await db.users.updateOne(eq('_id', idOf(userId)), { set: {
             homeCollectionId,
             homePage: isHomePage(homePage) ? homePage : 'dashboard',
             homeView: viewRegistry.get(homeView) ? homeView : ''
-        });
+        } });
 
         // Move there now instead of waiting for the next launch: picking a home
         // collection and watching the header keep the old one reads as a setting that
@@ -299,7 +297,7 @@ router.post('/update-home', requireAuth, async (req: any, res) => {
 // Unlink the currently linked SSO (OIDC) identity, if any.
 router.post('/oidc/unlink', requireAuth, async (req, res) => {
     try {
-        await User.findByIdAndUpdate(res.locals.user._id, { $unset: { oidc: 1 } });
+        await db.users.updateOne(eq('_id', idOf(res.locals.user._id)), { unset: ['oidc'] });
         res.json({ success: true, message: req.t('messages.oidc_unlinked') });
     } catch (error) {
         console.error(error);
@@ -316,7 +314,7 @@ router.post('/update-currency', requireAuth, async (req, res) => {
     }
 
     try {
-        await User.findByIdAndUpdate(userId, { currency });
+        await db.users.updateOne(eq('_id', idOf(userId)), { set: { currency } });
         res.redirect('/settings');
     } catch (error) {
         console.error(error);

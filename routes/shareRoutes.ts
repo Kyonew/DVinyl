@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import Collection from '../models/Collection';
+import { db } from '../core/db';
+import { and, eq, some } from '../core/db/query';
 
 /**
  * Public, account-free entry point for a collection's share link (see
@@ -11,9 +12,10 @@ const router = Router();
 
 router.get('/share/:token', async (req: any, res: any) => {
   try {
-    const collection = await Collection.findOne({
-      shareLinks: { $elemMatch: { token: req.params.token, enabled: true } }
-    }).select('_id').lean();
+    const collection = await db.collections.findOne(
+      some('shareLinks', and(eq('token', String(req.params.token)), eq('enabled', true))),
+      { fields: ['_id'] }
+    );
 
     if (!collection) {
       // Same response whether the token never existed or was disabled/regenerated,

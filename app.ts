@@ -20,8 +20,8 @@ import { migrateDatabase } from './utils/migrate.js';
 import { migrateExtraFieldIdentities } from './utils/migrateExtraFieldIdentities.js';
 
 // Models
-import User from './models/User.js';
-import BlockedIP from './models/blockedIP.js';
+import { db } from './core/db/index.js';
+import { all, eq } from './core/db/query.js';
 
 // Core & Registry
 import { registry } from './core/registry.js';
@@ -249,7 +249,7 @@ app.use((req: any, res, next) => {
 app.use(async (req: any, res, next) => {
   const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress;
   try {
-    const blocked = await BlockedIP.findOne({ ip: clientIP });
+    const blocked = await db.blockedIps.findOne(eq('ip', String(clientIP)));
     if (blocked) return res.status(403).send(req.t('common.forbidden'));
     next();
   } catch (err) {
@@ -277,7 +277,7 @@ app.use(async (req, res, next) => {
   }
 
   try {
-    const count = await User.countDocuments();
+    const count = await db.users.count(all());
     if (count === 0) {
       return res.redirect(BASE_URL + '/setup');
     }

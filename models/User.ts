@@ -1,5 +1,4 @@
 import mongoose from 'mongoose';
-import bcrypt from 'bcrypt';
 
 const isEmail = (val: string): boolean => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
@@ -102,45 +101,6 @@ const userSchema = new mongoose.Schema({
 // that users without a linked identity do not collide on the missing field.
 userSchema.index({ 'oidc.sub': 1 }, { unique: true, sparse: true });
 
-
-/**
- * The account a sign-in identifier names: its email or its username. Emails are stored
- * lowercased, so the typed address is too; an email match wins over a username spelled
- * like an address. Null when it names none.
- */
-userSchema.statics.findByLoginIdentifier = async function (identifier) {
-    const id = String(identifier || '').trim();
-    if (!id) return null;
-    return await this.findOne({ email: id.toLowerCase() }) || await this.findOne({ username: id });
-};
-
-/**
- * Authenticate a user by email and password.
- * Throws an Error with message 'incorrect email' or 'incorrect password'
- * which is handled by the calling controller.
- *
- * @param {string} email
- * @param {string} password
- * @returns {Promise<mongoose.Document>} Resolves with the user document on success
- */
-// Accepts the email or the username (see findByLoginIdentifier).
-userSchema.statics.login = async function (identifier, password) {
-    const user = await (this as any).findByLoginIdentifier(identifier);
-    if (user) {
-        // SSO-only accounts have no local password: reject the password login
-        // path cleanly instead of letting bcrypt.compare throw on an undefined
-        // hash. These users must authenticate through their identity provider.
-        if (!user.password) {
-            throw Error('incorrect password');
-        }
-        const auth = await bcrypt.compare(password, user.password);
-        if (auth) {
-            return user;
-        }
-        throw Error('incorrect password');
-    }
-    throw Error('incorrect email');
-};
 
 const User = mongoose.model('user', userSchema);
 

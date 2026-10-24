@@ -1,4 +1,5 @@
-import Collection from '../models/Collection';
+import { db } from '../core/db';
+import { and, eq, idOf } from '../core/db/query';
 import { sessionActiveCollectionId, setActiveCollection } from './collectionHelpers';
 
 // The pages a user may land on, in the order the settings selector offers them.
@@ -41,10 +42,10 @@ export async function applyHomeCollection(req: any, homeCollectionId: any = req.
     if (String(sessionActiveCollectionId(req)) === String(homeCollectionId)) return;
 
     try {
-        const home = await Collection.findOne({
-            _id: homeCollectionId,
-            'members.user': req.user._id
-        }).select('_id');
+        const home = await db.collections.findOne(
+            and(eq('_id', idOf(homeCollectionId)), eq('members.user', idOf(req.user._id))),
+            { fields: ['_id'] }
+        );
         if (!home) return;
 
         await setActiveCollection(req, home._id);

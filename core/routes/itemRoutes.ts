@@ -2,7 +2,6 @@ import express, { Router } from 'express';
 import crypto from 'crypto';
 import QRCode from 'qrcode';
 import { PluginDefinition } from '../types';
-import User from '../../models/User';
 import { BASE_URL } from '../../config/constants';
 import { requireAuth, requireAuthOrShareView, requireCollectionRole } from '../../middleware/authMiddleware';
 import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback, searchWithGuess, editStamp, syncStamp, safeReturnPath, confirmPathFor, getPublicProtocol, generateBarcodeDataUrl, escapeRegExp, buildCopySeed } from '../helpers';
@@ -1002,8 +1001,8 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       // not to name the household behind it, so the lookups do not even run.
       const toProfile = (u: any) => u ? { username: u.username, img: u.img || '/ressources/no-pp.jpg' } : null;
       const [addedBy, modifiedBy] = res.locals.isShareView ? [null, null] : await Promise.all([
-        item.owner ? User.findById(item.owner).select('username img').lean() as any : null,
-        item.modified_by ? User.findById(item.modified_by).select('username img').lean() as any : null
+        item.owner ? db.users.findById(idOf(item.owner), { fields: ['username', 'img'] }) : null,
+        item.modified_by ? db.users.findById(idOf(item.modified_by), { fields: ['username', 'img'] }) : null
       ]);
 
       res.render('detail', {

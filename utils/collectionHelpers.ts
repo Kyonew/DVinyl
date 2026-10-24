@@ -1,6 +1,6 @@
 import crypto from 'crypto';
-import Collection from '../models/Collection';
-import User from '../models/User';
+import { db } from '../core/db';
+import { and, eq, idOf } from '../core/db/query';
 
 /**
  * Turns arbitrary text into a URL-safe slug: lowercase, diacritics stripped,
@@ -35,7 +35,7 @@ export async function generateUniqueSlug(base: string): Promise<string> {
     let candidate = root;
     let n = 1;
     // eslint-disable-next-line no-await-in-loop
-    while (await Collection.findOne({ slug: candidate }).lean()) {
+    while (await db.collections.exists(eq('slug', candidate))) {
         n += 1;
         candidate = `${root}-${n}`;
     }
@@ -49,13 +49,13 @@ export async function generateUniqueSlug(base: string): Promise<string> {
  * there's nothing to own it yet - setupRoutes creates it explicitly at that point.
  */
 export async function findOrCreateDefaultCollection(): Promise<any> {
-    let collection = await Collection.findOne({ isDefault: true });
+    let collection = await db.collections.findOne(eq('isDefault', true), { defaults: true });
     if (collection) return collection;
 
-    const admin: any = await User.findOne({ isAdmin: true }).select('_id');
+    const admin: any = await db.users.findOne(eq('isAdmin', true), { fields: ['_id'] });
     if (!admin) return null;
 
-    collection = await Collection.create({
+    collection = await db.collections.create({
         name: 'Vinyl',
         slug: await generateUniqueSlug('Vinyl'),
         createdBy: admin._id,
@@ -79,14 +79,14 @@ export async function resolveActiveCollectionForUser(user: any): Promise<any> {
     if (!user) return null;
 
     if (user.lastActiveCollectionId) {
-        const current = await Collection.findOne({
-            _id: user.lastActiveCollectionId,
-            'members.user': user._id
-        });
+        const current = await db.collections.findOne(
+            and(eq('_id', idOf(user.lastActiveCollectionId)), eq('members.user', idOf(user._id))),
+            { defaults: true }
+        );
         if (current) return current;
     }
 
-    const membership = await Collection.findOne({ 'members.user': user._id });
+    const membership = await db.collections.findOne(eq('members.user', idOf(user._id)), { defaults: true });
     if (membership) return membership;
 
     if (!user.isAdmin) return null;
@@ -98,10 +98,7 @@ export async function resolveActiveCollectionForUser(user: any): Promise<any> {
         (m: any) => String(m.user) === String(user._id)
     );
     if (!isMember) {
-        await Collection.updateOne(
-            { _id: fallback._id },
-            { $addToSet: { members: { user: user._id, role: 'admin' } } }
-        );
+        await db.collections.updateOne(eq('_id', idOf(fallback._id)), { addToSet: { members: { user: user._id, role: 'admin' } } });
     }
     return fallback;
 }
@@ -133,7 +130,7 @@ export async function setActiveCollection(req: any, collectionId: any): Promise<
         req.session.homeAppliedFor = String(req.user._id);
     }
     if (String(req.user.lastActiveCollectionId) !== String(collectionId)) {
-        await User.updateOne({ _id: req.user._id }, { $set: { lastActiveCollectionId: collectionId } });
+        await db.users.updateOne(eq('_id', idOf(req.user._id)), { set: { lastActiveCollectionId: collectionId } });
         req.user.lastActiveCollectionId = collectionId;
     }
 }

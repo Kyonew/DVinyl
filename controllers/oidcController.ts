@@ -1,4 +1,6 @@
-import User from '../models/User';
+import { db } from '../core/db';
+import { isDuplicateError } from '../core/db/errors';
+import { eq, idOf } from '../core/db/query';
 import { issueSession } from './authController';
 import {
     getOidcConfig,
@@ -65,7 +67,7 @@ const createProvisionedUser = async (
     for (let attempt = 0; attempt < 20; attempt++) {
         const username = attempt === 0 ? baseUsername : `${baseUsername}${attempt + 1}`;
         try {
-            return await User.create({
+            return await db.users.create({
                 username,
                 email,
                 isAdmin,
@@ -73,7 +75,7 @@ const createProvisionedUser = async (
                 lastChange
             });
         } catch (err: any) {
-            if (err?.code === 11000 && err?.keyPattern?.username) {
+            if (isDuplicateError(err, 'username')) {
                 continue;
             }
             throw err;
@@ -178,20 +180,18 @@ export const oidc_callback_get = async (req: any, res: any) => {
                 return res.redirect('/login');
             }
 
-            const existing = await User.findOne({ 'oidc.sub': sub });
+            const existing = await db.users.findOne(eq('oidc.sub', sub));
             if (existing && String(existing._id) !== stashed.linkUserId) {
                 return res.redirect('/settings?oidc=already_linked');
             }
 
-            await User.findByIdAndUpdate(stashed.linkUserId, {
-                oidc: { sub, linkedAt: new Date() }
-            });
+            await db.users.updateOne(eq('_id', stashed.linkUserId), { set: { oidc: { sub, linkedAt: new Date() } } });
             return res.redirect('/settings?oidc=linked');
         }
 
         // Login flow.
         const allowedGroup = getOidcAllowedGroup();
-        const user = await User.findOne({ 'oidc.sub': sub });
+        const user = await db.users.findOne(eq('oidc.sub', sub), { defaults: true });
 
         if (user) {
             // Re-verify group membership on every login: a user removed from the
@@ -235,14 +235,14 @@ export const oidc_callback_get = async (req: any, res: any) => {
         // creating a duplicate. This is only safe when the IdP has verified the
         // email: linking a merely-claimed address to an existing account would
         // allow account takeover. Group membership was already checked above.
-        const existingByEmail = await User.findOne({ email });
+        const existingByEmail = await db.users.findOne(eq('email', email), { defaults: true });
         if (existingByEmail) {
             if (!emailVerified) {
                 console.warn(`[OIDC] Refusing to link SSO identity to existing account <${email}>: email not verified by the IdP`);
                 return res.redirect('/login?error=oidc_forbidden');
             }
-            (existingByEmail as any).oidc = { sub, linkedAt: new Date(), autoProvisioned: false };
-            await existingByEmail.save();
+            existingByEmail.oidc = { sub, linkedAt: new Date(), autoProvisioned: false };
+            await db.users.updateOne(eq('_id', idOf(existingByEmail._id)), { set: { oidc: existingByEmail.oidc } });
             await issueSession(req, res, existingByEmail);
             return res.redirect('/');
         }
