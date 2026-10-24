@@ -15,7 +15,10 @@ import { getExtraFields, toFieldDefinitions } from '../pluginExtraFields';
 import { buildFieldSuggestions } from '../fieldSuggestions';
 import { resolveShelfLocation } from '../shelfStore';
 import { deleteItemsAndContents, moveContentsToWishlist } from '../../utils/itemHelpers';
-import { applyVisibilityFilter, applyShareScopeFilter, applyPluginKindFilter, isWithinShareScope } from '../../utils/visibilityHelper';
+import { visibilityFilter, shareScopeFilter, pluginKindFilter, isWithinShareScope } from '../../utils/visibilityHelper';
+import { db } from '../db';
+import { and, eq, Filter, isIn, missing, ne, or } from '../db/filter';
+import { idOf, isId } from '../db/ids';
 import { hasSearch, searchableSources, resolveSource, canRefresh, refreshPatchFor } from '../sources';
 import { resolveBarcodeWithAi } from '../ai/barcode';
 import { identifyFromPhoto } from '../ai/photo';
@@ -406,6 +409,27 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   }
 
   /**
+   * The item an id names, if it belongs to the active collection and to this plugin.
+   *
+   * The plugin behind a request comes from the URL prefix (`/album/...` is music), not
+   * from the item the id points at, so without the kind an id could be handed to any
+   * plugin's route and be answered by the wrong one. Scoped to the active collection so
+   * a stale id (a form left open after switching collections) cannot reach another one.
+   */
+  const ownItem = (id: string, res: any): Filter => and(
+    eq('_id', id),
+    eq('collection', idOf(res.locals.activeCollectionId)),
+    pluginKindFilter(plugin)
+  );
+
+  // Genres already used in the collection, offered by the item forms.
+  const genresInUse = (collectionId: any) => db.items.distinct('genre', and(
+    eq('collection', idOf(collectionId)),
+    ne('genre', ''),
+    or(eq('kind', plugin.kind), missing('kind'))
+  ));
+
+  /**
    * Keeps out of a list whatever the person looking is not meant to see: what the
    * collection hides from its viewers, and what a share link's scope leaves out. Both,
    * because a list built by a plugin knows neither. Costs one query, and none at all on
@@ -414,14 +438,14 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   const filterVisible = async (items: any[], res: any): Promise<any[]> => {
     if (!items || items.length === 0) return items || [];
 
-    const query: any = { _id: { $in: items.map((i: any) => i._id) } };
-    applyVisibilityFilter(query, res.locals.isCollectionAdmin, res.locals.settings);
-    if (res.locals.isShareView) {
-      applyShareScopeFilter(query, res.locals.shareScope);
-    }
+    const query = and(
+      isIn('_id', items.map((i: any) => idOf(i._id))),
+      visibilityFilter(res.locals.isCollectionAdmin, res.locals.settings),
+      res.locals.isShareView ? shareScopeFilter(res.locals.shareScope) : null
+    );
 
     const allowed = new Set(
-      (await Item.find(query).select('_id').lean()).map((i: any) => String(i._id))
+      (await db.items.find(query, { fields: ['_id'] })).map((i: any) => String(i._id))
     );
     return items.filter((i: any) => allowed.has(String(i._id)));
   };
@@ -439,15 +463,16 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
     if (!res.locals.isShareView) return next();
 
     const id = req.params.id;
-    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+    if (!isId(id)) {
       return res.status(404).send(req.t('errors.not_found'));
     }
     // Reached only by a share visitor, for whom the wishlist does not exist: the listing
     // that would show it is behind a login, and its page has to say the same.
-    const guardQuery: any = { _id: id, collection: res.locals.activeCollectionId, in_wishlist: false };
-    applyPluginKindFilter(guardQuery, plugin);
-    applyVisibilityFilter(guardQuery, res.locals.isCollectionAdmin, res.locals.settings);
-    const item = await Item.findOne(guardQuery).lean();
+    const item = await db.items.findOne(and(
+      ownItem(id, res),
+      eq('in_wishlist', false),
+      visibilityFilter(res.locals.isCollectionAdmin, res.locals.settings)
+    ));
     if (!item || !await isWithinShareScope(res, item)) {
       return res.status(404).send(req.t('errors.not_found'));
     }
@@ -674,9 +699,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         // form left open after switching collections) can't target another item. A
         // miss here must fail outright, not fall through to the duplicate-match
         // branch below and silently overwrite an unrelated item.
-        const editQuery: any = { _id: mongo_id, collection: activeCollectionId };
-        applyPluginKindFilter(editQuery, plugin);
-        existingItem = await Item.findOne(editQuery);
+        existingItem = isId(mongo_id) ? await db.items.findOne(ownItem(mongo_id, res), { defaults: true }) : null;
         if (!existingItem) {
           return res.status(404).send(req.t('errors.not_found'));
         }
@@ -847,23 +870,17 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   // GET /{prefix}/edit/:id -> edit form
   router.get(`${plugin.routePrefix}/edit/:id`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
     try {
-      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      if (!isId(req.params.id)) {
         return res.status(404).send(req.t('errors.not_found'));
       }
       const activeCollectionId = res.locals.activeCollectionId;
-      const editFormQuery: any = { _id: req.params.id, collection: activeCollectionId };
-      applyPluginKindFilter(editFormQuery, plugin);
-      const item = await Item.findOne(editFormQuery);
+      const item = await db.items.findOne(ownItem(req.params.id, res), { defaults: true });
       if (!item) {
         return res.status(404).send(req.t('errors.not_found'));
       }
 
       const suggestions = await buildFieldSuggestions(plugin, activeCollectionId, item);
-      const genres = await Item.distinct('genre', {
-        collection: activeCollectionId,
-        genre: { $ne: "" },
-        $or: [{ kind: plugin.kind }, { kind: { $exists: false } }]
-      });
+      const genres = await genresInUse(activeCollectionId);
 
       res.render('edit', {
         item: plugin.formatForView(item),
@@ -889,19 +906,17 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   // user changes one.
   router.get(`${plugin.routePrefix}/copy/:id`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
     try {
-      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      if (!isId(req.params.id)) {
         return res.status(404).send(req.t('errors.not_found'));
       }
       const activeCollectionId = res.locals.activeCollectionId;
 
-      const copyQuery: any = { _id: req.params.id, collection: activeCollectionId };
-      applyPluginKindFilter(copyQuery, plugin);
-      const source = await Item.findOne(copyQuery);
+      const source = await db.items.findOne(ownItem(req.params.id, res), { defaults: true });
       // Same rule as the button on the detail page: a wishlist entry is not owned yet, and
       // a season or a show holding seasons is added through its own flow. Copying a season
       // would also leave a season number on an item attached to no show.
       const isNested = (source?.season !== undefined && source?.season !== null) || !!source?.parent;
-      if (!source || source.in_wishlist || isNested || await Item.exists({ parent: source._id })) {
+      if (!source || source.in_wishlist || isNested || await db.items.exists(eq('parent', idOf(source._id)))) {
         return res.status(404).send(req.t('errors.not_found'));
       }
 
@@ -913,11 +928,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       const seed: any = buildCopySeed(formatted, plugin);
 
       const suggestions = await buildFieldSuggestions(plugin, activeCollectionId, seed);
-      const genres = await Item.distinct('genre', {
-        collection: activeCollectionId,
-        genre: { $ne: '' },
-        $or: [{ kind: plugin.kind }, { kind: { $exists: false } }]
-      });
+      const genres = await genresInUse(activeCollectionId);
 
       res.render('confirm', {
         item: seed,
@@ -940,20 +951,20 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   // GET /{prefix}/:id -> details view
   router.get(`${plugin.routePrefix}/:id`, requireAuthOrShareView, async (req: any, res: any) => {
     try {
-      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      if (!isId(req.params.id)) {
         return res.status(404).send(req.t('errors.not_found'));
       }
       // An item the collection hides from its viewers is hidden from its page too, not just
       // from the grid: the id is the only thing standing between the two, and a share link
       // hands it to whoever wants to try one.
-      const detailQuery: any = { _id: req.params.id, collection: res.locals.activeCollectionId };
-      applyPluginKindFilter(detailQuery, plugin);
-      applyVisibilityFilter(detailQuery, res.locals.isCollectionAdmin, res.locals.settings);
-      // What someone merely wants is not part of what a public link was opened to show,
-      // and every listing a share visitor can reach already says so.
-      if (res.locals.isShareView) detailQuery.in_wishlist = false;
-
-      const item = await Item.findOne(detailQuery);
+      const visible = visibilityFilter(res.locals.isCollectionAdmin, res.locals.settings);
+      const item = await db.items.findOne(and(
+        ownItem(req.params.id, res),
+        visible,
+        // What someone merely wants is not part of what a public link was opened to show,
+        // and every listing a share visitor can reach already says so.
+        res.locals.isShareView ? eq('in_wishlist', false) : null
+      ), { defaults: true });
       if (!item) {
         return res.status(404).send(req.t('errors.not_found'));
       }
@@ -975,9 +986,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       // What this item holds, if anything: the seasons of a show. Kept out of every
       // listing, so this page is the only way to them, which is also why deleting the
       // holder takes them along.
-      const containedQuery: any = { parent: item._id };
-      applyVisibilityFilter(containedQuery, res.locals.isCollectionAdmin, res.locals.settings);
-      const contained = await Item.find(containedQuery).lean();
+      const contained = await db.items.find(and(eq('parent', idOf(item._id)), visible));
 
       // Where this page was opened from, so leaving it, editing or deleting comes back to
       // the very page someone was on rather than the first one. The explicit parameter
@@ -1000,10 +1009,8 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       // And what holds this one, if anything: a season is absent from every listing, so
       // "back to the collection" would send its page nowhere useful. The show it belongs
       // to is the place to go back to.
-      const holderQuery: any = { _id: (item as any).parent };
-      applyVisibilityFilter(holderQuery, res.locals.isCollectionAdmin, res.locals.settings);
-      const holder: any = (item as any).parent
-        ? await Item.findOne(holderQuery).select('title').lean()
+      const holder: any = item.parent
+        ? await db.items.findOne(and(eq('_id', idOf(item.parent)), visible), { fields: ['title'] })
         : null;
 
       // Who put the item there and who last touched it, for the people who share the
@@ -1012,7 +1019,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       const toProfile = (u: any) => u ? { username: u.username, img: u.img || '/ressources/no-pp.jpg' } : null;
       const [addedBy, modifiedBy] = res.locals.isShareView ? [null, null] : await Promise.all([
         item.owner ? User.findById(item.owner).select('username img').lean() as any : null,
-        (item as any).modified_by ? User.findById((item as any).modified_by).select('username img').lean() as any : null
+        item.modified_by ? User.findById(item.modified_by).select('username img').lean() as any : null
       ]);
 
       res.render('detail', {
@@ -1039,15 +1046,14 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   // to QR, so the two never render on the same label at once.
   router.get(`${plugin.routePrefix}/:id/label`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
     try {
-      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      if (!isId(req.params.id)) {
         return res.status(404).send(req.t('errors.not_found'));
       }
 
-      const labelQuery: any = { _id: req.params.id, collection: res.locals.activeCollectionId };
-      applyPluginKindFilter(labelQuery, plugin);
-      applyVisibilityFilter(labelQuery, res.locals.isCollectionAdmin, res.locals.settings);
-
-      const item = await Item.findOne(labelQuery);
+      const item = await db.items.findOne(and(
+        ownItem(req.params.id, res),
+        visibilityFilter(res.locals.isCollectionAdmin, res.locals.settings)
+      ), { defaults: true });
       if (!item) {
         return res.status(404).send(req.t('errors.not_found'));
       }
@@ -1094,9 +1100,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   // DELETE /api/{prefix}/:id -> delete item
   router.delete(`/api${plugin.routePrefix}/:id`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
     try {
-      const deleteQuery: any = { _id: req.params.id, collection: res.locals.activeCollectionId };
-      applyPluginKindFilter(deleteQuery, plugin);
-      const item = await Item.findOne(deleteQuery);
+      const item = isId(req.params.id) ? await db.items.findOne(ownItem(req.params.id, res), { fields: ['_id'] }) : null;
       if (!item) {
         return res.status(404).json({ success: false, error: req.t('errors.not_found') });
       }
@@ -1113,9 +1117,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   if (canRefresh(plugin)) {
     router.post(`/api${plugin.routePrefix}/:id/refresh-info`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
       try {
-        const refreshQuery: any = { _id: req.params.id, collection: res.locals.activeCollectionId };
-        applyPluginKindFilter(refreshQuery, plugin);
-        const item = await Item.findOne(refreshQuery);
+        const item = isId(req.params.id) ? await db.items.findOne(ownItem(req.params.id, res), { defaults: true }) : null;
         if (!item) {
           return res.status(404).json({ success: false, error: "Item not found" });
         }
@@ -1155,12 +1157,9 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   router.post(`/api${plugin.routePrefix}/:id/move-to-collection`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
     try {
       const stamp = editStamp(req.user._id);
-      const moveQuery: any = { _id: req.params.id, collection: res.locals.activeCollectionId };
-      applyPluginKindFilter(moveQuery, plugin);
-      const moved = await Item.findOneAndUpdate(
-        moveQuery,
-        { in_wishlist: false, added_at: new Date(), ...stamp }
-      );
+      const moved = isId(req.params.id)
+        ? await db.items.updateOne(ownItem(req.params.id, res), { set: { in_wishlist: false, added_at: new Date(), ...stamp } })
+        : null;
       // A miss means the id is not this plugin's to move (or not in this collection).
       // Saying "success" there would tell the page a move happened that never did.
       if (!moved) {
@@ -1181,12 +1180,9 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   router.post(`/api${plugin.routePrefix}/:id/move-to-wishlist`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
     try {
       const stamp = editStamp(req.user._id);
-      const moveQuery: any = { _id: req.params.id, collection: res.locals.activeCollectionId };
-      applyPluginKindFilter(moveQuery, plugin);
-      const moved = await Item.findOneAndUpdate(
-        moveQuery,
-        { in_wishlist: true, added_at: new Date(), ...stamp }
-      );
+      const moved = isId(req.params.id)
+        ? await db.items.updateOne(ownItem(req.params.id, res), { set: { in_wishlist: true, added_at: new Date(), ...stamp } })
+        : null;
       // A miss means the id is not this plugin's to move (or not in this collection).
       // Saying "success" there would tell the page a move happened that never did.
       if (!moved) {

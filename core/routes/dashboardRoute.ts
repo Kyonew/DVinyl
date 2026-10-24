@@ -1,9 +1,10 @@
 import express from 'express';
 import { registry } from '../registry';
-import Item from '../../models/Item';
 import List from '../../models/List';
 import { requireAuth } from '../../middleware/authMiddleware';
-import { applyVisibilityFilter, applyEnabledModulesFilter, applyContainedFilter } from '../../utils/visibilityHelper';
+import { shelfFilter } from '../../utils/visibilityHelper';
+import { db } from '../db';
+import { desc } from '../db/filter';
 import { resolveShelfItems } from '../../utils/itemHelpers';
 import { applyHomeCollection, homePathFor } from '../../utils/homePage';
 
@@ -43,11 +44,15 @@ router.get('/dashboard', requireAuth, async (req: any, res: any) => {
     }
     const settings = res.locals.settings;
 
-    let queryAll: any = { collection: activeCollectionId, in_wishlist: false };
-    applyVisibilityFilter(queryAll, res.locals.isCollectionAdmin, settings);
-    applyEnabledModulesFilter(queryAll, settings);
-    applyContainedFilter(queryAll);
-    const allItems = await Item.find(queryAll).lean() as any[];
+    const shelf = (inWishlist: boolean) => shelfFilter({
+      collectionId: activeCollectionId,
+      inWishlist,
+      isAdmin: res.locals.isCollectionAdmin,
+      settings
+    });
+    const owned = shelf(false);
+    const wished = shelf(true);
+    const allItems = await db.items.find(owned);
 
     // Calculate total collection items count
     const stats: any = {
@@ -63,12 +68,8 @@ router.get('/dashboard', requireAuth, async (req: any, res: any) => {
     }
 
     // Latest collection items
-    let latestQuery: any = { collection: activeCollectionId, in_wishlist: false };
-    applyVisibilityFilter(latestQuery, res.locals.isCollectionAdmin, settings);
-    applyEnabledModulesFilter(latestQuery, settings);
-    applyContainedFilter(latestQuery);
     // Ten for the phone's sideways row; the desktop grid shows the first four.
-    const latestItems = await resolveShelfItems(await Item.find(latestQuery).sort({ added_at: -1 }).limit(10).lean(), res) as any[];
+    const latestItems = await resolveShelfItems(await db.items.find(owned, { sort: [desc('added_at')], limit: 10 }), res) as any[];
 
     const latestCollection = latestItems.map(item => {
       const plugin = registry.getByKind(item.kind as any);
@@ -76,11 +77,7 @@ router.get('/dashboard', requireAuth, async (req: any, res: any) => {
     });
 
     // Wishlist items
-    let wishlistQuery: any = { collection: activeCollectionId, in_wishlist: true };
-    applyVisibilityFilter(wishlistQuery, res.locals.isCollectionAdmin, settings);
-    applyEnabledModulesFilter(wishlistQuery, settings);
-    applyContainedFilter(wishlistQuery);
-    const wishlistItems = await resolveShelfItems(await Item.find(wishlistQuery).sort({ added_at: -1 }).limit(4).lean(), res) as any[];
+    const wishlistItems = await resolveShelfItems(await db.items.find(wished, { sort: [desc('added_at')], limit: 4 }), res) as any[];
 
     const latestWishlist = wishlistItems.map(item => {
       const plugin = registry.getByKind(item.kind as any);
@@ -89,7 +86,7 @@ router.get('/dashboard', requireAuth, async (req: any, res: any) => {
 
     // The counters of the phone dashboard's tiles, next to the collection total above.
     const [wishlistCount, listsCount] = await Promise.all([
-      Item.countDocuments(wishlistQuery),
+      db.items.count(wished),
       List.countDocuments({ collection: activeCollectionId })
     ]);
 

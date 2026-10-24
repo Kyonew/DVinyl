@@ -1,11 +1,8 @@
-import Item from '../models/Item';
 import { registry } from '../core/registry';
+import { db } from '../core/db';
+import { all, and, eq, Filter, isIn, missing, none, notIn, or } from '../core/db/filter';
+import { idOf } from '../core/db/ids';
 
-/**
- * Restricts a query to items whose kind belongs to a currently-enabled module.
- * Disabled-module items stay in the DB but disappear from every collection/dashboard/wishlist view.
- * Legacy music items (no `kind` field) are included only when the music module is enabled.
- */
 /**
  * Keeps contained items out of a listing.
  *
@@ -18,8 +15,8 @@ import { registry } from '../core/registry';
  * Counting follows the same rule as showing, so the totals always match what is on screen:
  * a show with five seasons is one line and counts as one.
  */
-export function applyContainedFilter(query: any): void {
-    query.parent = { $exists: false };
+export function notContainedFilter(): Filter {
+    return missing('parent');
 }
 
 /**
@@ -30,49 +27,27 @@ export function applyContainedFilter(query: any): void {
  * but a dump restored on an older path can still hold some, so the plugin that claims that
  * legacy stock (`matchesLegacyItems`, music today) matches them too.
  */
-export function pluginKindCondition(plugin: { kind: string; matchesLegacyItems?: boolean }): any {
+export function pluginKindFilter(plugin: { kind: string; matchesLegacyItems?: boolean }): Filter {
     return plugin.matchesLegacyItems
-        ? { $or: [{ kind: plugin.kind }, { kind: { $exists: false } }] }
-        : { kind: plugin.kind };
+        ? or(eq('kind', plugin.kind), missing('kind'))
+        : eq('kind', plugin.kind);
 }
 
 /**
- * Restricts a query to one plugin's items.
- *
- * The plugin behind a request comes from the URL prefix (`/album/...` is music), not from
- * the item the id points at, so without this an id can be handed to any plugin's route and
- * be answered by the wrong one. Pushed onto `$and` rather than merged in, because the
- * condition is itself an `$or` for the legacy-claiming plugin and would collide with the
- * `$or` another filter may already have put on the same query.
+ * Restricts a listing to the items whose kind belongs to a module the collection has on.
+ * Items of a module turned off stay stored but disappear from every collection, dashboard
+ * and wishlist view. Items predating kinds count as the legacy-claiming plugin's.
  */
-export function applyPluginKindFilter(query: any, plugin: { kind: string; matchesLegacyItems?: boolean }): void {
-    if (!query.$and) {
-        query.$and = [];
-    }
-    query.$and.push(pluginKindCondition(plugin));
-}
-
-export function applyEnabledModulesFilter(query: any, settings: any): void {
-    const all = registry.getAll();
+export function enabledModulesFilter(settings: any): Filter {
     const enabled = registry.getEnabled(settings);
 
-    // Everything enabled → no restriction (legacy no-kind items remain visible)
-    if (enabled.length === all.length) {
-        return;
+    // Everything enabled: no restriction, so items of no known kind stay visible
+    if (enabled.length === registry.getAll().length) {
+        return all();
     }
 
-    const ors: any[] = enabled.map(p => ({ kind: p.kind }));
-    if (enabled.some(p => p.matchesLegacyItems)) {
-        ors.push({ kind: { $exists: false } });
-    }
-
-    // Nothing enabled → match no item; otherwise require an enabled kind
-    const condition = ors.length > 0 ? { $or: ors } : { _id: null };
-
-    if (!query.$and) {
-        query.$and = [];
-    }
-    query.$and.push(condition);
+    // Nothing enabled matches no item
+    return or(...enabled.map(pluginKindFilter));
 }
 
 export interface ShareScopeEntry {
@@ -90,38 +65,30 @@ export interface ShareScopeEntry {
  * A scope that resolves to nothing valid (e.g. every selected plugin was since
  * removed) fails closed - matches no item - rather than falling back to "everything".
  */
-export function applyShareScopeFilter(query: any, shareScope: ShareScopeEntry[] | undefined | null): void {
+export function shareScopeFilter(shareScope: ShareScopeEntry[] | undefined | null): Filter {
     if (!shareScope || shareScope.length === 0) {
-        return;
+        return all();
     }
 
-    const ors: any[] = [];
+    const branches: Filter[] = [];
     for (const entry of shareScope) {
         const plugin = registry.get(entry.pluginId);
         if (!plugin) continue; // plugin removed/renamed since the scope was saved
 
-        const kindMatch = pluginKindCondition(plugin);
-
-        // The format value lives under `format` for most plugins but under
-        // `media_type` for music (legacy field name) - same convention the generic
-        // format filter above (FORMAT FILTER) already checks both for. $and (not a
-        // spread) because kindMatch is itself an `$or` for matchesLegacyItems plugins
-        // (music) - spreading two `$or` keys into one object would silently drop one.
-        ors.push(entry.formats && entry.formats.length > 0
-            ? { $and: [kindMatch, { $or: [{ format: { $in: entry.formats } }, { media_type: { $in: entry.formats } }] }] }
-            : kindMatch);
+        // The format value lives under `format` for most plugins but under `media_type`
+        // for music (legacy field name), the same convention the format filter of the
+        // collection page checks both for.
+        branches.push(entry.formats && entry.formats.length > 0
+            ? and(pluginKindFilter(plugin), or(isIn('format', entry.formats), isIn('media_type', entry.formats)))
+            : pluginKindFilter(plugin));
     }
 
-    const condition = ors.length > 0 ? { $or: ors } : { _id: null };
-
-    if (!query.$and) {
-        query.$and = [];
-    }
-    query.$and.push(condition);
+    // A scope naming nothing that still exists fails closed
+    return branches.length > 0 ? or(...branches) : none();
 }
 
 /**
- * Same rule as applyShareScopeFilter, asked about one item instead of a query: may the
+ * Same rule as shareScopeFilter, asked about one item instead of a query: may the
  * current visitor see this one? Every page that serves a single item by its id goes
  * through here, otherwise a scoped link would give away what it excludes to anyone
  * willing to guess an id.
@@ -141,7 +108,7 @@ export async function isWithinShareScope(res: any, item: any): Promise<boolean> 
     if (shareScope.length === 0) return true;
     if (!item) return false;
 
-    const source = item.parent ? await Item.findById(item.parent).lean() as any : item;
+    const source = item.parent ? await db.items.findById(idOf(item.parent)) : item;
     if (!source) return false;
 
     // Through toObject(), because a document with no `kind` is hydrated against the base
@@ -149,7 +116,7 @@ export async function isWithinShareScope(res: any, item: any): Promise<boolean> 
     // while the values are sat right there in the document. A lean read is already plain.
     const judged: any = typeof source.toObject === 'function' ? source.toObject() : source;
 
-    // A pre-plugins item carries no `kind` at all. applyShareScopeFilter above lets it
+    // A pre-plugins item carries no `kind` at all. shareScopeFilter above lets it
     // through under the plugin that claims legacy items, so this has to agree: judged
     // otherwise, the grid would offer an item whose page then refuses to open.
     const plugin = judged.kind
@@ -177,40 +144,49 @@ interface AppSettings {
     visibility?: VisibilitySettings
 }
 
-export function applyVisibilityFilter(query: any, isAdmin: boolean, settings: AppSettings): void {
+export function visibilityFilter(isAdmin: boolean, settings: AppSettings): Filter {
     if (!settings || !settings.visibility) {
-        return;
+        return all();
     }
 
     const { applyToAdmin, hiddenItems, hiddenGenres, hiddenTypes } = settings.visibility;
 
-    // Do not apply filter if user is admin and applyToAdmin is false
+    // An admin sees everything unless the rules are set to apply to admins too
     if (isAdmin && !applyToAdmin) {
-        return;
+        return all();
     }
 
-    const conditions = [];
-
-    if (hiddenItems && hiddenItems.length > 0) {
-        conditions.push({ _id: { $nin: hiddenItems } });
-    }
-
-    if (hiddenGenres && hiddenGenres.length > 0) {
-        conditions.push({ genre: { $nin: hiddenGenres } });
-        conditions.push({ genres: { $nin: hiddenGenres } });
-        // Since genres/styles can overlap, let's also filter styles just in case
-        conditions.push({ styles: { $nin: hiddenGenres } });
-    }
-
-    if (hiddenTypes && hiddenTypes.length > 0) {
-        conditions.push({ kind: { $nin: hiddenTypes } });
-    }
-
-    if (conditions.length > 0) {
-        if (!query.$and) {
-            query.$and = [];
-        }
-        query.$and.push(...conditions);
-    }
+    const genres = hiddenGenres || [];
+    return and(
+        notIn('_id', (hiddenItems || []).map(idOf)),
+        notIn('genre', genres),
+        notIn('genres', genres),
+        // Genres and styles overlap, so a hidden genre hides the items styled with it too
+        notIn('styles', genres),
+        notIn('kind', hiddenTypes || [])
+    );
 }
 
+
+/**
+ * What a shelf listing may show: one collection's owned items or wishlist, minus what the
+ * visibility rules hide from this viewer, the types switched off and contained items, and
+ * narrowed to the link's scope for a share visitor. Every page listing or counting what a
+ * collection holds starts from here, so their numbers agree with each other.
+ */
+export function shelfFilter(options: {
+    collectionId: any;
+    inWishlist: boolean;
+    isAdmin: boolean;
+    settings: any;
+    shareScope?: ShareScopeEntry[] | null;
+}): Filter {
+    return and(
+        eq('collection', idOf(options.collectionId)),
+        eq('in_wishlist', options.inWishlist),
+        visibilityFilter(options.isAdmin, options.settings),
+        enabledModulesFilter(options.settings),
+        notContainedFilter(),
+        options.shareScope ? shareScopeFilter(options.shareScope) : all()
+    );
+}

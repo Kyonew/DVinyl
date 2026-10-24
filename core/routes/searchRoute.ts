@@ -1,17 +1,17 @@
 import express from 'express';
 import { registry } from '../registry';
-import Item from '../../models/Item';
 import Collection from '../../models/Collection';
 import Settings from '../../models/Settings';
 import { requireAuth } from '../../middleware/authMiddleware';
-import { escapeRegExp } from '../helpers';
-import { applyVisibilityFilter, applyEnabledModulesFilter, applyContainedFilter } from '../../utils/visibilityHelper';
+import { shelfFilter } from '../../utils/visibilityHelper';
+import { db } from '../db';
+import { and, contains, desc, or } from '../db/filter';
 
 const router = express.Router();
 
 const PAGE_SIZE = 25;
 const MIN_QUERY_LENGTH = 2;
-// The query becomes a regex run against every item of every collection the user belongs
+// The query becomes a text match run against every item of every collection the user belongs
 // to, so its cost is bounded here rather than by what fits in the address bar.
 const MAX_QUERY_LENGTH = 100;
 
@@ -56,7 +56,6 @@ router.get('/search', requireAuth, async (req: any, res: any) => {
     const settingsById = new Map<string, any>();
     settingsDocs.forEach((s: any) => settingsById.set(String(s.collection), s));
 
-    const regex = new RegExp(escapeRegExp(rawQuery), 'i');
 
     // Only title + creator field, unlike /collection's search box: comments/tracklist,
     // barcode and extraSearchFields are a separate roadmap item (full-text search), kept
@@ -72,38 +71,27 @@ router.get('/search', requireAuth, async (req: any, res: any) => {
       const creatorFields = new Set<string>();
       enabledPlugins.forEach(p => creatorFields.add(p.creatorField));
 
-      const subFilter: any = {
-        collection: id,
-        // Same shelf every other listing shows: what is owned, holders only. A wishlist
-        // entry is not in the collection yet, and a season belongs to its show.
-        in_wishlist: false,
-        $or: [
-          { title: regex },
-          ...Array.from(creatorFields).map(f => ({ [f]: regex }))
-        ]
-      };
-
-      const isAdminHere = roleById.get(idStr) === 'admin';
-      applyVisibilityFilter(subFilter, isAdminHere, settings);
-      applyEnabledModulesFilter(subFilter, settings);
-      applyContainedFilter(subFilter);
-
-      return subFilter;
+      // Same shelf every other listing shows: what is owned, holders only. A wishlist
+      // entry is not in the collection yet, and a season belongs to its show.
+      return and(
+        shelfFilter({ collectionId: id, inWishlist: false, isAdmin: roleById.get(idStr) === 'admin', settings }),
+        or(contains('title', rawQuery), ...Array.from(creatorFields).map(f => contains(f, rawQuery)))
+      );
     });
 
-    const query = { $or: subFilters };
+    const query = or(...subFilters);
 
-    const totalItems = await Item.countDocuments(query);
+    const totalItems = await db.items.count(query);
     const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
     const currentPage = Math.min(page, totalPages);
 
-    const items = await Item.find(query)
-      .sort({ added_at: -1 })
-      .skip((currentPage - 1) * PAGE_SIZE)
-      .limit(PAGE_SIZE)
-      .lean();
+    const found = await db.items.find(query, {
+      sort: [desc('added_at')],
+      skip: (currentPage - 1) * PAGE_SIZE,
+      limit: PAGE_SIZE
+    });
 
-    const results = items.map((item: any) => {
+    const results = found.map((item: any) => {
       const plugin = registry.getByKind(item.kind);
       const formatted = plugin ? plugin.formatForView(item) : item;
       const collectionIdStr = String(item.collection);

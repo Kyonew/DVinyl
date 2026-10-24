@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import type { Filter, Sort } from './db/filter';
 
 // What a spine on the shelf is the edge of: a cardboard sleeve, a hinged plastic case,
 // a moulded media case, a bound book or a box.
@@ -577,19 +578,19 @@ export interface CollectionViewContext {
   // so a view says here whether it makes sense on a list of things nobody owns yet.
   inWishlist: boolean;
 
-  // The resolved Mongo filter behind the page: every criterion the filter controls
+  // The resolved filter behind the page: every criterion the filter controls
   // produced, plus the visibility, module and share-scope narrowing, and minus paging
   // and ordering. A view that draws something other than one page of items builds its
   // own query on top of this, so it shows exactly what the filters say it should.
-  itemQuery: any;
+  itemQuery: Filter;
 
   // The ordering the page resolved, for a view keeping a list of items of its own.
-  itemSort: any;
+  itemSort: Sort;
 
   // The same narrowing as itemQuery minus everything the user asked for (search, type,
   // filters): what the collection holds on this page whatever is being looked for. A view
   // that keeps its own shape under a filter draws this and marks what itemQuery matches.
-  unfilteredQuery: any;
+  unfilteredQuery: Filter;
 
   // Whether itemQuery narrows anything beyond unfilteredQuery.
   isNarrowed: boolean;

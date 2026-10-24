@@ -1,4 +1,5 @@
 import { PluginDefinition, FieldDefinition } from './types';
+import { blank, contains, eq, filled, Filter, isIn, ne, range, Sort } from './db/filter';
 import { CustomFieldConfig } from './customPlugin';
 import { RESERVED_FIELD_NAMES, FIELD_NAME_RE, FIELD_TYPES, cleanText, slugify } from './customPluginStore';
 import {
@@ -171,24 +172,27 @@ export type FilterableField = ExtraFieldConfig & { native?: boolean };
 const SEARCHABLE_TYPES = new Set(['text', 'textarea', 'select', 'tags']);
 
 /**
- * $or branches matching the search box against the user-defined fields of every given
+ * Alternatives matching the search box against the user-defined fields of every given
  * plugin. A select stores the slug of its option ("16_9" for "16:9"), so it is matched
  * on what people read and type: the labels, mapped back to the values they stand for.
  */
-export function extraSearchConditions(settings: any, plugins: PluginDefinition[], regex: RegExp): any[] {
-  const conditions: any[] = [];
+export function extraSearchConditions(settings: any, plugins: PluginDefinition[], text: string): Filter[] {
+  const conditions: Filter[] = [];
   const seen = new Set<string>();
+  const needle = text.toLocaleLowerCase();
   for (const plugin of plugins) {
     for (const field of getExtraFields(settings, plugin.id)) {
       if (!SEARCHABLE_TYPES.has(field.type)) continue;
       const path = `extra.${field.name}`;
       if (field.type === 'select') {
-        const values = (field.options || []).filter(o => regex.test(o.label)).map(o => o.value);
-        if (values.length > 0) conditions.push({ [path]: { $in: values } });
+        const values = (field.options || [])
+          .filter(o => o.label.toLocaleLowerCase().includes(needle))
+          .map(o => o.value);
+        if (values.length > 0) conditions.push(isIn(path, values));
       } else if (!seen.has(path)) {
         // Two plugins may declare the same name: one test on the path covers both
         seen.add(path);
-        conditions.push({ [path]: regex });
+        conditions.push(contains(path, text));
       }
     }
   }
@@ -226,13 +230,13 @@ function parseDateBound(raw: any, endOfDay: boolean): Date | null {
 }
 
 /**
- * Mongo conditions for the field filters present in a query string. User-defined
+ * Filters for the field filters present in a query string. User-defined
  * names come from the settings and were validated against FIELD_NAME_RE on the way
  * in, and native ones are declared by the plugin itself, so interpolating them into
  * a path is safe.
  */
-export function buildExtraFieldConditions(defs: FilterableField[], query: any): any[] {
-  const conditions: any[] = [];
+export function buildExtraFieldConditions(defs: FilterableField[], query: any): Filter[] {
+  const conditions: Filter[] = [];
 
   for (const field of defs) {
     if (!isFilterable(field)) continue;
@@ -241,22 +245,22 @@ export function buildExtraFieldConditions(defs: FilterableField[], query: any): 
     if (isRangeFilter(field)) {
       const rawFrom = query[filterParam(field, 'from')];
       const rawTo = query[filterParam(field, 'to')];
-      const range: any = {};
+      const bounds: { gte?: number | Date; lte?: number | Date } = {};
 
       if (field.type === 'date') {
         // The upper bound covers the whole day, so "until the 15th" includes the 15th
         const from = parseDateBound(rawFrom, false);
         const to = parseDateBound(rawTo, true);
-        if (from) range.$gte = from;
-        if (to) range.$lte = to;
+        if (from) bounds.gte = from;
+        if (to) bounds.lte = to;
       } else {
         const from = Number(rawFrom);
         const to = Number(rawTo);
-        if (rawFrom !== undefined && rawFrom !== '' && !isNaN(from)) range.$gte = from;
-        if (rawTo !== undefined && rawTo !== '' && !isNaN(to)) range.$lte = to;
+        if (rawFrom !== undefined && rawFrom !== '' && !isNaN(from)) bounds.gte = from;
+        if (rawTo !== undefined && rawTo !== '' && !isNaN(to)) bounds.lte = to;
       }
 
-      if (Object.keys(range).length > 0) conditions.push({ [path]: range });
+      if (bounds.gte !== undefined || bounds.lte !== undefined) conditions.push(range(path, bounds));
       continue;
     }
 
@@ -265,28 +269,28 @@ export function buildExtraFieldConditions(defs: FilterableField[], query: any): 
     if (!value) continue;
 
     if (value === EXTRA_ANY) {
-      // "Filled in". A missing key matches null in Mongo, so $nin covers both the
-      // items predating the field and the empty strings an emptied input leaves behind.
-      conditions.push({ [path]: { $nin: [null, '', []] } });
+      // "Filled in": neither the items predating the field nor the empty strings an
+      // emptied input leaves behind.
+      conditions.push(filled(path));
       continue;
     }
     if (value === EXTRA_NONE) {
-      conditions.push({ [path]: { $in: [null, '', []] } });
+      conditions.push(blank(path));
       continue;
     }
 
     if (field.type === 'boolean') {
       // Items predating the field have no key at all, so "no" is "not true" rather
       // than an equality test on false.
-      conditions.push(value === 'true' ? { [path]: true } : { [path]: { $ne: true } });
+      conditions.push(value === 'true' ? eq(path, true) : ne(path, true));
     } else if (field.native && typeof field.default === 'string' && field.default && value === field.default) {
       // A plugin field shows its default when nothing is stored (items saved before
       // the field existed, or emptied by an import), so those match its default too.
-      conditions.push({ [path]: { $in: [value, null, ''] } });
+      conditions.push(isIn(path, [value, null, '']));
     } else {
       // text, select and tags alike: the values offered are the ones actually stored,
       // and an equality test on an array path matches "contains" for tags.
-      conditions.push({ [path]: value });
+      conditions.push(eq(path, value));
     }
   }
 
@@ -301,14 +305,14 @@ export function extraSortKey(field: ExtraFieldConfig): string {
   return `${SORT_PREFIX}${field.name}`;
 }
 
-/** Mongo sort object when `sort` targets a user-defined field, null otherwise. */
-export function parseExtraSort(sort: string | undefined, defs: ExtraFieldConfig[]): Record<string, 1 | -1> | null {
+/** The sort asked for when `sort` targets a user-defined field, null otherwise. */
+export function parseExtraSort(sort: string | undefined, defs: ExtraFieldConfig[]): Sort | null {
   if (typeof sort !== 'string' || !sort.startsWith(SORT_PREFIX)) return null;
   const match = sort.match(/^(.*)_(asc|desc)$/);
   if (!match) return null;
   const name = match[1]!.slice(SORT_PREFIX.length);
   if (!defs.some(f => f.name === name)) return null;
-  return { [`extra.${name}`]: match[2] === 'asc' ? 1 : -1 };
+  return [{ field: `extra.${name}`, dir: match[2] === 'asc' ? 'asc' : 'desc' }];
 }
 
 /**

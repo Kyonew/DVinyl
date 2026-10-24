@@ -1,16 +1,19 @@
 import express from 'express';
-import mongoose from 'mongoose';
 import QRCode from 'qrcode';
 import { registry } from '../registry';
 import { viewRegistry } from '../viewRegistry';
 import { shelfChoices } from '../shelfStore';
 import { CollectionViewContext } from '../types';
-import Item from '../../models/Item';
 import Collection from '../../models/Collection';
 import { BASE_URL } from '../../config/constants';
 import { requireAuth, requireAuthOrShareView, requireCollectionRole } from '../../middleware/authMiddleware';
-import { applyVisibilityFilter, applyEnabledModulesFilter, applyContainedFilter, applyShareScopeFilter } from '../../utils/visibilityHelper';
-import { escapeRegExp, getPublicProtocol, generateBarcodeDataUrl, buildUniqueTitlesGroupKey } from '../helpers';
+import { pluginKindFilter, shareScopeFilter, shelfFilter } from '../../utils/visibilityHelper';
+import { getPublicProtocol, generateBarcodeDataUrl } from '../helpers';
+import { db } from '../db';
+import {
+  all, and, asc, ci, contains, desc, eq, Filter, isIn, not, notIn, or, Sort, SortDirection
+} from '../db/filter';
+import { idOf, isId } from '../db/ids';
 import { generateUniqueSlug, setActiveCollection } from '../../utils/collectionHelpers';
 import { resolveShelfItems, deleteItemsAndContents } from '../../utils/itemHelpers';
 import { checkCollectionCreation } from '../../utils/instanceSettings';
@@ -105,13 +108,12 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
       limit = clampLimit(req.cookies.limitPref);
     }
 
-    let query: any = { collection: activeCollectionId, in_wishlist: inWishlist };
     // Two separate buckets. `conditions` holds the user's criteria, which filterMode
-    // 'hide' inverts. `scopeConditions` holds what defines *which items the page is
-    // about at all* (the selected type): inverting that would widen the page to other
-    // types instead of narrowing it, so it is always ANDed as-is.
-    let conditions: any[] = [];
-    let scopeConditions: any[] = [];
+    // 'hide' inverts. `typeFilter` holds what defines *which items the page is about at
+    // all* (the selected type): inverting that would widen the page to other types
+    // instead of narrowing it, so it always applies as-is.
+    const conditions: Filter[] = [];
+    let typeFilter: Filter = all();
 
     // A scoped share link only ever browses the types it allowlists - narrow the
     // plugin list up front so search fields, the type/format filters and the
@@ -151,55 +153,36 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
 
     // SEARCH QUERY
     if (trimmedSearch) {
-      const regex = new RegExp(escapeRegExp(trimmedSearch), 'i');
-      const searchOr: any[] = [
-        { title: regex },
-        { barcode: regex }
+      const alternatives: Filter[] = [
+        contains('title', trimmedSearch),
+        contains('barcode', trimmedSearch)
       ];
 
       for (const plugin of enabledPlugins) {
-        searchOr.push({ [plugin.creatorField]: regex });
-        if (plugin.extraSearchFields) {
-          for (const extra of plugin.extraSearchFields) {
-            searchOr.push({ [extra]: regex });
-          }
+        alternatives.push(contains(plugin.creatorField, trimmedSearch));
+        for (const extra of plugin.extraSearchFields || []) {
+          alternatives.push(contains(extra, trimmedSearch));
         }
       }
       // The collection's own fields too (audio tracks, age rating...), so a value
       // typed into one can be found without opening its filter.
-      searchOr.push(...extraSearchConditions(settings, enabledPlugins, regex));
+      alternatives.push(...extraSearchConditions(settings, enabledPlugins, trimmedSearch));
 
-      // Cast here rather than left to Mongoose: the same query also feeds an aggregate
-      // (unique titles), which does not cast and would never match a plain string.
-      if (mongoose.Types.ObjectId.isValid(trimmedSearch)) {
-        searchOr.push({ _id: new mongoose.Types.ObjectId(trimmedSearch) });
+      if (isId(trimmedSearch)) {
+        alternatives.push(eq('_id', trimmedSearch));
       }
-      conditions.push({ $or: searchOr });
+      conditions.push(or(...alternatives));
     }
 
     // TYPE / PLUGIN MODULE FILTER
-    if (type && type !== 'all') {
-      const plugin = enabledPlugins.find(p => p.id === type);
-      if (plugin) {
-        if (plugin.matchesLegacyItems) {
-          // Compatibility with older DB where kind was absent (pre-plugins era).
-          // Needs an $or, so it cannot live on query.kind like the other plugins do,
-          // hence the scope bucket rather than a plain query field.
-          scopeConditions.push({
-            $or: [{ kind: plugin.kind }, { kind: { $exists: false } }]
-          });
-        } else {
-          query.kind = plugin.kind;
-        }
-      }
+    if (selectedPlugin) {
+      // Takes the items predating kinds along for the plugin that claims them
+      typeFilter = pluginKindFilter(selectedPlugin);
     }
 
     // FORMAT FILTER
     if (format && format !== 'all') {
-      const formatRegex = new RegExp(`^${escapeRegExp(format)}$`, 'i');
-      conditions.push({
-        $or: [{ media_type: formatRegex }, { format: formatRegex }]
-      });
+      conditions.push(or(ci('media_type', String(format)), ci('format', String(format))));
     }
 
     // LOCATION FILTER
@@ -207,12 +190,11 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
     // (see SHARE_HIDDEN_FIELDS), and a filter left open would let a visitor confirm a
     // shelf name by trying it, which is the same disclosure the hidden control avoids.
     if (location && !res.locals.isShareView) {
-      conditions.push({ location: new RegExp(escapeRegExp(location), 'i') });
+      conditions.push(contains('location', String(location)));
     }
 
     // ARTIST / CREATOR FILTER
     if (trimmedArtist) {
-      const artistRegex = new RegExp(escapeRegExp(trimmedArtist), 'i');
       const fields = new Set<string>();
 
       for (const plugin of enabledPlugins) {
@@ -220,54 +202,43 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
         for (const f of plugin.creatorSearchFields || []) fields.add(f);
       }
 
-      const artistOr = Array.from(fields).map(f => ({ [f]: artistRegex }));
-      conditions.push({ $or: artistOr });
+      conditions.push(or(...Array.from(fields).map(f => contains(f, trimmedArtist))));
     }
 
     // GENRE FILTER
     if (genre) {
-      const genreArr = genre.split(',').map((g: string) => g.trim()).filter(Boolean);
+      const genreArr = String(genre).split(',').map((g: string) => g.trim()).filter(Boolean);
       if (genreArr.length > 0) {
-        conditions.push({
-          $or: [
-            { genre: { $in: genreArr.map((g: string) => new RegExp(escapeRegExp(g), 'i')) } },
-            { genres: { $in: genreArr.map((g: string) => new RegExp(escapeRegExp(g), 'i')) } }
-          ]
-        });
+        conditions.push(or(...genreArr.flatMap((g: string) => [contains('genre', g), contains('genres', g)])));
       }
     }
 
     // STYLE FILTER
     if (style) {
-      const styleArr = style.split(',').map((s: string) => s.trim()).filter(Boolean);
+      const styleArr = String(style).split(',').map((s: string) => s.trim()).filter(Boolean);
       if (styleArr.length > 0) {
-        conditions.push({
-          styles: { $in: styleArr.map((s: string) => new RegExp(escapeRegExp(s), 'i')) }
-        });
+        conditions.push(or(...styleArr.map((s: string) => contains('styles', s))));
       }
     }
 
     // PLATFORM FILTER
     if (platform) {
-      const platformArr = platform.split(',').map((p: string) => p.trim()).filter(Boolean);
+      const platformArr = String(platform).split(',').map((p: string) => p.trim()).filter(Boolean);
       if (platformArr.length > 0) {
-        conditions.push({
-          platform: { $in: platformArr.map((p: string) => new RegExp(`^${escapeRegExp(p)}$`, 'i')) }
-        });
+        conditions.push(or(...platformArr.map((p: string) => ci('platform', p))));
       }
     }
 
     // DECADE FILTER
+    // The year is stored as the text it was typed as, so the decade lists its years.
     if (decade) {
-      const decadeArr = decade.split(',').map((d: string) => parseInt(d)).filter((d: number) => !isNaN(d));
+      const decadeArr = String(decade).split(',').map((d: string) => parseInt(d)).filter((d: number) => !isNaN(d));
       if (decadeArr.length > 0) {
-        const years: RegExp[] = [];
+        const years: string[] = [];
         decadeArr.forEach((startYear: number) => {
-          for (let y = startYear; y < startYear + 10; y++) {
-            years.push(new RegExp(`^${y}$`));
-          }
+          for (let y = startYear; y < startYear + 10; y++) years.push(String(y));
         });
-        conditions.push({ year: { $in: years } });
+        conditions.push(isIn('year', years));
       }
     }
 
@@ -283,75 +254,55 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
     // filter come from items, and a lookup left wide open would name what the link keeps
     // from its visitor: asking for a type the link excludes lands here with no selected
     // plugin, which used to mean "every type" and now means "every type this link shows".
-    const typeScope = (): any => {
-      const base: any = { collection: activeCollectionId };
-      applyShareScopeFilter(base, shareScope);
-      if (!selectedPlugin) return base;
-      return selectedPlugin.matchesLegacyItems
-        ? { ...base, $or: [{ kind: selectedPlugin.kind }, { kind: { $exists: false } }] }
-        : { ...base, kind: selectedPlugin.kind };
-    };
+    const typeScope = (): Filter => and(
+      eq('collection', idOf(activeCollectionId)),
+      shareScopeFilter(shareScope),
+      selectedPlugin ? pluginKindFilter(selectedPlugin) : all()
+    );
 
     const filterMode = (req.query.filterMode as string) || 'show';
     // 'hide' negates the criteria as a block ("everything except what matches"), then
-    // the scope is re-applied on top so the exclusion stays inside the selected type.
-    const criteria = conditions.length === 0 ? []
-      : filterMode === 'hide' ? [{ $nor: [{ $and: conditions }] }]
-        : conditions;
-    const allConditions = [...scopeConditions, ...criteria];
-    if (allConditions.length > 0) {
-      query.$and = allConditions;
-    }
-
-    applyVisibilityFilter(query, res.locals.isCollectionAdmin, settings);
-    applyEnabledModulesFilter(query, settings);
-    applyContainedFilter(query);
-    if (res.locals.isShareView) {
-      applyShareScopeFilter(query, shareScope);
-    }
+    // the type is applied on top so the exclusion stays inside the selected type.
+    const criteria: Filter = conditions.length === 0 ? all()
+      : filterMode === 'hide' ? not(and(...conditions))
+        : and(...conditions);
 
     // The page as it stands before any of the user's criteria, built through the same
-    // narrowing as above so it can never show what the query itself would hide.
-    const unfilteredQuery: any = { collection: activeCollectionId, in_wishlist: inWishlist };
-    applyVisibilityFilter(unfilteredQuery, res.locals.isCollectionAdmin, settings);
-    applyEnabledModulesFilter(unfilteredQuery, settings);
-    applyContainedFilter(unfilteredQuery);
-    if (res.locals.isShareView) {
-      applyShareScopeFilter(unfilteredQuery, shareScope);
-    }
-    const isNarrowed = allConditions.length > 0 || query.kind !== undefined;
+    // narrowing as the query itself so it can never show what the query would hide.
+    const unfilteredQuery = shelfFilter({
+      collectionId: activeCollectionId,
+      inWishlist,
+      isAdmin: res.locals.isCollectionAdmin,
+      settings,
+      shareScope: res.locals.isShareView ? shareScope : null
+    });
+    const query = and(unfilteredQuery, typeFilter, criteria);
+    const isNarrowed = conditions.length > 0 || typeFilter.op !== 'all';
 
-    const totalItems = await Item.countDocuments(query);
+    const totalItems = await db.items.count(query);
 
     // UNIQUE TITLES
     // The same work owned in several formats (a film on Blu-ray and 4K, a book in
     // paperback and hardcover) is several items but one work, so a plain item count
-    // overstates how many distinct works the collection holds. Group on the normalized
+    // overstates how many distinct works the collection holds. Grouped on the normalized
     // title plus the creator, the same pair the "other formats" block on the detail page
     // matches on, so the two agree: editions of one work fold together, while a remake
     // stays apart through its different director/creator. The year is deliberately not
     // used - it belongs to the edition (a reissue, a new pressing), not to the work.
     //
-    // The all-types view has no single creator field, so the group key reads a $switch on
-    // `kind` that picks each item's OWN creator field (built from the registry, see
-    // buildUniqueTitlesGroupKey). That keeps the all-types number equal to the sum of the
-    // per-type counts: two different-type items sharing a title key on different creator
-    // fields and stay apart. A selected type keys on that one plugin's field directly.
+    // The all-types view has no single creator field, so each item keys on its OWN type's
+    // creator field. That keeps the all-types number equal to the sum of the per-type
+    // counts: two different-type items sharing a title stay apart.
     //
     // Skipped entirely when there are 0 or 1 items: the count then equals the item count
-    // and the badge hides anyway, so there is no reason to pay for the aggregate.
+    // and the badge hides anyway, so there is no reason to pay for it.
     //
     // A failure here only costs the badge (it then equals the item count and hides),
     // never the page.
     let uniqueTitles: number = totalItems;
     if (totalItems > 1) {
       try {
-        const uniqueTitlesAgg = await Item.aggregate([
-          { $match: query },
-          { $group: { _id: buildUniqueTitlesGroupKey(selectedPlugin, enabledPlugins) } },
-          { $count: 'total' }
-        ]);
-        uniqueTitles = uniqueTitlesAgg[0]?.total ?? 0;
+        uniqueTitles = await db.items.countDistinctWorks(query, { selected: selectedPlugin, plugins: enabledPlugins });
       } catch (aggErr: any) {
         console.error('Unique titles count error:', aggErr.message);
       }
@@ -360,7 +311,7 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
     // A code scanned from the filter bar names one item more often than not: open it
     // rather than showing a list of one. Anything else falls through to the list.
     if (req.query.scanned && totalItems === 1 && !isPartialRequest(req)) {
-      const hit: any = await Item.findOne(query).select('_id kind').lean();
+      const hit: any = await db.items.findOne(query, { fields: ['_id', 'kind'] });
       const hitPlugin = hit ? registry.getByKind(hit.kind) : undefined;
       if (hit && hitPlugin) {
         res.redirect(`${hitPlugin.routePrefix}/${hit._id}`);
@@ -368,53 +319,50 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
       }
     }
 
-    // BUILD SORT OBJECT
-    const buildSortObj = () => {
+    // BUILD SORT
+    const buildSort = (): Sort => {
       const extraSort = parseExtraSort(sort as string, extraDefs);
       if (extraSort) return extraSort;
 
-      const sortMap: Record<string, any> = {
-        'added_desc': { added_at: -1 },
-        'added_asc': { added_at: 1 },
+      const sortMap: Record<string, Sort> = {
+        'added_desc': [desc('added_at')],
+        'added_asc': [asc('added_at')],
         // `title` stays as a tie-breaker: two items whose sort keys are equal ("The Wall"
-        // and "Wall") would otherwise come back in whatever order Mongo felt like.
-        'title_asc': { sort_title: 1, title: 1 },
-        'title_desc': { sort_title: -1, title: -1 },
-        'year_desc': { year: -1 },
-        'year_asc': { year: 1 },
+        // and "Wall") would otherwise come back in whatever order the store felt like.
+        'title_asc': [asc('sort_title'), asc('title')],
+        'title_desc': [desc('sort_title'), desc('title')],
+        'year_desc': [desc('year')],
+        'year_asc': [asc('year')],
       };
 
       // An option the selected type declares for itself (see PluginDefinition.sortOptions).
       const own = sort && selectedPlugin ? sort.match(/^(.*)_(asc|desc)$/) : null;
       const ownOption = own ? selectedPlugin?.sortOptions?.find(o => o.key === own[1]) : undefined;
       if (own && ownOption) {
-        const dir = own[2] === 'asc' ? 1 : -1;
-        const ownSort: Record<string, 1 | -1> = {};
-        for (const field of ownOption.fields) ownSort[field] = dir;
-        return { ...ownSort, sort_title: dir, title: dir };
+        const dir = own[2] === 'asc' ? 'asc' : 'desc';
+        return [
+          ...ownOption.fields.map(field => ({ field, dir: dir as SortDirection })),
+          { field: 'sort_title', dir },
+          { field: 'title', dir }
+        ];
       }
 
       if (sort && sort.startsWith('artist')) {
-        const dir = sort === 'artist_asc' ? 1 : -1;
+        const dir: SortDirection = sort === 'artist_asc' ? 'asc' : 'desc';
         // No single creator field spans every type, so "all" falls back to the title, and
         // it sorts on the same normalized key as the title options above.
-        if (!type || type === 'all') return { sort_title: dir, title: dir };
+        if (!type || type === 'all') return [{ field: 'sort_title', dir }, { field: 'title', dir }];
 
         const plugin = enabledPlugins.find(p => p.id === type);
-        const field = plugin ? plugin.creatorField : 'title';
-        return { [field]: dir };
+        return [{ field: plugin ? plugin.creatorField : 'title', dir }];
       }
 
-      return sortMap[sort || ''] || { added_at: -1 };
+      return sortMap[sort || ''] || [desc('added_at')];
     };
 
-    const itemSort = buildSortObj();
+    const itemSort = buildSort();
 
-    const found = await Item.find(query)
-      .sort(itemSort)
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .lean();
+    const found = await db.items.find(query, { sort: itemSort, skip: (page - 1) * limit, limit });
 
     // How the page is drawn. Three sources, narrowest first: the view selector says so
     // outright, then the user's chosen default view, then the one this browser last
@@ -465,25 +413,25 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
     const showCreatorFilter = filterShown(CORE_FILTER_IDS.creator);
     const artistList = await (async () => {
       if (!showCreatorFilter) return [];
-      const baseQuery: any = { collection: activeCollectionId, in_wishlist: inWishlist };
-      // Per-plugin below, which a link scoped to a whole type already covers; this is for
-      // the one scoped to some of its formats, where the kind alone would still offer the
-      // names behind the formats it left out.
-      applyShareScopeFilter(baseQuery, shareScope);
+      // Per-plugin below, which a link scoped to a whole type already covers; the share
+      // scope is for the one scoped to some of its formats, where the kind alone would
+      // still offer the names behind the formats it left out.
+      const base = and(
+        eq('collection', idOf(activeCollectionId)),
+        eq('in_wishlist', inWishlist),
+        shareScopeFilter(shareScope)
+      );
       if (!type || type === 'all') {
-        const promises = enabledPlugins.map(plugin =>
-          Item.distinct(plugin.creatorField, { ...baseQuery, [plugin.creatorField]: { $nin: ['', null] } })
-        );
-        const results = await Promise.all(promises);
-        const merged = results.flat();
-        return [...new Set(merged)].filter(Boolean).sort();
+        const results = await Promise.all(enabledPlugins.map(plugin =>
+          db.items.distinct(plugin.creatorField, and(base, notIn(plugin.creatorField, ['', null])))
+        ));
+        return [...new Set(results.flat())].filter(Boolean).sort();
       } else {
         const plugin = enabledPlugins.find(p => p.id === type);
         if (!plugin) return [];
-        const typeQuery = plugin.matchesLegacyItems
-          ? { ...baseQuery, $or: [{ kind: plugin.kind }, { kind: { $exists: false } }] }
-          : { ...baseQuery, kind: plugin.kind };
-        return (await Item.distinct(plugin.creatorField, { ...typeQuery, [plugin.creatorField]: { $nin: ['', null] } })).sort();
+        return (await db.items.distinct(plugin.creatorField, and(
+          base, pluginKindFilter(plugin), notIn(plugin.creatorField, ['', null])
+        ))).sort();
       }
     })();
 
@@ -502,25 +450,25 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
     // filter the collection switched off stays out of the bar without being read).
     const genresList = filterShown(CORE_FILTER_IDS.genre)
       ? await Promise.all([
-        Item.distinct('genres', { ...typeScope(), genres: { $nin: ['', null] } }),
-        Item.distinct('genre', { ...typeScope(), genre: { $nin: ['', null] } })
+        db.items.distinct('genres', and(typeScope(), notIn('genres', ['', null]))),
+        db.items.distinct('genre', and(typeScope(), notIn('genre', ['', null])))
       ])
       : [];
     const genres = [...new Set(genresList.flat())].filter(Boolean).sort();
 
     const styles = filterShown(CORE_FILTER_IDS.style)
-      ? await Item.distinct('styles', { ...typeScope(), styles: { $nin: ['', null] } })
+      ? await db.items.distinct('styles', and(typeScope(), notIn('styles', ['', null])))
       : [];
     styles.sort();
 
     const platforms = filterShown(CORE_FILTER_IDS.platform)
-      ? await Item.distinct('platform', { ...typeScope(), platform: { $nin: ['', null, 'other'] } })
+      ? await db.items.distinct('platform', and(typeScope(), notIn('platform', ['', null, 'other'])))
       : [];
     platforms.sort();
 
     // The decade filter only makes sense where something actually carries a year
     const hasYear = filterShown(CORE_FILTER_IDS.decade)
-      && !!(await Item.exists({ ...typeScope(), year: { $nin: ['', null] } }));
+      && await db.items.exists(and(typeScope(), notIn('year', ['', null])));
 
     // Filter and sort labels follow the selected type's own wording ("Fabricant",
     // "Réalisateur"...) instead of the music-flavoured default.
@@ -564,10 +512,7 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
           control.choices = (field.options || []).map(o => ({ value: o.value, label: shownLabel(o.label) }));
         } else if (isPickerFilter(field)) {
           const path = filterPath(field);
-          const values = await Item.distinct(path, {
-            ...typeScope(),
-            [path]: { $nin: ['', null] }
-          });
+          const values = await db.items.distinct(path, and(typeScope(), notIn(path, ['', null])));
           control.choices = values
             .filter((v: any) => typeof v === 'string' || typeof v === 'number')
             .map((v: any) => String(v))
@@ -601,10 +546,10 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
       // Tells an empty page apart from an empty result: the wishlist keeps its
       // "nothing here yet" invitation for a shelf that really is empty, and falls
       // back to the plain grid when a filter is what emptied it. The selected type
-      // counts as one even though it lands on `query.kind` instead of the buckets
+      // counts as one even though it lands on `typeFilter` instead of the criteria
       // above, or picking a type the shelf holds none of would take away the
       // controls needed to leave it.
-      hasActiveFilters: allConditions.length > 0 || (!!type && type !== 'all'),
+      hasActiveFilters: conditions.length > 0 || (!!type && type !== 'all'),
       currentSort: sort,
       filterMap,
       artistList,
@@ -666,7 +611,7 @@ router.post('/collection/labels', requireAuth, requireCollectionRole('editor'), 
     const rawIds = req.body?.ids;
     const idList: string[] = Array.isArray(rawIds) ? rawIds : (rawIds ? [rawIds] : []);
     const ids = idList
-      .filter((id: string) => mongoose.Types.ObjectId.isValid(id))
+      .filter(isId)
       .slice(0, MAX_SHEET_LABELS);
 
     if (ids.length === 0) {
@@ -675,21 +620,23 @@ router.post('/collection/labels', requireAuth, requireCollectionRole('editor'), 
 
     // Same restrictions the grid the selection was made in already applies: an id
     // reaching this route by hand must not print what browsing cannot reach.
-    const query: any = { _id: { $in: ids }, collection: activeCollectionId, in_wishlist: false };
-    applyVisibilityFilter(query, res.locals.isCollectionAdmin, res.locals.settings);
-    applyEnabledModulesFilter(query, res.locals.settings);
-    applyContainedFilter(query);
+    const query = and(isIn('_id', ids), shelfFilter({
+      collectionId: activeCollectionId,
+      inWishlist: false,
+      isAdmin: res.locals.isCollectionAdmin,
+      settings: res.locals.settings
+    }));
 
     // Sorted the way the grid sorts by default, so the sheet comes out in the order
-    // the boxes were ticked in rather than in whatever order Mongo returns an $in.
-    const items = await Item.find(query).sort({ sort_title: 1 }).lean();
+    // the boxes were ticked in rather than in whatever order the store returns a list.
+    const picked = await db.items.find(query, { sort: [asc('sort_title')] });
 
     // One code type for the whole sheet, picked once by the caller: a mixed sheet
     // (some boxes QR, some barcode) would be confusing to scan through, so a barcode
     // sheet skips items with no barcode value rather than falling back to QR per item.
     const codeType: 'qr' | 'barcode' = req.body?.type === 'barcode' ? 'barcode' : 'qr';
 
-    const labels = (await Promise.all(items.map(async (item: any) => {
+    const labels = (await Promise.all(picked.map(async (item: any) => {
       const plugin = registry.getByKind(item.kind);
       if (!plugin) {
         // A kind whose module got disabled since the item was added: skip it
@@ -742,7 +689,7 @@ router.post('/api/collection/delete-selected', requireAuth, requireCollectionRol
     // Deduplicated before the cap is measured, so a payload that repeats the same card
     // is not refused for a size it does not really have.
     const selectedIds = Array.from(new Set(
-      idList.filter((id: any) => typeof id === 'string' && mongoose.Types.ObjectId.isValid(id))
+      idList.filter(isId)
     ));
 
     if (selectedIds.length === 0) {
@@ -761,13 +708,14 @@ router.post('/api/collection/delete-selected', requireAuth, requireCollectionRol
 
     // Mirror the same visibility/module/containment restrictions as the shelf page:
     // a handcrafted request must not delete items that are not reachable there.
-    const query: any = { _id: { $in: selectedIds }, collection: activeCollectionId, in_wishlist: false };
-    applyVisibilityFilter(query, res.locals.isCollectionAdmin, res.locals.settings);
-    applyEnabledModulesFilter(query, res.locals.settings);
-    applyContainedFilter(query);
+    const query = and(isIn('_id', selectedIds), shelfFilter({
+      collectionId: activeCollectionId,
+      inWishlist: false,
+      isAdmin: res.locals.isCollectionAdmin,
+      settings: res.locals.settings
+    }));
 
-    const items = await Item.find(query).select('_id').lean();
-    const itemIds = items.map((item: any) => item._id);
+    const itemIds = (await db.items.find(query, { fields: ['_id'] })).map((item: any) => item._id);
     if (itemIds.length === 0) {
       return res.status(404).json({ success: false, error: req.t('errors.not_found') });
     }
@@ -832,7 +780,7 @@ router.post('/collection/switch', requireAuth, async (req: any, res: any) => {
   const back = req.get('Referer') || '/';
   try {
     const { collectionId } = req.body;
-    if (!mongoose.Types.ObjectId.isValid(collectionId)) {
+    if (!isId(collectionId)) {
       return res.redirect(back);
     }
 

@@ -1,5 +1,6 @@
 import Furniture from '../models/Furniture';
-import Item from '../models/Item';
+import { db } from './db';
+import { and, isIn, notIn } from './db/filter';
 import { resolveShelfItems } from '../utils/itemHelpers';
 import { registry } from './registry';
 import { measureSpines, tallestFormat, arrangeCompartment, pileUp, formatOf, SPINE_MAX_HEIGHT_PX } from './spine';
@@ -82,19 +83,20 @@ export const SHELF_VIEW: CollectionView = {
     //
     // The reserve is the complement of that same list rather than "no location at all",
     // which also catches a value that names no shelf, e.g. one typed straight into the
-    // database or restored from an older backup. $nin matches a missing field too.
+    // database or restored from an older backup. Excluding a list matches a missing field too.
     //
     // The compartments are drawn from everything the collection holds, whatever the page
     // is narrowed to: a filter that emptied half the shelves would change the shape of the
     // furniture under the user's eyes, when what they asked is where things are. What the
     // filters do match is marked instead, and the rest is dimmed. The reserve is not a
     // piece of furniture and has no shape to keep, so it simply follows the filters.
-    const inCells = { location: { $in: cells.map(c => c.name) } };
+    const inCells = isIn('location', cells.map(c => c.name));
+    const inReserve = and(itemQuery, notIn('location', shelvedNames));
     const [shelved, matchingIds, unsortedRaw, unsortedTotal] = await Promise.all([
-      Item.find({ ...unfilteredQuery, ...inCells }).sort(itemSort).lean(),
-      isNarrowed ? Item.distinct('_id', { ...itemQuery, ...inCells }) : Promise.resolve(null),
-      Item.find({ ...itemQuery, location: { $nin: shelvedNames } }).sort(itemSort).limit(UNSORTED_LIMIT).lean(),
-      Item.countDocuments({ ...itemQuery, location: { $nin: shelvedNames } })
+      db.items.find(and(unfilteredQuery, inCells), { sort: itemSort }),
+      isNarrowed ? db.items.distinct('_id', and(itemQuery, inCells)) : Promise.resolve(null),
+      db.items.find(inReserve, { sort: itemSort, limit: UNSORTED_LIMIT }),
+      db.items.count(inReserve)
     ]);
 
     // Which compartment an item stands in is the holder's business: a show shelved in
