@@ -28,7 +28,8 @@
                 { id: 'cards', icon: 'percent', label: t('perso.card_aspect_ratio') },
                 { id: 'navigation', icon: 'list-check', label: t('perso.nav_title') },
                 { id: 'quick-add', icon: 'bolt', label: t('perso.fastAdd_title') },
-                { id: 'widgets', icon: 'chart-simple', label: t('perso.widgets_title') }
+                { id: 'widgets', icon: 'chart-simple', label: t('perso.widgets_title') },
+                { id: 'packs', icon: 'box-archive', label: t('perso.pack_title') }
             ] }) %>
 
             <div data-tab-panel="themes" class="md:!mt-0 card-theme rounded-2xl md:rounded-3xl p-4 md:p-6 shadow-sm md:shadow-xl transition-colors">
@@ -302,6 +303,18 @@
                 </a>
             </div>
 
+
+            <div data-tab-panel="packs" class="card-theme rounded-2xl md:rounded-3xl p-4 md:p-6 shadow-sm md:shadow-xl transition-colors md:mt-8">
+                <h2 class="text-lg md:text-xl font-bold mb-2 flex items-center gap-3">
+                    <div
+                        class="w-8 h-8 md:w-10 md:h-10 shrink-0 rounded-full bg-primary-theme/10 text-primary-theme flex items-center justify-center text-sm md:text-base">
+                        <i class="fa-solid fa-box-archive"></i>
+                    </div>
+                    <%= t('perso.pack_title') %>
+                </h2>
+                <p class="text-sm opacity-60 mb-4 md:mb-6"><%= t('perso.pack_desc') %></p>
+                <%- include('partials/look-packs') %>
+            </div>
 
             <div data-settings-panel-only class="flex justify-end pt-4">
                 <button type="submit"

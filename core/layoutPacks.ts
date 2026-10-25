@@ -1,0 +1,126 @@
+import { LayoutSettings, normalizeLayout, DEFAULT_LAYOUT } from './layout';
+import { normalizeWidgets, WidgetEnv } from './dashboard';
+import { CARD_ASPECT_RATIOS } from './customPlugin';
+// The widget types a pack's home page is checked against.
+import './dashboardWidgets';
+
+/**
+ * Ready-made layouts, and packs: a collection's look written to a JSON file that
+ * another collection or instance can load.
+ *
+ * A pack is data only, never code: every value it carries is one the Personnalisation
+ * page itself offers (a layout option, a colour preset by name, a card shape, widgets
+ * of known types with their declared options), and anything else is dropped on the way
+ * in. No CSS, no markup, no URL travels in one.
+ */
+
+export interface LayoutPreset {
+  id: string;
+  label: string; // i18n key
+  description: string; // i18n key
+  icon: string; // FontAwesome icon
+  layout: LayoutSettings;
+}
+
+const preset = (id: string, icon: string, layout: Partial<LayoutSettings>): LayoutPreset => ({
+  id,
+  icon,
+  label: `layout.preset_${id}`,
+  description: `layout.preset_${id}_desc`,
+  layout: { ...DEFAULT_LAYOUT, ...layout }
+});
+
+export const LAYOUT_PRESETS: LayoutPreset[] = [
+  preset('classic', 'fa-window-maximize', {}),
+  preset('sidebar', 'fa-table-columns', { nav: 'left', sidebar: 'expanded', width: 'wide' }),
+  preset('dock', 'fa-grip', { nav: 'bottom', radius: 'round', font: 'jakarta' }),
+  preset('minimal', 'fa-feather', { nav: 'top', topStyle: 'floating', sticky: true, density: 'spacious', radius: 'soft', width: 'narrow' }),
+  preset('dense', 'fa-table-cells', { nav: 'left', sidebar: 'rail', density: 'compact', radius: 'soft', scale: 'small', width: 'full' }),
+  preset('editorial', 'fa-newspaper', { nav: 'top', density: 'spacious', radius: 'square', width: 'narrow', font: 'serif' })
+];
+
+export const PACK_FORMAT = 'dvinyl-look';
+export const PACK_VERSION = 1;
+export const PACK_SECTIONS = ['layout', 'colors', 'cards', 'home'] as const;
+export type PackSection = typeof PACK_SECTIONS[number];
+// Far above any real pack (a full home page with long notes stays under 200 KB).
+export const MAX_PACK_BYTES = 512 * 1024;
+
+export interface LookPack {
+  format: typeof PACK_FORMAT;
+  version: number;
+  name: string;
+  exportedAt: string;
+  layout?: LayoutSettings;
+  // Colour preset by item type ('home' for the pages that belong to no type).
+  colors?: Record<string, string>;
+  cards?: string;
+  home?: { widgets: any[] };
+}
+
+const presetOf = (entry: any): string | undefined =>
+  entry && typeof entry === 'object' ? entry.preset : undefined;
+
+/** The collection's current look, as saved. */
+export function buildPack(settings: any, name: string): LookPack {
+  const colors: Record<string, string> = {};
+  const theme = settings?.theme instanceof Map ? Object.fromEntries(settings.theme) : (settings?.theme || {});
+  for (const [key, entry] of Object.entries(theme)) {
+    const value = presetOf(entry);
+    if (typeof value === 'string') colors[key] = value;
+  }
+  const pack: LookPack = {
+    format: PACK_FORMAT,
+    version: PACK_VERSION,
+    name: String(name || '').slice(0, 80),
+    exportedAt: new Date().toISOString(),
+    layout: normalizeLayout(settings?.layout),
+    colors,
+    cards: settings?.aspectRatioClass || 'aspect-square'
+  };
+  // Only a home page someone arranged travels: the default one is rebuilt anywhere.
+  if (Array.isArray(settings?.dashboard?.widgets)) pack.home = { widgets: settings.dashboard.widgets };
+  return pack;
+}
+
+export class PackError extends Error {}
+
+/**
+ * Reads a pack file into the parts this instance can apply. Throws PackError for
+ * something that is not a pack at all; inside a pack, values that do not fit (a colour
+ * preset or item type this instance lacks, a widget type it does not know) are dropped.
+ */
+export function readPack(raw: any, env: WidgetEnv, colorPresets: string[], itemTypes: string[]) {
+  if (!raw || typeof raw !== 'object' || raw.format !== PACK_FORMAT) throw new PackError('perso.pack_error_format');
+  if (typeof raw.version !== 'number' || raw.version > PACK_VERSION) throw new PackError('perso.pack_error_version');
+
+  const parts: { layout?: LayoutSettings; colors?: Record<string, string>; cards?: string; home?: any[] } = {};
+  if (raw.layout && typeof raw.layout === 'object') parts.layout = normalizeLayout(raw.layout);
+  if (raw.colors && typeof raw.colors === 'object') {
+    const colors: Record<string, string> = {};
+    for (const [key, value] of Object.entries(raw.colors)) {
+      if ((key === 'home' || itemTypes.includes(key)) && typeof value === 'string' && colorPresets.includes(value)) colors[key] = value;
+    }
+    if (Object.keys(colors).length > 0) parts.colors = colors;
+  }
+  if ((CARD_ASPECT_RATIOS as readonly string[]).includes(raw.cards)) parts.cards = raw.cards;
+  if (raw.home && Array.isArray(raw.home.widgets)) parts.home = normalizeWidgets(raw.home.widgets, env);
+
+  return {
+    name: typeof raw.name === 'string' ? raw.name.slice(0, 80) : '',
+    exportedAt: typeof raw.exportedAt === 'string' ? raw.exportedAt.slice(0, 40) : '',
+    parts
+  };
+}
+
+/** The settings update applying the chosen parts of a pack read by readPack(). */
+export function packUpdate(parts: ReturnType<typeof readPack>['parts'], sections: string[]): Record<string, any> {
+  const update: Record<string, any> = {};
+  if (sections.includes('layout') && parts.layout) update.layout = parts.layout;
+  if (sections.includes('colors') && parts.colors) {
+    for (const [key, value] of Object.entries(parts.colors)) update[`theme.${key}.preset`] = value;
+  }
+  if (sections.includes('cards') && parts.cards) update.aspectRatioClass = parts.cards;
+  if (sections.includes('home') && parts.home) update.dashboard = { widgets: parts.home };
+  return update;
+}

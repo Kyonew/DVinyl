@@ -36,6 +36,7 @@ import { renderMarkdown } from "../core/markdown";
 import { nativeLookalikesByPlugin } from "../core/pluginExtraFields";
 import { alignImagesAfterRefresh } from "../core/itemImages";
 import { layoutFromForm } from "../core/layout";
+import { buildPack, readPack, packUpdate, PackError, MAX_PACK_BYTES, PACK_SECTIONS, LAYOUT_PRESETS } from "../core/layoutPacks";
 
 const router = express.Router();
 
@@ -1048,6 +1049,7 @@ router.get("/personnalisation", requireAuth, requireCollectionRole("admin"), asy
     const settings = res.locals.settings;
     res.render("personnalisation", {
       presets: PRESETS,
+      layoutPresets: LAYOUT_PRESETS,
       // Scan mode is only worth offering when an active module has a source that can
       // read a query as one exact item (see ExternalSource.exactQuery).
       scanModeAvailable: registry.getAll().some(p =>
@@ -1119,6 +1121,71 @@ router.post(
     }
   },
 );
+
+// ---- Look packs (core/layoutPacks.ts) ------------------------------------------
+
+function packEnv(res: any) {
+  return { settings: res.locals.settings, registry: res.locals.registry, t: res.locals.t, currency: res.locals.user?.currency };
+}
+
+function readPostedPack(req: any, res: any) {
+  const raw = req.body?.pack;
+  if (JSON.stringify(raw ?? null).length > MAX_PACK_BYTES) throw new PackError("perso.pack_error_size");
+  return readPack(raw, packEnv(res), Object.keys(PRESETS), registry.getAll().map(p => p.collectionType));
+}
+
+// The collection's saved look as a file.
+router.get("/personnalisation/pack", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
+  try {
+    const name = (typeof req.query.name === "string" && req.query.name.trim()) || res.locals.activeCollection?.name || "DVinyl";
+    const pack = buildPack(res.locals.settings, name);
+    const slug = String(name).normalize("NFKD").replace(/[^\w-]+/g, "-").replace(/^-+|-+$/g, "").toLowerCase().slice(0, 40) || "look";
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="dvinyl-look-${slug}.json"`);
+    res.send(JSON.stringify(pack, null, 2));
+  } catch (err) {
+    console.error("[ERR] pack export", err);
+    res.status(500).send("ERR");
+  }
+});
+
+// What a pack file holds, before anything is applied.
+router.post("/personnalisation/pack/read", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
+  try {
+    const { name, exportedAt, parts } = readPostedPack(req, res);
+    res.json({
+      success: true,
+      name,
+      exportedAt,
+      sections: {
+        layout: Boolean(parts.layout),
+        colors: parts.colors ? Object.keys(parts.colors).length : 0,
+        cards: Boolean(parts.cards),
+        home: parts.home ? parts.home.length : null
+      }
+    });
+  } catch (err: any) {
+    if (err instanceof PackError) return res.status(400).json({ success: false, error: req.t(err.message) });
+    console.error("[ERR] pack read", err);
+    res.status(500).json({ success: false, error: req.t("errors.generic_server_error") });
+  }
+});
+
+// Applies the parts of a pack the admin kept.
+router.post("/personnalisation/pack/apply", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
+  try {
+    const { parts } = readPostedPack(req, res);
+    const sections = (Array.isArray(req.body?.sections) ? req.body.sections : []).filter((s: any) => (PACK_SECTIONS as readonly string[]).includes(s));
+    const update = packUpdate(parts, sections);
+    if (Object.keys(update).length === 0) return res.status(400).json({ success: false, error: req.t("perso.pack_error_empty") });
+    await db.settings.updateOne(eq("collection", idOf(res.locals.activeCollectionId)), { set: update }, { upsert: true });
+    res.json({ success: true });
+  } catch (err: any) {
+    if (err instanceof PackError) return res.status(400).json({ success: false, error: req.t(err.message) });
+    console.error("[ERR] pack apply", err);
+    res.status(500).json({ success: false, error: req.t("errors.generic_server_error") });
+  }
+});
 
 router.post("/modules/save", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
   try {

@@ -19,6 +19,29 @@
 <link rel="stylesheet" href="<%= baseUrl %>/vendor/fonts/poppins.css">
 
 <div data-layout-settings class="space-y-8">
+    <%# Ready-made layouts (core/layoutPacks.ts). A click fills in every choice below and
+        previews it; nothing is saved until the form is, and each choice can still be
+        changed afterwards. The preset matching the current choices is marked. %>
+    <% if (locals.layoutPresets) { %>
+    <section>
+        <span class="<%= fieldLabel %>"><%= t('layout.presets') %></span>
+        <div class="grid grid-cols-2 lg:grid-cols-3 gap-2.5">
+            <% layoutPresets.forEach(p => { %>
+                <button type="button" data-layout-preset="<%= JSON.stringify(p.layout) %>" aria-pressed="false"
+                    class="group flex items-start gap-3 p-3 rounded-2xl text-left border-2 border-transparent bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 aria-pressed:border-primary-theme aria-pressed:bg-primary-theme/10 transition">
+                    <span class="w-9 h-9 flex-none rounded-xl bg-primary-theme/15 text-primary-theme flex items-center justify-center">
+                        <i class="fa-solid <%= p.icon %>" aria-hidden="true"></i>
+                    </span>
+                    <span class="min-w-0">
+                        <span class="block text-sm font-bold"><%= t(p.label) %></span>
+                        <span class="block text-xs opacity-60 mt-0.5"><%= t(p.description) %></span>
+                    </span>
+                </button>
+            <% }) %>
+        </div>
+    </section>
+    <% } %>
+
     <section>
         <span class="<%= fieldLabel %>"><%= t('layout.nav_label') %></span>
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -233,24 +256,50 @@
             });
         };
 
-        root.addEventListener('change', (event) => {
-            if (!event.target.name || !event.target.name.startsWith('layout_')) return;
-            syncNavOptions();
-            preview();
-        });
-
-        root.querySelector('[data-layout-reset]').addEventListener('click', () => {
-            Object.entries(defaults).forEach(([key, val]) => {
-                const inputs = form.querySelectorAll(`[name="layout_${key}"]`);
-                inputs.forEach(input => {
+        const setValues = (values) => {
+            Object.entries(values).forEach(([key, val]) => {
+                form.querySelectorAll(`[name="layout_${key}"]`).forEach(input => {
                     if (input.type === 'checkbox') input.checked = val === true;
                     else input.checked = input.value === String(val);
                 });
             });
+        };
+
+        // The preset whose every choice matches the form is shown as the current one.
+        const presetButtons = [...root.querySelectorAll('[data-layout-preset]')];
+        const markPreset = () => {
+            presetButtons.forEach(button => {
+                const values = JSON.parse(button.dataset.layoutPreset);
+                const matches = Object.entries(values).every(([key, val]) => {
+                    const input = form.querySelector(`[name="layout_${key}"]`);
+                    if (input && input.type === 'checkbox') return input.checked === (val === true);
+                    return value(key) === String(val);
+                });
+                button.setAttribute('aria-pressed', matches ? 'true' : 'false');
+            });
+        };
+        presetButtons.forEach(button => button.addEventListener('click', () => {
+            setValues(JSON.parse(button.dataset.layoutPreset));
             syncNavOptions();
             preview();
+            markPreset();
+        }));
+
+        root.addEventListener('change', (event) => {
+            if (!event.target.name || !event.target.name.startsWith('layout_')) return;
+            syncNavOptions();
+            preview();
+            markPreset();
+        });
+
+        root.querySelector('[data-layout-reset]').addEventListener('click', () => {
+            setValues(defaults);
+            syncNavOptions();
+            preview();
+            markPreset();
         });
 
         syncNavOptions();
+        markPreset();
     })();
 </script>

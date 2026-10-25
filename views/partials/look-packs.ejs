@@ -1,0 +1,171 @@
+<%#
+    The "Packs" panel of the Personnalisation page (core/layoutPacks.ts): the collection's
+    look (layout, colours, card shape, home page) downloaded as a JSON file, and a file
+    like it loaded back, here or on another instance, choosing which parts to apply.
+
+    It sits inside the page's settings form, so it holds no form of its own and no named
+    field: the file is read in the browser and sent on its own, and nothing here is
+    posted with the rest of the page.
+%>
+<% const packLabel = 'block text-xs font-bold uppercase tracking-widest opacity-60 mb-2.5'; %>
+<div data-look-packs class="grid md:grid-cols-2 gap-6">
+    <section class="rounded-2xl bg-black/5 dark:bg-white/5 p-4 md:p-5 flex flex-col gap-3">
+        <h3 class="font-bold flex items-center gap-2"><i class="fa-solid fa-file-export text-primary-theme" aria-hidden="true"></i><%= t('perso.pack_export') %></h3>
+        <p class="text-sm opacity-60"><%= t('perso.pack_export_desc') %></p>
+        <label>
+            <span class="<%= packLabel %>"><%= t('perso.pack_name') %></span>
+            <input type="text" data-pack-name maxlength="80" value="<%= locals.activeCollection ? activeCollection.name : '' %>"
+                class="w-full bg-black/5 dark:bg-black/20 border border-transparent focus:border-primary-theme rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-theme/20 outline-none transition-all">
+        </label>
+        <a href="<%= baseUrl %>/admin/personnalisation/pack" data-pack-download
+            class="mt-auto inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl bg-primary-theme hover:brightness-110 text-sm font-bold shadow-lg shadow-primary-theme/20 transition active:scale-95">
+            <i class="fa-solid fa-download" aria-hidden="true"></i><%= t('perso.pack_download') %>
+        </a>
+        <p class="text-xs opacity-50"><%= t('perso.pack_saved_only') %></p>
+    </section>
+
+    <section class="rounded-2xl bg-black/5 dark:bg-white/5 p-4 md:p-5 flex flex-col gap-3">
+        <h3 class="font-bold flex items-center gap-2"><i class="fa-solid fa-file-import text-primary-theme" aria-hidden="true"></i><%= t('perso.pack_import') %></h3>
+        <p class="text-sm opacity-60"><%= t('perso.pack_import_desc') %></p>
+        <label class="flex items-center justify-center gap-2 h-11 px-5 rounded-xl border-2 border-dashed border-black/15 dark:border-white/15 hover:border-primary-theme text-sm font-bold cursor-pointer transition">
+            <i class="fa-solid fa-folder-open" aria-hidden="true"></i><span data-pack-file-label><%= t('perso.pack_choose') %></span>
+            <input type="file" accept=".json,application/json" data-pack-file class="sr-only">
+        </label>
+        <p data-pack-error class="hidden text-sm font-bold text-red-500" role="alert"></p>
+
+        <div data-pack-preview class="hidden flex-col gap-3">
+            <div>
+                <span class="block font-bold" data-pack-title></span>
+                <span class="block text-xs opacity-60" data-pack-date></span>
+            </div>
+            <div class="flex flex-col gap-2" data-pack-sections>
+                <% [
+                    { id: 'layout', icon: 'fa-table-columns' },
+                    { id: 'colors', icon: 'fa-palette' },
+                    { id: 'cards', icon: 'fa-percent' },
+                    { id: 'home', icon: 'fa-house' }
+                ].forEach(section => { %>
+                    <label data-pack-section="<%= section.id %>" class="flex items-center gap-3 p-3 rounded-xl bg-white/60 dark:bg-black/20 cursor-pointer">
+                        <input type="checkbox" value="<%= section.id %>" checked class="w-4 h-4 accent-primary-theme">
+                        <i class="fa-solid <%= section.icon %> w-4 text-center opacity-70" aria-hidden="true"></i>
+                        <span class="flex-1 min-w-0">
+                            <span class="block text-sm font-bold"><%= t('perso.pack_part_' + section.id) %></span>
+                            <span class="block text-xs opacity-60" data-pack-detail></span>
+                        </span>
+                    </label>
+                <% }) %>
+            </div>
+            <button type="button" data-pack-apply
+                class="inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl bg-primary-theme hover:brightness-110 text-sm font-bold shadow-lg shadow-primary-theme/20 transition active:scale-95 disabled:opacity-50">
+                <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i><%= t('perso.pack_apply') %>
+            </button>
+            <p class="text-xs opacity-50"><%= t('perso.pack_apply_note') %></p>
+        </div>
+    </section>
+</div>
+
+<script>
+    (() => {
+        const root = document.currentScript.previousElementSibling;
+        const base = '<%= baseUrl %>';
+        const i18n = <%- JSON.stringify({
+            detailLayout: t('perso.pack_detail_layout'),
+            detailColors: t('perso.pack_detail_colors', { count: '{{count}}' }),
+            detailCards: t('perso.pack_detail_cards'),
+            detailHome: t('perso.pack_detail_home', { count: '{{count}}' }),
+            missing: t('perso.pack_detail_missing'),
+            notJson: t('perso.pack_error_format'),
+            exportedAt: t('perso.pack_exported_at', { date: '{{date}}' }),
+            generic: t('errors.generic_server_error')
+        }).replace(/</g, '\\u003c') %>;
+        const dateLocale = <%- JSON.stringify(dateLocaleFor(currentLng)) %>;
+
+        // The download link carries the name typed above.
+        const nameInput = root.querySelector('[data-pack-name]');
+        const download = root.querySelector('[data-pack-download]');
+        const syncLink = () => {
+            download.href = base + '/admin/personnalisation/pack?name=' + encodeURIComponent(nameInput.value.trim());
+        };
+        nameInput.addEventListener('input', syncLink);
+        syncLink();
+
+        const fileInput = root.querySelector('[data-pack-file]');
+        const errorEl = root.querySelector('[data-pack-error]');
+        const previewEl = root.querySelector('[data-pack-preview]');
+        const applyBtn = root.querySelector('[data-pack-apply]');
+        let pack = null;
+
+        const showError = (message) => {
+            errorEl.textContent = message;
+            errorEl.classList.toggle('hidden', !message);
+        };
+        const post = async (path, body) => {
+            const res = await fetch(base + path, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            return res.json();
+        };
+
+        fileInput.addEventListener('change', async () => {
+            const file = fileInput.files[0];
+            previewEl.classList.add('hidden');
+            previewEl.classList.remove('flex');
+            showError('');
+            pack = null;
+            if (!file) return;
+            root.querySelector('[data-pack-file-label]').textContent = file.name;
+            try {
+                pack = JSON.parse(await file.text());
+            } catch (e) {
+                return showError(i18n.notJson);
+            }
+            // The server says what of it this instance can use.
+            let summary;
+            try {
+                summary = await post('/admin/personnalisation/pack/read', { pack });
+            } catch (e) {
+                return showError(i18n.generic);
+            }
+            if (!summary.success) { pack = null; return showError(summary.error); }
+
+            root.querySelector('[data-pack-title]').textContent = summary.name || file.name;
+            const date = summary.exportedAt ? new Date(summary.exportedAt) : null;
+            root.querySelector('[data-pack-date]').textContent = date && !isNaN(date)
+                ? i18n.exportedAt.replace('{{date}}', date.toLocaleDateString(dateLocale, { day: 'numeric', month: 'long', year: 'numeric' }))
+                : '';
+            const details = {
+                layout: summary.sections.layout ? i18n.detailLayout : null,
+                colors: summary.sections.colors ? i18n.detailColors.replace('{{count}}', summary.sections.colors) : null,
+                cards: summary.sections.cards ? i18n.detailCards : null,
+                home: summary.sections.home !== null ? i18n.detailHome.replace('{{count}}', summary.sections.home) : null
+            };
+            root.querySelectorAll('[data-pack-section]').forEach(label => {
+                const detail = details[label.dataset.packSection];
+                const box = label.querySelector('input');
+                box.disabled = !detail;
+                box.checked = Boolean(detail);
+                label.classList.toggle('opacity-40', !detail);
+                label.querySelector('[data-pack-detail]').textContent = detail || i18n.missing;
+            });
+            previewEl.classList.remove('hidden');
+            previewEl.classList.add('flex');
+        });
+
+        applyBtn.addEventListener('click', async () => {
+            if (!pack) return;
+            const sections = [...root.querySelectorAll('[data-pack-section] input:checked')].map(box => box.value);
+            applyBtn.disabled = true;
+            showError('');
+            try {
+                const result = await post('/admin/personnalisation/pack/apply', { pack, sections });
+                if (!result.success) throw new Error(result.error);
+                window.location.href = base + '/admin/personnalisation?msg=saved#layout';
+            } catch (e) {
+                applyBtn.disabled = false;
+                showError(e.message || i18n.generic);
+            }
+        });
+    })();
+</script>
