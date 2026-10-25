@@ -21,13 +21,43 @@ let database: Database.Database | null = null;
 // Ids are compared as text all the time in memory; each id keeps its text once computed.
 (Types.ObjectId as any).cacheHexString = true;
 
-export function openDatabase(file: string): void {
-  if (database) database.close();
+/** The file is held by another process (a second DVinyl on the same data folder). */
+export class DatabaseInUseError extends Error {
+  constructor(readonly file: string) {
+    super(`${file} is already open in another process`);
+  }
+}
+
+/**
+ * Opens the file and keeps it to this process alone until it is closed.
+ *
+ * The tables are served from memory (see Table), so a second process on the same file
+ * would never see what this one writes, and its own writes would put back the records
+ * as it last read them, silently undoing everything written here in between. The file
+ * is therefore locked for as long as it is open: a second process is refused at once
+ * (DatabaseInUseError), after waiting `busyTimeout` ms for one that is still shutting
+ * down. The lock goes with the process, however it ends.
+ */
+export function openDatabase(file: string, options: { busyTimeout?: number } = {}): void {
+  if (database) closeDatabase();
   if (file !== ':memory:') fs.mkdirSync(path.dirname(path.resolve(file)), { recursive: true });
-  database = new Database(file);
-  database.pragma('journal_mode = WAL');
-  database.pragma('synchronous = NORMAL');
-  database.pragma('foreign_keys = OFF');
+  const opened = new Database(file, { timeout: options.busyTimeout ?? 5000 });
+  try {
+    // Set before anything reads the file, so that WAL runs without the shared memory
+    // other processes would read it through, and every lock taken is kept.
+    opened.pragma('locking_mode = EXCLUSIVE');
+    opened.pragma('journal_mode = WAL');
+    opened.pragma('synchronous = NORMAL');
+    opened.pragma('foreign_keys = OFF');
+    // Takes the write lock now rather than on the first write, which could come long
+    // after a second process has started reading.
+    opened.exec('BEGIN EXCLUSIVE; COMMIT');
+  } catch (err: any) {
+    opened.close();
+    if (err?.code === 'SQLITE_BUSY') throw new DatabaseInUseError(file);
+    throw err;
+  }
+  database = opened;
 }
 
 export function closeDatabase(): void {

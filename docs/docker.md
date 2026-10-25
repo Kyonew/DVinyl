@@ -181,9 +181,14 @@ on the day of the upgrade, without what you changed in 4.0 since.
 
 ## 💾 Persistence
 
-Everything DVinyl stores lives in `./data/dvinyl.sqlite` (with its `-wal` and `-shm` companions
-while the app runs). Keep that folder mounted and backed up. To copy the file by hand, stop the
-container first; while it runs, an instance export from the app is the safe way.
+Everything DVinyl stores lives in `./data/dvinyl.sqlite` (with its `-wal` companion while the
+app runs). Keep that folder mounted and backed up. To copy the file by hand, stop the container
+first; while it runs, an instance export from the app is the safe way.
+
+DVinyl keeps the file to itself while it runs: a second DVinyl started on the same data folder
+(an older container left running, or a local `npm start` next to the container) refuses to
+start, with a log beginning `[DATA] Another DVinyl is already running`, since the two would undo
+each other's changes. Other tools cannot open the file meanwhile either.
 
 Images uploaded from an item form are stored under `public/uploads/items` (the Compose files mount
 `./public/uploads` persistently). Whole-instance and per-collection ZIP backups include every

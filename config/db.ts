@@ -9,11 +9,24 @@
 import path from 'path';
 import { db, DRIVER } from '../core/db';
 import { importFromMongo, wantsImport } from '../core/db/importFromMongo';
+import { DatabaseInUseError } from '../core/db/sqlite/database';
 import { assertDataPersisted } from './dataVolume';
 import { StartupError } from './startupError';
 
 const MONGODB_URL = process.env.MONGODB_URL;
 const SQLITE_PATH = process.env.SQLITE_PATH || path.join(__dirname, '..', 'data', 'dvinyl.sqlite');
+
+/** The message a second DVinyl started on the same SQLite file stops with. */
+export function inUseMessage(file: string): string {
+  return [
+    `[DATA] Another DVinyl is already running on ${path.resolve(file)}. Stop it, then start this one again.`,
+    '',
+    'Only one DVinyl at a time can use a data folder: two at once would each undo what the',
+    'other writes. Look for an older container still running on the same folder, or a local',
+    'run (npm start) next to the container. To run a second DVinyl on purpose, give it a',
+    'data folder (or SQLITE_PATH) of its own.'
+  ].join('\n');
+}
 
 export const connectDB = async () => {
   if (DRIVER === 'mongodb') {
@@ -25,7 +38,12 @@ export const connectDB = async () => {
 
   assertDataPersisted(SQLITE_PATH);
   console.log('[DB] Opening SQLite...');
-  console.log(`[DB] SQLite opened (${await db.connect(SQLITE_PATH)})`);
+  try {
+    console.log(`[DB] SQLite opened (${await db.connect(SQLITE_PATH)})`);
+  } catch (err) {
+    if (err instanceof DatabaseInUseError) throw new StartupError(inUseMessage(SQLITE_PATH));
+    throw err;
+  }
 
   if (wantsImport(MONGODB_URL)) {
     try {
