@@ -72,14 +72,11 @@ describe('boot migrations on a restored 2.x instance', { skip: !backend }, () =>
     assert.equal(settings.theme.music.preset, 'default');
   });
 
-  it('drops the retired Discogs username field of a restored account', async () => {
-    // Current behaviour: the accounts are restored through their record rules, which no
-    // longer declare `discogsUsername`, so the field is gone before the migration that
-    // would move it under the music plugin gets to run. The boot migration itself only
-    // moves the value on an instance upgraded in place.
+  it('moves the Discogs username of a restored account under the music plugin', async () => {
     const old = dump.users.find(u => u.username === 'old');
     const member = dump.users.find(u => u.username === 'member');
-    assert.equal(old.pluginData?.music?.discogsUsername, undefined);
+    assert.equal(old.pluginData?.music?.discogsUsername, 'olddiscogs');
+    assert.equal(member.pluginData?.music?.discogsUsername, undefined, 'an empty username moves nowhere');
     assert.ok(!('discogsUsername' in old));
     assert.ok(!('discogsUsername' in member));
   });

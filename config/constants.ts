@@ -13,6 +13,12 @@ export type SupportedLanguage = typeof SUPPORTED_LANGUAGES[number];
 export const DEFAULT_LANGUAGE: SupportedLanguage = 'fr';
 
 /**
+ * Currencies a user can pick for prices, which the User schema also accepts. Each one is
+ * labelled by the `settings.currency_<code in lower case>` key.
+ */
+export const SUPPORTED_CURRENCIES = ['EUR', 'USD', 'GBP'] as const;
+
+/**
  * Reduces any language tag to a supported code, dropping the region a browser
  * sends ('fr-FR' -> 'fr'). Unknown tags fall back to the default rather than
  * being passed through: the value ends up in an enum-checked schema path.

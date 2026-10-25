@@ -83,18 +83,16 @@ describe('item lifecycle', { skip: !backend }, () => {
     );
   });
 
-  it('merges a wishlist add matching an owned item into the owned one', async () => {
-    // Current behaviour: the duplicate lookup only looks at owned items and ignores where
-    // the add was headed, so the owned quantity grows and no wishlist entry is created,
-    // while the reply still lands on the wishlist.
+  it('keeps a wishlist add apart from the owned copy, and lists a wish once', async () => {
     const wish = await addMusic(admin, { title: 'The Dark Side of the Moon', artist: 'Pink Floyd', in_wishlist: 'true' });
     assert.equal(wish.location, '/wishlist');
+    await addMusic(admin, { title: 'the dark side of the moon', artist: 'pink floyd', in_wishlist: 'true' });
     const dump = await exportInstance(admin);
     const vinyl = dump.albums.find(item =>
-      item.title === 'The Dark Side of the Moon' && item.media_type === 'vinyl' && !item.variant_color);
-    assert.equal(vinyl.quantity, 4);
-    assert.equal(vinyl.in_wishlist, false);
-    assert.ok(!dump.albums.some(item => item.in_wishlist));
+      item.title === 'The Dark Side of the Moon' && item.media_type === 'vinyl' && !item.variant_color && !item.in_wishlist);
+    assert.equal(vinyl.quantity, 3, 'the owned copy is left alone');
+    const wishes = dump.albums.filter(item => item.in_wishlist);
+    assert.deepEqual(wishes.map(item => [item.title, item.quantity]), [['The Dark Side of the Moon', 1]]);
 
     const fresh = await addMusic(admin, { title: 'Faith', artist: 'The Cure', in_wishlist: 'true' });
     assert.equal(fresh.location, '/wishlist');
@@ -211,6 +209,7 @@ describe('item lifecycle', { skip: !backend }, () => {
     const dump = await exportInstance(admin);
     assert.deepEqual(titles(dump), [
       'Faith',
+      'The Dark Side of the Moon',
       'The Dark Side of the Moon',
       'The Dark Side of the Moon',
       'The Dark Side of the Moon'

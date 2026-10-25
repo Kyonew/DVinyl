@@ -871,6 +871,8 @@
     "title": "Editar álbum"
   },
   "errors": {
+    "invalid_fields": "Revisa estos campos: {{fields}}.",
+    "unsupported_currency": "Moneda no admitida.",
     "404_desc": "La página que busca parece haber sido eliminada de la colección o el módulo asociado está actualmente deshabilitado.",
     "404_title": "¡Ups! Surco no encontrado.",
     "api_error": "No se pudo conectar a {{provider}}.",

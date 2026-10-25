@@ -11,11 +11,13 @@ import { deleteUnusedManagedItemImages } from '../itemImageStorage';
 import { getExtraFields, toFieldDefinitions } from '../pluginExtraFields';
 import { buildFieldSuggestions } from '../fieldSuggestions';
 import { resolveShelfLocation } from '../shelfStore';
+import { findWishlistDuplicate } from '../wishlistDuplicate';
 import { deleteItemsAndContents, moveContentsToWishlist } from '../../utils/itemHelpers';
 import { visibilityFilter, shareScopeFilter, pluginKindFilter, isWithinShareScope } from '../../utils/visibilityHelper';
 import { db } from '../db';
 import { and, eq, Filter, isIn, missing, ne, or } from '../db/filter';
 import { idOf, isId } from '../db/ids';
+import { isValidationError, validationMessages } from '../db/errors';
 import { hasSearch, searchableSources, resolveSource, canRefresh, refreshPatchFor } from '../sources';
 import { resolveBarcodeWithAi } from '../ai/barcode';
 import { identifyFromPhoto } from '../ai/photo';
@@ -697,12 +699,20 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         // Opt-out per collection: with the merge disabled every add gets its own entry
         // instead of bumping the matching item's quantity. Settings documents predating
         // the option have no value at all, so only an explicit false turns it off.
-        existingItem = await plugin.findDuplicate(activeCollectionId, req.body);
+        // The plugin's own lookup answers "do I already own this?". A wish is matched
+        // against the wishlist instead: a copy already owned does not cancel it (another
+        // edition, a gift), and a wish already listed is not listed twice.
+        existingItem = isWishlist
+          ? await findWishlistDuplicate(plugin, activeCollectionId, req.body)
+          : await plugin.findDuplicate(activeCollectionId, req.body);
       }
 
       if (existingItem) {
         const qtyToAdd = parseInt(quantity) || 1;
-        const finalQty = isEdit ? qtyToAdd : (existingItem.quantity || 1) + qtyToAdd;
+        // Wanting a title twice is still one wish: only owned copies add up.
+        const finalQty = isEdit ? qtyToAdd
+          : isWishlist ? (existingItem.quantity || 1)
+          : (existingItem.quantity || 1) + qtyToAdd;
         if (!isEdit) mergedQuantity = finalQty;
 
         let saveObj: any;
@@ -843,6 +853,16 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           max: MAX_ITEM_IMAGES,
           maxMb: Math.floor(MAX_ITEM_IMAGE_BYTES / (1024 * 1024))
         }));
+      }
+      if (isValidationError(err)) {
+        // A required field left empty or a value of the wrong type: named for the person
+        // who filled the form, by the label it shows them.
+        const shown = [...plugin.formFields, ...toFieldDefinitions(getExtraFields(res.locals.settings, plugin.id))];
+        const fields = Object.keys(validationMessages(err)).map(name => {
+          const field = shown.find(f => f.name === name);
+          return field ? req.t(field.label) : name;
+        });
+        return res.status(400).send(req.t('errors.invalid_fields', { fields: fields.join(', ') }));
       }
       console.error(`Save error for ${plugin.id}:`, err);
       res.status(500).send(req.t('errors.generic_server_error'));

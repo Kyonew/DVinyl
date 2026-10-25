@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { SUPPORTED_CURRENCIES } from '../config/constants';
 
 const isEmail = (val: string): boolean => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
@@ -46,7 +47,7 @@ const userSchema = new mongoose.Schema({
     },
     currency: {
         type: String,
-        enum: ['EUR', 'USD', 'GBP'],
+        enum: [...SUPPORTED_CURRENCIES],
         default: 'USD'
     },
     // Plugin-scoped user data: { [pluginId]: { [key]: value } }, e.g. { music: { discogsUsername: 'foo' } }.

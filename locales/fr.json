@@ -86,6 +86,8 @@
     "home_view_last": "Dernière utilisée"
   },
   "errors": {
+    "invalid_fields": "Vérifiez ces champs : {{fields}}.",
+    "unsupported_currency": "Devise non prise en charge.",
     "username_taken": "Ce pseudo est déjà utilisé.",
     "current_password_incorrect": "Le mot de passe actuel est incorrect.",
     "sso_no_local_password": "Ce compte utilise l'authentification unique (SSO) et n'a pas de mot de passe local à modifier.",

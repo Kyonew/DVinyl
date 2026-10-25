@@ -7,6 +7,7 @@ import bcrypt from 'bcrypt';
 import { db } from '../core/db';
 import { and, eq, idOf, isId } from '../core/db/query';
 import { requireAuth } from '../middleware/authMiddleware';
+import { SUPPORTED_CURRENCIES } from '../config/constants';
 import { viewRegistry } from '../core/viewRegistry';
 import { applyHomeCollection, HOME_PAGES, isHomePage } from '../utils/homePage';
 
@@ -64,6 +65,7 @@ router.get('/', requireAuth, (req, res) => {
     res.render('settings', {
         user: res.locals.user,
         homePages: HOME_PAGES,
+        currencies: SUPPORTED_CURRENCIES,
         // Every registered view, not the ones available on this page: the selector is
         // about a page the user is not on, and a combination that does not apply (the
         // shelf on a wishlist) resolves back to the grid when they get there.
@@ -309,8 +311,8 @@ router.post('/update-currency', requireAuth, async (req, res) => {
     const { currency } = req.body;
     const userId = res.locals.user._id;
 
-    if (!['EUR', 'USD', 'GBP'].includes(currency)) {
-        return res.status(400).send('Devise non supportée');
+    if (!(SUPPORTED_CURRENCIES as readonly string[]).includes(currency)) {
+        return res.status(400).send(req.t('errors.unsupported_currency'));
     }
 
     try {

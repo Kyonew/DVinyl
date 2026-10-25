@@ -871,6 +871,8 @@
     "title": "Modifica album"
   },
   "errors": {
+    "invalid_fields": "Controlla questi campi: {{fields}}.",
+    "unsupported_currency": "Valuta non supportata.",
     "404_desc": "La pagina che stai cercando sembra essere stata cancellata dalla raccolta oppure il modulo associato è attualmente disabilitato.",
     "404_title": "Ops! Scanalatura non trovata.",
     "api_error": "Impossibile connettersi a {{provider}}.",

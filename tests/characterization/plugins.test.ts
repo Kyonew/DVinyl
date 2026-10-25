@@ -236,7 +236,8 @@ describe('custom plugins', { skip: !backend }, () => {
     await save(admin, 'comics', { title: 'watchmen', creator: 'alan moore', issue: '1' });
     // The creator of a custom type is always stored as `creator`, and it is required.
     const refused = await saveItem(admin, 'comics', { title: 'Anonymous', issue: '2' });
-    assert.ok(refused.status >= 400, `an add without its creator is refused (${refused.status})`);
+    assert.equal(refused.status, 400, 'an add without its creator is refused as a bad form');
+    assert.match(refused.text, /Writer/, 'the refusal names the field by its label');
 
     const dump = await exportInstance(admin);
     assert.ok(!dump.albums.some(a => a.title === 'Anonymous'));

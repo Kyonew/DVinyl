@@ -86,6 +86,8 @@
     "home_view_last": "Last used"
   },
   "errors": {
+    "invalid_fields": "Please check these fields: {{fields}}.",
+    "unsupported_currency": "Unsupported currency.",
     "username_taken": "This username is already taken.",
     "current_password_incorrect": "Current password is incorrect.",
     "sso_no_local_password": "This account uses single sign-on (SSO) and has no local password to change.",

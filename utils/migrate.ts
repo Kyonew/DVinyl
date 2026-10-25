@@ -28,6 +28,22 @@ export const normalizeThemePresets = (theme: any): boolean => {
     return changed;
 };
 
+/**
+ * An account as stored before 3.0, brought to the current shape: the Discogs username was
+ * a field of the account, and is now kept by the music plugin. Applied to the accounts a
+ * restored backup carries, which the account rules would otherwise strip of that field
+ * before the boot migration below ever sees it. An empty username moves nowhere.
+ */
+export const liftLegacyAccountFields = (user: any): any => {
+    if (!user || !('discogsUsername' in user)) return user;
+    const { discogsUsername, ...rest } = user;
+    if (!discogsUsername || rest.pluginData?.music?.discogsUsername) return rest;
+    return {
+        ...rest,
+        pluginData: { ...rest.pluginData, music: { ...rest.pluginData?.music, discogsUsername } }
+    };
+};
+
 export const migrateDatabase = async () => {
     try {
         // Legacy Settings could store theme.<key>.preset as an object (e.g. { default: 'default' })

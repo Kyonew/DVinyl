@@ -871,6 +871,8 @@
     "title": "Album bearbeiten"
   },
   "errors": {
+    "invalid_fields": "Bitte prüfe diese Felder: {{fields}}.",
+    "unsupported_currency": "Nicht unterstützte Währung.",
     "404_desc": "Die von Ihnen gesuchte Seite scheint aus der Sammlung entfernt worden zu sein oder das zugehörige Modul ist derzeit deaktiviert.",
     "404_title": "Hoppla! Groove nicht gefunden.",
     "api_error": "Es konnte keine Verbindung zu {{provider}} hergestellt werden.",

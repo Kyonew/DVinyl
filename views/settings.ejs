@@ -134,20 +134,11 @@
                         <form action="<%= baseUrl %>/settings/update-currency" method="POST" class="flex items-center">
                             <select name="currency" onchange="this.form.submit()"
                                 class="bg-black/5 dark:bg-white/5 border border-transparent text-gray-900 dark:text-white text-sm rounded-lg focus:ring-primary-theme focus:border-primary-theme block w-full p-3 transition-colors outline-none cursor-pointer">
-                                <option value="EUR" class="bg-white dark:bg-[#1a1a1a]" <%=user.currency==='EUR'
-                                    ? 'selected' : '' %>>
-                                    <%= t('settings.currency_eur') %>
+                                <% currencies.forEach(function (code) { %>
+                                <option value="<%= code %>" class="bg-white dark:bg-[#1a1a1a]" <%= user.currency === code ? 'selected' : '' %>>
+                                    <%= t('settings.currency_' + code.toLowerCase()) %>
                                 </option>
-
-                                <option value="USD" class="bg-white dark:bg-[#1a1a1a]" <%=user.currency==='USD'
-                                    ? 'selected' : '' %>>
-                                    <%= t('settings.currency_usd') %>
-                                </option>
-
-                                <option value="GBP" class="bg-white dark:bg-[#1a1a1a]" <%=user.currency==='GBP'
-                                    ? 'selected' : '' %>>
-                                    <%= t('settings.currency_gbp') %>
-                                </option>
+                                <% }) %>
                             </select>
                         </form>
                     </div>
