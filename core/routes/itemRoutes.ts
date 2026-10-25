@@ -20,6 +20,7 @@ import { idOf, isId } from '../db/ids';
 import { isValidationError, validationMessages } from '../db/errors';
 import { hasSearch, searchableSources, resolveSource, canRefresh, refreshPatchFor } from '../sources';
 import { resolveBarcodeWithAi } from '../ai/barcode';
+import { resolveCardScanWithAi } from '../ai/cardScan';
 import { identifyFromPhoto } from '../ai/photo';
 import { IdentificationGuess } from '../ai/identify';
 import { isAcceptedImage } from '../ai/images';
@@ -288,6 +289,43 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         });
       }
     });
+
+    if (plugin.supportsCardScan) {
+      // POST /add-{id}/card-scan -> AI-identify a photographed card, return a search query
+      // for this plugin's own source. Companion to the barcode-scan branch above: a single
+      // trading card has no scannable retail barcode, so a photo of the card is the input
+      // instead. Never saves anything itself — the client fills the query box with the
+      // result and submits the normal search-{id} form, so what the user eventually picks
+      // always comes from the plugin's real source.
+      router.post(`/add-${plugin.id}/card-scan`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
+        const config = await getAiConfig();
+        if (!isAiConfigured(config)) {
+          return res.status(400).json({ error: req.t('ai.err_not_configured') });
+        }
+        if (!isAcceptedImage(req.body?.image)) {
+          return res.status(400).json({ error: req.t('ai.err_image_rejected') });
+        }
+
+        const guess = await resolveCardScanWithAi(req.body.image, plugin.id);
+        if (!guess) {
+          return res.status(422).json({ error: req.t('ai.err_card_not_recognized') });
+        }
+
+        // The set name is the part a vision model most often misreads (a small symbol,
+        // easy to guess wrong), and a wrong set name appended to the title actively hurts
+        // the search rather than narrowing it. So a guess that includes one is verified
+        // against this plugin's real source first, falling back to the bare title -
+        // still handed to the same source on submit either way - if that combined guess
+        // finds nothing.
+        let query = [guess.title, guess.setName].filter(Boolean).join(' ');
+        const source = resolveSource(plugin, null, res.locals.settings);
+        if (guess.setName && source) {
+          const results = await source.search(query, { type: plugin.id });
+          if (results.length === 0) query = guess.title;
+        }
+        res.json({ query });
+      });
+    }
 
     // POST /search-{type}/photo -> what the photographed item probably is, for the search
     // form to run. Nothing is searched or saved here: the page posts the answer back

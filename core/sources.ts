@@ -183,9 +183,14 @@ export function hasSearch(plugin: PluginDefinition): boolean {
  * Whether the plugin's add page offers the barcode scanner, which every "scan" shortcut
  * links straight into. A search is required to have an add page at all, and a plugin
  * whose search ignores barcodes opts out with `noBarcodeScan`.
+ *
+ * A trading-card plugin opts out too, implicitly: `supportsCardScan` swaps the add page's
+ * barcode reader for a photo flow (see its own comment in types.ts), so the barcode
+ * shortcut would otherwise open a scanner the plugin has no use for. Cards have no
+ * retail barcode to read, and the add page's "Scan card" button is the entry point.
  */
 export function hasBarcodeScan(plugin: PluginDefinition): boolean {
-  return hasSearch(plugin) && !plugin.noBarcodeScan;
+  return hasSearch(plugin) && !plugin.noBarcodeScan && !plugin.supportsCardScan;
 }
 
 /**

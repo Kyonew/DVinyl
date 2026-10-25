@@ -23,6 +23,10 @@ picture-only and need no key at all, so cover art keeps working on an instance t
 nothing: Open Library for books, iTunes for music and games. Games also uses TMDB for extra artwork
 if `TMDB_API_KEY` happens to be set, and quietly skips it otherwise.
 
+The eight trading-card-game plugins (Pokémon, Magic: The Gathering, Yu-Gi-Oh!, One Piece, Lorcana,
+Star Wars: Unlimited, Digimon, Flesh and Blood) need **no key at all** — see
+[Trading card games](#-trading-card-games-no-key-needed) below.
+
 For optional AI-assisted import (text, photo, or barcode fallback), see the [AI Assist guide](./ai.md):
 it is not tied to one media type and runs across the whole collection.
 
@@ -107,6 +111,26 @@ Used for LEGO set metadata, themes, piece counts and covers.
 2. Open the [API settings page](https://rebrickable.com/api/) and copy your **API key** (generate
    one if you do not have it yet).
 3. Paste it into your `.env` as `REBRICKABLE_API_KEY`.
+
+## 🃏 Trading card games (no key needed)
+
+All eight TCG plugins use free, keyless public APIs — there is nothing to add to your `.env`.
+Just enable the ones you want per collection from the admin panel and they work immediately:
+
+| Plugin | Source |
+| :----- | :----- |
+| Pokémon | [TCGdex](https://www.tcgdex.net/) |
+| Magic: The Gathering | [Scryfall](https://scryfall.com/) |
+| Yu-Gi-Oh! | [YGOPRODeck](https://ygoprodeck.com/) |
+| One Piece | [optcgapi.com](https://www.optcgapi.com/) |
+| Lorcana | [Lorcana API](https://lorcana-api.com/) |
+| Star Wars: Unlimited | [SWU-DB](https://www.swu-db.com/) |
+| Digimon | [DigimonCard.io](https://digimoncard.io/) |
+| Flesh and Blood | [goagain.dev](https://goagain.dev/) |
+
+> [!NOTE]
+> These are community-run, best-effort sources: card coverage can lag behind the very newest
+> set releases. If a search comes up empty for a card you know exists, "Add manually" still works.
 
 ## 🎲 BoardGameGeek (Board games)
 
