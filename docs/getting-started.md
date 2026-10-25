@@ -64,7 +64,8 @@ DVinyl ships with an Unraid Community App template.
 > [!NOTE]
 > **Upgrading from 3.x?** Keep your MongoDB container running for the first start of 4.0 and set
 > the `MONGODB_URL` setting to it, as before: DVinyl copies everything into SQLite once. Then
-> clear the setting and remove the MongoDB container.
+> clear the setting and remove the MongoDB container. The new **Data volume** must be set: without
+> it, the container refuses to start and its log says `Please mount DVinyl's data folder`.
 
 ## 🛠️ Manual (Node.js)
 

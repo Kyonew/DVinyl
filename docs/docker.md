@@ -105,6 +105,13 @@ lists and share links keep working. **The old database is only read, never chang
    ```
 
    With a compose file of your own, leave your `mongodb` service in it for now.
+
+   > [!WARNING]
+   > **Do not skip the `./data:/app/data` volume.** Without it, DVinyl 4.0 refuses to start and
+   > its log begins with `[DATA] Please mount DVinyl's data folder (/app/data) from the host`.
+   > Nothing is lost when that happens: add the volume and start again. It stops on purpose,
+   > because a folder that is not mounted lives inside the container and would be wiped by the
+   > next update, along with everything you changed since the upgrade.
 3. **Check the logs**: `docker compose logs dvinyl-app` shows `[IMPORT] Done.` with what was
    copied. If MongoDB cannot be reached, the app stops with a message saying so instead of starting
    empty: fix the URL and start again.

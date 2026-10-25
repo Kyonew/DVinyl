@@ -24,7 +24,7 @@
   
   <Config Name="WebUI Port" Target="3099" Default="3099" Mode="tcp" Description="The port DVinyl will be accessible on." Type="Port" Display="always" Required="true" Mask="false">3099</Config>
   
-  <Config Name="Data Volume" Target="/app/data" Default="/mnt/user/appdata/dvinyl/data" Mode="rw" Description="Where DVinyl keeps your collection: one SQLite file. Back this folder up." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/dvinyl/data</Config>
+  <Config Name="Data Volume" Target="/app/data" Default="/mnt/user/appdata/dvinyl/data" Mode="rw" Description="Where DVinyl keeps your collection: one SQLite file. Required: the container refuses to start while it is not set. Back this folder up." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/dvinyl/data</Config>
   
   <Config Name="Uploads Volume" Target="/app/public/uploads" Default="/mnt/user/appdata/dvinyl/uploads" Mode="rw" Description="Directory to store uploaded files like covers." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/dvinyl/uploads</Config>
   

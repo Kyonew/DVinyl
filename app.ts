@@ -15,6 +15,7 @@ import themesConfig from './config/themes.js';
 import { BASE_URL, SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE, normalizeLanguage, dateLocaleFor } from './config/constants.js';
 import { isOidcEnabled, getOidcButtonLabel, isLocalLoginDisabled } from './config/oidc.js';
 import { connectDB } from './config/db.js';
+import { StartupError } from './config/startupError.js';
 import { migrateDatabase } from './utils/migrate.js';
 import { migrateExtraFieldIdentities } from './utils/migrateExtraFieldIdentities.js';
 
@@ -387,7 +388,8 @@ connectDB()
   .catch((err: any) => {
     // Nothing can be served without the store: stop, so a supervisor (Docker) restarts
     // the app instead of leaving it up without a server.
-    console.error('[BOOT] DB Error:', err);
+    if (err instanceof StartupError) console.error(err.message);
+    else console.error('[BOOT] DB Error:', err);
     process.exit(1);
   });
 

@@ -9,6 +9,8 @@
 import path from 'path';
 import { db, DRIVER } from '../core/db';
 import { importFromMongo, wantsImport } from '../core/db/importFromMongo';
+import { assertDataPersisted } from './dataVolume';
+import { StartupError } from './startupError';
 
 const MONGODB_URL = process.env.MONGODB_URL;
 const SQLITE_PATH = process.env.SQLITE_PATH || path.join(__dirname, '..', 'data', 'dvinyl.sqlite');
@@ -21,6 +23,7 @@ export const connectDB = async () => {
     return;
   }
 
+  assertDataPersisted(SQLITE_PATH);
   console.log('[DB] Opening SQLite...');
   console.log(`[DB] SQLite opened (${await db.connect(SQLITE_PATH)})`);
 
@@ -28,8 +31,8 @@ export const connectDB = async () => {
     try {
       await importFromMongo(MONGODB_URL!);
     } catch (err: any) {
-      throw new Error(
-        `The data of the MongoDB server MONGODB_URL names could not be imported (${err.message}). `
+      throw new StartupError(
+        `[IMPORT] The data of the MongoDB server MONGODB_URL names could not be imported (${err.message}). `
         + 'Nothing was written. Make that server reachable and start again, or remove MONGODB_URL '
         + 'to start on an empty store.'
       );
