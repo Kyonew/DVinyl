@@ -44,7 +44,7 @@ export class SwuProvider implements SearchProvider {
   // The `q` param takes a `field:value` filter expression (verified live); `name:` is the
   // one this plugin needs. Only the value itself is percent-encoded, not the `name:` prefix.
   // name: only matches Card.Name, not the "Name - Subtitle" full display title (see
-  // displayTitle below) — fuzzyCardSearch's getName compares against the full title, so a
+  // displayTitle below) - fuzzyCardSearch's getName compares against the full title, so a
   // query that includes the subtitle ("Boba Fett Special Ops") still narrows correctly
   // once the first-word retry has widened the candidate set.
   async search(query: string, options: SearchOptions): Promise<SearchResult[]> {

@@ -1,6 +1,7 @@
 import { PluginDefinition } from '../../core/types';
-import { escapeRegExp, PermanentRefreshError } from '../../core/helpers';
-import Item from '../../models/Item';
+import { PermanentRefreshError, splitTagFields } from '../../core/helpers';
+import { db } from '../../core/db';
+import { and, ci, eq, idOf, ne, or, Filter } from '../../core/db/query';
 import { TcgdexProvider, fetchTcgdexCard } from './tcgdex';
 import { pokemonApiRoutes } from './apiRoutes';
 import { CARD_CONDITIONS, CARD_CONDITION_ENUM, POKEMON_FORMATS } from './constants';
@@ -51,7 +52,7 @@ export const pokemonPlugin: PluginDefinition = {
     }
   },
 
-  // No externalLink: TCGdex has no public per-card web page — www.tcgdex.net doesn't
+  // No externalLink: TCGdex has no public per-card web page - www.tcgdex.net doesn't
   // resolve at all, only the api.tcgdex.net host does, so any such link 404s. The One
   // Piece plugin omits externalLink for the same reason (optcgapi.com is API-only).
 
@@ -69,18 +70,20 @@ export const pokemonPlugin: PluginDefinition = {
     { id: 'pokemon_type', label: 'stats.top_type_label', icon: 'fa-fire', color: 'bg-emerald-100 dark:bg-emerald-500/20', kind: 'top' }
   ],
 
-  schemaDefinition: {
-    pokemon_card_id: { type: String, default: '' },
-    set_name: { type: String, default: '' },
-    card_number: { type: String, default: '' },
-    category: { type: String, enum: ['Pokemon', 'Trainer', 'Energy'], default: 'Pokemon' },
-    rarity: { type: String, default: '' },
-    artist: { type: String, default: '' },
-    hp: { type: Number, default: 0 },
-    types: { type: [String], default: [] },
-    card_condition: { type: String, enum: ['', ...CARD_CONDITION_ENUM], default: '' },
-    genre: { type: String, default: '' },
-    genres: { type: [String], default: [] }
+  duplicateCheckFields: ['card_condition'],
+
+  storedFields: {
+    pokemon_card_id: { type: 'text', default: '' },
+    set_name: { type: 'text', default: '' },
+    card_number: { type: 'text', default: '' },
+    category: { type: 'text', values: ['Pokemon', 'Trainer', 'Energy'], default: 'Pokemon' },
+    rarity: { type: 'text', default: '' },
+    artist: { type: 'text', default: '' },
+    hp: { type: 'number', default: 0 },
+    types: { type: 'texts', default: [] },
+    card_condition: { type: 'text', values: ['', ...CARD_CONDITION_ENUM], default: '' },
+    genre: { type: 'text', default: '' },
+    genres: { type: 'texts', default: [] }
   },
 
   formats: POKEMON_FORMATS,
@@ -124,6 +127,7 @@ export const pokemonPlugin: PluginDefinition = {
   // theme. Runs on every create and edit, so a hand-edited types list keeps genre in
   // sync without a re-fetch.
   normalizeForSave(data: Record<string, any>): void {
+    splitTagFields(data, ['types']);
     const types = Array.isArray(data.types) ? data.types.filter(Boolean) : [];
     data.genres = types;
     data.genre = types[0] || '';
@@ -176,38 +180,50 @@ export const pokemonPlugin: PluginDefinition = {
   },
 
   async findDuplicate(collectionId: any, data: Record<string, any>): Promise<any | null> {
-    const cardId = (data.pokemon_card_id || '').trim();
-    if (cardId) {
-      const item = await Item.findOne({
-        collection: collectionId, in_wishlist: false, kind: 'Pokemon', pokemon_card_id: cardId
-      });
-      if (item) return item;
-    }
-    const matchTitle = (data.title || '').trim();
-    const matchSet = (data.set_name || '').trim();
-    const query: any = {
-      collection: collectionId, in_wishlist: false, kind: 'Pokemon',
-      title: { $regex: new RegExp(`^${escapeRegExp(matchTitle)}$`, 'i') }
-    };
-    if (matchSet) query.set_name = { $regex: new RegExp(`^${escapeRegExp(matchSet)}$`, 'i') };
-    return await Item.findOne(query);
+    const owned = and(
+      eq('collection', idOf(collectionId)),
+      eq('in_wishlist', false),
+      eq('kind', 'Pokemon'),
+      eq('card_condition', String(data.card_condition || ''))
+    );
+
+    // A card picked from TCGdex is that exact printing: another one sharing its name
+    // and set (an alternate art, a promo) is a different card, never a second copy.
+    const cardId = String(data.pokemon_card_id || '').trim();
+    if (cardId) return db.items.findOne(and(owned, eq('pokemon_card_id', cardId)), { defaults: true });
+
+    const matchSet = String(data.set_name || '').trim();
+    return db.items.findOne(and(
+      owned,
+      ci('title', String(data.title || '').trim()),
+      matchSet ? ci('set_name', matchSet) : null
+    ), { defaults: true });
   },
 
   async findPotentialDuplicates(collectionId: any, data: Record<string, any>): Promise<any[]> {
-    const or: any[] = [];
-    if (data.pokemon_card_id) or.push({ pokemon_card_id: (data.pokemon_card_id + '').trim() });
-    if (data.title) or.push({ title: { $regex: new RegExp(`^${escapeRegExp(String(data.title).trim())}$`, 'i') } });
-    if (or.length === 0) return [];
-    return Item.find({ collection: collectionId, in_wishlist: false, kind: 'Pokemon', $or: or }).lean();
+    const matches: Filter[] = [];
+    const cardId = String(data.pokemon_card_id || '').trim();
+    if (cardId) matches.push(eq('pokemon_card_id', cardId));
+    const title = String(data.title || '').trim();
+    if (title) matches.push(ci('title', title));
+    if (matches.length === 0) return [];
+    return db.items.find(and(
+      eq('collection', idOf(collectionId)),
+      eq('in_wishlist', false),
+      eq('kind', 'Pokemon'),
+      or(...matches)
+    ));
   },
 
   async getVariants(item: any): Promise<any[]> {
     if (!item) return [];
-    return Item.find({
-      collection: item.collection, in_wishlist: false, kind: 'Pokemon',
-      _id: { $ne: item._id },
-      title: { $regex: new RegExp(`^${escapeRegExp(item.title)}$`, 'i') }
-    }).lean();
+    return db.items.find(and(
+      eq('collection', idOf(item.collection)),
+      eq('in_wishlist', false),
+      eq('kind', 'Pokemon'),
+      ne('_id', idOf(item._id)),
+      ci('title', String(item.title ?? ''))
+    ));
   },
 
   getManualDefaults(): Record<string, any> {

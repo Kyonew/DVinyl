@@ -1,6 +1,7 @@
 import { PluginDefinition } from '../../core/types';
-import { escapeRegExp, PermanentRefreshError } from '../../core/helpers';
-import Item from '../../models/Item';
+import { PermanentRefreshError, splitTagFields } from '../../core/helpers';
+import { db } from '../../core/db';
+import { and, ci, eq, idOf, ne, or, Filter } from '../../core/db/query';
 import { OptcgapiProvider, fetchOnePieceCard } from './optcgapi';
 import { onePieceApiRoutes } from './apiRoutes';
 import { CARD_CONDITIONS, CARD_CONDITION_ENUM, ONEPIECE_FORMATS } from './constants';
@@ -27,7 +28,7 @@ export const onePiecePlugin: PluginDefinition = {
   imageSearchType: 'onepiece',
   apiRoutes: onePieceApiRoutes,
   defaultCardFields: ['set_name', 'rarity'],
-  // No published rate-limit ceiling on a single-maintainer personal VPS — conservative
+  // No published rate-limit ceiling on a single-maintainer personal VPS - conservative
   // on purpose, precisely because there's no documented number to reason against.
   bulkRefreshDelayMs: 300,
 
@@ -68,20 +69,22 @@ export const onePiecePlugin: PluginDefinition = {
     { id: 'onepiece_color', label: 'stats.top_color_label', icon: 'fa-palette', color: 'bg-purple-100 dark:bg-purple-500/20', kind: 'top' }
   ],
 
-  schemaDefinition: {
-    op_card_id: { type: String, default: '' },
-    set_name: { type: String, default: '' },
-    rarity: { type: String, default: '' },
-    card_type: { type: String, enum: ONEPIECE_FORMATS.map(f => f.value), default: 'Character' },
-    card_color: { type: String, default: '' },
-    cost: { type: Number, default: 0 },
-    power: { type: Number, default: 0 },
-    counter: { type: Number, default: 0 },
-    life: { type: Number, default: 0 },
-    traits: { type: [String], default: [] },
-    card_condition: { type: String, enum: ['', ...CARD_CONDITION_ENUM], default: '' },
-    genre: { type: String, default: '' },
-    genres: { type: [String], default: [] }
+  duplicateCheckFields: ['card_condition'],
+
+  storedFields: {
+    op_card_id: { type: 'text', default: '' },
+    set_name: { type: 'text', default: '' },
+    rarity: { type: 'text', default: '' },
+    card_type: { type: 'text', values: ONEPIECE_FORMATS.map(f => f.value), default: 'Character' },
+    card_color: { type: 'text', default: '' },
+    cost: { type: 'number', default: 0 },
+    power: { type: 'number', default: 0 },
+    counter: { type: 'number', default: 0 },
+    life: { type: 'number', default: 0 },
+    traits: { type: 'texts', default: [] },
+    card_condition: { type: 'text', values: ['', ...CARD_CONDITION_ENUM], default: '' },
+    genre: { type: 'text', default: '' },
+    genres: { type: 'texts', default: [] }
   },
 
   formats: ONEPIECE_FORMATS,
@@ -121,6 +124,7 @@ export const onePiecePlugin: PluginDefinition = {
   ],
 
   normalizeForSave(data: Record<string, any>): void {
+    splitTagFields(data, ['traits']);
     const color = (data.card_color || '').trim();
     data.genre = color;
     data.genres = color ? [color] : [];
@@ -175,38 +179,50 @@ export const onePiecePlugin: PluginDefinition = {
   },
 
   async findDuplicate(collectionId: any, data: Record<string, any>): Promise<any | null> {
-    const opId = (data.op_card_id || '').trim();
-    if (opId) {
-      const item = await Item.findOne({
-        collection: collectionId, in_wishlist: false, kind: 'OnePiece', op_card_id: opId
-      });
-      if (item) return item;
-    }
-    const matchTitle = (data.title || '').trim();
-    const matchSet = (data.set_name || '').trim();
-    const query: any = {
-      collection: collectionId, in_wishlist: false, kind: 'OnePiece',
-      title: { $regex: new RegExp(`^${escapeRegExp(matchTitle)}$`, 'i') }
-    };
-    if (matchSet) query.set_name = { $regex: new RegExp(`^${escapeRegExp(matchSet)}$`, 'i') };
-    return await Item.findOne(query);
+    const owned = and(
+      eq('collection', idOf(collectionId)),
+      eq('in_wishlist', false),
+      eq('kind', 'OnePiece'),
+      eq('card_condition', String(data.card_condition || ''))
+    );
+
+    // A card picked from optcgapi.com is that exact printing: another one sharing its name
+    // and set (an alternate art, a promo) is a different card, never a second copy.
+    const cardId = String(data.op_card_id || '').trim();
+    if (cardId) return db.items.findOne(and(owned, eq('op_card_id', cardId)), { defaults: true });
+
+    const matchSet = String(data.set_name || '').trim();
+    return db.items.findOne(and(
+      owned,
+      ci('title', String(data.title || '').trim()),
+      matchSet ? ci('set_name', matchSet) : null
+    ), { defaults: true });
   },
 
   async findPotentialDuplicates(collectionId: any, data: Record<string, any>): Promise<any[]> {
-    const or: any[] = [];
-    if (data.op_card_id) or.push({ op_card_id: (data.op_card_id + '').trim() });
-    if (data.title) or.push({ title: { $regex: new RegExp(`^${escapeRegExp(String(data.title).trim())}$`, 'i') } });
-    if (or.length === 0) return [];
-    return Item.find({ collection: collectionId, in_wishlist: false, kind: 'OnePiece', $or: or }).lean();
+    const matches: Filter[] = [];
+    const cardId = String(data.op_card_id || '').trim();
+    if (cardId) matches.push(eq('op_card_id', cardId));
+    const title = String(data.title || '').trim();
+    if (title) matches.push(ci('title', title));
+    if (matches.length === 0) return [];
+    return db.items.find(and(
+      eq('collection', idOf(collectionId)),
+      eq('in_wishlist', false),
+      eq('kind', 'OnePiece'),
+      or(...matches)
+    ));
   },
 
   async getVariants(item: any): Promise<any[]> {
     if (!item) return [];
-    return Item.find({
-      collection: item.collection, in_wishlist: false, kind: 'OnePiece',
-      _id: { $ne: item._id },
-      title: { $regex: new RegExp(`^${escapeRegExp(item.title)}$`, 'i') }
-    }).lean();
+    return db.items.find(and(
+      eq('collection', idOf(item.collection)),
+      eq('in_wishlist', false),
+      eq('kind', 'OnePiece'),
+      ne('_id', idOf(item._id)),
+      ci('title', String(item.title ?? ''))
+    ));
   },
 
   getManualDefaults(): Record<string, any> {

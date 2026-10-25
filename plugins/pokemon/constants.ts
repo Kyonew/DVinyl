@@ -1,6 +1,5 @@
-// Shared TCG-standard condition scale — duplicated verbatim across all four TCG
-// plugins (see docs/superpowers/plans/2026-09-01-tcg-plugins.md "Global Constraints"),
-// not the same scale as music's M/NM/VG+/... sleeve condition.
+// The usual trading card condition scale, repeated in each card plugin so every plugin
+// folder stands alone. Not the same scale as music's M/NM/VG+/... sleeve condition.
 export const CARD_CONDITION_ENUM = [
   'Mint', 'Near Mint', 'Lightly Played', 'Moderately Played', 'Heavily Played', 'Damaged'
 ];

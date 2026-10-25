@@ -1,6 +1,7 @@
 import { PluginDefinition } from '../../core/types';
-import { escapeRegExp, PermanentRefreshError } from '../../core/helpers';
-import Item from '../../models/Item';
+import { PermanentRefreshError, splitTagFields } from '../../core/helpers';
+import { db } from '../../core/db';
+import { and, ci, eq, idOf, ne, or, Filter } from '../../core/db/query';
 import { ScryfallProvider, fetchScryfallCard } from './scryfall';
 import { mtgApiRoutes } from './apiRoutes';
 import { CARD_CONDITIONS, CARD_CONDITION_ENUM, MTG_FORMATS, deriveMtgFormat, expandColors } from './constants';
@@ -27,7 +28,7 @@ export const mtgPlugin: PluginDefinition = {
   imageSearchType: 'mtg',
   apiRoutes: mtgApiRoutes,
   defaultCardFields: ['set_name', 'rarity'],
-  // ~10 req/s Scryfall guideline (see spec) — same role music's 1500ms plays for Discogs.
+  // ~10 req/s Scryfall guideline, the same role music's 1500ms plays for Discogs.
   bulkRefreshDelayMs: 150,
 
   collectionActions: [
@@ -73,19 +74,21 @@ export const mtgPlugin: PluginDefinition = {
     { id: 'mtg_color', label: 'stats.top_color_label', icon: 'fa-palette', color: 'bg-emerald-100 dark:bg-emerald-500/20', kind: 'top' }
   ],
 
-  schemaDefinition: {
-    scryfall_id: { type: String, default: '' },
-    set_name: { type: String, default: '' },
-    card_type: { type: String, enum: MTG_FORMATS.map(f => f.value), default: 'Creature' },
-    rarity: { type: String, default: '' },
-    artist: { type: String, default: '' },
-    mana_cost: { type: String, default: '' },
-    power: { type: String, default: '' },
-    toughness: { type: String, default: '' },
-    colors: { type: [String], default: [] },
-    card_condition: { type: String, enum: ['', ...CARD_CONDITION_ENUM], default: '' },
-    genre: { type: String, default: '' },
-    genres: { type: [String], default: [] }
+  duplicateCheckFields: ['card_condition'],
+
+  storedFields: {
+    scryfall_id: { type: 'text', default: '' },
+    set_name: { type: 'text', default: '' },
+    card_type: { type: 'text', values: MTG_FORMATS.map(f => f.value), default: 'Creature' },
+    rarity: { type: 'text', default: '' },
+    artist: { type: 'text', default: '' },
+    mana_cost: { type: 'text', default: '' },
+    power: { type: 'text', default: '' },
+    toughness: { type: 'text', default: '' },
+    colors: { type: 'texts', default: [] },
+    card_condition: { type: 'text', values: ['', ...CARD_CONDITION_ENUM], default: '' },
+    genre: { type: 'text', default: '' },
+    genres: { type: 'texts', default: [] }
   },
 
   formats: MTG_FORMATS,
@@ -123,6 +126,7 @@ export const mtgPlugin: PluginDefinition = {
   ],
 
   normalizeForSave(data: Record<string, any>): void {
+    splitTagFields(data, ['colors']);
     const colors = Array.isArray(data.colors) ? data.colors.filter(Boolean) : [];
     data.genres = colors;
     data.genre = colors[0] || '';
@@ -176,38 +180,50 @@ export const mtgPlugin: PluginDefinition = {
   },
 
   async findDuplicate(collectionId: any, data: Record<string, any>): Promise<any | null> {
-    const scryfallId = (data.scryfall_id || '').trim();
-    if (scryfallId) {
-      const item = await Item.findOne({
-        collection: collectionId, in_wishlist: false, kind: 'Mtg', scryfall_id: scryfallId
-      });
-      if (item) return item;
-    }
-    const matchTitle = (data.title || '').trim();
-    const matchSet = (data.set_name || '').trim();
-    const query: any = {
-      collection: collectionId, in_wishlist: false, kind: 'Mtg',
-      title: { $regex: new RegExp(`^${escapeRegExp(matchTitle)}$`, 'i') }
-    };
-    if (matchSet) query.set_name = { $regex: new RegExp(`^${escapeRegExp(matchSet)}$`, 'i') };
-    return await Item.findOne(query);
+    const owned = and(
+      eq('collection', idOf(collectionId)),
+      eq('in_wishlist', false),
+      eq('kind', 'Mtg'),
+      eq('card_condition', String(data.card_condition || ''))
+    );
+
+    // A card picked from Scryfall is that exact printing: another one sharing its name
+    // and set (an alternate art, a promo) is a different card, never a second copy.
+    const cardId = String(data.scryfall_id || '').trim();
+    if (cardId) return db.items.findOne(and(owned, eq('scryfall_id', cardId)), { defaults: true });
+
+    const matchSet = String(data.set_name || '').trim();
+    return db.items.findOne(and(
+      owned,
+      ci('title', String(data.title || '').trim()),
+      matchSet ? ci('set_name', matchSet) : null
+    ), { defaults: true });
   },
 
   async findPotentialDuplicates(collectionId: any, data: Record<string, any>): Promise<any[]> {
-    const or: any[] = [];
-    if (data.scryfall_id) or.push({ scryfall_id: (data.scryfall_id + '').trim() });
-    if (data.title) or.push({ title: { $regex: new RegExp(`^${escapeRegExp(String(data.title).trim())}$`, 'i') } });
-    if (or.length === 0) return [];
-    return Item.find({ collection: collectionId, in_wishlist: false, kind: 'Mtg', $or: or }).lean();
+    const matches: Filter[] = [];
+    const cardId = String(data.scryfall_id || '').trim();
+    if (cardId) matches.push(eq('scryfall_id', cardId));
+    const title = String(data.title || '').trim();
+    if (title) matches.push(ci('title', title));
+    if (matches.length === 0) return [];
+    return db.items.find(and(
+      eq('collection', idOf(collectionId)),
+      eq('in_wishlist', false),
+      eq('kind', 'Mtg'),
+      or(...matches)
+    ));
   },
 
   async getVariants(item: any): Promise<any[]> {
     if (!item) return [];
-    return Item.find({
-      collection: item.collection, in_wishlist: false, kind: 'Mtg',
-      _id: { $ne: item._id },
-      title: { $regex: new RegExp(`^${escapeRegExp(item.title)}$`, 'i') }
-    }).lean();
+    return db.items.find(and(
+      eq('collection', idOf(item.collection)),
+      eq('in_wishlist', false),
+      eq('kind', 'Mtg'),
+      ne('_id', idOf(item._id)),
+      ci('title', String(item.title ?? ''))
+    ));
   },
 
   getManualDefaults(): Record<string, any> {

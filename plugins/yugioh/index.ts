@@ -1,8 +1,9 @@
 import { PluginDefinition } from '../../core/types';
-import { escapeRegExp, PermanentRefreshError } from '../../core/helpers';
-import Item from '../../models/Item';
+import { PermanentRefreshError } from '../../core/helpers';
+import { db } from '../../core/db';
+import { and, ci, eq, idOf, ne, or, Filter } from '../../core/db/query';
 import { YgoprodeckProvider, fetchYgoprodeckCard, findPrinting, parseYugiohId } from './ygoprodeck';
-import { cacheYugiohImage } from './imageCache';
+import { cacheYugiohImage, refreshedYugiohImage } from './imageCache';
 import { yugiohApiRoutes } from './apiRoutes';
 import { CARD_CONDITIONS, CARD_CONDITION_ENUM, YUGIOH_FORMATS, deriveYugiohFormat } from './constants';
 
@@ -48,9 +49,9 @@ export const yugiohPlugin: PluginDefinition = {
   ],
 
   // Picking one of these images PERSISTS it as the item's cover_image, so it has to go
-  // through the local image cache — YGOPRODeck's usage policy forbids hotlinking, and a
+  // through the local image cache - YGOPRODeck's usage policy forbids hotlinking, and a
   // stored remote URL would keep hotlinking forever. (The main search-results grid is
-  // deliberately NOT cached: those previews are transient and mostly never picked — see
+  // deliberately NOT cached: those previews are transient and mostly never picked - see
   // the note in ygoprodeck.ts's search().)
   imageSearchProvider: {
     async search(query: string): Promise<string[]> {
@@ -59,14 +60,14 @@ export const yugiohPlugin: PluginDefinition = {
       // search rows repeat images. Dedupe before caching, otherwise the same file gets
       // downloaded several times in parallel and the picker shows duplicates.
       const seen = new Set<string>();
-      const unique: Array<{ numericId: string; url: string }> = [];
+      const unique: string[] = [];
       for (const r of results) {
         const url = r.cover_image;
         if (!url || seen.has(url)) continue;
         seen.add(url);
-        unique.push({ numericId: parseYugiohId(String(r.id)).numericId, url });
+        unique.push(url);
       }
-      const cached = await Promise.all(unique.map(u => cacheYugiohImage(u.numericId, u.url)));
+      const cached = await Promise.all(unique.map(url => cacheYugiohImage(url)));
       return cached.filter(Boolean);
     }
   },
@@ -91,19 +92,21 @@ export const yugiohPlugin: PluginDefinition = {
     { id: 'yugioh_race', label: 'stats.top_race_label', icon: 'fa-paw', color: 'bg-orange-100 dark:bg-orange-500/20', kind: 'top' }
   ],
 
-  schemaDefinition: {
-    ygo_card_id: { type: String, default: '' },
-    set_name: { type: String, default: '' },
-    rarity: { type: String, default: '' },
-    card_type: { type: String, enum: YUGIOH_FORMATS.map(f => f.value), default: 'Monster' },
-    race: { type: String, default: '' },
-    attribute: { type: String, default: '' },
-    atk: { type: Number, default: 0 },
-    def: { type: Number, default: 0 },
-    level: { type: Number, default: 0 },
-    card_condition: { type: String, enum: ['', ...CARD_CONDITION_ENUM], default: '' },
-    genre: { type: String, default: '' },
-    genres: { type: [String], default: [] }
+  duplicateCheckFields: ['card_condition'],
+
+  storedFields: {
+    ygo_card_id: { type: 'text', default: '' },
+    set_name: { type: 'text', default: '' },
+    rarity: { type: 'text', default: '' },
+    card_type: { type: 'text', values: YUGIOH_FORMATS.map(f => f.value), default: 'Monster' },
+    race: { type: 'text', default: '' },
+    attribute: { type: 'text', default: '' },
+    atk: { type: 'number', default: 0 },
+    def: { type: 'number', default: 0 },
+    level: { type: 'number', default: 0 },
+    card_condition: { type: 'text', values: ['', ...CARD_CONDITION_ENUM], default: '' },
+    genre: { type: 'text', default: '' },
+    genres: { type: 'texts', default: [] }
   },
 
   formats: YUGIOH_FORMATS,
@@ -194,38 +197,50 @@ export const yugiohPlugin: PluginDefinition = {
   },
 
   async findDuplicate(collectionId: any, data: Record<string, any>): Promise<any | null> {
-    const ygoId = (data.ygo_card_id || '').trim();
-    if (ygoId) {
-      const item = await Item.findOne({
-        collection: collectionId, in_wishlist: false, kind: 'Yugioh', ygo_card_id: ygoId
-      });
-      if (item) return item;
-    }
-    const matchTitle = (data.title || '').trim();
-    const matchSet = (data.set_name || '').trim();
-    const query: any = {
-      collection: collectionId, in_wishlist: false, kind: 'Yugioh',
-      title: { $regex: new RegExp(`^${escapeRegExp(matchTitle)}$`, 'i') }
-    };
-    if (matchSet) query.set_name = { $regex: new RegExp(`^${escapeRegExp(matchSet)}$`, 'i') };
-    return await Item.findOne(query);
+    const owned = and(
+      eq('collection', idOf(collectionId)),
+      eq('in_wishlist', false),
+      eq('kind', 'Yugioh'),
+      eq('card_condition', String(data.card_condition || ''))
+    );
+
+    // A card picked from YGOPRODeck is that exact printing: another one sharing its name
+    // and set (an alternate art, a promo) is a different card, never a second copy.
+    const cardId = String(data.ygo_card_id || '').trim();
+    if (cardId) return db.items.findOne(and(owned, eq('ygo_card_id', cardId)), { defaults: true });
+
+    const matchSet = String(data.set_name || '').trim();
+    return db.items.findOne(and(
+      owned,
+      ci('title', String(data.title || '').trim()),
+      matchSet ? ci('set_name', matchSet) : null
+    ), { defaults: true });
   },
 
   async findPotentialDuplicates(collectionId: any, data: Record<string, any>): Promise<any[]> {
-    const or: any[] = [];
-    if (data.ygo_card_id) or.push({ ygo_card_id: (data.ygo_card_id + '').trim() });
-    if (data.title) or.push({ title: { $regex: new RegExp(`^${escapeRegExp(String(data.title).trim())}$`, 'i') } });
-    if (or.length === 0) return [];
-    return Item.find({ collection: collectionId, in_wishlist: false, kind: 'Yugioh', $or: or }).lean();
+    const matches: Filter[] = [];
+    const cardId = String(data.ygo_card_id || '').trim();
+    if (cardId) matches.push(eq('ygo_card_id', cardId));
+    const title = String(data.title || '').trim();
+    if (title) matches.push(ci('title', title));
+    if (matches.length === 0) return [];
+    return db.items.find(and(
+      eq('collection', idOf(collectionId)),
+      eq('in_wishlist', false),
+      eq('kind', 'Yugioh'),
+      or(...matches)
+    ));
   },
 
   async getVariants(item: any): Promise<any[]> {
     if (!item) return [];
-    return Item.find({
-      collection: item.collection, in_wishlist: false, kind: 'Yugioh',
-      _id: { $ne: item._id },
-      title: { $regex: new RegExp(`^${escapeRegExp(item.title)}$`, 'i') }
-    }).lean();
+    return db.items.find(and(
+      eq('collection', idOf(item.collection)),
+      eq('in_wishlist', false),
+      eq('kind', 'Yugioh'),
+      ne('_id', idOf(item._id)),
+      ci('title', String(item.title ?? ''))
+    ));
   },
 
   getManualDefaults(): Record<string, any> {
@@ -244,7 +259,7 @@ export const yugiohPlugin: PluginDefinition = {
     const card = await fetchYgoprodeckCard(numericId);
     const printing = findPrinting(card, setCode, idx) || card.card_sets?.[0];
     const remoteImage = card.card_images?.[0]?.image_url || '';
-    const cover_image = await cacheYugiohImage(numericId, remoteImage);
+    const cover_image = await refreshedYugiohImage(item.cover_image, remoteImage);
 
     return {
       set_name: printing?.set_name || item.set_name,

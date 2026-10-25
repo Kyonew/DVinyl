@@ -3,7 +3,7 @@ import { fetchJson, fuzzyCardSearch } from '../../core/helpers';
 import { deriveMtgFormat, expandColors } from './constants';
 
 const BASE_URL = 'https://api.scryfall.com';
-// Scryfall requires a descriptive User-Agent on every request — the same convention
+// Scryfall requires a descriptive User-Agent on every request - the same convention
 // plugins/music/apiRoutes.ts already uses for Discogs, nothing new introduced here.
 const HEADERS = { 'User-Agent': 'DVinylApp/2.0', Accept: 'application/json' };
 

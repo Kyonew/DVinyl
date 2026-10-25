@@ -1,4 +1,7 @@
 <%- include('../../views/partials/header') %>
+<%# A card plugin trades the barcode scanner for a photo of the card, which only the AI
+    assist can read: without it, the card is looked up by typing its name. %>
+<% const cardScan = plugin.supportsCardScan && locals.aiPhotoSearch; %>
 
 <div class="max-w-screen-lg mx-auto pb-20 px-4 max-sm:px-0">
     
@@ -80,14 +83,14 @@
 
         <div class="flex flex-col items-center justify-center mt-6 gap-3">
             <div class="flex flex-wrap items-center justify-center gap-3">
-                <% if (plugin.supportsCardScan) { %>
+                <% if (cardScan) { %>
                     <input type="file" id="card-scan-input" accept="image/*" capture="environment" class="hidden">
                     <button type="button" id="start-card-scan"
                         class="bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 active:scale-95">
                         <i class="fa-solid fa-camera"></i>
                         <span id="card-scan-label"><%= t('add_' + plugin.i18nKey + '.btn_scan', { defaultValue: t('add_vinyl.btn_scan') }) %></span>
                     </button>
-                <% } else if (!plugin.noBarcodeScan) { %>
+                <% } else if (!plugin.supportsCardScan && !plugin.noBarcodeScan) { %>
                     <button type="button" id="start-scan"
                         class="bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 active:scale-95">
                         <i class="fa-solid fa-barcode"></i>
@@ -107,7 +110,7 @@
                     <input type="file" id="photo-search-input" accept="image/*" class="hidden">
                 <% } %>
             </div>
-            <% if (plugin.supportsCardScan) { %>
+            <% if (cardScan) { %>
                 <p id="card-scan-error" class="hidden text-xs text-red-500 text-center max-w-xs"></p>
             <% } %>
             <% if (locals.aiPhotoSearch && !plugin.supportsCardScan) { %>
@@ -247,7 +250,6 @@
         document.querySelector('input[name="query"]').focus();
     }
 
-<script>
     // A plain form POST, so this spinner just rides out the page navigation. Every way in
     // goes through it (typing, a scan, a photo), and a barcode or a photo handed to the AI
     // assist can take a few seconds more than a typed title.
@@ -261,11 +263,11 @@
     })();
 </script>
 
-<% if (plugin.supportsCardScan || locals.aiPhotoSearch) { %>
+<% if (locals.aiPhotoSearch) { %>
 <%- include('../../views/partials/image-downscale') %>
 <% } %>
 
-<% if (plugin.supportsCardScan) { %>
+<% if (cardScan) { %>
 <script>
     (() => {
         const T = {

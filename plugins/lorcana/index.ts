@@ -1,6 +1,7 @@
 import { PluginDefinition } from '../../core/types';
-import { escapeRegExp, PermanentRefreshError } from '../../core/helpers';
-import Item from '../../models/Item';
+import { PermanentRefreshError, splitTagFields } from '../../core/helpers';
+import { db } from '../../core/db';
+import { and, ci, eq, idOf, ne, or, Filter } from '../../core/db/query';
 import { LorcanaProvider, fetchLorcanaCard, normalizeCardType } from './lorcana';
 import { CARD_CONDITIONS, CARD_CONDITION_ENUM, LORCANA_FORMATS } from './constants';
 
@@ -47,21 +48,23 @@ export const lorcanaPlugin: PluginDefinition = {
     { id: 'lorcana_color', label: 'stats.top_color_label', icon: 'fa-palette', color: 'bg-purple-100 dark:bg-purple-500/20', kind: 'top' }
   ],
 
-  schemaDefinition: {
-    lorcana_card_id: { type: String, default: '' },
-    set_name: { type: String, default: '' },
-    ink_color: { type: String, default: '' },
-    card_type: { type: String, enum: LORCANA_FORMATS.map(f => f.value), default: 'Character' },
-    cost: { type: Number, default: 0 },
-    lore: { type: Number, default: 0 },
-    strength: { type: Number, default: 0 },
-    willpower: { type: Number, default: 0 },
-    inkable: { type: Boolean, default: false },
-    classifications: { type: [String], default: [] },
-    rarity: { type: String, default: '' },
-    card_condition: { type: String, enum: ['', ...CARD_CONDITION_ENUM], default: '' },
-    genre: { type: String, default: '' },
-    genres: { type: [String], default: [] }
+  duplicateCheckFields: ['card_condition'],
+
+  storedFields: {
+    lorcana_card_id: { type: 'text', default: '' },
+    set_name: { type: 'text', default: '' },
+    ink_color: { type: 'text', default: '' },
+    card_type: { type: 'text', values: LORCANA_FORMATS.map(f => f.value), default: 'Character' },
+    cost: { type: 'number', default: 0 },
+    lore: { type: 'number', default: 0 },
+    strength: { type: 'number', default: 0 },
+    willpower: { type: 'number', default: 0 },
+    inkable: { type: 'boolean', default: false },
+    classifications: { type: 'texts', default: [] },
+    rarity: { type: 'text', default: '' },
+    card_condition: { type: 'text', values: ['', ...CARD_CONDITION_ENUM], default: '' },
+    genre: { type: 'text', default: '' },
+    genres: { type: 'texts', default: [] }
   },
 
   formats: LORCANA_FORMATS,
@@ -103,6 +106,7 @@ export const lorcanaPlugin: PluginDefinition = {
   ],
 
   normalizeForSave(data: Record<string, any>): void {
+    splitTagFields(data, ['classifications']);
     const color = (data.ink_color || '').trim();
     data.genre = color;
     data.genres = color ? [color] : [];
@@ -158,38 +162,50 @@ export const lorcanaPlugin: PluginDefinition = {
   },
 
   async findDuplicate(collectionId: any, data: Record<string, any>): Promise<any | null> {
-    const lorcanaId = (data.lorcana_card_id || '').trim();
-    if (lorcanaId) {
-      const item = await Item.findOne({
-        collection: collectionId, in_wishlist: false, kind: 'Lorcana', lorcana_card_id: lorcanaId
-      });
-      if (item) return item;
-    }
-    const matchTitle = (data.title || '').trim();
-    const matchSet = (data.set_name || '').trim();
-    const query: any = {
-      collection: collectionId, in_wishlist: false, kind: 'Lorcana',
-      title: { $regex: new RegExp(`^${escapeRegExp(matchTitle)}$`, 'i') }
-    };
-    if (matchSet) query.set_name = { $regex: new RegExp(`^${escapeRegExp(matchSet)}$`, 'i') };
-    return await Item.findOne(query);
+    const owned = and(
+      eq('collection', idOf(collectionId)),
+      eq('in_wishlist', false),
+      eq('kind', 'Lorcana'),
+      eq('card_condition', String(data.card_condition || ''))
+    );
+
+    // A card picked from the Lorcana API is that exact printing: another one sharing its name
+    // and set (an alternate art, a promo) is a different card, never a second copy.
+    const cardId = String(data.lorcana_card_id || '').trim();
+    if (cardId) return db.items.findOne(and(owned, eq('lorcana_card_id', cardId)), { defaults: true });
+
+    const matchSet = String(data.set_name || '').trim();
+    return db.items.findOne(and(
+      owned,
+      ci('title', String(data.title || '').trim()),
+      matchSet ? ci('set_name', matchSet) : null
+    ), { defaults: true });
   },
 
   async findPotentialDuplicates(collectionId: any, data: Record<string, any>): Promise<any[]> {
-    const or: any[] = [];
-    if (data.lorcana_card_id) or.push({ lorcana_card_id: (data.lorcana_card_id + '').trim() });
-    if (data.title) or.push({ title: { $regex: new RegExp(`^${escapeRegExp(String(data.title).trim())}$`, 'i') } });
-    if (or.length === 0) return [];
-    return Item.find({ collection: collectionId, in_wishlist: false, kind: 'Lorcana', $or: or }).lean();
+    const matches: Filter[] = [];
+    const cardId = String(data.lorcana_card_id || '').trim();
+    if (cardId) matches.push(eq('lorcana_card_id', cardId));
+    const title = String(data.title || '').trim();
+    if (title) matches.push(ci('title', title));
+    if (matches.length === 0) return [];
+    return db.items.find(and(
+      eq('collection', idOf(collectionId)),
+      eq('in_wishlist', false),
+      eq('kind', 'Lorcana'),
+      or(...matches)
+    ));
   },
 
   async getVariants(item: any): Promise<any[]> {
     if (!item) return [];
-    return Item.find({
-      collection: item.collection, in_wishlist: false, kind: 'Lorcana',
-      _id: { $ne: item._id },
-      title: { $regex: new RegExp(`^${escapeRegExp(item.title)}$`, 'i') }
-    }).lean();
+    return db.items.find(and(
+      eq('collection', idOf(item.collection)),
+      eq('in_wishlist', false),
+      eq('kind', 'Lorcana'),
+      ne('_id', idOf(item._id)),
+      ci('title', String(item.title ?? ''))
+    ));
   },
 
   getManualDefaults(): Record<string, any> {

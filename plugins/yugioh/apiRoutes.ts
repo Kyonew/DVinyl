@@ -1,14 +1,17 @@
 import { PluginApiRoute } from '../../core/types';
-import Item from '../../models/Item';
+import { db } from '../../core/db';
+import { and, eq, filled, idOf } from '../../core/db/query';
 import { fetchYgoprodeckCard } from './ygoprodeck';
 
 async function getCollectionIds(req: any, res: any) {
   try {
-    const items = await Item.find({
-      collection: res.locals.activeCollectionId,
-      in_wishlist: false,
-      kind: 'Yugioh'
-    }).select('ygo_card_id quantity').lean();
+    // A card added by hand has no YGOPRODeck id to price, so it is left out of the run.
+    const items = await db.items.find(and(
+      eq('collection', idOf(res.locals.activeCollectionId)),
+      eq('in_wishlist', false),
+      eq('kind', 'Yugioh'),
+      filled('ygo_card_id')
+    ), { fields: ['ygo_card_id', 'quantity'] });
     res.json({ success: true, albums: items });
   } catch (err: any) {
     console.error('API Yu-Gi-Oh Collection IDs error:', err.message);
@@ -25,7 +28,7 @@ async function getEstimate(req: any, res: any) {
     const userCurrency = res.locals.user.currency || 'USD';
 
     // views/collection.ejs sums `price.value` and labels the total with the user's own
-    // currency, ignoring the `currency` we return here — and none of YGOPRODeck's price
+    // currency, ignoring the `currency` we return here - and none of YGOPRODeck's price
     // fields are currency-selectable. Trying the source that matches the user's currency
     // first at least reduces the mismatch for EUR users (cardmarket_price is the only
     // non-USD source available).

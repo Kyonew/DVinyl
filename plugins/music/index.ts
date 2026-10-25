@@ -81,7 +81,9 @@ export const musicPlugin: PluginDefinition = {
         idsEndpoint: '/api/collection/ids',
         estimateEndpoint: '/api/estimate',
         idField: 'discogs_id',
-        maxMultiplier: 1.3
+        maxMultiplier: 1.3,
+        snapshotEndpoint: '/api/estimate/snapshot',
+        historyEndpoint: '/api/estimate/history'
       }
     },
     {

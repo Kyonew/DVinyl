@@ -1,14 +1,17 @@
 import { PluginApiRoute } from '../../core/types';
-import Item from '../../models/Item';
+import { db } from '../../core/db';
+import { and, eq, filled, idOf } from '../../core/db/query';
 import { fetchSwuCard } from './swudb';
 
 async function getCollectionIds(req: any, res: any) {
   try {
-    const items = await Item.find({
-      collection: res.locals.activeCollectionId,
-      in_wishlist: false,
-      kind: 'Swu'
-    }).select('swu_card_id quantity').lean();
+    // A card added by hand has no SWU-DB id to price, so it is left out of the run.
+    const items = await db.items.find(and(
+      eq('collection', idOf(res.locals.activeCollectionId)),
+      eq('in_wishlist', false),
+      eq('kind', 'Swu'),
+      filled('swu_card_id')
+    ), { fields: ['swu_card_id', 'quantity'] });
     res.json({ success: true, albums: items });
   } catch (err: any) {
     console.error('API SWU Collection IDs error:', err.message);
@@ -17,7 +20,7 @@ async function getCollectionIds(req: any, res: any) {
 }
 
 // Flat model, same shape as One Piece's estimate route: MarketPrice, falling back to
-// FoilPrice then LowPrice — SWU's card_condition is a wear scale, not a foil flag, so
+// FoilPrice then LowPrice - SWU's card_condition is a wear scale, not a foil flag, so
 // (unlike MTG) there's no reliable per-item signal to pick a specific price column.
 async function getEstimate(req: any, res: any) {
   try {

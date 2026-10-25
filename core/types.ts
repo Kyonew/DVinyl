@@ -133,9 +133,10 @@ export interface PluginDefinition {
   // trading card, unlike its sealed booster box). Swaps the add page's barcode scanner for
   // a "Scan card" photo flow: a photo of the card is identified by the AI assist
   // (core/ai/cardScan.ts) into a search query, handed to this plugin's own source exactly
-  // like a typed search — see POST /add-{id}/card-scan in itemRoutes.ts. Implies no barcode
+  // like a typed search - see POST /add-{id}/card-scan in itemRoutes.ts. Implies no barcode
   // scan (see hasBarcodeScan in core/sources.ts) and hides the generic AI photo search,
-  // which this replaces for card plugins.
+  // which this replaces for card plugins. Without the AI assist, the card is searched by
+  // name only.
   supportsCardScan?: boolean;
 
   // Noise terms stripped from the title returned by the barcode lookup (e.g. 'DVD', 'Blu-ray', 'PS5'),
@@ -534,6 +535,11 @@ export interface CollectionAction {
     estimateEndpoint: string; // GET `${estimateEndpoint}/${id}` -> { success, price: { value } }
     idField: string; // field holding the external id (e.g. 'discogs_id')
     maxMultiplier?: number; // upper bound of the price range (default 1.3)
+    // Where a finished run is kept and read back for the value chart. Optional: the
+    // history is one series per collection, so only the plugin owning it declares it,
+    // and a run of another type's estimate shows its total without touching it.
+    snapshotEndpoint?: string; // POST { value, minValue, maxValue, itemCount }
+    historyEndpoint?: string; // GET -> { success, snapshots, otherCurrencies }
   };
 
   // behavior 'importer-sync': id of the importer to trigger (POST /import/{importerId}).

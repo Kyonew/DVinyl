@@ -61,12 +61,12 @@ export function parseCardScanReply(text: string): CardScanGuess | null {
 /**
  * The identification guess for a photographed trading card, or null.
  *
- * Same contract as resolveBarcodeWithAi: this returns a guess, not an item — the caller
+ * Same contract as resolveBarcodeWithAi: this returns a guess, not an item - the caller
  * turns it into a search query for the plugin's own searchProvider (TCGdex, Scryfall,
  * YGOPRODeck...), so whatever the user eventually saves still comes from that provider,
  * never fabricated here. Returned as {title, setName} rather than a pre-joined string
  * because the set name is the part a vision model most often gets wrong (small, easy to
- * misread symbol) — the caller can verify a "title + set" query against the real provider
+ * misread symbol) - the caller can verify a "title + set" query against the real provider
  * and fall back to the bare title if that guess turns up nothing (see the card-scan route
  * in itemRoutes.ts).
  */

@@ -1,6 +1,7 @@
 import { PluginDefinition } from '../../core/types';
-import { escapeRegExp, PermanentRefreshError } from '../../core/helpers';
-import Item from '../../models/Item';
+import { PermanentRefreshError, splitTagFields } from '../../core/helpers';
+import { db } from '../../core/db';
+import { and, ci, eq, idOf, ne, or, Filter } from '../../core/db/query';
 import { SwuProvider, fetchSwuCard } from './swudb';
 import { swuApiRoutes } from './apiRoutes';
 import { CARD_CONDITIONS, CARD_CONDITION_ENUM, SWU_FORMATS } from './constants';
@@ -65,21 +66,23 @@ export const swuPlugin: PluginDefinition = {
     { id: 'swu_aspect', label: 'stats.top_aspect_label', icon: 'fa-palette', color: 'bg-purple-100 dark:bg-purple-500/20', kind: 'top' }
   ],
 
-  schemaDefinition: {
-    swu_card_id: { type: String, default: '' },
-    set_name: { type: String, default: '' },
-    rarity: { type: String, default: '' },
-    card_type: { type: String, enum: SWU_FORMATS.map(f => f.value), default: 'Unit' },
-    cost: { type: Number, default: 0 },
-    power: { type: Number, default: 0 },
-    hp: { type: Number, default: 0 },
-    aspects: { type: [String], default: [] },
-    traits: { type: [String], default: [] },
-    arenas: { type: [String], default: [] },
-    unique: { type: Boolean, default: false },
-    card_condition: { type: String, enum: ['', ...CARD_CONDITION_ENUM], default: '' },
-    genre: { type: String, default: '' },
-    genres: { type: [String], default: [] }
+  duplicateCheckFields: ['card_condition'],
+
+  storedFields: {
+    swu_card_id: { type: 'text', default: '' },
+    set_name: { type: 'text', default: '' },
+    rarity: { type: 'text', default: '' },
+    card_type: { type: 'text', values: SWU_FORMATS.map(f => f.value), default: 'Unit' },
+    cost: { type: 'number', default: 0 },
+    power: { type: 'number', default: 0 },
+    hp: { type: 'number', default: 0 },
+    aspects: { type: 'texts', default: [] },
+    traits: { type: 'texts', default: [] },
+    arenas: { type: 'texts', default: [] },
+    unique: { type: 'boolean', default: false },
+    card_condition: { type: 'text', values: ['', ...CARD_CONDITION_ENUM], default: '' },
+    genre: { type: 'text', default: '' },
+    genres: { type: 'texts', default: [] }
   },
 
   formats: SWU_FORMATS,
@@ -119,6 +122,7 @@ export const swuPlugin: PluginDefinition = {
   ],
 
   normalizeForSave(data: Record<string, any>): void {
+    splitTagFields(data, ['aspects', 'traits']);
     const aspects = Array.isArray(data.aspects) ? data.aspects.filter(Boolean) : [];
     data.genre = aspects[0] || '';
     data.genres = aspects;
@@ -174,38 +178,50 @@ export const swuPlugin: PluginDefinition = {
   },
 
   async findDuplicate(collectionId: any, data: Record<string, any>): Promise<any | null> {
-    const swuId = (data.swu_card_id || '').trim();
-    if (swuId) {
-      const item = await Item.findOne({
-        collection: collectionId, in_wishlist: false, kind: 'Swu', swu_card_id: swuId
-      });
-      if (item) return item;
-    }
-    const matchTitle = (data.title || '').trim();
-    const matchSet = (data.set_name || '').trim();
-    const query: any = {
-      collection: collectionId, in_wishlist: false, kind: 'Swu',
-      title: { $regex: new RegExp(`^${escapeRegExp(matchTitle)}$`, 'i') }
-    };
-    if (matchSet) query.set_name = { $regex: new RegExp(`^${escapeRegExp(matchSet)}$`, 'i') };
-    return await Item.findOne(query);
+    const owned = and(
+      eq('collection', idOf(collectionId)),
+      eq('in_wishlist', false),
+      eq('kind', 'Swu'),
+      eq('card_condition', String(data.card_condition || ''))
+    );
+
+    // A card picked from SWU-DB is that exact printing: another one sharing its name
+    // and set (an alternate art, a promo) is a different card, never a second copy.
+    const cardId = String(data.swu_card_id || '').trim();
+    if (cardId) return db.items.findOne(and(owned, eq('swu_card_id', cardId)), { defaults: true });
+
+    const matchSet = String(data.set_name || '').trim();
+    return db.items.findOne(and(
+      owned,
+      ci('title', String(data.title || '').trim()),
+      matchSet ? ci('set_name', matchSet) : null
+    ), { defaults: true });
   },
 
   async findPotentialDuplicates(collectionId: any, data: Record<string, any>): Promise<any[]> {
-    const or: any[] = [];
-    if (data.swu_card_id) or.push({ swu_card_id: (data.swu_card_id + '').trim() });
-    if (data.title) or.push({ title: { $regex: new RegExp(`^${escapeRegExp(String(data.title).trim())}$`, 'i') } });
-    if (or.length === 0) return [];
-    return Item.find({ collection: collectionId, in_wishlist: false, kind: 'Swu', $or: or }).lean();
+    const matches: Filter[] = [];
+    const cardId = String(data.swu_card_id || '').trim();
+    if (cardId) matches.push(eq('swu_card_id', cardId));
+    const title = String(data.title || '').trim();
+    if (title) matches.push(ci('title', title));
+    if (matches.length === 0) return [];
+    return db.items.find(and(
+      eq('collection', idOf(collectionId)),
+      eq('in_wishlist', false),
+      eq('kind', 'Swu'),
+      or(...matches)
+    ));
   },
 
   async getVariants(item: any): Promise<any[]> {
     if (!item) return [];
-    return Item.find({
-      collection: item.collection, in_wishlist: false, kind: 'Swu',
-      _id: { $ne: item._id },
-      title: { $regex: new RegExp(`^${escapeRegExp(item.title)}$`, 'i') }
-    }).lean();
+    return db.items.find(and(
+      eq('collection', idOf(item.collection)),
+      eq('in_wishlist', false),
+      eq('kind', 'Swu'),
+      ne('_id', idOf(item._id)),
+      ci('title', String(item.title ?? ''))
+    ));
   },
 
   getManualDefaults(): Record<string, any> {

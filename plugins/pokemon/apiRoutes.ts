@@ -1,18 +1,21 @@
 import { PluginApiRoute } from '../../core/types';
-import Item from '../../models/Item';
+import { db } from '../../core/db';
+import { and, eq, filled, idOf } from '../../core/db/query';
 import { fetchTcgdexCard } from './tcgdex';
 
 // GET ALL COLLECTION POKÉMON CARD IDs (used for the global estimate button).
-// Response key is literally `albums` for every plugin, not just music — the
+// Response key is literally `albums` for every plugin, not just music - the
 // generic front-end estimate script (views/collection.ejs) reads `data.albums`
 // unconditionally, regardless of media type.
 async function getCollectionIds(req: any, res: any) {
   try {
-    const items = await Item.find({
-      collection: res.locals.activeCollectionId,
-      in_wishlist: false,
-      kind: 'Pokemon'
-    }).select('pokemon_card_id quantity').lean();
+    // A card added by hand has no TCGdex id to price, so it is left out of the run.
+    const items = await db.items.find(and(
+      eq('collection', idOf(res.locals.activeCollectionId)),
+      eq('in_wishlist', false),
+      eq('kind', 'Pokemon'),
+      filled('pokemon_card_id')
+    ), { fields: ['pokemon_card_id', 'quantity'] });
     res.json({ success: true, albums: items });
   } catch (err: any) {
     console.error('API Pokemon Collection IDs error:', err.message);
@@ -66,7 +69,7 @@ async function getEstimate(req: any, res: any) {
     };
 
     // views/collection.ejs sums `price.value` and labels the total with the user's own
-    // currency, ignoring the `currency` returned here — and neither TCGdex price source
+    // currency, ignoring the `currency` returned here - and neither TCGdex price source
     // lets us ask for a specific currency. Running the source that matches the user's
     // currency first at least reduces the mismatch for EUR users.
     const plans = userCurrency === 'EUR'

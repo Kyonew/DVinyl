@@ -98,7 +98,7 @@ Every plugin can be turned on or off per collection from the admin panel.
 | Digimon | DigimonCard.io | — |
 | Flesh and Blood | goagain.dev | — |
 
-All eight are free and fully keyless — no `.env` setup, just enable the ones you want per
+All eight are free and keyless: no `.env` setup, just enable the ones you want per
 collection from the admin panel. "Price estimate" sums your collection's live market value from
 the collection page; the three without it use sources that don't publish pricing data.
 

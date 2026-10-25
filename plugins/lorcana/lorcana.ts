@@ -16,7 +16,7 @@ function toClassifications(raw: string | undefined): string[] {
 /**
  * The live API's `Type` field is not the neat "Character|Action|Item|Location|Song" this
  * plugin's format enum assumes (verified live: a song comes back as "Action - Song", never
- * bare "Song" — e.g. "Let It Go" and "How Far I'll Go" are both `Type: "Action - Song"`).
+ * bare "Song" - e.g. "Let It Go" and "How Far I'll Go" are both `Type: "Action - Song"`).
  * Storing the raw value would fail the schema's card_type enum outright, so it's folded
  * onto the 5-value badge/format set here, at the one place every caller (search results
  * aside, which don't carry card_type) goes through.

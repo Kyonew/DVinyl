@@ -34,7 +34,7 @@ export async function fetchYgoprodeckCard(numericId: string): Promise<YgoCard> {
 /**
  * Resolves the printing an encoded id refers to.
  *
- * A card_sets[] set_code is NOT always unique — some cards have two entries with the
+ * A card_sets[] set_code is NOT always unique - some cards have two entries with the
  * same set_code but a different set_rarity, and a large price gap between them (verified
  * live: Dark Magician's RA05-EN083 appears as both Starlight Rare and Ultra Rare; so do
  * DTP1-EN002, RA03-EN080, RA04-EN106, SBCB-EN001 and YSYR-EN001 on the same card). The
@@ -43,9 +43,6 @@ export async function fetchYgoprodeckCard(numericId: string): Promise<YgoCard> {
  * so that if YGOPRODeck's array order ever shifts, the lookup degrades to a plain
  * set_code search instead of silently returning an unrelated printing. Ids written before
  * this scheme have no index segment and take the same set_code-only path.
- *
- * Written down here because the design docs that explain this are gitignored and don't
- * ship with the code.
  */
 export function findPrinting(card: YgoCard, setCode: string, idx?: number): YgoCardSet | undefined {
   const sets = card.card_sets || [];
@@ -93,7 +90,7 @@ export class YgoprodeckProvider implements SearchProvider {
     for (const card of cards) {
       const allPrintings = card.card_sets && card.card_sets.length ? card.card_sets : [undefined];
       // Taking a PREFIX of card_sets[] keeps `i` below equal to the printing's index in
-      // the original, unsliced array — which is exactly what the encoded id records and
+      // the original, unsliced array - which is exactly what the encoded id records and
       // what findPrinting() indexes back into on a later fetch. Any other subsetting
       // (filtering, sorting) would have to carry the original index explicitly.
       const printings = allPrintings.slice(0, maxPrintingsPerCard);
@@ -105,7 +102,7 @@ export class YgoprodeckProvider implements SearchProvider {
           title: card.name,
           creator: printing?.set_name || '',
           // Search-grid previews are NOT cached (unlike getDetails/refreshItem/
-          // imageSearchProvider, which persist a cover_image) — they're transient and
+          // imageSearchProvider, which persist a cover_image) - they're transient and
           // most are never picked, so caching all of them would multiply network calls
           // for no benefit.
           cover_image: card.card_images?.[0]?.image_url || '',
@@ -122,7 +119,7 @@ export class YgoprodeckProvider implements SearchProvider {
     const card = await fetchYgoprodeckCard(numericId);
     const printing = findPrinting(card, setCode, idx) || card.card_sets?.[0];
     const remoteImage = card.card_images?.[0]?.image_url || '';
-    const cover_image = await cacheYugiohImage(String(card.id), remoteImage);
+    const cover_image = await cacheYugiohImage(remoteImage);
 
     return {
       title: card.name,

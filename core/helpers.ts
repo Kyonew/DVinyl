@@ -272,6 +272,18 @@ export async function searchWithTitleFallback<T>(
   return { results, query };
 }
 
+/**
+ * A tags input posts its list as one comma-separated text. The core splits it only for
+ * the per-collection fields; a plugin owning a list field splits it in normalizeForSave.
+ */
+export function splitTagFields(data: Record<string, any>, names: string[]): void {
+  for (const name of names) {
+    if (typeof data[name] === 'string') {
+      data[name] = data[name].split(',').map((s: string) => s.trim()).filter(Boolean);
+    }
+  }
+}
+
 /** Lowercased, punctuation collapsed to single spaces, so "Mulan Reflecting" and
  * "Mulan - Reflecting" compare equal regardless of the separator either side used. */
 export function normalizeCardName(value: string): string {
@@ -285,9 +297,9 @@ export function normalizeCardName(value: string): string {
  *
  * Several trading-card APIs store a multi-part name with an internal separator the card
  * itself doesn't show on the box (Lorcana's "Mulan - Reflecting", SWU's "Boba Fett -
- * Special Ops") — typing the name as printed, without that punctuation, is not a literal
+ * Special Ops") - typing the name as printed, without that punctuation, is not a literal
  * substring of the stored field, so a provider whose own search only does exact
- * containment (not every one does — Scryfall and YGOPRODeck already tokenize) finds
+ * containment (not every one does - Scryfall and YGOPRODeck already tokenize) finds
  * nothing. This recovers that case without a fuzzy-search dependency, at the cost of one
  * extra request, and only when the first attempt already came back empty.
  */

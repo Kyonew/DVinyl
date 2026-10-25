@@ -3,7 +3,7 @@ import { fetchJson, fuzzyCardSearch } from '../../core/helpers';
 
 const BASE_URL = 'https://digimoncard.io/api-public/search';
 // Without a User-Agent, digimoncard.io has been observed to 301-redirect oddly instead
-// of answering directly — sent on every request to this API, search and lookup alike.
+// of answering directly - sent on every request to this API, search and lookup alike.
 const HEADERS = { 'User-Agent': 'Mozilla/5.0' };
 
 export interface DigimonCard {
@@ -27,11 +27,11 @@ export interface DigimonCard {
 }
 
 /**
- * Images are not part of the API payload at all — built directly from the card id,
+ * Images are not part of the API payload at all - built directly from the card id,
  * the same "construct, don't trust a field" precedent as Yu-Gi-Oh!'s imageCache.ts,
  * except this CDN allows direct hotlinking (confirmed live: returns
  * content-type: image/jpeg with no documented restriction), so no local caching is
- * needed here — just the URL string.
+ * needed here - just the URL string.
  */
 function cardImageUrl(id: string): string {
   return `https://images.digimoncard.io/images/cards/${encodeURIComponent(id)}.jpg`;
@@ -58,7 +58,7 @@ export class DigimonProvider implements SearchProvider {
   // n= is the confirmed working param for a partial name match (case-insensitive
   // substring, verified live). name=/q=/search= all return the ENTIRE ~9300-card
   // database unfiltered instead of erroring, so using the wrong one silently breaks
-  // search rather than failing loudly — do not "fix" this to a more obvious param.
+  // search rather than failing loudly - do not "fix" this to a more obvious param.
   async search(query: string, options: SearchOptions): Promise<SearchResult[]> {
     const fetchRows = async (q: string): Promise<DigimonCard[]> => {
       try {

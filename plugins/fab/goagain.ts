@@ -14,7 +14,7 @@ export interface FabCard {
 }
 
 /**
- * `/v1/cards?name=` returns one row per CARD with every printing nested — alternate
+ * `/v1/cards?name=` returns one row per CARD with every printing nested - alternate
  * arts/reprints each carry their own rarity and art, exactly the same shape One Piece's
  * optcgapi.com API has. The encoded id `<unique_id>::<printing_id>` is what keeps a
  * specific printing addressable through search -> confirm -> save -> refresh, the same

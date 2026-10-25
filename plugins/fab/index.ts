@@ -1,6 +1,7 @@
 import { PluginDefinition } from '../../core/types';
-import { escapeRegExp, PermanentRefreshError } from '../../core/helpers';
-import Item from '../../models/Item';
+import { PermanentRefreshError } from '../../core/helpers';
+import { db } from '../../core/db';
+import { and, ci, eq, idOf, ne, or, Filter } from '../../core/db/query';
 import { FabProvider, fetchFabCard } from './goagain';
 import { CARD_CONDITIONS, CARD_CONDITION_ENUM, FAB_FORMATS } from './constants';
 
@@ -29,7 +30,7 @@ export const fabPlugin: PluginDefinition = {
   // No apiRoutes and no collectionActions: goagain.dev carries no price data. Each
   // printing does expose a `tcgplayer_product_id` (see goagain.ts's live-verified
   // shape), but turning that into an actual price needs TCGplayer's paid partner API
-  // — out of scope here, same precedented shape as plugins/books, dvds, games, lego.
+  // - out of scope here, same precedented shape as plugins/books, dvds, games, lego.
 
   imageSearchProvider: {
     async search(query: string): Promise<string[]> {
@@ -52,21 +53,23 @@ export const fabPlugin: PluginDefinition = {
     { id: 'fab_color', label: 'stats.top_color_label', icon: 'fa-palette', color: 'bg-amber-100 dark:bg-amber-500/20', kind: 'top' }
   ],
 
-  schemaDefinition: {
-    fab_card_id: { type: String, default: '' },
-    set_name: { type: String, default: '' },
+  duplicateCheckFields: ['card_condition'],
+
+  storedFields: {
+    fab_card_id: { type: 'text', default: '' },
+    set_name: { type: 'text', default: '' },
     // Free text (holds card.type_text, e.g. "Ninja Attack Reaction" / "Warrior Hero -
-    // Young") — compound and free-form, not a fixed enum. See constants.ts's comment.
-    card_type: { type: String, default: '' },
-    card_color: { type: String, enum: ['', ...FAB_FORMATS.map(f => f.value)], default: '' },
-    pitch: { type: Number, default: 0 },
-    cost: { type: Number, default: 0 },
-    power: { type: Number, default: 0 },
-    defense: { type: Number, default: 0 },
-    rarity: { type: String, default: '' },
-    card_condition: { type: String, enum: ['', ...CARD_CONDITION_ENUM], default: '' },
-    genre: { type: String, default: '' },
-    genres: { type: [String], default: [] }
+    // Young") - compound and free-form, not a fixed enum. See constants.ts's comment.
+    card_type: { type: 'text', default: '' },
+    card_color: { type: 'text', values: ['', ...FAB_FORMATS.map(f => f.value)], default: '' },
+    pitch: { type: 'number', default: 0 },
+    cost: { type: 'number', default: 0 },
+    power: { type: 'number', default: 0 },
+    defense: { type: 'number', default: 0 },
+    rarity: { type: 'text', default: '' },
+    card_condition: { type: 'text', values: ['', ...CARD_CONDITION_ENUM], default: '' },
+    genre: { type: 'text', default: '' },
+    genres: { type: 'texts', default: [] }
   },
 
   formats: FAB_FORMATS,
@@ -117,7 +120,7 @@ export const fabPlugin: PluginDefinition = {
   },
 
   cardBadge(item: any) {
-    // Keyed off card_color, not card_type — the deliberate per-plugin deviation
+    // Keyed off card_color, not card_type - the deliberate per-plugin deviation
     // explained in constants.ts's comment. A colorless card (Hero/equipment) simply
     // finds nothing here and falls through to the generic gray badge below.
     const opt = this.formats.find((f: any) => f.value === item.card_color);
@@ -167,38 +170,50 @@ export const fabPlugin: PluginDefinition = {
   },
 
   async findDuplicate(collectionId: any, data: Record<string, any>): Promise<any | null> {
-    const fabId = (data.fab_card_id || '').trim();
-    if (fabId) {
-      const item = await Item.findOne({
-        collection: collectionId, in_wishlist: false, kind: 'Fab', fab_card_id: fabId
-      });
-      if (item) return item;
-    }
-    const matchTitle = (data.title || '').trim();
-    const matchSet = (data.set_name || '').trim();
-    const query: any = {
-      collection: collectionId, in_wishlist: false, kind: 'Fab',
-      title: { $regex: new RegExp(`^${escapeRegExp(matchTitle)}$`, 'i') }
-    };
-    if (matchSet) query.set_name = { $regex: new RegExp(`^${escapeRegExp(matchSet)}$`, 'i') };
-    return await Item.findOne(query);
+    const owned = and(
+      eq('collection', idOf(collectionId)),
+      eq('in_wishlist', false),
+      eq('kind', 'Fab'),
+      eq('card_condition', String(data.card_condition || ''))
+    );
+
+    // A card picked from goagain.dev is that exact printing: another one sharing its name
+    // and set (an alternate art, a promo) is a different card, never a second copy.
+    const cardId = String(data.fab_card_id || '').trim();
+    if (cardId) return db.items.findOne(and(owned, eq('fab_card_id', cardId)), { defaults: true });
+
+    const matchSet = String(data.set_name || '').trim();
+    return db.items.findOne(and(
+      owned,
+      ci('title', String(data.title || '').trim()),
+      matchSet ? ci('set_name', matchSet) : null
+    ), { defaults: true });
   },
 
   async findPotentialDuplicates(collectionId: any, data: Record<string, any>): Promise<any[]> {
-    const or: any[] = [];
-    if (data.fab_card_id) or.push({ fab_card_id: (data.fab_card_id + '').trim() });
-    if (data.title) or.push({ title: { $regex: new RegExp(`^${escapeRegExp(String(data.title).trim())}$`, 'i') } });
-    if (or.length === 0) return [];
-    return Item.find({ collection: collectionId, in_wishlist: false, kind: 'Fab', $or: or }).lean();
+    const matches: Filter[] = [];
+    const cardId = String(data.fab_card_id || '').trim();
+    if (cardId) matches.push(eq('fab_card_id', cardId));
+    const title = String(data.title || '').trim();
+    if (title) matches.push(ci('title', title));
+    if (matches.length === 0) return [];
+    return db.items.find(and(
+      eq('collection', idOf(collectionId)),
+      eq('in_wishlist', false),
+      eq('kind', 'Fab'),
+      or(...matches)
+    ));
   },
 
   async getVariants(item: any): Promise<any[]> {
     if (!item) return [];
-    return Item.find({
-      collection: item.collection, in_wishlist: false, kind: 'Fab',
-      _id: { $ne: item._id },
-      title: { $regex: new RegExp(`^${escapeRegExp(item.title)}$`, 'i') }
-    }).lean();
+    return db.items.find(and(
+      eq('collection', idOf(item.collection)),
+      eq('in_wishlist', false),
+      eq('kind', 'Fab'),
+      ne('_id', idOf(item._id)),
+      ci('title', String(item.title ?? ''))
+    ));
   },
 
   getManualDefaults(): Record<string, any> {

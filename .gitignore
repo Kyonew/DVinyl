@@ -1,7 +1,6 @@
 .env
 /node_modules
 /public/uploads/avatars/*
-/public/uploads/yugioh-cards/*
 /public/uploads/items/*
 /mongo_data
 /mongo_data_test

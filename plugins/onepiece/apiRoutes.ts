@@ -1,14 +1,17 @@
 import { PluginApiRoute } from '../../core/types';
-import Item from '../../models/Item';
+import { db } from '../../core/db';
+import { and, eq, filled, idOf } from '../../core/db/query';
 import { fetchOnePieceCard } from './optcgapi';
 
 async function getCollectionIds(req: any, res: any) {
   try {
-    const items = await Item.find({
-      collection: res.locals.activeCollectionId,
-      in_wishlist: false,
-      kind: 'OnePiece'
-    }).select('op_card_id quantity').lean();
+    // A card added by hand has no optcgapi.com id to price, so it is left out of the run.
+    const items = await db.items.find(and(
+      eq('collection', idOf(res.locals.activeCollectionId)),
+      eq('in_wishlist', false),
+      eq('kind', 'OnePiece'),
+      filled('op_card_id')
+    ), { fields: ['op_card_id', 'quantity'] });
     res.json({ success: true, albums: items });
   } catch (err: any) {
     console.error('API One Piece Collection IDs error:', err.message);

@@ -46,8 +46,8 @@ export class TcgdexProvider implements SearchProvider {
 
   async search(query: string, options: SearchOptions): Promise<SearchResult[]> {
     const limit = options.limit || 25;
-    // Without pagination params TCGdex returns EVERY match — 1.4 MB for the single-letter
-    // query "a" — just to show 25 rows. Its `pagination:` params cut that to a few hundred
+    // Without pagination params TCGdex returns EVERY match - 1.4 MB for the single-letter
+    // query "a" - just to show 25 rows. Its `pagination:` params cut that to a few hundred
     // bytes (verified live). The slice() below is now redundant but kept as a guard in
     // case the API ever ignores the cap.
     const fetchRows = (q: string): Promise<TcgdexCardBrief[]> => fetchJson(

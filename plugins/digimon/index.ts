@@ -1,6 +1,7 @@
 import { PluginDefinition } from '../../core/types';
-import { escapeRegExp, PermanentRefreshError } from '../../core/helpers';
-import Item from '../../models/Item';
+import { PermanentRefreshError } from '../../core/helpers';
+import { db } from '../../core/db';
+import { and, ci, eq, idOf, ne, or, Filter } from '../../core/db/query';
 import { DigimonProvider, fetchDigimonCard } from './digimoncard';
 import { CARD_CONDITIONS, CARD_CONDITION_ENUM, DIGIMON_FORMATS } from './constants';
 
@@ -26,7 +27,7 @@ export const digimonPlugin: PluginDefinition = {
   imageSearchType: 'digimon',
   defaultCardFields: ['set_name', 'rarity'],
   // digimoncard.io documents a hard 15 requests / 10 seconds ceiling, and exceeding it
-  // blocks the caller for an hour — unlike onepiece's undocumented-ceiling VPS, this
+  // blocks the caller for an hour - unlike onepiece's undocumented-ceiling VPS, this
   // number is real and must be respected: ~667ms/request, rounded up for headroom.
   bulkRefreshDelayMs: 700,
 
@@ -54,21 +55,23 @@ export const digimonPlugin: PluginDefinition = {
     { id: 'digimon_color', label: 'stats.top_color_label', icon: 'fa-palette', color: 'bg-purple-100 dark:bg-purple-500/20', kind: 'top' }
   ],
 
-  schemaDefinition: {
-    digimon_card_id: { type: String, default: '' },
-    set_name: { type: String, default: '' },
-    rarity: { type: String, default: '' },
-    card_type: { type: String, enum: DIGIMON_FORMATS.map(f => f.value), default: 'Digimon' },
-    card_color: { type: String, default: '' },
-    level: { type: Number, default: 0 },
-    dp: { type: Number, default: 0 },
-    play_cost: { type: Number, default: 0 },
-    form: { type: String, default: '' },
-    attribute: { type: String, default: '' },
-    digi_type: { type: String, default: '' },
-    card_condition: { type: String, enum: ['', ...CARD_CONDITION_ENUM], default: '' },
-    genre: { type: String, default: '' },
-    genres: { type: [String], default: [] }
+  duplicateCheckFields: ['card_condition'],
+
+  storedFields: {
+    digimon_card_id: { type: 'text', default: '' },
+    set_name: { type: 'text', default: '' },
+    rarity: { type: 'text', default: '' },
+    card_type: { type: 'text', values: DIGIMON_FORMATS.map(f => f.value), default: 'Digimon' },
+    card_color: { type: 'text', default: '' },
+    level: { type: 'number', default: 0 },
+    dp: { type: 'number', default: 0 },
+    play_cost: { type: 'number', default: 0 },
+    form: { type: 'text', default: '' },
+    attribute: { type: 'text', default: '' },
+    digi_type: { type: 'text', default: '' },
+    card_condition: { type: 'text', values: ['', ...CARD_CONDITION_ENUM], default: '' },
+    genre: { type: 'text', default: '' },
+    genres: { type: 'texts', default: [] }
   },
 
   formats: DIGIMON_FORMATS,
@@ -165,38 +168,50 @@ export const digimonPlugin: PluginDefinition = {
   },
 
   async findDuplicate(collectionId: any, data: Record<string, any>): Promise<any | null> {
-    const digimonId = (data.digimon_card_id || '').trim();
-    if (digimonId) {
-      const item = await Item.findOne({
-        collection: collectionId, in_wishlist: false, kind: 'Digimon', digimon_card_id: digimonId
-      });
-      if (item) return item;
-    }
-    const matchTitle = (data.title || '').trim();
-    const matchSet = (data.set_name || '').trim();
-    const query: any = {
-      collection: collectionId, in_wishlist: false, kind: 'Digimon',
-      title: { $regex: new RegExp(`^${escapeRegExp(matchTitle)}$`, 'i') }
-    };
-    if (matchSet) query.set_name = { $regex: new RegExp(`^${escapeRegExp(matchSet)}$`, 'i') };
-    return await Item.findOne(query);
+    const owned = and(
+      eq('collection', idOf(collectionId)),
+      eq('in_wishlist', false),
+      eq('kind', 'Digimon'),
+      eq('card_condition', String(data.card_condition || ''))
+    );
+
+    // A card picked from DigimonCard.io is that exact printing: another one sharing its name
+    // and set (an alternate art, a promo) is a different card, never a second copy.
+    const cardId = String(data.digimon_card_id || '').trim();
+    if (cardId) return db.items.findOne(and(owned, eq('digimon_card_id', cardId)), { defaults: true });
+
+    const matchSet = String(data.set_name || '').trim();
+    return db.items.findOne(and(
+      owned,
+      ci('title', String(data.title || '').trim()),
+      matchSet ? ci('set_name', matchSet) : null
+    ), { defaults: true });
   },
 
   async findPotentialDuplicates(collectionId: any, data: Record<string, any>): Promise<any[]> {
-    const or: any[] = [];
-    if (data.digimon_card_id) or.push({ digimon_card_id: (data.digimon_card_id + '').trim() });
-    if (data.title) or.push({ title: { $regex: new RegExp(`^${escapeRegExp(String(data.title).trim())}$`, 'i') } });
-    if (or.length === 0) return [];
-    return Item.find({ collection: collectionId, in_wishlist: false, kind: 'Digimon', $or: or }).lean();
+    const matches: Filter[] = [];
+    const cardId = String(data.digimon_card_id || '').trim();
+    if (cardId) matches.push(eq('digimon_card_id', cardId));
+    const title = String(data.title || '').trim();
+    if (title) matches.push(ci('title', title));
+    if (matches.length === 0) return [];
+    return db.items.find(and(
+      eq('collection', idOf(collectionId)),
+      eq('in_wishlist', false),
+      eq('kind', 'Digimon'),
+      or(...matches)
+    ));
   },
 
   async getVariants(item: any): Promise<any[]> {
     if (!item) return [];
-    return Item.find({
-      collection: item.collection, in_wishlist: false, kind: 'Digimon',
-      _id: { $ne: item._id },
-      title: { $regex: new RegExp(`^${escapeRegExp(item.title)}$`, 'i') }
-    }).lean();
+    return db.items.find(and(
+      eq('collection', idOf(item.collection)),
+      eq('in_wishlist', false),
+      eq('kind', 'Digimon'),
+      ne('_id', idOf(item._id)),
+      ci('title', String(item.title ?? ''))
+    ));
   },
 
   getManualDefaults(): Record<string, any> {

@@ -1414,8 +1414,6 @@
     "shape_square": "Carré (pochette)",
     "shape_screen": "Écran (16/9)",
     "shape_hint": "S'applique aux fiches et formulaires de ce plugin. Les grilles utilisent le rapport défini dans Personnalisation.",
-    "secondary_label": "Image secondaire",
-    "secondary_desc": "Ajoute un second visuel modifiable (comme le disque pour la musique).",
     "default_cover_label": "Image par défaut",
     "default_cover_desc": "Affichée sur les items ajoutés sans visuel. Laissez vide pour garder le logo DVinyl.",
     "default_cover_reset": "Revenir au logo par défaut",

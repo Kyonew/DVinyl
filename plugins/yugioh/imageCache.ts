@@ -1,42 +1,35 @@
-import fs from 'fs';
-import path from 'path';
-import { BASE_URL } from '../../config/constants';
+import { isJpegBuffer, managedItemImageFile, storeItemImage, MAX_ITEM_IMAGE_UPLOAD_BYTES } from '../../core/itemImageStorage';
+
+const DOWNLOAD_TIMEOUT_MS = 15000;
 
 /**
- * YGOPRODeck's usage policy explicitly forbids hotlinking card images ("download and
- * re-host, or risk an IP blacklist" — which would affect every DVinyl install sharing
- * that policy's IP range, not just one user). Every other plugin stores the remote
- * cover URL directly; this one downloads once and serves the local copy instead,
- * reusing `public/uploads/` — already this app's convention for dynamically-written,
- * gitignored files (see `public/uploads/avatars/`) and already served statically by
- * the `express.static(path.join(__dirname, 'public'))` mount in app.ts. No new route.
+ * YGOPRODeck's usage policy forbids hotlinking card images ("download and re-host, or
+ * risk an IP blacklist", which would hit every install behind the same address). So a
+ * cover this plugin saves is copied into the instance's own item images, like an upload:
+ * it travels with ZIP backups, is released with the item, and a copy the user ends up
+ * not saving is swept with the other abandoned uploads.
+ *
+ * Falls back to the remote URL when the download fails, rather than failing the add.
  */
-const CACHE_DIR = path.join(__dirname, '..', '..', 'public', 'uploads', 'yugioh-cards');
-
-function ensureCacheDir(): void {
-  fs.mkdirSync(CACHE_DIR, { recursive: true });
+export async function cacheYugiohImage(remoteUrl: string): Promise<string> {
+  if (!remoteUrl) return '';
+  try {
+    const response = await fetch(remoteUrl, { signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS) });
+    if (!response.ok) return remoteUrl;
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (buffer.length > MAX_ITEM_IMAGE_UPLOAD_BYTES || !isJpegBuffer(buffer)) return remoteUrl;
+    return await storeItemImage(buffer);
+  } catch (err: any) {
+    console.error('[ERR] Yu-Gi-Oh image copy:', err.message);
+    return remoteUrl;
+  }
 }
 
 /**
- * Downloads `remoteUrl` into the local cache under `cardId` if not already present,
- * and returns the local, same-origin path to use as `cover_image`. Never re-downloads
- * an existing file — a second add or refresh of the same card is a filesystem check.
+ * The cover a refresh should keep: one already copied locally is the same artwork, so it
+ * is not downloaded again into a second file.
  */
-export async function cacheYugiohImage(cardId: string, remoteUrl: string): Promise<string> {
-  if (!remoteUrl) return '';
-  if (!/^\d+$/.test(cardId)) {
-    console.warn(`cacheYugiohImage: rejecting non-numeric cardId "${cardId}", falling back to remote URL`);
-    return remoteUrl; // YGOPRODeck ids are always positive integers; refuse to build a path from anything else
-  }
-  ensureCacheDir();
-  const localPath = path.join(CACHE_DIR, `${cardId}.jpg`);
-  const publicPath = `${BASE_URL}/uploads/yugioh-cards/${cardId}.jpg`;
-
-  if (fs.existsSync(localPath)) return publicPath;
-
-  const response = await fetch(remoteUrl);
-  if (!response.ok) return remoteUrl; // fall back to the remote URL rather than fail the add
-  const buffer = Buffer.from(await response.arrayBuffer());
-  fs.writeFileSync(localPath, buffer);
-  return publicPath;
+export async function refreshedYugiohImage(current: string, remoteUrl: string): Promise<string> {
+  if (managedItemImageFile(current)) return current;
+  return cacheYugiohImage(remoteUrl);
 }

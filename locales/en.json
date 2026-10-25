@@ -1414,8 +1414,6 @@
     "shape_square": "Square (sleeve)",
     "shape_screen": "Screen (16/9)",
     "shape_hint": "Applies to this plugin's own pages and forms. The item grids use the card ratio set in Personalization.",
-    "secondary_label": "Secondary image",
-    "secondary_desc": "Adds a second editable visual (like the disc for music).",
     "default_cover_label": "Default image",
     "default_cover_desc": "Shown on items added without a cover. Leave empty to keep the DVinyl logo.",
     "default_cover_reset": "Back to the default logo",

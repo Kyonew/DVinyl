@@ -412,7 +412,7 @@
                         <span id="maxPrice" class="font-bold text-lg">--</span>
                     </div>
                 </div>
-                <div class="mt-2">
+                <div id="estimateHistory" class="mt-2">
                     <p class="opacity-60 text-xs uppercase font-bold tracking-wider mb-2 text-left">
                         <%= t('modal.history_title') %>
                     </p>
@@ -872,9 +872,17 @@
             // The on-screen result above still reflects whatever was priced, unconditionally.
             const shouldPersistSnapshot = pricedCount > 0 && pricedCount >= totalAlbums / 2;
 
+            // Only the estimate that owns the collection's value history keeps one.
+            const historyBlock = document.getElementById('estimateHistory');
+            if (!activeEstimate.snapshotEndpoint || !activeEstimate.historyEndpoint) {
+                historyBlock.classList.add('hidden');
+                return;
+            }
+            historyBlock.classList.remove('hidden');
+
             if (shouldPersistSnapshot) {
                 try {
-                    await fetch('<%= baseUrl %>/api/estimate/snapshot', {
+                    await fetch('<%= baseUrl %>' + activeEstimate.snapshotEndpoint, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -890,7 +898,7 @@
             const canvas = document.getElementById('historyChart');
             const emptyMsg = document.getElementById('historyEmpty');
             try {
-                const histRes = await fetch('<%= baseUrl %>/api/estimate/history');
+                const histRes = await fetch('<%= baseUrl %>' + activeEstimate.historyEndpoint);
                 const histData = await histRes.json();
                 if (histData.success) {
                     // Already scoped to this reader's currency server-side, along with the list of

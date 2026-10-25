@@ -24,7 +24,7 @@ nothing: Open Library for books, iTunes for music and games. Games also uses TMD
 if `TMDB_API_KEY` happens to be set, and quietly skips it otherwise.
 
 The eight trading-card-game plugins (Pokémon, Magic: The Gathering, Yu-Gi-Oh!, One Piece, Lorcana,
-Star Wars: Unlimited, Digimon, Flesh and Blood) need **no key at all** — see
+Star Wars: Unlimited, Digimon, Flesh and Blood) need **no key at all**, see
 [Trading card games](#-trading-card-games-no-key-needed) below.
 
 For optional AI-assisted import (text, photo, or barcode fallback), see the [AI Assist guide](./ai.md):
@@ -114,7 +114,7 @@ Used for LEGO set metadata, themes, piece counts and covers.
 
 ## 🃏 Trading card games (no key needed)
 
-All eight TCG plugins use free, keyless public APIs — there is nothing to add to your `.env`.
+All eight TCG plugins use free, keyless public APIs: there is nothing to add to your `.env`.
 Just enable the ones you want per collection from the admin panel and they work immediately:
 
 | Plugin | Source |

@@ -1,14 +1,17 @@
 import { PluginApiRoute } from '../../core/types';
-import Item from '../../models/Item';
+import { db } from '../../core/db';
+import { and, eq, filled, idOf } from '../../core/db/query';
 import { fetchScryfallCard } from './scryfall';
 
 async function getCollectionIds(req: any, res: any) {
   try {
-    const items = await Item.find({
-      collection: res.locals.activeCollectionId,
-      in_wishlist: false,
-      kind: 'Mtg'
-    }).select('scryfall_id quantity').lean();
+    // A card added by hand has no Scryfall id to price, so it is left out of the run.
+    const items = await db.items.find(and(
+      eq('collection', idOf(res.locals.activeCollectionId)),
+      eq('in_wishlist', false),
+      eq('kind', 'Mtg'),
+      filled('scryfall_id')
+    ), { fields: ['scryfall_id', 'quantity'] });
     res.json({ success: true, albums: items });
   } catch (err: any) {
     console.error('API MTG Collection IDs error:', err.message);
@@ -24,7 +27,7 @@ async function getEstimate(req: any, res: any) {
     const userCurrency = res.locals.user.currency || 'USD';
 
     // views/collection.ejs sums `price.value` and labels the total with the user's own
-    // currency, ignoring the `currency` we return — and Scryfall's price fields are
+    // currency, ignoring the `currency` we return - and Scryfall's price fields are
     // fixed-currency, not selectable. So try the currency the user actually uses first;
     // the foil/non-foil sub-ordering is preserved within whichever currency wins.
     // `tix` is deliberately absent: MTGO event tickets aren't a currency the app's
