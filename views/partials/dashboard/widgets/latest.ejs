@@ -1,0 +1,39 @@
+<%
+  // Phones: a sideways row of covers. Larger screens: the collection's card grid, as
+  // many columns as the widget is wide.
+  const latestItems = data || [];
+  const latestPlugin = item => registry.getByKind(item.kind) || null;
+  const latestCreator = item => { const p = latestPlugin(item); return p ? (item[p.creatorField] || '') : ''; };
+  const latestHref = item => { const p = latestPlugin(item); return baseUrl + (p ? p.routePrefix : '/album') + '/' + item._id; };
+  const latestAspect = (settings && settings.aspectRatioClass) || 'aspect-square';
+  const latestCols = { m: 'grid-cols-2', l: 'grid-cols-2 lg:grid-cols-3', full: 'grid-cols-2 md:grid-cols-4' }[size] || 'grid-cols-2 md:grid-cols-4';
+%>
+<div class="flex items-center justify-between mb-3 md:mb-6 px-1 md:px-2">
+    <div class="flex items-center gap-2 min-w-0">
+        <span class="max-md:hidden w-2 h-8 bg-primary-theme rounded-full inline-block"></span>
+        <h2 class="text-xl md:text-2xl font-bold truncate"><%= t('index.section_latest') %></h2>
+    </div>
+    <a href="<%= baseUrl %>/collection" class="text-sm font-bold text-primary-theme opacity-90 hover:opacity-100 transition-colors flex items-center gap-1 group whitespace-nowrap">
+        <%= t('index.view_everything') %> <i class="max-md:hidden fa-solid fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
+    </a>
+</div>
+<% if (latestItems.length === 0) { %>
+    <div class="text-center py-8 md:py-10 border border-dashed border-black/10 dark:border-white/10 rounded-2xl opacity-60 text-sm"><%= t('index.empty_collection') %></div>
+<% } else { %>
+    <div class="md:hidden flex gap-3 overflow-x-auto -mx-4 px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <% latestItems.forEach(item => { %>
+            <a href="<%= latestHref(item) %>" class="flex-none w-[140px] flex flex-col gap-2">
+                <span class="block rounded-xl overflow-hidden shadow-lg shadow-black/25">
+                    <%- include('../../item-cover', { item, plugin: latestPlugin(item), gridAspect: latestAspect, settings, badgeSize: 'compact' }) %>
+                </span>
+                <span class="min-w-0">
+                    <span class="block text-sm font-semibold truncate"><%= item.title %></span>
+                    <span class="block text-xs opacity-60 truncate"><%= latestCreator(item) %></span>
+                </span>
+            </a>
+        <% }) %>
+    </div>
+    <div class="max-md:hidden">
+        <%- include('../../albums-grid', { albums: latestItems.slice(0, options.count), size: 'home', gridClass: latestCols }) %>
+    </div>
+<% } %>

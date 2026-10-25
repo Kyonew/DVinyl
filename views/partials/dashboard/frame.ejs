@@ -1,0 +1,67 @@
+<%
+  /**
+   * One home page widget: its place in the grid (size, phone or desktop only), the
+   * arranging controls for whoever can arrange the page, and the type's own partial
+   * (dashboard/widgets/<type>) with `data`, `options` and `size`.
+   *
+   * Expects `entry` ({ widget, data, empty }) and `dashboardWidgets` (the registry).
+   * An empty widget (no info page, a blank note) is left out of the page, and only
+   * drawn as a placeholder while the page is being arranged.
+   */
+  const frameWidget = entry.widget;
+  const frameType = dashboardWidgets.get(frameWidget.type);
+  const canArrange = Boolean(locals.isCollectionAdmin);
+  const spanClass = {
+      s: 'col-span-1',
+      m: 'col-span-2',
+      l: 'col-span-2 md:col-span-3',
+      full: 'col-span-2 md:col-span-4'
+  }[frameWidget.size];
+  const showClass = { all: '', desktop: 'max-md:hidden', phone: 'md:hidden' }[frameWidget.show];
+%>
+<% if (frameType && (!entry.empty || canArrange)) { %>
+<section data-widget data-widget-id="<%= frameWidget.id %>" data-widget-type="<%= frameWidget.type %>"
+  data-widget-size="<%= frameWidget.size %>" data-widget-show="<%= frameWidget.show %>"
+  data-widget-options="<%= JSON.stringify(frameWidget.options) %>"
+  class="dv-widget relative min-w-0 <%= spanClass %> <%= showClass %> <%= entry.empty ? 'dv-widget-empty' : '' %>">
+  <% if (canArrange) { %>
+  <div class="dv-widget-chrome absolute top-1.5 inset-x-1.5 z-20 items-center gap-1 h-8 text-[var(--text-main)]">
+    <button type="button" data-widget-drag aria-label="<%= t('dashboard.move') %>" title="<%= t('dashboard.move') %>"
+      class="w-8 h-8 flex-none flex items-center justify-center rounded-lg cursor-grab active:cursor-grabbing hover:bg-black/5 dark:hover:bg-white/10 touch-none">
+      <i class="fa-solid fa-grip-vertical" aria-hidden="true"></i>
+    </button>
+    <span class="flex-1 min-w-0 flex items-center gap-1.5 text-xs font-bold truncate opacity-70">
+      <i class="fa-solid <%= frameType.icon %>" aria-hidden="true"></i>
+      <span class="truncate"><%= t(frameType.label) %></span>
+      <% if (frameWidget.show !== 'all') { %>
+        <i class="fa-solid <%= frameWidget.show === 'phone' ? 'fa-mobile-screen' : 'fa-desktop' %> text-primary-theme" title="<%= t('dashboard.show_' + frameWidget.show) %>" aria-hidden="true"></i>
+      <% } %>
+    </span>
+    <% if (frameType.sizes.length > 1) { %>
+    <button type="button" data-widget-cycle-size aria-label="<%= t('dashboard.size') %>" title="<%= t('dashboard.size') %>"
+      class="h-8 min-w-[2rem] px-1.5 flex-none flex items-center justify-center rounded-lg text-[11px] font-black uppercase hover:bg-black/5 dark:hover:bg-white/10">
+      <%= t('dashboard.size_' + frameWidget.size + '_short') %>
+    </button>
+    <% } %>
+    <button type="button" data-widget-settings aria-label="<%= t('dashboard.settings') %>" title="<%= t('dashboard.settings') %>"
+      class="w-8 h-8 flex-none flex items-center justify-center rounded-lg hover:bg-black/5 dark:hover:bg-white/10">
+      <i class="fa-solid fa-sliders" aria-hidden="true"></i>
+    </button>
+    <button type="button" data-widget-remove aria-label="<%= t('dashboard.remove') %>" title="<%= t('dashboard.remove') %>"
+      class="w-8 h-8 flex-none flex items-center justify-center rounded-lg text-red-500 hover:bg-red-500/10">
+      <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
+    </button>
+  </div>
+  <% } %>
+  <div class="dv-widget-body h-full">
+    <% if (entry.empty) { %>
+      <div class="h-full min-h-[5rem] flex items-center justify-center gap-2 p-4 rounded-2xl border border-dashed border-black/15 dark:border-white/15 text-sm opacity-60 text-center">
+        <i class="fa-solid <%= frameType.icon %>" aria-hidden="true"></i>
+        <span><%= t('dashboard.empty_placeholder') %></span>
+      </div>
+    <% } else { %>
+      <%- include('widgets/' + frameWidget.type, { data: entry.data, options: frameWidget.options, size: frameWidget.size, widgetId: frameWidget.id }) %>
+    <% } %>
+  </div>
+</section>
+<% } %>

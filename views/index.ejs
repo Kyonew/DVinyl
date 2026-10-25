@@ -1,276 +1,51 @@
 <%- include('partials/header') %>
+<%- include('partials/markdown-styles') %>
 
-<div class="max-w-screen-xl mx-auto space-y-8 md:space-y-12 pb-12">
-
-    <%
-        // Phone dashboard: what the collection holds at a glance, then what came in last
-        // and what is wished for. The desktop sections below are hidden there.
-        const creatorOf = item => {
-            const p = registry.getByKind(item.kind);
-            return p ? (item[p.creatorField] || '') : '';
-        };
-        const formatOf = item => {
-            const p = registry.getByKind(item.kind);
-            const value = item.format || item.media_type || '';
-            const opt = p && (p.formats || []).find(f => String(f.value) === String(value));
-            if (opt) return t(opt.label, { defaultValue: opt.label });
-            return p ? t(p.label) : '';
-        };
-        const pluginOf = item => registry.getByKind(item.kind) || null;
-        const gridAspect = (settings && settings.aspectRatioClass) || 'aspect-square';
-        const hrefOf = item => {
-            const p = registry.getByKind(item.kind);
-            return baseUrl + (p ? p.routePrefix : '/album') + '/' + item._id;
-        };
-        const tiles = [
-            { value: stats.total, label: t('common.items'), href: baseUrl + '/collection' },
-            { value: wishlistCount, label: t('nav.wishlist'), href: baseUrl + '/wishlist' },
-            { value: listsCount, label: t('lists.title'), href: baseUrl + '/lists' }
-        ];
-        const phoneSectionHead = 'flex items-baseline justify-between px-1 mb-3';
-    %>
-    <div class="md:hidden flex flex-col gap-7">
-        <div class="flex items-center justify-between gap-3 px-1">
-            <div class="min-w-0">
-                <span class="block text-xs font-bold uppercase tracking-widest text-primary-theme truncate"><%= (locals.activeCollection && activeCollection.name) || '' %></span>
-                <h1 class="text-[2rem] leading-tight font-extrabold tracking-tight truncate"><%= t('index.welcome') %>, <%= user.username %></h1>
-            </div>
-            <a href="<%= baseUrl %>/search" aria-label="<%= t('nav.search') %>" class="flex-none w-11 h-11 rounded-full card-theme flex items-center justify-center">
-                <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-            </a>
-        </div>
-
-        <div class="grid grid-cols-3 gap-2.5">
-            <% tiles.forEach(tile => { %>
-                <a href="<%= tile.href %>" class="card-theme rounded-2xl p-3.5 flex flex-col gap-1">
-                    <span class="text-2xl font-extrabold tracking-tight"><%= tile.value %></span>
-                    <span class="text-xs opacity-60 truncate first-letter:uppercase"><%= tile.label %></span>
-                </a>
-            <% }) %>
-        </div>
-
-        <%# The collection's navbar shortcuts: a phone has no top bar to carry them. %>
-        <%- include('partials/shell/nav-shortcuts', { shortcutsVariant: 'chips', shortcutsExclude: ['global_home', 'global_collection', 'global_lists'] }) %>
-
-        <% if (isCollectionInfoVisible(locals.activeCollection, locals.isShareView)) { %>
-            <a href="<%= baseUrl %>/info" class="flex items-center gap-3 card-theme rounded-2xl px-4 min-h-[52px]">
-                <i class="fa-solid fa-circle-info text-primary-theme" aria-hidden="true"></i>
-                <span class="text-sm font-bold flex-1"><%= t('collection_info.bar_label') %></span>
-                <i class="fa-solid fa-chevron-right text-xs opacity-40" aria-hidden="true"></i>
-            </a>
-        <% } %>
-
-        <section>
-            <div class="<%= phoneSectionHead %>">
-                <h2 class="text-xl font-bold"><%= t('index.section_latest') %></h2>
-                <a href="<%= baseUrl %>/collection" class="text-sm font-semibold text-primary-theme"><%= t('index.view_everything') %></a>
-            </div>
-            <% if (latestCollection.length > 0) { %>
-                <div class="flex gap-3 overflow-x-auto -mx-4 px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                    <% latestCollection.forEach(item => { %>
-                        <a href="<%= hrefOf(item) %>" class="flex-none w-[140px] flex flex-col gap-2">
-                            <%# The collection's tile ratio and the poster-over-blur of the grids. %>
-                            <span class="block rounded-xl overflow-hidden shadow-lg shadow-black/25">
-                                <%- include('partials/item-cover', { item, plugin: pluginOf(item), gridAspect, settings, badgeSize: 'compact' }) %>
-                            </span>
-                            <span class="min-w-0">
-                                <span class="block text-sm font-semibold truncate"><%= item.title %></span>
-                                <span class="block text-xs opacity-60 truncate"><%= creatorOf(item) %></span>
-                            </span>
-                        </a>
-                    <% }) %>
-                </div>
-            <% } else { %>
-                <div class="text-center py-8 border border-dashed border-black/10 dark:border-white/10 rounded-2xl opacity-60 text-sm"><%= t('index.empty_collection') %></div>
-            <% } %>
-        </section>
-
-        <section>
-            <div class="<%= phoneSectionHead %>">
-                <h2 class="text-xl font-bold"><%= t('index.section_wishlist') %></h2>
-                <a href="<%= baseUrl %>/wishlist" class="text-sm font-semibold text-primary-theme"><%= t('index.view_everything') %></a>
-            </div>
-            <% if (latestWishlist.length > 0) { %>
-                <div class="card-theme rounded-2xl overflow-hidden divide-y divide-black/5 dark:divide-white/5">
-                    <% latestWishlist.forEach(item => { %>
-                        <a href="<%= hrefOf(item) %>" class="flex items-center gap-3 px-3.5 py-2.5 min-h-[64px]">
-                            <%- include('partials/cover-thumb', { src: itemImageUrl(item.cover_image), plugin: pluginOf(item), boxClass: 'flex-none w-11 h-11 rounded-md' }) %>
-                            <span class="flex-1 min-w-0">
-                                <span class="block font-semibold truncate"><%= item.title %></span>
-                                <span class="block text-sm opacity-60 truncate"><%= [creatorOf(item), formatOf(item)].filter(Boolean).join(' · ') %></span>
-                            </span>
-                            <i class="fa-solid fa-chevron-right text-xs opacity-40" aria-hidden="true"></i>
-                        </a>
-                    <% }) %>
-                </div>
-            <% } else { %>
-                <div class="text-center py-8 border border-dashed border-black/10 dark:border-white/10 rounded-2xl opacity-60 text-sm"><%= t('index.empty_wishlist') %></div>
-            <% } %>
-        </section>
-    </div>
-
-    <%# The phone block above is display:none here but space-y still counts it. %>
-    <section class="max-md:hidden md:!mt-0 relative card-theme rounded-3xl p-6 md:p-12 shadow-2xl overflow-hidden">
-            
-        <div class="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-primary-theme/10 rounded-full blur-3xl"></div>
-        <div class="absolute bottom-0 left-0 -mb-10 -ml-10 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl"></div>
-
-        <div class="relative z-10 text-center space-y-4 md:space-y-6">
-            <h1 class="text-3xl md:text-6xl font-black tracking-tight">
-                <%= t('index.welcome') %> <span class="text-primary-theme"><%= user.username %></span> !
-            </h1>
-            <p class="opacity-70 text-base md:text-xl max-w-2xl mx-auto">
-                <%= t('index.hero_subtitle') %>
-            </p>
-
-            <form action="<%= baseUrl %>/collection" method="GET" class="w-full max-w-xl mx-auto mt-8">
-                <div class="relative group">
-                    <div class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none z-10">
-                        <i class="fa-solid fa-search opacity-50 group-focus-within:text-primary-theme transition-colors"></i>
-                    </div>
-                    <input type="text" name="search" class="block w-full p-4 pl-12 text-base bg-black/5 dark:bg-black/20 border border-transparent focus:border-primary-theme rounded-full focus:ring-2 focus:ring-primary-theme/50 placeholder-opacity-50 transition-all shadow-inner" placeholder="<%= t('index.search_placeholder') %>">
-                    <button type="submit" class="absolute right-2 top-2 bottom-2 bg-gray-200 dark:bg-white/10 hover:bg-primary-theme hover:text-white font-medium rounded-full text-sm px-4 transition-colors z-10"><%= t('common.go') %></button>
-                </div>
-            </form>
-
-            <div class="flex flex-wrap justify-center gap-4 pt-4 text-sm opacity-80">
-                <% if (locals.canEditCollection && registry.getEnabled(settings).length > 0) { %>
-                    <button onclick="openAddModal()" class="inline-flex items-center gap-2 hover:text-primary-theme transition-colors">
-                        <i class="fa-solid fa-plus-circle" data-add-hub-icon></i>
-                        <span class="hidden sm:inline"><%= t('index.nav_add_full') %></span>
-                    </button>
-                    <span class="opacity-30">|</span>
-                <% } %>
-                <% const scanPlugins = registry.getEnabled(settings).filter(p => hasBarcodeScan(p)); %>
-                <% if (locals.canEditCollection && scanPlugins.length > 0) { %>
-                    <% if (scanPlugins.length === 1) { %>
-                        <a href="<%= baseUrl %>/add-<%= scanPlugins[0].id %>?scan=1" class="inline-flex items-center gap-2 hover:text-primary-theme transition-colors">
-                            <i class="fa-solid fa-barcode"></i>
-                            <span class="hidden sm:inline"><%= t('index.nav_scan_full') %></span>
-                        </a>
-                    <% } else { %>
-                        <button onclick="openScanPicker()" class="inline-flex items-center gap-2 hover:text-primary-theme transition-colors">
-                            <i class="fa-solid fa-barcode"></i>
-                            <span class="hidden sm:inline"><%= t('index.nav_scan_full') %></span>
-                        </button>
-                    <% } %>
-                    <span class="opacity-30">|</span>
-                <% } %>
-                <a href="<%= baseUrl %>/collection" class="inline-flex items-center gap-2 hover:text-primary-theme transition-colors">
-                    <i class="fa-solid fa-list"></i> <%= t('index.nav_view_all') %>
-                </a>
-            </div>
-        </div>
-    </section>
-
-    <% if (isCollectionInfoVisible(locals.activeCollection, locals.isShareView)) { %>
-        <%# The collection's own page, one line under the welcome panel: a place for what
-            the cards cannot say. Only drawn once there is a page to open. %>
-        <a href="<%= baseUrl %>/info"
-            class="max-md:hidden -mt-4 md:-mt-8 flex items-center gap-3 card-theme rounded-2xl px-5 py-3 shadow-sm hover:border-primary-theme hover:text-primary-theme transition-all group">
-            <i class="fa-solid fa-circle-info text-primary-theme"></i>
-            <span class="text-sm font-bold"><%= t('collection_info.bar_label') %></span>
-            <span class="text-xs opacity-50 truncate hidden sm:inline"><%= locals.activeCollection.name %></span>
-            <i class="fa-solid fa-arrow-right ml-auto text-xs opacity-50 group-hover:translate-x-1 transition-transform"></i>
-        </a>
+<%#
+    The home page: the collection's widgets (core/dashboard.ts), in the order and sizes its
+    admin arranged them, each drawn by partials/dashboard/frame. Two columns on a phone,
+    four from md up; a widget spans one to four of them.
+%>
+<div class="max-w-screen-xl mx-auto pb-12" data-dashboard>
+    <% if (locals.isCollectionAdmin) { %>
+        <%- include('partials/dashboard/editor-bar') %>
     <% } %>
 
-    <section class="max-md:hidden">
-        <div class="flex items-center justify-between mb-4 md:mb-6 px-2">
-            <div class="flex items-center gap-2">
-                <span class="w-2 h-6 md:h-8 bg-primary-theme rounded-full inline-block"></span>
-                <h2 class="text-xl md:text-2xl font-bold"><%= t('index.section_latest') %></h2>
-            </div>
-            <a href="<%= baseUrl %>/collection" class="text-sm font-bold text-primary-theme opacity-90 hover:opacity-100 transition-colors flex items-center gap-1 group whitespace-nowrap">
-                <%= t('index.view_everything') %> <i class="fa-solid fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
-            </a>
-        </div>
-
-        <% if (latestCollection.length > 0) { %>
-            <%- include('partials/albums-grid', { albums: latestCollection.slice(0, 4), size: 'home', gridClass: 'grid-cols-2 md:grid-cols-4' }) %>
-        <% } else { %>
-            <div class="text-center py-10 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl opacity-60"><%= t('index.empty_collection') %></div>
-        <% } %>
-    </section>
-
-    <section class="max-md:hidden">
-        <div class="flex items-center justify-between mb-4 md:mb-6 px-2">
-            <div class="flex items-center gap-2">
-                <span class="w-2 h-6 md:h-8 bg-pink-500 rounded-full inline-block"></span>
-                <h2 class="text-xl md:text-2xl font-bold"><%= t('index.section_wishlist') %></h2>
-            </div>
-            <a href="<%= baseUrl %>/wishlist" class="text-sm font-bold text-pink-500 hover:text-pink-400 transition-colors flex items-center gap-1 group whitespace-nowrap">
-                <%= t('index.view_everything') %> <i class="fa-solid fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
-            </a>
-        </div>
-        <% if (latestWishlist.length > 0) { %>
-            <%- include('partials/albums-grid', { albums: latestWishlist, size: 'home',
-                gridClass: 'grid-cols-2 md:grid-cols-4 items-end', wishlist: true, reserveExtraRow: true }) %>
-            <% if (locals.canEditCollection) { %>
-                <%- include('partials/wishlist-move-script') %>
-            <% } %>
-        <% } else { %>
-            <div class="text-center py-10 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl opacity-60"><%= t('index.empty_wishlist') %></div>
-        <% } %>
-    </section>
-
-    <section>
-        <h2 class="text-xl md:text-2xl font-bold mb-3 md:mb-6 px-1 md:px-2"><%= t('index.section_stats') %></h2>
-        
-        <%# Two compact columns on a phone, where the collection total is already the
-            first tile at the top of the page. %>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-2.5 md:gap-6">
-            <% 
-            // Global "total" widget plus widgets declared by each plugin (statsWidgets)
-            const widgetConfig = {
-                'total': { label: t('stats.total_label'), val: stats.total, unit: t('common.items'), icon: 'fa-database', color: 'bg-primary-theme/20', wide: true }
-            };
-            const topConfigs = {};
-            if (typeof registry !== 'undefined' && registry) {
-                registry.getAll().filter(p => settings.modules && settings.modules[p.collectionType]).forEach(p => {
-                    (p.statsWidgets || []).forEach(w => {
-                        if (w.kind === 'top') {
-                            topConfigs[w.id] = { label: t(w.label), data: stats[w.id], icon: w.icon, color: w.color };
-                        } else {
-                            widgetConfig[w.id] = { label: t(w.label), val: stats[w.id], icon: w.icon, color: w.color, text: w.text };
-                        }
-                    });
-                });
-            }
-            
-            const activeWidgets = (settings && settings.statsWidgets) ? settings.statsWidgets : registry.getDefaultStatsWidgets();
-
-            activeWidgets.forEach(id => { 
-                const w = widgetConfig[id];
-                const tW = topConfigs[id];
-
-                if (w) { %>
-                    <div class="card-theme p-6 max-md:p-4 rounded-2xl flex items-center justify-between gap-2 transition-all hover:scale-[1.02] <%= w.wide ? 'md:col-span-2 max-md:hidden' : '' %>">
-                        <div>
-                            <p class="opacity-60 font-medium text-xs uppercase tracking-wider mb-1 max-md:truncate"><%= w.label %></p>
-                            <h3 class="<%= w.wide ? 'text-4xl md:text-5xl font-black' : 'text-3xl max-md:text-2xl font-bold' %>">
-                                <%= w.val %> <% if(w.unit){ %><span class="text-base font-normal opacity-50"><%= w.unit %></span><% } %>
-                            </h3>
-                        </div>
-                        <div class="w-10 h-10 max-md:w-8 max-md:h-8 flex-none rounded-full <%= w.color %> <%= w.text %> flex items-center justify-center text-lg max-md:text-sm">
-                            <i class="fa-solid <%= w.icon %>"></i>
-                        </div>
-                    </div>
-                <% } else if (tW) { %>
-                    <div class="card-theme p-6 max-md:p-4 rounded-2xl col-span-2 md:col-span-4 flex items-center gap-6 max-md:gap-4 transition-all hover:scale-[1.01]">
-                        <div class="w-16 h-16 max-md:w-12 max-md:h-12 rounded-full <%= tW.color %> flex items-center justify-center text-3xl max-md:text-xl flex-shrink-0">
-                            <i class="fa-solid <%= tW.icon %>"></i>
-                        </div>
-                        <div>
-                            <p class="opacity-60 font-medium text-sm uppercase tracking-wider"><%= tW.label %></p>
-                            <h3 class="text-2xl max-md:text-xl font-bold"><%= tW.data.name %></h3>
-                            <p class="text-sm opacity-60"><%= t('stats.owned_times', { count: tW.data.count }) %></p>
-                        </div>
-                    </div>
-                <% }
-            }); %>
-        </div>
-    </section>
+    <div data-dashboard-grid class="grid grid-cols-2 md:grid-cols-4 gap-x-2.5 gap-y-6 md:gap-x-6 md:gap-y-10">
+        <% entries.forEach(entry => { %>
+            <%- include('partials/dashboard/frame', { entry, dashboardWidgets }) %>
+        <% }) %>
+    </div>
 </div>
+
+<% if (locals.canEditCollection && entries.some(e => e.widget.type === 'wishlist')) { %>
+    <%- include('partials/wishlist-move-script') %>
+<% } %>
+
+<script>
+    // A widget that offers another take of itself (the random pick) fetches its own
+    // frame again and takes its place.
+    document.querySelector('[data-dashboard-grid]').addEventListener('click', async (event) => {
+        const button = event.target.closest('[data-widget-refresh]');
+        if (!button) return;
+        const frame = button.closest('[data-widget]');
+        button.disabled = true;
+        button.querySelector('i')?.classList.add('fa-spin');
+        try {
+            const res = await fetch('<%= baseUrl %>/dashboard/widgets/' + encodeURIComponent(frame.dataset.widgetId));
+            if (!res.ok) throw new Error(String(res.status));
+            const template = document.createElement('template');
+            template.innerHTML = (await res.text()).trim();
+            if (template.content.firstElementChild) frame.replaceWith(template.content.firstElementChild);
+        } catch (e) {
+            button.disabled = false;
+            button.querySelector('i')?.classList.remove('fa-spin');
+        }
+    });
+</script>
+
+<% if (locals.isCollectionAdmin) { %>
+    <%- include('partials/dashboard/editor') %>
+<% } %>
 
 <%- include('partials/footer') %>

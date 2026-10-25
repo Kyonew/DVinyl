@@ -1,0 +1,29 @@
+<%#
+    The home page's arranging bar, for the collection's admin. At rest, one discreet
+    button; while arranging (html.dash-editing), a bar that stays on screen with the
+    catalogue, the reset, what was last saved and the way out.
+%>
+<div class="dv-dash-rest flex justify-end mb-3 md:mb-4">
+    <button type="button" data-dash-edit
+        class="h-9 px-3.5 flex items-center gap-2 rounded-full text-xs font-bold bg-black/5 dark:bg-white/10 opacity-70 hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/20 transition">
+        <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i><%= t('dashboard.arrange') %>
+    </button>
+</div>
+
+<div class="dv-dash-bar sticky z-40 mb-6 md:mb-8">
+    <div class="card-theme rounded-2xl shadow-2xl p-2 md:p-2.5 flex flex-wrap items-center gap-2">
+        <button type="button" data-dash-catalogue
+            class="h-10 px-4 flex items-center gap-2 rounded-xl bg-primary-theme hover:brightness-110 text-sm font-bold shadow-lg shadow-primary-theme/20 transition active:scale-95">
+            <i class="fa-solid fa-plus" aria-hidden="true"></i><%= t('dashboard.add_widget') %>
+        </button>
+        <button type="button" data-dash-reset
+            class="h-10 px-3.5 flex items-center gap-2 rounded-xl bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 text-sm font-bold transition">
+            <i class="fa-solid fa-rotate-left" aria-hidden="true"></i><span class="max-sm:hidden"><%= t('dashboard.reset') %></span>
+        </button>
+        <span data-dash-status class="flex-1 min-w-0 text-xs opacity-70 truncate px-1" role="status" aria-live="polite"><%= t('dashboard.arrange_hint') %></span>
+        <button type="button" data-dash-done
+            class="h-10 px-4 flex items-center gap-2 rounded-xl bg-black/80 dark:bg-white text-white dark:text-black text-sm font-bold transition active:scale-95">
+            <i class="fa-solid fa-check" aria-hidden="true"></i><%= t('dashboard.done') %>
+        </button>
+    </div>
+</div>

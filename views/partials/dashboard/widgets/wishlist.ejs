@@ -1,0 +1,43 @@
+<%
+  // Phones: rows, one per wish. Larger screens: the card grid with its "received it" button.
+  const wishItems = data || [];
+  const wishPlugin = item => registry.getByKind(item.kind) || null;
+  const wishCreator = item => { const p = wishPlugin(item); return p ? (item[p.creatorField] || '') : ''; };
+  const wishFormat = item => {
+      const p = wishPlugin(item);
+      const value = item.format || item.media_type || '';
+      const opt = p && (p.formats || []).find(f => String(f.value) === String(value));
+      if (opt) return t(opt.label, { defaultValue: opt.label });
+      return p ? t(p.label) : '';
+  };
+  const wishHref = item => { const p = wishPlugin(item); return baseUrl + (p ? p.routePrefix : '/album') + '/' + item._id; };
+  const wishCols = { m: 'grid-cols-2', l: 'grid-cols-2 lg:grid-cols-3', full: 'grid-cols-2 md:grid-cols-4' }[size] || 'grid-cols-2 md:grid-cols-4';
+%>
+<div class="flex items-center justify-between mb-3 md:mb-6 px-1 md:px-2">
+    <div class="flex items-center gap-2 min-w-0">
+        <span class="max-md:hidden w-2 h-8 bg-pink-500 rounded-full inline-block"></span>
+        <h2 class="text-xl md:text-2xl font-bold truncate"><%= t('index.section_wishlist') %></h2>
+    </div>
+    <a href="<%= baseUrl %>/wishlist" class="text-sm font-bold text-primary-theme md:text-pink-500 md:hover:text-pink-400 transition-colors flex items-center gap-1 group whitespace-nowrap">
+        <%= t('index.view_everything') %> <i class="max-md:hidden fa-solid fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
+    </a>
+</div>
+<% if (wishItems.length === 0) { %>
+    <div class="text-center py-8 md:py-10 border border-dashed border-black/10 dark:border-white/10 rounded-2xl opacity-60 text-sm"><%= t('index.empty_wishlist') %></div>
+<% } else { %>
+    <div class="md:hidden card-theme rounded-2xl overflow-hidden divide-y divide-black/5 dark:divide-white/5">
+        <% wishItems.forEach(item => { %>
+            <a href="<%= wishHref(item) %>" class="flex items-center gap-3 px-3.5 py-2.5 min-h-[64px]">
+                <%- include('../../cover-thumb', { src: itemImageUrl(item.cover_image), plugin: wishPlugin(item), boxClass: 'flex-none w-11 h-11 rounded-md' }) %>
+                <span class="flex-1 min-w-0">
+                    <span class="block font-semibold truncate"><%= item.title %></span>
+                    <span class="block text-sm opacity-60 truncate"><%= [wishCreator(item), wishFormat(item)].filter(Boolean).join(' · ') %></span>
+                </span>
+                <i class="fa-solid fa-chevron-right text-xs opacity-40" aria-hidden="true"></i>
+            </a>
+        <% }) %>
+    </div>
+    <div class="max-md:hidden">
+        <%- include('../../albums-grid', { albums: wishItems, size: 'home', gridClass: wishCols + ' items-end', wishlist: true, reserveExtraRow: true }) %>
+    </div>
+<% } %>

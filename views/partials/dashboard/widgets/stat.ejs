@@ -1,0 +1,33 @@
+<% if (!data) { %>
+    <div class="card-theme h-full p-4 rounded-2xl text-sm opacity-60 flex items-center gap-2">
+        <i class="fa-solid fa-chart-simple" aria-hidden="true"></i><%= t('dashboard.stat_unavailable') %>
+    </div>
+<% } else if (data.kind === 'top') { %>
+    <div class="card-theme h-full p-6 max-md:p-4 rounded-2xl flex items-center gap-6 max-md:gap-4 transition-all hover:scale-[1.01]">
+        <div class="w-16 h-16 max-md:w-12 max-md:h-12 rounded-full <%= data.color %> flex items-center justify-center text-3xl max-md:text-xl flex-shrink-0">
+            <i class="fa-solid <%= data.icon %>"></i>
+        </div>
+        <div class="min-w-0">
+            <p class="opacity-60 font-medium text-sm uppercase tracking-wider truncate"><%= t(data.label) %></p>
+            <% if (data.value && data.value.name) { %>
+                <h3 class="text-2xl max-md:text-xl font-bold truncate"><%= data.value.name %></h3>
+                <p class="text-sm opacity-60"><%= t('stats.owned_times', { count: data.value.count }) %></p>
+            <% } else { %>
+                <h3 class="text-2xl max-md:text-xl font-bold opacity-40">-</h3>
+            <% } %>
+        </div>
+    </div>
+<% } else {
+    const statWide = size !== 's'; %>
+    <div class="card-theme h-full p-6 max-md:p-4 rounded-2xl flex items-center justify-between gap-2 transition-all hover:scale-[1.02]">
+        <div class="min-w-0">
+            <p class="opacity-60 font-medium text-xs uppercase tracking-wider mb-1 truncate"><%= t(data.label) %></p>
+            <h3 class="<%= statWide ? 'text-4xl md:text-5xl font-black' : 'text-3xl max-md:text-2xl font-bold' %>">
+                <%= data.value || 0 %> <% if (data.unit) { %><span class="text-base font-normal opacity-50"><%= t('common.items') %></span><% } %>
+            </h3>
+        </div>
+        <div class="w-10 h-10 max-md:w-8 max-md:h-8 flex-none rounded-full <%= data.color %> <%= data.text || '' %> flex items-center justify-center text-lg max-md:text-sm">
+            <i class="fa-solid <%= data.icon %>"></i>
+        </div>
+    </div>
+<% } %>

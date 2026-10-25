@@ -67,6 +67,13 @@ const settingsSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.Mixed,
         default: () => ({})
     },
+    // The home page's widgets, arranged in place by the collection's admin:
+    //   { widgets: [{ id, type, size, show, options }] }
+    // Empty until first arranged; see core/dashboard.ts (resolveWidgets) for the defaults.
+    dashboard: {
+        type: mongoose.Schema.Types.Mixed,
+        default: () => ({})
+    },
     fastAdd: { type: String, default: '' },
     // Scan mode. A search whose query names one exact item (a source's `exactQuery`,
     // i.e. an ISBN today) and returns a single hit is saved without the confirm page being

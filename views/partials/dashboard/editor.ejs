@@ -1,0 +1,469 @@
+<%#
+    Arranging the home page in place, for the collection's admin (index.ejs includes it
+    only for them). While html.dash-editing is set:
+      - every widget shows its controls and stops reacting to clicks, phone-only and
+        desktop-only ones included so they can be reached from either side;
+      - a widget moves by its grip (pointer or arrow keys), changes size, is configured
+        in a dialog built from its type's declared options, or is removed (with undo);
+      - the catalogue adds new ones.
+    Every change is saved straight away (POST /dashboard/layout); a widget whose size or
+    options change is drawn again by the server (POST /dashboard/widgets/render).
+%>
+<style>
+    .dv-widget-chrome { display: none; }
+    .dv-widget-empty { display: none; }
+    .dv-dash-bar { display: none; top: calc(var(--dv-sticky-top, 0px) + 0.75rem); }
+    html.dash-editing .dv-dash-bar { display: block; }
+    html.dash-editing .dv-dash-rest { display: none; }
+    html.dash-editing .dv-widget {
+        display: block !important;
+        padding: 2.75rem 0.5rem 0.5rem;
+        border-radius: calc(1.25rem * var(--dv-radius, 1));
+        outline: 2px dashed rgb(var(--highlight-rgb) / 0.35);
+        outline-offset: -2px;
+        background-color: rgb(var(--highlight-rgb) / 0.04);
+        transition: outline-color 0.15s ease, box-shadow 0.2s ease, background-color 0.15s ease;
+    }
+    html.dash-editing .dv-widget-chrome { display: flex; }
+    html.dash-editing .dv-widget-body { pointer-events: none; user-select: none; }
+    html.dash-editing .dv-widget:focus-within { outline-color: var(--highlight); }
+    /* Shown while arranging, but faded on the side of the breakpoint it skips. */
+    @media (min-width: 768px) {
+        html.dash-editing .dv-widget[data-widget-show="phone"] .dv-widget-body { opacity: 0.45; }
+    }
+    @media (max-width: 767px) {
+        html.dash-editing .dv-widget[data-widget-show="desktop"] .dv-widget-body { opacity: 0.45; }
+        html.dash-editing .dv-dash-bar { top: calc(env(safe-area-inset-top) + 0.5rem); }
+    }
+    html.dash-editing .dv-widget.dv-dragging {
+        z-index: 30;
+        outline-style: solid;
+        outline-color: var(--highlight);
+        background-color: rgb(var(--highlight-rgb) / 0.1);
+        box-shadow: 0 20px 45px rgb(0 0 0 / 0.35);
+    }
+    html.dash-editing.dash-dragging, html.dash-editing.dash-dragging * { cursor: grabbing !important; }
+    @media (prefers-reduced-motion: reduce) { html.dash-editing .dv-widget { transition: none; } }
+</style>
+
+<%# The catalogue: every widget this collection can place, as a sheet on phones. %>
+<div id="dashCatalogue" class="dv-overlay fixed inset-0 z-[70] hidden items-end md:items-center justify-center bg-black/60 backdrop-blur-sm md:p-4" role="dialog" aria-modal="true" aria-labelledby="dashCatalogueTitle">
+    <div class="absolute inset-0" data-dash-close></div>
+    <div class="dv-adaptive relative card-theme w-full md:max-w-3xl max-h-[85vh] overflow-y-auto rounded-t-3xl md:rounded-3xl p-5 md:p-8 shadow-2xl" style="padding-bottom: calc(1.25rem + env(safe-area-inset-bottom));">
+        <div class="flex items-center justify-between gap-4 mb-5">
+            <h3 id="dashCatalogueTitle" class="text-xl md:text-2xl font-black"><%= t('dashboard.add_widget') %></h3>
+            <button type="button" data-dash-close aria-label="<%= t('nav.close') %>" class="w-9 h-9 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
+                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+            </button>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <% widgetCatalogue.forEach(entry => { %>
+                <button type="button" data-add-widget="<%= entry.type %>"
+                    class="flex items-start gap-3 p-3.5 rounded-2xl text-left bg-black/5 dark:bg-white/5 hover:bg-primary-theme/10 hover:ring-2 hover:ring-primary-theme/40 transition active:scale-[0.98]">
+                    <span class="w-10 h-10 flex-none rounded-xl bg-primary-theme/15 text-primary-theme flex items-center justify-center">
+                        <i class="fa-solid <%= entry.icon %>" aria-hidden="true"></i>
+                    </span>
+                    <span class="min-w-0">
+                        <span class="block font-bold text-sm"><%= entry.label %></span>
+                        <span class="block text-xs opacity-60 mt-0.5"><%= entry.description %></span>
+                    </span>
+                </button>
+            <% }) %>
+        </div>
+    </div>
+</div>
+
+<%# One widget's settings, filled in by the script from its type's declared options. %>
+<div id="dashSettings" class="dv-overlay fixed inset-0 z-[70] hidden items-end md:items-center justify-center bg-black/60 backdrop-blur-sm md:p-4" role="dialog" aria-modal="true" aria-labelledby="dashSettingsTitle">
+    <div class="absolute inset-0" data-dash-close></div>
+    <form class="dv-adaptive relative card-theme w-full md:max-w-lg max-h-[85vh] overflow-y-auto rounded-t-3xl md:rounded-3xl p-5 md:p-7 shadow-2xl space-y-5" style="padding-bottom: calc(1.25rem + env(safe-area-inset-bottom));">
+        <div class="flex items-center justify-between gap-4">
+            <h3 id="dashSettingsTitle" class="text-lg md:text-xl font-black flex items-center gap-3">
+                <span class="w-9 h-9 rounded-xl bg-primary-theme/15 text-primary-theme flex items-center justify-center"><i data-dash-settings-icon class="fa-solid" aria-hidden="true"></i></span>
+                <span data-dash-settings-title></span>
+            </h3>
+            <button type="button" data-dash-close aria-label="<%= t('nav.close') %>" class="w-9 h-9 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
+                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+            </button>
+        </div>
+        <div data-dash-settings-fields class="space-y-5"></div>
+        <div class="flex gap-2 justify-end pt-1">
+            <button type="button" data-dash-close class="h-11 px-5 rounded-xl bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 text-sm font-bold transition"><%= t('common.cancel') %></button>
+            <button type="submit" class="h-11 px-6 rounded-xl bg-primary-theme hover:brightness-110 text-sm font-black shadow-lg shadow-primary-theme/20 transition active:scale-95"><%= t('dashboard.apply') %></button>
+        </div>
+    </form>
+</div>
+
+<script>
+(() => {
+    const base = '<%= baseUrl %>';
+    const catalogue = <%- JSON.stringify(widgetCatalogue).replace(/</g, '\\u003c') %>;
+    const byType = Object.fromEntries(catalogue.map(entry => [entry.type, entry]));
+    // Widget types placed earlier but no longer offered (a module switched off) can
+    // still be moved, resized and removed, just not reconfigured.
+    const sizesOf = <%- JSON.stringify(Object.fromEntries(dashboardWidgets.getAll().map(d => [d.type, d.sizes]))) %>;
+    const i18n = <%- JSON.stringify({
+        size: t('dashboard.size'),
+        sizes: { s: t('dashboard.size_s'), m: t('dashboard.size_m'), l: t('dashboard.size_l'), full: t('dashboard.size_full') },
+        show: t('dashboard.show'),
+        shows: { all: t('dashboard.show_all'), desktop: t('dashboard.show_desktop'), phone: t('dashboard.show_phone') },
+        saving: t('dashboard.saving'),
+        saved: t('dashboard.saved'),
+        saveFailed: t('dashboard.save_failed'),
+        removed: t('dashboard.removed'),
+        undo: t('dashboard.undo'),
+        resetConfirm: t('dashboard.reset_confirm')
+    }).replace(/</g, '\\u003c') %>;
+
+    const root = document.documentElement;
+    const grid = document.querySelector('[data-dashboard-grid]');
+    const status = document.querySelector('[data-dash-status]');
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let changedMarkup = false; // something was drawn by the editor: leave through a reload
+
+    const widgetsIn = () => [...grid.querySelectorAll(':scope > [data-widget]')];
+    const describe = (el) => ({
+        id: el.dataset.widgetId,
+        type: el.dataset.widgetType,
+        size: el.dataset.widgetSize,
+        show: el.dataset.widgetShow,
+        options: JSON.parse(el.dataset.widgetOptions || '{}')
+    });
+
+    // A message offering an action (undo) stays up for a while: the save it triggered
+    // finishes meanwhile and must not wipe it.
+    let heldUntil = 0;
+    function setStatus(text, action, routine) {
+        if (routine && Date.now() < heldUntil) return;
+        heldUntil = action ? Date.now() + 6000 : 0;
+        status.textContent = text;
+        if (action) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'ml-2 font-bold text-primary-theme underline';
+            button.textContent = action.label;
+            button.addEventListener('click', action.run, { once: true });
+            status.appendChild(button);
+        }
+    }
+
+    // ---- Saving -------------------------------------------------------------
+    let saveTimer = null;
+    function save() {
+        setStatus(i18n.saving, null, true);
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(async () => {
+            try {
+                const res = await fetch(base + '/dashboard/layout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ widgets: widgetsIn().map(describe) })
+                });
+                const data = await res.json();
+                if (data.success) setStatus(i18n.saved, null, true);
+                else setStatus(i18n.saveFailed);
+            } catch (e) {
+                setStatus(i18n.saveFailed);
+            }
+        }, 350);
+    }
+
+    // ---- Moving things around, animated from where they were --------------------
+    function flip(mutate) {
+        const before = new Map(widgetsIn().map(el => [el, el.getBoundingClientRect()]));
+        mutate();
+        if (reduceMotion) return;
+        for (const el of widgetsIn()) {
+            const was = before.get(el);
+            if (!was) continue;
+            const now = el.getBoundingClientRect();
+            const dx = was.left - now.left, dy = was.top - now.top;
+            if (!dx && !dy) continue;
+            el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }],
+                { duration: 260, easing: 'cubic-bezier(0.32, 0.72, 0, 1)' });
+        }
+    }
+
+    // ---- Drawing a widget again on the server -----------------------------------
+    async function render(widget) {
+        const res = await fetch(base + '/dashboard/widgets/render', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ widget })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error('render');
+        const template = document.createElement('template');
+        template.innerHTML = data.html.trim();
+        changedMarkup = true;
+        return template.content.firstElementChild;
+    }
+
+    async function redraw(el, widget) {
+        el.style.opacity = '0.5';
+        try {
+            const fresh = await render(widget);
+            flip(() => el.replaceWith(fresh));
+            save();
+            return fresh;
+        } catch (e) {
+            el.style.opacity = '';
+            setStatus(i18n.saveFailed);
+        }
+    }
+
+    // ---- Entering and leaving -------------------------------------------------
+    function setEditing(on) {
+        root.classList.toggle('dash-editing', on);
+        history.replaceState(null, '', on ? '#arrange' : window.location.pathname + window.location.search);
+        // Scripts of the widgets (charts, buttons) were wired on the page as it loaded.
+        if (!on && changedMarkup) window.location.reload();
+    }
+    document.querySelector('[data-dash-edit]').addEventListener('click', () => setEditing(true));
+    document.querySelector('[data-dash-done]').addEventListener('click', () => setEditing(false));
+    if (window.location.hash === '#arrange') setEditing(true);
+
+    document.querySelector('[data-dash-reset]').addEventListener('click', async () => {
+        if (!confirm(i18n.resetConfirm)) return;
+        await fetch(base + '/dashboard/layout/reset', { method: 'POST' });
+        window.location.reload();
+    });
+
+    // ---- Overlays --------------------------------------------------------------
+    const catalogueEl = document.getElementById('dashCatalogue');
+    const settingsEl = document.getElementById('dashSettings');
+    const openOverlay = (el) => { el.classList.remove('hidden'); el.classList.add('flex'); };
+    const closeOverlay = (el) => { el.classList.add('hidden'); el.classList.remove('flex'); };
+    [catalogueEl, settingsEl].forEach(el => el.querySelectorAll('[data-dash-close]')
+        .forEach(button => button.addEventListener('click', () => closeOverlay(el))));
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') { closeOverlay(catalogueEl); closeOverlay(settingsEl); }
+    });
+
+    document.querySelector('[data-dash-catalogue]').addEventListener('click', () => openOverlay(catalogueEl));
+    catalogueEl.addEventListener('click', async (event) => {
+        const button = event.target.closest('[data-add-widget]');
+        if (!button) return;
+        const type = byType[button.dataset.addWidget];
+        closeOverlay(catalogueEl);
+        try {
+            const fresh = await render({ type: type.type, size: type.defaultSize });
+            flip(() => grid.appendChild(fresh));
+            fresh.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
+            save();
+            // A widget worth configuring opens on its settings straight away.
+            if (type.options.length > 0) openSettings(fresh);
+        } catch (e) {
+            setStatus(i18n.saveFailed);
+        }
+    });
+
+    // ---- One widget's settings ---------------------------------------------------
+    let settingsTarget = null;
+    const fieldsEl = settingsEl.querySelector('[data-dash-settings-fields]');
+    const fieldLabel = (text) => {
+        const label = document.createElement('span');
+        label.className = 'block text-xs font-bold uppercase tracking-widest opacity-60 mb-2';
+        label.textContent = text;
+        return label;
+    };
+    const inputClass = 'w-full bg-black/5 dark:bg-black/20 border border-transparent focus:border-primary-theme rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-theme/20 outline-none transition-all';
+
+    function segmented(name, values, labels, current) {
+        const wrap = document.createElement('div');
+        wrap.className = 'grid gap-2';
+        wrap.style.gridTemplateColumns = `repeat(${values.length}, minmax(0, 1fr))`;
+        values.forEach(value => {
+            const label = document.createElement('label');
+            label.className = 'cursor-pointer';
+            const input = document.createElement('input');
+            Object.assign(input, { type: 'radio', name, value, className: 'peer sr-only', checked: value === current });
+            const face = document.createElement('div');
+            face.className = 'px-2 py-2.5 rounded-xl text-center text-sm font-semibold bg-black/5 dark:bg-white/5 opacity-70 peer-checked:opacity-100 peer-checked:bg-primary-theme peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-primary-theme/50 transition';
+            face.textContent = labels[value];
+            label.append(input, face);
+            wrap.appendChild(label);
+        });
+        return wrap;
+    }
+
+    function optionField(option, current) {
+        const block = document.createElement('div');
+        if (option.type === 'boolean') {
+            const label = document.createElement('label');
+            label.className = 'flex items-center justify-between gap-4 p-3.5 rounded-2xl bg-black/5 dark:bg-white/5 cursor-pointer';
+            const text = document.createElement('span');
+            text.className = 'text-sm font-bold';
+            text.textContent = option.label;
+            const input = document.createElement('input');
+            Object.assign(input, { type: 'checkbox', name: 'opt_' + option.key, checked: current === true, className: 'w-5 h-5 accent-primary-theme' });
+            label.append(text, input);
+            block.appendChild(label);
+            return block;
+        }
+        block.appendChild(fieldLabel(option.label));
+        let input;
+        if (option.type === 'select') {
+            input = document.createElement('select');
+            (option.choices || []).forEach(choice => {
+                const opt = document.createElement('option');
+                opt.value = choice.value;
+                opt.textContent = choice.label;
+                opt.selected = String(current) === choice.value;
+                input.appendChild(opt);
+            });
+        } else if (option.type === 'textarea') {
+            input = document.createElement('textarea');
+            input.rows = 6;
+            input.maxLength = option.maxLength || 4000;
+            input.value = current || '';
+        } else {
+            input = document.createElement('input');
+            input.type = option.type === 'number' ? 'number' : 'text';
+            if (option.type === 'number') { input.min = option.min; input.max = option.max; }
+            else input.maxLength = option.maxLength || 200;
+            input.value = current ?? '';
+        }
+        input.name = 'opt_' + option.key;
+        input.className = inputClass;
+        block.appendChild(input);
+        return block;
+    }
+
+    function openSettings(el) {
+        settingsTarget = el;
+        const widget = describe(el);
+        const type = byType[widget.type];
+        settingsEl.querySelector('[data-dash-settings-title]').textContent = type ? type.label : widget.type;
+        settingsEl.querySelector('[data-dash-settings-icon]').className = 'fa-solid ' + (type ? type.icon : 'fa-puzzle-piece');
+        fieldsEl.replaceChildren();
+        const sizes = sizesOf[widget.type] || [widget.size];
+        if (sizes.length > 1) {
+            const block = document.createElement('div');
+            block.append(fieldLabel(i18n.size), segmented('size', sizes, i18n.sizes, widget.size));
+            fieldsEl.appendChild(block);
+        }
+        const showBlock = document.createElement('div');
+        showBlock.append(fieldLabel(i18n.show), segmented('show', ['all', 'desktop', 'phone'], i18n.shows, widget.show));
+        fieldsEl.appendChild(showBlock);
+        (type ? type.options : []).forEach(option => fieldsEl.appendChild(optionField(option, widget.options[option.key])));
+        openOverlay(settingsEl);
+        fieldsEl.querySelector('input, select, textarea')?.focus({ preventScroll: true });
+    }
+
+    settingsEl.querySelector('form').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const el = settingsTarget;
+        if (!el) return;
+        const form = event.target;
+        const widget = describe(el);
+        const type = byType[widget.type];
+        widget.size = form.elements.size ? form.elements.size.value : widget.size;
+        widget.show = form.elements.show.value;
+        (type ? type.options : []).forEach(option => {
+            const input = form.elements['opt_' + option.key];
+            if (!input) return;
+            widget.options[option.key] = option.type === 'boolean' ? input.checked
+                : option.type === 'number' ? Number(input.value) : input.value;
+        });
+        closeOverlay(settingsEl);
+        await redraw(el, widget);
+    });
+
+    // ---- The controls on each widget ---------------------------------------------
+    grid.addEventListener('click', (event) => {
+        if (!root.classList.contains('dash-editing')) return;
+        const el = event.target.closest('[data-widget]');
+        if (!el) return;
+        if (event.target.closest('[data-widget-settings]')) return openSettings(el);
+        if (event.target.closest('[data-widget-cycle-size]')) {
+            const widget = describe(el);
+            const sizes = sizesOf[widget.type] || [widget.size];
+            widget.size = sizes[(sizes.indexOf(widget.size) + 1) % sizes.length];
+            return redraw(el, widget);
+        }
+        if (event.target.closest('[data-widget-remove]')) {
+            const next = el.nextElementSibling;
+            flip(() => el.remove());
+            save();
+            setStatus(i18n.removed, {
+                label: i18n.undo,
+                run: () => {
+                    heldUntil = 0;
+                    flip(() => grid.insertBefore(el, next && next.parentElement === grid ? next : null));
+                    save();
+                }
+            });
+        }
+    });
+
+    // Arrow keys on a grip move its widget one place.
+    grid.addEventListener('keydown', (event) => {
+        const handle = event.target.closest('[data-widget-drag]');
+        if (!handle) return;
+        const el = handle.closest('[data-widget]');
+        const back = event.key === 'ArrowUp' || event.key === 'ArrowLeft';
+        const forward = event.key === 'ArrowDown' || event.key === 'ArrowRight';
+        if (!back && !forward) return;
+        event.preventDefault();
+        const sibling = back ? el.previousElementSibling : el.nextElementSibling;
+        if (!sibling) return;
+        flip(() => back ? grid.insertBefore(el, sibling) : grid.insertBefore(sibling, el));
+        handle.focus();
+        save();
+    });
+
+    // ---- Drag and drop ---------------------------------------------------------------
+    // The widget stays in the grid and the others make room as the pointer crosses them,
+    // which reads the same with a mouse or a finger and needs no ghost copy.
+    grid.addEventListener('pointerdown', (event) => {
+        const handle = event.target.closest('[data-widget-drag]');
+        if (!handle || !root.classList.contains('dash-editing') || event.button > 0) return;
+        event.preventDefault();
+        const el = handle.closest('[data-widget]');
+        const startOrder = widgetsIn().map(w => w.dataset.widgetId).join();
+        el.classList.add('dv-dragging');
+        root.classList.add('dash-dragging');
+
+        let lastOver = null;
+        let pointerY = event.clientY;
+        let scrolling = true;
+        // Near the top or bottom edge the page scrolls on its own, so a widget can travel
+        // further than the screen.
+        const autoScroll = () => {
+            if (!scrolling) return;
+            const edge = 90;
+            if (pointerY < edge) window.scrollBy(0, -Math.ceil((edge - pointerY) / 6));
+            else if (pointerY > window.innerHeight - edge) window.scrollBy(0, Math.ceil((pointerY - window.innerHeight + edge) / 6));
+            requestAnimationFrame(autoScroll);
+        };
+        requestAnimationFrame(autoScroll);
+
+        const onMove = (ev) => {
+            pointerY = ev.clientY;
+            const over = document.elementFromPoint(ev.clientX, ev.clientY)?.closest('[data-widget]');
+            if (!over || over === el) { lastOver = null; return; }
+            if (over === lastOver || over.parentElement !== grid) return;
+            const box = over.getBoundingClientRect();
+            const wide = box.width > grid.clientWidth * 0.8;
+            const after = wide ? ev.clientY > box.top + box.height / 2 : ev.clientX > box.left + box.width / 2;
+            lastOver = over;
+            flip(() => grid.insertBefore(el, after ? over.nextElementSibling : over));
+        };
+        const onUp = () => {
+            scrolling = false;
+            el.classList.remove('dv-dragging');
+            root.classList.remove('dash-dragging');
+            window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('pointerup', onUp);
+            window.removeEventListener('pointercancel', onUp);
+            if (widgetsIn().map(w => w.dataset.widgetId).join() !== startOrder) save();
+        };
+        // On the window rather than the grip: the pointer leaves the grip at once, and
+        // pointer capture is not honoured everywhere.
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
+        window.addEventListener('pointercancel', onUp);
+    });
+})();
+</script>

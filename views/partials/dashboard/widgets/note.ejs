@@ -1,0 +1,8 @@
+<div class="card-theme h-full rounded-2xl p-5 md:p-6">
+    <% if (options.title) { %>
+        <h3 class="font-bold mb-3"><%= options.title %></h3>
+    <% } %>
+    <% if (data && data.html) { %>
+        <div class="dv-markdown text-sm"><%- data.html %></div>
+    <% } %>
+</div>

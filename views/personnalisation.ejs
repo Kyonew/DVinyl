@@ -289,70 +289,17 @@
                     </div>
                     <%= t('perso.widgets_title') %>
                 </h2>
-                <p class="text-sm opacity-60 mb-4 md:mb-6">
-                    <%= t('perso.widgets_desc') %>
-                </p>
-
-                <div class="md:space-y-6">
-                    <%
-                    // Global widget plus widgets declared by each plugin (statsWidgets)
-                    const statOptions = [
-                        { group: t('perso.modules.global'), active: true, options: [
-                            { id: 'total', label: t('stats.total_label') }
-                        ] }
-                    ];
-                    registry.getAll().forEach(p => {
-                        statOptions.push({
-                            group: t(p.label),
-                            active: !!(settings.modules && settings.modules[p.collectionType]),
-                            options: (p.statsWidgets || []).map(w => ({ id: w.id, label: t(w.label) }))
-                        });
-                    });
-                    %>
-
-                        <div class="max-md:hidden flex gap-2 overflow-x-auto pb-2 scrollbar-hide flex-nowrap">
-                            <% statOptions.forEach((group, idx)=> { %>
-                                <% if (group.active) { %>
-                                    <button type="button" onclick="switchTab('stats', <%= idx %>)"
-                                        id="tab-stats-<%= idx %>"
-                                        class="tab-btn-stats shrink-0 px-5 py-2.5 rounded-xl font-bold text-sm whitespace-nowrap transition-all border-2 border-transparent text-black/50 dark:text-white/50 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10">
-                                        <%= group.group %>
-                                    </button>
-                                    <% } %>
-                                        <% }) %>
-                        </div>
-
-                        <div class="md:mt-4 max-md:space-y-3">
-                            <% statOptions.forEach((group, idx)=> { %>
-                                <% if (group.active) { %>
-                                    <div id="content-stats-<%= idx %>"
-                                        class="tab-content-stats hidden max-md:!block bg-black/5 dark:bg-white/5 rounded-2xl p-3 md:p-5">
-                                        <p class="md:hidden mb-2 text-xs font-bold uppercase tracking-widest opacity-60"><%= group.group %></p>
-                                        <div class="flex flex-wrap gap-2 md:gap-3">
-                                            <% group.options.forEach(opt=> { %>
-                                                <label class="cursor-pointer group relative">
-                                                    <input type="checkbox" name="statsWidgets" value="<%= opt.id %>"
-                                                        <%=(settings.statsWidgets &&
-                                                        settings.statsWidgets.includes(opt.id)) ? 'checked' : '' %>
-                                                    class="sr-only">
-                                                    <div
-                                                        class="flex items-center gap-2 px-3 py-2 md:px-4 md:py-2.5 rounded-xl border-2 border-transparent bg-black/5 dark:bg-white/5 text-black/50 dark:text-white/50 opacity-80 transition-all duration-300 font-bold group-hover:bg-black/10 dark:group-hover:bg-white/10 group-has-[:checked]:bg-primary-theme group-has-[:checked]:border-primary-theme group-has-[:checked]:text-white group-has-[:checked]:opacity-100 group-has-[:checked]:shadow-lg group-has-[:checked]:-translate-y-0.5">
-                                                        <i
-                                                            class="fa-solid fa-plus text-[10px] opacity-40 block group-has-[:checked]:hidden transition-transform"></i>
-                                                        <i
-                                                            class="fa-solid fa-check text-[10px] hidden group-has-[:checked]:block transition-transform"></i>
-                                                        <span class="text-sm">
-                                                            <%= opt.label %>
-                                                        </span>
-                                                    </div>
-                                                </label>
-                                                <% }) %>
-                                        </div>
-                                    </div>
-                                    <% } %>
-                                        <% }) %>
-                        </div>
-                </div>
+                <%# The home page is arranged in place now (views/partials/dashboard/editor). The
+                    stats picked here before still seed the default home page, so they are
+                    carried through untouched rather than wiped by the next save. %>
+                <% (settings.statsWidgets || []).forEach(id => { %>
+                    <input type="hidden" name="statsWidgets" value="<%= id %>">
+                <% }) %>
+                <p class="text-sm opacity-70 mb-4"><%= t('perso.widgets_moved') %></p>
+                <a href="<%= baseUrl %>/dashboard#arrange"
+                    class="inline-flex items-center gap-2 h-11 px-5 rounded-xl bg-primary-theme hover:brightness-110 text-sm font-bold shadow-lg shadow-primary-theme/20 transition active:scale-95">
+                    <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i><%= t('dashboard.arrange') %>
+                </a>
             </div>
 
 
@@ -392,12 +339,6 @@
             if (firstShortcutTab) {
                 const idx = firstShortcutTab.id.split('-').pop();
                 switchTab('shortcuts', idx);
-            }
-
-            const firstStatsTab = document.querySelector('.tab-btn-stats');
-            if (firstStatsTab) {
-                const idx = firstStatsTab.id.split('-').pop();
-                switchTab('stats', idx);
             }
         });
 
