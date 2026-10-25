@@ -384,7 +384,12 @@ connectDB()
       console.log(`[BOOT] Server started on port ${port} (BASE_URL="${BASE_URL || '/'}", env=${process.env.PROD === 'true' ? 'production' : 'development'})`);
     });
   })
-  .catch((err: any) => console.error('[BOOT] DB Error:', err));
+  .catch((err: any) => {
+    // Nothing can be served without the store: stop, so a supervisor (Docker) restarts
+    // the app instead of leaving it up without a server.
+    console.error('[BOOT] DB Error:', err);
+    process.exit(1);
+  });
 
 
 // Socket event

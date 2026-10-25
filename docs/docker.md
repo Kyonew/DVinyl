@@ -2,6 +2,9 @@
 
 The recommended way to run DVinyl is using Docker. You have two options depending on your needs.
 
+DVinyl keeps your whole collection in a single SQLite file, in its `data` folder. There is no
+database server to run next to it.
+
 ## Option 1: Using Pre-built Image (Recommended)
 
 Best for: Most users who just want to run the app. No need to clone the full repository or install Node.js.
@@ -19,24 +22,13 @@ services:
     ports:
       - "3099:3099"
     volumes:
+      - ./data:/app/data
       - ./public/uploads:/app/public/uploads
     env_file:
       - .env
-    depends_on:
-      - mongodb
-
-  mongodb:
-    image: mongo:latest
-    container_name: dvinyl_db
-    restart: unless-stopped
-    volumes:
-      - ./mongo_data:/data/db
-
-volumes:
-  mongo_data:
 ```
 
-If you are struggling with the deploy, you can try this config (thank you @mistic100) :
+If you prefer to keep everything in the compose file, without a `.env` (thank you @mistic100):
 
 ```yaml
 services:
@@ -45,10 +37,7 @@ services:
     pull_policy: missing
     container_name: dvinyl_app
     restart: unless-stopped
-    depends_on:
-      - mongodb
     environment:
-      - MONGODB_URL=mongodb://mongodb:27017/dvinyl
       - VINYL_PORT=80
       - BASE_URL=
       - PROD=false
@@ -58,27 +47,9 @@ services:
     ports:
       - '<external_port>:80'
     volumes:
+      - /mnt/<data_dataset>:/app/data
       - /mnt/<uploads_dataset>:/app/public/uploads
-
-  mongodb:
-    image: mongo:latest
-    pull_policy: missing
-    container_name: dvinyl_db
-    restart: unless-stopped
-    volumes:
-      - /mnt/<mongo_dataset>:/data/db
 ```
-
->
-> **Older / low-power hardware (Raspberry Pi, older NAS/CPUs).** MongoDB 5.0+ requires a CPU
-> with AVX support. If `mongodb` keeps restarting on such hardware, pin an older major instead:
-> ```yaml
-> mongodb:
->   image: mongo:4.4.18
-> ```
-> This only works on a **fresh** database. You cannot point an older MongoDB at data files that
-> a newer version already wrote (that's a downgrade, and it's refused). Thank you @oliverjunker
-> for the tip!
 
 ### 2. Prepare Environment
 
@@ -116,13 +87,46 @@ Best for: Developers or those who want to customize the code.
 docker compose up --build -d
 ```
 
+## 🚚 Upgrading from 3.x to 4.0
+
+Versions before 4.0 kept their data in a MongoDB container. 4.0 moves it into SQLite on its first
+start, by itself: it reads everything from the old database once, ids included, so your links,
+lists and share links keep working. **The old database is only read, never changed.**
+
+1. **Back up.** In 3.x, open the **Instance** admin page (`/admin/instance`) and use
+   **Backup → Export**. Keep that file.
+2. **Keep the old database for the first start.** Add `MONGODB_URL` to your `.env`, pointing at
+   your MongoDB container (`mongodb://mongodb:27017/dvinyl` with the files of this repository),
+   and add a `./data:/app/data` volume to the app. The `docker-compose.yml` of this repository
+   already carries the old `mongodb` service, behind a profile:
+
+   ```bash
+   docker compose --profile upgrade up -d
+   ```
+
+   With a compose file of your own, leave your `mongodb` service in it for now.
+3. **Check the logs**: `docker compose logs dvinyl-app` shows `[IMPORT] Done.` with what was
+   copied. If MongoDB cannot be reached, the app stops with a message saying so instead of starting
+   empty: fix the URL and start again.
+4. **Look around.** Your collection, your accounts and your settings should all be there.
+5. **Retire MongoDB**: `docker compose up -d` (without the profile) leaves it out, or remove the
+   service from your own file. Remove `MONGODB_URL` from `.env` too. Keep `./mongo_data` until you
+   are sure, then delete it.
+
+Prefer a clean start? Run 4.0 without `MONGODB_URL`, create your admin account, and restore the
+backup from step 1 from the **Instance** admin page. Both ways give the same result.
+
+> [!NOTE]
+> The import only runs while the SQLite store is empty. Once it has data, `MONGODB_URL` is ignored.
+
 ## 🔄 Updating
 
 > [!IMPORTANT]
 > **Back up first.** Before any update, export a whole-instance backup from the app, open the
 > **Instance** admin page (`/admin/instance`) and use **Backup → Export** and, if you want a
-> belt-and-braces copy, snapshot your `./mongo_data` folder while the containers are stopped. Updates are designed to be safe and
-> automatic, but a backup is your one-command way back if anything surprises you.
+> belt-and-braces copy, copy your `./data` folder while the container is stopped. Updates are
+> designed to be safe and automatic, but a backup is your one-command way back if anything
+> surprises you.
 
 > [!WARNING]
 > **Upgrading to 3.1.5 or later:** the app now refuses to start when `PASSJWT` or
@@ -157,20 +161,21 @@ docker compose up --build -d
 ### Rolling back
 
 If an update misbehaves, roll the app image back to the previous tag (pin a specific version
-instead of `latest`, e.g. `image: ghcr.io/kyonew/dvinyl:2.6.0`) and restore the instance backup
-you exported above. Because the app image and your data are separate, downgrading the **app** is
-safe; just don't downgrade the **MongoDB** major below the version that last wrote your data.
-
+instead of `latest`, e.g. `image: ghcr.io/kyonew/dvinyl:4.0.0`) and restore the instance backup
+you exported above. Going back to 3.x after the move to SQLite means going back to your MongoDB
+container and its `./mongo_data`, which 4.0 left as they were.
 
 ## 💾 Persistence
 
-By default, the database data is stored in a Docker volume named mongo-data. This ensures your collection is not lost when you stop or update the containers.
+Everything DVinyl stores lives in `./data/dvinyl.sqlite` (with its `-wal` and `-shm` companions
+while the app runs). Keep that folder mounted and backed up. To copy the file by hand, stop the
+container first; while it runs, an instance export from the app is the safe way.
 
 Images uploaded from an item form are stored under `public/uploads/items` (the Compose files mount
 `./public/uploads` persistently). Whole-instance and per-collection ZIP backups include every
 referenced local item image. The historical JSON import format remains supported, but JSON alone
 cannot transport those files to another installation. When a ZIP export encounters an older JPEG
-stored inline in MongoDB as a data URL, it moves that image into the archive's `images/` directory;
+stored inline as a data URL, it moves that image into the archive's `images/` directory;
 restoring the ZIP therefore migrates it to the file-based storage automatically.
 
 ## 🧩 No-code plugins and Docker
@@ -181,9 +186,9 @@ from the database at startup.
 
 In practice, that means:
 
-- **Nothing extra to mount.** As long as your **database** volume is persisted (`./mongo_data`, which
-  it is in every example here), your no-code plugins survive `docker compose pull`, `up --build` and
-  `down`. DVinyl rebuilds their folders on startup.
+- **Nothing extra to mount.** As long as `./data` is persisted (it is in every example here), your
+  no-code plugins survive `docker compose pull`, `up --build` and `down`. DVinyl rebuilds their
+  folders on startup.
 - **They travel with an instance backup.** An instance export includes your no-code plugin
   definitions along with everything else, and restoring brings them back.
 
@@ -195,13 +200,13 @@ If you have made significant changes and need to rebuild the application from a 
 > This procedure will permanently delete all local data. If you have data you wish to keep, export your database before proceeding.
 
 ```bash
-# Stop containers and remove volumes (-v)
-sudo docker compose down -v
+# Stop the container
+sudo docker compose down
 
-# Delete local database files
-sudo rm -rf ./mongo_data
+# Delete the database file
+sudo rm -rf ./data
 
-# Rebuild and restart the services
+# Rebuild and restart
 sudo docker compose up -d
 ```
 

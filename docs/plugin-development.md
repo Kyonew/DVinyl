@@ -56,16 +56,33 @@ heavily commented. Below are the parts you actually need.
 
 ### Fields that are always there
 
-Every item already has these base fields (defined in [`models/Item.ts`](../models/Item.ts)), so you
-do **not** redeclare them in your schema:
+Every item already has these base fields, so you do **not** redeclare them:
 
 `title`, `year`, `cover_image`, `user_image`, `images`, `owner`, `collection`, `in_wishlist`, `comments`,
 `location`, `quantity`, `genre`, `genres`, `styles`, `barcode`, `added_at`.
 
-Your `schemaDefinition` only adds the fields that are specific to your type.
+Your `storedFields` only adds the fields that are specific to your type.
 Names beginning with `custom_` are reserved for the collision-proof identities of fields
 created from the per-collection customization screen. A code plugin must not declare that
-prefix in either `schemaDefinition` or `formFields`; the plugin loader rejects it.
+prefix in either `storedFields` or `formFields`; the plugin loader rejects it.
+
+### Declaring what your items store
+
+`storedFields` describes each extra field without reference to any database (see
+[`core/db/storedFields.ts`](../core/db/storedFields.ts)). DVinyl casts, defaults and checks the
+values with it, whatever stores them.
+
+| Type | Holds | Options |
+|---|---|---|
+| `text` | one text | `values` (allowed values), `default`, `required` |
+| `number` | one number | `min`, `max`, `default`, `required` |
+| `boolean` | true or false | `default` |
+| `date` | one date | `required` |
+| `texts` | a list of texts (tags, genres) | `default` (usually `[]`) |
+| `records` | a list of small records with fields of their own (a tracklist) | `fields` |
+
+Each record of a `records` field gets an id of its own, which is what list entries and personal
+notes attach to. A form posts every value as text: a field declared `number` is stored as a number.
 
 ## Level 1: a minimal plugin
 
@@ -73,13 +90,13 @@ Let us build a manual "Board games" type. Create `plugins/boardgames/index.ts`:
 
 ```ts
 import { PluginDefinition } from '../../core/types';
-import { escapeRegExp } from '../../core/helpers';
-import Item from '../../models/Item';
+import { db } from '../../core/db';
+import { and, ci, eq, idOf, ne } from '../../core/db/query';
 
 export const boardGamesPlugin: PluginDefinition = {
   // Identity
   id: 'boardgames',          // folder name, url and settings key
-  kind: 'BoardGame',         // Mongo discriminator, must be unique
+  kind: 'BoardGame',         // what its items carry as `kind`, must be unique
   label: 'media.boardgames', // i18n key for the display name
   i18nKey: 'boardgame',      // suffix for legacy i18n key families
   icon: 'dice',              // FontAwesome icon name (without the fa- prefix)
@@ -91,14 +108,10 @@ export const boardGamesPlugin: PluginDefinition = {
   creatorField: 'publisher',
 
   // Extra fields stored on top of the base item fields
-  schemaDefinition: {
-    publisher: { type: String, default: '' },
-    players: { type: String, default: '' },
-    format: {
-      type: String,
-      enum: ['boxed', 'expansion', 'promo'],
-      default: 'boxed'
-    }
+  storedFields: {
+    publisher: { type: 'text', default: '' },
+    players: { type: 'text', default: '' },
+    format: { type: 'text', values: ['boxed', 'expansion', 'promo'], default: 'boxed' }
   },
 
   // The format badge values (used by the filters and the card badge)
@@ -149,25 +162,25 @@ export const boardGamesPlugin: PluginDefinition = {
   async findDuplicate(collectionId: any, data: Record<string, any>): Promise<any | null> {
     const title = (data.title || '').trim();
     if (!title) return null;
-    return Item.findOne({
-      collection: collectionId,
-      in_wishlist: false,
-      kind: 'BoardGame',
-      title: { $regex: new RegExp(`^${escapeRegExp(title)}$`, 'i') },
-      format: data.format || 'boxed'
-    });
+    return db.items.findOne(and(
+      eq('collection', idOf(collectionId)),
+      eq('in_wishlist', false),
+      eq('kind', 'BoardGame'),
+      ci('title', title),
+      eq('format', data.format || 'boxed')
+    ), { defaults: true });
   },
 
   // Other copies of the same item (different edition, condition...)
   async getVariants(item: any): Promise<any[]> {
     if (!item) return [];
-    return Item.find({
-      collection: item.collection,
-      in_wishlist: false,
-      kind: 'BoardGame',
-      _id: { $ne: item._id },
-      title: { $regex: new RegExp(`^${escapeRegExp(item.title)}$`, 'i') }
-    }).lean();
+    return db.items.find(and(
+      eq('collection', idOf(item.collection)),
+      eq('in_wishlist', false),
+      eq('kind', 'BoardGame'),
+      ne('_id', idOf(item._id)),
+      ci('title', String(item.title ?? ''))
+    ));
   }
 };
 
@@ -185,8 +198,30 @@ admin panel, enable "Board games" for your collection, and you can start adding 
 
 Everything in the example above except the optional extras is mandatory. In short, a plugin must
 provide: `id`, `kind`, `label`, `i18nKey`, `icon`, `routePrefix`, `collectionType`, `creatorField`,
-`schemaDefinition`, `formats`, `formFields`, `getStats`, `formatForView`, `findDuplicate` and
+`storedFields`, `formats`, `formFields`, `getStats`, `formatForView`, `findDuplicate` and
 `getVariants`. Add `getManualDefaults()` to control the blank form for a new manual item.
+
+### Reading and writing items
+
+A plugin never talks to the database itself: it goes through `db.items`
+([`core/db`](../core/db/index.ts)), with filters built from
+[`core/db/query`](../core/db/query.ts). That is what lets DVinyl change what stores the data
+without breaking your plugin.
+
+- Filters: `eq`, `ne`, `isIn`, `notIn`, `ci` (equal, ignoring case), `contains` (holds the text,
+  ignoring case), `missing`, `exists`, `blank`, `filled`, `range`, `some` (one record of a list
+  matches), combined with `and`, `or`, `not`. A test on a list field applies to its elements.
+- Reads: `find`, `findOne`, `findById`, `count`, `exists`, `distinct`. Pass `{ defaults: true }`
+  to get back the defaults your `storedFields` declare on items stored before a field existed.
+- Writes: `create({ kind, ... })`, `updateOne(filter, { set, unset }, { kind })`. Give your `kind`
+  so the values are cast against your fields.
+
+Ids are 24-character hex strings; use `idOf()` to read one off a record or a reference.
+
+> [!IMPORTANT]
+> **Coming from DVinyl 3.x?** `schemaDefinition` (a Mongoose schema) is replaced by
+> `storedFields`, and queries through `models/Item` or `mongoose` by `db.items`. A plugin still
+> declaring `schemaDefinition` is refused at startup with a message saying so.
 
 ## Level 2: make it feel native
 

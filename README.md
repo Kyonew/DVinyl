@@ -154,7 +154,7 @@ No Docker or NAS? Have a look at the other ways to install and run DVinyl in the
 | Component | Technology |
 | :-------- | :--------- |
 | Backend | Node.js, Express |
-| Database | MongoDB |
+| Database | SQLite (one file, no server) |
 | Frontend | EJS templates |
 | Styling | Tailwind CSS |
 | Localization | i18next |

@@ -20,13 +20,15 @@
   <DateInstalled></DateInstalled>
   <DonateText/>
   <DonateLink/>
-  <Requires>MongoDB database. Install a MongoDB container first and link it via the MONGODB_URL variable. Recommended image: mongo:latest. Note the trade-off: latest can eventually jump a major version, and MongoDB refuses to start on data files a newer version already wrote, so export your database before any major upgrade. MongoDB 5.0+ needs a CPU with AVX support; on older hardware without AVX, use mongo:4.4.18 on a fresh database instead. Never point an older MongoDB at data files a newer version already wrote (downgrades are refused), and upgrade only one major at a time.</Requires>
+  <Requires>Nothing else: DVinyl keeps its whole collection in one SQLite file, in the Data volume. Upgrading from 3.x, which used MongoDB: keep your MongoDB container running for the first start of 4.0 and leave the MongoDB URL setting pointing at it. The data is copied into SQLite once and MongoDB is only read; then clear the setting and remove the MongoDB container.</Requires>
   
   <Config Name="WebUI Port" Target="3099" Default="3099" Mode="tcp" Description="The port DVinyl will be accessible on." Type="Port" Display="always" Required="true" Mask="false">3099</Config>
   
+  <Config Name="Data Volume" Target="/app/data" Default="/mnt/user/appdata/dvinyl/data" Mode="rw" Description="Where DVinyl keeps your collection: one SQLite file. Back this folder up." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/dvinyl/data</Config>
+  
   <Config Name="Uploads Volume" Target="/app/public/uploads" Default="/mnt/user/appdata/dvinyl/uploads" Mode="rw" Description="Directory to store uploaded files like covers." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/dvinyl/uploads</Config>
   
-  <Config Name="MongoDB URL" Target="MONGODB_URL" Default="mongodb://[IP_OF_MONGODB]:27017/dvinyl" Mode="" Description="Connection string for your MongoDB instance. Replace [IP_OF_MONGODB] with your MongoDB container IP or Unraid IP if hosted on the same custom network." Type="Variable" Display="always" Required="true" Mask="false">mongodb://[IP_OF_MONGODB]:27017/dvinyl</Config>
+  <Config Name="MongoDB URL (upgrade from 3.x only)" Target="MONGODB_URL" Default="" Mode="" Description="Only to upgrade from DVinyl 3.x: the MongoDB your data is on, for example mongodb://[IP_OF_MONGODB]:27017/dvinyl. The first start of 4.0 copies everything into SQLite, then this is ignored. Leave empty on a new install." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
   <Config Name="JWT Password" Target="PASSJWT" Default="" Mode="" Description="Secret used to sign session tokens. Required: DVinyl refuses to start while this is empty or left at a published placeholder. Generate one with: openssl rand -hex 32" Type="Variable" Display="always" Required="true" Mask="true"></Config>
   <Config Name="Session Secret" Target="SESSION_SECRET" Default="" Mode="" Description="Secret used to encrypt sessions. Must differ from the JWT password. Required: DVinyl refuses to start while this is empty or left at a published placeholder. Generate one with: openssl rand -hex 32" Type="Variable" Display="always" Required="true" Mask="true"></Config>
   

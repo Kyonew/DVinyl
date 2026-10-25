@@ -2,8 +2,9 @@
  * The storage the core reads and writes through, one store per kind of record. Plain
  * objects, so a test can stand in for one of their functions.
  *
- * Which database is behind them is chosen once, from DB_DRIVER: `sqlite` keeps everything
- * in one file (SQLITE_PATH), anything else uses the MongoDB server MONGODB_URL names.
+ * Everything is kept in one SQLite file (SQLITE_PATH). DB_DRIVER=mongodb runs on the
+ * MongoDB server MONGODB_URL names instead, as versions before 4.0 did; it is what the
+ * import from such an install reads with, and is kept as a way back during the move.
  */
 
 import mongoose, { Types } from 'mongoose';
@@ -14,18 +15,28 @@ import { sqliteRecordStore } from './sqlite/recordStore';
 import { openDatabase, Table } from './sqlite/database';
 import type { RecordStore } from './records';
 
-export const DRIVER: 'sqlite' | 'mongodb' = process.env.DB_DRIVER === 'sqlite' ? 'sqlite' : 'mongodb';
+export const DRIVER: 'sqlite' | 'mongodb' = process.env.DB_DRIVER === 'mongodb' ? 'mongodb' : 'sqlite';
 
 // Required at call time: the models load the plugin registry, which loads this module, so
 // an import made here could still be the empty module of that cycle.
 const model = (file: string): any => require(`../../models/${file}`);
 
+/**
+ * Where each kind of record lives: its model (models/<file>), and the SQLite table that
+ * holds it. Read by the import from an older MongoDB install too (core/db/importFromMongo.ts).
+ */
+export const STORES: { file: string; table: Table }[] = [];
+
 /** A record store kept in `table`, partitioned by `partition` when its records have one. */
 function store(file: string, table: string, partition?: string): RecordStore {
+  const kept = new Table(table, partition);
+  STORES.push({ file, table: kept });
   return DRIVER === 'sqlite'
-    ? sqliteRecordStore(new Table(table, partition), () => model(file))
+    ? sqliteRecordStore(kept, () => model(file))
     : mongoRecordStore(() => model(file));
 }
+
+STORES.push({ file: 'Item', table: sqliteItems.table });
 
 export const db = {
   /** Opens the storage `target` names (a MongoDB URL, or a SQLite file path). */

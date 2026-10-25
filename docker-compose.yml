@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   dvinyl-app:
     build: .
@@ -8,19 +6,20 @@ services:
     ports:
       - "3099:3099" # External port : Internal port
     volumes:
+      # The whole collection is one SQLite file in ./data; back this folder up.
+      - ./data:/app/data
       - ./public/uploads:/app/public/uploads
     env_file:
         - .env
-    depends_on:
-      - mongodb
 
-  # Database service
+  # Only to upgrade from DVinyl 3.x, which kept its data in MongoDB: the old database,
+  # read once by the first start of 4.0 (set MONGODB_URL in .env). Start that first boot
+  # with `docker compose --profile upgrade up -d`; once the import is done, plain
+  # `docker compose up -d` leaves this container out for good.
   mongodb:
     image: mongo:latest
+    profiles: ["upgrade"]
     container_name: dvinyl_db
     restart: unless-stopped
     volumes:
-      - ./mongo_data:/data/db 
-
-volumes:
-  mongo_data:
+      - ./mongo_data:/data/db

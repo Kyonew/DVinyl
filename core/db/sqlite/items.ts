@@ -30,7 +30,7 @@ export interface WriteOptions {
 
 type WriteResult = { matched: number; modified: number };
 
-const table = new Table('items', 'collection');
+export const table = new Table('items', 'collection');
 const base = () => Item as any;
 
 // The title an item sorts on follows its title, whatever writes it.

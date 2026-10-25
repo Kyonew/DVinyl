@@ -29,14 +29,14 @@ export interface App {
   stop(): Promise<void>;
 }
 
-/** Copies the working tree (tracked and new files, ignored ones excepted). */
-function copySourceTree(target: string): void {
+/** Copies a working tree (tracked and new files, ignored ones excepted). */
+function copySourceTree(target: string, from: string): void {
   const listing = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], {
-    cwd: REPO_ROOT
+    cwd: from
   }).toString('utf8');
   for (const relative of listing.split('\0')) {
     if (!relative) continue;
-    const source = path.join(REPO_ROOT, relative);
+    const source = path.join(from, relative);
     if (!fs.existsSync(source) || !fs.statSync(source).isFile()) continue;
     const destination = path.join(target, relative);
     fs.mkdirSync(path.dirname(destination), { recursive: true });
@@ -69,11 +69,19 @@ function baseEnv(): Record<string, string> {
   return env;
 }
 
-export async function startApp(backend: Backend, extraEnv: Record<string, string> = {}): Promise<App> {
+/**
+ * `sourceRoot` runs another checkout instead of this one (an older release, to see what
+ * upgrading from it does); it shares this one's node_modules.
+ */
+export async function startApp(
+  backend: Backend,
+  extraEnv: Record<string, string> = {},
+  options: { sourceRoot?: string } = {}
+): Promise<App> {
   await backend.reset();
 
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dvinyl-char-'));
-  copySourceTree(root);
+  copySourceTree(root, options.sourceRoot || REPO_ROOT);
   const port = await freePort();
 
   let output = '';

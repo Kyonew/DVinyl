@@ -1,7 +1,12 @@
 # 🚀 Installation
 
 There are several ways to run DVinyl. Pick the one that fits your setup, they all end up at the same
-app. Whatever you choose, DVinyl always needs a **MongoDB** database to store your collection.
+app. Your whole collection lives in one SQLite file in DVinyl's `data` folder: there is no
+database server to install.
+
+> [!NOTE]
+> Upgrading from 3.x, which used MongoDB? The first start of 4.0 moves your data over by itself.
+> See [Upgrading from 3.x to 4.0](./docker.md#-upgrading-from-3x-to-40).
 
 | Method | Best for | Guide |
 | :----- | :------- | :---- |
@@ -15,8 +20,7 @@ always add them later.
 
 ## 🐳 Docker (recommended)
 
-The fastest and cleanest way to run DVinyl. It brings its own MongoDB, so there is nothing else to
-install.
+The fastest and cleanest way to run DVinyl: one container, nothing else to install.
 
 1. Create a `docker-compose.yml` and a `.env` file.
 2. Run `docker compose up -d`.
@@ -41,23 +45,26 @@ DVinyl can be installed via the community **TwoBytes Store**:
 
 DVinyl ships with an Unraid Community App template.
 
-1. **Install MongoDB first.** DVinyl needs a database. Add a MongoDB container from Community
-   Applications (or use an existing one) and note its IP and port.
-2. **Add DVinyl.** If it is not in Community Applications yet, add it from its template URL:
+1. **Add DVinyl.** If it is not in Community Applications yet, add it from its template URL:
    ```
    https://raw.githubusercontent.com/Kyonew/DVinyl/main/unraid-template/dvinyl.xml
    ```
-3. **Fill in the required settings:**
-   - `MONGODB_URL`: point it to your MongoDB container, for example
-     `mongodb://<mongodb-ip>:27017/dvinyl`.
+2. **Fill in the required settings:**
    - `PASSJWT` and `SESSION_SECRET`: two different random secrets, both required. Generate
      each with `openssl rand -hex 32`. The container will not start while one is empty or
      left at the placeholder the template used to ship.
+   - **Data volume**: map it to a persistent path, for example `/mnt/user/appdata/dvinyl/data`.
+     Your collection is the SQLite file inside it.
    - **Uploads volume**: map it to a persistent path, for example
      `/mnt/user/appdata/dvinyl/uploads`.
-4. **Add API keys** (optional, in the advanced settings) for the media types you want, see
+3. **Add API keys** (optional, in the advanced settings) for the media types you want, see
    [API keys](./api-keys.md).
-5. Start the container and open `http://<server-ip>:3099`.
+4. Start the container and open `http://<server-ip>:3099`.
+
+> [!NOTE]
+> **Upgrading from 3.x?** Keep your MongoDB container running for the first start of 4.0 and set
+> the `MONGODB_URL` setting to it, as before: DVinyl copies everything into SQLite once. Then
+> clear the setting and remove the MongoDB container.
 
 ## 🛠️ Manual (Node.js)
 
@@ -65,9 +72,9 @@ Best if you want to run from source or customize the code.
 
 ### Prerequisites
 
-- **Node.js** 18 or higher
-- **npm**
-- A running **MongoDB** 6 or higher
+- **Node.js** 22 or higher
+- **npm**, and on platforms without prebuilt SQLite binaries, the usual build tools
+  (Python 3, make and a C++ compiler)
 
 ### Steps
 
@@ -105,7 +112,8 @@ These are the core variables. See [API keys](./api-keys.md) for the metadata ser
 
 | Variable | Description |
 | :------- | :---------- |
-| `MONGODB_URL` | MongoDB connection string |
+| `SQLITE_PATH` | Where the SQLite file lives (default `data/dvinyl.sqlite`) |
+| `MONGODB_URL` | Only to upgrade from 3.x: the MongoDB to import from on the first start |
 | `VINYL_PORT` | Port DVinyl listens on (default `3099`) |
 | `PASSJWT` | Secret used to sign session tokens |
 | `SESSION_SECRET` | Secret used to encrypt sessions |

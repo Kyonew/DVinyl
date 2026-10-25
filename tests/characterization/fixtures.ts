@@ -168,3 +168,34 @@ export function normalizeDump(dump: InstanceDump): any {
   }
   return normalized;
 }
+
+/** An instance with something in every table a backup carries. */
+export async function seedEverything(app: App): Promise<Client> {
+  const admin = await setupAdmin(app);
+  await enableModules(admin, ['music', 'books']);
+  await addMusic(admin, {
+    title: 'The Wall', artist: 'Pink Floyd', year: '1979', genres: 'Rock', styles: 'Prog Rock',
+    discogs_id: '1', location: 'Shelf A', barcode: '5099902894225', comments: 'Gatefold',
+    tracklist_json: JSON.stringify([{ position: 'A1', title: 'In the Flesh?', duration: '3:16' }])
+  });
+  await addMusic(admin, { title: 'Abbey Road', artist: 'The Beatles', media_type: 'cd', genres: 'Rock' });
+  await addMusic(admin, { title: 'Blue Train', artist: 'John Coltrane', in_wishlist: 'true' });
+  const book = await saveItem(admin, 'books', { title: 'Dune', author: 'Frank Herbert', isbn: '9780441172719', format: 'paperback' });
+  assert.equal(book.status, 302);
+
+  let dump = await exportInstance(admin);
+  const wall = itemByTitle(dump, 'The Wall');
+  const list = (await admin.postJson('/lists', { name: 'Favourites' })).json().list;
+  await admin.postJson(`/api/lists/${list.id}/add`, { items: [String(wall._id), String(itemByTitle(dump, 'Dune')._id)] });
+  const mix = (await admin.postJson('/lists', { name: 'Mix', kind: 'tracks' })).json().list;
+  await admin.postJson(`/api/lists/${mix.id}/add`, { item: String(wall._id), track: String(wall.tracklist[0]._id) });
+
+  await admin.postForm('/admin/share/create', { label: 'Public' });
+  await admin.postForm('/admin/visibility/save', { hiddenGenres: 'Jazz' });
+  await admin.postForm('/admin/collections/create', { name: 'Comics' });
+  dump = await exportInstance(admin);
+  await admin.postForm('/collection/switch', { collectionId: String(dump.collections.find(c => c.name === 'Comics')._id) });
+  await addMusic(admin, { title: 'Other Shelf', artist: 'Someone' });
+  await admin.postForm('/collection/switch', { collectionId: String(dump.collections.find(c => c.name === 'Vinyl')._id) });
+  return admin;
+}

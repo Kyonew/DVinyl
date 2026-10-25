@@ -26,7 +26,8 @@ PR straight away.
 
 ## Local setup
 
-DVinyl runs on Node.js and MongoDB. Clone the repo first:
+DVinyl runs on Node.js (22 or higher) and keeps its data in one SQLite file, so there is no
+database server to install. Clone the repo first:
 
 ```bash
 git clone https://github.com/Kyonew/DVinyl.git
@@ -65,6 +66,18 @@ docker compose up -d
 
 The [Getting started](../docs/getting-started.md) and [Docker](../docs/docker.md) guides have the
 full details.
+
+## Running the tests
+
+```bash
+npm test                               # unit tests, nothing to set up
+npm run test:characterization          # the whole app driven over HTTP, on SQLite
+```
+
+The characterization suite boots real DVinyl processes from a private copy of the tree and
+checks what they store and serve, so it is what tells a refactor kept the behaviour. The
+integration tests and the MongoDB run of that suite (used to check the import of 3.x data)
+need a throwaway MongoDB server; see the header of `tests/characterization/backend.ts`.
 
 ## Making changes
 

@@ -204,6 +204,21 @@ export class Table {
     return removed;
   }
 
+  /** Whether the file holds no row of this table. */
+  isEmpty(): boolean {
+    return !this.db().prepare(`SELECT 1 FROM "${this.name}" LIMIT 1`).get();
+  }
+
+  /**
+   * Writes rows straight to the file, for a bulk load run inside writeAtOnce(). Memory is
+   * dropped and read again from the file on the next lookup.
+   */
+  load(docs: any[]): void {
+    const statement = this.db().prepare(`INSERT INTO "${this.name}" (id, part, doc) VALUES (?, ?, ?)`);
+    for (const doc of docs) statement.run(idText(doc._id), this.partOf(doc), encode(doc));
+    this.rows = null;
+  }
+
   /** Runs `work` as one transaction: all of its writes land, in the file and in memory, or none. */
   transaction<T>(work: () => T): T {
     if (this.undo) return work();
@@ -220,6 +235,11 @@ export class Table {
       throw err;
     }
   }
+}
+
+/** Runs `work` as one transaction over the whole file: every table it writes, or none. */
+export function writeAtOnce(work: () => void): void {
+  handle().transaction(work)();
 }
 
 /**
