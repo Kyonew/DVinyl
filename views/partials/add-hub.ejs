@@ -30,6 +30,10 @@
     const addHubCanManual = p => typeof p.getManualDefaults === 'function';
     const addHubCanPhoto = p => Boolean(locals.aiPhotoSearch) && hasSearch(p);
     const addHubRow = 'flex items-center gap-4 w-full text-left px-4 min-h-[60px] hover:bg-black/5 dark:hover:bg-white/5 transition-colors';
+
+    // Past two rows of three, the tiles tighten to four a row so the whole picker, and on
+    // a phone the ways to add below it, still fit on one screen.
+    const addHubDense = addHubPlugins.length > 6;
 %>
 <% if (locals.canEditCollection && addHubPlugins.length > 0) { %>
 <div id="addHubModal" data-hub-context="<%= addHubContext ? addHubContext.id : '' %>"
@@ -55,11 +59,11 @@
         <%# A grid of tiles rather than a sideways row: a long module name ("Movies / TV
             Shows") wraps inside its tile instead of running off the edge of the sheet. %>
         <div role="radiogroup" aria-label="<%= t('modal.add_hub_subtitle') %>"
-            class="grid <%= addHubPlugins.length === 2 ? 'grid-cols-2' : 'grid-cols-3' %> gap-2 mb-5">
+            class="grid <%= addHubPlugins.length === 2 ? 'grid-cols-2' : addHubDense ? 'grid-cols-4' : 'grid-cols-3' %> gap-2 mb-5">
             <% addHubPlugins.forEach(p => { %>
             <button type="button" role="radio" aria-checked="false"
                 data-hub-type="<%= p.id %>" data-hub-scan="<%= hasBarcodeScan(p) ? '1' : '' %>"
-                class="flex flex-col items-center justify-center gap-1.5 min-h-[64px] px-1.5 py-2.5 rounded-2xl text-xs font-bold leading-tight text-center bg-black/5 dark:bg-white/10 transition-colors">
+                class="flex flex-col items-center justify-center gap-1.5 <%= addHubDense ? 'min-h-[56px] px-1 py-2 rounded-xl text-[11px]' : 'min-h-[64px] px-1.5 py-2.5 rounded-2xl text-xs' %> font-bold leading-tight text-center break-words bg-black/5 dark:bg-white/10 transition-colors">
                 <i class="fa-solid fa-<%= p.icon %> text-base" aria-hidden="true"></i>
                 <span><%= t(p.label) %></span>
             </button>
@@ -128,29 +132,31 @@
     <%
         const addHubDesktopCount = addHubPlugins.length;
         let addHubDesktopCols = (addHubDesktopCount >= 3) ? 'grid-cols-3' : (addHubDesktopCount === 2) ? 'grid-cols-2' : 'grid-cols-1';
-        if (addHubDesktopCount === 4) addHubDesktopCols = 'grid-cols-2 lg:grid-cols-4';
-        const addHubDesktopWidth = (addHubDesktopCount === 1) ? 'max-w-md' : (addHubDesktopCount === 2) ? 'max-w-xl' : (addHubDesktopCount === 4) ? 'max-w-4xl' : 'max-w-3xl';
+        if (addHubDesktopCount === 4 || addHubDense) addHubDesktopCols = 'grid-cols-3 lg:grid-cols-4';
+        const addHubDesktopWidth = (addHubDesktopCount === 1) ? 'max-w-md' : (addHubDesktopCount === 2) ? 'max-w-xl' : (addHubDesktopCount === 4 || addHubDense) ? 'max-w-4xl' : 'max-w-3xl';
         const addHubPlainHref = p => baseUrl + '/' + (hasSearch(p) ? ('add-' + p.id) : ('manual-add?type=' + p.id));
     %>
+    <%# Never taller than the window: the title stays put and the tiles scroll under it,
+        however many modules the collection has. %>
     <div role="dialog" aria-modal="true" aria-labelledby="addHubTitleDesktop"
-        class="hidden md:block card-theme w-full <%= addHubDesktopWidth %> rounded-[2.5rem] p-10 shadow-2xl relative dv-pop">
+        class="hidden md:flex flex-col max-h-full card-theme w-full <%= addHubDesktopWidth %> rounded-[2.5rem] <%= addHubDense ? 'p-8' : 'p-10' %> shadow-2xl relative dv-pop">
 
         <button type="button" onclick="closeAddModal()" aria-label="<%= t('nav.close') %>" class="absolute top-6 right-6 opacity-40 hover:opacity-100 transition-opacity">
             <i class="fa-solid fa-xmark text-2xl" aria-hidden="true"></i>
         </button>
 
-        <div class="text-center mb-12">
+        <div class="text-center <%= addHubDense ? 'mb-8' : 'mb-12' %> flex-none">
             <h2 id="addHubTitleDesktop" class="text-3xl font-black tracking-tight"><%= t('modal.add_hub_title') %></h2>
             <p class="opacity-50 text-sm mt-1"><%= t('modal.add_hub_subtitle') %></p>
         </div>
 
-        <div class="grid <%= addHubDesktopCols %> gap-6">
+        <div class="grid <%= addHubDesktopCols %> <%= addHubDense ? 'gap-4' : 'gap-6' %> min-h-0 overflow-y-auto -m-2 p-2">
             <% addHubPlugins.forEach(p => { %>
                 <a href="<%= addHubPlainHref(p) %>" data-hub-item data-plain-href="<%= addHubPlainHref(p) %>"
                     data-scan-href="<%= hasBarcodeScan(p) ? (baseUrl + '/add-' + p.id + '?scan=1') : '' %>"
-                    class="group flex flex-col items-center justify-center p-8 rounded-[2rem] bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white transition-all duration-300">
-                    <div class="w-20 h-20 rounded-full bg-primary-theme/10 group-hover:bg-white/20 flex items-center justify-center mb-4">
-                        <i class="fa-solid fa-<%= p.icon %> text-4xl" aria-hidden="true"></i>
+                    class="group flex flex-col items-center justify-center <%= addHubDense ? 'p-5 rounded-[1.5rem]' : 'p-8 rounded-[2rem]' %> bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white transition-all duration-300">
+                    <div class="<%= addHubDense ? 'w-14 h-14 mb-3' : 'w-20 h-20 mb-4' %> rounded-full bg-primary-theme/10 group-hover:bg-white/20 flex items-center justify-center">
+                        <i class="fa-solid fa-<%= p.icon %> <%= addHubDense ? 'text-2xl' : 'text-4xl' %>" aria-hidden="true"></i>
                     </div>
                     <span class="font-black text-xs uppercase tracking-widest text-center"><%= t(p.label) %></span>
                 </a>
@@ -244,6 +250,9 @@
     document.querySelectorAll('[data-hub-type]').forEach(function (pill) {
         pill.addEventListener('click', function () {
             hubSelect(pill.dataset.hubType);
+            // With many modules the ways to add can sit below the fold of the sheet.
+            const panel = document.querySelector('[data-hub-panel="' + pill.dataset.hubType + '"]');
+            if (panel) panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
             try { localStorage.setItem(addHubLastKey, pill.dataset.hubType); } catch (e) { /* private mode */ }
         });
     });

@@ -17,7 +17,7 @@ export const digimonPlugin: PluginDefinition = {
   creatorField: 'set_name',
   creatorSearchFields: ['set_name'],
   summaryField: { label: 'confirm_digimon.set_name_label', field: 'set_name' },
-  icon: 'dragon',
+  icon: 'egg',
   routePrefix: '/digimon-card',
   collectionType: 'digimon',
   aspectRatioClass: 'aspect-[5/7]',
@@ -42,7 +42,7 @@ export const digimonPlugin: PluginDefinition = {
   },
 
   fastAddOptions: [
-    { value: 'digimon', label: 'media.digimon', icon: 'fa-dragon', color: 'peer-checked:bg-orange-600', url: '/add-digimon' }
+    { value: 'digimon', label: 'media.digimon', icon: 'fa-egg', color: 'peer-checked:bg-orange-600', url: '/add-digimon' }
   ],
 
   navbarShortcuts: [
@@ -50,7 +50,7 @@ export const digimonPlugin: PluginDefinition = {
   ],
 
   statsWidgets: [
-    { id: 'digimon_total', label: 'stats.digimon_total_label', icon: 'fa-dragon', color: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-600', kind: 'count' },
+    { id: 'digimon_total', label: 'stats.digimon_total_label', icon: 'fa-egg', color: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-600', kind: 'count' },
     { id: 'digimon_set', label: 'stats.top_set_label', icon: 'fa-layer-group', color: 'bg-sky-100 dark:bg-sky-500/20', kind: 'top' },
     { id: 'digimon_color', label: 'stats.top_color_label', icon: 'fa-palette', color: 'bg-purple-100 dark:bg-purple-500/20', kind: 'top' }
   ],
