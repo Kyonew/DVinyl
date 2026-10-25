@@ -1,0 +1,256 @@
+<%#
+    The "Layout" panel of the Personnalisation page (core/layout.ts). Its fields are named
+    layout_<key> and read back by layoutFromForm() in the save route.
+
+    The appearance choices (density, corners, scale, width, font) preview live on the page
+    itself, through the same CSS variables the shell sets; the navigation is drawn by the
+    shell, so it changes once saved.
+%>
+<%
+    const current = resolveLayout(settings);
+    const opts = LAYOUT_OPTIONS;
+    const pillClass = 'flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-black/5 dark:border-white/5 bg-black/5 dark:bg-white/5 text-sm font-semibold text-center transition-all opacity-70 hover:opacity-100 peer-checked:opacity-100 peer-checked:bg-primary-theme peer-checked:text-white peer-checked:shadow-md peer-focus-visible:ring-2 peer-focus-visible:ring-primary-theme/50';
+    const fieldLabel = 'block text-xs font-bold uppercase tracking-widest opacity-60 mb-2.5';
+    const toggleTrack = "w-11 h-6 bg-black/10 dark:bg-white/10 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-theme";
+%>
+
+<%# The vendored fonts, so each font tile is drawn in its own face and the live preview has them. %>
+<link rel="stylesheet" href="<%= baseUrl %>/vendor/fonts/plus-jakarta-sans.css">
+<link rel="stylesheet" href="<%= baseUrl %>/vendor/fonts/poppins.css">
+
+<div data-layout-settings class="space-y-8">
+    <section>
+        <span class="<%= fieldLabel %>"><%= t('layout.nav_label') %></span>
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <% opts.nav.forEach(pos => { %>
+                <label class="cursor-pointer">
+                    <input type="radio" name="layout_nav" value="<%= pos %>" class="peer sr-only" <%= current.nav === pos ? 'checked' : '' %>>
+                    <div class="h-full p-2.5 rounded-2xl border-2 border-transparent bg-black/5 dark:bg-white/5 transition-all hover:bg-black/10 dark:hover:bg-white/10 peer-checked:border-primary-theme peer-checked:bg-primary-theme/10 peer-focus-visible:ring-2 peer-focus-visible:ring-primary-theme/50">
+                        <%# A thumbnail of the screen: the navigation in the theme's own colours,
+                            the content as a few blocks. %>
+                        <div class="relative aspect-[16/10] rounded-lg overflow-hidden border border-[var(--border-color)]" style="background-color: var(--bg-page);" aria-hidden="true">
+                            <%
+                                const nav = { top: 'top-0 inset-x-0 h-[17%]', left: 'left-0 inset-y-0 w-[22%]', right: 'right-0 inset-y-0 w-[22%]', bottom: 'bottom-[7%] left-1/2 -translate-x-1/2 w-[52%] h-[15%] rounded-full' }[pos];
+                                const body = { top: 'top-[26%] inset-x-[8%] bottom-[8%]', left: 'top-[10%] left-[30%] right-[7%] bottom-[10%]', right: 'top-[10%] left-[7%] right-[30%] bottom-[10%]', bottom: 'top-[10%] inset-x-[8%] bottom-[30%]' }[pos];
+                                const isSide = pos === 'left' || pos === 'right';
+                            %>
+                            <span class="absolute <%= nav %> flex <%= isSide ? 'flex-col items-center pt-[14%] gap-[9%]' : 'items-center justify-center gap-[7%]' %>" style="background-color: var(--bg-nav);">
+                                <% for (let i = 0; i < 4; i++) { %>
+                                    <span class="block <%= isSide ? 'w-[45%] h-[5%]' : 'w-[9%] h-[30%]' %> rounded-full <%= i === 0 ? 'bg-primary-theme' : 'bg-white/30' %>"></span>
+                                <% } %>
+                            </span>
+                            <span class="absolute <%= body %> grid grid-cols-3 gap-[6%]">
+                                <% for (let i = 0; i < 6; i++) { %>
+                                    <span class="block rounded-md" style="background-color: var(--bg-card);"></span>
+                                <% } %>
+                            </span>
+                        </div>
+                        <span class="block mt-2 text-sm font-bold text-center"><%= t('layout.nav_' + pos) %></span>
+                    </div>
+                </label>
+            <% }) %>
+        </div>
+        <p class="mt-2.5 text-xs opacity-50"><i class="fa-solid fa-mobile-screen mr-1" aria-hidden="true"></i><%= t('layout.nav_hint') %></p>
+
+        <%# Each position's own options, shown for the position picked above. %>
+        <div class="mt-4 space-y-3">
+            <div data-layout-for="top" class="grid md:grid-cols-2 gap-3">
+                <div>
+                    <span class="<%= fieldLabel %>"><%= t('layout.top_style') %></span>
+                    <div class="grid grid-cols-2 gap-2">
+                        <% opts.topStyle.forEach(v => { %>
+                            <label class="cursor-pointer">
+                                <input type="radio" name="layout_topStyle" value="<%= v %>" class="peer sr-only" <%= current.topStyle === v ? 'checked' : '' %>>
+                                <div class="<%= pillClass %>"><%= t('layout.top_' + v) %></div>
+                            </label>
+                        <% }) %>
+                    </div>
+                </div>
+                <label class="flex items-center justify-between gap-4 p-4 rounded-2xl bg-black/5 dark:bg-white/5 cursor-pointer self-end">
+                    <span>
+                        <span class="block text-sm font-bold opacity-80"><%= t('layout.sticky') %></span>
+                        <span class="block text-xs opacity-50 mt-0.5"><%= t('layout.sticky_desc') %></span>
+                    </span>
+                    <span class="relative inline-flex items-center shrink-0">
+                        <input type="checkbox" name="layout_sticky" class="sr-only peer" <%= current.sticky ? 'checked' : '' %>>
+                        <span class="<%= toggleTrack %>"></span>
+                    </span>
+                </label>
+            </div>
+
+            <div data-layout-for="left right">
+                <span class="<%= fieldLabel %>"><%= t('layout.sidebar_style') %></span>
+                <div class="grid grid-cols-2 gap-2 md:max-w-md">
+                    <% opts.sidebar.forEach(v => { %>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="layout_sidebar" value="<%= v %>" class="peer sr-only" <%= current.sidebar === v ? 'checked' : '' %>>
+                            <div class="<%= pillClass %>">
+                                <i class="fa-solid <%= v === 'rail' ? 'fa-grip-lines-vertical' : 'fa-bars-staggered' %>" aria-hidden="true"></i>
+                                <%= t('layout.sidebar_' + v) %>
+                            </div>
+                        </label>
+                    <% }) %>
+                </div>
+                <p class="mt-2 text-xs opacity-50"><%= t('layout.sidebar_desc') %></p>
+            </div>
+
+            <label data-layout-for="bottom" class="flex items-center justify-between gap-4 p-4 rounded-2xl bg-black/5 dark:bg-white/5 cursor-pointer md:max-w-md">
+                <span>
+                    <span class="block text-sm font-bold opacity-80"><%= t('layout.dock_labels') %></span>
+                    <span class="block text-xs opacity-50 mt-0.5"><%= t('layout.dock_labels_desc') %></span>
+                </span>
+                <span class="relative inline-flex items-center shrink-0">
+                    <input type="checkbox" name="layout_dockLabels" class="sr-only peer" <%= current.dockLabels ? 'checked' : '' %>>
+                    <span class="<%= toggleTrack %>"></span>
+                </span>
+            </label>
+        </div>
+    </section>
+
+    <section class="grid md:grid-cols-2 gap-x-8 gap-y-6">
+        <div>
+            <span class="<%= fieldLabel %>"><%= t('layout.density') %></span>
+            <div class="grid grid-cols-3 gap-2">
+                <% opts.density.forEach(v => { %>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="layout_density" value="<%= v %>" class="peer sr-only" <%= current.density === v ? 'checked' : '' %>>
+                        <div class="<%= pillClass %> flex-col">
+                            <span class="flex flex-col w-6" style="gap: <%= 3 * opts.densityFactor[v] %>px" aria-hidden="true">
+                                <% for (let i = 0; i < 3; i++) { %><span class="block h-[3px] rounded-full bg-current opacity-70"></span><% } %>
+                            </span>
+                            <%= t('layout.density_' + v) %>
+                        </div>
+                    </label>
+                <% }) %>
+            </div>
+        </div>
+
+        <div>
+            <span class="<%= fieldLabel %>"><%= t('layout.radius') %></span>
+            <div class="grid grid-cols-4 gap-2">
+                <% opts.radius.forEach(v => { %>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="layout_radius" value="<%= v %>" class="peer sr-only" <%= current.radius === v ? 'checked' : '' %>>
+                        <div class="<%= pillClass %> flex-col">
+                            <%# Drawn with a fixed radius, not the scale, so each one keeps
+                                showing its own corner while the page previews another. %>
+                            <span class="block w-6 h-6 border-2 border-current border-b-0 border-r-0 opacity-70" style="border-top-left-radius: <%= 12 * opts.radiusFactor[v] %>px" aria-hidden="true"></span>
+                            <span class="text-xs"><%= t('layout.radius_' + v) %></span>
+                        </div>
+                    </label>
+                <% }) %>
+            </div>
+        </div>
+
+        <div>
+            <span class="<%= fieldLabel %>"><%= t('layout.scale') %></span>
+            <div class="grid grid-cols-3 gap-2">
+                <% opts.scale.forEach((v, i) => { %>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="layout_scale" value="<%= v %>" class="peer sr-only" <%= current.scale === v ? 'checked' : '' %>>
+                        <div class="<%= pillClass %>">
+                            <span class="font-black leading-none" style="font-size: <%= [13, 16, 19][i] %>px" aria-hidden="true">A</span>
+                            <%= t('layout.scale_' + v) %>
+                        </div>
+                    </label>
+                <% }) %>
+            </div>
+        </div>
+
+        <div>
+            <span class="<%= fieldLabel %>"><%= t('layout.width') %></span>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <% opts.width.forEach((v, i) => { %>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="layout_width" value="<%= v %>" class="peer sr-only" <%= current.width === v ? 'checked' : '' %>>
+                        <div class="<%= pillClass %> flex-col">
+                            <span class="flex justify-center w-8 h-4 rounded-sm border border-current opacity-70" aria-hidden="true">
+                                <span class="block h-full bg-current opacity-60" style="width: <%= [40, 60, 80, 100][i] %>%"></span>
+                            </span>
+                            <span class="text-xs"><%= t('layout.width_' + v) %></span>
+                        </div>
+                    </label>
+                <% }) %>
+            </div>
+        </div>
+
+        <div class="md:col-span-2">
+            <span class="<%= fieldLabel %>"><%= t('layout.font') %></span>
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+                <% opts.font.forEach(v => { %>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="layout_font" value="<%= v %>" class="peer sr-only" <%= current.font === v ? 'checked' : '' %>>
+                        <div class="<%= pillClass %> flex-col" style="font-family: <%= opts.fontStacks[v] %>">
+                            <span class="text-xl font-bold leading-none" aria-hidden="true">Aa</span>
+                            <span class="text-xs"><%= t('layout.font_' + v) %></span>
+                        </div>
+                    </label>
+                <% }) %>
+            </div>
+        </div>
+    </section>
+
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+        <p class="text-xs opacity-50"><i class="fa-solid fa-eye mr-1" aria-hidden="true"></i><%= t('layout.live_hint') %></p>
+        <button type="button" data-layout-reset
+            class="self-start sm:self-auto shrink-0 px-4 py-2 rounded-xl text-sm font-bold bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition">
+            <i class="fa-solid fa-rotate-left mr-1.5" aria-hidden="true"></i><%= t('layout.reset') %>
+        </button>
+    </div>
+</div>
+
+<script>
+    (() => {
+        const root = document.currentScript.previousElementSibling;
+        const form = root.closest('form');
+        const opts = <%- JSON.stringify({
+            densityFactor: opts.densityFactor,
+            radiusFactor: opts.radiusFactor,
+            scalePercent: opts.scalePercent,
+            contentMax: opts.contentMax,
+            fontStacks: opts.fontStacks
+        }) %>;
+        const defaults = <%- JSON.stringify(opts.defaults) %>;
+        const value = (name) => form.querySelector(`[name="layout_${name}"]:checked`)?.value;
+
+        // The page previews the appearance through the shell's own variables.
+        const preview = () => {
+            const style = document.documentElement.style;
+            const density = value('density'), radius = value('radius'), scale = value('scale');
+            const width = value('width'), font = value('font');
+            if (density) style.setProperty('--dv-space', String(opts.densityFactor[density]));
+            if (radius) style.setProperty('--dv-radius', String(opts.radiusFactor[radius]));
+            if (width) style.setProperty('--dv-content-max', opts.contentMax[width]);
+            if (font) style.setProperty('--dv-font', opts.fontStacks[font]);
+            if (scale) style.fontSize = opts.scalePercent[scale];
+        };
+
+        // Only the options of the navigation picked above are shown.
+        const syncNavOptions = () => {
+            const nav = value('nav');
+            root.querySelectorAll('[data-layout-for]').forEach(el => {
+                el.classList.toggle('hidden', !el.dataset.layoutFor.split(' ').includes(nav));
+            });
+        };
+
+        root.addEventListener('change', (event) => {
+            if (!event.target.name || !event.target.name.startsWith('layout_')) return;
+            syncNavOptions();
+            preview();
+        });
+
+        root.querySelector('[data-layout-reset]').addEventListener('click', () => {
+            Object.entries(defaults).forEach(([key, val]) => {
+                const inputs = form.querySelectorAll(`[name="layout_${key}"]`);
+                inputs.forEach(input => {
+                    if (input.type === 'checkbox') input.checked = val === true;
+                    else input.checked = input.value === String(val);
+                });
+            });
+            syncNavOptions();
+            preview();
+        });
+
+        syncNavOptions();
+    })();
+</script>

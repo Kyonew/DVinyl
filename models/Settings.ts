@@ -61,6 +61,12 @@ const settingsSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.Mixed,
         default: () => ({})
     },
+    // Shell layout of the collection (navigation position, density, radius...), see
+    // core/layout.ts. Always read through resolveLayout(), which drops unknown values.
+    layout: {
+        type: mongoose.Schema.Types.Mixed,
+        default: () => ({})
+    },
     fastAdd: { type: String, default: '' },
     // Scan mode. A search whose query names one exact item (a source's `exactQuery`,
     // i.e. an ISBN today) and returns a single hit is saved without the confirm page being

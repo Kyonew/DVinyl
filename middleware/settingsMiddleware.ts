@@ -3,6 +3,7 @@ import { eq, idOf } from '../core/db/query';
 import themesConfig from '../config/themes';
 import { BASE_URL } from '../config/constants';
 import { registry } from '../core/registry';
+import { resolveLayout } from '../core/layout';
 
 async function settingsMiddleware(req: any, res: any, next: any) {
     try {
@@ -44,6 +45,7 @@ async function settingsMiddleware(req: any, res: any, next: any) {
         settings.statsWidgets = settings.statsWidgets || registry.getDefaultStatsWidgets();
 
         res.locals.settings = settings;
+        res.locals.layout = resolveLayout(settings, req.cookies);
 
         res.locals.currentLng = res.locals.user?.language || req.language || 'fr';
         res.locals.isDark = res.locals.user ? (res.locals.user.theme === 'dark') : true;
@@ -115,6 +117,7 @@ async function settingsMiddleware(req: any, res: any, next: any) {
             statsWidgets: registry.getDefaultStatsWidgets(),
             pluginSettings: registry.getDefaultPluginSettings()
         };
+        res.locals.layout = resolveLayout(null);
         next();
     }
 }

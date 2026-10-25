@@ -1,0 +1,57 @@
+<%
+  /**
+   * Bottom dock for large screens: one floating row of icons, centred above the bottom
+   * edge. Each shortcut shows its label as a tooltip, or as a caption under it when the
+   * layout turns dockLabels on. header.ejs passes shellNav, showBackButton and shellCanAdd.
+   */
+  const dockLabels = shellNav.dockLabels;
+  const divider = '<span class="self-center w-px h-8 mx-1 bg-black/10 dark:bg-white/15" aria-hidden="true"></span>';
+%>
+<nav id="dvDock" aria-label="<%= t('nav.main_navigation') %>"
+  class="max-md:hidden fixed bottom-4 inset-x-0 z-40 flex justify-center px-4 pointer-events-none">
+  <div class="pointer-events-auto flex items-start gap-1.5 px-3 pt-2.5 <%= dockLabels ? 'pb-2' : 'pb-2.5' %> rounded-[1.75rem] border border-[var(--border-color)] shadow-2xl text-[var(--text-main)]"
+    style="background-color: var(--bg-nav);">
+    <% if (showBackButton) { %>
+    <button type="button" data-standalone-back aria-label="<%= t('nav.back') %>" class="hidden dv-dock-item focus:outline-none">
+      <span class="dv-dock-icon rounded-2xl bg-black/5 dark:bg-white/10"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></span>
+    </button>
+    <% } %>
+    <%- include('brand', { brandIn: 'dock', dockLabels }) %>
+    <%- divider %>
+    <%- include('nav-shortcuts', { shortcutsVariant: 'dock', dockLabels }) %>
+
+    <% if (locals.user) { %>
+      <%- divider %>
+      <a href="<%= baseUrl %>/search" aria-label="<%= t('nav.search') %>" <%- locals.currentPath === '/search' ? 'aria-current="page"' : '' %> class="dv-dock-item focus:outline-none">
+        <span class="dv-dock-icon rounded-2xl bg-black/5 dark:bg-white/10"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></span>
+        <% if (dockLabels) { %>
+          <span class="dv-dock-caption text-[10px] font-bold max-w-[4.5rem] truncate opacity-75"><%= t('nav.search') %></span>
+        <% } else { %>
+          <span class="dv-dock-tip card-theme text-xs font-bold px-2.5 py-1 rounded-lg shadow-lg"><%= t('nav.search') %></span>
+        <% } %>
+      </a>
+      <% if (shellCanAdd) { %>
+      <button type="button" onclick="openAddModal()" aria-label="<%= t('nav.add') %>" class="dv-dock-item focus:outline-none">
+        <span class="dv-dock-icon rounded-full bg-primary-theme shadow-lg shadow-primary-theme/30"><i data-add-hub-icon class="fa-solid fa-plus text-lg" aria-hidden="true"></i></span>
+        <% if (dockLabels) { %>
+          <span class="dv-dock-caption text-[10px] font-bold max-w-[4.5rem] truncate opacity-75"><%= t('nav.add') %></span>
+        <% } else { %>
+          <span class="dv-dock-tip card-theme text-xs font-bold px-2.5 py-1 rounded-lg shadow-lg"><%= t('nav.add') %></span>
+        <% } %>
+      </button>
+      <% } %>
+      <%- include('account', { accountVariant: 'dock', accountPlacement: 'top', dockLabels }) %>
+    <% } else if (locals.isShareView) { %>
+      <%- divider %>
+      <span class="dv-dock-item text-primary-theme" title="<%= t('nav.share_view') %>">
+        <span class="dv-dock-icon"><i class="fa-solid fa-eye" aria-hidden="true"></i></span>
+      </span>
+    <% } else { %>
+      <%- divider %>
+      <a href="<%= baseUrl %>/login" class="dv-dock-item focus:outline-none text-primary-theme">
+        <span class="dv-dock-icon rounded-2xl bg-black/5 dark:bg-white/10"><i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i></span>
+        <span class="<%= dockLabels ? 'dv-dock-caption text-[10px] font-bold opacity-75' : 'dv-dock-tip card-theme text-xs font-bold px-2.5 py-1 rounded-lg shadow-lg' %>"><%= t('nav.login') %></span>
+      </a>
+    <% } %>
+  </div>
+</nav>

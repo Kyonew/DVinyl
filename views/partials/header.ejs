@@ -76,9 +76,15 @@
   // toolbar offers one (see the standalone rules in the style block).
   const tabRoots = ['/', '/dashboard', '/collection', '/lists', '/wishlist', '/account'];
   const showBackButton = !tabRoots.includes(locals.currentPath || '/');
+
+  // The collection's layout (core/layout.ts): which navigation large screens get, and
+  // the density, radius, scale, width and font of the whole interface.
+  const shellNav = locals.layout || resolveLayout(typeof settings !== 'undefined' ? settings : null);
+  const shellCanAdd = showTabBar && Boolean(locals.canEditCollection) && registry.getEnabled(settings).length > 0;
 %>
 
-<html lang="<%= currentLng %>" class="<%= isDark ? 'dark' : '' %>">
+<html lang="<%= currentLng %>" class="<%= isDark ? 'dark' : '' %>"
+  data-nav="<%= shellNav.nav %>" data-sidebar-state="<%= shellNav.sidebarState %>" data-dock-labels="<%= shellNav.dockLabels ? 'true' : 'false' %>">
 <head>
   <meta charset="UTF-8" />
   <%# viewport-fit=cover lets the page run under the notch and the home indicator once
@@ -93,10 +99,28 @@
       layout at all (issue #133). Same build, same runtime config below. %>
   <script src="<%= baseUrl %>/vendor/tailwind-3.4.17.min.js"></script>
   <script>
+    // Density, radius, font and content width come from the layout (core/layout.ts) as
+    // CSS variables, so every padding, gap, corner and max-w-screen-xl of every page
+    // follows it without a template knowing. Margins, widths and heights stay put: they
+    // carry structure (icon sizes, the tab bar, aspect boxes) more than breathing room.
+    const dvScaled = (factorVar, entries) => Object.fromEntries(
+      Object.entries(entries).map(([key, rem]) => [key, `calc(${rem}rem * var(${factorVar}))`])
+    );
+    const dvSpacing = dvScaled('--dv-space', {
+      0.5: 0.125, 1: 0.25, 1.5: 0.375, 2: 0.5, 2.5: 0.625, 3: 0.75, 3.5: 0.875, 4: 1, 5: 1.25,
+      6: 1.5, 7: 1.75, 8: 2, 9: 2.25, 10: 2.5, 11: 2.75, 12: 3, 14: 3.5, 16: 4, 20: 5, 24: 6,
+      28: 7, 32: 8, 36: 9, 40: 10, 44: 11, 48: 12
+    });
     tailwind.config = {
       darkMode: 'class',
       theme: {
         extend: {
+          padding: dvSpacing,
+          gap: dvSpacing,
+          space: dvSpacing,
+          borderRadius: dvScaled('--dv-radius', { sm: 0.125, DEFAULT: 0.25, md: 0.375, lg: 0.5, xl: 0.75, '2xl': 1, '3xl': 1.5 }),
+          fontFamily: { sans: 'var(--dv-font)' },
+          maxWidth: { 'screen-xl': 'var(--dv-content-max)' },
           colors: {
             theme: {
                 bg: 'var(--bg-page)',
@@ -126,179 +150,10 @@
   <script src="<%= baseUrl %>/vendor/flowbite-1.6.5.min.js"></script>
   <link rel="icon" type="image/png" href="<%= baseUrl %>/ressources/logo.png">
 
-  <style>
-    :root {
-        --bg-page: <%= activeTheme.light.bg %>;
-        --bg-card: <%= activeTheme.light.card %>;
-        --bg-nav:  <%= activeTheme.light.navbar %>;
-        --text-main: <%= activeTheme.light.text %>;
-        --text-sub: <%= activeTheme.light.subtext %>;
-        --highlight: <%= activeTheme.light.highlight %>;
-        --highlight-rgb: <%= rgbChannels(activeTheme.light.highlight) %>;
-        
-        --shadow-color: 0 0 0 rgba(0,0,0,0.05);
-        --border-color: rgba(0,0,0,0.1);
-    }
-
-    html.dark {
-        --bg-page: <%= activeTheme.dark.bg %>;
-        --bg-card: <%= activeTheme.dark.card %>;
-        --bg-nav:  <%= activeTheme.dark.navbar %>;
-        --text-main: <%= activeTheme.dark.text %>;
-        --text-sub: <%= activeTheme.dark.subtext %>;
-        --highlight: <%= activeTheme.dark.highlight %>;
-        --highlight-rgb: <%= rgbChannels(activeTheme.dark.highlight) %>;
-        
-        --shadow-color: 0 0 20px <%= activeTheme.dark.highlight %>20;
-        --border-color: rgba(255,255,255,0.1);
-    }
-
-    body {
-        background-color: var(--bg-page) !important;
-        color: var(--text-main) !important;
-    }
-
-    .nav-custom {
-        background-color: var(--bg-nav) !important;
-        border-bottom: 1px solid var(--border-color);
-        color: var(--text-main) !important;
-    }
-
-    /* Tailwind generates the colour itself now, so this only carries what it cannot
-       know: a solid accent background is always paired with white text. No !important,
-       so a hover: variant on the same element can still take over. Tinted backgrounds
-       (bg-primary-theme/10) are a different class and keep their own text colour. */
-    .bg-primary-theme { color: #fff; }
-
-    .card-theme {
-        background-color: var(--bg-card) !important;
-        border: 1px solid var(--border-color);
-        color: var(--text-main) !important;
-    }
-    
-    #page-loader {
-      background-color: var(--bg-page);
-      color: var(--text-main);
-    }
-
-    /* Safe areas, all zero outside an installed app on a notched device. The navbar
-       grows under the status bar so its colour fills it, the footer clears the home
-       indicator, and the sides clear the notch in landscape. */
-    body {
-      padding-left: env(safe-area-inset-left);
-      padding-right: env(safe-area-inset-right);
-    }
-    nav.nav-custom { padding-top: env(safe-area-inset-top); }
-    footer.nav-custom { padding-bottom: env(safe-area-inset-bottom); }
-    #saveBar, #toastContainer { margin-bottom: env(safe-area-inset-bottom); }
-    /* Docked to the bottom edge on phones only; from md up it floats above it. */
-    @media (max-width: 767px) {
-      #bulkBarPanel { padding-bottom: calc(0.75rem + env(safe-area-inset-bottom)); }
-    }
-
-    /* Phone tab bar (partials/shell/tab-bar). Its height is kept free at the bottom of
-       the page, and what docks to the bottom edge sits on top of it instead. While
-       scrolling down it shrinks to its icons (body.tab-bar-compact): what sits on it
-       follows through --tab-bar-offset, while the page keeps its padding so nothing jumps. */
-    @media (max-width: 767px) {
-      body.has-tab-bar {
-        --tab-bar-h: 4rem;
-        --tab-bar-offset: var(--tab-bar-h);
-        --tab-bar-ease: 0.5s cubic-bezier(0.32, 0.72, 0, 1);
-        padding-bottom: calc(var(--tab-bar-h) + env(safe-area-inset-bottom));
-      }
-      body.has-tab-bar.tab-bar-compact { --tab-bar-offset: 3rem; }
-      #tabBar [data-tab-grid] { height: var(--tab-bar-offset); transition: height var(--tab-bar-ease); }
-      #tabBar [data-tab-grid] > a { transition: gap var(--tab-bar-ease), color 0.15s, opacity 0.15s; }
-      #tabBar [data-tab-label] { max-height: 1rem; transition: opacity 0.3s ease, max-height var(--tab-bar-ease); }
-      #tabBar [data-tab-add] { transition: transform var(--tab-bar-ease); }
-      body.tab-bar-compact #tabBar [data-tab-grid] > a { gap: 0; }
-      body.tab-bar-compact #tabBar [data-tab-label] { opacity: 0; max-height: 0; }
-      body.tab-bar-compact #tabBar [data-tab-add] { transform: translateY(0.4rem) scale(0.8); }
-      body.has-tab-bar footer.nav-custom { padding-bottom: 0; }
-      body.has-tab-bar #saveBar,
-      body.has-tab-bar #toastContainer {
-        margin-bottom: calc(var(--tab-bar-offset) + env(safe-area-inset-bottom));
-        transition: margin-bottom var(--tab-bar-ease);
-      }
-      body.has-tab-bar #bulkActionBar {
-        bottom: calc(var(--tab-bar-offset) + env(safe-area-inset-bottom));
-        transition: bottom var(--tab-bar-ease);
-      }
-      body.has-tab-bar #bulkBarPanel { padding-bottom: 0.75rem; }
-      /* No top bar to clear the status bar: the page itself starts below it. */
-      body.no-top-bar main { padding-top: calc(env(safe-area-inset-top) + 1rem); }
-    }
-    @media (max-width: 767px) and (prefers-reduced-motion: reduce) {
-      #tabBar *, body.has-tab-bar #saveBar, body.has-tab-bar #toastContainer, body.has-tab-bar #bulkActionBar { transition: none !important; }
-    }
-
-    /* Overlays (sheets, modals, lightboxes) are shown and hidden by toggling .hidden, so
-       the motion lives here rather than in each script: the layer fades, and its panel
-       slides up (.dv-sheet), pops in (.dv-pop) or does either depending on the width
-       (.dv-adaptive: a sheet on phones, a dialog from md up). @starting-style animates
-       the entry out of display:none, and allow-discrete keeps the layer displayed until
-       the exit has played. Browsers without them simply show and hide at once. */
-    .dv-overlay {
-      --dv-ease: cubic-bezier(0.32, 0.72, 0, 1);
-      transition: opacity 0.25s ease, display 0.35s allow-discrete;
-    }
-    .dv-overlay.hidden { opacity: 0; pointer-events: none; }
-    @starting-style { .dv-overlay { opacity: 0; } }
-
-    .dv-sheet { transition: transform 0.35s var(--dv-ease); }
-    .dv-overlay.hidden .dv-sheet { transform: translateY(100%); }
-    @starting-style { .dv-sheet { transform: translateY(100%); } }
-
-    .dv-pop { transition: transform 0.3s var(--dv-ease), opacity 0.2s ease; }
-    .dv-overlay.hidden .dv-pop { opacity: 0; transform: translateY(0.75rem) scale(0.96); }
-    @starting-style { .dv-pop { opacity: 0; transform: translateY(0.75rem) scale(0.96); } }
-
-    @media (max-width: 767px) {
-      .dv-adaptive { transition: transform 0.35s var(--dv-ease); }
-      .dv-overlay.hidden .dv-adaptive { transform: translateY(100%); }
-      @starting-style { .dv-adaptive { transform: translateY(100%); } }
-    }
-    @media (min-width: 768px) {
-      .dv-adaptive { transition: transform 0.3s var(--dv-ease), opacity 0.2s ease; }
-      .dv-overlay.hidden .dv-adaptive { opacity: 0; transform: translateY(0.75rem) scale(0.96); }
-      @starting-style { .dv-adaptive { opacity: 0; transform: translateY(0.75rem) scale(0.96); } }
-    }
-
-    /* Flowbite dropdowns position themselves with a transform, so they only fade. */
-    .dv-fade { transition: opacity 0.18s ease, display 0.18s allow-discrete; }
-    .dv-fade.hidden { opacity: 0; }
-    @starting-style { .dv-fade { opacity: 0; } }
-
-    /* Touch feedback: rows of a sheet and tab bar icons dip under the finger. */
-    .dv-overlay [role="dialog"] :is(a, button) { transition: background-color 0.15s ease; }
-    .dv-overlay [role="dialog"] .divide-y > :is(a, button):active { background-color: rgb(0 0 0 / 0.05); }
-    html.dark .dv-overlay [role="dialog"] .divide-y > :is(a, button):active { background-color: rgb(255 255 255 / 0.06); }
-    #tabBar [data-tab-grid] > a i { transition: transform 0.15s ease; }
-    #tabBar [data-tab-grid] > a:active i { transform: scale(0.85); }
-
-    @media (prefers-reduced-motion: reduce) {
-      .dv-overlay, .dv-sheet, .dv-pop, .dv-adaptive, .dv-fade { transition-duration: 0s !important; }
-    }
-
-    /* Installed app: display-mode standalone, or html.is-standalone for iOS, which only
-       exposes navigator.standalone. No browser toolbar there, so deep pages get a back
-       button of their own, and the site footer has no place in an app. */
-    @media (display-mode: standalone) {
-      [data-standalone-back] { display: flex !important; }
-      footer.nav-custom { display: none; }
-    }
-    html.is-standalone [data-standalone-back] { display: flex !important; }
-    html.is-standalone footer.nav-custom { display: none; }
-    /* Installed on a phone, the system blurs a band under the status bar: the first line
-       of the page starts a little lower than in the browser so it stays out of it. */
-    @media (display-mode: standalone) and (max-width: 767px) {
-      body.no-top-bar main { padding-top: calc(env(safe-area-inset-top) + 2rem); }
-    }
-    @media (max-width: 767px) {
-      html.is-standalone body.no-top-bar main { padding-top: calc(env(safe-area-inset-top) + 2rem); }
-    }
-  </style>
+  <% if (shellNav.fontStylesheet) { %>
+  <link rel="stylesheet" href="<%= baseUrl %>/vendor/fonts/<%= shellNav.fontStylesheet %>">
+  <% } %>
+  <%- include('shell/styles', { activeTheme, rgbChannels, layout: shellNav }) %>
   <script>
     if (window.navigator.standalone === true) document.documentElement.classList.add('is-standalone');
   </script>
@@ -320,69 +175,12 @@
     </div>
   </div>
 
-  <nav class="nav-custom transition-colors duration-300 <%= hideTopBarOnPhone ? 'max-md:hidden' : '' %>">
-      <div class="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto px-2.5 <%= showTabBar ? 'py-3' : 'py-4' %> sm:p-4">
-      <div class="flex items-center gap-2 min-w-0">
-      <% if (showBackButton) { %>
-      <button type="button" data-standalone-back aria-label="<%= t('nav.back') %>"
-        class="hidden w-9 h-9 flex-none items-center justify-center rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-colors">
-        <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
-      </button>
-      <% } %>
-      <a href="<%= baseUrl || '/' %>" class="flex items-center space-x-3 group min-w-0">
-        <img src="<%= baseUrl %>/ressources/logo.png" alt="Logo" class="h-8 w-8 rounded-full object-cover group-hover:rotate-12 transition-transform">
-        <span class="self-center text-2xl font-semibold text-inherit"><%= locals.activeCollection && locals.activeCollection.name ? activeCollection.name : 'Vinyl' %></span>
-      </a>
-      </div>
-
-      <div class="flex items-center md:order-2 gap-4">
-
-        <% if (locals.user) { %>
-        <%# Search spans every collection, so it belongs next to the account rather than
-            among the shortcuts, which are per collection and chosen by the user. %>
-        <a href="<%= baseUrl %>/search" title="<%= t('nav.search') %>" aria-label="<%= t('nav.search') %>"
-          class="w-8 h-8 flex items-center justify-center rounded-full bg-black/5 dark:bg-white/10 text-[var(--text-sub)] hover:text-primary-theme hover:bg-black/10 dark:hover:bg-white/20 transition-colors">
-          <i class="fa-solid fa-magnifying-glass text-sm"></i>
-        </a>
-
-        <button type="button" class="<%= showTabBar ? 'hidden md:flex' : 'flex' %> text-sm bg-black/5 dark:bg-white/10 rounded-full focus:ring-4 focus:ring-gray-300 dark:focus:ring-gray-600" id="user-menu-button" data-dropdown-toggle="user-dropdown">
-          <img class="w-8 h-8 rounded-full object-cover" src="<%= baseUrl + user.img %>" alt="user photo">
-        </button>
-  
-        <div class="dv-fade z-50 hidden my-4 text-base list-none card-theme rounded-lg shadow-xl min-w-[200px]" id="user-dropdown">          
-          <div class="flex justify-center py-4 rounded-t-lg">
-            <img src="<%= baseUrl + user.img %>" alt="user photo" class="w-20 h-20 rounded-full border-4 border-white dark:border-white/10 object-cover shadow-lg">
-          </div>
-       
-          <div class="divide-y divide-black/5 dark:divide-white/10">
-            <div class="px-4 pt-1 pb-3 text-center">
-              <span class="block text-sm font-bold opacity-90 text-[var(--text-main)]"><%= user.username %></span>
-              <span class="block text-xs opacity-60 truncate text-[var(--text-sub)]"><%= user.email %></span>
-            </div>
-            <%- include('shell/user-menu') %>
-          </div>
-        </div>
-        <% } else if (locals.isShareView) { %>
-          <span class="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-primary-theme">
-            <i class="fa-solid fa-eye"></i>
-            <%= t('nav.share_view') %>
-          </span>
-        <% } else { %>
-          <a href="<%= baseUrl %>/login" class="text-sm font-bold text-primary-theme hover:underline"><%= t('nav.login') %></a>
-        <% } %>
-
-        <% if (!showTabBar) { %>
-        <button data-collapse-toggle="navbar-user" type="button" class="inline-flex items-center p-2 w-10 h-10 justify-center text-sm opacity-70 rounded-lg md:hidden hover:bg-black/5 dark:hover:bg-white/10 focus:outline-none text-[var(--text-main)]">
-          <i class="fa-solid fa-bars text-xl"></i>
-        </button>
-        <% } %>
-      </div>
-
-      <div class="items-center justify-between hidden w-full md:flex md:w-auto md:order-1" id="navbar-user">
-        <%- include('shell/nav-shortcuts', { shortcutsVariant: 'bar' }) %>
-      </div>
-    </div>
-  </nav>
+  <%- include('shell/top-bar', { shellNav, showTabBar, hideTopBarOnPhone, showBackButton }) %>
+  <% if (shellNav.nav === 'left' || shellNav.nav === 'right') { %>
+    <%- include('shell/sidebar', { shellNav, showBackButton, shellCanAdd }) %>
+  <% } else if (shellNav.nav === 'bottom') { %>
+    <%- include('shell/dock', { shellNav, showBackButton, shellCanAdd }) %>
+  <% } %>
 
   <% if (locals.user && locals.canCreateCollection) { %>
   <!-- Self-service collection creation, opened from the user dropdown. Self-contained
@@ -483,6 +281,18 @@
             if (e.key === 'Escape') setOpen(false);
         });
     });
+
+    // A sticky top bar: what sticks under it (settings tabs) starts where it ends.
+    <% if (shellNav.nav === 'top' && shellNav.sticky) { %>
+    (() => {
+        const bar = document.getElementById('dvTopBar');
+        if (!bar || !window.ResizeObserver) return;
+        const margin = <%= shellNav.topStyle === 'floating' ? 16 : 0 %>;
+        new ResizeObserver(() => {
+            document.documentElement.style.setProperty('--dv-sticky-top', (bar.offsetHeight + margin) + 'px');
+        }).observe(bar);
+    })();
+    <% } %>
 
     window.addEventListener('load', () => {
         const loader = document.getElementById('page-loader');

@@ -35,6 +35,7 @@ import {
 import { renderMarkdown } from "../core/markdown";
 import { nativeLookalikesByPlugin } from "../core/pluginExtraFields";
 import { alignImagesAfterRefresh } from "../core/itemImages";
+import { layoutFromForm } from "../core/layout";
 
 const router = express.Router();
 
@@ -1102,6 +1103,7 @@ router.post(
         statsWidgets: stats,
         fastAdd: fastAdd,
         instantAdd: req.body.instantAdd === "on",
+        layout: layoutFromForm(req.body),
       };
       for (const p of registry.getAll()) {
         const preset = req.body[`${p.collectionType}Preset`];

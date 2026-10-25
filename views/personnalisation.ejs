@@ -24,6 +24,7 @@
 
             <%- include('partials/settings-tabs', { phoneOnly: true, tabs: [
                 { id: 'themes', icon: 'palette', label: t('perso.themes.title') },
+                { id: 'layout', icon: 'table-columns', label: t('layout.title') },
                 { id: 'cards', icon: 'percent', label: t('perso.card_aspect_ratio') },
                 { id: 'navigation', icon: 'list-check', label: t('perso.nav_title') },
                 { id: 'quick-add', icon: 'bolt', label: t('perso.fastAdd_title') },
@@ -79,6 +80,18 @@
                             <% }) %>
 
                 </div>
+            </div>
+
+            <div data-tab-panel="layout" class="card-theme rounded-2xl md:rounded-3xl p-4 md:p-6 shadow-sm md:shadow-xl transition-colors md:mt-8">
+                <h2 class="text-lg md:text-xl font-bold mb-2 flex items-center gap-3">
+                    <div
+                        class="w-8 h-8 md:w-10 md:h-10 shrink-0 rounded-full bg-primary-theme/10 text-primary-theme flex items-center justify-center text-sm md:text-base">
+                        <i class="fa-solid fa-table-columns"></i>
+                    </div>
+                    <%= t('layout.title') %>
+                </h2>
+                <p class="text-sm opacity-60 mb-4 md:mb-6"><%= t('layout.desc') %></p>
+                <%- include('partials/layout-settings') %>
             </div>
 
             <div data-tab-panel="cards" class="card-theme rounded-2xl md:rounded-3xl p-4 md:p-6 shadow-sm md:shadow-xl transition-colors md:mt-8">

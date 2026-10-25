@@ -1,0 +1,63 @@
+<%
+  /**
+   * The top bar. It is the large-screen navigation when the layout puts it on top, and
+   * stays the phone's bar wherever the tab bar does not show (share views, signed-out
+   * pages), whatever the layout. header.ejs passes shellNav (the layout), showTabBar,
+   * hideTopBarOnPhone and showBackButton.
+   */
+  const onTop = shellNav.nav === 'top';
+  const floating = onTop && shellNav.topStyle === 'floating';
+  const barClasses = [
+      'nav-custom transition-colors duration-300',
+      hideTopBarOnPhone ? 'max-md:hidden' : '',
+      onTop ? '' : 'md:hidden',
+      onTop && shellNav.sticky ? 'md:sticky md:z-40' : '',
+      onTop && shellNav.sticky ? (floating ? 'md:top-4' : 'md:top-0') : '',
+      floating ? 'md:mx-4 md:mt-4 md:rounded-2xl md:shadow-xl md:border md:border-[var(--border-color)]' : ''
+  ].filter(Boolean).join(' ');
+%>
+<nav id="dvTopBar" class="<%= barClasses %>">
+    <div class="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto px-2.5 <%= showTabBar ? 'py-3' : 'py-4' %> sm:p-4 <%= floating ? 'md:py-3' : '' %>">
+    <div class="flex items-center gap-2 min-w-0">
+    <% if (showBackButton) { %>
+    <button type="button" data-standalone-back aria-label="<%= t('nav.back') %>"
+      class="hidden w-9 h-9 flex-none items-center justify-center rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-colors">
+      <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
+    </button>
+    <% } %>
+    <%- include('brand', { brandIn: 'bar' }) %>
+    </div>
+
+    <div class="flex items-center md:order-2 gap-4">
+
+      <% if (locals.user) { %>
+        <% if (onTop) { %>
+        <%# Search spans every collection, so it belongs next to the account rather than
+            among the shortcuts, which are per collection and chosen by the user. %>
+        <a href="<%= baseUrl %>/search" title="<%= t('nav.search') %>" aria-label="<%= t('nav.search') %>"
+          class="w-8 h-8 flex items-center justify-center rounded-full bg-black/5 dark:bg-white/10 text-[var(--text-sub)] hover:text-primary-theme hover:bg-black/10 dark:hover:bg-white/20 transition-colors">
+          <i class="fa-solid fa-magnifying-glass text-sm"></i>
+        </a>
+        <%- include('account', { accountVariant: 'avatar', accountHideOnPhone: showTabBar }) %>
+        <% } %>
+      <% } else if (locals.isShareView) { %>
+        <span class="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-primary-theme">
+          <i class="fa-solid fa-eye"></i>
+          <%= t('nav.share_view') %>
+        </span>
+      <% } else { %>
+        <a href="<%= baseUrl %>/login" class="text-sm font-bold text-primary-theme hover:underline"><%= t('nav.login') %></a>
+      <% } %>
+
+      <% if (!showTabBar) { %>
+      <button data-collapse-toggle="navbar-user" type="button" class="inline-flex items-center p-2 w-10 h-10 justify-center text-sm opacity-70 rounded-lg md:hidden hover:bg-black/5 dark:hover:bg-white/10 focus:outline-none text-[var(--text-main)]">
+        <i class="fa-solid fa-bars text-xl"></i>
+      </button>
+      <% } %>
+    </div>
+
+    <div class="items-center justify-between hidden w-full md:flex md:w-auto md:order-1" id="navbar-user">
+      <%- include('nav-shortcuts', { shortcutsVariant: 'bar' }) %>
+    </div>
+  </div>
+</nav>

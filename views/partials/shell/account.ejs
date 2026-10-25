@@ -1,0 +1,55 @@
+<%
+  /**
+   * The signed-in member's avatar and its dropdown (the account menu of
+   * partials/shell/user-menu). Rendered once per page, by whichever navigation the
+   * layout puts on large screens: phones reach the same entries through the account tab.
+   *
+   * accountVariant 'avatar' - the top bar's round avatar.
+   * accountVariant 'side'   - the sidebar's footer: the avatar, then the name and email
+   *                           when the sidebar is wide enough.
+   * accountVariant 'dock'   - one of the dock's icons.
+   * accountPlacement        - where Flowbite opens the dropdown (bottom, top, right-end...).
+   */
+  const accountVariant = locals.accountVariant || 'avatar';
+  const accountPlacement = locals.accountPlacement || 'bottom';
+  const dropdownMargin = accountVariant === 'side' ? 'mx-3' : 'my-4';
+%>
+<% if (accountVariant === 'side') { %>
+<button type="button" id="user-menu-button" data-dropdown-toggle="user-dropdown" data-dropdown-placement="<%= accountPlacement %>"
+  class="w-full flex items-center justify-center gap-3 p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 transition text-left">
+  <img class="w-9 h-9 flex-none rounded-full object-cover" src="<%= baseUrl + user.img %>" alt="">
+  <span class="dv-side-wide min-w-0 flex-1">
+    <span class="block text-sm font-bold truncate"><%= user.username %></span>
+    <span class="block text-xs opacity-60 truncate"><%= user.email %></span>
+  </span>
+  <i class="dv-side-wide fa-solid fa-ellipsis text-xs opacity-50" aria-hidden="true"></i>
+</button>
+<% } else if (accountVariant === 'dock') { %>
+<button type="button" id="user-menu-button" data-dropdown-toggle="user-dropdown" data-dropdown-placement="<%= accountPlacement %>"
+  class="dv-dock-item focus:outline-none" aria-label="<%= t('nav.account') %>">
+  <span class="dv-dock-icon">
+    <img class="w-10 h-10 rounded-full object-cover" src="<%= baseUrl + user.img %>" alt="">
+  </span>
+  <% if (locals.dockLabels) { %>
+    <span class="dv-dock-caption text-[10px] font-bold max-w-[4.5rem] truncate opacity-75"><%= t('nav.account') %></span>
+  <% } %>
+</button>
+<% } else { %>
+<button type="button" class="<%= locals.accountHideOnPhone ? 'hidden md:flex' : 'flex' %> text-sm bg-black/5 dark:bg-white/10 rounded-full focus:ring-4 focus:ring-gray-300 dark:focus:ring-gray-600" id="user-menu-button" data-dropdown-toggle="user-dropdown">
+  <img class="w-8 h-8 rounded-full object-cover" src="<%= baseUrl + user.img %>" alt="user photo">
+</button>
+<% } %>
+
+<div class="dv-fade z-50 hidden <%= dropdownMargin %> text-base list-none card-theme rounded-lg shadow-xl min-w-[200px]" id="user-dropdown">
+  <div class="flex justify-center py-4 rounded-t-lg">
+    <img src="<%= baseUrl + user.img %>" alt="user photo" class="w-20 h-20 rounded-full border-4 border-white dark:border-white/10 object-cover shadow-lg">
+  </div>
+
+  <div class="divide-y divide-black/5 dark:divide-white/10">
+    <div class="px-4 pt-1 pb-3 text-center">
+      <span class="block text-sm font-bold opacity-90 text-[var(--text-main)]"><%= user.username %></span>
+      <span class="block text-xs opacity-60 truncate text-[var(--text-sub)]"><%= user.email %></span>
+    </div>
+    <%- include('user-menu') %>
+  </div>
+</div>

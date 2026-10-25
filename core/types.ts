@@ -454,6 +454,9 @@ export interface NavbarShortcut {
   id: string; // id stored in settings.navbarShortcuts (e.g. 'game_physical')
   label: string; // i18n key
   url: string; // relative URL (e.g. '/collection?type=games&format=physical')
+  // FontAwesome icon for the sidebar and the dock (e.g. 'fa-gamepad'). Defaults to the
+  // fast-add icon of the format the URL filters on, then to the plugin's icon.
+  icon?: string;
 }
 
 export interface StatWidget {

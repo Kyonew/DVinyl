@@ -8,6 +8,10 @@
    * shortcutsVariant 'chips' - the phone dashboard's shortcuts section, which has no top
    *                            bar to hold them; shortcutsExclude drops what the tab bar
    *                            already offers.
+   * shortcutsVariant 'side'  - the sidebar's list (partials/shell/sidebar): an icon and
+   *                            its label, laid out by the sidebar's own width.
+   * shortcutsVariant 'dock'  - the dock's icons (partials/shell/dock), with a caption
+   *                            under each when dockLabels is on, a tooltip otherwise.
    */
   const shortcutVariant = locals.shortcutsVariant || 'bar';
   const shortcutExclude = locals.shortcutsExclude || [];
@@ -16,16 +20,26 @@
   const shortcutConfig = {
       // Its own path, not '/': that one lands wherever the user chose, which
       // may be the collection, and the dashboard would then have no entry.
-      'global_home': { label: t('nav.home'), url: '/dashboard' },
-      'global_collection': { label: t('nav.collection'), url: '/collection' },
-      'global_wishlist': { label: t('nav.wishlist'), url: '/wishlist' },
-      'global_info': { label: t('collection_info.title'), url: '/info' },
-      'global_lists': { label: t('lists.title'), url: '/lists' }
+      'global_home': { label: t('nav.home'), url: '/dashboard', icon: 'fa-house' },
+      'global_collection': { label: t('nav.collection'), url: '/collection', icon: 'fa-layer-group' },
+      'global_wishlist': { label: t('nav.wishlist'), url: '/wishlist', icon: 'fa-heart' },
+      'global_info': { label: t('collection_info.title'), url: '/info', icon: 'fa-circle-info' },
+      'global_lists': { label: t('lists.title'), url: '/lists', icon: 'fa-list-ul' }
+  };
+  // The side and dock variants draw an icon for each shortcut: the one it declares, else
+  // the fast-add icon of the format it filters on, else its plugin's own.
+  const shortcutIcon = (p, s) => {
+      if (s.icon) return s.icon;
+      const qIndex = s.url.indexOf('?');
+      const format = new URLSearchParams(qIndex >= 0 ? s.url.slice(qIndex + 1) : '').get('format');
+      const fastAdd = format && (p.fastAddOptions || []).find(o => String(o.value) === format && o.icon);
+      if (fastAdd) return fastAdd.icon;
+      return 'fa-' + String(p.icon || 'box').replace(/^fa-/, '');
   };
   if (typeof registry !== 'undefined' && registry) {
       registry.getAll().forEach(p => {
           (p.navbarShortcuts || []).forEach(s => {
-              shortcutConfig[s.id] = { label: t(s.label), url: s.url, module: p.collectionType, pluginId: p.id };
+              shortcutConfig[s.id] = { label: t(s.label), url: s.url, module: p.collectionType, pluginId: p.id, icon: shortcutIcon(p, s) };
           });
       });
   }
@@ -78,7 +92,33 @@
       });
   }
 %>
-<% if (shortcutVariant === 'chips') { %>
+<% if (shortcutVariant === 'side') { %>
+  <ul class="flex flex-col gap-1">
+    <% visibleShortcuts.forEach(item => { %>
+    <li>
+      <a href="<%= baseUrl + item.url %>" <%- item.current ? 'aria-current="page"' : '' %> title="<%= item.label %>"
+        class="dv-side-link rounded-xl opacity-75 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/10 transition">
+        <i class="fa-solid <%= item.icon %>" aria-hidden="true"></i>
+        <span><%= item.label %></span>
+      </a>
+    </li>
+    <% }) %>
+  </ul>
+<% } else if (shortcutVariant === 'dock') { %>
+  <% visibleShortcuts.forEach(item => { %>
+    <a href="<%= baseUrl + item.url %>" <%- item.current ? 'aria-current="page"' : '' %> aria-label="<%= item.label %>"
+      class="dv-dock-item focus:outline-none">
+      <span class="dv-dock-icon rounded-2xl <%= item.current ? 'bg-primary-theme/15 text-primary-theme' : 'bg-black/5 dark:bg-white/10' %>">
+        <i class="fa-solid <%= item.icon %>" aria-hidden="true"></i>
+      </span>
+      <% if (locals.dockLabels) { %>
+        <span class="dv-dock-caption text-[10px] font-bold max-w-[4.5rem] truncate opacity-75"><%= item.label %></span>
+      <% } else { %>
+        <span class="dv-dock-tip card-theme text-xs font-bold px-2.5 py-1 rounded-lg shadow-lg"><%= item.label %></span>
+      <% } %>
+    </a>
+  <% }) %>
+<% } else if (shortcutVariant === 'chips') { %>
   <% if (visibleShortcuts.length > 0) { %>
   <ul class="flex flex-wrap gap-2">
     <% visibleShortcuts.forEach(item => { %>

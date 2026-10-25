@@ -1,0 +1,288 @@
+<%
+  /**
+   * The shell's stylesheet: the colour theme as CSS variables, the layout's variables
+   * (core/layout.ts), and the rules of the shell pieces (top bar, sidebar, dock, phone
+   * tab bar, overlays). Included once, from the <head> in header.ejs, which passes
+   * activeTheme, rgbChannels and layout.
+   */
+  const layoutVars = Object.entries(layout.cssVars).map(([k, v]) => `${k}: ${v};`).join(' ');
+%>
+<style>
+  :root {
+      --bg-page: <%= activeTheme.light.bg %>;
+      --bg-card: <%= activeTheme.light.card %>;
+      --bg-nav:  <%= activeTheme.light.navbar %>;
+      --text-main: <%= activeTheme.light.text %>;
+      --text-sub: <%= activeTheme.light.subtext %>;
+      --highlight: <%= activeTheme.light.highlight %>;
+      --highlight-rgb: <%= rgbChannels(activeTheme.light.highlight) %>;
+      
+      --shadow-color: 0 0 0 rgba(0,0,0,0.05);
+      --border-color: rgba(0,0,0,0.1);
+  }
+
+  html.dark {
+      --bg-page: <%= activeTheme.dark.bg %>;
+      --bg-card: <%= activeTheme.dark.card %>;
+      --bg-nav:  <%= activeTheme.dark.navbar %>;
+      --text-main: <%= activeTheme.dark.text %>;
+      --text-sub: <%= activeTheme.dark.subtext %>;
+      --highlight: <%= activeTheme.dark.highlight %>;
+      --highlight-rgb: <%= rgbChannels(activeTheme.dark.highlight) %>;
+      
+      --shadow-color: 0 0 20px <%= activeTheme.dark.highlight %>20;
+      --border-color: rgba(255,255,255,0.1);
+  }
+
+  body {
+      background-color: var(--bg-page) !important;
+      color: var(--text-main) !important;
+  }
+
+  .nav-custom {
+      background-color: var(--bg-nav) !important;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-main) !important;
+  }
+
+  /* Tailwind generates the colour itself now, so this only carries what it cannot
+     know: a solid accent background is always paired with white text. No !important,
+     so a hover: variant on the same element can still take over. Tinted backgrounds
+     (bg-primary-theme/10) are a different class and keep their own text colour. */
+  .bg-primary-theme { color: #fff; }
+
+  .card-theme {
+      background-color: var(--bg-card) !important;
+      border: 1px solid var(--border-color);
+      color: var(--text-main) !important;
+  }
+  
+  #page-loader {
+    background-color: var(--bg-page);
+    color: var(--text-main);
+  }
+
+  /* Safe areas, all zero outside an installed app on a notched device. The navbar
+     grows under the status bar so its colour fills it, the footer clears the home
+     indicator, and the sides clear the notch in landscape. */
+  body {
+    padding-left: calc(env(safe-area-inset-left) + var(--dv-shell-left));
+    padding-right: calc(env(safe-area-inset-right) + var(--dv-shell-right));
+  }
+  nav.nav-custom { padding-top: env(safe-area-inset-top); }
+  footer.nav-custom { padding-bottom: env(safe-area-inset-bottom); }
+  #saveBar, #toastContainer { margin-bottom: env(safe-area-inset-bottom); }
+  /* Docked to the bottom edge on phones only; from md up it floats above it. */
+  @media (max-width: 767px) {
+    #bulkBarPanel { padding-bottom: calc(0.75rem + env(safe-area-inset-bottom)); }
+  }
+
+  /* Phone tab bar (partials/shell/tab-bar). Its height is kept free at the bottom of
+     the page, and what docks to the bottom edge sits on top of it instead. While
+     scrolling down it shrinks to its icons (body.tab-bar-compact): what sits on it
+     follows through --tab-bar-offset, while the page keeps its padding so nothing jumps. */
+  @media (max-width: 767px) {
+    body.has-tab-bar {
+      --tab-bar-h: 4rem;
+      --tab-bar-offset: var(--tab-bar-h);
+      --tab-bar-ease: 0.5s cubic-bezier(0.32, 0.72, 0, 1);
+      padding-bottom: calc(var(--tab-bar-h) + env(safe-area-inset-bottom));
+    }
+    body.has-tab-bar.tab-bar-compact { --tab-bar-offset: 3rem; }
+    #tabBar [data-tab-grid] { height: var(--tab-bar-offset); transition: height var(--tab-bar-ease); }
+    #tabBar [data-tab-grid] > a { transition: gap var(--tab-bar-ease), color 0.15s, opacity 0.15s; }
+    #tabBar [data-tab-label] { max-height: 1rem; transition: opacity 0.3s ease, max-height var(--tab-bar-ease); }
+    #tabBar [data-tab-add] { transition: transform var(--tab-bar-ease); }
+    body.tab-bar-compact #tabBar [data-tab-grid] > a { gap: 0; }
+    body.tab-bar-compact #tabBar [data-tab-label] { opacity: 0; max-height: 0; }
+    body.tab-bar-compact #tabBar [data-tab-add] { transform: translateY(0.4rem) scale(0.8); }
+    body.has-tab-bar footer.nav-custom { padding-bottom: 0; }
+    body.has-tab-bar #saveBar,
+    body.has-tab-bar #toastContainer {
+      margin-bottom: calc(var(--tab-bar-offset) + env(safe-area-inset-bottom));
+      transition: margin-bottom var(--tab-bar-ease);
+    }
+    body.has-tab-bar #bulkActionBar {
+      bottom: calc(var(--tab-bar-offset) + env(safe-area-inset-bottom));
+      transition: bottom var(--tab-bar-ease);
+    }
+    body.has-tab-bar #bulkBarPanel { padding-bottom: 0.75rem; }
+    /* No top bar to clear the status bar: the page itself starts below it. */
+    body.no-top-bar main { padding-top: calc(env(safe-area-inset-top) + 1rem); }
+  }
+  @media (max-width: 767px) and (prefers-reduced-motion: reduce) {
+    #tabBar *, body.has-tab-bar #saveBar, body.has-tab-bar #toastContainer, body.has-tab-bar #bulkActionBar { transition: none !important; }
+  }
+
+  /* Overlays (sheets, modals, lightboxes) are shown and hidden by toggling .hidden, so
+     the motion lives here rather than in each script: the layer fades, and its panel
+     slides up (.dv-sheet), pops in (.dv-pop) or does either depending on the width
+     (.dv-adaptive: a sheet on phones, a dialog from md up). @starting-style animates
+     the entry out of display:none, and allow-discrete keeps the layer displayed until
+     the exit has played. Browsers without them simply show and hide at once. */
+  .dv-overlay {
+    --dv-ease: cubic-bezier(0.32, 0.72, 0, 1);
+    transition: opacity 0.25s ease, display 0.35s allow-discrete;
+  }
+  .dv-overlay.hidden { opacity: 0; pointer-events: none; }
+  @starting-style { .dv-overlay { opacity: 0; } }
+
+  .dv-sheet { transition: transform 0.35s var(--dv-ease); }
+  .dv-overlay.hidden .dv-sheet { transform: translateY(100%); }
+  @starting-style { .dv-sheet { transform: translateY(100%); } }
+
+  .dv-pop { transition: transform 0.3s var(--dv-ease), opacity 0.2s ease; }
+  .dv-overlay.hidden .dv-pop { opacity: 0; transform: translateY(0.75rem) scale(0.96); }
+  @starting-style { .dv-pop { opacity: 0; transform: translateY(0.75rem) scale(0.96); } }
+
+  @media (max-width: 767px) {
+    .dv-adaptive { transition: transform 0.35s var(--dv-ease); }
+    .dv-overlay.hidden .dv-adaptive { transform: translateY(100%); }
+    @starting-style { .dv-adaptive { transform: translateY(100%); } }
+  }
+  @media (min-width: 768px) {
+    .dv-adaptive { transition: transform 0.3s var(--dv-ease), opacity 0.2s ease; }
+    .dv-overlay.hidden .dv-adaptive { opacity: 0; transform: translateY(0.75rem) scale(0.96); }
+    @starting-style { .dv-adaptive { opacity: 0; transform: translateY(0.75rem) scale(0.96); } }
+  }
+
+  /* Flowbite dropdowns position themselves with a transform, so they only fade. */
+  .dv-fade { transition: opacity 0.18s ease, display 0.18s allow-discrete; }
+  .dv-fade.hidden { opacity: 0; }
+  @starting-style { .dv-fade { opacity: 0; } }
+
+  /* Touch feedback: rows of a sheet and tab bar icons dip under the finger. */
+  .dv-overlay [role="dialog"] :is(a, button) { transition: background-color 0.15s ease; }
+  .dv-overlay [role="dialog"] .divide-y > :is(a, button):active { background-color: rgb(0 0 0 / 0.05); }
+  html.dark .dv-overlay [role="dialog"] .divide-y > :is(a, button):active { background-color: rgb(255 255 255 / 0.06); }
+  #tabBar [data-tab-grid] > a i { transition: transform 0.15s ease; }
+  #tabBar [data-tab-grid] > a:active i { transform: scale(0.85); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dv-overlay, .dv-sheet, .dv-pop, .dv-adaptive, .dv-fade { transition-duration: 0s !important; }
+  }
+
+  /* Installed app: display-mode standalone, or html.is-standalone for iOS, which only
+     exposes navigator.standalone. No browser toolbar there, so deep pages get a back
+     button of their own, and the site footer has no place in an app. */
+  @media (display-mode: standalone) {
+    [data-standalone-back] { display: flex !important; }
+    footer.nav-custom { display: none; }
+  }
+  html.is-standalone [data-standalone-back] { display: flex !important; }
+  html.is-standalone footer.nav-custom { display: none; }
+  /* Installed on a phone, the system blurs a band under the status bar: the first line
+     of the page starts a little lower than in the browser so it stays out of it. */
+  @media (display-mode: standalone) and (max-width: 767px) {
+    body.no-top-bar main { padding-top: calc(env(safe-area-inset-top) + 2rem); }
+  }
+  @media (max-width: 767px) {
+    html.is-standalone body.no-top-bar main { padding-top: calc(env(safe-area-inset-top) + 2rem); }
+  }
+</style>
+<style>
+  /* Layout (core/layout.ts). Tailwind's padding, gap, space, radius, sans font and
+     max-w-screen-xl scales read these, so the whole interface follows them. */
+  :root {
+    <%- layoutVars %>
+    font-size: <%= layoutRootFontSize(layout) %>;
+    --dv-shell-left: 0px;
+    --dv-shell-right: 0px;
+    --dv-shell-bottom: 0px;
+    --dv-sticky-top: 0px;
+    --dv-sidebar-w: 5.5rem;
+  }
+  /* A few frames are drawn with an arbitrary radius rather than the scale. */
+  .rounded-\[1\.5rem\] { border-radius: calc(1.5rem * var(--dv-radius)) !important; }
+  .rounded-\[1\.75rem\] { border-radius: calc(1.75rem * var(--dv-radius)) !important; }
+  .rounded-\[2rem\] { border-radius: calc(2rem * var(--dv-radius)) !important; }
+  .rounded-\[2\.5rem\] { border-radius: calc(2.5rem * var(--dv-radius)) !important; }
+
+  /* Large screens: the navigation the collection chose. Phones keep their own shell. */
+  @media (min-width: 768px) {
+    html[data-nav="left"] { --dv-shell-left: var(--dv-sidebar-w); }
+    html[data-nav="right"] { --dv-shell-right: var(--dv-sidebar-w); }
+    html[data-nav="bottom"] { --dv-shell-bottom: calc(5.5rem + env(safe-area-inset-bottom)); }
+    html[data-nav="bottom"][data-dock-labels="true"] { --dv-shell-bottom: calc(6.75rem + env(safe-area-inset-bottom)); }
+    body { padding-bottom: var(--dv-shell-bottom); }
+    /* The body already fades its colours; the sidebar's fold slides it too. */
+    body.transition-colors { transition-property: color, background-color, padding; }
+
+    /* What docks to the bottom edge centres on the content and clears the dock. */
+    #saveBar, #bulkActionBar { left: var(--dv-shell-left); right: var(--dv-shell-right); }
+    #saveBar, #toastContainer { margin-bottom: calc(env(safe-area-inset-bottom) + var(--dv-shell-bottom)); }
+    #bulkActionBar { bottom: calc(1.5rem + var(--dv-shell-bottom)); }
+    #toastContainer { right: calc(1.5rem + var(--dv-shell-right)); }
+
+    /* A sticky top bar: what sticks under it starts where it ends (measured in header.ejs). */
+    [data-settings-tabs-wrap] { top: var(--dv-sticky-top) !important; }
+  }
+  @media (min-width: 1024px) {
+    html[data-sidebar-state="expanded"] { --dv-sidebar-w: 16rem; }
+  }
+
+  /* Sidebar (partials/shell/sidebar). Its pieces lay out from its own width, so the
+     same markup is a rail of captioned icons when narrow and a list when wide. */
+  #dvSidebar {
+    width: var(--dv-sidebar-w);
+    container: dvside / inline-size;
+    transition: width 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  #dvSidebar .dv-side-wide { display: none; }
+  #dvSidebar .dv-side-link {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 0.3rem; min-height: 3.5rem; padding: 0.45rem 0.25rem; text-align: center;
+    font-size: 10.5px; line-height: 1.15; font-weight: 700;
+  }
+  #dvSidebar .dv-side-link > span {
+    max-width: 100%; overflow: hidden; overflow-wrap: anywhere;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  }
+  #dvSidebar .dv-side-link > i { font-size: 1.05rem; }
+  @container dvside (min-width: 12rem) {
+    #dvSidebar .dv-side-narrow { display: none !important; }
+    #dvSidebar .dv-side-wide { display: revert; }
+    #dvSidebar .dv-side-link {
+      flex-direction: row; justify-content: flex-start; gap: 0.85rem; min-height: 2.75rem;
+      padding: 0.5rem 0.85rem; text-align: left; font-size: 0.875rem; font-weight: 600;
+    }
+    #dvSidebar .dv-side-link > span { display: block; white-space: nowrap; text-overflow: ellipsis; }
+    #dvSidebar .dv-side-link > i { width: 1.25rem; text-align: center; font-size: 0.95rem; }
+  }
+  #dvSidebar .dv-side-link[aria-current="page"] {
+    background-color: rgb(var(--highlight-rgb) / 0.12);
+    color: var(--highlight);
+    opacity: 1;
+  }
+
+  /* Dock (partials/shell/dock). Icons lift under the pointer; the open page wears a dot. */
+  #dvDock { padding-bottom: env(safe-area-inset-bottom); }
+  #dvDock .dv-dock-item:not(.hidden) { position: relative; display: flex; flex-direction: column; align-items: center; gap: 0.2rem; }
+  #dvDock .dv-dock-icon {
+    width: 2.75rem; height: 2.75rem; display: flex; align-items: center; justify-content: center;
+    transition: transform 0.2s cubic-bezier(0.32, 0.72, 0, 1), background-color 0.15s ease;
+  }
+  #dvDock .dv-dock-item:hover .dv-dock-icon,
+  #dvDock .dv-dock-item:focus-visible .dv-dock-icon { transform: translateY(-0.3rem) scale(1.12); }
+  #dvDock .dv-dock-item[aria-current="page"]::after {
+    content: ''; position: absolute; bottom: -0.4rem; width: 0.3rem; height: 0.3rem;
+    border-radius: 9999px; background: var(--highlight);
+  }
+  /* With captions, the caption itself marks the open page. */
+  html[data-dock-labels="true"] #dvDock .dv-dock-item[aria-current="page"]::after { display: none; }
+  #dvDock .dv-dock-item[aria-current="page"] .dv-dock-caption { color: var(--highlight); opacity: 1; }
+  #dvDock .dv-dock-tip {
+    position: absolute; bottom: calc(100% + 0.6rem); left: 50%;
+    transform: translateX(-50%) translateY(0.25rem);
+    white-space: nowrap; pointer-events: none; opacity: 0;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+  }
+  #dvDock .dv-dock-item:hover .dv-dock-tip,
+  #dvDock .dv-dock-item:focus-visible .dv-dock-tip { opacity: 1; transform: translateX(-50%); }
+
+  @media (prefers-reduced-motion: reduce) {
+    #dvSidebar, #dvDock .dv-dock-icon, body.transition-colors { transition: none !important; }
+  }
+</style>
