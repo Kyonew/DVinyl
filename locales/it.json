@@ -2130,5 +2130,29 @@
     "w_note": "Nota",
     "w_note_desc": "Testo libero in Markdown: regole di prestito, obiettivi…",
     "stat_unavailable": "Statistica non disponibile (modulo disattivato?)"
+  },
+  "studio": {
+    "draft": "Bozza",
+    "up_to_date": "Pubblicato",
+    "published": "Pubblicato ✓",
+    "publish": "Pubblica",
+    "discard": "Annulla modifiche",
+    "discard_confirm": "Scartare la bozza e tornare a ciò che è pubblicato?",
+    "preview": "Anteprima",
+    "page": "Pagina dell'anteprima",
+    "device": "Dispositivo",
+    "device_desktop": "Computer",
+    "device_tablet": "Tablet",
+    "device_phone": "Telefono",
+    "toggle_dark": "Cambia chiaro / scuro nell'anteprima",
+    "reload": "Ricarica l'anteprima",
+    "preset_custom": "Personalizzato",
+    "section_look": "Aspetto",
+    "colors_hint": "Ogni tipo di oggetto può avere i suoi colori; la home e le pagine comuni usano quelli della home.",
+    "section_home": "Pagina iniziale",
+    "home_desc": "I widget della home si sistemano direttamente nell'anteprima: trascina, ridimensiona, aggiungi.",
+    "home_autosave": "La home si salva man mano, senza passare da \"Pubblica\".",
+    "show_preview": "Anteprima",
+    "show_panel": "Impostazioni"
   }
 }

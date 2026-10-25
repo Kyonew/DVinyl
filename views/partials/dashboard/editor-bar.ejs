@@ -2,12 +2,22 @@
     The home page's arranging bar, for the collection's admin. At rest, one discreet
     button; while arranging (html.dash-editing), a bar that stays on screen with the
     catalogue, the reset, what was last saved and the way out.
+
+    Everything about the collection's look is arranged in one place, the Personnalisation
+    studio: outside it, the button opens the studio on this page; inside its preview, it
+    switches the page to arranging.
 %>
 <div class="dv-dash-rest flex justify-end mb-3 md:mb-4">
-    <button type="button" data-dash-edit
-        class="h-9 px-3.5 flex items-center gap-2 rounded-full text-xs font-bold bg-black/5 dark:bg-white/10 opacity-70 hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/20 transition">
+    <% const restClass = 'h-9 px-3.5 flex items-center gap-2 rounded-full text-xs font-bold bg-black/5 dark:bg-white/10 opacity-70 hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/20 transition'; %>
+    <% if (locals.studioPreview) { %>
+    <button type="button" data-dash-edit class="<%= restClass %>">
         <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i><%= t('dashboard.arrange') %>
     </button>
+    <% } else { %>
+    <a href="<%= baseUrl %>/admin/personnalisation?page=/dashboard&arrange=1" class="<%= restClass %>">
+        <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i><%= t('dashboard.arrange') %>
+    </a>
+    <% } %>
 </div>
 
 <div class="dv-dash-bar sticky z-40 mb-6 md:mb-8">

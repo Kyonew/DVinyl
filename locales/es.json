@@ -2130,5 +2130,29 @@
     "w_note": "Nota",
     "w_note_desc": "Texto libre en Markdown: reglas de préstamo, objetivos…",
     "stat_unavailable": "Estadística no disponible (¿módulo desactivado?)"
+  },
+  "studio": {
+    "draft": "Borrador",
+    "up_to_date": "Publicado",
+    "published": "Publicado ✓",
+    "publish": "Publicar",
+    "discard": "Descartar",
+    "discard_confirm": "¿Descartar el borrador y volver a lo publicado?",
+    "preview": "Vista previa",
+    "page": "Página de la vista previa",
+    "device": "Dispositivo",
+    "device_desktop": "Ordenador",
+    "device_tablet": "Tableta",
+    "device_phone": "Móvil",
+    "toggle_dark": "Cambiar claro / oscuro en la vista previa",
+    "reload": "Recargar la vista previa",
+    "preset_custom": "Personalizado",
+    "section_look": "Apariencia",
+    "colors_hint": "Cada tipo de objeto puede tener sus colores; el inicio y las páginas comunes usan los del inicio.",
+    "section_home": "Página de inicio",
+    "home_desc": "Los widgets del inicio se colocan en la propia vista previa: arrastra, redimensiona, añade.",
+    "home_autosave": "El inicio se guarda sobre la marcha, sin pasar por \"Publicar\".",
+    "show_preview": "Vista previa",
+    "show_panel": "Ajustes"
   }
 }

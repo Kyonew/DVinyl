@@ -157,6 +157,34 @@
   <script>
     if (window.navigator.standalone === true) document.documentElement.classList.add('is-standalone');
   </script>
+  <% if (locals.studioPreview) { %>
+  <%# Inside the Personnalisation studio's preview: every page reached from here, by a
+      link or a search form, stays in the preview and keeps showing the draft
+      (core/lookDraft.ts). %>
+  <script>
+    (function () {
+      const inPreview = (href) => {
+        const url = new URL(href, window.location.href);
+        if (url.origin !== window.location.origin) return null;
+        url.searchParams.set('studio', '1');
+        return url.toString();
+      };
+      document.addEventListener('click', (event) => {
+        const link = event.target.closest('a[href]');
+        if (!link || link.target === '_blank' || link.hasAttribute('download')) return;
+        const href = inPreview(link.getAttribute('href'));
+        if (href) link.href = href;
+      }, true);
+      document.addEventListener('submit', (event) => {
+        const form = event.target;
+        if ((form.getAttribute('method') || 'get').toLowerCase() !== 'get' || form.querySelector('input[name="studio"]')) return;
+        const flag = document.createElement('input');
+        Object.assign(flag, { type: 'hidden', name: 'studio', value: '1' });
+        form.appendChild(flag);
+      }, true);
+    })();
+  </script>
+  <% } %>
 
   <link rel="manifest" href="<%= baseUrl %>/manifest.json">
   <meta name="theme-color" content="<%= navColor %>" data-light="<%= navColorLight %>" data-dark="<%= navColorDark %>">

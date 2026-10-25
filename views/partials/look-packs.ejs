@@ -1,15 +1,15 @@
 <%#
-    The "Packs" panel of the Personnalisation page (core/layoutPacks.ts): the collection's
+    The "Packs" section of the Personnalisation studio (core/layoutPacks.ts): the collection's
     look (layout, colours, card shape, home page) downloaded as a JSON file, and a file
     like it loaded back, here or on another instance, choosing which parts to apply.
 
-    It sits inside the page's settings form, so it holds no form of its own and no named
+    It sits inside the studio's form, so it holds no form of its own and no named
     field: the file is read in the browser and sent on its own, and nothing here is
     posted with the rest of the page.
 %>
 <% const packLabel = 'block text-xs font-bold uppercase tracking-widest opacity-60 mb-2.5'; %>
-<div data-look-packs class="grid md:grid-cols-2 gap-6">
-    <section class="rounded-2xl bg-black/5 dark:bg-white/5 p-4 md:p-5 flex flex-col gap-3">
+<div data-look-packs class="flex flex-col gap-4">
+    <section class="rounded-2xl bg-black/5 dark:bg-white/5 p-4 flex flex-col gap-3">
         <h3 class="font-bold flex items-center gap-2"><i class="fa-solid fa-file-export text-primary-theme" aria-hidden="true"></i><%= t('perso.pack_export') %></h3>
         <p class="text-sm opacity-60"><%= t('perso.pack_export_desc') %></p>
         <label>
@@ -24,7 +24,7 @@
         <p class="text-xs opacity-50"><%= t('perso.pack_saved_only') %></p>
     </section>
 
-    <section class="rounded-2xl bg-black/5 dark:bg-white/5 p-4 md:p-5 flex flex-col gap-3">
+    <section class="rounded-2xl bg-black/5 dark:bg-white/5 p-4 flex flex-col gap-3">
         <h3 class="font-bold flex items-center gap-2"><i class="fa-solid fa-file-import text-primary-theme" aria-hidden="true"></i><%= t('perso.pack_import') %></h3>
         <p class="text-sm opacity-60"><%= t('perso.pack_import_desc') %></p>
         <label class="flex items-center justify-center gap-2 h-11 px-5 rounded-xl border-2 border-dashed border-black/15 dark:border-white/15 hover:border-primary-theme text-sm font-bold cursor-pointer transition">
@@ -161,7 +161,7 @@
             try {
                 const result = await post('/admin/personnalisation/pack/apply', { pack, sections });
                 if (!result.success) throw new Error(result.error);
-                window.location.href = base + '/admin/personnalisation?msg=saved#layout';
+                window.location.href = base + '/admin/personnalisation?msg=saved';
             } catch (e) {
                 applyBtn.disabled = false;
                 showError(e.message || i18n.generic);

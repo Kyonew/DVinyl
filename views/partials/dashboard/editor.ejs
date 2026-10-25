@@ -219,9 +219,13 @@
         // Scripts of the widgets (charts, buttons) were wired on the page as it loaded.
         if (!on && changedMarkup) window.location.reload();
     }
-    document.querySelector('[data-dash-edit]').addEventListener('click', () => setEditing(true));
+    document.querySelector('[data-dash-edit]')?.addEventListener('click', () => setEditing(true));
     document.querySelector('[data-dash-done]').addEventListener('click', () => setEditing(false));
     if (window.location.hash === '#arrange') setEditing(true);
+    // The studio sends an open home page to arranging by its address alone.
+    window.addEventListener('hashchange', () => {
+        if (window.location.hash === '#arrange' && !root.classList.contains('dash-editing')) setEditing(true);
+    });
 
     document.querySelector('[data-dash-reset]').addEventListener('click', async () => {
         if (!confirm(i18n.resetConfirm)) return;

@@ -2130,5 +2130,29 @@
     "w_note": "Note",
     "w_note_desc": "Free Markdown text: lending rules, goals…",
     "stat_unavailable": "Statistic unavailable (module off?)"
+  },
+  "studio": {
+    "draft": "Draft",
+    "up_to_date": "Published",
+    "published": "Published ✓",
+    "publish": "Publish",
+    "discard": "Discard",
+    "discard_confirm": "Throw the draft away and go back to what is published?",
+    "preview": "Preview",
+    "page": "Preview page",
+    "device": "Device",
+    "device_desktop": "Desktop",
+    "device_tablet": "Tablet",
+    "device_phone": "Phone",
+    "toggle_dark": "Switch light / dark in the preview",
+    "reload": "Reload the preview",
+    "preset_custom": "Custom",
+    "section_look": "Appearance",
+    "colors_hint": "Each item type can have its own colours; the home page and shared pages use the home colours.",
+    "section_home": "Home page",
+    "home_desc": "Home page widgets are placed right in the preview: drag, resize, add.",
+    "home_autosave": "The home page saves as you go, without \"Publish\".",
+    "show_preview": "Preview",
+    "show_panel": "Settings"
   }
 }

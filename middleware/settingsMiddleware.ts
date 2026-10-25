@@ -4,6 +4,7 @@ import themesConfig from '../config/themes';
 import { BASE_URL } from '../config/constants';
 import { registry } from '../core/registry';
 import { resolveLayout } from '../core/layout';
+import { getDraft, isStudioRequest, withUpdate } from '../core/lookDraft';
 
 async function settingsMiddleware(req: any, res: any, next: any) {
     try {
@@ -36,7 +37,15 @@ async function settingsMiddleware(req: any, res: any, next: any) {
             pluginSettings: registry.getDefaultPluginSettings()
         };
 
-        const settings = dbSettings || defaultSettings;
+        let settings = dbSettings || defaultSettings;
+
+        // A page inside the Personnalisation studio's preview shows the admin's unpublished
+        // draft over the saved settings (core/lookDraft.ts).
+        if (isStudioRequest(req, res)) {
+            res.locals.studioPreview = true;
+            const draft = getDraft(req, activeCollectionId);
+            if (draft) settings = withUpdate(settings, draft);
+        }
 
         settings.modules = settings.modules || registry.getDefaultModules();
         settings.pluginSettings = settings.pluginSettings || registry.getDefaultPluginSettings();

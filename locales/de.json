@@ -2130,5 +2130,29 @@
     "w_note": "Notiz",
     "w_note_desc": "Freier Markdown-Text: Ausleihregeln, Ziele…",
     "stat_unavailable": "Statistik nicht verfügbar (Modul aus?)"
+  },
+  "studio": {
+    "draft": "Entwurf",
+    "up_to_date": "Veröffentlicht",
+    "published": "Veröffentlicht ✓",
+    "publish": "Veröffentlichen",
+    "discard": "Verwerfen",
+    "discard_confirm": "Entwurf verwerfen und zum veröffentlichten Stand zurückkehren?",
+    "preview": "Vorschau",
+    "page": "Vorschauseite",
+    "device": "Gerät",
+    "device_desktop": "Computer",
+    "device_tablet": "Tablet",
+    "device_phone": "Handy",
+    "toggle_dark": "Hell / dunkel in der Vorschau wechseln",
+    "reload": "Vorschau neu laden",
+    "preset_custom": "Eigene",
+    "section_look": "Erscheinungsbild",
+    "colors_hint": "Jeder Objekttyp kann eigene Farben haben; Startseite und gemeinsame Seiten nutzen die der Startseite.",
+    "section_home": "Startseite",
+    "home_desc": "Startseiten-Widgets werden direkt in der Vorschau platziert: ziehen, Größe ändern, hinzufügen.",
+    "home_autosave": "Die Startseite speichert laufend, ohne \"Veröffentlichen\".",
+    "show_preview": "Vorschau",
+    "show_panel": "Einstellungen"
   }
 }

@@ -1,372 +1,511 @@
-<%- include('partials/header') %>
+<%- include('partials/header', { shellBack: false }) %>
 
-    <div class="max-w-5xl mx-auto px-4 max-sm:px-0 pt-2 pb-12 md:py-10">
+<%#
+    The Personnalisation studio: everything about the collection's look in one place,
+    with the real app on the left as a live preview and the choices on the right.
 
-        <%# On phones the shell's back button stands in for the link home, and the cards
-            tighten up: same settings, less chrome around them. %>
-        <div data-settings-head class="flex flex-col md:flex-row md:items-center justify-between mb-6 md:mb-8 gap-4">
-            <div>
-                <h1 class="text-[2rem] leading-tight font-extrabold tracking-tight md:text-3xl md:font-black md:tracking-normal transition-colors">
-                    <%= t('perso.title') %>
-                </h1>
-                <p class="text-sm md:text-base opacity-60 mt-1 transition-colors">
-                    <%= t('perso.subtitle', { siteName: settings.siteName }) %>
-                </p>
-            </div>
-            <a href="<%= baseUrl || '/' %>"
-                class="max-md:hidden w-fit px-4 py-2 bg-black/5 dark:bg-white/10 rounded-lg text-sm font-bold hover:bg-black/10 dark:hover:bg-white/20 transition-all flex items-center">
-                <i class="fa-solid fa-arrow-left mr-2"></i>
-                <%= t('perso.backHome') %>
-            </a>
-        </div>
+    Changes are a draft (core/lookDraft.ts) until they are published: the preview frame
+    loads pages with ?studio=1, which shows the draft over the saved settings, so members
+    see nothing change before "Publish". What only restyles (density, corners, size,
+    width, font) is applied in the frame at once; what changes the shell's markup
+    (navigation, colours, cards, shortcuts) reloads it, keeping its scroll.
 
-        <form action="<%= baseUrl %>/admin/personnalisation/save" method="POST" data-save-bar class="space-y-5 md:space-y-8">
+    The home page's widgets are arranged in the preview itself, with the page's own
+    editor (partials/dashboard/editor), which saves as it goes.
+%>
+<%
+    const studioSection = 'group border-b border-[var(--border-color)]';
+    const studioSummary = 'flex items-center gap-3 px-4 py-3.5 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden hover:bg-black/5 dark:hover:bg-white/5 transition-colors';
+    const studioIcon = 'w-8 h-8 flex-none rounded-lg bg-primary-theme/15 text-primary-theme flex items-center justify-center text-sm';
+    const studioBody = 'px-4 pb-5 pt-1 space-y-4';
+    const fieldLabel = 'block text-[11px] font-bold uppercase tracking-widest opacity-60 mb-2';
+    const selectClass = 'w-full bg-black/5 dark:bg-black/20 border border-transparent focus:border-primary-theme rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary-theme/20 outline-none transition-all';
+    const toolButton = 'h-9 min-w-[2.25rem] px-2 flex items-center justify-center gap-1.5 rounded-lg text-sm hover:bg-black/5 dark:hover:bg-white/10 transition-colors';
+    const enabledPlugins = registry.getEnabled(settings);
+    const summaryOf = (icon, title) => `
+        <span class="${studioIcon}"><i class="fa-solid fa-${icon}" aria-hidden="true"></i></span>
+        <span class="flex-1 min-w-0 font-bold truncate">${title}</span>
+        <i class="fa-solid fa-chevron-down text-xs opacity-50 transition-transform group-open:rotate-180" aria-hidden="true"></i>`;
+    const esc = (text) => String(text).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+%>
 
-            <%- include('partials/settings-tabs', { phoneOnly: true, tabs: [
-                { id: 'themes', icon: 'palette', label: t('perso.themes.title') },
-                { id: 'layout', icon: 'table-columns', label: t('layout.title') },
-                { id: 'cards', icon: 'percent', label: t('perso.card_aspect_ratio') },
-                { id: 'navigation', icon: 'list-check', label: t('perso.nav_title') },
-                { id: 'quick-add', icon: 'bolt', label: t('perso.fastAdd_title') },
-                { id: 'widgets', icon: 'chart-simple', label: t('perso.widgets_title') },
-                { id: 'packs', icon: 'box-archive', label: t('perso.pack_title') }
-            ] }) %>
+<div id="studio" data-studio-mode="panel" class="fixed inset-0 z-[55] flex flex-col bg-[var(--bg-page)] text-[var(--text-main)]">
+    <header class="flex-none flex items-center gap-2 md:gap-3 px-3 md:px-4 h-14 border-b border-[var(--border-color)]" style="background-color: var(--bg-nav); padding-top: env(safe-area-inset-top);">
+        <a href="<%= baseUrl %>/dashboard" aria-label="<%= t('nav.back') %>" title="<%= t('nav.back') %>" class="<%= toolButton %>">
+            <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+        </a>
+        <h1 class="font-black text-lg truncate"><%= t('perso.title') %></h1>
+        <span data-studio-state class="max-sm:hidden text-[11px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full <%= hasDraft ? 'bg-amber-500/15 text-amber-500' : 'bg-black/5 dark:bg-white/10 opacity-70' %>">
+            <%= hasDraft ? t('studio.draft') : t('studio.up_to_date') %>
+        </span>
+        <span class="flex-1"></span>
+        <button type="button" data-studio-discard <%= hasDraft ? '' : 'disabled' %>
+            class="h-9 px-3 rounded-lg text-sm font-bold bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition disabled:opacity-40 disabled:pointer-events-none">
+            <i class="fa-solid fa-rotate-left sm:mr-1.5" aria-hidden="true"></i><span class="max-sm:hidden"><%= t('studio.discard') %></span>
+        </button>
+        <button type="submit" form="studioForm"
+            class="h-9 px-4 rounded-lg text-sm font-black bg-primary-theme hover:brightness-110 shadow-lg shadow-primary-theme/20 transition active:scale-95">
+            <i class="fa-solid fa-cloud-arrow-up mr-1.5" aria-hidden="true"></i><%= t('studio.publish') %>
+        </button>
+    </header>
 
-            <div data-tab-panel="themes" class="md:!mt-0 card-theme rounded-2xl md:rounded-3xl p-4 md:p-6 shadow-sm md:shadow-xl transition-colors">
-                <h2 class="text-lg md:text-xl font-bold mb-4 md:mb-6 flex items-center gap-3">
-                    <div
-                        class="w-8 h-8 md:w-10 md:h-10 shrink-0 rounded-full bg-primary-theme/10 text-primary-theme flex items-center justify-center text-sm md:text-base">
-                        <i class="fa-solid fa-palette"></i>
-                    </div>
-                    <%= t('perso.themes.title') %>
-                </h2>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
-
-                    <div class="space-y-2">
-                        <label class="block text-xs font-bold uppercase tracking-widest opacity-60">
-                            <i class="fa-solid fa-house mr-1"></i>
-                            <%= t('perso.themes.home') %>
-                        </label>
-                        <select name="homePreset"
-                            class="w-full bg-black/5 dark:bg-black/20 border border-transparent focus:border-primary-theme rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-theme/20 outline-none transition-all">
-                            <% for (const [key, val] of Object.entries(presets)) { %>
-                                <option value="<%= key %>" <%=(settings.theme.home.preset===key) ? 'selected' : '' %>
-                                    class="dark:bg-neutral-900">
-                                    <%= val.label %>
-                                </option>
-                                <% } %>
-                        </select>
-                    </div>
-
-                    <% const themeCats = registry.getEnabled(settings).map(p => ({ key: p.collectionType, label: t(p.label), icon: 'fa-' + p.icon })); %>
-
-                        <% themeCats.forEach((tTheme)=> { %>
-                            <div class="space-y-2">
-                                <label class="block text-xs font-bold uppercase tracking-widest opacity-60">
-                                    <i class="fa-solid <%= tTheme.icon %> mr-1"></i>
-                                    <%= tTheme.label %>
-                                </label>
-                                <select name="<%= tTheme.key %>Preset"
-                                    class="w-full bg-black/5 dark:bg-black/20 border border-transparent focus:border-primary-theme rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-theme/20 outline-none transition-all">
-                                    <% for (const [key, val] of Object.entries(presets)) { %>
-                                        <option value="<%= key %>" <%=(settings.theme[tTheme.key] &&
-                                            settings.theme[tTheme.key].preset===key) ? 'selected' : '' %>
-                                            class="dark:bg-neutral-900">
-                                            <%= val.label %>
-                                        </option>
-                                        <% } %>
-                                </select>
-                            </div>
-                            <% }) %>
-
+    <div class="flex-1 min-h-0 flex">
+        <%# The preview: the real app in a frame, with the page, the device and the mode it is
+            shown in. Below lg it takes the whole screen in turn with the panel. %>
+        <section data-studio-preview class="flex-1 min-w-0 flex flex-col max-lg:hidden">
+            <div class="flex-none flex items-center gap-1.5 px-3 h-12 border-b border-[var(--border-color)]">
+                <select data-studio-page aria-label="<%= t('studio.page') %>" class="<%= selectClass %> !w-auto !py-1.5 max-w-[12rem]">
+                    <% [
+                        ['/dashboard', t('nav.home')],
+                        ['/collection', t('nav.collection')],
+                        ['/wishlist', t('nav.wishlist')],
+                        ['/lists', t('lists.title')],
+                        ['/search', t('nav.search')],
+                        ['/account', t('nav.account')]
+                    ].forEach(([path, label]) => { %>
+                        <option value="<%= path %>"><%= label %></option>
+                    <% }) %>
+                </select>
+                <span data-studio-path class="flex-1 min-w-0 truncate text-xs opacity-50 px-1"></span>
+                <div class="flex items-center rounded-lg bg-black/5 dark:bg-white/5 p-0.5" role="group" aria-label="<%= t('studio.device') %>">
+                    <% [['desktop', 'fa-desktop'], ['tablet', 'fa-tablet-screen-button'], ['phone', 'fa-mobile-screen']].forEach(([id, icon]) => { %>
+                        <button type="button" data-studio-device="<%= id %>" aria-pressed="<%= id === 'desktop' %>" title="<%= t('studio.device_' + id) %>" aria-label="<%= t('studio.device_' + id) %>"
+                            class="w-8 h-8 rounded-md flex items-center justify-center opacity-60 aria-pressed:opacity-100 aria-pressed:bg-[var(--bg-card)] aria-pressed:shadow transition">
+                            <i class="fa-solid <%= icon %> text-sm" aria-hidden="true"></i>
+                        </button>
+                    <% }) %>
                 </div>
-            </div>
-
-            <div data-tab-panel="layout" class="card-theme rounded-2xl md:rounded-3xl p-4 md:p-6 shadow-sm md:shadow-xl transition-colors md:mt-8">
-                <h2 class="text-lg md:text-xl font-bold mb-2 flex items-center gap-3">
-                    <div
-                        class="w-8 h-8 md:w-10 md:h-10 shrink-0 rounded-full bg-primary-theme/10 text-primary-theme flex items-center justify-center text-sm md:text-base">
-                        <i class="fa-solid fa-table-columns"></i>
-                    </div>
-                    <%= t('layout.title') %>
-                </h2>
-                <p class="text-sm opacity-60 mb-4 md:mb-6"><%= t('layout.desc') %></p>
-                <%- include('partials/layout-settings') %>
-            </div>
-
-            <div data-tab-panel="cards" class="card-theme rounded-2xl md:rounded-3xl p-4 md:p-6 shadow-sm md:shadow-xl transition-colors md:mt-8">
-                <h2 class="text-lg md:text-xl font-bold mb-2 flex items-center gap-3">
-                    <div
-                        class="w-8 h-8 md:w-10 md:h-10 shrink-0 rounded-full bg-primary-theme/10 text-primary-theme flex items-center justify-center text-sm md:text-base">
-                        <i class="fa-solid fa-percent"></i>
-                    </div>
-                    <%= t('perso.card_aspect_ratio') %>
-                </h2>
-                <p class="text-sm opacity-60 mb-4"><%= t('perso.card_aspect_ratio_desc') %></p>
-                <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    <%
-                    // Values must stay in sync with CARD_ASPECT_RATIOS (core/customPlugin.ts),
-                    // which is what the save route accepts.
-                    const aspectRatioOptions = [
-                        { value: 'aspect-[2/3]', label: t('create_plugin.shape_poster'), icon: 'fa-file' },
-                        { value: 'aspect-square', label: t('create_plugin.shape_square'), icon: 'fa-square' },
-                        { value: 'aspect-[16/9]', label: t('create_plugin.shape_screen'), icon: 'fa-desktop' }
-                    ];
-                    const currentAspect = settings.aspectRatioClass || 'aspect-square';
-                    %>
-                    <% aspectRatioOptions.forEach(opt=> { %>
-                        <label class="cursor-pointer relative group">
-                            <input type="radio" name="aspectRatioClass" value="<%= opt.value %>" class="peer sr-only"
-                                <%= currentAspect === opt.value ? 'checked' : '' %>>
-                            <div
-                                class="flex items-center gap-3 p-3 rounded-xl border border-black/5 dark:border-white/5 bg-black/5 dark:bg-white/5 transition-all peer-checked:text-white opacity-60 peer-checked:opacity-100 peer-checked:shadow-md peer-checked:bg-primary-theme">
-                                <i class="fa-solid <%= opt.icon %> text-base w-4 text-center"></i>
-                                <span class="text-sm font-medium">
-                                    <%= opt.label %>
-                                </span>
-                            </div>
-                        </label>
-                        <% }) %>
-                </div>
-            </div>
-
-            <div data-tab-panel="navigation" class="card-theme rounded-2xl md:rounded-3xl p-4 md:p-6 shadow-sm md:shadow-xl transition-colors md:mt-8">
-                <h2 class="text-lg md:text-xl font-bold mb-2 flex items-center gap-3">
-                    <div
-                        class="w-8 h-8 md:w-10 md:h-10 shrink-0 rounded-full bg-primary-theme/10 text-primary-theme flex items-center justify-center text-sm md:text-base">
-                        <i class="fa-solid fa-list-check"></i>
-                    </div>
-                    <%= t('perso.nav_title') %>
-                </h2>
-                <p class="text-sm opacity-60 mb-4 md:mb-6">
-                    <%= t('perso.nav_desc') %>
-                </p>
-
-                <div class="md:space-y-6">
-                    <%
-                    // Global group plus one group per plugin (navbarShortcuts declared by the plugin)
-                    const shortcutGroups = [
-                        { label: t('perso.modules.global'), active: true, options: [
-                            { id: 'global_home', label: t('nav.home') },
-                            { id: 'global_collection', label: t('nav.collection') },
-                            { id: 'global_wishlist', label: t('nav.wishlist') },
-                            { id: 'global_info', label: t('collection_info.title') },
-                            { id: 'global_lists', label: t('lists.title') }
-                        ] }
-                    ];
-                    registry.getAll().forEach(p => {
-                        shortcutGroups.push({
-                            label: t(p.label),
-                            active: !!(settings.modules && settings.modules[p.collectionType]),
-                            options: (p.navbarShortcuts || []).map(sc => ({ id: sc.id, label: t(sc.label) }))
-                        });
-                    });
-                    %>
-
-                        <div class="max-md:hidden flex gap-2 overflow-x-auto pb-2 scrollbar-hide flex-nowrap">
-                            <% shortcutGroups.forEach((group, idx)=> { %>
-                                <% if (group.active) { %>
-                                    <button type="button" onclick="switchTab('shortcuts', <%= idx %>)"
-                                        id="tab-shortcuts-<%= idx %>"
-                                        class="tab-btn-shortcuts shrink-0 px-5 py-2.5 rounded-xl font-bold text-sm whitespace-nowrap transition-all border-2 border-transparent text-black/50 dark:text-white/50 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10">
-                                        <%= group.label %>
-                                    </button>
-                                    <% } %>
-                                        <% }) %>
-                        </div>
-
-                        <div class="md:mt-4 max-md:space-y-3">
-                            <% shortcutGroups.forEach((group, idx)=> { %>
-                                <% if (group.active) { %>
-                                    <div id="content-shortcuts-<%= idx %>"
-                                        class="tab-content-shortcuts hidden max-md:!block bg-black/5 dark:bg-white/5 rounded-2xl p-3 md:p-5">
-                                        <p class="md:hidden mb-2 text-xs font-bold uppercase tracking-widest opacity-60"><%= group.label %></p>
-                                        <div class="flex flex-wrap gap-2 md:gap-3">
-                                            <% group.options.forEach(opt=> { %>
-                                                <label class="shortcut-option cursor-pointer group relative">
-                                                    <input type="checkbox" name="navbarShortcuts" value="<%= opt.id %>"
-                                                        <%=(settings.navbarShortcuts &&
-                                                        settings.navbarShortcuts.includes(opt.id)) ? 'checked' : '' %>
-                                                    class="sr-only">
-                                                    <div
-                                                        class="flex items-center gap-2 px-3 py-2 md:px-4 md:py-2.5 rounded-xl border-2 border-transparent bg-black/5 dark:bg-white/5 text-black/50 dark:text-white/50 opacity-80 transition-all duration-300 font-bold group-hover:bg-black/10 dark:group-hover:bg-white/10 group-has-[:checked]:bg-primary-theme group-has-[:checked]:border-primary-theme group-has-[:checked]:text-white group-has-[:checked]:opacity-100 group-has-[:checked]:shadow-lg group-has-[:checked]:-translate-y-0.5">
-                                                        <i
-                                                            class="fa-solid fa-plus text-[10px] opacity-40 block group-has-[:checked]:hidden transition-transform"></i>
-                                                        <i
-                                                            class="fa-solid fa-check text-[10px] hidden group-has-[:checked]:block transition-transform"></i>
-                                                        <span class="text-sm">
-                                                            <%= opt.label %>
-                                                        </span>
-                                                    </div>
-                                                </label>
-                                                <% }) %>
-                                        </div>
-                                    </div>
-                                    <% } %>
-                                        <% }) %>
-                        </div>
-                </div>
-            </div>
-
-
-            <div data-tab-panel="quick-add" class="card-theme rounded-2xl md:rounded-3xl p-4 md:p-6 shadow-sm md:shadow-xl transition-colors md:mt-8">
-                <h2 class="text-lg md:text-xl font-bold mb-2 flex items-center gap-3">
-                    <div
-                        class="w-8 h-8 md:w-10 md:h-10 shrink-0 rounded-full bg-primary-theme/10 text-primary-theme flex items-center justify-center text-sm md:text-base">
-                        <i class="fa-solid fa-bolt"></i>
-                    </div>
-                    <%= t('perso.fastAdd_title') %>
-                </h2>
-                <p class="text-sm opacity-60 mb-4 md:mb-6">
-                    <%= t('perso.fastAdd_desc') %>
-                </p>
-
-                <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    <%
-                    const fastAddOptions = [
-                        { value: '', label: t('perso.fastAdd_disabled'), icon: 'fa-xmark', color: 'peer-checked:bg-gray-500' }
-                    ];
-                    registry.getAll().forEach(p => {
-                        if (settings.modules && settings.modules[p.collectionType]) {
-                            (p.fastAddOptions || []).forEach(o => {
-                                fastAddOptions.push({ value: o.value, label: t(o.label), icon: o.icon, color: o.color });
-                            });
-                        }
-                    });
-                    %>
-                        <% fastAddOptions.forEach(opt=> { %>
-                            <label class="cursor-pointer relative group">
-                                <input type="radio" name="fastAdd" value="<%= opt.value %>" class="peer sr-only"
-                                    <%=(settings.fastAdd===opt.value || (!settings.fastAdd && opt.value==='' ))
-                                    ? 'checked' : '' %>>
-                                <div
-                                    class="flex items-center gap-3 p-3 rounded-xl border border-black/5 dark:border-white/5 bg-black/5 dark:bg-white/5 transition-all peer-checked:text-white opacity-60 peer-checked:opacity-100 peer-checked:shadow-md <%= opt.color %>">
-                                    <i class="fa-solid <%= opt.icon %> text-base w-4 text-center"></i>
-                                    <span class="text-sm font-medium">
-                                        <%= opt.label %>
-                                    </span>
-                                </div>
-                            </label>
-                            <% }) %>
-                </div>
-
-                <%# Offered only where something can actually be scanned into one exact
-                    item: with no such module active the toggle would promise a behaviour
-                    no search on this instance can trigger. %>
-                <% if (locals.scanModeAvailable) { %>
-                    <label
-                        class="flex items-start justify-between gap-4 p-4 mt-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 cursor-pointer">
-                        <div class="flex items-start gap-3">
-                            <div
-                                class="w-10 h-10 rounded-xl flex items-center justify-center bg-white dark:bg-black/20 shadow-sm shrink-0">
-                                <i class="fa-solid fa-barcode text-sm"></i>
-                            </div>
-                            <div>
-                                <span class="text-sm font-bold opacity-80">
-                                    <%= t('perso.instantAdd_title') %>
-                                </span>
-                                <p class="text-xs opacity-50 mt-0.5">
-                                    <%= t('perso.instantAdd_desc') %>
-                                </p>
-                            </div>
-                        </div>
-                        <div class="relative inline-flex items-center shrink-0 mt-2">
-                            <input type="checkbox" name="instantAdd" <%= settings.instantAdd === true ? 'checked' : ''
-                                %> class="sr-only peer">
-                            <div
-                                class="w-11 h-6 bg-black/10 dark:bg-white/10 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500">
-                            </div>
-                        </div>
-                    </label>
-                <% } %>
-            </div>
-
-            <div data-tab-panel="widgets" class="card-theme rounded-2xl md:rounded-3xl p-4 md:p-6 shadow-sm md:shadow-xl transition-colors md:mt-8">
-                <h2 class="text-lg md:text-xl font-bold mb-2 flex items-center gap-3">
-                    <div
-                        class="w-8 h-8 md:w-10 md:h-10 shrink-0 rounded-full bg-primary-theme/10 text-primary-theme flex items-center justify-center text-sm md:text-base">
-                        <i class="fa-solid fa-chart-simple"></i>
-                    </div>
-                    <%= t('perso.widgets_title') %>
-                </h2>
-                <%# The home page is arranged in place now (views/partials/dashboard/editor). The
-                    stats picked here before still seed the default home page, so they are
-                    carried through untouched rather than wiped by the next save. %>
-                <% (settings.statsWidgets || []).forEach(id => { %>
-                    <input type="hidden" name="statsWidgets" value="<%= id %>">
-                <% }) %>
-                <p class="text-sm opacity-70 mb-4"><%= t('perso.widgets_moved') %></p>
-                <a href="<%= baseUrl %>/dashboard#arrange"
-                    class="inline-flex items-center gap-2 h-11 px-5 rounded-xl bg-primary-theme hover:brightness-110 text-sm font-bold shadow-lg shadow-primary-theme/20 transition active:scale-95">
-                    <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i><%= t('dashboard.arrange') %>
-                </a>
-            </div>
-
-
-            <div data-tab-panel="packs" class="card-theme rounded-2xl md:rounded-3xl p-4 md:p-6 shadow-sm md:shadow-xl transition-colors md:mt-8">
-                <h2 class="text-lg md:text-xl font-bold mb-2 flex items-center gap-3">
-                    <div
-                        class="w-8 h-8 md:w-10 md:h-10 shrink-0 rounded-full bg-primary-theme/10 text-primary-theme flex items-center justify-center text-sm md:text-base">
-                        <i class="fa-solid fa-box-archive"></i>
-                    </div>
-                    <%= t('perso.pack_title') %>
-                </h2>
-                <p class="text-sm opacity-60 mb-4 md:mb-6"><%= t('perso.pack_desc') %></p>
-                <%- include('partials/look-packs') %>
-            </div>
-
-            <div data-settings-panel-only class="flex justify-end pt-4">
-                <button type="submit"
-                    class="w-full md:w-auto px-10 py-4 bg-primary-theme text-white font-black rounded-2xl hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-primary-theme/20 flex items-center justify-center gap-3">
-                    <i class="fa-solid fa-save"></i>
-                    <%= t('perso.save') %>
+                <button type="button" data-studio-dark title="<%= t('studio.toggle_dark') %>" aria-label="<%= t('studio.toggle_dark') %>" class="<%= toolButton %>">
+                    <i class="fa-solid fa-circle-half-stroke" aria-hidden="true"></i>
+                </button>
+                <button type="button" data-studio-reload title="<%= t('studio.reload') %>" aria-label="<%= t('studio.reload') %>" class="<%= toolButton %>">
+                    <i class="fa-solid fa-rotate" aria-hidden="true"></i>
                 </button>
             </div>
-        </form>
+            <div data-studio-stage class="flex-1 min-h-0 flex justify-center p-3 lg:p-5 overflow-auto bg-black/[0.03] dark:bg-black/30">
+                <iframe data-studio-frame title="<%= t('studio.preview') %>"
+                    class="h-full w-full rounded-xl border border-[var(--border-color)] shadow-2xl bg-[var(--bg-page)] transition-[width] duration-300"></iframe>
+            </div>
+        </section>
+
+        <aside data-studio-panel class="w-full lg:w-[400px] flex-none lg:border-l border-[var(--border-color)] overflow-y-auto overscroll-contain" style="background-color: var(--bg-card);">
+            <form id="studioForm" action="<%= baseUrl %>/admin/personnalisation/save" method="POST">
+
+                <%# Ready-made layouts: picking one fills in every layout choice below. The list
+                    shows the one the current choices match, or "custom". %>
+                <div class="px-4 py-4 border-b border-[var(--border-color)]">
+                    <label>
+                        <span class="<%= fieldLabel %>"><%= t('layout.presets') %></span>
+                        <select data-studio-preset class="<%= selectClass %>">
+                            <option value=""><%= t('studio.preset_custom') %></option>
+                            <% layoutPresets.forEach(p => { %>
+                                <option value="<%= p.id %>" data-layout="<%= JSON.stringify(p.layout) %>"><%= t(p.label) %> · <%= t(p.description) %></option>
+                            <% }) %>
+                        </select>
+                    </label>
+                </div>
+
+                <details class="<%= studioSection %>" open>
+                    <summary class="<%= studioSummary %>"><%- summaryOf('table-columns', esc(t('layout.nav_label'))) %></summary>
+                    <div class="<%= studioBody %>"><%- include('partials/layout-settings', { part: 'nav' }) %></div>
+                </details>
+
+                <details class="<%= studioSection %>" open>
+                    <summary class="<%= studioSummary %>"><%- summaryOf('sliders', esc(t('studio.section_look'))) %></summary>
+                    <div class="<%= studioBody %>"><%- include('partials/layout-settings', { part: 'look' }) %></div>
+                </details>
+
+                <details class="<%= studioSection %>">
+                    <summary class="<%= studioSummary %>"><%- summaryOf('palette', esc(t('perso.themes.title'))) %></summary>
+                    <div class="<%= studioBody %>">
+                        <label class="block">
+                            <span class="<%= fieldLabel %>"><i class="fa-solid fa-house mr-1"></i><%= t('perso.themes.home') %></span>
+                            <select name="homePreset" class="<%= selectClass %>">
+                                <% for (const [key, val] of Object.entries(presets)) { %>
+                                    <option value="<%= key %>" <%= settings.theme.home && settings.theme.home.preset === key ? 'selected' : '' %>><%= val.label %></option>
+                                <% } %>
+                            </select>
+                        </label>
+                        <% enabledPlugins.forEach(p => { %>
+                            <label class="block">
+                                <span class="<%= fieldLabel %>"><i class="fa-solid fa-<%= p.icon %> mr-1"></i><%= t(p.label) %></span>
+                                <select name="<%= p.collectionType %>Preset" class="<%= selectClass %>">
+                                    <% for (const [key, val] of Object.entries(presets)) { %>
+                                        <option value="<%= key %>" <%= settings.theme[p.collectionType] && settings.theme[p.collectionType].preset === key ? 'selected' : '' %>><%= val.label %></option>
+                                    <% } %>
+                                </select>
+                            </label>
+                        <% }) %>
+                        <p class="text-xs opacity-50"><%= t('studio.colors_hint') %></p>
+                    </div>
+                </details>
+
+                <details class="<%= studioSection %>">
+                    <summary class="<%= studioSummary %>"><%- summaryOf('percent', esc(t('perso.card_aspect_ratio'))) %></summary>
+                    <div class="<%= studioBody %>">
+                        <p class="text-xs opacity-60"><%= t('perso.card_aspect_ratio_desc') %></p>
+                        <div class="grid grid-cols-3 gap-2">
+                            <%
+                            // Values must stay in sync with CARD_ASPECT_RATIOS (core/customPlugin.ts),
+                            // which is what the save route accepts.
+                            [
+                                { value: 'aspect-[2/3]', label: t('create_plugin.shape_poster'), icon: 'fa-file' },
+                                { value: 'aspect-square', label: t('create_plugin.shape_square'), icon: 'fa-square' },
+                                { value: 'aspect-[16/9]', label: t('create_plugin.shape_screen'), icon: 'fa-desktop' }
+                            ].forEach(opt => { %>
+                                <label class="cursor-pointer">
+                                    <input type="radio" name="aspectRatioClass" value="<%= opt.value %>" class="peer sr-only" <%= (settings.aspectRatioClass || 'aspect-square') === opt.value ? 'checked' : '' %>>
+                                    <div class="flex flex-col items-center gap-1.5 p-2.5 rounded-xl bg-black/5 dark:bg-white/5 text-xs font-semibold opacity-70 peer-checked:opacity-100 peer-checked:bg-primary-theme peer-checked:text-white transition">
+                                        <i class="fa-solid <%= opt.icon %>" aria-hidden="true"></i><%= opt.label %>
+                                    </div>
+                                </label>
+                            <% }) %>
+                        </div>
+                    </div>
+                </details>
+
+                <details class="<%= studioSection %>">
+                    <summary class="<%= studioSummary %>"><%- summaryOf('list-check', esc(t('perso.nav_title'))) %></summary>
+                    <div class="<%= studioBody %>">
+                        <p class="text-xs opacity-60"><%= t('perso.nav_desc') %></p>
+                        <%
+                        // Global group plus one group per enabled plugin (navbarShortcuts declared by the plugin)
+                        const shortcutGroups = [
+                            { label: t('perso.modules.global'), options: [
+                                { id: 'global_home', label: t('nav.home') },
+                                { id: 'global_collection', label: t('nav.collection') },
+                                { id: 'global_wishlist', label: t('nav.wishlist') },
+                                { id: 'global_info', label: t('collection_info.title') },
+                                { id: 'global_lists', label: t('lists.title') }
+                            ] },
+                            ...enabledPlugins.map(p => ({ label: t(p.label), options: (p.navbarShortcuts || []).map(sc => ({ id: sc.id, label: t(sc.label) })) }))
+                        ].filter(group => group.options.length > 0);
+                        %>
+                        <% shortcutGroups.forEach(group => { %>
+                            <div>
+                                <span class="<%= fieldLabel %>"><%= group.label %></span>
+                                <div class="flex flex-wrap gap-1.5">
+                                    <% group.options.forEach(opt => { %>
+                                        <label class="cursor-pointer">
+                                            <input type="checkbox" name="navbarShortcuts" value="<%= opt.id %>" class="peer sr-only" <%= (settings.navbarShortcuts || []).includes(opt.id) ? 'checked' : '' %>>
+                                            <span class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-black/5 dark:bg-white/5 opacity-70 peer-checked:opacity-100 peer-checked:bg-primary-theme peer-checked:text-white transition">
+                                                <%= opt.label %>
+                                            </span>
+                                        </label>
+                                    <% }) %>
+                                </div>
+                            </div>
+                        <% }) %>
+                    </div>
+                </details>
+
+                <details class="<%= studioSection %>" <%= startArrange ? 'open' : '' %>>
+                    <summary class="<%= studioSummary %>"><%- summaryOf('house', esc(t('studio.section_home'))) %></summary>
+                    <div class="<%= studioBody %>">
+                        <p class="text-sm opacity-70"><%= t('studio.home_desc') %></p>
+                        <button type="button" data-studio-arrange
+                            class="w-full inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl bg-primary-theme hover:brightness-110 text-sm font-bold shadow-lg shadow-primary-theme/20 transition active:scale-95">
+                            <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i><%= t('dashboard.arrange') %>
+                        </button>
+                        <p class="text-xs opacity-50"><%= t('studio.home_autosave') %></p>
+                        <%# The stats picked before the home page had widgets still seed its default
+                            arrangement: carried through so a publish never wipes them. %>
+                        <% (settings.statsWidgets || []).forEach(id => { %>
+                            <input type="hidden" name="statsWidgets" value="<%= id %>">
+                        <% }) %>
+                    </div>
+                </details>
+
+                <details class="<%= studioSection %>">
+                    <summary class="<%= studioSummary %>"><%- summaryOf('bolt', esc(t('perso.fastAdd_title'))) %></summary>
+                    <div class="<%= studioBody %>">
+                        <p class="text-xs opacity-60"><%= t('perso.fastAdd_desc') %></p>
+                        <%
+                        const fastAddOptions = [{ value: '', label: t('perso.fastAdd_disabled'), icon: 'fa-xmark' }];
+                        enabledPlugins.forEach(p => (p.fastAddOptions || []).forEach(o => fastAddOptions.push({ value: o.value, label: t(o.label), icon: o.icon })));
+                        %>
+                        <div class="grid grid-cols-2 gap-2">
+                            <% fastAddOptions.forEach(opt => { %>
+                                <label class="cursor-pointer">
+                                    <input type="radio" name="fastAdd" value="<%= opt.value %>" class="peer sr-only" <%= (settings.fastAdd || '') === opt.value ? 'checked' : '' %>>
+                                    <div class="flex items-center gap-2 p-2.5 rounded-xl bg-black/5 dark:bg-white/5 text-xs font-semibold opacity-70 peer-checked:opacity-100 peer-checked:bg-primary-theme peer-checked:text-white transition">
+                                        <i class="fa-solid <%= opt.icon %> w-4 text-center" aria-hidden="true"></i><span class="truncate"><%= opt.label %></span>
+                                    </div>
+                                </label>
+                            <% }) %>
+                        </div>
+                        <%# Offered only where something can actually be scanned into one exact item. %>
+                        <% if (locals.scanModeAvailable) { %>
+                            <%- include('partials/studio-toggle', { name: 'instantAdd', checked: settings.instantAdd === true, title: t('perso.instantAdd_title'), desc: t('perso.instantAdd_desc') }) %>
+                        <% } %>
+                    </div>
+                </details>
+
+                <details class="<%= studioSection %>">
+                    <summary class="<%= studioSummary %>"><%- summaryOf('box-archive', esc(t('perso.pack_title'))) %></summary>
+                    <div class="<%= studioBody %>">
+                        <p class="text-xs opacity-60"><%= t('perso.pack_desc') %></p>
+                        <%- include('partials/look-packs') %>
+                    </div>
+                </details>
+            </form>
+        </aside>
     </div>
 
-    <script>
-        function switchTab(groupName, index) {
-            const allContents = document.querySelectorAll('.tab-content-' + groupName);
-            allContents.forEach(el => el.classList.add('hidden'));
+    <%# Phones and tablets: the panel and the preview take the screen in turn. %>
+    <button type="button" data-studio-swap
+        class="lg:hidden fixed right-4 z-10 h-12 px-5 rounded-full bg-primary-theme font-bold shadow-2xl shadow-black/40 flex items-center gap-2 active:scale-95 transition"
+        style="bottom: calc(1rem + env(safe-area-inset-bottom));">
+        <i class="fa-solid fa-eye" aria-hidden="true"></i><span data-studio-swap-label><%= t('studio.show_preview') %></span>
+    </button>
+</div>
 
-            const allBtns = document.querySelectorAll('.tab-btn-' + groupName);
-            allBtns.forEach(btn => {
-                btn.classList.remove('bg-primary-theme', 'text-white', 'border-primary-theme', 'opacity-100', 'shadow-md');
-                btn.classList.add('bg-black/5', 'dark:bg-white/5', 'text-black/50', 'dark:text-white/50');
-            });
+<style>
+    #studio[data-studio-mode="preview"] [data-studio-preview] { display: flex; }
+    @media (max-width: 1023px) {
+        #studio[data-studio-mode="preview"] [data-studio-panel] { display: none; }
+    }
+</style>
 
-            const targetContent = document.getElementById('content-' + groupName + '-' + index);
-            if (targetContent) targetContent.classList.remove('hidden');
+<script>
+(() => {
+    const base = '<%= baseUrl %>';
+    const studio = document.getElementById('studio');
+    const form = document.getElementById('studioForm');
+    const frame = studio.querySelector('[data-studio-frame]');
+    const pageSelect = studio.querySelector('[data-studio-page]');
+    const pathLabel = studio.querySelector('[data-studio-path]');
+    const stateChip = studio.querySelector('[data-studio-state]');
+    const discardBtn = studio.querySelector('[data-studio-discard]');
+    const presetSelect = studio.querySelector('[data-studio-preset]');
+    const layoutOptions = <%- JSON.stringify({
+        densityFactor: LAYOUT_OPTIONS.densityFactor,
+        radiusFactor: LAYOUT_OPTIONS.radiusFactor,
+        scalePercent: LAYOUT_OPTIONS.scalePercent,
+        contentMax: LAYOUT_OPTIONS.contentMax,
+        fontStacks: LAYOUT_OPTIONS.fontStacks
+    }) %>;
+    const fontSheets = { jakarta: 'plus-jakarta-sans.css', poppins: 'poppins.css' };
+    const i18n = <%- JSON.stringify({
+        draft: t('studio.draft'),
+        upToDate: t('studio.up_to_date'),
+        published: t('studio.published'),
+        discardConfirm: t('studio.discard_confirm'),
+        maxShortcuts: t('perso.nav_max'),
+        showPreview: t('studio.show_preview'),
+        showPanel: t('studio.show_panel')
+    }).replace(/</g, '\\u003c') %>;
+    const deviceWidths = { desktop: '100%', tablet: '834px', phone: '390px' };
 
-            const targetBtn = document.getElementById('tab-' + groupName + '-' + index);
-            if (targetBtn) {
-                targetBtn.classList.remove('bg-black/5', 'dark:bg-white/5', 'text-black/50', 'dark:text-white/50');
-                targetBtn.classList.add('bg-primary-theme', 'text-white', 'border-primary-theme', 'opacity-100', 'shadow-md');
+    document.body.style.overflow = 'hidden';
+    const value = (name) => form.querySelector(`[name="${name}"]:checked`)?.value;
+
+    // ---- The frame --------------------------------------------------------------
+    const inStudio = (path) => {
+        const url = new URL(base + path, window.location.origin);
+        url.searchParams.set('studio', '1');
+        return url;
+    };
+    let keepScroll = null;
+    let darkOverride = null;
+
+    function frameWindow() {
+        try { return frame.contentWindow && frame.contentWindow.document ? frame.contentWindow : null; } catch (e) { return null; }
+    }
+
+    function reloadFrame() {
+        const win = frameWindow();
+        keepScroll = win ? win.scrollY : null;
+        if (win) win.location.reload();
+    }
+
+    // What only restyles is applied in the frame straight away, through the variables
+    // the shell itself reads.
+    function applyLook() {
+        const win = frameWindow();
+        if (!win) return;
+        const doc = win.document;
+        const style = doc.documentElement.style;
+        const density = value('layout_density'), radius = value('layout_radius'), scale = value('layout_scale');
+        const width = value('layout_width'), font = value('layout_font');
+        if (density) style.setProperty('--dv-space', String(layoutOptions.densityFactor[density]));
+        if (radius) style.setProperty('--dv-radius', String(layoutOptions.radiusFactor[radius]));
+        if (width) style.setProperty('--dv-content-max', layoutOptions.contentMax[width]);
+        if (scale) style.fontSize = layoutOptions.scalePercent[scale];
+        if (font) {
+            style.setProperty('--dv-font', layoutOptions.fontStacks[font]);
+            const sheet = fontSheets[font];
+            if (sheet && !doc.querySelector(`link[data-studio-font="${font}"]`)) {
+                const link = doc.createElement('link');
+                Object.assign(link, { rel: 'stylesheet', href: base + '/vendor/fonts/' + sheet });
+                link.dataset.studioFont = font;
+                doc.head.appendChild(link);
             }
         }
+    }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            const firstShortcutTab = document.querySelector('.tab-btn-shortcuts');
-            if (firstShortcutTab) {
-                const idx = firstShortcutTab.id.split('-').pop();
-                switchTab('shortcuts', idx);
+    function applyDark() {
+        const win = frameWindow();
+        if (win && darkOverride !== null) win.document.documentElement.classList.toggle('dark', darkOverride);
+    }
+
+    frame.addEventListener('load', () => {
+        const win = frameWindow();
+        if (!win) return;
+        const url = new URL(win.location.href);
+        // A page reached by a script rather than a link lost the preview flag.
+        if (url.searchParams.get('studio') !== '1') {
+            url.searchParams.set('studio', '1');
+            win.location.replace(url.toString());
+            return;
+        }
+        const path = url.pathname.slice(base.length) || '/';
+        url.searchParams.delete('studio');
+        pathLabel.textContent = path + (url.search || '');
+        if ([...pageSelect.options].some(o => o.value === path)) pageSelect.value = path;
+        else {
+            let custom = pageSelect.querySelector('[data-custom]');
+            if (!custom) {
+                custom = document.createElement('option');
+                custom.dataset.custom = '1';
+                pageSelect.appendChild(custom);
             }
+            custom.value = path;
+            custom.textContent = path;
+            pageSelect.value = path;
+        }
+        applyLook();
+        applyDark();
+        if (keepScroll !== null) { win.scrollTo(0, keepScroll); keepScroll = null; }
+    });
+
+    pageSelect.addEventListener('change', () => { frame.src = inStudio(pageSelect.value).toString(); });
+    studio.querySelector('[data-studio-reload]').addEventListener('click', reloadFrame);
+    studio.querySelectorAll('[data-studio-device]').forEach(button => button.addEventListener('click', () => {
+        studio.querySelectorAll('[data-studio-device]').forEach(b => b.setAttribute('aria-pressed', String(b === button)));
+        frame.style.width = deviceWidths[button.dataset.studioDevice];
+        frame.style.flex = 'none';
+    }));
+    studio.querySelector('[data-studio-dark]').addEventListener('click', () => {
+        const win = frameWindow();
+        const current = win ? win.document.documentElement.classList.contains('dark') : false;
+        darkOverride = !current;
+        applyDark();
+    });
+
+    // ---- The draft --------------------------------------------------------------
+    function markDraft(hasDraft, text) {
+        stateChip.textContent = text || (hasDraft ? i18n.draft : i18n.upToDate);
+        stateChip.className = 'max-sm:hidden text-[11px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full '
+            + (hasDraft ? 'bg-amber-500/15 text-amber-500' : 'bg-black/5 dark:bg-white/10 opacity-70');
+        discardBtn.disabled = !hasDraft;
+    }
+
+    let draftTimer = null;
+    let reloadAfterDraft = false;
+    function pushDraft(reload) {
+        reloadAfterDraft = reloadAfterDraft || reload;
+        clearTimeout(draftTimer);
+        draftTimer = setTimeout(async () => {
+            const reloadNow = reloadAfterDraft;
+            reloadAfterDraft = false;
+            try {
+                await fetch(base + '/admin/personnalisation/draft', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams(new FormData(form))
+                });
+                markDraft(true);
+                if (reloadNow) reloadFrame();
+            } catch (e) { /* the next change sends the whole form again */ }
+        }, reload ? 120 : 400);
+    }
+
+    // ---- The form ---------------------------------------------------------------
+    // Only the options of the navigation picked are shown.
+    function syncNavOptions() {
+        const nav = value('layout_nav');
+        form.querySelectorAll('[data-layout-for]').forEach(el => {
+            el.classList.toggle('hidden', !el.dataset.layoutFor.split(' ').includes(nav));
         });
+    }
 
-        const checkboxes = document.querySelectorAll('input[name="navbarShortcuts"]');
-        const maxAllowed = 6;
+    // The preset list shows the preset every layout choice matches, or "custom".
+    function markPreset() {
+        const match = [...presetSelect.options].find(option => option.dataset.layout
+            && Object.entries(JSON.parse(option.dataset.layout)).every(([key, val]) => {
+                const input = form.querySelector(`[name="layout_${key}"]`);
+                if (input && input.type === 'checkbox') return input.checked === (val === true);
+                return value('layout_' + key) === String(val);
+            }));
+        presetSelect.value = match ? match.value : '';
+    }
 
-        checkboxes.forEach(cb => {
-            cb.addEventListener('change', () => {
-                const checkedCount = document.querySelectorAll('input[name="navbarShortcuts"]:checked').length;
-                if (checkedCount > maxAllowed) {
-                    cb.checked = false;
-                    alert(<%- JSON.stringify(t('perso.nav_max')) %>);
-                }
+    presetSelect.addEventListener('change', () => {
+        const option = presetSelect.selectedOptions[0];
+        if (!option || !option.dataset.layout) return markPreset();
+        Object.entries(JSON.parse(option.dataset.layout)).forEach(([key, val]) => {
+            form.querySelectorAll(`[name="layout_${key}"]`).forEach(input => {
+                if (input.type === 'checkbox') input.checked = val === true;
+                else input.checked = input.value === String(val);
             });
         });
-    </script>
+        syncNavOptions();
+        applyLook();
+        pushDraft(true);
+    });
 
-    <%- include('partials/footer') %>
+    const RESTYLE_ONLY = /^layout_(density|radius|scale|width|font)$/;
+    form.addEventListener('change', (event) => {
+        const name = event.target.name;
+        if (!name) return; // the packs section's own fields
+        if (name === 'navbarShortcuts' && event.target.checked
+            && form.querySelectorAll('[name="navbarShortcuts"]:checked').length > 6) {
+            event.target.checked = false;
+            return alert(i18n.maxShortcuts);
+        }
+        syncNavOptions();
+        markPreset();
+        if (RESTYLE_ONLY.test(name)) {
+            applyLook();
+            pushDraft(false);
+        } else {
+            pushDraft(true);
+        }
+    });
+
+    discardBtn.addEventListener('click', async () => {
+        if (!confirm(i18n.discardConfirm)) return;
+        await fetch(base + '/admin/personnalisation/draft/discard', { method: 'POST' });
+        window.location.reload();
+    });
+
+    // ---- The home page ------------------------------------------------------------
+    function showPreview(on) {
+        studio.dataset.studioMode = on ? 'preview' : 'panel';
+        studio.querySelector('[data-studio-swap-label]').textContent = on ? i18n.showPanel : i18n.showPreview;
+    }
+    studio.querySelector('[data-studio-swap]').addEventListener('click', () => showPreview(studio.dataset.studioMode !== 'preview'));
+    studio.querySelector('[data-studio-arrange]').addEventListener('click', () => {
+        const url = inStudio('/dashboard');
+        url.hash = 'arrange';
+        frame.src = url.toString();
+        if (window.matchMedia('(max-width: 1023px)').matches) showPreview(true);
+    });
+
+    // ---- Start ------------------------------------------------------------------------
+    syncNavOptions();
+    markPreset();
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('msg') === 'saved') {
+        markDraft(false, i18n.published);
+        history.replaceState(null, '', window.location.pathname);
+    }
+    const start = inStudio(<%- JSON.stringify(startPage).replace(/</g, '\\u003c') %>);
+    if (<%= startArrange ? 'true' : 'false' %>) start.hash = 'arrange';
+    frame.src = start.toString();
+    if (<%= startArrange ? 'true' : 'false' %> && window.matchMedia('(max-width: 1023px)').matches) showPreview(true);
+})();
+</script>
+
+<%- include('partials/footer') %>

@@ -36,6 +36,7 @@ import { renderMarkdown } from "../core/markdown";
 import { nativeLookalikesByPlugin } from "../core/pluginExtraFields";
 import { alignImagesAfterRefresh } from "../core/itemImages";
 import { layoutFromForm } from "../core/layout";
+import { clearDraft, getDraft, setDraft, withUpdate } from "../core/lookDraft";
 import { buildPack, readPack, packUpdate, PackError, MAX_PACK_BYTES, PACK_SECTIONS, LAYOUT_PRESETS } from "../core/layoutPacks";
 
 const router = express.Router();
@@ -1046,8 +1047,16 @@ router.post("/collection-info/preview", requireAuth, requireCollectionRole("admi
 
 router.get("/personnalisation", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
   try {
-    const settings = res.locals.settings;
+    // The studio picks up where its admin left off: a draft still in the session is what
+    // the form opens on, and what the preview shows.
+    const draft = getDraft(req, res.locals.activeCollectionId);
+    const settings = draft ? withUpdate(res.locals.settings, draft) : res.locals.settings;
     res.render("personnalisation", {
+      settings,
+      hasDraft: Boolean(draft),
+      // The page the preview opens on, a path of this instance only.
+      startPage: typeof req.query.page === "string" && /^\/(?![\/\\])/.test(req.query.page) ? req.query.page : "/dashboard",
+      startArrange: req.query.arrange === "1",
       presets: PRESETS,
       layoutPresets: LAYOUT_PRESETS,
       // Scan mode is only worth offering when an active module has a source that can
@@ -1062,58 +1071,51 @@ router.get("/personnalisation", requireAuth, requireCollectionRole("admin"), asy
   }
 });
 
+/**
+ * The settings update a Personnalisation form describes. Shared by the studio's draft,
+ * which previews it, and the save that publishes it, so what was previewed is exactly
+ * what gets written.
+ */
+function personnalisationUpdate(body: any): Record<string, any> {
+  const { homePreset, navbarShortcuts, statsWidgets, aspectRatioClass } = body || {};
+  const asList = (value: any) => (Array.isArray(value) ? value : value ? [value] : []);
+
+  const validFastAdd = [""].concat(
+    registry.getAll().flatMap(p => (p.fastAddOptions || []).map(o => o.value))
+  );
+  const fastAdd = validFastAdd.includes(body.fastAdd) ? body.fastAdd : "";
+
+  // Ends up in a class attribute on every card, so only the offered frames pass.
+  const cardAspect = (CARD_ASPECT_RATIOS as readonly string[]).includes(aspectRatioClass)
+    ? aspectRatioClass
+    : "aspect-square";
+
+  const update: Record<string, any> = {
+    aspectRatioClass: cardAspect,
+    navbarShortcuts: asList(navbarShortcuts).map(String),
+    statsWidgets: asList(statsWidgets).map(String),
+    fastAdd,
+    instantAdd: body.instantAdd === "on",
+    layout: layoutFromForm(body),
+  };
+  // Colour presets by name only: each one lands in a style block on every page.
+  if (typeof homePreset === "string" && PRESETS[homePreset]) update["theme.home.preset"] = homePreset;
+  for (const p of registry.getAll()) {
+    const preset = body[`${p.collectionType}Preset`];
+    if (typeof preset === "string" && PRESETS[preset]) update[`theme.${p.collectionType}.preset`] = preset;
+  }
+  return update;
+}
+
+// Publishes the studio's form, and drops the draft it was previewed from.
 router.post(
   "/personnalisation/save",
   requireAuth,
   requireCollectionRole("admin"),
   async (req: any, res: any) => {
     try {
-      const {
-        homePreset,
-        navbarShortcuts,
-        statsWidgets,
-        aspectRatioClass,
-      } = req.body;
-
-      const shortcuts = Array.isArray(navbarShortcuts)
-        ? navbarShortcuts
-        : navbarShortcuts
-          ? [navbarShortcuts]
-          : [];
-      const stats = Array.isArray(statsWidgets)
-        ? statsWidgets
-        : statsWidgets
-          ? [statsWidgets]
-          : [];
-
-      const validFastAdd = [""].concat(
-        registry.getAll().flatMap(p => (p.fastAddOptions || []).map(o => o.value))
-      );
-      const fastAdd = validFastAdd.includes(req.body.fastAdd)
-        ? req.body.fastAdd
-        : "";
-
-      // Ends up in a class attribute on every card, so only the offered frames pass.
-      const cardAspect = (CARD_ASPECT_RATIOS as readonly string[]).includes(aspectRatioClass)
-        ? aspectRatioClass
-        : "aspect-square";
-
-      const update: Record<string, any> = {
-        "theme.home.preset": homePreset,
-        aspectRatioClass: cardAspect,
-        navbarShortcuts: shortcuts,
-        statsWidgets: stats,
-        fastAdd: fastAdd,
-        instantAdd: req.body.instantAdd === "on",
-        layout: layoutFromForm(req.body),
-      };
-      for (const p of registry.getAll()) {
-        const preset = req.body[`${p.collectionType}Preset`];
-        if (preset) update[`theme.${p.collectionType}.preset`] = preset;
-      }
-
-      await db.settings.updateOne(eq("collection", idOf(res.locals.activeCollectionId)), { set: update }, { upsert: true });
-
+      await db.settings.updateOne(eq("collection", idOf(res.locals.activeCollectionId)), { set: personnalisationUpdate(req.body) }, { upsert: true });
+      clearDraft(req);
       res.redirect("/admin/personnalisation?msg=saved");
     } catch (err) {
       console.error("[ERR] perso save", err);
@@ -1121,6 +1123,17 @@ router.post(
     }
   },
 );
+
+// The studio's draft: what the preview shows until it is published or thrown away.
+router.post("/personnalisation/draft", requireAuth, requireCollectionRole("admin"), (req: any, res: any) => {
+  setDraft(req, res.locals.activeCollectionId, personnalisationUpdate(req.body));
+  res.json({ success: true });
+});
+
+router.post("/personnalisation/draft/discard", requireAuth, requireCollectionRole("admin"), (req: any, res: any) => {
+  clearDraft(req);
+  res.json({ success: true });
+});
 
 // ---- Look packs (core/layoutPacks.ts) ------------------------------------------
 
@@ -1179,6 +1192,8 @@ router.post("/personnalisation/pack/apply", requireAuth, requireCollectionRole("
     const update = packUpdate(parts, sections);
     if (Object.keys(update).length === 0) return res.status(400).json({ success: false, error: req.t("perso.pack_error_empty") });
     await db.settings.updateOne(eq("collection", idOf(res.locals.activeCollectionId)), { set: update }, { upsert: true });
+    // What was just applied would otherwise hide behind an older draft in the preview.
+    clearDraft(req);
     res.json({ success: true });
   } catch (err: any) {
     if (err instanceof PackError) return res.status(400).json({ success: false, error: req.t(err.message) });

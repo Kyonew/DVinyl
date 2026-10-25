@@ -2130,5 +2130,29 @@
     "w_note": "Note",
     "w_note_desc": "Un texte libre en Markdown : règles du prêt, objectifs…",
     "stat_unavailable": "Statistique indisponible (module désactivé ?)"
+  },
+  "studio": {
+    "draft": "Brouillon",
+    "up_to_date": "Publié",
+    "published": "Publié ✓",
+    "publish": "Publier",
+    "discard": "Abandonner",
+    "discard_confirm": "Abandonner le brouillon et revenir à ce qui est publié ?",
+    "preview": "Aperçu",
+    "page": "Page de l'aperçu",
+    "device": "Appareil",
+    "device_desktop": "Ordinateur",
+    "device_tablet": "Tablette",
+    "device_phone": "Téléphone",
+    "toggle_dark": "Basculer clair / sombre dans l'aperçu",
+    "reload": "Recharger l'aperçu",
+    "preset_custom": "Personnalisé",
+    "section_look": "Apparence",
+    "colors_hint": "Chaque type d'objet peut avoir ses couleurs ; l'accueil et les pages communes prennent celles de l'accueil.",
+    "section_home": "Page d'accueil",
+    "home_desc": "Les widgets de l'accueil se placent directement dans l'aperçu : glisse, redimensionne, ajoute.",
+    "home_autosave": "L'accueil s'enregistre au fil des changements, sans passer par « Publier ».",
+    "show_preview": "Aperçu",
+    "show_panel": "Réglages"
   }
 }
