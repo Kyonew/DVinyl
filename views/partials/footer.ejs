@@ -1,6 +1,12 @@
 </main>
 
-<footer class="mt-auto nav-custom transition-colors duration-300">
+<%
+  // Same condition as showTabBar in header.ejs, which reserves the tab bar's height.
+  const shellReady = Boolean(locals.user) && !locals.isShareView
+      && typeof settings !== 'undefined' && settings && typeof registry !== 'undefined' && registry;
+%>
+<%# On a phone the tab bar closes the page, and the version is on the account page. %>
+<footer class="mt-auto nav-custom transition-colors duration-300<%= shellReady ? ' max-md:hidden' : '' %>">
     <div class="max-w-screen-xl mx-auto py-8 px-4">
         <div class="flex flex-col items-center justify-center space-y-4">
 
@@ -25,11 +31,6 @@
     </div>
 </footer>
 
-<%
-  // Same condition as showTabBar in header.ejs, which reserves the tab bar's height.
-  const shellReady = Boolean(locals.user) && !locals.isShareView
-      && typeof settings !== 'undefined' && settings && typeof registry !== 'undefined' && registry;
-%>
 <% if (shellReady) { %>
 <%- include('shell/tab-bar') %>
 <%# One add hub per page, opened by the "+" tab and by the page's own add buttons alike. %>
