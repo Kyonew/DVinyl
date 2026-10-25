@@ -116,9 +116,15 @@ lists and share links keep working. **The old database is only read, never chang
    copied. If MongoDB cannot be reached, the app stops with a message saying so instead of starting
    empty: fix the URL and start again.
 4. **Look around.** Your collection, your accounts and your settings should all be there.
-5. **Retire MongoDB**: `docker compose up -d` (without the profile) leaves it out, or remove the
-   service from your own file. Remove `MONGODB_URL` from `.env` too. Keep `./mongo_data` until you
-   are sure, then delete it.
+5. **Retire MongoDB.** Remove `MONGODB_URL` from `.env`, then stop and remove the old container:
+
+   ```bash
+   docker compose rm -sf mongodb
+   ```
+
+   With the `docker-compose.yml` of this repository, a plain `docker compose up -d` will not start
+   it again. With a compose file of your own, delete the `mongodb` service from it. Keep
+   `./mongo_data` until you are sure, then delete it.
 
 Prefer a clean start? Run 4.0 without `MONGODB_URL`, create your admin account, and restore the
 backup from step 1 from the **Instance** admin page. Both ways give the same result.
@@ -170,7 +176,8 @@ docker compose up --build -d
 If an update misbehaves, roll the app image back to the previous tag (pin a specific version
 instead of `latest`, e.g. `image: ghcr.io/kyonew/dvinyl:4.0.0`) and restore the instance backup
 you exported above. Going back to 3.x after the move to SQLite means going back to your MongoDB
-container and its `./mongo_data`, which 4.0 left as they were.
+container and its `./mongo_data`, which 4.0 left as they were: you find your collection as it was
+on the day of the upgrade, without what you changed in 4.0 since.
 
 ## 💾 Persistence
 

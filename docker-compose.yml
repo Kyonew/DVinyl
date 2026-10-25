@@ -14,8 +14,8 @@ services:
 
   # Only to upgrade from DVinyl 3.x, which kept its data in MongoDB: the old database,
   # read once by the first start of 4.0 (set MONGODB_URL in .env). Start that first boot
-  # with `docker compose --profile upgrade up -d`; once the import is done, plain
-  # `docker compose up -d` leaves this container out for good.
+  # with `docker compose --profile upgrade up -d`. Once the import is done, remove it with
+  # `docker compose rm -sf mongodb`: a plain `docker compose up -d` never starts it again.
   mongodb:
     image: mongo:latest
     profiles: ["upgrade"]
