@@ -4,11 +4,13 @@ import { all, eq, idOf, isId } from '../core/db/query';
 import multer from 'multer';
 import os from 'os';
 import { promises as fs } from 'fs';
+import { Readable } from 'stream';
+import { pipeline } from 'stream/promises';
 import { invalidateInstanceSettingsCache } from '../utils/instanceSettings';
 import { invalidateAiConfigCache } from '../core/ai/instance';
 import { requireAuth, requireAdmin, requireCollectionRole } from '../middleware/authMiddleware';
 import { registry } from '../core/registry';
-import { buildSortTitle, stringifyCsv, getPublicProtocol } from '../core/helpers';
+import { buildSortTitle, csvLine, getPublicProtocol } from '../core/helpers';
 import { importableFields, fieldValue, ImportTargetField } from '../core/csvMapping';
 
 // Stamped into every dump so a restore log says which build produced the file.
@@ -23,6 +25,7 @@ import { applyCustomPluginsFromDB } from '../core/customPluginSync';
 import { collectExtraDateFields, reviveExtraDates } from '../core/pluginExtraFields';
 import { deleteUnusedManagedItemImages, managedItemImageFile, managedItemImagesForQuery } from '../core/itemImageStorage';
 import { MAX_BACKUP_UPLOAD_BYTES, readBackupArchive, sendBackupArchive } from '../core/backupArchive';
+import { jsonStream, StreamedDocument } from '../core/jsonStream';
 import { BASE_URL } from '../config/constants';
 
 const router = express.Router();
@@ -81,10 +84,24 @@ async function cleanupImportedImages(req: any): Promise<void> {
 
 // ============ WHOLE-INSTANCE BACKUP (instance admin) ============
 
-async function buildInstanceBackup(): Promise<any> {
+// A download the browser gave up on (a cancelled save, a closed tab) ends the export
+// early. Nothing went wrong on this side, so it is told apart from a failure.
+const cancelledByClient = (err: any) => err?.code === 'ERR_STREAM_PREMATURE_CLOSE';
+
+function exportFailed(res: any, label: string, err: unknown): void {
+    if (cancelledByClient(err)) console.log(`[BACKUP] ${label} cancelled by the client.`);
+    else console.error(`[BACKUP] ${label} failed:`, err);
+    if (!res.headersSent) res.status(500).send('Export failed');
+    else res.destroy(err as Error);
+}
+
+// The items are given as a way to go through them (see core/jsonStream.ts): the export
+// writes them one at a time instead of holding the whole collection, which on a large one
+// is more than a small host has to spare.
+async function buildInstanceBackup(): Promise<StreamedDocument> {
     return {
         users: await db.users.find(all()),
-        albums: await db.items.find(all()),
+        albums: () => db.items.each(all()),
         logs: await db.loginLogs.find(all()),
         settings: await db.settings.find(all()),
         collections: await db.collections.find(all()),
@@ -105,13 +122,12 @@ router.get('/export', requireAuth, requireAdmin, async (req, res) => {
         const data = await buildInstanceBackup();
 
         const fileName = `dvinyl_instance_${new Date().toISOString().split('T')[0]}.json`;
-        console.log(`[BACKUP] Instance export: ${data.users.length} user(s), ${data.albums.length} item(s), ${data.collections.length} collection(s)`);
+        console.log(`[BACKUP] Instance export: ${(data.users as any[]).length} user(s), ${await db.items.count(all())} item(s), ${(data.collections as any[]).length} collection(s)`);
         res.setHeader('Content-disposition', 'attachment; filename=' + fileName);
         res.setHeader('Content-type', 'application/json');
-        res.send(JSON.stringify(data, null, 2));
+        await pipeline(jsonStream(data), res);
     } catch (err) {
-        console.error("[BACKUP] Instance export failed:", err);
-        res.status(500).send("Export failed");
+        exportFailed(res, 'Instance export', err);
     }
 });
 
@@ -119,12 +135,10 @@ router.get('/export-archive', requireAuth, requireAdmin, async (req, res) => {
     try {
         const data = await buildInstanceBackup();
         const fileName = `dvinyl_instance_${new Date().toISOString().split('T')[0]}.zip`;
-        console.log(`[BACKUP] Instance archive export: ${data.users.length} user(s), ${data.albums.length} item(s), ${data.collections.length} collection(s)`);
+        console.log(`[BACKUP] Instance archive export: ${(data.users as any[]).length} user(s), ${await db.items.count(all())} item(s), ${(data.collections as any[]).length} collection(s)`);
         await sendBackupArchive(res, data, fileName);
     } catch (err) {
-        console.error('[BACKUP] Instance archive export failed:', err);
-        if (!res.headersSent) res.status(500).send('Export failed');
-        else res.destroy(err as Error);
+        exportFailed(res, 'Instance archive export', err);
     }
 });
 
@@ -384,7 +398,7 @@ router.post(
 
 // ============ PER-COLLECTION BACKUP (collection admin) ============
 
-async function buildCollectionBackup(activeCollectionId: any, collection: any): Promise<any> {
+async function buildCollectionBackup(activeCollectionId: any, collection: any): Promise<StreamedDocument> {
     const settings = await db.settings.findOne(eq('collection', idOf(activeCollectionId)));
     if (settings) {
         delete settings._id;
@@ -392,15 +406,17 @@ async function buildCollectionBackup(activeCollectionId: any, collection: any): 
         delete settings.__v;
     }
 
-    const albums = (await db.items.find(eq('collection', idOf(activeCollectionId)))).map((a: any) => {
-            // Owner and collection are re-stamped at import time (a dump may be restored
-            // into another collection, or another instance), so they go. The id stays: a
-            // season points at the show that holds it, and the import can only rebuild
-            // that link if it can tell which item was which. It is never restored as is,
-            // the import draws a new one and rewrites the links against it.
+    // Owner and collection are re-stamped at import time (a dump may be restored into
+    // another collection, or another instance), so they go. The id stays: a season points
+    // at the show that holds it, and the import can only rebuild that link if it can tell
+    // which item was which. It is never restored as is, the import draws a new one and
+    // rewrites the links against it. Gone through one at a time, like the instance export.
+    const albums = async function* () {
+        for await (const a of db.items.each(eq('collection', idOf(activeCollectionId)))) {
             const { __v, owner, collection, ...rest } = a;
-            return rest;
-    });
+            yield rest;
+        }
+    };
 
     // Stripped of what the import re-stamps. Everything a shelf is made of is its name
     // and its place in the grid, and the items find it by name, so nothing else is needed
@@ -444,10 +460,9 @@ router.get('/collection/export', requireAuth, requireCollectionRole('admin'), as
         const fileName = `dvinyl_collection-${slug}_${new Date().toISOString().split('T')[0]}.json`;
         res.setHeader('Content-disposition', 'attachment; filename=' + fileName);
         res.setHeader('Content-type', 'application/json');
-        res.send(JSON.stringify(data, null, 2));
+        await pipeline(jsonStream(data), res);
     } catch (err) {
-        console.error("[ERR] Collection export:", err);
-        res.status(500).send("Export failed");
+        exportFailed(res, 'Collection export', err);
     }
 });
 
@@ -460,9 +475,7 @@ router.get('/collection/export-archive', requireAuth, requireCollectionRole('adm
         const fileName = `dvinyl_collection-${slug}_${new Date().toISOString().split('T')[0]}.zip`;
         await sendBackupArchive(res, data, fileName);
     } catch (err) {
-        console.error('[BACKUP] Collection archive export failed:', err);
-        if (!res.headersSent) res.status(500).send('Export failed');
-        else res.destroy(err as Error);
+        exportFailed(res, 'Collection archive export', err);
     }
 });
 
@@ -481,11 +494,11 @@ router.get('/collection/export-csv', requireAuth, requireCollectionRole('admin')
         const collection = res.locals.activeCollection;
         const settings = res.locals.settings;
 
-        const albums = await db.items.find(eq('collection', idOf(activeCollectionId)));
+        const inCollection = eq('collection', idOf(activeCollectionId));
 
         // Registry order rather than the order Mongo happened to return the items in,
         // so the same collection always exports its columns in the same order.
-        const present = new Set(albums.map((a: any) => a.kind));
+        const present = new Set(await db.items.distinct('kind', inCollection));
         const kinds = registry.getAll().map(p => p.kind).filter(kind => present.has(kind));
 
         // A column is one field of one plugin. Two plugins merge into a single column
@@ -551,26 +564,33 @@ router.get('/collection/export-csv', requireAuth, requireCollectionRole('admin')
         const publicOrigin = `${getPublicProtocol(req)}://${req.get('host')}${BASE_URL.replace(/\/+$/, '')}`;
         const asPublicUrl = (value: string) => (managedItemImageFile(value) ? `${publicOrigin}${value}` : value);
 
-        const rows: string[][] = [header];
-        for (const album of albums) {
-            const kind = String((album as any).kind || '');
-            const plugin = registry.getByKind(kind);
-            const typeName = plugin ? req.t(plugin.label, { defaultValue: plugin.id }) : kind;
-            const cells = columns.map(c => (c.kinds.has(kind) ? asPublicUrl(fieldValue(album, c.field)) : ''));
-            rows.push([typeName, ...cells, (album as any).in_wishlist ? 'true' : 'false']);
-        }
-
+        // One line per item, written as it is read, like the JSON export (see
+        // buildInstanceBackup): the sheet of a large collection is never held whole.
         // Leading BOM so Excel (which guesses ANSI otherwise) opens accented labels
         // and titles as UTF-8 instead of mojibake.
-        const csv = '﻿' + stringifyCsv(rows);
+        async function* lines() {
+            let pending = '\ufeff' + csvLine(header);
+            for await (const album of db.items.each(inCollection)) {
+                const kind = String((album as any).kind || '');
+                const plugin = registry.getByKind(kind);
+                const typeName = plugin ? req.t(plugin.label, { defaultValue: plugin.id }) : kind;
+                const cells = columns.map(c => (c.kinds.has(kind) ? asPublicUrl(fieldValue(album, c.field)) : ''));
+                pending += '\r\n' + csvLine([typeName, ...cells, (album as any).in_wishlist ? 'true' : 'false']);
+                if (pending.length >= 64 * 1024) {
+                    yield Buffer.from(pending, 'utf8');
+                    pending = '';
+                }
+            }
+            yield Buffer.from(pending, 'utf8');
+        }
+
         const slug = collection?.slug || 'collection';
         const fileName = `dvinyl_collection-${slug}_${new Date().toISOString().split('T')[0]}.csv`;
         res.setHeader('Content-disposition', 'attachment; filename=' + fileName);
         res.setHeader('Content-type', 'text/csv; charset=utf-8');
-        res.send(csv);
+        await pipeline(Readable.from(lines(), { objectMode: false }), res);
     } catch (err) {
-        console.error("[ERR] Collection CSV export:", err);
-        res.status(500).send("Export failed");
+        exportFailed(res, 'Collection CSV export', err);
     }
 });
 

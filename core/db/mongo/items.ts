@@ -44,6 +44,14 @@ export async function find(filter: Filter, options: FindOptions = {}): Promise<a
   return options.defaults ? rows.map(withDefaults) : rows;
 }
 
+/**
+ * The matching items one at a time, in the order find() gives them, for a reader going
+ * through a whole collection without holding it all at once.
+ */
+export async function* each(filter: Filter): AsyncGenerator<any> {
+  for await (const row of query(filter).lean().cursor()) yield row;
+}
+
 export async function findOne(filter: Filter, options: Omit<FindOptions, 'skip' | 'limit'> = {}): Promise<any | null> {
   const [row] = await find(filter, { ...options, limit: 1 });
   return row ?? null;

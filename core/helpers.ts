@@ -462,21 +462,22 @@ export function parseCsvRecords(text: string, delimiter: string = ','): Record<s
 }
 
 /**
- * Serializes a matrix of cells into RFC-4180 CSV text (CRLF rows, quoting only where a
- * cell actually needs it). The counterpart to parseCsv(), for the spreadsheet export.
+ * Serializes one row of cells into a line of RFC-4180 CSV text (quoting only where a
+ * cell actually needs it), without its line break: the spreadsheet export joins its
+ * lines with CRLF as it writes them. The counterpart to parseCsv().
  *
  * A cell opening with =, +, -, @, tab or CR is neutralized with a leading apostrophe:
  * spreadsheet apps read such a cell as a formula, and an item title or comment is a
  * value the user typed, not something they meant Excel to execute.
  */
-export function stringifyCsv(rows: string[][]): string {
+export function csvLine(row: string[]): string {
   const FORMULA_PREFIX = /^[=+\-@\t\r]/;
   const escapeCell = (cell: string): string => {
     let value = cell ?? '';
     if (FORMULA_PREFIX.test(value)) value = "'" + value;
     return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
   };
-  return rows.map(row => row.map(escapeCell).join(',')).join('\r\n');
+  return row.map(escapeCell).join(',');
 }
 
 /**

@@ -48,6 +48,15 @@ export async function find(filter: Filter, options: FindOptions = {}): Promise<a
   return engine.read(table, filter, options, base);
 }
 
+/**
+ * The matching items one at a time, in the order find() gives them, for a reader going
+ * through a whole collection: each is copied only as it is reached. The items are those
+ * that matched when the iteration started, as they stood then.
+ */
+export async function* each(filter: Filter): AsyncGenerator<any> {
+  for (const item of engine.matching(table, filter)) yield plain(item);
+}
+
 export async function findOne(filter: Filter, options: Omit<FindOptions, 'skip' | 'limit'> = {}): Promise<any | null> {
   const [row] = engine.read(table, filter, { ...options, limit: 1 }, base);
   return row ?? null;

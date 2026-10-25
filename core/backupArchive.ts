@@ -4,6 +4,7 @@ import { promises as fs } from 'fs';
 import type { Response } from 'express';
 import { ZipFile as OutputZipFile } from 'yazl';
 import { Entry, openPromise, ZipFile as InputZipFile } from 'yauzl';
+import type { Readable } from 'stream';
 import {
   deleteUnusedManagedItemImages,
   isJpegBuffer,
@@ -11,6 +12,7 @@ import {
   managedItemImagesFrom,
   storeItemImage
 } from './itemImageStorage';
+import { eachRecord, jsonStream, Records, StreamedDocument } from './jsonStream';
 
 export const MAX_BACKUP_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024;
 const MAX_BACKUP_JSON_BYTES = 50 * 1024 * 1024;
@@ -112,18 +114,42 @@ async function readEntryBuffer(zip: InputZipFile, entry: Entry, maxBytes: number
   return Buffer.concat(chunks, total);
 }
 
-/** Streams a portable backup containing the historical JSON plus referenced local files. */
+/**
+ * Streams a portable backup containing the historical JSON plus referenced local files.
+ *
+ * `data.albums` may be given as a way to go through the items (see Records) rather than
+ * the items themselves: they are then read twice, once to find the images to pack and
+ * once to write them out, and never held all at once. Everything else in `data` is small.
+ */
 export async function sendBackupArchive(
   res: Response,
-  data: any,
+  data: StreamedDocument,
   fileName: string
 ): Promise<void> {
-  const archivedData = cloneForArchive(data);
+  const albums: Records = Array.isArray(data.albums) || typeof data.albums === 'function' ? data.albums as Records : [];
+  // The document as the archive writes it, keys in the same order. The items stand in as
+  // an empty list while the images are looked for.
+  const archivedData: any = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (key === 'albums') archivedData.albums = [];
+    else if (value !== undefined) archivedData[key] = cloneForArchive(value);
+  }
+
+  // The images the items point at, in the order a list of them would give.
+  const albumImages = new Set<string>();
+  const albumImageValues = new Set<string>();
+  for await (const album of eachRecord(albums)) {
+    for (const image of managedItemImagesFrom(album)) albumImages.add(image);
+    for (const image of backupImageValues({ albums: [album] })) albumImageValues.add(image);
+  }
+  const managedImages = [...new Set<string>([...albumImages, ...backupImages(archivedData)])];
+  const imageValues = [...new Set<string>([...albumImageValues, ...backupImageValues(archivedData)])];
+
   const available: Array<{ image: string; file: string; filename: string }> = [];
   const inline: Array<{ image: string; buffer: Buffer; filename: string }> = [];
   const missing: string[] = [];
 
-  for (const image of backupImages(archivedData)) {
+  for (const image of managedImages) {
     const file = managedItemImageFile(image);
     if (!file) continue;
     try {
@@ -139,8 +165,8 @@ export async function sendBackupArchive(
   // MongoDB. Move those legacy values into the ZIP too. The live database is untouched;
   // only backup.json is rewritten, so restoring the archive also performs the migration.
   const inlineReplacements = new Map<string, string>();
-  const usedImages = new Set(backupImages(archivedData));
-  for (const image of [...new Set(backupImageValues(archivedData))]) {
+  const usedImages = new Set(managedImages);
+  for (const image of imageValues) {
     const buffer = legacyInlineJpeg(image);
     if (!buffer) continue;
     let filename: string;
@@ -154,6 +180,14 @@ export async function sendBackupArchive(
     inlineReplacements.set(image, portablePath);
   }
   rewriteBackupImages(archivedData, inlineReplacements);
+  // Each item is written as the historical export wrote it, its moved images rewritten.
+  if ('albums' in archivedData) archivedData.albums = async function* () {
+    for await (const album of eachRecord(albums)) {
+      const copy = { albums: [cloneForArchive(album)] };
+      rewriteBackupImages(copy, inlineReplacements);
+      yield copy.albums[0];
+    }
+  };
 
   archivedData.metadata = {
       ...(archivedData?.metadata || {}),
@@ -169,6 +203,7 @@ export async function sendBackupArchive(
   res.setHeader('Content-type', 'application/zip');
 
   const archive = new OutputZipFile();
+  let backupJson: Readable | null = null;
   await new Promise<void>((resolve, reject) => {
     let settled = false;
     const finish = () => {
@@ -179,6 +214,7 @@ export async function sendBackupArchive(
     const fail = (err: Error) => {
       if (settled) return;
       settled = true;
+      backupJson?.destroy();
       (archive.outputStream as any).destroy(err);
       reject(err);
     };
@@ -186,10 +222,17 @@ export async function sendBackupArchive(
     archive.outputStream.on('error', fail);
     res.on('finish', finish);
     res.on('error', fail);
+    // A download the browser gives up on closes the response without finishing it: stop
+    // there, rather than wait forever with the items half read.
+    res.on('close', () => {
+      if (!res.writableFinished) fail(Object.assign(new Error('Premature close'), { code: 'ERR_STREAM_PREMATURE_CLOSE' }));
+    });
     archive.outputStream.pipe(res);
-    archive.addBuffer(Buffer.from(JSON.stringify(archivedData, null, 2)), 'backup.json', {
-      compress: true,
-      compressionLevel: 9
+    // Written from a stream opened when the archive reaches it, not built as one string.
+    archive.addReadStreamLazy('backup.json', { compress: true, compressionLevel: 9 }, (done: (err: Error | null, stream: any) => void) => {
+      backupJson = jsonStream(archivedData);
+      backupJson.on('error', fail);
+      done(null, backupJson);
     });
     for (const image of available) {
       archive.addFile(image.file, `images/${image.filename}`, { compress: true, compressionLevel: 9 });
