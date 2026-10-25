@@ -3,6 +3,7 @@ node_modules
 .env
 mongo_data
 mongo_data_test
+data_test
 dist
 
 # Runtime uploads (avatars, item images). Kept out of the image so a local

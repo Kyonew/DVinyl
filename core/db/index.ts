@@ -12,7 +12,7 @@ import * as mongoItems from './mongo/items';
 import * as sqliteItems from './sqlite/items';
 import { mongoRecordStore } from './mongo/recordStore';
 import { sqliteRecordStore } from './sqlite/recordStore';
-import { openDatabase, Table } from './sqlite/database';
+import { closeDatabase, openDatabase, Table } from './sqlite/database';
 import type { RecordStore } from './records';
 
 export const DRIVER: 'sqlite' | 'mongodb' = process.env.DB_DRIVER === 'mongodb' ? 'mongodb' : 'sqlite';
@@ -49,6 +49,11 @@ export const db = {
     }
     await mongoose.connect(target);
     return mongoose.connection.name;
+  },
+  /** Closes the storage on shutdown, once nothing more will be written. */
+  async close(): Promise<void> {
+    if (DRIVER === 'sqlite') closeDatabase();
+    else await mongoose.disconnect();
   },
   /** A fresh id, in the form the store keeps ids in. */
   newId: (): any => new Types.ObjectId(),

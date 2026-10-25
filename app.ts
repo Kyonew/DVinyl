@@ -391,6 +391,19 @@ connectDB()
     process.exit(1);
   });
 
+// Docker stops a container with SIGTERM, and the app runs as its first process, which
+// Node leaves alive on that signal unless asked: without this, every stop waits for the
+// kill that follows ten seconds later. Writes are synchronous, so none is ever half done
+// between two events and the store can be closed right away.
+for (const signal of ['SIGTERM', 'SIGINT'] as const) {
+  process.once(signal, () => {
+    console.log(`[SHUTDOWN] ${signal} received, closing the database.`);
+    db.close()
+      .catch((err: any) => console.error('[SHUTDOWN] Closing the database failed:', err))
+      .finally(() => process.exit(0));
+  });
+}
+
 
 // Socket event
 // io.on('connection', (socket) => {

@@ -32,4 +32,6 @@ RUN --mount=type=secret,id=screenscraper_dev_id \
 
 EXPOSE 3099
 
-CMD ["npx", "tsx", "app.ts"]
+# Node itself, loading tsx: npx and the tsx command would each keep a Node process of their
+# own running next to the app for nothing (about 50 MB together).
+CMD ["node", "--import", "tsx", "app.ts"]
