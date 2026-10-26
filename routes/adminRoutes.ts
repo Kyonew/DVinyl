@@ -37,6 +37,8 @@ import { nativeLookalikesByPlugin } from "../core/pluginExtraFields";
 import { alignImagesAfterRefresh } from "../core/itemImages";
 import { layoutFromForm } from "../core/layout";
 import { clearDraft, getDraft, setDraft, withUpdate } from "../core/lookDraft";
+import { dashboardWidgets, resolveWidgets } from "../core/dashboard";
+import "../core/dashboardWidgets";
 import { buildPack, readPack, packUpdate, PackError, MAX_PACK_BYTES, PACK_SECTIONS, LAYOUT_PRESETS } from "../core/layoutPacks";
 
 const router = express.Router();
@@ -1051,9 +1053,16 @@ router.get("/personnalisation", requireAuth, requireCollectionRole("admin"), asy
     // the form opens on, and what the preview shows.
     const draft = getDraft(req, res.locals.activeCollectionId);
     const settings = draft ? withUpdate(res.locals.settings, draft) : res.locals.settings;
+    // The home page as it stands, for the studio's list of its widgets.
+    const widgetEnv = { settings: res.locals.settings, registry: res.locals.registry, t: res.locals.t };
+    const widgetTypes = Object.fromEntries(dashboardWidgets.getAll().map(w => [w.type, { label: req.t(w.label), icon: w.icon }]));
     res.render("personnalisation", {
       settings,
+      // What is saved, so the studio can count what the draft changes.
+      savedSettings: res.locals.settings,
       hasDraft: Boolean(draft),
+      widgetTypes,
+      homeWidgets: resolveWidgets(widgetEnv).map(w => ({ type: w.type, size: w.size })),
       // The page the preview opens on, a path of this instance only.
       startPage: typeof req.query.page === "string" && /^\/(?![\/\\])/.test(req.query.page) ? req.query.page : "/dashboard",
       startArrange: req.query.arrange === "1",

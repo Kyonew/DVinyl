@@ -1,271 +1,171 @@
 <%- include('partials/header', { shellBack: false }) %>
+<link rel="stylesheet" href="<%= baseUrl %>/vendor/fonts/plus-jakarta-sans.css">
+<link rel="stylesheet" href="<%= baseUrl %>/vendor/fonts/poppins.css">
 
 <%#
     The Personnalisation studio: everything about the collection's look in one place,
-    with the real app on the left as a live preview and the choices on the right.
+    the real app on the left as a live preview, the choices on the right in five tabs
+    (partials/studio/tab-*): Style first, the rest to fine-tune.
 
-    Changes are a draft (core/lookDraft.ts) until they are published: the preview frame
-    loads pages with ?studio=1, which shows the draft over the saved settings, so members
-    see nothing change before "Publish". What only restyles (density, corners, size,
-    width, font) is applied in the frame at once; what changes the shell's markup
-    (navigation, colours, cards, shortcuts) reloads it, keeping its scroll.
+    Changes are a draft (core/lookDraft.ts) until they are saved: the preview frame loads
+    pages with ?studio=1, which shows the draft over the saved settings, so members see
+    nothing change before "Save". What only restyles (density, corners, size, width,
+    font) is applied in the frame at once; what changes the shell's markup (navigation,
+    colours, cards, shortcuts) reloads it, keeping its scroll. The page counts what
+    differs from the saved look, and marks the tabs holding those changes.
 
     The home page's widgets are arranged in the preview itself, with the page's own
     editor (partials/dashboard/editor), which saves as it goes.
 %>
 <%
-    const studioSection = 'group border-b border-[var(--border-color)]';
-    const studioSummary = 'flex items-center gap-3 px-4 py-3.5 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden hover:bg-black/5 dark:hover:bg-white/5 transition-colors';
-    const studioIcon = 'w-8 h-8 flex-none rounded-lg bg-primary-theme/15 text-primary-theme flex items-center justify-center text-sm';
-    const studioBody = 'px-4 pb-5 pt-1 space-y-4';
-    const fieldLabel = 'block text-[11px] font-bold uppercase tracking-widest opacity-60 mb-2';
-    const selectClass = 'w-full bg-black/5 dark:bg-black/20 border border-transparent focus:border-primary-theme rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary-theme/20 outline-none transition-all';
+    // The saved look, field by field as the form posts it, to tell what the draft changes.
+    const savedLayout = resolveLayout(savedSettings);
+    const savedTheme = savedSettings.theme || {};
+    const savedValues = {
+        layout_nav: savedLayout.nav,
+        layout_topStyle: savedLayout.topStyle === 'floating' ? 'floating' : '',
+        layout_sticky: savedLayout.sticky ? 'on' : '',
+        layout_sidebar: savedLayout.sidebar,
+        layout_dockLabels: savedLayout.dockLabels ? 'on' : '',
+        layout_density: savedLayout.density,
+        layout_radius: savedLayout.radius,
+        layout_scale: savedLayout.scale,
+        layout_width: savedLayout.width,
+        layout_font: savedLayout.font,
+        homePreset: (savedTheme.home && savedTheme.home.preset) || 'default',
+        aspectRatioClass: savedSettings.aspectRatioClass || 'aspect-square',
+        navbarShortcuts: (savedSettings.navbarShortcuts || []).map(String),
+        fastAdd: savedSettings.fastAdd || '',
+        instantAdd: savedSettings.instantAdd === true ? 'on' : ''
+    };
+    registry.getEnabled(savedSettings).forEach(p => {
+        savedValues[p.collectionType + 'Preset'] = (savedTheme[p.collectionType] && savedTheme[p.collectionType].preset) || 'default';
+    });
+    const studioTabs = [
+        { id: 'style', icon: 'palette', label: t('studio.tab_style') },
+        { id: 'nav', icon: 'table-columns', label: t('studio.tab_nav') },
+        { id: 'details', icon: 'sliders', label: t('studio.tab_details') },
+        { id: 'home', icon: 'table-cells-large', label: t('studio.tab_home') },
+        { id: 'more', icon: 'ellipsis', label: t('studio.tab_more') }
+    ];
     const toolButton = 'h-9 min-w-[2.25rem] px-2 flex items-center justify-center gap-1.5 rounded-lg text-sm hover:bg-black/5 dark:hover:bg-white/10 transition-colors';
-    const enabledPlugins = registry.getEnabled(settings);
-    const summaryOf = (icon, title) => `
-        <span class="${studioIcon}"><i class="fa-solid fa-${icon}" aria-hidden="true"></i></span>
-        <span class="flex-1 min-w-0 font-bold truncate">${title}</span>
-        <i class="fa-solid fa-chevron-down text-xs opacity-50 transition-transform group-open:rotate-180" aria-hidden="true"></i>`;
-    const esc = (text) => String(text).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 %>
 
-<div id="studio" data-studio-mode="panel" class="fixed inset-0 z-[55] flex flex-col bg-[var(--bg-page)] text-[var(--text-main)]">
-    <header class="flex-none flex items-center gap-2 md:gap-3 px-3 md:px-4 h-14 border-b border-[var(--border-color)]" style="background-color: var(--bg-nav); padding-top: env(safe-area-inset-top);">
-        <a href="<%= baseUrl %>/dashboard" aria-label="<%= t('nav.back') %>" title="<%= t('nav.back') %>" class="<%= toolButton %>">
+<style>
+    .dv-stop { display: block; width: 10px; height: 10px; border-radius: 9999px; background: rgb(127 127 127 / 0.45); transition: all 0.15s ease; }
+    .dv-stop-passed { background: var(--highlight); }
+    input:checked + .dv-stop { width: 20px; height: 20px; background: var(--highlight); box-shadow: 0 0 0 4px rgb(var(--highlight-rgb) / 0.25); cursor: grab; }
+    [data-stepper-track].is-dragging, [data-stepper-track].is-dragging * { cursor: grabbing; }
+    [data-stepper-track].is-dragging input:checked + .dv-stop { transform: scale(1.15); }
+    input:focus-visible + .dv-stop { outline: 2px solid var(--highlight); outline-offset: 3px; }
+    [data-studio-pane]:not(.is-active) { display: none; }
+    /* A dropdown's list is drawn by the browser, white unless told otherwise, while its
+       options inherit the theme's text colour: in a dark theme, white on white. */
+    html.dark #studio { color-scheme: dark; }
+    #studio select option, #studio select optgroup { background-color: var(--bg-card); color: var(--text-main); }
+    /* The tick on the picked thumbnail: a preset button (aria-pressed) or a radio card. */
+    .dv-picked { display: none; }
+    [aria-pressed="true"] > .dv-picked, label:has(input:checked) > .dv-picked { display: flex; }
+    @media (prefers-reduced-motion: reduce) { .dv-stop { transition: none; } }
+</style>
+
+<div id="studio" class="fixed inset-0 z-[55] flex flex-col bg-[var(--bg-page)] text-[var(--text-main)]">
+    <header class="flex-none flex items-center gap-2 md:gap-3 px-2 md:px-4 h-[60px] border-b border-[var(--border-color)]" style="background-color: var(--bg-nav); padding-top: env(safe-area-inset-top);">
+        <a href="<%= baseUrl %>/dashboard" aria-label="<%= t('nav.back') %>" title="<%= t('nav.back') %>" class="<%= toolButton %> !w-10 !h-10">
             <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
         </a>
-        <h1 class="font-black text-lg truncate"><%= t('perso.title') %></h1>
-        <span data-studio-state class="max-sm:hidden text-[11px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full <%= hasDraft ? 'bg-amber-500/15 text-amber-500' : 'bg-black/5 dark:bg-white/10 opacity-70' %>">
-            <%= hasDraft ? t('studio.draft') : t('studio.up_to_date') %>
-        </span>
+        <div class="min-w-0 flex flex-col">
+            <h1 class="font-extrabold text-base leading-tight truncate"><%= t('perso.title') %></h1>
+            <span data-studio-state-small class="md:hidden text-[11px] truncate opacity-70"></span>
+            <span class="max-md:hidden text-xs opacity-60 truncate"><%= t('studio.subtitle', { name: (locals.activeCollection && activeCollection.name) || settings.siteName }) %></span>
+        </div>
         <span class="flex-1"></span>
-        <button type="button" data-studio-discard <%= hasDraft ? '' : 'disabled' %>
-            class="h-9 px-3 rounded-lg text-sm font-bold bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition disabled:opacity-40 disabled:pointer-events-none">
-            <i class="fa-solid fa-rotate-left sm:mr-1.5" aria-hidden="true"></i><span class="max-sm:hidden"><%= t('studio.discard') %></span>
+        <span data-studio-state role="status" aria-live="polite" class="max-md:hidden flex items-center gap-2 h-8 px-3 rounded-full text-xs font-bold bg-black/5 dark:bg-white/10">
+            <span data-studio-state-dot class="w-[7px] h-[7px] rounded-full bg-current opacity-50"></span>
+            <span data-studio-state-text><%= t('studio.up_to_date') %></span>
+        </span>
+        <button type="button" data-studio-discard disabled
+            class="h-10 px-3 md:px-3.5 rounded-xl text-sm font-bold bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition disabled:opacity-40 disabled:pointer-events-none">
+            <i class="fa-solid fa-rotate-left md:hidden" aria-hidden="true"></i><span class="max-md:sr-only"><%= t('studio.discard') %></span>
         </button>
         <button type="submit" form="studioForm"
-            class="h-9 px-4 rounded-lg text-sm font-black bg-primary-theme hover:brightness-110 shadow-lg shadow-primary-theme/20 transition active:scale-95">
-            <i class="fa-solid fa-cloud-arrow-up mr-1.5" aria-hidden="true"></i><%= t('studio.publish') %>
+            class="h-10 px-4 md:px-5 rounded-xl text-sm font-extrabold bg-primary-theme hover:brightness-110 shadow-lg shadow-primary-theme/20 transition active:scale-95 flex items-center gap-2">
+            <i class="fa-solid fa-check" aria-hidden="true"></i><%= t('studio.publish') %>
         </button>
     </header>
 
-    <div class="flex-1 min-h-0 flex">
-        <%# The preview: the real app in a frame, with the page, the device and the mode it is
-            shown in. Below lg it takes the whole screen in turn with the panel. %>
-        <section data-studio-preview class="flex-1 min-w-0 flex flex-col max-lg:hidden">
-            <div class="flex-none flex items-center gap-1.5 px-3 h-12 border-b border-[var(--border-color)]">
-                <select data-studio-page aria-label="<%= t('studio.page') %>" class="<%= selectClass %> !w-auto !py-1.5 max-w-[12rem]">
-                    <% [
-                        ['/dashboard', t('nav.home')],
-                        ['/collection', t('nav.collection')],
-                        ['/wishlist', t('nav.wishlist')],
-                        ['/lists', t('lists.title')],
-                        ['/search', t('nav.search')],
-                        ['/account', t('nav.account')]
-                    ].forEach(([path, label]) => { %>
-                        <option value="<%= path %>"><%= label %></option>
-                    <% }) %>
-                </select>
-                <span data-studio-path class="flex-1 min-w-0 truncate text-xs opacity-50 px-1"></span>
-                <div class="flex items-center rounded-lg bg-black/5 dark:bg-white/5 p-0.5" role="group" aria-label="<%= t('studio.device') %>">
+    <div class="flex-1 min-h-0 flex max-lg:flex-col">
+        <%# The preview: the real app in a frame, the page, device and mode it is shown in
+            in a small bar floating under it. %>
+        <section data-studio-preview aria-label="<%= t('studio.preview') %>"
+            class="min-w-0 flex flex-col items-center gap-3 px-3 pt-3 pb-3 lg:flex-1 lg:px-6 lg:pt-5 lg:pb-4 max-lg:h-[46vh] max-lg:flex-none bg-black/[0.04] dark:bg-black/30">
+            <div data-studio-stage class="flex-1 min-h-0 w-full flex justify-center">
+                <iframe data-studio-frame title="<%= t('studio.preview') %>"
+                    class="h-full w-full flex-none rounded-2xl border border-[var(--border-color)] shadow-2xl bg-[var(--bg-page)] transition-[width] duration-300"></iframe>
+            </div>
+            <div class="flex-none flex items-center gap-1 p-1.5 rounded-2xl card-theme shadow-xl max-w-full">
+                <label class="flex items-center gap-2 pl-2 text-sm opacity-90">
+                    <span class="max-sm:hidden opacity-70"><%= t('studio.page') %></span>
+                    <select data-studio-page aria-label="<%= t('studio.page') %>" class="h-9 max-w-[10rem] rounded-lg border-0 bg-black/5 dark:bg-white/10 px-2 text-sm focus:ring-2 focus:ring-primary-theme/40">
+                        <% [
+                            ['/dashboard', t('nav.home')],
+                            ['/collection', t('nav.collection')],
+                            ['/wishlist', t('nav.wishlist')],
+                            ['/lists', t('lists.title')],
+                            ['/search', t('nav.search')],
+                            ['/account', t('nav.account')]
+                        ].forEach(([path, label]) => { %>
+                            <option value="<%= path %>"><%= label %></option>
+                        <% }) %>
+                    </select>
+                </label>
+                <span class="max-lg:hidden w-px h-6 mx-1 bg-[var(--border-color)]" aria-hidden="true"></span>
+                <div class="max-lg:hidden flex items-center gap-0.5" role="group" aria-label="<%= t('studio.device') %>">
                     <% [['desktop', 'fa-desktop'], ['tablet', 'fa-tablet-screen-button'], ['phone', 'fa-mobile-screen']].forEach(([id, icon]) => { %>
                         <button type="button" data-studio-device="<%= id %>" aria-pressed="<%= id === 'desktop' %>" title="<%= t('studio.device_' + id) %>" aria-label="<%= t('studio.device_' + id) %>"
-                            class="w-8 h-8 rounded-md flex items-center justify-center opacity-60 aria-pressed:opacity-100 aria-pressed:bg-[var(--bg-card)] aria-pressed:shadow transition">
+                            class="w-9 h-9 rounded-lg flex items-center justify-center opacity-60 hover:opacity-100 aria-pressed:opacity-100 aria-pressed:bg-primary-theme/15 aria-pressed:text-primary-theme transition">
                             <i class="fa-solid <%= icon %> text-sm" aria-hidden="true"></i>
                         </button>
                     <% }) %>
                 </div>
-                <button type="button" data-studio-dark title="<%= t('studio.toggle_dark') %>" aria-label="<%= t('studio.toggle_dark') %>" class="<%= toolButton %>">
-                    <i class="fa-solid fa-circle-half-stroke" aria-hidden="true"></i>
+                <span class="w-px h-6 mx-1 bg-[var(--border-color)]" aria-hidden="true"></span>
+                <button type="button" data-studio-dark title="<%= t('studio.toggle_dark') %>" class="<%= toolButton %> px-2.5">
+                    <i class="fa-solid fa-circle-half-stroke" aria-hidden="true"></i><span data-studio-dark-label class="max-sm:hidden"></span>
                 </button>
                 <button type="button" data-studio-reload title="<%= t('studio.reload') %>" aria-label="<%= t('studio.reload') %>" class="<%= toolButton %>">
                     <i class="fa-solid fa-rotate" aria-hidden="true"></i>
                 </button>
             </div>
-            <div data-studio-stage class="flex-1 min-h-0 flex justify-center p-3 lg:p-5 overflow-auto bg-black/[0.03] dark:bg-black/30">
-                <iframe data-studio-frame title="<%= t('studio.preview') %>"
-                    class="h-full w-full rounded-xl border border-[var(--border-color)] shadow-2xl bg-[var(--bg-page)] transition-[width] duration-300"></iframe>
-            </div>
         </section>
 
-        <aside data-studio-panel class="w-full lg:w-[400px] flex-none lg:border-l border-[var(--border-color)] overflow-y-auto overscroll-contain" style="background-color: var(--bg-card);">
-            <form id="studioForm" action="<%= baseUrl %>/admin/personnalisation/save" method="POST">
+        <aside data-studio-panel aria-label="<%= t('perso.title') %>"
+            class="flex-none flex lg:w-[420px] lg:border-l border-[var(--border-color)] max-lg:flex-col max-lg:flex-1 max-lg:min-h-0 max-lg:rounded-t-3xl max-lg:-mt-3 max-lg:relative max-lg:shadow-[0_-12px_30px_rgba(0,0,0,0.35)]"
+            style="background-color: var(--bg-card);">
+            <nav aria-label="<%= t('studio.sections') %>" role="tablist"
+                class="flex-none flex gap-1 p-2 overflow-x-auto [scrollbar-width:none] lg:w-[76px] lg:flex-col lg:py-3.5 lg:overflow-visible border-[var(--border-color)] max-lg:border-b lg:border-r"
+                style="background-color: rgb(0 0 0 / 0.08);">
+                <% studioTabs.forEach((tab, i) => { %>
+                    <button type="button" role="tab" data-studio-tab="<%= tab.id %>" aria-selected="<%= i === 0 %>" aria-controls="studio-pane-<%= tab.id %>"
+                        class="relative flex-none flex items-center gap-2 lg:flex-col lg:gap-1.5 px-3.5 h-10 lg:h-auto lg:px-1 lg:py-2.5 rounded-full lg:rounded-xl text-sm lg:text-[11px] font-bold opacity-70 hover:opacity-100 aria-selected:opacity-100 aria-selected:bg-primary-theme/15 aria-selected:text-primary-theme transition">
+                        <span class="relative flex">
+                            <i class="fa-solid fa-<%= tab.icon %> lg:text-lg" aria-hidden="true"></i>
+                            <span data-tab-dot class="hidden absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-primary-theme ring-2 ring-[var(--bg-card)]"></span>
+                        </span>
+                        <span class="whitespace-nowrap"><%= tab.label %></span>
+                    </button>
+                <% }) %>
+            </nav>
 
-                <%# Ready-made layouts: picking one fills in every layout choice below. The list
-                    shows the one the current choices match, or "custom". %>
-                <div class="px-4 py-4 border-b border-[var(--border-color)]">
-                    <label>
-                        <span class="<%= fieldLabel %>"><%= t('layout.presets') %></span>
-                        <select data-studio-preset class="<%= selectClass %>">
-                            <option value=""><%= t('studio.preset_custom') %></option>
-                            <% layoutPresets.forEach(p => { %>
-                                <option value="<%= p.id %>" data-layout="<%= JSON.stringify(p.layout) %>"><%= t(p.label) %> · <%= t(p.description) %></option>
-                            <% }) %>
-                        </select>
-                    </label>
-                </div>
-
-                <details class="<%= studioSection %>" open>
-                    <summary class="<%= studioSummary %>"><%- summaryOf('table-columns', esc(t('layout.nav_label'))) %></summary>
-                    <div class="<%= studioBody %>"><%- include('partials/layout-settings', { part: 'nav' }) %></div>
-                </details>
-
-                <details class="<%= studioSection %>" open>
-                    <summary class="<%= studioSummary %>"><%- summaryOf('sliders', esc(t('studio.section_look'))) %></summary>
-                    <div class="<%= studioBody %>"><%- include('partials/layout-settings', { part: 'look' }) %></div>
-                </details>
-
-                <details class="<%= studioSection %>">
-                    <summary class="<%= studioSummary %>"><%- summaryOf('palette', esc(t('perso.themes.title'))) %></summary>
-                    <div class="<%= studioBody %>">
-                        <label class="block">
-                            <span class="<%= fieldLabel %>"><i class="fa-solid fa-house mr-1"></i><%= t('perso.themes.home') %></span>
-                            <select name="homePreset" class="<%= selectClass %>">
-                                <% for (const [key, val] of Object.entries(presets)) { %>
-                                    <option value="<%= key %>" <%= settings.theme.home && settings.theme.home.preset === key ? 'selected' : '' %>><%= val.label %></option>
-                                <% } %>
-                            </select>
-                        </label>
-                        <% enabledPlugins.forEach(p => { %>
-                            <label class="block">
-                                <span class="<%= fieldLabel %>"><i class="fa-solid fa-<%= p.icon %> mr-1"></i><%= t(p.label) %></span>
-                                <select name="<%= p.collectionType %>Preset" class="<%= selectClass %>">
-                                    <% for (const [key, val] of Object.entries(presets)) { %>
-                                        <option value="<%= key %>" <%= settings.theme[p.collectionType] && settings.theme[p.collectionType].preset === key ? 'selected' : '' %>><%= val.label %></option>
-                                    <% } %>
-                                </select>
-                            </label>
-                        <% }) %>
-                        <p class="text-xs opacity-50"><%= t('studio.colors_hint') %></p>
+            <form id="studioForm" action="<%= baseUrl %>/admin/personnalisation/save" method="POST" class="flex-1 min-w-0 min-h-0 overflow-y-auto overscroll-contain">
+                <% studioTabs.forEach((tab, i) => { %>
+                    <div id="studio-pane-<%= tab.id %>" data-studio-pane="<%= tab.id %>" role="tabpanel" class="<%= i === 0 ? 'is-active' : '' %> px-5 pt-5 pb-8 flex flex-col gap-6">
+                        <%- include('partials/studio/tab-' + tab.id) %>
                     </div>
-                </details>
-
-                <details class="<%= studioSection %>">
-                    <summary class="<%= studioSummary %>"><%- summaryOf('percent', esc(t('perso.card_aspect_ratio'))) %></summary>
-                    <div class="<%= studioBody %>">
-                        <p class="text-xs opacity-60"><%= t('perso.card_aspect_ratio_desc') %></p>
-                        <div class="grid grid-cols-3 gap-2">
-                            <%
-                            // Values must stay in sync with CARD_ASPECT_RATIOS (core/customPlugin.ts),
-                            // which is what the save route accepts.
-                            [
-                                { value: 'aspect-[2/3]', label: t('create_plugin.shape_poster'), icon: 'fa-file' },
-                                { value: 'aspect-square', label: t('create_plugin.shape_square'), icon: 'fa-square' },
-                                { value: 'aspect-[16/9]', label: t('create_plugin.shape_screen'), icon: 'fa-desktop' }
-                            ].forEach(opt => { %>
-                                <label class="cursor-pointer">
-                                    <input type="radio" name="aspectRatioClass" value="<%= opt.value %>" class="peer sr-only" <%= (settings.aspectRatioClass || 'aspect-square') === opt.value ? 'checked' : '' %>>
-                                    <div class="flex flex-col items-center gap-1.5 p-2.5 rounded-xl bg-black/5 dark:bg-white/5 text-xs font-semibold opacity-70 peer-checked:opacity-100 peer-checked:bg-primary-theme peer-checked:text-white transition">
-                                        <i class="fa-solid <%= opt.icon %>" aria-hidden="true"></i><%= opt.label %>
-                                    </div>
-                                </label>
-                            <% }) %>
-                        </div>
-                    </div>
-                </details>
-
-                <details class="<%= studioSection %>">
-                    <summary class="<%= studioSummary %>"><%- summaryOf('list-check', esc(t('perso.nav_title'))) %></summary>
-                    <div class="<%= studioBody %>">
-                        <p class="text-xs opacity-60"><%= t('perso.nav_desc') %></p>
-                        <%
-                        // Global group plus one group per enabled plugin (navbarShortcuts declared by the plugin)
-                        const shortcutGroups = [
-                            { label: t('perso.modules.global'), options: [
-                                { id: 'global_home', label: t('nav.home') },
-                                { id: 'global_collection', label: t('nav.collection') },
-                                { id: 'global_wishlist', label: t('nav.wishlist') },
-                                { id: 'global_info', label: t('collection_info.title') },
-                                { id: 'global_lists', label: t('lists.title') }
-                            ] },
-                            ...enabledPlugins.map(p => ({ label: t(p.label), options: (p.navbarShortcuts || []).map(sc => ({ id: sc.id, label: t(sc.label) })) }))
-                        ].filter(group => group.options.length > 0);
-                        %>
-                        <% shortcutGroups.forEach(group => { %>
-                            <div>
-                                <span class="<%= fieldLabel %>"><%= group.label %></span>
-                                <div class="flex flex-wrap gap-1.5">
-                                    <% group.options.forEach(opt => { %>
-                                        <label class="cursor-pointer">
-                                            <input type="checkbox" name="navbarShortcuts" value="<%= opt.id %>" class="peer sr-only" <%= (settings.navbarShortcuts || []).includes(opt.id) ? 'checked' : '' %>>
-                                            <span class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-black/5 dark:bg-white/5 opacity-70 peer-checked:opacity-100 peer-checked:bg-primary-theme peer-checked:text-white transition">
-                                                <%= opt.label %>
-                                            </span>
-                                        </label>
-                                    <% }) %>
-                                </div>
-                            </div>
-                        <% }) %>
-                    </div>
-                </details>
-
-                <details class="<%= studioSection %>" <%= startArrange ? 'open' : '' %>>
-                    <summary class="<%= studioSummary %>"><%- summaryOf('house', esc(t('studio.section_home'))) %></summary>
-                    <div class="<%= studioBody %>">
-                        <p class="text-sm opacity-70"><%= t('studio.home_desc') %></p>
-                        <button type="button" data-studio-arrange
-                            class="w-full inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl bg-primary-theme hover:brightness-110 text-sm font-bold shadow-lg shadow-primary-theme/20 transition active:scale-95">
-                            <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i><%= t('dashboard.arrange') %>
-                        </button>
-                        <p class="text-xs opacity-50"><%= t('studio.home_autosave') %></p>
-                        <%# The stats picked before the home page had widgets still seed its default
-                            arrangement: carried through so a publish never wipes them. %>
-                        <% (settings.statsWidgets || []).forEach(id => { %>
-                            <input type="hidden" name="statsWidgets" value="<%= id %>">
-                        <% }) %>
-                    </div>
-                </details>
-
-                <details class="<%= studioSection %>">
-                    <summary class="<%= studioSummary %>"><%- summaryOf('bolt', esc(t('perso.fastAdd_title'))) %></summary>
-                    <div class="<%= studioBody %>">
-                        <p class="text-xs opacity-60"><%= t('perso.fastAdd_desc') %></p>
-                        <%
-                        const fastAddOptions = [{ value: '', label: t('perso.fastAdd_disabled'), icon: 'fa-xmark' }];
-                        enabledPlugins.forEach(p => (p.fastAddOptions || []).forEach(o => fastAddOptions.push({ value: o.value, label: t(o.label), icon: o.icon })));
-                        %>
-                        <div class="grid grid-cols-2 gap-2">
-                            <% fastAddOptions.forEach(opt => { %>
-                                <label class="cursor-pointer">
-                                    <input type="radio" name="fastAdd" value="<%= opt.value %>" class="peer sr-only" <%= (settings.fastAdd || '') === opt.value ? 'checked' : '' %>>
-                                    <div class="flex items-center gap-2 p-2.5 rounded-xl bg-black/5 dark:bg-white/5 text-xs font-semibold opacity-70 peer-checked:opacity-100 peer-checked:bg-primary-theme peer-checked:text-white transition">
-                                        <i class="fa-solid <%= opt.icon %> w-4 text-center" aria-hidden="true"></i><span class="truncate"><%= opt.label %></span>
-                                    </div>
-                                </label>
-                            <% }) %>
-                        </div>
-                        <%# Offered only where something can actually be scanned into one exact item. %>
-                        <% if (locals.scanModeAvailable) { %>
-                            <%- include('partials/studio-toggle', { name: 'instantAdd', checked: settings.instantAdd === true, title: t('perso.instantAdd_title'), desc: t('perso.instantAdd_desc') }) %>
-                        <% } %>
-                    </div>
-                </details>
-
-                <details class="<%= studioSection %>">
-                    <summary class="<%= studioSummary %>"><%- summaryOf('box-archive', esc(t('perso.pack_title'))) %></summary>
-                    <div class="<%= studioBody %>">
-                        <p class="text-xs opacity-60"><%= t('perso.pack_desc') %></p>
-                        <%- include('partials/look-packs') %>
-                    </div>
-                </details>
+                <% }) %>
             </form>
         </aside>
     </div>
-
-    <%# Phones and tablets: the panel and the preview take the screen in turn. %>
-    <button type="button" data-studio-swap
-        class="lg:hidden fixed right-4 z-10 h-12 px-5 rounded-full bg-primary-theme font-bold shadow-2xl shadow-black/40 flex items-center gap-2 active:scale-95 transition"
-        style="bottom: calc(1rem + env(safe-area-inset-bottom));">
-        <i class="fa-solid fa-eye" aria-hidden="true"></i><span data-studio-swap-label><%= t('studio.show_preview') %></span>
-    </button>
 </div>
-
-<style>
-    #studio[data-studio-mode="preview"] [data-studio-preview] { display: flex; }
-    @media (max-width: 1023px) {
-        #studio[data-studio-mode="preview"] [data-studio-panel] { display: none; }
-    }
-</style>
 
 <script>
 (() => {
@@ -274,10 +174,6 @@
     const form = document.getElementById('studioForm');
     const frame = studio.querySelector('[data-studio-frame]');
     const pageSelect = studio.querySelector('[data-studio-page]');
-    const pathLabel = studio.querySelector('[data-studio-path]');
-    const stateChip = studio.querySelector('[data-studio-state]');
-    const discardBtn = studio.querySelector('[data-studio-discard]');
-    const presetSelect = studio.querySelector('[data-studio-preset]');
     const layoutOptions = <%- JSON.stringify({
         densityFactor: LAYOUT_OPTIONS.densityFactor,
         radiusFactor: LAYOUT_OPTIONS.radiusFactor,
@@ -286,21 +182,43 @@
         fontStacks: LAYOUT_OPTIONS.fontStacks
     }) %>;
     const fontSheets = { jakarta: 'plus-jakarta-sans.css', poppins: 'poppins.css' };
+    const savedValues = <%- JSON.stringify(savedValues).replace(/</g, '\\u003c') %>;
+    const widgetTypes = <%- JSON.stringify(widgetTypes).replace(/</g, '\\u003c') %>;
+    const sizeShort = <%- JSON.stringify({ s: t('dashboard.size_s_short'), m: t('dashboard.size_m_short'), l: t('dashboard.size_l_short'), full: t('dashboard.size_full_short') }) %>;
     const i18n = <%- JSON.stringify({
-        draft: t('studio.draft'),
         upToDate: t('studio.up_to_date'),
-        published: t('studio.published'),
+        saved: t('studio.published'),
+        changesOne: t('studio.changes_one', { count: '{{count}}' }),
+        changesOther: t('studio.changes_other', { count: '{{count}}' }),
         discardConfirm: t('studio.discard_confirm'),
         maxShortcuts: t('perso.nav_max'),
-        showPreview: t('studio.show_preview'),
-        showPanel: t('studio.show_panel')
+        presetCurrent: t('studio.preset_current', { name: '{{name}}' }),
+        presetCustom: t('studio.preset_custom'),
+        dark: t('studio.mode_dark'),
+        light: t('studio.mode_light')
     }).replace(/</g, '\\u003c') %>;
     const deviceWidths = { desktop: '100%', tablet: '834px', phone: '390px' };
+    const TAB_OF = (name) => {
+        if (/^layout_(nav|topStyle|sticky|sidebar|dockLabels)$/.test(name) || name === 'navbarShortcuts') return 'nav';
+        if (/^layout_/.test(name) || name === 'aspectRatioClass') return 'details';
+        if (/Preset$/.test(name)) return 'style';
+        return 'more';
+    };
 
     document.body.style.overflow = 'hidden';
     const value = (name) => form.querySelector(`[name="${name}"]:checked`)?.value;
 
-    // ---- The frame --------------------------------------------------------------
+    // ---- Tabs ---------------------------------------------------------------------
+    const tabs = [...studio.querySelectorAll('[data-studio-tab]')];
+    function showTab(id) {
+        tabs.forEach(tab => tab.setAttribute('aria-selected', String(tab.dataset.studioTab === id)));
+        form.querySelectorAll('[data-studio-pane]').forEach(pane => pane.classList.toggle('is-active', pane.dataset.studioPane === id));
+        form.scrollTop = 0;
+        try { sessionStorage.setItem('studioTab', id); } catch (e) { /* private mode */ }
+    }
+    tabs.forEach(tab => tab.addEventListener('click', () => showTab(tab.dataset.studioTab)));
+
+    // ---- The frame ----------------------------------------------------------------
     const inStudio = (path) => {
         const url = new URL(base + path, window.location.origin);
         url.searchParams.set('studio', '1');
@@ -312,7 +230,6 @@
     function frameWindow() {
         try { return frame.contentWindow && frame.contentWindow.document ? frame.contentWindow : null; } catch (e) { return null; }
     }
-
     function reloadFrame() {
         const win = frameWindow();
         keepScroll = win ? win.scrollY : null;
@@ -344,9 +261,38 @@
         }
     }
 
+    function isDarkFrame() {
+        const win = frameWindow();
+        return win ? win.document.documentElement.classList.contains('dark') : document.documentElement.classList.contains('dark');
+    }
+    function syncDarkLabel() {
+        studio.querySelector('[data-studio-dark-label]').textContent = isDarkFrame() ? i18n.dark : i18n.light;
+    }
     function applyDark() {
         const win = frameWindow();
         if (win && darkOverride !== null) win.document.documentElement.classList.toggle('dark', darkOverride);
+        syncDarkLabel();
+    }
+
+    // The home tab lists the widgets as the preview shows them.
+    function syncHomeList() {
+        const win = frameWindow();
+        if (!win) return;
+        const frames = [...win.document.querySelectorAll('[data-dashboard-grid] > [data-widget]')];
+        if (frames.length === 0) return;
+        const list = form.querySelector('[data-home-widgets]');
+        const template = list.firstElementChild;
+        if (!template) return;
+        list.replaceChildren(...frames.map((el, i) => {
+            const type = widgetTypes[el.dataset.widgetType] || { label: el.dataset.widgetType, icon: 'fa-puzzle-piece' };
+            const row = template.cloneNode(true);
+            const [number, icon, label, size] = row.children;
+            number.textContent = String(i + 1);
+            icon.className = 'fa-solid ' + type.icon + ' w-4 text-center opacity-60';
+            label.textContent = type.label;
+            size.textContent = sizeShort[el.dataset.widgetSize] || '';
+            return row;
+        }));
     }
 
     frame.addEventListener('load', () => {
@@ -360,8 +306,6 @@
             return;
         }
         const path = url.pathname.slice(base.length) || '/';
-        url.searchParams.delete('studio');
-        pathLabel.textContent = path + (url.search || '');
         if ([...pageSelect.options].some(o => o.value === path)) pageSelect.value = path;
         else {
             let custom = pageSelect.querySelector('[data-custom]');
@@ -376,31 +320,74 @@
         }
         applyLook();
         applyDark();
+        syncHomeList();
         if (keepScroll !== null) { win.scrollTo(0, keepScroll); keepScroll = null; }
+        // Arranging the home page saves widget by widget: the list follows.
+        win.addEventListener('click', () => setTimeout(syncHomeList, 600));
     });
 
     pageSelect.addEventListener('change', () => { frame.src = inStudio(pageSelect.value).toString(); });
     studio.querySelector('[data-studio-reload]').addEventListener('click', reloadFrame);
     studio.querySelectorAll('[data-studio-device]').forEach(button => button.addEventListener('click', () => {
         studio.querySelectorAll('[data-studio-device]').forEach(b => b.setAttribute('aria-pressed', String(b === button)));
-        frame.style.width = deviceWidths[button.dataset.studioDevice];
-        frame.style.flex = 'none';
+        const device = button.dataset.studioDevice;
+        frame.style.width = deviceWidths[device];
+        // A phone gets a bezel, so it reads as one.
+        frame.classList.toggle('!rounded-[2.5rem]', device === 'phone');
+        frame.classList.toggle('!border-[10px]', device === 'phone');
+        frame.classList.toggle('!border-black', device === 'phone');
     }));
     studio.querySelector('[data-studio-dark]').addEventListener('click', () => {
-        const win = frameWindow();
-        const current = win ? win.document.documentElement.classList.contains('dark') : false;
-        darkOverride = !current;
+        darkOverride = !isDarkFrame();
         applyDark();
     });
 
-    // ---- The draft --------------------------------------------------------------
-    function markDraft(hasDraft, text) {
-        stateChip.textContent = text || (hasDraft ? i18n.draft : i18n.upToDate);
-        stateChip.className = 'max-sm:hidden text-[11px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full '
-            + (hasDraft ? 'bg-amber-500/15 text-amber-500' : 'bg-black/5 dark:bg-white/10 opacity-70');
-        discardBtn.disabled = !hasDraft;
+    // ---- What changed since the saved look ------------------------------------------
+    const stateEl = studio.querySelector('[data-studio-state]');
+    const stateText = studio.querySelector('[data-studio-state-text]');
+    const stateSmall = studio.querySelector('[data-studio-state-small]');
+    const discardButtons = [...studio.querySelectorAll('[data-studio-discard]')];
+    let justSaved = false;
+
+    function currentValues() {
+        const data = new FormData(form);
+        const values = {};
+        Object.keys(savedValues).forEach(name => {
+            if (name === 'navbarShortcuts') values[name] = data.getAll(name).map(String);
+            else values[name] = data.has(name) ? String(data.get(name)) : '';
+        });
+        return values;
+    }
+    function changedFields() {
+        const now = currentValues();
+        const offered = new Set([...form.querySelectorAll('[name="navbarShortcuts"]')].map(input => input.value));
+        return Object.keys(savedValues).filter(name => {
+            if (name === 'navbarShortcuts') {
+                const saved = savedValues[name].filter(id => offered.has(id)).sort().join();
+                return saved !== now[name].slice().sort().join();
+            }
+            // A field the form does not show (a module switched off) is not a change.
+            if (!form.querySelector(`[name="${name}"]`)) return false;
+            return now[name] !== savedValues[name];
+        });
+    }
+    function markChanges() {
+        const changed = changedFields();
+        const count = changed.length;
+        const text = count === 0
+            ? (justSaved ? i18n.saved : i18n.upToDate)
+            : (count === 1 ? i18n.changesOne : i18n.changesOther).replace('{{count}}', count);
+        stateText.textContent = text;
+        stateSmall.textContent = text;
+        stateEl.classList.toggle('text-primary-theme', count > 0);
+        stateEl.classList.toggle('bg-primary-theme/15', count > 0);
+        stateEl.classList.toggle('bg-black/5', count === 0);
+        discardButtons.forEach(button => { button.disabled = count === 0; });
+        const dirtyTabs = new Set(changed.map(TAB_OF));
+        tabs.forEach(tab => tab.querySelector('[data-tab-dot]').classList.toggle('hidden', !dirtyTabs.has(tab.dataset.studioTab)));
     }
 
+    // ---- The draft ------------------------------------------------------------------
     let draftTimer = null;
     let reloadAfterDraft = false;
     function pushDraft(reload) {
@@ -415,13 +402,12 @@
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: new URLSearchParams(new FormData(form))
                 });
-                markDraft(true);
                 if (reloadNow) reloadFrame();
             } catch (e) { /* the next change sends the whole form again */ }
         }, reload ? 120 : 400);
     }
 
-    // ---- The form ---------------------------------------------------------------
+    // ---- The controls -----------------------------------------------------------------
     // Only the options of the navigation picked are shown.
     function syncNavOptions() {
         const nav = value('layout_nav');
@@ -430,30 +416,111 @@
         });
     }
 
-    // The preset list shows the preset every layout choice matches, or "custom".
+    // Stepped sliders: the fill reaches the chosen stop, the stops before it are lit.
+    function syncSteppers() {
+        form.querySelectorAll('[data-stepper]').forEach(stepper => {
+            const inputs = [...stepper.querySelectorAll('input')];
+            const index = Math.max(0, inputs.findIndex(input => input.checked));
+            inputs.forEach((input, i) => input.nextElementSibling.classList.toggle('dv-stop-passed', i < index));
+            stepper.querySelector('[data-stepper-fill]').style.width = `calc((100% - 1.5rem) * ${inputs.length > 1 ? index / (inputs.length - 1) : 0})`;
+            stepper.querySelector('[data-stepper-value]').textContent = inputs[index].dataset.label;
+        });
+    }
+
+    // ...and they slide: pressing anywhere on the track, then dragging, picks the stop
+    // nearest the pointer as it moves (the stops sit on the track, 0.75rem in from each
+    // side, see partials/studio/stepper).
+    form.querySelectorAll('[data-stepper-track]').forEach(track => {
+        const inputs = [...track.querySelectorAll('input')];
+        const inset = parseFloat(getComputedStyle(document.documentElement).fontSize) * 0.75;
+        const pickAt = (clientX) => {
+            const box = track.getBoundingClientRect();
+            const ratio = Math.min(1, Math.max(0, (clientX - box.left - inset) / (box.width - 2 * inset)));
+            const input = inputs[Math.round(ratio * (inputs.length - 1))];
+            if (input.checked) return;
+            input.checked = true;
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+        };
+        track.addEventListener('pointerdown', (event) => {
+            if (event.button > 0) return;
+            event.preventDefault();
+            track.classList.add('is-dragging');
+            pickAt(event.clientX);
+            track.querySelector('input:checked')?.focus({ preventScroll: true });
+            const move = (ev) => pickAt(ev.clientX);
+            const end = () => {
+                track.classList.remove('is-dragging');
+                window.removeEventListener('pointermove', move);
+                window.removeEventListener('pointerup', end);
+                window.removeEventListener('pointercancel', end);
+            };
+            window.addEventListener('pointermove', move);
+            window.addEventListener('pointerup', end);
+            window.addEventListener('pointercancel', end);
+        });
+        // The press is handled above; the label's own click would pick its stop a second time.
+        track.addEventListener('click', (event) => event.preventDefault());
+    });
+
+    // The ready-made layout every layout choice matches, if any.
+    const presetButtons = [...form.querySelectorAll('[data-studio-preset]')];
     function markPreset() {
-        const match = [...presetSelect.options].find(option => option.dataset.layout
-            && Object.entries(JSON.parse(option.dataset.layout)).every(([key, val]) => {
+        let current = null;
+        presetButtons.forEach(button => {
+            const matches = Object.entries(JSON.parse(button.dataset.studioPreset)).every(([key, val]) => {
+                if (key === 'topStyle') return (value('layout_topStyle') || 'bar') === val;
                 const input = form.querySelector(`[name="layout_${key}"]`);
                 if (input && input.type === 'checkbox') return input.checked === (val === true);
                 return value('layout_' + key) === String(val);
-            }));
-        presetSelect.value = match ? match.value : '';
+            });
+            button.setAttribute('aria-pressed', String(matches));
+            if (matches) current = button.dataset.presetName;
+        });
+        const hint = form.querySelector('[data-preset-hint]');
+        hint.textContent = current ? i18n.presetCurrent.replace('{{name}}', current) : i18n.presetCustom;
+        hint.classList.toggle('text-primary-theme', !current);
+        hint.classList.toggle('opacity-80', Boolean(current));
     }
-
-    presetSelect.addEventListener('change', () => {
-        const option = presetSelect.selectedOptions[0];
-        if (!option || !option.dataset.layout) return markPreset();
-        Object.entries(JSON.parse(option.dataset.layout)).forEach(([key, val]) => {
+    function setLayout(values) {
+        Object.entries(values).forEach(([key, val]) => {
             form.querySelectorAll(`[name="layout_${key}"]`).forEach(input => {
-                if (input.type === 'checkbox') input.checked = val === true;
+                if (key === 'topStyle') input.checked = val === 'floating';
+                else if (input.type === 'checkbox') input.checked = val === true;
                 else input.checked = input.value === String(val);
             });
         });
-        syncNavOptions();
+    }
+    presetButtons.forEach(button => button.addEventListener('click', () => {
+        setLayout(JSON.parse(button.dataset.studioPreset));
+        syncAll();
         applyLook();
         pushDraft(true);
-    });
+    }));
+
+    // The colours picked paint the thumbnails, and their name shows above them.
+    function syncColors() {
+        const picked = form.querySelector('[name="homePreset"]:checked');
+        if (!picked) return;
+        const panel = studio.querySelector('[data-studio-panel]');
+        panel.style.setProperty('--thumb-bg', picked.dataset.bg);
+        panel.style.setProperty('--thumb-card', picked.dataset.card);
+        panel.style.setProperty('--thumb-nav', picked.dataset.nav);
+        panel.style.setProperty('--thumb-accent', picked.dataset.accent);
+        form.querySelector('[data-theme-name]').textContent = picked.dataset.label;
+    }
+
+    function syncShortcuts() {
+        form.querySelector('[data-shortcut-count]').textContent = form.querySelectorAll('[name="navbarShortcuts"]:checked').length;
+    }
+
+    function syncAll() {
+        syncNavOptions();
+        syncSteppers();
+        markPreset();
+        syncColors();
+        syncShortcuts();
+        markChanges();
+    }
 
     const RESTYLE_ONLY = /^layout_(density|radius|scale|width|font)$/;
     form.addEventListener('change', (event) => {
@@ -464,8 +531,8 @@
             event.target.checked = false;
             return alert(i18n.maxShortcuts);
         }
-        syncNavOptions();
-        markPreset();
+        justSaved = false;
+        syncAll();
         if (RESTYLE_ONLY.test(name)) {
             applyLook();
             pushDraft(false);
@@ -474,37 +541,33 @@
         }
     });
 
-    discardBtn.addEventListener('click', async () => {
+    discardButtons.forEach(button => button.addEventListener('click', async () => {
         if (!confirm(i18n.discardConfirm)) return;
         await fetch(base + '/admin/personnalisation/draft/discard', { method: 'POST' });
-        window.location.reload();
-    });
+        window.location.href = window.location.pathname;
+    }));
 
-    // ---- The home page ------------------------------------------------------------
-    function showPreview(on) {
-        studio.dataset.studioMode = on ? 'preview' : 'panel';
-        studio.querySelector('[data-studio-swap-label]').textContent = on ? i18n.showPanel : i18n.showPreview;
-    }
-    studio.querySelector('[data-studio-swap]').addEventListener('click', () => showPreview(studio.dataset.studioMode !== 'preview'));
-    studio.querySelector('[data-studio-arrange]').addEventListener('click', () => {
+    // ---- The home page ------------------------------------------------------------------
+    form.querySelector('[data-studio-arrange]').addEventListener('click', () => {
         const url = inStudio('/dashboard');
         url.hash = 'arrange';
         frame.src = url.toString();
-        if (window.matchMedia('(max-width: 1023px)').matches) showPreview(true);
     });
 
-    // ---- Start ------------------------------------------------------------------------
-    syncNavOptions();
-    markPreset();
+    // ---- Start --------------------------------------------------------------------------
     const params = new URLSearchParams(window.location.search);
     if (params.get('msg') === 'saved') {
-        markDraft(false, i18n.published);
+        justSaved = true;
         history.replaceState(null, '', window.location.pathname);
     }
+    let startTab = <%- JSON.stringify(startArrange ? 'home' : null) %>;
+    if (!startTab) { try { startTab = sessionStorage.getItem('studioTab'); } catch (e) { /* private mode */ } }
+    if (startTab && tabs.some(tab => tab.dataset.studioTab === startTab)) showTab(startTab);
+    syncAll();
+    syncDarkLabel();
     const start = inStudio(<%- JSON.stringify(startPage).replace(/</g, '\\u003c') %>);
-    if (<%= startArrange ? 'true' : 'false' %>) start.hash = 'arrange';
+    if (<%- JSON.stringify(Boolean(startArrange)) %>) start.hash = 'arrange';
     frame.src = start.toString();
-    if (<%= startArrange ? 'true' : 'false' %> && window.matchMedia('(max-width: 1023px)').matches) showPreview(true);
 })();
 </script>
 

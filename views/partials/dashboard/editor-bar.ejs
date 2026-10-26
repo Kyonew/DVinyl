@@ -6,8 +6,12 @@
     Everything about the collection's look is arranged in one place, the Personnalisation
     studio: outside it, the button opens the studio on this page; inside its preview, it
     switches the page to arranging.
+
+    Expects `part`: 'bar' (the arranging bar, above the widgets) or 'rest' (the button,
+    at the foot of the page, out of the way of the widgets).
 %>
-<div class="dv-dash-rest flex justify-end mb-3 md:mb-4">
+<% if (locals.part === 'rest') { %>
+<div class="dv-dash-rest flex justify-center mt-8 md:mt-12">
     <% const restClass = 'h-9 px-3.5 flex items-center gap-2 rounded-full text-xs font-bold bg-black/5 dark:bg-white/10 opacity-70 hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/20 transition'; %>
     <% if (locals.studioPreview) { %>
     <button type="button" data-dash-edit class="<%= restClass %>">
@@ -19,7 +23,7 @@
     </a>
     <% } %>
 </div>
-
+<% } else { %>
 <div class="dv-dash-bar sticky z-40 mb-6 md:mb-8">
     <div class="card-theme rounded-2xl shadow-2xl p-2 md:p-2.5 flex flex-wrap items-center gap-2">
         <button type="button" data-dash-catalogue
@@ -37,3 +41,4 @@
         </button>
     </div>
 </div>
+<% } %>

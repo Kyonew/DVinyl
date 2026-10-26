@@ -1,0 +1,79 @@
+<%#
+    Studio tab "Navigation": where the navigation sits on large screens, the options of
+    that position, and the shortcuts it carries.
+%>
+<%
+    const navLayout = resolveLayout(settings);
+    const sectionLabel = 'text-[11px] font-bold uppercase tracking-widest opacity-60';
+    const radiusNow = LAYOUT_OPTIONS.radiusFactor[navLayout.radius];
+%>
+<div class="flex flex-col gap-1.5">
+    <h2 class="text-xl font-extrabold"><%= t('layout.nav_label') %></h2>
+    <p class="text-sm opacity-60"><%= t('studio.nav_desc') %></p>
+</div>
+
+<div class="grid grid-cols-2 gap-2.5">
+    <% LAYOUT_OPTIONS.nav.forEach(pos => { %>
+        <label class="group relative cursor-pointer">
+            <input type="radio" name="layout_nav" value="<%= pos %>" class="peer sr-only" <%= navLayout.nav === pos ? 'checked' : '' %>>
+            <span class="flex flex-col gap-2 p-2 rounded-2xl border-2 border-transparent bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 peer-checked:border-primary-theme peer-checked:bg-primary-theme/10 peer-focus-visible:ring-2 peer-focus-visible:ring-primary-theme/50 transition">
+                <%- include('thumb', { nav: pos, sidebar: navLayout.sidebar, radiusFactor: radiusNow }) %>
+                <span class="text-sm font-bold px-0.5"><%= t('layout.nav_' + pos) %></span>
+            </span>
+            <span class="dv-picked absolute z-10 top-3.5 right-3.5 w-6 h-6 rounded-full bg-primary-theme text-white shadow-lg items-center justify-center text-[11px]" aria-hidden="true"><i class="fa-solid fa-check"></i></span>
+        </label>
+    <% }) %>
+</div>
+
+<%# The options of the position picked above (the studio's script shows only those). %>
+<div class="rounded-2xl bg-black/5 dark:bg-white/5 p-1">
+    <div data-layout-for="top">
+        <%- include('toggle', { name: 'layout_topStyle', value: 'floating', checked: navLayout.topStyle === 'floating', title: t('studio.floating'), desc: t('studio.floating_desc') }) %>
+        <%- include('toggle', { name: 'layout_sticky', checked: navLayout.sticky, title: t('layout.sticky'), desc: t('layout.sticky_desc') }) %>
+    </div>
+    <div data-layout-for="left right" class="p-2.5 flex flex-col gap-2.5">
+        <span class="text-sm font-bold"><%= t('studio.sidebar_width') %></span>
+        <div class="grid grid-cols-2 gap-1 p-1 rounded-xl bg-black/10 dark:bg-black/25">
+            <% LAYOUT_OPTIONS.sidebar.forEach(v => { %>
+                <label class="cursor-pointer">
+                    <input type="radio" name="layout_sidebar" value="<%= v %>" class="peer sr-only" <%= navLayout.sidebar === v ? 'checked' : '' %>>
+                    <span class="flex items-center justify-center gap-1.5 h-9 rounded-lg text-sm font-bold opacity-75 peer-checked:opacity-100 peer-checked:bg-primary-theme peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-primary-theme/50 transition">
+                        <i class="fa-solid <%= v === 'rail' ? 'fa-grip-lines-vertical' : 'fa-bars-staggered' %> text-xs" aria-hidden="true"></i><%= t('layout.sidebar_' + v) %>
+                    </span>
+                </label>
+            <% }) %>
+        </div>
+        <span class="text-xs opacity-60"><%= t('layout.sidebar_desc') %></span>
+    </div>
+    <div data-layout-for="bottom">
+        <%- include('toggle', { name: 'layout_dockLabels', checked: navLayout.dockLabels, title: t('layout.dock_labels'), desc: t('layout.dock_labels_desc') }) %>
+    </div>
+</div>
+
+<section class="flex flex-col gap-2.5">
+    <div class="flex items-baseline justify-between gap-3">
+        <span class="<%= sectionLabel %>"><%= t('studio.shortcuts') %></span>
+        <span class="text-xs font-semibold opacity-80"><span data-shortcut-count>0</span> / 6</span>
+    </div>
+    <%
+    // Global group plus one group per enabled plugin (navbarShortcuts declared by the plugin)
+    const shortcutGroups = [
+        { label: t('perso.modules.global'), options: [
+            { id: 'global_home', label: t('nav.home') },
+            { id: 'global_collection', label: t('nav.collection') },
+            { id: 'global_wishlist', label: t('nav.wishlist') },
+            { id: 'global_info', label: t('collection_info.title') },
+            { id: 'global_lists', label: t('lists.title') }
+        ] },
+        ...registry.getEnabled(settings).map(p => ({ label: t(p.label), options: (p.navbarShortcuts || []).map(sc => ({ id: sc.id, label: t(sc.label) })) }))
+    ].filter(group => group.options.length > 0);
+    %>
+    <div class="rounded-2xl bg-black/5 dark:bg-white/5 overflow-hidden">
+        <% shortcutGroups.forEach((group, gi) => { %>
+            <span class="block px-3.5 pt-3 pb-1 text-[10px] font-bold uppercase tracking-widest opacity-50 <%= gi ? 'border-t border-[var(--border-color)]' : '' %>"><%= group.label %></span>
+            <% group.options.forEach(opt => { %>
+                <%- include('toggle', { name: 'navbarShortcuts', value: opt.id, checked: (settings.navbarShortcuts || []).includes(opt.id), title: opt.label }) %>
+            <% }) %>
+        <% }) %>
+    </div>
+</section>

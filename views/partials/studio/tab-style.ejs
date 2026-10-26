@@ -1,0 +1,74 @@
+<%#
+    Studio tab "Style": where one starts. A ready-made layout (core/layoutPacks.ts) fills
+    in every layout choice of the other tabs; the colours are the home page's preset,
+    with a colour per item type folded underneath.
+%>
+<%
+    const styleLayout = resolveLayout(settings);
+    const sectionLabel = 'text-[11px] font-bold uppercase tracking-widest opacity-60';
+    const homeColor = (settings.theme && settings.theme.home && settings.theme.home.preset) || 'default';
+    const selectClass = 'w-full bg-black/5 dark:bg-black/20 border border-transparent focus:border-primary-theme rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary-theme/20 outline-none transition-all';
+%>
+<div class="flex flex-col gap-1.5">
+    <h2 class="text-xl font-extrabold"><%= t('studio.tab_style') %></h2>
+    <p class="text-sm opacity-60"><%= t('studio.style_desc') %></p>
+</div>
+
+<section class="flex flex-col gap-2.5">
+    <div class="flex items-baseline justify-between gap-3">
+        <span class="<%= sectionLabel %>"><%= t('studio.layout') %></span>
+        <span data-preset-hint class="text-xs font-semibold"></span>
+    </div>
+    <div class="grid grid-cols-2 gap-2.5">
+        <% layoutPresets.forEach(p => { %>
+            <button type="button" data-studio-preset="<%= JSON.stringify(p.layout) %>" data-preset-name="<%= t(p.label) %>" aria-pressed="false"
+                class="group relative flex flex-col gap-2 p-2 rounded-2xl text-left border-2 border-transparent bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 aria-pressed:border-primary-theme aria-pressed:bg-primary-theme/10 transition">
+                <span class="dv-picked absolute z-10 top-3.5 right-3.5 w-6 h-6 rounded-full bg-primary-theme text-white shadow-lg items-center justify-center text-[11px]" aria-hidden="true"><i class="fa-solid fa-check"></i></span>
+                <%- include('thumb', { nav: p.layout.nav, sidebar: p.layout.sidebar, radiusFactor: LAYOUT_OPTIONS.radiusFactor[p.layout.radius] }) %>
+                <span class="flex flex-col gap-0.5 px-0.5">
+                    <span class="text-sm font-extrabold" style="font-family: <%= LAYOUT_OPTIONS.fontStacks[p.layout.font] %>"><%= t(p.label) %></span>
+                    <span class="text-[11px] leading-snug opacity-60"><%= t(p.description) %></span>
+                </span>
+            </button>
+        <% }) %>
+    </div>
+</section>
+
+<section class="flex flex-col gap-2.5">
+    <div class="flex items-baseline justify-between gap-3">
+        <span class="<%= sectionLabel %>"><%= t('studio.colors') %></span>
+        <span data-theme-name class="text-xs font-semibold opacity-80"><%= (presets[homeColor] || presets.default).label %></span>
+    </div>
+    <div class="grid grid-cols-4 gap-x-2 gap-y-3">
+        <% for (const [key, val] of Object.entries(presets)) { %>
+            <label class="flex flex-col items-center gap-1.5 cursor-pointer" title="<%= val.label %>">
+                <input type="radio" name="homePreset" value="<%= key %>" class="peer sr-only" <%= homeColor === key ? 'checked' : '' %>
+                    data-label="<%= val.label %>" data-bg="<%= val.dark.bg %>" data-card="<%= val.dark.card %>" data-nav="<%= val.dark.navbar %>" data-accent="<%= val.dark.highlight %>">
+                <span class="w-12 h-12 rounded-full flex items-center justify-center ring-1 ring-black/10 dark:ring-white/15 peer-checked:ring-[3px] peer-checked:ring-primary-theme peer-focus-visible:ring-[3px] peer-focus-visible:ring-primary-theme/60 transition" style="background-color: <%= val.dark.bg %>;">
+                    <span class="w-5 h-5 rounded-full" style="background-color: <%= val.dark.highlight %>; box-shadow: 0 0 0 5px <%= val.dark.card %>;"></span>
+                </span>
+                <span class="text-[11px] leading-tight text-center opacity-75 max-w-full truncate"><%= val.label %></span>
+            </label>
+        <% } %>
+    </div>
+
+    <details class="group mt-1 rounded-xl bg-black/5 dark:bg-white/5">
+        <summary class="flex items-center justify-between gap-3 px-3.5 py-3 cursor-pointer list-none [&::-webkit-details-marker]:hidden text-sm font-semibold">
+            <%= t('studio.colors_per_type') %>
+            <i class="fa-solid fa-chevron-down text-xs opacity-50 transition-transform group-open:rotate-180" aria-hidden="true"></i>
+        </summary>
+        <div class="px-3.5 pb-3.5 flex flex-col gap-3">
+            <p class="text-xs opacity-60"><%= t('studio.colors_hint') %></p>
+            <% registry.getEnabled(settings).forEach(p => { %>
+                <label class="block">
+                    <span class="block text-[11px] font-bold uppercase tracking-widest opacity-60 mb-1.5"><i class="fa-solid fa-<%= p.icon %> mr-1"></i><%= t(p.label) %></span>
+                    <select name="<%= p.collectionType %>Preset" class="<%= selectClass %>">
+                        <% for (const [key, val] of Object.entries(presets)) { %>
+                            <option value="<%= key %>" <%= settings.theme[p.collectionType] && settings.theme[p.collectionType].preset === key ? 'selected' : '' %>><%= val.label %></option>
+                        <% } %>
+                    </select>
+                </label>
+            <% }) %>
+        </div>
+    </details>
+</section>

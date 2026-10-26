@@ -1,0 +1,41 @@
+<%#
+    Studio tab "More": fast add, the look shared as a file (packs), and the way back to
+    what is saved.
+%>
+<%
+    const fastAddOptions = [{ value: '', label: t('perso.fastAdd_disabled') }];
+    registry.getEnabled(settings).forEach(p => (p.fastAddOptions || []).forEach(o => fastAddOptions.push({ value: o.value, label: t(o.label) })));
+%>
+<div class="flex flex-col gap-1.5">
+    <h2 class="text-xl font-extrabold"><%= t('studio.tab_more') %></h2>
+    <p class="text-sm opacity-60"><%= t('studio.more_desc') %></p>
+</div>
+
+<section class="flex flex-col gap-2">
+    <label class="flex flex-col gap-1.5">
+        <span class="text-sm font-bold"><%= t('perso.fastAdd_title') %></span>
+        <span class="text-xs opacity-60"><%= t('perso.fastAdd_desc') %></span>
+        <select name="fastAdd" class="mt-1 w-full h-11 bg-black/5 dark:bg-black/20 border border-transparent focus:border-primary-theme rounded-xl px-3 text-sm focus:ring-2 focus:ring-primary-theme/20 outline-none">
+            <% fastAddOptions.forEach(opt => { %>
+                <option value="<%= opt.value %>" <%= (settings.fastAdd || '') === opt.value ? 'selected' : '' %>><%= opt.label %></option>
+            <% }) %>
+        </select>
+    </label>
+    <%# Offered only where something can actually be scanned into one exact item. %>
+    <% if (locals.scanModeAvailable) { %>
+        <div class="rounded-2xl bg-black/5 dark:bg-white/5 p-1">
+            <%- include('toggle', { name: 'instantAdd', checked: settings.instantAdd === true, title: t('perso.instantAdd_title'), desc: t('perso.instantAdd_desc') }) %>
+        </div>
+    <% } %>
+</section>
+
+<section class="flex flex-col gap-2">
+    <span class="text-sm font-bold"><%= t('perso.pack_title') %></span>
+    <span class="text-xs opacity-60"><%= t('perso.pack_desc') %></span>
+    <%- include('../look-packs') %>
+</section>
+
+<button type="button" data-studio-discard
+    class="self-start h-10 px-4 rounded-xl border border-[var(--border-color)] text-sm font-bold hover:bg-black/5 dark:hover:bg-white/10 transition disabled:opacity-40 disabled:pointer-events-none">
+    <i class="fa-solid fa-rotate-left mr-1.5" aria-hidden="true"></i><%= t('studio.revert') %>
+</button>

@@ -8,7 +8,7 @@
 %>
 <div class="max-w-screen-xl mx-auto pb-12" data-dashboard>
     <% if (locals.isCollectionAdmin) { %>
-        <%- include('partials/dashboard/editor-bar') %>
+        <%- include('partials/dashboard/editor-bar', { part: 'bar' }) %>
     <% } %>
 
     <div data-dashboard-grid class="grid grid-cols-2 md:grid-cols-4 gap-x-2.5 gap-y-6 md:gap-x-6 md:gap-y-10">
@@ -16,6 +16,10 @@
             <%- include('partials/dashboard/frame', { entry, dashboardWidgets }) %>
         <% }) %>
     </div>
+
+    <% if (locals.isCollectionAdmin) { %>
+        <%- include('partials/dashboard/editor-bar', { part: 'rest' }) %>
+    <% } %>
 </div>
 
 <% if (locals.canEditCollection && entries.some(e => e.widget.type === 'wishlist')) { %>

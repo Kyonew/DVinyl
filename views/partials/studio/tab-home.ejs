@@ -1,0 +1,35 @@
+<%#
+    Studio tab "Home": the home page's widgets are arranged in the preview itself, with
+    the page's own editor; the list shows them in order, and follows the preview each
+    time it shows the home page.
+%>
+<div class="flex flex-col gap-1.5">
+    <h2 class="text-xl font-extrabold"><%= t('studio.tab_home') %></h2>
+    <p class="text-sm opacity-60"><%= t('studio.home_desc') %></p>
+</div>
+
+<button type="button" data-studio-arrange
+    class="h-12 flex items-center justify-center gap-2 rounded-xl bg-primary-theme hover:brightness-110 text-sm font-extrabold shadow-lg shadow-primary-theme/20 transition active:scale-95">
+    <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i><%= t('studio.arrange_in_preview') %>
+</button>
+
+<section class="flex flex-col gap-2.5">
+    <span class="text-[11px] font-bold uppercase tracking-widest opacity-60"><%= t('studio.home_list') %></span>
+    <ol data-home-widgets class="rounded-2xl bg-black/5 dark:bg-white/5 overflow-hidden divide-y divide-[var(--border-color)]">
+        <% homeWidgets.forEach((w, i) => { const type = widgetTypes[w.type] || { label: w.type, icon: 'fa-puzzle-piece' }; %>
+            <li class="flex items-center gap-3 px-3 py-2.5">
+                <span class="w-7 h-7 flex-none rounded-lg bg-primary-theme/15 text-primary-theme flex items-center justify-center text-xs font-extrabold"><%= i + 1 %></span>
+                <i class="fa-solid <%= type.icon %> w-4 text-center opacity-60" aria-hidden="true"></i>
+                <span class="flex-1 min-w-0 truncate text-sm font-semibold"><%= type.label %></span>
+                <span class="text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-black/5 dark:bg-white/10 opacity-70"><%= t('dashboard.size_' + w.size + '_short') %></span>
+            </li>
+        <% }) %>
+    </ol>
+    <span class="text-xs opacity-60"><%= t('studio.home_autosave') %></span>
+</section>
+
+<%# The stats picked before the home page had widgets still seed its default
+    arrangement: carried through so saving never wipes them. %>
+<% (settings.statsWidgets || []).forEach(id => { %>
+    <input type="hidden" name="statsWidgets" value="<%= id %>">
+<% }) %>

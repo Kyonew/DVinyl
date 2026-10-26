@@ -1,0 +1,54 @@
+<%#
+    Studio tab "Details": what restyles the whole interface without moving anything,
+    applied to the preview at once (density, corners, size, width, font), and the shape
+    of the covers.
+%>
+<%
+    const detailLayout = resolveLayout(settings);
+    const stepOptions = (key) => LAYOUT_OPTIONS[key].map(v => ({ value: v, label: t('layout.' + key + '_' + v) }));
+%>
+<div class="flex flex-col gap-1.5">
+    <h2 class="text-xl font-extrabold"><%= t('studio.tab_details') %></h2>
+    <p class="text-sm opacity-60"><%= t('studio.details_desc') %></p>
+</div>
+
+<%- include('stepper', { name: 'layout_density', label: t('layout.density'), options: stepOptions('density'), current: detailLayout.density }) %>
+<%- include('stepper', { name: 'layout_radius', label: t('layout.radius'), options: stepOptions('radius'), current: detailLayout.radius }) %>
+<%- include('stepper', { name: 'layout_scale', label: t('layout.scale'), options: stepOptions('scale'), current: detailLayout.scale }) %>
+<%- include('stepper', { name: 'layout_width', label: t('layout.width'), options: stepOptions('width'), current: detailLayout.width }) %>
+
+<section class="flex flex-col gap-2.5">
+    <span class="text-sm font-bold"><%= t('layout.font') %></span>
+    <div class="rounded-2xl bg-black/5 dark:bg-white/5 overflow-hidden divide-y divide-[var(--border-color)]">
+        <% LAYOUT_OPTIONS.font.forEach(v => { %>
+            <label class="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 has-[:checked]:bg-primary-theme/10 transition-colors">
+                <input type="radio" name="layout_font" value="<%= v %>" class="peer sr-only" <%= detailLayout.font === v ? 'checked' : '' %>>
+                <span class="w-9 h-9 flex-none rounded-lg flex items-center justify-center text-lg font-bold bg-black/5 dark:bg-white/10 peer-focus-visible:ring-2 peer-focus-visible:ring-primary-theme/50" style="font-family: <%= LAYOUT_OPTIONS.fontStacks[v] %>" aria-hidden="true">Aa</span>
+                <span class="flex-1 text-sm" style="font-family: <%= LAYOUT_OPTIONS.fontStacks[v] %>"><%= t('layout.font_' + v) %></span>
+                <i class="fa-solid fa-check text-primary-theme opacity-0 peer-checked:opacity-100" aria-hidden="true"></i>
+            </label>
+        <% }) %>
+    </div>
+</section>
+
+<section class="flex flex-col gap-2.5">
+    <span class="text-sm font-bold"><%= t('studio.cards') %></span>
+    <div class="grid grid-cols-3 gap-2">
+        <%
+        // Values must stay in sync with CARD_ASPECT_RATIOS (core/customPlugin.ts),
+        // which is what the save route accepts.
+        [
+            { value: 'aspect-[2/3]', label: t('create_plugin.shape_poster'), ratio: '2 / 3' },
+            { value: 'aspect-square', label: t('create_plugin.shape_square'), ratio: '1 / 1' },
+            { value: 'aspect-[16/9]', label: t('create_plugin.shape_screen'), ratio: '16 / 9' }
+        ].forEach(opt => { %>
+            <label class="cursor-pointer">
+                <input type="radio" name="aspectRatioClass" value="<%= opt.value %>" class="peer sr-only" <%= (settings.aspectRatioClass || 'aspect-square') === opt.value ? 'checked' : '' %>>
+                <span class="h-24 flex flex-col items-center justify-end gap-2 p-2.5 rounded-xl border-2 border-transparent bg-black/5 dark:bg-white/5 peer-checked:border-primary-theme peer-checked:bg-primary-theme/10 peer-focus-visible:ring-2 peer-focus-visible:ring-primary-theme/50 transition">
+                    <span class="block h-10 max-w-[4rem] rounded bg-current opacity-40" style="aspect-ratio: <%= opt.ratio %>" aria-hidden="true"></span>
+                    <span class="text-xs font-semibold"><%= opt.label %></span>
+                </span>
+            </label>
+        <% }) %>
+    </div>
+</section>

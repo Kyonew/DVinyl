@@ -1,0 +1,34 @@
+<%#
+    A stepped slider of the Personnalisation studio: one radio per stop along a track,
+    the chosen one large and the track filled up to it. It is clicked on a stop, dragged
+    along the track, or moved with the arrow keys like any radio group; the studio's
+    script keeps the fill and the value label in step. Expects `name`, `label`,
+    `options` ([{ value, label }], in order) and `current`.
+
+    The stops sit exactly on the track, which runs 0.75rem in from each side: stop i of
+    n is at 0.75rem + (100% - 1.5rem) * i / (n - 1), the same place the fill ends.
+%>
+<%
+    const stepIndex = Math.max(0, options.findIndex(o => o.value === current));
+    const stepLast = Math.max(1, options.length - 1);
+%>
+<div data-stepper class="flex flex-col gap-2">
+    <div class="flex items-baseline justify-between gap-3">
+        <span class="text-sm font-bold"><%= label %></span>
+        <span data-stepper-value class="text-sm font-bold text-primary-theme"><%= options[stepIndex].label %></span>
+    </div>
+    <div data-stepper-track class="relative h-8 touch-none select-none cursor-pointer" role="radiogroup" aria-label="<%= label %>">
+        <span class="absolute left-3 right-3 top-1/2 -translate-y-1/2 h-1 rounded-full bg-black/10 dark:bg-white/15" aria-hidden="true"></span>
+        <span data-stepper-fill class="absolute left-3 top-1/2 -translate-y-1/2 h-1 rounded-full bg-primary-theme transition-[width] duration-150" style="width: calc((100% - 1.5rem) * <%= stepIndex / stepLast %>)" aria-hidden="true"></span>
+        <% options.forEach((o, i) => { %>
+            <label class="absolute top-0 h-8 w-8 -translate-x-1/2 flex items-center justify-center cursor-pointer" style="left: calc(0.75rem + (100% - 1.5rem) * <%= i / stepLast %>)" title="<%= o.label %>">
+                <input type="radio" name="<%= name %>" value="<%= o.value %>" data-label="<%= o.label %>" class="peer sr-only" <%= i === stepIndex ? 'checked' : '' %>>
+                <span class="dv-stop <%= i < stepIndex ? 'dv-stop-passed' : '' %>" aria-hidden="true"></span>
+                <span class="sr-only"><%= o.label %></span>
+            </label>
+        <% }) %>
+    </div>
+    <div class="flex justify-between text-[11px] opacity-50" aria-hidden="true">
+        <span><%= options[0].label %></span><span><%= options[options.length - 1].label %></span>
+    </div>
+</div>
