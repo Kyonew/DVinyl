@@ -41,6 +41,9 @@ export interface LayoutSettings {
   // Side navigation only: icons with their labels, or a narrow rail of icons. Each
   // viewer can still fold or unfold it for themselves (see SIDEBAR_COOKIE).
   sidebar: typeof SIDEBAR_STYLES[number];
+  // Side navigation only: the label under each icon while it is a rail. The wide
+  // sidebar always shows them, beside the icons.
+  railLabels: boolean;
   // Bottom dock only: a caption under each icon.
   dockLabels: boolean;
   density: typeof DENSITIES[number];
@@ -58,6 +61,7 @@ export const DEFAULT_LAYOUT: LayoutSettings = {
   topStyle: 'bar',
   sticky: false,
   sidebar: 'expanded',
+  railLabels: true,
   dockLabels: false,
   density: 'comfortable',
   radius: 'rounded',
@@ -128,6 +132,7 @@ export function normalizeLayout(raw: any): LayoutSettings {
     topStyle: pick(TOP_STYLES, src.topStyle, d.topStyle),
     sticky: toBool(src.sticky, d.sticky),
     sidebar: pick(SIDEBAR_STYLES, src.sidebar, d.sidebar),
+    railLabels: toBool(src.railLabels, d.railLabels),
     dockLabels: toBool(src.dockLabels, d.dockLabels),
     density: pick(DENSITIES, src.density, d.density),
     radius: pick(RADII, src.radius, d.radius),
@@ -150,6 +155,7 @@ export function layoutFromForm(body: any): LayoutSettings {
     topStyle: src.layout_topStyle,
     sticky: src.layout_sticky === 'on',
     sidebar: src.layout_sidebar,
+    railLabels: src.layout_railLabels === 'on',
     dockLabels: src.layout_dockLabels === 'on',
     density: src.layout_density,
     radius: src.layout_radius,

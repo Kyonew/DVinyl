@@ -29,6 +29,7 @@
         layout_topStyle: savedLayout.topStyle === 'floating' ? 'floating' : '',
         layout_sticky: savedLayout.sticky ? 'on' : '',
         layout_sidebar: savedLayout.sidebar,
+        layout_railLabels: savedLayout.railLabels ? 'on' : '',
         layout_dockLabels: savedLayout.dockLabels ? 'on' : '',
         layout_density: savedLayout.density,
         layout_radius: savedLayout.radius,
@@ -77,10 +78,7 @@
     [data-stepper-track].is-dragging input:checked + .dv-stop { transform: scale(1.15); }
     input:focus-visible + .dv-stop { outline: 2px solid var(--highlight); outline-offset: 3px; }
     [data-studio-pane]:not(.is-active) { display: none; }
-    /* A dropdown's list is drawn by the browser, white unless told otherwise, while its
-       options inherit the theme's text colour: in a dark theme, white on white. */
     html.dark #studio { color-scheme: dark; }
-    #studio select option, #studio select optgroup { background-color: var(--bg-card); color: var(--text-main); }
     /* The tick on the picked thumbnail: a preset button (aria-pressed) or a radio card. */
     .dv-picked { display: none; }
     [aria-pressed="true"] > .dv-picked, label:has(input:checked) > .dv-picked { display: flex; }
@@ -258,11 +256,13 @@
         uploadFailed: t('image_manager.upload_failed')
     }).replace(/</g, '\\u003c') %>;
     // The width each device is drawn at. A large screen shows the desktop at the room it
-    // has; a small one shows the phone that way, and everything else scaled down.
+    // has, as long as that is a desktop's (the wide sidebar only exists from 1024px); a
+    // small one shows the phone that way, and everything else scaled down.
     const DEVICE_WIDTH = { desktop: 1280, tablet: 834, phone: 390 };
+    const DESKTOP_MIN = 1100;
     const smallScreen = window.matchMedia('(max-width: 1023px)');
     const TAB_OF = (name) => {
-        if (/^layout_(nav|topStyle|sticky|sidebar|dockLabels)$/.test(name) || name === 'navbarShortcuts') return 'nav';
+        if (/^layout_(nav|topStyle|sticky|sidebar|railLabels|dockLabels)$/.test(name) || name === 'navbarShortcuts') return 'nav';
         if (/^layout_(font|headingFont|headingCase)$/.test(name)) return 'text';
         if (/^card_/.test(name) || name === 'aspectRatioClass') return 'cards';
         if (/^ambience_/.test(name)) return 'ambience';
@@ -415,7 +415,8 @@
     const stage = studio.querySelector('[data-studio-stage]');
     let device = smallScreen.matches ? 'phone' : 'desktop';
     function layoutFrame() {
-        const fills = smallScreen.matches ? device === 'phone' : device === 'desktop';
+        const box = stage.getBoundingClientRect();
+        const fills = smallScreen.matches ? device === 'phone' : device === 'desktop' && box.width >= DESKTOP_MIN;
         // A phone gets a bezel on a large screen, so it reads as one.
         const bezel = device === 'phone' && !smallScreen.matches;
         frame.classList.toggle('!rounded-[2.5rem]', bezel);
@@ -426,8 +427,7 @@
             Object.assign(frame.style, { position: '', top: '', left: '', width: '', height: '', transform: '' });
             return;
         }
-        const box = stage.getBoundingClientRect();
-        const width = DEVICE_WIDTH[device];
+        const width = device === 'desktop' && !smallScreen.matches ? DESKTOP_MIN : DEVICE_WIDTH[device];
         const scale = Math.min(1, box.width / width);
         Object.assign(frame.style, {
             position: 'absolute', top: '0', left: '50%', width: width + 'px', height: (box.height / scale) + 'px',

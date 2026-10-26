@@ -2007,6 +2007,7 @@
     "sidebar_desc": "Chaque membre peut ensuite la replier ou la déplier pour lui-même.",
     "dock_labels": "Libellés sous les icônes",
     "dock_labels_desc": "Sinon, le nom apparaît au survol.",
+    "rail_labels_desc": "Sinon, seules les icônes restent, avec le nom au survol. La barre large garde toujours les siens.",
     "density": "Densité",
     "density_compact": "Compacte",
     "density_comfortable": "Confortable",

@@ -53,6 +53,9 @@
         </div>
         <span class="text-xs opacity-60"><%= t('layout.sidebar_desc') %></span>
     </div>
+    <div data-layout-for="left right">
+        <%- include('toggle', { name: 'layout_railLabels', checked: navLayout.railLabels, title: t('layout.dock_labels'), desc: t('layout.rail_labels_desc') }) %>
+    </div>
     <div data-layout-for="bottom">
         <%- include('toggle', { name: 'layout_dockLabels', checked: navLayout.dockLabels, title: t('layout.dock_labels'), desc: t('layout.dock_labels_desc') }) %>
     </div>

@@ -54,7 +54,8 @@ async function settingsMiddleware(req: any, res: any, next: any) {
         settings.statsWidgets = settings.statsWidgets || registry.getDefaultStatsWidgets();
 
         res.locals.settings = settings;
-        res.locals.layout = resolveLayout(settings, req.cookies);
+        // The preview shows the collection's sidebar, whatever the admin folded for themselves.
+        res.locals.layout = resolveLayout(settings, res.locals.studioPreview ? undefined : req.cookies);
 
         res.locals.currentLng = res.locals.user?.language || req.language || 'fr';
         res.locals.isDark = res.locals.user ? (res.locals.user.theme === 'dark') : true;

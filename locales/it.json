@@ -2007,6 +2007,7 @@
     "sidebar_desc": "Ogni membro può poi chiuderla o aprirla per sé.",
     "dock_labels": "Etichette sotto le icone",
     "dock_labels_desc": "Altrimenti il nome compare al passaggio del mouse.",
+    "rail_labels_desc": "Altrimenti restano solo le icone, con il nome al passaggio del mouse. La barra larga li mantiene sempre.",
     "density": "Densità",
     "density_compact": "Compatta",
     "density_comfortable": "Comoda",

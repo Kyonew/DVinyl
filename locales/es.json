@@ -2007,6 +2007,7 @@
     "sidebar_desc": "Cada miembro puede luego plegarla o desplegarla para sí.",
     "dock_labels": "Etiquetas bajo los iconos",
     "dock_labels_desc": "Si no, el nombre aparece al pasar el ratón.",
+    "rail_labels_desc": "Si no, solo quedan los iconos, con el nombre al pasar el cursor. La barra ancha siempre los conserva.",
     "density": "Densidad",
     "density_compact": "Compacta",
     "density_comfortable": "Cómoda",

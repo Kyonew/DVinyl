@@ -69,9 +69,10 @@
       </a>
     <% } %>
     <%# Each viewer folds or unfolds it for themselves; the choice is kept in a cookie so
-        the next page is drawn at the right width straight away. Only offered where the
-        screen leaves room for the wide sidebar. %>
-    <button type="button" data-sidebar-fold aria-pressed="<%= shellNav.sidebarState === 'rail' ? 'true' : 'false' %>"
+        the next page is drawn at the right width straight away, and only while it differs
+        from the collection's style, so a style the admin changes later still reaches them.
+        Only offered where the screen leaves room for the wide sidebar. %>
+    <button type="button" data-sidebar-fold data-sidebar-default="<%= shellNav.sidebar %>" aria-pressed="<%= shellNav.sidebarState === 'rail' ? 'true' : 'false' %>"
       aria-label="<%= t('layout.fold_sidebar') %>" title="<%= t('layout.fold_sidebar') %>"
       class="max-lg:hidden h-8 flex items-center justify-center rounded-lg opacity-50 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/10 transition">
       <i class="fa-solid <%= sideRight ? 'fa-angles-right' : 'fa-angles-left' %> text-xs transition-transform <%= shellNav.sidebarState === 'rail' ? 'rotate-180' : '' %>" data-sidebar-fold-icon aria-hidden="true"></i>
@@ -88,7 +89,9 @@
       root.dataset.sidebarState = next;
       button.setAttribute('aria-pressed', next === 'rail' ? 'true' : 'false');
       button.querySelector('[data-sidebar-fold-icon]')?.classList.toggle('rotate-180', next === 'rail');
-      document.cookie = '<%= SIDEBAR_COOKIE %>=' + next + '; path=/; max-age=31536000; SameSite=Lax';
+      document.cookie = next === button.dataset.sidebarDefault
+        ? '<%= SIDEBAR_COOKIE %>=; path=/; max-age=0; SameSite=Lax'
+        : '<%= SIDEBAR_COOKIE %>=' + next + '; path=/; max-age=31536000; SameSite=Lax';
     });
   })();
 </script>

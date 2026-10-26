@@ -9,7 +9,7 @@
 %>
 <nav id="dvDock" aria-label="<%= t('nav.main_navigation') %>"
   class="max-md:hidden fixed bottom-4 inset-x-0 z-40 flex justify-center px-4 pointer-events-none">
-  <div class="pointer-events-auto flex items-start gap-1.5 px-3 pt-2.5 <%= dockLabels ? 'pb-2' : 'pb-2.5' %> rounded-[1.75rem] border border-[var(--border-color)] shadow-2xl text-[var(--text-main)]"
+  <div class="pointer-events-auto flex items-start gap-3 px-3 pt-2.5 <%= dockLabels ? 'pb-2' : 'pb-2.5' %> rounded-[1.75rem] border border-[var(--border-color)] shadow-2xl text-[var(--text-main)]"
     style="background-color: var(--bg-nav);">
     <% if (showBackButton) { %>
     <button type="button" data-standalone-back aria-label="<%= t('nav.back') %>" class="hidden dv-dock-item focus:outline-none">

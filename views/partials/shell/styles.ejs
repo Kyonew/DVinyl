@@ -206,6 +206,10 @@
     --dv-sticky-top: 0px;
     --dv-sidebar-w: 5.5rem;
   }
+  /* A dropdown's list is drawn by the browser, light unless told otherwise, while its
+     options inherit the theme's text colour: in a dark theme, white on light grey. */
+  html.dark select { color-scheme: dark; }
+  select option, select optgroup { background-color: var(--bg-card); color: var(--text-main); }
   /* A few frames are drawn with an arbitrary radius rather than the scale. */
   .rounded-\[1\.5rem\] { border-radius: calc(1.5rem * var(--dv-radius)) !important; }
   .rounded-\[1\.75rem\] { border-radius: calc(1.75rem * var(--dv-radius)) !important; }
@@ -331,7 +335,14 @@
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
   }
   #dvSidebar .dv-side-link > i { font-size: 1.05rem; }
+  #dvSidebar .dv-side-list { gap: 0.5rem; }
+  /* A rail without its labels: the icons alone, in squares. */
+  @container dvside (max-width: 11.99rem) {
+    html[data-rail-labels="false"] #dvSidebar .dv-side-link > span { display: none; }
+    html[data-rail-labels="false"] #dvSidebar .dv-side-link { min-height: 3rem; }
+  }
   @container dvside (min-width: 12rem) {
+    #dvSidebar .dv-side-list { gap: 0.25rem; }
     #dvSidebar .dv-side-narrow { display: none !important; }
     #dvSidebar .dv-side-wide { display: revert; }
     #dvSidebar .dv-side-link {

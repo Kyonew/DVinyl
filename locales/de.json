@@ -2007,6 +2007,7 @@
     "sidebar_desc": "Jedes Mitglied kann sie danach für sich ein- oder ausklappen.",
     "dock_labels": "Beschriftung unter den Symbolen",
     "dock_labels_desc": "Sonst erscheint der Name beim Darüberfahren.",
+    "rail_labels_desc": "Sonst bleiben nur die Symbole, der Name erscheint beim Darüberfahren. Die breite Leiste behält sie immer.",
     "density": "Dichte",
     "density_compact": "Kompakt",
     "density_comfortable": "Komfortabel",

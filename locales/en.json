@@ -2007,6 +2007,7 @@
     "sidebar_desc": "Each member can then fold or unfold it for themselves.",
     "dock_labels": "Labels under the icons",
     "dock_labels_desc": "Otherwise the name shows on hover.",
+    "rail_labels_desc": "Otherwise only the icons remain, the name showing on hover. The wide sidebar always keeps them.",
     "density": "Density",
     "density_compact": "Compact",
     "density_comfortable": "Comfortable",

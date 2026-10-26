@@ -93,7 +93,7 @@
   }
 %>
 <% if (shortcutVariant === 'side') { %>
-  <ul class="flex flex-col gap-1">
+  <ul class="dv-side-list flex flex-col">
     <% visibleShortcuts.forEach(item => { %>
     <li>
       <a href="<%= baseUrl + item.url %>" <%- item.current ? 'aria-current="page"' : '' %> title="<%= item.label %>"
