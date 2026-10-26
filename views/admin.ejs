@@ -111,17 +111,10 @@
         ] }) %>
 
         <div data-tab-panel="settings" class="space-y-10">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <h1 class="text-2xl md:text-3xl font-bold flex items-center gap-3 transition-colors">
-                    <i class="fa-solid fa-puzzle-piece text-primary-theme"></i>
-                    <%= t('admin.modules') %>
-                </h1>
-                <a href="<%= baseUrl %>/create-plugin"
-                    class="flex items-center gap-2 text-xs font-black uppercase tracking-widest bg-primary-theme text-white hover:brightness-110 hover:scale-105 px-5 py-2.5 rounded-full transition-all w-fit shadow-lg shadow-primary-theme/20">
-                    <i class="fa-solid fa-wand-magic-sparkles"></i>
-                    <%= t('create_plugin.title') %>
-                </a>
-            </div>
+            <h1 class="text-2xl md:text-3xl font-bold flex items-center gap-3 transition-colors">
+                <i class="fa-solid fa-puzzle-piece text-primary-theme"></i>
+                <%= t('admin.modules') %>
+            </h1>
 
             <section class="card-theme rounded-3xl p-6 shadow-sm mb-10 transition-colors">
                 <div class="flex flex-col gap-8">
