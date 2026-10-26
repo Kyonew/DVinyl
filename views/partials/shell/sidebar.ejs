@@ -14,7 +14,7 @@
 <aside id="dvSidebar" aria-label="<%= t('nav.main_navigation') %>"
   class="max-md:hidden fixed inset-y-0 <%= sideRight ? 'right-0' : 'left-0' %> z-40 flex flex-col <%= edgeBorder %> border-[var(--border-color)] text-[var(--text-main)]"
   style="background-color: var(--bg-nav);">
-  <div class="flex flex-col gap-1 px-2.5 pt-4 pb-3">
+  <div class="flex flex-col gap-1 px-2.5 pt-4 pb-4">
     <% if (showBackButton) { %>
     <button type="button" data-standalone-back aria-label="<%= t('nav.back') %>"
       class="hidden mb-2 w-9 h-9 self-center items-center justify-center rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-colors">
@@ -24,9 +24,10 @@
     <%- include('brand', { brandIn: 'side' }) %>
   </div>
 
-  <div class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-2.5 pb-3 flex flex-col gap-3 [scrollbar-width:thin]">
+  <%# pt-1: room for the search field's focus ring, which the scrolling list would clip. %>
+  <div class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-2.5 pt-1 pb-3 flex flex-col gap-5 [scrollbar-width:thin]">
     <% if (locals.user) { %>
-    <div class="flex flex-col gap-1">
+    <div class="flex flex-col gap-2.5">
       <form action="<%= baseUrl %>/search" method="GET" role="search" class="dv-side-wide">
         <label class="flex items-center gap-2.5 h-10 px-3 rounded-xl bg-black/5 dark:bg-white/10 focus-within:ring-2 focus-within:ring-primary-theme/40 transition">
           <i class="fa-solid fa-magnifying-glass text-sm opacity-60" aria-hidden="true"></i>
