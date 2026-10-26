@@ -3,9 +3,9 @@
    * The shell's stylesheet: the colour theme as CSS variables, the layout's variables
    * (core/layout.ts), and the rules of the shell pieces (top bar, sidebar, dock, phone
    * tab bar, overlays). Included once, from the <head> in header.ejs, which passes
-   * activeTheme, rgbChannels and layout.
+   * activeTheme, rgbChannels, layout and ambience.
    */
-  const layoutVars = Object.entries(layout.cssVars).map(([k, v]) => `${k}: ${v};`).join(' ');
+  const layoutVars = Object.entries({ ...layout.cssVars, ...ambience.cssVars }).map(([k, v]) => `${k}: ${v};`).join(' ');
 %>
 <style>
   :root {
@@ -17,6 +17,8 @@
       --highlight: <%= activeTheme.light.highlight %>;
       --highlight-rgb: <%= rgbChannels(activeTheme.light.highlight) %>;
       --on-highlight: <%= activeTheme.light.onHighlight %>;
+      --card-rgb: <%= rgbChannels(activeTheme.light.card) %>;
+      --nav-rgb: <%= rgbChannels(activeTheme.light.navbar) %>;
       
       --shadow-color: 0 0 0 rgba(0,0,0,0.05);
       --border-color: rgba(0,0,0,0.1);
@@ -31,6 +33,8 @@
       --highlight: <%= activeTheme.dark.highlight %>;
       --highlight-rgb: <%= rgbChannels(activeTheme.dark.highlight) %>;
       --on-highlight: <%= activeTheme.dark.onHighlight %>;
+      --card-rgb: <%= rgbChannels(activeTheme.dark.card) %>;
+      --nav-rgb: <%= rgbChannels(activeTheme.dark.navbar) %>;
       
       --shadow-color: 0 0 20px <%= activeTheme.dark.highlight %>20;
       --border-color: rgba(255,255,255,0.1);
@@ -218,6 +222,70 @@
   html[data-heading-case="upper"] :is(h1, h2, h3, h4) {
     text-transform: uppercase;
     letter-spacing: 0.03em;
+  }
+
+  /* Ambience (core/ambience.ts): one fixed layer behind the page (partials/shell/backdrop),
+     drawn from the theme's accent, so it follows every theme and both modes. --dv-bg-k
+     scales how much of it shows. */
+  #dv-backdrop { position: fixed; inset: 0; z-index: -20; pointer-events: none; }
+  html[data-backdrop="gradient"] #dv-backdrop {
+    background-image:
+      radial-gradient(60rem 42rem at 12% -12%, rgb(var(--highlight-rgb) / calc(0.20 * var(--dv-bg-k))), transparent 70%),
+      radial-gradient(52rem 40rem at 100% 112%, rgb(var(--highlight-rgb) / calc(0.13 * var(--dv-bg-k))), transparent 70%);
+  }
+  html[data-backdrop="gradient"][data-gradient="diagonal"] #dv-backdrop {
+    background-image: linear-gradient(135deg, rgb(var(--highlight-rgb) / calc(0.16 * var(--dv-bg-k))) 0%, transparent 50%, rgb(var(--highlight-rgb) / calc(0.10 * var(--dv-bg-k))) 100%);
+  }
+  /* The accent and its two neighbours on the colour wheel. A browser without relative
+     colours keeps the glow above. */
+  html[data-backdrop="gradient"][data-gradient="aurora"] #dv-backdrop {
+    background-image:
+      radial-gradient(48rem 34rem at 8% 0%, oklch(from var(--highlight) l c h / calc(0.22 * var(--dv-bg-k))), transparent 70%),
+      radial-gradient(44rem 34rem at 92% 18%, oklch(from var(--highlight) l c calc(h + 60) / calc(0.18 * var(--dv-bg-k))), transparent 70%),
+      radial-gradient(52rem 38rem at 40% 108%, oklch(from var(--highlight) l c calc(h - 70) / calc(0.16 * var(--dv-bg-k))), transparent 70%);
+  }
+  html[data-backdrop="texture"][data-texture="grain"] #dv-backdrop {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: calc(0.09 * var(--dv-bg-k));
+  }
+  html[data-backdrop="texture"][data-texture="grooves"] #dv-backdrop {
+    background-image: repeating-radial-gradient(circle at 50% 118%, rgb(var(--highlight-rgb) / calc(0.16 * var(--dv-bg-k))) 0 1px, transparent 1px 6px);
+    -webkit-mask-image: radial-gradient(circle at 50% 118%, #000 25%, transparent 85%);
+    mask-image: radial-gradient(circle at 50% 118%, #000 25%, transparent 85%);
+  }
+  html[data-backdrop="texture"][data-texture="dots"] #dv-backdrop {
+    background-image: radial-gradient(rgb(var(--highlight-rgb) / calc(0.24 * var(--dv-bg-k))) 1px, transparent 1.6px);
+    background-size: 22px 22px;
+  }
+  html[data-backdrop="texture"][data-texture="lines"] #dv-backdrop {
+    background-image: repeating-linear-gradient(135deg, rgb(var(--highlight-rgb) / calc(0.11 * var(--dv-bg-k))) 0 1px, transparent 1px 13px);
+  }
+  /* A picture, blurred as chosen (scaled up so the blur leaves no pale rim) under a veil
+     of the page's own colour, which keeps the text on it readable in both modes. */
+  html[data-backdrop="image"] #dv-backdrop {
+    background-size: cover;
+    background-position: center;
+    filter: blur(var(--dv-bg-blur));
+    transform: scale(1.08);
+  }
+  html[data-backdrop="image"] #dv-backdrop::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-color: var(--bg-page);
+    opacity: var(--dv-bg-veil);
+  }
+
+  /* Frosted glass: the surfaces and the navigation let the background through. */
+  html[data-glass="true"] .card-theme {
+    background-color: rgb(var(--card-rgb) / 0.62) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(1.3);
+    backdrop-filter: blur(16px) saturate(1.3);
+  }
+  html[data-glass="true"] :is(#dvTopBar, #dvSidebar, #dvDock > div, #tabBar) {
+    background-color: rgb(var(--nav-rgb) / 0.7) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(1.4);
+    backdrop-filter: blur(18px) saturate(1.4);
   }
 
   /* Large screens: the navigation the collection chose. Phones keep their own shell. */

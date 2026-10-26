@@ -38,6 +38,7 @@ import { isCollectionInfoVisible } from './core/collectionInfo.js';
 import { resolveLayout, layoutRootFontSize, LAYOUT_OPTIONS, SIDEBAR_COOKIE } from './core/layout';
 import { resolveTheme, CUSTOM_PRESET, THEME_TOKENS, normalizeCustomTheme } from './core/theme';
 import { cardClasses, normalizeCardLook, CARD_FRAMES, CARD_HOVERS, CARD_TEXTS } from './core/cardStyle';
+import { resolveAmbience, normalizeAmbience, AMBIENCE_OPTIONS } from './core/ambience';
 import { externalLinkFor, hasSearch, hasBarcodeScan, requiredEnvKeysFor, canRefresh, sourceStatusFor, searchableSources } from './core/sources';
 
 // Routes imports
@@ -133,6 +134,10 @@ app.locals.THEME_OPTIONS = { custom: CUSTOM_PRESET, tokens: THEME_TOKENS };
 app.locals.cardClasses = cardClasses;
 app.locals.normalizeCardLook = normalizeCardLook;
 app.locals.CARD_OPTIONS = { frame: CARD_FRAMES, hover: CARD_HOVERS, text: CARD_TEXTS };
+// Background, glass, cover accent and logo (core/ambience.ts).
+app.locals.resolveAmbience = resolveAmbience;
+app.locals.normalizeAmbience = normalizeAmbience;
+app.locals.AMBIENCE_OPTIONS = AMBIENCE_OPTIONS;
 // Where an item came from, and whether a plugin can be searched at all: both are now
 // answers about its sources rather than about a single provider hanging off it.
 app.locals.externalLinkFor = externalLinkFor;

@@ -1,8 +1,10 @@
 <%- include('../../views/partials/header', { shellBack: false }) %>
 
-<%# Desktop only: on a phone a blurred cover behind the whole page reads as a music player. %>
+<%# Desktop only: on a phone a blurred cover behind the whole page reads as a music player.
+    It is also where the shell reads the cover's accent from, when the collection asks for
+    it (partials/shell/cover-accent). %>
 <div class="max-md:hidden fixed inset-0 -z-10 opacity-10 dark:opacity-20 blur-3xl pointer-events-none transition-opacity duration-1000">
-    <img src="<%= itemImageUrl(item.cover_image) %>" class="w-full h-full object-cover">
+    <img src="<%= itemImageUrl(item.cover_image) %>" data-dv-accent-source class="w-full h-full object-cover">
 </div>
 
 <div class="max-w-screen-xl mx-auto px-4 max-sm:px-0 pb-20">

@@ -1,6 +1,6 @@
 <%#
     The "Packs" section of the Personnalisation studio (core/layoutPacks.ts): the collection's
-    look (layout, colours, card shape, home page) downloaded as a JSON file, and a file
+    look (layout, colours, cards, ambience, home page) downloaded as a JSON file, and a file
     like it loaded back, here or on another instance, choosing which parts to apply.
 
     It sits inside the studio's form, so it holds no form of its own and no named
@@ -43,6 +43,7 @@
                     { id: 'layout', icon: 'fa-table-columns' },
                     { id: 'colors', icon: 'fa-palette' },
                     { id: 'cards', icon: 'fa-percent' },
+                    { id: 'ambience', icon: 'fa-image' },
                     { id: 'home', icon: 'fa-house' }
                 ].forEach(section => { %>
                     <label data-pack-section="<%= section.id %>" class="flex items-center gap-3 p-3 rounded-xl bg-white/60 dark:bg-black/20 cursor-pointer">
@@ -72,6 +73,7 @@
             detailLayout: t('perso.pack_detail_layout'),
             detailColors: t('perso.pack_detail_colors', { count: '{{count}}' }),
             detailCards: t('perso.pack_detail_cards'),
+            detailAmbience: t('perso.pack_detail_ambience'),
             detailHome: t('perso.pack_detail_home', { count: '{{count}}' }),
             missing: t('perso.pack_detail_missing'),
             notJson: t('perso.pack_error_format'),
@@ -139,6 +141,7 @@
                 layout: summary.sections.layout ? i18n.detailLayout : null,
                 colors: summary.sections.colors ? i18n.detailColors.replace('{{count}}', summary.sections.colors) : null,
                 cards: summary.sections.cards ? i18n.detailCards : null,
+                ambience: summary.sections.ambience ? i18n.detailAmbience : null,
                 home: summary.sections.home !== null ? i18n.detailHome.replace('{{count}}', summary.sections.home) : null
             };
             root.querySelectorAll('[data-pack-section]').forEach(label => {

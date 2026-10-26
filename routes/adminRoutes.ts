@@ -38,6 +38,7 @@ import { alignImagesAfterRefresh } from "../core/itemImages";
 import { layoutFromForm } from "../core/layout";
 import { customThemeFromForm, isThemeName } from "../core/theme";
 import { cardLookFromForm } from "../core/cardStyle";
+import { ambienceFromForm } from "../core/ambience";
 import { clearDraft, getDraft, setDraft, withUpdate } from "../core/lookDraft";
 import { dashboardWidgets, resolveWidgets } from "../core/dashboard";
 import "../core/dashboardWidgets";
@@ -1118,6 +1119,7 @@ function personnalisationUpdate(body: any): Record<string, any> {
   }
   update.customTheme = customThemeFromForm(body);
   update.cards = cardLookFromForm(body);
+  update.ambience = ambienceFromForm(body);
   return update;
 }
 
@@ -1188,6 +1190,7 @@ router.post("/personnalisation/pack/read", requireAuth, requireCollectionRole("a
         layout: Boolean(parts.layout),
         colors: parts.colors ? Object.keys(parts.colors).length : 0,
         cards: Boolean(parts.cards || parts.cardLook),
+        ambience: Boolean(parts.ambience),
         home: parts.home ? parts.home.length : null
       }
     });

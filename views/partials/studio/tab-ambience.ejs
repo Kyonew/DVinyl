@@ -1,0 +1,121 @@
+<%#
+    Studio tab "Ambience" (core/ambience.ts): the collection's logo, what lies behind the
+    pages, frosted surfaces and the cover's accent on an item page. The logo and the
+    picture are uploaded at once (the shared upload pool) and only referenced by the
+    hidden fields below, so the draft and the save carry a path, never a file.
+%>
+<%
+    const amb = normalizeAmbience(settings.ambience);
+    const stepOptions = (key) => AMBIENCE_OPTIONS[key].map(v => ({ value: v, label: t('studio.ambience_' + key + '_' + v) }));
+    const tile = 'h-full flex flex-col items-center justify-end gap-2 p-2.5 rounded-xl border-2 border-transparent bg-black/5 dark:bg-white/5 peer-checked:border-primary-theme peer-checked:bg-primary-theme/10 peer-focus-visible:ring-2 peer-focus-visible:ring-primary-theme/50 transition';
+    const chip = 'h-9 px-2 flex items-center justify-center rounded-lg text-xs font-bold opacity-70 peer-checked:opacity-100 peer-checked:bg-[var(--bg-card)] peer-checked:shadow peer-checked:text-primary-theme peer-focus-visible:ring-2 peer-focus-visible:ring-primary-theme/50 transition';
+    const accent = (pct) => `color-mix(in srgb, var(--thumb-accent, var(--highlight)) ${pct}%, transparent)`;
+    // A small sample of each background, in the colours of the theme picked.
+    const samples = {
+        plain: 'background-color: var(--thumb-bg, var(--bg-page));',
+        gradient: `background-color: var(--thumb-bg, var(--bg-page)); background-image: radial-gradient(circle at 15% 0%, ${accent(55)}, transparent 70%), radial-gradient(circle at 100% 100%, ${accent(35)}, transparent 65%);`,
+        texture: `background-color: var(--thumb-bg, var(--bg-page)); background-image: radial-gradient(${accent(70)} 1px, transparent 1.5px); background-size: 7px 7px;`,
+        image: 'background-color: var(--thumb-bg, var(--bg-page));'
+    };
+    const uploadButton = 'h-9 px-3 inline-flex items-center gap-2 rounded-lg text-xs font-bold bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 cursor-pointer transition';
+%>
+<div class="flex flex-col gap-1.5">
+    <h2 class="text-xl font-extrabold"><%= t('studio.tab_ambience') %></h2>
+    <p class="text-sm opacity-60"><%= t('studio.ambience_desc') %></p>
+</div>
+
+<section class="flex flex-col gap-2.5">
+    <span class="text-sm font-bold"><%= t('studio.ambience_logo') %></span>
+    <div class="flex items-center gap-3">
+        <img data-ambience-preview="logo" src="<%= amb.logo ? itemImageUrl(amb.logo) : baseUrl + '/ressources/logo.png' %>" data-default-src="<%= baseUrl %>/ressources/logo.png" alt=""
+            class="w-14 h-14 flex-none rounded-full object-cover ring-1 ring-black/10 dark:ring-white/15">
+        <div class="flex-1 min-w-0 flex flex-col gap-1.5">
+            <span class="text-xs opacity-60"><%= t('studio.ambience_logo_desc') %></span>
+            <div class="flex flex-wrap gap-1.5">
+                <label class="<%= uploadButton %>">
+                    <i class="fa-solid fa-upload" aria-hidden="true"></i><%= t('studio.ambience_upload') %>
+                    <input type="file" accept="image/*" data-ambience-upload="logo" class="sr-only">
+                </label>
+                <button type="button" data-ambience-clear="logo" class="<%= uploadButton %> <%= amb.logo ? '' : 'hidden' %>">
+                    <i class="fa-solid fa-xmark" aria-hidden="true"></i><%= t('studio.ambience_remove') %>
+                </button>
+            </div>
+        </div>
+    </div>
+    <input type="hidden" name="ambience_logo" value="<%= amb.logo %>">
+</section>
+
+<section class="flex flex-col gap-2.5">
+    <span class="text-sm font-bold"><%= t('studio.ambience_background') %></span>
+    <div class="grid grid-cols-4 gap-2">
+        <% AMBIENCE_OPTIONS.background.forEach(v => { %>
+            <label class="cursor-pointer">
+                <input type="radio" name="ambience_background" value="<%= v %>" class="peer sr-only" <%= amb.background === v ? 'checked' : '' %>>
+                <span class="<%= tile %> !p-2">
+                    <span class="relative block w-full aspect-square rounded-lg border border-[var(--border-color)] overflow-hidden" style="<%= samples[v] %>" aria-hidden="true">
+                        <% if (v === 'image') { %><i class="fa-solid fa-image absolute inset-0 m-auto w-fit h-fit text-lg opacity-60"></i><% } %>
+                    </span>
+                    <span class="text-[11px] font-semibold"><%= t('studio.ambience_background_' + v) %></span>
+                </span>
+            </label>
+        <% }) %>
+    </div>
+
+    <div data-ambience-for="gradient" class="flex flex-col gap-1.5">
+        <span class="text-xs font-bold opacity-70"><%= t('studio.ambience_gradient') %></span>
+        <div class="grid grid-cols-3 gap-1 p-1 rounded-xl bg-black/5 dark:bg-white/5">
+            <% AMBIENCE_OPTIONS.gradient.forEach(v => { %>
+                <label class="cursor-pointer">
+                    <input type="radio" name="ambience_gradient" value="<%= v %>" class="peer sr-only" <%= amb.gradient === v ? 'checked' : '' %>>
+                    <span class="<%= chip %>"><%= t('studio.ambience_gradient_' + v) %></span>
+                </label>
+            <% }) %>
+        </div>
+    </div>
+
+    <div data-ambience-for="texture" class="flex flex-col gap-1.5">
+        <span class="text-xs font-bold opacity-70"><%= t('studio.ambience_texture') %></span>
+        <div class="grid grid-cols-4 gap-1 p-1 rounded-xl bg-black/5 dark:bg-white/5">
+            <% AMBIENCE_OPTIONS.texture.forEach(v => { %>
+                <label class="cursor-pointer">
+                    <input type="radio" name="ambience_texture" value="<%= v %>" class="peer sr-only" <%= amb.texture === v ? 'checked' : '' %>>
+                    <span class="<%= chip %>"><%= t('studio.ambience_texture_' + v) %></span>
+                </label>
+            <% }) %>
+        </div>
+    </div>
+
+    <div data-ambience-for="gradient texture">
+        <%- include('stepper', { name: 'ambience_intensity', label: t('studio.ambience_intensity'), options: stepOptions('intensity'), current: amb.intensity }) %>
+    </div>
+
+    <div data-ambience-for="image" class="flex flex-col gap-4">
+        <div class="flex items-center gap-3">
+            <span class="relative w-24 aspect-video flex-none rounded-lg overflow-hidden bg-black/5 dark:bg-white/10 ring-1 ring-black/10 dark:ring-white/15">
+                <img data-ambience-preview="image" src="<%= amb.image ? itemImageUrl(amb.image) : '' %>" alt="" class="<%= amb.image ? '' : 'hidden' %> w-full h-full object-cover">
+                <i data-ambience-empty class="<%= amb.image ? 'hidden' : '' %> fa-solid fa-image absolute inset-0 m-auto w-fit h-fit opacity-40" aria-hidden="true"></i>
+            </span>
+            <div class="flex-1 min-w-0 flex flex-col gap-1.5">
+                <span class="text-xs opacity-60"><%= t('studio.ambience_image_desc') %></span>
+                <div class="flex flex-wrap gap-1.5">
+                    <label class="<%= uploadButton %>">
+                        <i class="fa-solid fa-upload" aria-hidden="true"></i><%= t('studio.ambience_upload') %>
+                        <input type="file" accept="image/*" data-ambience-upload="image" class="sr-only">
+                    </label>
+                    <button type="button" data-ambience-clear="image" class="<%= uploadButton %> <%= amb.image ? '' : 'hidden' %>">
+                        <i class="fa-solid fa-xmark" aria-hidden="true"></i><%= t('studio.ambience_remove') %>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <input type="hidden" name="ambience_image" value="<%= amb.image %>">
+        <%- include('stepper', { name: 'ambience_imageBlur', label: t('studio.ambience_imageBlur'), options: stepOptions('imageBlur'), current: amb.imageBlur }) %>
+        <%- include('stepper', { name: 'ambience_imageVeil', label: t('studio.ambience_imageVeil'), options: stepOptions('imageVeil'), current: amb.imageVeil }) %>
+    </div>
+    <p data-ambience-status role="status" class="hidden text-xs font-bold"></p>
+</section>
+
+<div class="rounded-2xl bg-black/5 dark:bg-white/5 p-1 flex flex-col">
+    <%- include('toggle', { name: 'ambience_glass', checked: amb.glass, title: t('studio.ambience_glass'), desc: t('studio.ambience_glass_desc') }) %>
+    <%- include('toggle', { name: 'ambience_coverAccent', checked: amb.coverAccent, title: t('studio.ambience_coverAccent'), desc: t('studio.ambience_coverAccent_desc') }) %>
+</div>

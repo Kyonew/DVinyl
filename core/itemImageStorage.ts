@@ -81,6 +81,17 @@ export async function deleteUnusedManagedItemImages(candidates: unknown[]): Prom
       if (typeof image === 'string') referenced.add(image);
     }
   }
+  // So does a collection's ambience (core/ambience.ts): its background picture and logo.
+  const referencedSettings = await db.settings.find(
+    or(isIn('ambience.image', managed), isIn('ambience.logo', managed)),
+    { fields: ['ambience'] }
+  );
+  for (const settings of referencedSettings) {
+    const ambience = (settings as any).ambience || {};
+    for (const image of [ambience.image, ambience.logo]) {
+      if (typeof image === 'string') referenced.add(image);
+    }
+  }
 
   let deleted = 0;
   for (const image of managed) {

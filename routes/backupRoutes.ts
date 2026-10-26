@@ -27,6 +27,7 @@ import { deleteUnusedManagedItemImages, managedItemImageFile, managedItemImagesF
 import { MAX_BACKUP_UPLOAD_BYTES, readBackupArchive, sendBackupArchive } from '../core/backupArchive';
 import { jsonStream, StreamedDocument } from '../core/jsonStream';
 import { BASE_URL } from '../config/constants';
+import { ambienceImages } from '../core/ambience';
 
 const router = express.Router();
 const backupArchiveUpload = multer({
@@ -191,6 +192,10 @@ const importInstanceBackup = async (req: any, res: any) => {
         // for release too, exactly like the items' own images.
         for (const current of await db.collections.find(all(), { fields: ['info.images'] })) {
             replacedImagePaths.push(...collectionInfoOf(current).images);
+        }
+        // And so do the collections' ambiences, their background pictures and logos.
+        for (const current of await db.settings.find(all(), { fields: ['ambience'] })) {
+            replacedImagePaths.push(...ambienceImages(current));
         }
 
         console.log(`[BACKUP] Instance import started (dump version ${data.metadata?.version || 'unknown'}, ${hasCollections ? 'with' : 'without'} collections): ${data.users?.length || 0} user(s), ${data.albums?.length || 0} item(s). Wiping current data...`);
@@ -828,6 +833,9 @@ const importCollectionBackup = async (req: any, res: any) => {
         // Restore the collection's settings container when the dump carries one
         const settingsDoc = Array.isArray(data.settings) ? data.settings[0] : data.settings;
         if (settingsDoc) {
+            // Its ambience pictures go the way of the info page's above.
+            const previousSettings = await db.settings.findOne(eq('collection', idOf(activeCollectionId)));
+            replacedImagePaths.push(...ambienceImages(previousSettings));
             const clean = { ...settingsDoc };
             delete clean._id;
             delete clean.__v;

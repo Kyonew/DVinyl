@@ -81,6 +81,12 @@ const settingsSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.Mixed,
         default: () => ({})
     },
+    // What lies behind the pages, frosted surfaces, the cover's accent on an item page
+    // and the logo, see core/ambience.ts.
+    ambience: {
+        type: mongoose.Schema.Types.Mixed,
+        default: () => ({})
+    },
     // How the item cards look: { frame, hover, text, badges }, see core/cardStyle.ts.
     cards: {
         type: mongoose.Schema.Types.Mixed,

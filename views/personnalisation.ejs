@@ -47,6 +47,12 @@
     const savedCards = normalizeCardLook(savedSettings.cards);
     ['frame', 'hover', 'text'].forEach(key => { savedValues['card_' + key] = savedCards[key]; });
     savedValues.card_badges = savedCards.badges ? 'on' : '';
+    const savedAmbience = normalizeAmbience(savedSettings.ambience);
+    ['background', 'gradient', 'texture', 'intensity', 'image', 'imageBlur', 'imageVeil', 'logo'].forEach(key => {
+        savedValues['ambience_' + key] = savedAmbience[key];
+    });
+    savedValues.ambience_glass = savedAmbience.glass ? 'on' : '';
+    savedValues.ambience_coverAccent = savedAmbience.coverAccent ? 'on' : '';
     const savedCustom = normalizeCustomTheme(savedSettings.customTheme);
     ['light', 'dark'].forEach(mode => THEME_OPTIONS.tokens.forEach(token => {
         savedValues['custom_' + mode + '_' + token] = savedCustom[mode][token];
@@ -59,6 +65,7 @@
         { id: 'nav', icon: 'table-columns', label: t('studio.tab_nav') },
         { id: 'cards', icon: 'clone', label: t('studio.tab_cards') },
         { id: 'text', icon: 'font', label: t('studio.tab_text') },
+        { id: 'ambience', icon: 'image', label: t('studio.tab_ambience') },
         { id: 'details', icon: 'sliders', label: t('studio.tab_details') },
         { id: 'home', icon: 'table-cells-large', label: t('studio.tab_home') },
         { id: 'more', icon: 'ellipsis', label: t('studio.tab_more') }
@@ -215,13 +222,16 @@
         dark: t('studio.mode_dark'),
         light: t('studio.mode_light'),
         customColors: t('studio.custom_colors'),
-        lowContrast: t('studio.custom_low_contrast', { ratio: '{{ratio}}' })
+        lowContrast: t('studio.custom_low_contrast', { ratio: '{{ratio}}' }),
+        uploading: t('studio.ambience_uploading'),
+        uploadFailed: t('image_manager.upload_failed')
     }).replace(/</g, '\\u003c') %>;
     const deviceWidths = { desktop: '100%', tablet: '834px', phone: '390px' };
     const TAB_OF = (name) => {
         if (/^layout_(nav|topStyle|sticky|sidebar|dockLabels)$/.test(name) || name === 'navbarShortcuts') return 'nav';
         if (/^layout_(font|headingFont|headingCase)$/.test(name)) return 'text';
         if (/^card_/.test(name) || name === 'aspectRatioClass') return 'cards';
+        if (/^ambience_/.test(name)) return 'ambience';
         if (/^layout_/.test(name)) return 'details';
         if (/Preset$/.test(name) || name === 'customTheme') return 'style';
         return 'more';
@@ -762,6 +772,81 @@
         form.querySelector('[data-theme-name]').textContent = picked.dataset.label;
     }
 
+    // ---- Ambience ------------------------------------------------------------------------
+    // Only the options of the background picked are shown.
+    function syncAmbience() {
+        const background = value('ambience_background');
+        form.querySelectorAll('[data-ambience-for]').forEach(el => {
+            el.classList.toggle('hidden', !el.dataset.ambienceFor.split(' ').includes(background));
+        });
+    }
+
+    // The logo and the picture are uploaded as soon as they are chosen, scaled down and
+    // made JPEG first (the upload pool only takes that), and their path goes into the
+    // hidden field the draft and the save read.
+    const UPLOAD_EDGE = { logo: 512, image: 2400 };
+    const ambienceStatus = form.querySelector('[data-ambience-status]');
+    function shrink(file, maxEdge) {
+        return new Promise((resolve, reject) => {
+            const url = URL.createObjectURL(file);
+            const img = new Image();
+            img.onload = () => {
+                URL.revokeObjectURL(url);
+                const scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.max(1, Math.round(img.width * scale));
+                canvas.height = Math.max(1, Math.round(img.height * scale));
+                const context = canvas.getContext('2d');
+                // A transparent logo gets the page behind it rather than black.
+                context.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg-card') || '#ffffff';
+                context.fillRect(0, 0, canvas.width, canvas.height);
+                context.drawImage(img, 0, 0, canvas.width, canvas.height);
+                canvas.toBlob(blob => (blob ? resolve(blob) : reject(new Error('encode'))), 'image/jpeg', 0.86);
+            };
+            img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('load')); };
+            img.src = url;
+        });
+    }
+    function setAmbienceImage(kind, path) {
+        const field = form.querySelector(`[name="ambience_${kind}"]`);
+        field.value = path;
+        const preview = form.querySelector(`[data-ambience-preview="${kind}"]`);
+        if (kind === 'logo') preview.src = path ? base + path : preview.dataset.defaultSrc;
+        else {
+            preview.src = path ? base + path : '';
+            preview.classList.toggle('hidden', !path);
+            form.querySelector('[data-ambience-empty]').classList.toggle('hidden', Boolean(path));
+        }
+        form.querySelector(`[data-ambience-clear="${kind}"]`).classList.toggle('hidden', !path);
+        field.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    form.querySelectorAll('[data-ambience-upload]').forEach(input => input.addEventListener('change', async () => {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        const kind = input.dataset.ambienceUpload;
+        input.disabled = true;
+        ambienceStatus.textContent = i18n.uploading;
+        ambienceStatus.classList.remove('hidden', 'text-red-500');
+        try {
+            const upload = new FormData();
+            upload.append('image', await shrink(file, UPLOAD_EDGE[kind]), kind + '.jpg');
+            const response = await fetch(base + '/api/item-images/upload', { method: 'POST', body: upload });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || typeof data.url !== 'string') throw new Error(data.error || i18n.uploadFailed);
+            setAmbienceImage(kind, data.url);
+            ambienceStatus.classList.add('hidden');
+        } catch (e) {
+            ambienceStatus.textContent = e.message && e.message !== 'load' && e.message !== 'encode' ? e.message : i18n.uploadFailed;
+            ambienceStatus.classList.add('text-red-500');
+        } finally {
+            input.disabled = false;
+            input.value = '';
+        }
+    }));
+    form.querySelectorAll('[data-ambience-clear]').forEach(button => button.addEventListener('click', () => {
+        setAmbienceImage(button.dataset.ambienceClear, '');
+    }));
+
     // ---- Fonts ---------------------------------------------------------------------------
     function syncFontSample() {
         const font = value('layout_font');
@@ -804,6 +889,7 @@
         syncColors();
         syncFontSample();
         markPairs();
+        syncAmbience();
         syncShortcuts();
         markChanges();
     }

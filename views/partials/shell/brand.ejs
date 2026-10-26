@@ -2,15 +2,19 @@
   /**
    * The logo and the collection's name, linking home. brandIn picks the frame: 'bar'
    * (the top bar), 'side' (the sidebar, where the name only shows once it is wide
-   * enough) or 'dock' (the logo alone, the name as its tooltip or caption).
+   * enough) or 'dock' (the logo alone, the name as its tooltip or caption). The logo is
+   * the collection's own when it has one.
    */
   const brandName = locals.activeCollection && locals.activeCollection.name ? activeCollection.name : 'Vinyl';
   const brandIn = locals.brandIn || 'bar';
+  // The collection's own logo (core/ambience.ts), or DVinyl's.
+  const ownLogo = locals.settings ? normalizeAmbience(settings.ambience).logo : '';
+  const brandLogo = ownLogo ? itemImageUrl(ownLogo) : baseUrl + '/ressources/logo.png';
 %>
 <% if (brandIn === 'dock') { %>
 <a href="<%= baseUrl || '/' %>" class="dv-dock-item group focus:outline-none" aria-label="<%= brandName %>">
   <span class="dv-dock-icon">
-    <img src="<%= baseUrl %>/ressources/logo.png" alt="" class="w-10 h-10 rounded-full object-cover group-hover:rotate-12 transition-transform">
+    <img src="<%= brandLogo %>" alt="" class="w-10 h-10 rounded-full object-cover group-hover:rotate-12 transition-transform">
   </span>
   <% if (locals.dockLabels) { %>
     <span class="dv-dock-caption text-[10px] font-bold max-w-[4.5rem] truncate opacity-75"><%= brandName %></span>
@@ -20,12 +24,12 @@
 </a>
 <% } else if (brandIn === 'side') { %>
 <a href="<%= baseUrl || '/' %>" title="<%= brandName %>" class="flex items-center justify-center gap-3 group min-w-0 px-1">
-  <img src="<%= baseUrl %>/ressources/logo.png" alt="Logo" class="h-10 w-10 flex-none rounded-full object-cover group-hover:rotate-12 transition-transform">
+  <img src="<%= brandLogo %>" alt="Logo" class="h-10 w-10 flex-none rounded-full object-cover group-hover:rotate-12 transition-transform">
   <span class="dv-side-wide flex-1 min-w-0 text-lg font-bold leading-tight truncate"><%= brandName %></span>
 </a>
 <% } else { %>
 <a href="<%= baseUrl || '/' %>" class="flex items-center space-x-3 group min-w-0">
-  <img src="<%= baseUrl %>/ressources/logo.png" alt="Logo" class="h-8 w-8 rounded-full object-cover group-hover:rotate-12 transition-transform">
+  <img src="<%= brandLogo %>" alt="Logo" class="h-8 w-8 rounded-full object-cover group-hover:rotate-12 transition-transform">
   <span class="self-center text-2xl font-semibold text-inherit"><%= brandName %></span>
 </a>
 <% } %>

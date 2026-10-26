@@ -3,6 +3,7 @@ import { normalizeWidgets, WidgetEnv } from './dashboard';
 import { CARD_ASPECT_RATIOS } from './customPlugin';
 import { CUSTOM_PRESET, normalizeCustomTheme, ThemeColors } from './theme';
 import { CardLook, normalizeCardLook } from './cardStyle';
+import { Ambience, shareableAmbience } from './ambience';
 // The widget types a pack's home page is checked against.
 import './dashboardWidgets';
 
@@ -12,8 +13,9 @@ import './dashboardWidgets';
  *
  * A pack is data only, never code: every value it carries is one the Personnalisation
  * page itself offers (a layout option, a colour preset by name or a palette of #rrggbb
- * colours, a card shape and look, widgets of known types with their declared options),
- * and anything else is dropped on the way in. No CSS, no markup, no URL travels in one.
+ * colours, a card shape and look, an ambience without its pictures, widgets of known
+ * types with their declared options), and anything else is dropped on the way in. No
+ * CSS, no markup, no URL travels in one.
  */
 
 export interface LayoutPreset {
@@ -43,7 +45,7 @@ export const LAYOUT_PRESETS: LayoutPreset[] = [
 
 export const PACK_FORMAT = 'dvinyl-look';
 export const PACK_VERSION = 1;
-export const PACK_SECTIONS = ['layout', 'colors', 'cards', 'home'] as const;
+export const PACK_SECTIONS = ['layout', 'colors', 'cards', 'ambience', 'home'] as const;
 export type PackSection = typeof PACK_SECTIONS[number];
 // Far above any real pack (a full home page with long notes stays under 200 KB).
 export const MAX_PACK_BYTES = 512 * 1024;
@@ -61,6 +63,8 @@ export interface LookPack {
   // The cover shape, and the rest of the card's look.
   cards?: string;
   cardLook?: CardLook;
+  // The background, glass and cover accent; the background picture and the logo stay home.
+  ambience?: Ambience;
   home?: { widgets: any[] };
 }
 
@@ -83,7 +87,8 @@ export function buildPack(settings: any, name: string): LookPack {
     layout: normalizeLayout(settings?.layout),
     colors,
     cards: settings?.aspectRatioClass || 'aspect-square',
-    cardLook: normalizeCardLook(settings?.cards)
+    cardLook: normalizeCardLook(settings?.cards),
+    ambience: shareableAmbience(settings?.ambience)
   };
   if (Object.values(colors).includes(CUSTOM_PRESET)) pack.customTheme = normalizeCustomTheme(settings?.customTheme);
   // Only a home page someone arranged travels: the default one is rebuilt anywhere.
@@ -104,7 +109,7 @@ export function readPack(raw: any, env: WidgetEnv, colorPresets: string[], itemT
 
   const parts: {
     layout?: LayoutSettings; colors?: Record<string, string>; customTheme?: ThemeColors;
-    cards?: string; cardLook?: CardLook; home?: any[];
+    cards?: string; cardLook?: CardLook; ambience?: Ambience; home?: any[];
   } = {};
   if (raw.layout && typeof raw.layout === 'object') parts.layout = normalizeLayout(raw.layout);
   // 'custom' only stands for something when the pack carries the palette it names.
@@ -120,6 +125,7 @@ export function readPack(raw: any, env: WidgetEnv, colorPresets: string[], itemT
   }
   if ((CARD_ASPECT_RATIOS as readonly string[]).includes(raw.cards)) parts.cards = raw.cards;
   if (raw.cardLook && typeof raw.cardLook === 'object') parts.cardLook = normalizeCardLook(raw.cardLook);
+  if (raw.ambience && typeof raw.ambience === 'object') parts.ambience = shareableAmbience(raw.ambience);
   if (raw.home && Array.isArray(raw.home.widgets)) parts.home = normalizeWidgets(raw.home.widgets, env);
 
   return {
@@ -139,6 +145,13 @@ export function packUpdate(parts: ReturnType<typeof readPack>['parts'], sections
   }
   if (sections.includes('cards') && parts.cards) update.aspectRatioClass = parts.cards;
   if (sections.includes('cards') && parts.cardLook) update.cards = parts.cardLook;
+  // The collection keeps its own picture and logo; a pack asking for a picture it does
+  // not carry leaves the background plain until one is uploaded here.
+  if (sections.includes('ambience') && parts.ambience) {
+    for (const [key, value] of Object.entries(parts.ambience)) {
+      if (key !== 'image' && key !== 'logo') update[`ambience.${key}`] = value;
+    }
+  }
   if (sections.includes('home') && parts.home) update.dashboard = { widgets: parts.home };
   return update;
 }

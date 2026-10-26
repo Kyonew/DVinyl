@@ -66,13 +66,18 @@
   // The collection's layout (core/layout.ts): which navigation large screens get, and
   // the density, radius, scale, width and font of the whole interface.
   const shellNav = locals.layout || resolveLayout(typeof settings !== 'undefined' ? settings : null);
+  // What lies behind the pages, frosted surfaces, the cover's accent and the logo
+  // (core/ambience.ts).
+  const shellAmbience = resolveAmbience(typeof settings !== 'undefined' ? settings : null);
   const shellCanAdd = showTabBar && Boolean(locals.canEditCollection) && registry.getEnabled(settings).length > 0;
 %>
 
 <html lang="<%= currentLng %>" class="<%= isDark ? 'dark' : '' %>"
   data-nav="<%= shellNav.nav %>" data-sidebar-state="<%= shellNav.sidebarState %>" data-dock-labels="<%= shellNav.dockLabels ? 'true' : 'false' %>"
   data-heading-font="<%= shellNav.headingFont === 'same' ? 'same' : 'own' %>" data-heading-case="<%= shellNav.headingCase %>"
-  data-theme="<%= activeTheme.name %>">
+  data-theme="<%= activeTheme.name %>" data-backdrop="<%= shellAmbience.backdrop %>"
+  data-gradient="<%= shellAmbience.gradient %>" data-texture="<%= shellAmbience.texture %>"
+  data-glass="<%= shellAmbience.glass ? 'true' : 'false' %>" data-cover-accent="<%= shellAmbience.coverAccent ? 'true' : 'false' %>">
 <head>
   <meta charset="UTF-8" />
   <%# viewport-fit=cover lets the page run under the notch and the home indicator once
@@ -136,12 +141,19 @@
       See public/vendor/README.md for how to update them. %>
   <link rel="stylesheet" href="<%= baseUrl %>/vendor/font-awesome-6.7.2/css/all.min.css">
   <script src="<%= baseUrl %>/vendor/flowbite-1.6.5.min.js"></script>
+  <% if (shellAmbience.logo) { %>
+  <link rel="icon" type="image/jpeg" href="<%= itemImageUrl(shellAmbience.logo) %>">
+  <% } else { %>
   <link rel="icon" type="image/png" href="<%= baseUrl %>/ressources/logo.png">
+  <% } %>
 
   <% shellNav.fontStylesheets.forEach(sheet => { %>
   <link rel="stylesheet" href="<%= baseUrl %>/vendor/fonts/<%= sheet %>">
   <% }) %>
-  <%- include('shell/styles', { activeTheme, rgbChannels, layout: shellNav }) %>
+  <%- include('shell/styles', { activeTheme, rgbChannels, layout: shellNav, ambience: shellAmbience }) %>
+  <% if (shellAmbience.coverAccent) { %>
+  <%- include('shell/cover-accent') %>
+  <% } %>
   <script>
     if (window.navigator.standalone === true) document.documentElement.classList.add('is-standalone');
   </script>
@@ -184,6 +196,7 @@
 </head>
 
 <body class="font-sans transition-colors duration-300 min-h-screen flex flex-col <%= showTabBar ? 'has-tab-bar' : '' %> <%= hideTopBarOnPhone ? 'no-top-bar' : '' %>">
+  <%- include('shell/backdrop', { ambience: shellAmbience }) %>
     
   <div id="page-loader" class="fixed inset-0 z-[9999] flex flex-col items-center justify-center transition-opacity duration-500">
     <div class="relative">

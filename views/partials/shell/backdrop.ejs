@@ -1,0 +1,10 @@
+<%
+  /**
+   * The layer behind every page (core/ambience.ts): a gradient or a pattern drawn by
+   * shell/styles from the theme's accent, or the collection's picture. Nothing at all
+   * for a plain background. Included right after <body> by header.ejs.
+   */
+%>
+<% if (ambience.backdrop !== 'none') { %>
+<div id="dv-backdrop" aria-hidden="true"<% if (ambience.backdrop === 'image') { %> style="background-image: url('<%= itemImageUrl(ambience.image) %>');"<% } %>></div>
+<% } %>

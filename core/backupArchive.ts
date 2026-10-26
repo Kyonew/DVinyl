@@ -49,11 +49,29 @@ function infoPageImages(data: any): string[] {
     .filter((image: unknown): image is string => typeof image === 'string' && image.length > 0);
 }
 
+/**
+ * The ambiences a dump carries (core/ambience.ts), one per Settings document: their
+ * background picture and logo are uploads of the same folder too.
+ */
+function backupAmbiences(data: any): any[] {
+  const settings = Array.isArray(data?.settings) ? data.settings : (data?.settings ? [data.settings] : []);
+  return settings
+    .map((doc: any) => doc?.ambience)
+    .filter((ambience: any) => ambience && typeof ambience === 'object');
+}
+
+function ambienceImageValues(data: any): string[] {
+  return backupAmbiences(data)
+    .flatMap((ambience: any) => [ambience.image, ambience.logo])
+    .filter((image: unknown): image is string => typeof image === 'string' && image.length > 0);
+}
+
 function backupImages(data: any): string[] {
   const albums = Array.isArray(data?.albums) ? data.albums : [];
   const images: string[] = albums.flatMap((album: any) => managedItemImagesFrom(album));
   const infoImages = infoPageImages(data).filter(image => managedItemImageFile(image));
-  return [...new Set<string>([...images, ...infoImages])];
+  const ambienceImages = ambienceImageValues(data).filter(image => managedItemImageFile(image));
+  return [...new Set<string>([...images, ...infoImages, ...ambienceImages])];
 }
 
 function backupImageValues(data: any): string[] {
@@ -63,7 +81,7 @@ function backupImageValues(data: any): string[] {
     album?.user_image,
     ...(Array.isArray(album?.images) ? album.images : [])
   ]).filter((image: unknown): image is string => typeof image === 'string' && image.length > 0)
-    .concat(infoPageImages(data));
+    .concat(infoPageImages(data), ambienceImageValues(data));
 }
 
 function cloneForArchive(data: any): any {
@@ -93,6 +111,10 @@ function rewriteBackupImages(data: any, replacements: Map<string, string>): void
 
   for (const page of backupInfoPages(data)) {
     if (Array.isArray(page.images)) page.images = page.images.map(replace);
+  }
+  for (const ambience of backupAmbiences(data)) {
+    ambience.image = replace(ambience.image);
+    ambience.logo = replace(ambience.logo);
   }
 }
 
