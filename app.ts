@@ -36,7 +36,7 @@ import { MAX_ITEM_IMAGES, MAX_ITEM_IMAGE_BYTES } from './core/itemImages.js';
 import { cleanupStaleItemImageUploads, ITEM_IMAGE_SWEEP_INTERVAL_MS, itemImageUrl } from './core/itemImageStorage.js';
 import { isCollectionInfoVisible } from './core/collectionInfo.js';
 import { resolveLayout, layoutRootFontSize, LAYOUT_OPTIONS, SIDEBAR_COOKIE } from './core/layout';
-import { resolveTheme, CUSTOM_PRESET, THEME_TOKENS, normalizeCustomTheme } from './core/theme';
+import { resolveTheme, themeChoiceFor, normalizePalettes, PALETTE_PREFIX, INHERIT_PRESET, MAX_PALETTES, THEME_TOKENS } from './core/theme';
 import { cardClasses, normalizeCardLook, CARD_FRAMES, CARD_HOVERS, CARD_TEXTS } from './core/cardStyle';
 import { resolveAmbience, normalizeAmbience, AMBIENCE_OPTIONS } from './core/ambience';
 import { externalLinkFor, hasSearch, hasBarcodeScan, requiredEnvKeysFor, canRefresh, sourceStatusFor, searchableSources } from './core/sources';
@@ -126,10 +126,11 @@ app.locals.resolveLayout = resolveLayout;
 app.locals.layoutRootFontSize = layoutRootFontSize;
 app.locals.LAYOUT_OPTIONS = LAYOUT_OPTIONS;
 app.locals.SIDEBAR_COOKIE = SIDEBAR_COOKIE;
-// The colour theme a page is drawn with, and the collection's own palette (core/theme.ts).
+// The colour theme a page is drawn with, and the collection's own palettes (core/theme.ts).
 app.locals.resolveTheme = resolveTheme;
-app.locals.normalizeCustomTheme = normalizeCustomTheme;
-app.locals.THEME_OPTIONS = { custom: CUSTOM_PRESET, tokens: THEME_TOKENS };
+app.locals.themeChoiceFor = themeChoiceFor;
+app.locals.normalizePalettes = normalizePalettes;
+app.locals.THEME_OPTIONS = { palettePrefix: PALETTE_PREFIX, inherit: INHERIT_PRESET, maxPalettes: MAX_PALETTES, tokens: THEME_TOKENS };
 // The item cards' frame, hover, text placement and badge (core/cardStyle.ts).
 app.locals.cardClasses = cardClasses;
 app.locals.normalizeCardLook = normalizeCardLook;

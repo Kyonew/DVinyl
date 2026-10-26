@@ -24,7 +24,6 @@
 <%
     // The saved look, field by field as the form posts it, to tell what the draft changes.
     const savedLayout = resolveLayout(savedSettings);
-    const savedTheme = savedSettings.theme || {};
     const savedValues = {
         layout_nav: savedLayout.nav,
         layout_topStyle: savedLayout.topStyle === 'floating' ? 'floating' : '',
@@ -38,7 +37,7 @@
         layout_font: savedLayout.font,
         layout_headingFont: savedLayout.headingFont,
         layout_headingCase: savedLayout.headingCase === 'upper' ? 'upper' : '',
-        homePreset: (savedTheme.home && savedTheme.home.preset) || 'default',
+        homePreset: themeChoiceFor(savedSettings, 'home'),
         aspectRatioClass: savedSettings.aspectRatioClass || 'aspect-square',
         navbarShortcuts: (savedSettings.navbarShortcuts || []).map(String),
         fastAdd: savedSettings.fastAdd || '',
@@ -53,12 +52,9 @@
     });
     savedValues.ambience_glass = savedAmbience.glass ? 'on' : '';
     savedValues.ambience_coverAccent = savedAmbience.coverAccent ? 'on' : '';
-    const savedCustom = normalizeCustomTheme(savedSettings.customTheme);
-    ['light', 'dark'].forEach(mode => THEME_OPTIONS.tokens.forEach(token => {
-        savedValues['custom_' + mode + '_' + token] = savedCustom[mode][token];
-    }));
+    savedValues.customThemes = JSON.stringify(normalizePalettes(savedSettings));
     registry.getEnabled(savedSettings).forEach(p => {
-        savedValues[p.collectionType + 'Preset'] = (savedTheme[p.collectionType] && savedTheme[p.collectionType].preset) || 'default';
+        savedValues[p.collectionType + 'Preset'] = themeChoiceFor(savedSettings, p.collectionType);
     });
     const studioTabs = [
         { id: 'style', icon: 'palette', label: t('studio.tab_style') },
@@ -88,6 +84,9 @@
     /* The tick on the picked thumbnail: a preset button (aria-pressed) or a radio card. */
     .dv-picked { display: none; }
     [aria-pressed="true"] > .dv-picked, label:has(input:checked) > .dv-picked { display: flex; }
+    /* A ready-made style's sample screen, in the studio's own mode. */
+    .dv-look { --bg: var(--l-bg); --card: var(--l-card); --text: var(--l-text); --sub: var(--l-sub); --acc: var(--l-acc); background-color: var(--bg); }
+    html.dark .dv-look { --bg: var(--d-bg); --card: var(--d-card); --text: var(--d-text); --sub: var(--d-sub); --acc: var(--d-acc); }
     /* Below lg the settings are a sheet over the preview, at one of three heights
        (data-sheet on #studio): peek (the tabs only, the preview nearly full screen),
        half, and full. The preview shrinks to what the sheet leaves, so the page it shows
@@ -230,7 +229,9 @@
     }) %>;
     const fontSheets = <%- JSON.stringify(LAYOUT_OPTIONS.fontSheets) %>;
     const themePresets = <%- JSON.stringify(Object.fromEntries(Object.entries(presets).map(([k, v]) => [k, { light: v.light, dark: v.dark }]))).replace(/</g, '\\u003c') %>;
-    const CUSTOM = <%- JSON.stringify(THEME_OPTIONS.custom) %>;
+    const PALETTE = <%- JSON.stringify(THEME_OPTIONS.palettePrefix) %>;
+    const INHERIT = <%- JSON.stringify(THEME_OPTIONS.inherit) %>;
+    const MAX_PALETTES = <%- JSON.stringify(THEME_OPTIONS.maxPalettes) %>;
     const TOKENS = <%- JSON.stringify(THEME_OPTIONS.tokens) %>;
     const savedValues = <%- JSON.stringify(savedValues).replace(/</g, '\\u003c') %>;
     const widgetTypes = <%- JSON.stringify(widgetTypes).replace(/</g, '\\u003c') %>;
@@ -242,14 +243,17 @@
         changesOther: t('studio.changes_other', { count: '{{count}}' }),
         discardConfirm: t('studio.discard_confirm'),
         maxShortcuts: t('perso.nav_max'),
-        presetCurrent: t('studio.preset_current', { name: '{{name}}' }),
-        presetCustom: t('studio.preset_custom'),
+        lookCurrent: t('studio.preset_current', { name: '{{name}}' }),
+        lookCustom: t('studio.preset_custom'),
         dark: t('studio.mode_dark'),
         light: t('studio.mode_light'),
         sheetExpand: t('studio.sheet_expand'),
         sheetCollapse: t('studio.sheet_collapse'),
-        customColors: t('studio.custom_colors'),
-        lowContrast: t('studio.custom_low_contrast', { ratio: '{{ratio}}' }),
+        paletteDefault: t('studio.palette_default_name', { n: '{{n}}' }),
+        paletteCopy: t('studio.palette_copy_name', { name: '{{name}}' }),
+        paletteDeleteConfirm: t('studio.palette_delete_confirm'),
+        lowContrastLight: t('studio.custom_low_contrast_light', { ratio: '{{ratio}}' }),
+        lowContrastDark: t('studio.custom_low_contrast_dark', { ratio: '{{ratio}}' }),
         uploading: t('studio.ambience_uploading'),
         uploadFailed: t('image_manager.upload_failed')
     }).replace(/</g, '\\u003c') %>;
@@ -263,7 +267,7 @@
         if (/^card_/.test(name) || name === 'aspectRatioClass') return 'cards';
         if (/^ambience_/.test(name)) return 'ambience';
         if (/^layout_/.test(name)) return 'details';
-        if (/Preset$/.test(name) || name === 'customTheme') return 'style';
+        if (/Preset$/.test(name) || name === 'customThemes') return 'style';
         return 'more';
     };
 
@@ -525,7 +529,7 @@
     function changedFields() {
         const now = currentValues();
         const offered = new Set([...form.querySelectorAll('[name="navbarShortcuts"]')].map(input => input.value));
-        const changed = Object.keys(savedValues).filter(name => {
+        return Object.keys(savedValues).filter(name => {
             if (name === 'navbarShortcuts') {
                 const saved = savedValues[name].filter(id => offered.has(id)).sort().join();
                 return saved !== now[name].slice().sort().join();
@@ -534,8 +538,6 @@
             if (!form.querySelector(`[name="${name}"]`)) return false;
             return now[name] !== savedValues[name];
         });
-        // The twelve colours of the collection's own palette count as one change.
-        return [...new Set(changed.map(name => (/^custom_/.test(name) ? 'customTheme' : name)))];
     }
     function markChanges() {
         const changed = changedFields();
@@ -628,44 +630,48 @@
         track.addEventListener('click', (event) => event.preventDefault());
     });
 
-    // The ready-made layout every layout choice matches, if any.
-    const presetButtons = [...form.querySelectorAll('[data-studio-preset]')];
-    function markPreset() {
-        let current = null;
-        presetButtons.forEach(button => {
-            const matches = Object.entries(JSON.parse(button.dataset.studioPreset)).every(([key, val]) => {
-                if (key === 'topStyle') return (value('layout_topStyle') || 'bar') === val;
-                if (key === 'headingCase') return (value('layout_headingCase') || 'normal') === val;
-                const input = form.querySelector(`[name="layout_${key}"]`);
-                if (input && input.type === 'checkbox') return input.checked === (val === true);
-                return value('layout_' + key) === String(val);
-            });
-            button.setAttribute('aria-pressed', String(matches));
-            if (matches) current = button.dataset.presetName;
+    // ---- Ready-made styles ---------------------------------------------------------------
+    // A style is a set of field values (core/lookStyles.ts): applying one fills them in,
+    // and the style every one of them still matches is marked.
+    function fieldValue(name) {
+        const data = new FormData(form);
+        return data.has(name) ? String(data.get(name)) : '';
+    }
+    function setField(name, val) {
+        form.querySelectorAll(`[name="${name}"]`).forEach(input => {
+            if (input.type === 'radio') input.checked = input.value === val;
+            else if (input.type === 'checkbox') input.checked = val !== '' && input.value === val;
         });
-        const hint = form.querySelector('[data-preset-hint]');
-        hint.textContent = current ? i18n.presetCurrent.replace('{{name}}', current) : i18n.presetCustom;
-        hint.classList.toggle('text-primary-theme', !current);
-        hint.classList.toggle('opacity-80', Boolean(current));
     }
     function setLayout(values) {
         Object.entries(values).forEach(([key, val]) => {
-            form.querySelectorAll(`[name="layout_${key}"]`).forEach(input => {
-                if (key === 'topStyle') input.checked = val === 'floating';
-                else if (key === 'headingCase') input.checked = val === 'upper';
-                else if (input.type === 'checkbox') input.checked = val === true;
-                else input.checked = input.value === String(val);
-            });
+            if (key === 'headingCase') setField('layout_headingCase', val === 'upper' ? 'upper' : '');
+            else setField('layout_' + key, String(val));
         });
     }
-    presetButtons.forEach(button => button.addEventListener('click', () => {
-        setLayout(JSON.parse(button.dataset.studioPreset));
+    const lookButtons = [...form.querySelectorAll('[data-look-style]')];
+    function markLook() {
+        let current = null;
+        lookButtons.forEach(button => {
+            const matches = Object.entries(JSON.parse(button.dataset.lookStyle)).every(([name, val]) => fieldValue(name) === val);
+            button.setAttribute('aria-pressed', String(matches));
+            if (matches) current = button.dataset.lookName;
+        });
+        const hint = form.querySelector('[data-look-hint]');
+        hint.textContent = current ? i18n.lookCurrent.replace('{{name}}', current) : i18n.lookCustom;
+        hint.classList.toggle('text-primary-theme', !current);
+        hint.classList.toggle('opacity-80', Boolean(current));
+    }
+    lookButtons.forEach(button => button.addEventListener('click', () => {
+        Object.entries(JSON.parse(button.dataset.lookStyle)).forEach(([name, val]) => setField(name, val));
+        mood = null;
+        justSaved = false;
         syncAll();
         applyLook();
         pushDraft(true);
     }));
 
-    // ---- The collection's own colours ------------------------------------------------
+    // ---- Colour helpers ----------------------------------------------------------------
     // Contrast as WCAG 2 counts it, and the text that reads on the accent, as the
     // server picks it (core/theme.ts).
     const channel = (hex) => {
@@ -754,21 +760,69 @@
         return { light, dark };
     }
 
-    const editor = form.querySelector('[data-custom-editor]');
-    const customField = (mode, token) => form.querySelector(`[name="custom_${mode}_${token}"]`);
-    const customPalette = (mode) => Object.fromEntries(TOKENS.map(token => [token, customField(mode, token).value]));
-    // Never saved yet: it starts from the preset in use when it is first picked.
-    let customStarted = editor.dataset.customSaved === '1';
-    let lastPreset = value('homePreset') && value('homePreset') !== CUSTOM ? value('homePreset') : 'default';
+    // ---- The collection's own palettes ------------------------------------------------
+    // The list lives in the hidden field customThemes, as the JSON the server reads and
+    // writes back (core/theme.ts), so an untouched list reads as no change. Each palette
+    // is picked like a theme, as PALETTE + its id; the one picked for the collection is
+    // the one the editor shows.
+    const palettesField = form.querySelector('[name="customThemes"]');
+    const paletteGrid = form.querySelector('[data-palette-grid]');
+    const swatchTemplate = form.querySelector('template[data-palette-swatch]');
+    const newPaletteButton = form.querySelector('[data-palette-new]');
+    const paletteEditor = form.querySelector('[data-palette-editor]');
+    const nameInput = form.querySelector('[data-palette-name]');
+    const seedInput = form.querySelector('[data-palette-seed]');
+    let palettes = JSON.parse(palettesField.value || '[]');
+    // The surfaces' share of colour last asked for, while the same palette is edited.
+    let mood = null;
 
-    function setCustomPalette(palette) {
-        ['light', 'dark'].forEach(mode => TOKENS.forEach(token => {
-            if (palette[mode] && palette[mode][token]) customField(mode, token).value = palette[mode][token];
-        }));
-        customStarted = true;
+    const paletteLabel = (palette) => palette.name || i18n.paletteDefault.replace('{{n}}', palettes.indexOf(palette) + 1);
+    const cleanName = (name) => name.replace(/\s+/g, ' ').trim().slice(0, 40);
+    const colorsOf = (palette) => Object.fromEntries(['light', 'dark'].map(mode => [mode, Object.fromEntries(TOKENS.map(token => [token, palette[mode][token]]))]));
+    const pickedPalette = () => {
+        const picked = value('homePreset') || '';
+        return picked.startsWith(PALETTE) ? palettes.find(p => PALETTE + p.id === picked) : undefined;
+    };
+    function newPaletteId() {
+        let id = '';
+        while (!id || palettes.some(p => p.id === id)) id = Math.random().toString(36).slice(2, 10);
+        return id;
     }
-    const customInUse = () => value('homePreset') === CUSTOM
-        || [...form.querySelectorAll('select[name$="Preset"]')].some(select => select.value === CUSTOM);
+    function writePalettes() {
+        palettesField.value = JSON.stringify(palettes.map(p => ({ id: p.id, name: cleanName(p.name || ''), ...colorsOf(p) })));
+    }
+
+    // The swatches, and the palettes the item types can pick, follow the list.
+    function drawPalettes() {
+        const picked = value('homePreset');
+        paletteGrid.querySelectorAll('label').forEach(label => label.remove());
+        palettes.forEach(palette => {
+            const label = swatchTemplate.content.firstElementChild.cloneNode(true);
+            const input = label.querySelector('input');
+            const dark = palette.dark;
+            input.value = PALETTE + palette.id;
+            input.checked = input.value === picked;
+            Object.assign(input.dataset, { label: paletteLabel(palette), bg: dark.bg, card: dark.card, nav: dark.navbar, accent: dark.highlight });
+            label.title = paletteLabel(palette);
+            label.querySelector('span').style.backgroundColor = dark.bg;
+            const dot = label.querySelector('span > span');
+            dot.style.backgroundColor = dark.highlight;
+            dot.style.boxShadow = `0 0 0 4px ${dark.card}`;
+            label.querySelector(':scope > span:last-child').textContent = paletteLabel(palette);
+            paletteGrid.insertBefore(label, newPaletteButton);
+        });
+        // A palette gone takes the collection back to the default theme.
+        if (!form.querySelector('[name="homePreset"]:checked')) setField('homePreset', 'default');
+        newPaletteButton.classList.toggle('hidden', palettes.length >= MAX_PALETTES);
+        form.querySelector('[data-palette-empty]').classList.toggle('hidden', palettes.length > 0);
+        form.querySelectorAll('select[data-type-colors]').forEach(select => {
+            const chosen = select.value;
+            const group = select.querySelector('[data-palette-options]');
+            group.replaceChildren(...palettes.map(palette => new Option(paletteLabel(palette), PALETTE + palette.id)));
+            select.value = chosen;
+            if (select.value !== chosen) select.value = INHERIT;
+        });
+    }
 
     // The pairs of colours that have to read on each other, and how much they need. A
     // pair that falls short is flagged on what is drawn on top (the text, the accent),
@@ -780,17 +834,47 @@
         { token: 'subtext', against: 'card', min: 3 },
         { token: 'highlight', against: 'bg', min: 3 }
     ];
-    function syncCustom() {
-        editor.classList.toggle('hidden', !customInUse());
-        let warnings = 0;
+    function syncPaletteEditor() {
+        const palette = pickedPalette();
+        paletteEditor.classList.toggle('hidden', !palette);
+        if (!palette) return;
+        if (document.activeElement !== nameInput) {
+            nameInput.value = palette.name || '';
+            nameInput.placeholder = paletteLabel(palette);
+        }
+        if (document.activeElement !== seedInput) seedInput.value = palette.light.highlight;
+        paletteEditor.querySelectorAll('[data-palette-color]').forEach(input => {
+            if (document.activeElement !== input) input.value = palette[input.dataset.mode][input.dataset.token];
+        });
+        // The samples, light and dark.
         ['light', 'dark'].forEach(mode => {
-            const pal = customPalette(mode);
-            TOKENS.forEach(token => {
-                const hex = form.querySelector(`[data-custom-hex="${mode}-${token}"]`);
-                if (hex) hex.textContent = pal[token];
-                const warn = form.querySelector(`[data-contrast-warn="${mode}-${token}"]`);
-                if (warn) warn.classList.add('hidden');
-            });
+            const pal = palette[mode];
+            const sample = paletteEditor.querySelector(`[data-palette-sample="${mode}"]`);
+            sample.style.backgroundColor = pal.bg;
+            sample.querySelector('[data-sample-icon]').style.color = pal.subtext;
+            sample.querySelector('[data-sample-nav]').style.backgroundColor = pal.navbar;
+            sample.querySelector('[data-sample-card]').style.backgroundColor = pal.card;
+            sample.querySelector('[data-sample-text]').style.color = pal.text;
+            sample.querySelector('[data-sample-subtext]').style.color = pal.subtext;
+            const button = sample.querySelector('[data-sample-button]');
+            button.style.backgroundColor = pal.highlight;
+            button.style.color = textOn(pal.highlight);
+        });
+        // Each share of colour, drawn from the colour picked, in the studio's own mode.
+        const mode = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+        paletteEditor.querySelectorAll('[data-palette-mood]').forEach(button => {
+            const pal = paletteFrom(seedInput.value, button.dataset.paletteMood)[mode];
+            button.querySelector('[data-mood-sample]').style.backgroundColor = pal.bg;
+            button.querySelector('[data-mood-card]').style.backgroundColor = pal.card;
+            button.querySelector('[data-mood-accent]').style.backgroundColor = pal.highlight;
+            button.setAttribute('aria-pressed', String(button.dataset.paletteMood === mood));
+        });
+        // Colours that do not read on each other, in either mode.
+        let warnings = 0;
+        TOKENS.forEach(token => paletteEditor.querySelector(`[data-palette-warn="${token}"]`).classList.add('hidden'));
+        const notes = {};
+        ['light', 'dark'].forEach(m => {
+            const pal = palette[m];
             const worst = {};
             CONTRAST_RULES.forEach(rule => {
                 const ratio = contrast(pal[rule.token], pal[rule.against]);
@@ -798,41 +882,29 @@
             });
             Object.entries(worst).forEach(([token, ratio]) => {
                 warnings++;
-                const warn = form.querySelector(`[data-contrast-warn="${mode}-${token}"]`);
-                warn.textContent = i18n.lowContrast.replace('{{ratio}}', ratio.toFixed(1));
-                warn.classList.remove('hidden');
+                const text = (m === 'light' ? i18n.lowContrastLight : i18n.lowContrastDark).replace('{{ratio}}', ratio.toFixed(1));
+                notes[token] = notes[token] ? notes[token] + ' · ' + text : text;
             });
-            const pane = form.querySelector(`[data-custom-pane="${mode}"]`);
-            pane.querySelector('[data-custom-sample]').style.backgroundColor = pal.bg;
-            pane.querySelector('[data-sample-nav]').style.backgroundColor = pal.navbar;
-            pane.querySelector('[data-sample-card]').style.backgroundColor = pal.card;
-            pane.querySelector('[data-sample-text]').style.color = pal.text;
-            pane.querySelector('[data-sample-subtext]').style.color = pal.subtext;
-            const button = pane.querySelector('[data-sample-button]');
-            button.style.backgroundColor = pal.highlight;
-            button.style.color = textOn(pal.highlight);
         });
-        const count = form.querySelector('[data-custom-warn-count]');
+        Object.entries(notes).forEach(([token, text]) => {
+            const warn = paletteEditor.querySelector(`[data-palette-warn="${token}"]`);
+            warn.textContent = text;
+            warn.classList.remove('hidden');
+        });
+        const count = paletteEditor.querySelector('[data-palette-warn-count]');
         count.textContent = warnings ? '⚠ ' + warnings : '';
         count.classList.toggle('hidden', warnings === 0);
-        // The swatch shows the palette as the others show theirs, in its dark version.
-        const swatch = form.querySelector('[data-custom-swatch]');
-        const dark = customPalette('dark');
-        Object.assign(swatch.dataset, { bg: dark.bg, card: dark.card, nav: dark.navbar, accent: dark.highlight });
-        form.querySelector('[data-custom-swatch-bg]').style.backgroundColor = dark.bg;
-        const dot = form.querySelector('[data-custom-swatch-dot]');
-        dot.style.backgroundColor = dark.highlight;
-        dot.style.boxShadow = `0 0 0 5px ${dark.card}`;
     }
 
     // While a colour is being picked, the preview takes it at once when the page it
-    // shows uses the collection's own palette; letting go saves the draft and reloads.
+    // shows wears that palette; letting go saves the draft and reloads.
     function applyCustomColors() {
         const win = frameWindow();
         if (!win) return;
         const root = win.document.documentElement;
-        if (root.dataset.theme !== CUSTOM) return;
-        const pal = customPalette(root.classList.contains('dark') ? 'dark' : 'light');
+        const palette = palettes.find(p => PALETTE + p.id === root.dataset.theme);
+        if (!palette) return;
+        const pal = palette[root.classList.contains('dark') ? 'dark' : 'light'];
         const vars = {
             '--bg-page': pal.bg, '--bg-card': pal.card, '--bg-nav': pal.navbar, '--text-main': pal.text,
             '--text-sub': pal.subtext, '--highlight': pal.highlight,
@@ -841,43 +913,89 @@
         Object.entries(vars).forEach(([key, val]) => root.style.setProperty(key, val));
     }
 
-    form.querySelectorAll('[data-custom-color]').forEach(input => input.addEventListener('input', () => {
-        syncCustom();
-        applyCustomColors();
-    }));
-    let mood = 'tinted';
-    const seedInput = form.querySelector('[data-custom-seed]');
-    const fromSeed = () => {
-        setCustomPalette(paletteFrom(seedInput.value, mood));
-        syncCustom();
-        applyCustomColors();
-    };
-    const customEdited = () => {
+    // Something about the palettes changed: the list is written, everything follows,
+    // and the draft goes (the preview reloads unless only a name changed).
+    function palettesChanged(reload) {
+        writePalettes();
+        drawPalettes();
         justSaved = false;
         syncAll();
-        pushDraft(true);
-    };
-    seedInput.addEventListener('input', fromSeed);
-    seedInput.addEventListener('change', customEdited);
-    form.querySelectorAll('[data-custom-mood]').forEach(button => button.addEventListener('click', () => {
-        mood = button.dataset.customMood;
-        form.querySelectorAll('[data-custom-mood]').forEach(b => b.setAttribute('aria-pressed', String(b === button)));
-        fromSeed();
-        customEdited();
-    }));
-    form.querySelector('[data-custom-from]').addEventListener('change', (event) => {
-        const preset = themePresets[event.target.value];
-        event.target.value = '';
-        if (!preset) return;
-        setCustomPalette(preset);
-        seedInput.value = preset.light.highlight;
-        customEdited();
+        pushDraft(reload);
+    }
+    // While a colour moves, only what shows it follows; the draft waits for the release.
+    function palettesMoving() {
+        writePalettes();
+        drawPalettes();
+        syncPaletteEditor();
+        syncColors();
+        applyCustomColors();
+    }
+    function addPalette(colors, name) {
+        const palette = { id: newPaletteId(), name, ...colors };
+        palettes.push(palette);
+        writePalettes();
+        drawPalettes();
+        setField('homePreset', PALETTE + palette.id);
+        mood = null;
+        palettesChanged(true);
+    }
+
+    // A new palette starts from the colours picked, whichever they are.
+    newPaletteButton.addEventListener('click', () => {
+        if (palettes.length >= MAX_PALETTES) return;
+        const picked = value('homePreset') || 'default';
+        const from = pickedPalette() || themePresets[picked] || themePresets.default;
+        addPalette(JSON.parse(JSON.stringify(colorsOf(from))), i18n.paletteDefault.replace('{{n}}', palettes.length + 1));
+        nameInput.focus();
+        nameInput.select();
     });
-    form.querySelectorAll('[data-custom-mode]').forEach(button => button.addEventListener('click', () => {
-        const mode = button.dataset.customMode;
-        form.querySelectorAll('[data-custom-mode]').forEach(b => b.setAttribute('aria-pressed', String(b === button)));
-        form.querySelectorAll('[data-custom-pane]').forEach(pane => pane.classList.toggle('hidden', pane.dataset.customPane !== mode));
+    form.querySelector('[data-palette-duplicate]').addEventListener('click', () => {
+        const palette = pickedPalette();
+        if (!palette || palettes.length >= MAX_PALETTES) return;
+        addPalette(JSON.parse(JSON.stringify(colorsOf(palette))), cleanName(i18n.paletteCopy.replace('{{name}}', paletteLabel(palette))));
+    });
+    form.querySelector('[data-palette-delete]').addEventListener('click', () => {
+        const palette = pickedPalette();
+        if (!palette || !confirm(i18n.paletteDeleteConfirm)) return;
+        palettes = palettes.filter(p => p !== palette);
+        setField('homePreset', 'default');
+        palettesChanged(true);
+    });
+    nameInput.addEventListener('input', () => {
+        const palette = pickedPalette();
+        if (!palette) return;
+        palette.name = nameInput.value;
+        palettesChanged(false);
+    });
+    nameInput.addEventListener('blur', () => syncPaletteEditor());
+
+    // The colour picked, and how much of it the surfaces take, make the whole palette.
+    function regenerate() {
+        const palette = pickedPalette();
+        if (!palette) return;
+        Object.assign(palette, paletteFrom(seedInput.value, mood || 'tinted'));
+    }
+    seedInput.addEventListener('input', () => { regenerate(); palettesMoving(); });
+    seedInput.addEventListener('change', () => palettesChanged(true));
+    form.querySelectorAll('[data-palette-quick]').forEach(button => button.addEventListener('click', () => {
+        seedInput.value = button.dataset.paletteQuick;
+        regenerate();
+        palettesChanged(true);
     }));
+    form.querySelectorAll('[data-palette-mood]').forEach(button => button.addEventListener('click', () => {
+        mood = button.dataset.paletteMood;
+        regenerate();
+        palettesChanged(true);
+    }));
+    form.querySelectorAll('[data-palette-color]').forEach(input => {
+        input.addEventListener('input', () => {
+            const palette = pickedPalette();
+            if (!palette) return;
+            palette[input.dataset.mode][input.dataset.token] = input.value;
+            palettesMoving();
+        });
+        input.addEventListener('change', () => palettesChanged(true));
+    });
 
     // The colours picked paint the thumbnails, and their name shows above them.
     function syncColors() {
@@ -1003,8 +1121,8 @@
     function syncAll() {
         syncNavOptions();
         syncSteppers();
-        markPreset();
-        syncCustom();
+        markLook();
+        syncPaletteEditor();
         syncColors();
         syncFontSample();
         markPairs();
@@ -1016,15 +1134,8 @@
     const RESTYLE_ONLY = /^layout_(density|radius|scale|width|font|headingFont|headingCase)$/;
     form.addEventListener('change', (event) => {
         const name = event.target.name;
-        if (!name) return; // the packs section's and the colour editor's own fields
-        // The collection's own palette, picked for the first time: it starts as the
-        // preset that was in use, rather than as the default one.
-        if (/Preset$/.test(name) && event.target.value === CUSTOM && !customStarted) {
-            const from = themePresets[lastPreset] || themePresets.default;
-            setCustomPalette(from);
-            seedInput.value = from.light.highlight;
-        }
-        if (name === 'homePreset' && event.target.value !== CUSTOM) lastPreset = event.target.value;
+        if (!name) return; // the packs section's and the palette editor's own fields
+        if (name === 'homePreset') mood = null;
         if (name === 'navbarShortcuts' && event.target.checked
             && form.querySelectorAll('[name="navbarShortcuts"]:checked').length > 6) {
             event.target.checked = false;
@@ -1040,9 +1151,15 @@
         }
     });
 
+    function stayOnTab() {
+        try { sessionStorage.setItem('studioStay', '1'); } catch (e) { /* private mode */ }
+    }
+    form.addEventListener('submit', stayOnTab);
+
     discardButtons.forEach(button => button.addEventListener('click', async () => {
         if (!confirm(i18n.discardConfirm)) return;
         await fetch(base + '/admin/personnalisation/draft/discard', { method: 'POST' });
+        stayOnTab();
         window.location.href = window.location.pathname;
     }));
 
@@ -1066,8 +1183,15 @@
         justSaved = true;
         history.replaceState(null, '', window.location.pathname);
     }
+    // Opened afresh, the studio starts on Style; reloaded, saved or discarded, it stays
+    // on the tab it was on.
     let startTab = <%- JSON.stringify(startArrange ? 'home' : null) %>;
-    if (!startTab) { try { startTab = sessionStorage.getItem('studioTab'); } catch (e) { /* private mode */ } }
+    const navigation = performance.getEntriesByType('navigation')[0];
+    try {
+        const stay = sessionStorage.getItem('studioStay') === '1' || (navigation && navigation.type === 'reload');
+        sessionStorage.removeItem('studioStay');
+        if (!startTab && stay) startTab = sessionStorage.getItem('studioTab');
+    } catch (e) { /* private mode */ }
     if (startTab && tabs.some(tab => tab.dataset.studioTab === startTab)) showTab(startTab);
     syncAll();
     syncDarkLabel();

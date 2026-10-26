@@ -36,13 +36,14 @@ import { renderMarkdown } from "../core/markdown";
 import { nativeLookalikesByPlugin } from "../core/pluginExtraFields";
 import { alignImagesAfterRefresh } from "../core/itemImages";
 import { layoutFromForm } from "../core/layout";
-import { customThemeFromForm, isThemeName } from "../core/theme";
+import { palettesFromForm, isThemeName, isThemeChoice } from "../core/theme";
 import { cardLookFromForm } from "../core/cardStyle";
 import { ambienceFromForm } from "../core/ambience";
 import { clearDraft, getDraft, setDraft, withUpdate } from "../core/lookDraft";
 import { dashboardWidgets, resolveWidgets } from "../core/dashboard";
 import "../core/dashboardWidgets";
-import { buildPack, readPack, packUpdate, PackError, MAX_PACK_BYTES, PACK_SECTIONS, LAYOUT_PRESETS } from "../core/layoutPacks";
+import { buildPack, readPack, packUpdate, PackError, MAX_PACK_BYTES, PACK_SECTIONS } from "../core/layoutPacks";
+import { LOOK_STYLES, lookStyleFields } from "../core/lookStyles";
 
 const router = express.Router();
 
@@ -1070,7 +1071,7 @@ router.get("/personnalisation", requireAuth, requireCollectionRole("admin"), asy
       startPage: typeof req.query.page === "string" && /^\/(?![\/\\])/.test(req.query.page) ? req.query.page : "/dashboard",
       startArrange: req.query.arrange === "1",
       presets: PRESETS,
-      layoutPresets: LAYOUT_PRESETS,
+      lookStyles: LOOK_STYLES.map(look => ({ ...look, fields: lookStyleFields(look) })),
       // Scan mode is only worth offering when an active module has a source that can
       // read a query as one exact item (see ExternalSource.exactQuery).
       scanModeAvailable: registry.getAll().some(p =>
@@ -1110,14 +1111,15 @@ function personnalisationUpdate(body: any): Record<string, any> {
     instantAdd: body.instantAdd === "on",
     layout: layoutFromForm(body),
   };
-  // Colour presets by name only, or the collection's own palette, whose colours are
+  // Colour presets by name only, or the collection's own palettes, whose colours are
   // checked one by one (core/theme.ts): each one lands in a style block on every page.
+  // An item type may also follow the home page's.
   if (isThemeName(homePreset)) update["theme.home.preset"] = homePreset;
   for (const p of registry.getAll()) {
     const preset = body[`${p.collectionType}Preset`];
-    if (isThemeName(preset)) update[`theme.${p.collectionType}.preset`] = preset;
+    if (isThemeChoice(preset)) update[`theme.${p.collectionType}.preset`] = preset;
   }
-  update.customTheme = customThemeFromForm(body);
+  update.customThemes = palettesFromForm(body);
   update.cards = cardLookFromForm(body);
   update.ambience = ambienceFromForm(body);
   return update;
@@ -1206,7 +1208,7 @@ router.post("/personnalisation/pack/apply", requireAuth, requireCollectionRole("
   try {
     const { parts } = readPostedPack(req, res);
     const sections = (Array.isArray(req.body?.sections) ? req.body.sections : []).filter((s: any) => (PACK_SECTIONS as readonly string[]).includes(s));
-    const update = packUpdate(parts, sections);
+    const update = packUpdate(parts, sections, res.locals.settings);
     if (Object.keys(update).length === 0) return res.status(400).json({ success: false, error: req.t("perso.pack_error_empty") });
     await db.settings.updateOne(eq("collection", idOf(res.locals.activeCollectionId)), { set: update }, { upsert: true });
     // What was just applied would otherwise hide behind an older draft in the preview.

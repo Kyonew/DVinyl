@@ -74,12 +74,18 @@ const settingsSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.Mixed,
         default: () => ({})
     },
-    // The collection's own colour palette, picked like a preset under the name 'custom':
-    //   { light: { bg, card, navbar, text, subtext, highlight }, dark: { ... } }
-    // Always read through core/theme.ts, which keeps only #rrggbb colours.
+    // The collection's single palette of old, picked as 'custom'; read as the first of
+    // customThemes until the studio saves that list. See core/theme.ts.
     customTheme: {
         type: mongoose.Schema.Types.Mixed,
         default: () => ({})
+    },
+    // The collection's own colour palettes, each picked like a preset as 'custom:<id>':
+    //   [{ id, name, light: { bg, card, navbar, text, subtext, highlight }, dark: { ... } }]
+    // No default: a missing list is what tells an old palette still to be read. Always
+    // read through core/theme.ts, which keeps only #rrggbb colours.
+    customThemes: {
+        type: mongoose.Schema.Types.Mixed
     },
     // What lies behind the pages, frosted surfaces, the cover's accent on an item page
     // and the logo, see core/ambience.ts.

@@ -1,13 +1,38 @@
 <%#
-    Studio tab "Style": where one starts. A ready-made layout (core/layoutPacks.ts) fills
-    in every layout choice of the other tabs; the colours are the home page's preset,
-    with a colour per item type folded underneath.
+    Studio tab "Style": where one starts. A ready-made style (core/lookStyles.ts) sets the
+    whole look at once (colours, fonts, cards, background), each drawn as a small screen
+    of the app in that look; then the colours, from the themes or the collection's own
+    palettes (core/theme.ts), with a colour per item type folded underneath.
 %>
 <%
-    const styleLayout = resolveLayout(settings);
     const sectionLabel = 'text-[11px] font-bold uppercase tracking-widest opacity-60';
-    const homeColor = (settings.theme && settings.theme.home && settings.theme.home.preset) || 'default';
     const selectClass = 'w-full bg-black/5 dark:bg-black/20 border border-transparent focus:border-primary-theme rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary-theme/20 outline-none transition-all';
+    const stacks = LAYOUT_OPTIONS.fontStacks;
+    const sampleName = (locals.activeCollection && activeCollection.name) || settings.siteName || 'DVinyl';
+    // Three covers of made-up records, the same in every style.
+    const covers = [
+        'linear-gradient(135deg, #f97316, #be123c)',
+        'radial-gradient(circle at 30% 30%, #fde68a, #0f766e 75%)',
+        'linear-gradient(160deg, #1e293b, #6366f1)'
+    ];
+    const INTENSITY = { subtle: 0.6, normal: 1, strong: 1.6 };
+    const tint = (pct) => `color-mix(in srgb, var(--acc) ${Math.min(90, Math.round(pct))}%, transparent)`;
+    // What lies behind the sample, as core/ambience.ts draws it behind the pages.
+    const backdropOf = (amb) => {
+        const k = INTENSITY[amb.intensity] || 1;
+        if (amb.background === 'gradient') return {
+            glow: `radial-gradient(circle at 15% 0%, ${tint(45 * k)}, transparent 65%)`,
+            diagonal: `linear-gradient(135deg, ${tint(32 * k)}, transparent 55%, ${tint(16 * k)})`,
+            aurora: `radial-gradient(circle at 0% 0%, ${tint(50 * k)}, transparent 55%), radial-gradient(circle at 100% 40%, color-mix(in srgb, color-mix(in srgb, var(--acc) 55%, #22d3ee) ${Math.min(90, Math.round(35 * k))}%, transparent), transparent 60%)`
+        }[amb.gradient] || '';
+        if (amb.background === 'texture') return {
+            grooves: `repeating-radial-gradient(circle at 50% 130%, ${tint(24 * k)} 0 1px, transparent 1px 5px)`,
+            lines: `repeating-linear-gradient(0deg, ${tint(18 * k)} 0 1px, transparent 1px 7px)`,
+            dots: `radial-gradient(${tint(40 * k)} 1px, transparent 1.5px)`,
+            grain: `radial-gradient(${tint(25 * k)} 0.5px, transparent 1px)`
+        }[amb.texture] || '';
+        return '';
+    };
 %>
 <div class="flex flex-col gap-1.5">
     <h2 class="text-xl font-extrabold max-lg:hidden"><%= t('studio.tab_style') %></h2>
@@ -16,18 +41,61 @@
 
 <section class="flex flex-col gap-2.5">
     <div class="flex items-baseline justify-between gap-3">
-        <span class="<%= sectionLabel %>"><%= t('studio.layout') %></span>
-        <span data-preset-hint class="text-xs font-semibold"></span>
+        <span class="<%= sectionLabel %>"><%= t('studio.looks') %></span>
+        <span data-look-hint class="text-xs font-semibold"></span>
     </div>
     <div class="grid grid-cols-2 gap-2.5">
-        <% layoutPresets.forEach(p => { %>
-            <button type="button" data-studio-preset="<%= JSON.stringify(p.layout) %>" data-preset-name="<%= t(p.label) %>" aria-pressed="false"
+        <% lookStyles.forEach(look => {
+            const colors = presets[look.colors] || presets.default;
+            const vars = ['light', 'dark'].map(mode => {
+                const c = colors[mode], m = mode[0];
+                return `--${m}-bg:${c.bg};--${m}-card:${c.card};--${m}-text:${c.text};--${m}-sub:${c.subtext};--${m}-acc:${c.highlight};`;
+            }).join('');
+            const r = Math.round(6 * LAYOUT_OPTIONS.radiusFactor[look.layout.radius]);
+            const heading = stacks[look.layout.headingFont === 'same' ? look.layout.font : look.layout.headingFont];
+            const upper = look.layout.headingCase === 'upper';
+            const frame = look.cards.frame;
+            const glass = look.ambience.glass;
+            const cardBg = glass ? 'color-mix(in srgb, var(--card) 55%, transparent)' : 'var(--card)';
+            const gap = { compact: '5%', comfortable: '7%', spacious: '9%' }[look.layout.density];
+        %>
+            <button type="button" data-look-style="<%= JSON.stringify(look.fields) %>" data-look-name="<%= t('studio.look_' + look.id) %>" aria-pressed="false"
                 class="group relative flex flex-col gap-2 p-2 rounded-2xl text-left border-2 border-transparent bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 aria-pressed:border-primary-theme aria-pressed:bg-primary-theme/10 transition">
                 <span class="dv-picked absolute z-10 top-3.5 right-3.5 w-6 h-6 rounded-full bg-primary-theme text-white shadow-lg items-center justify-center text-[11px]" aria-hidden="true"><i class="fa-solid fa-check"></i></span>
-                <%- include('thumb', { nav: p.layout.nav, sidebar: p.layout.sidebar, radiusFactor: LAYOUT_OPTIONS.radiusFactor[p.layout.radius] }) %>
+                <%# A small screen of the app in this look: the page, its title and a button,
+                    three cards. Its colours follow the studio's own light or dark mode. %>
+                <span class="dv-look relative block w-full aspect-[4/3] overflow-hidden rounded-lg border border-[var(--border-color)]"
+                    style="<%= vars %> font-family: <%= stacks[look.layout.font] %>;" aria-hidden="true">
+                    <span class="absolute inset-0" style="background-image: <%= backdropOf(look.ambience) %>; <%= look.ambience.texture === 'dots' ? 'background-size: 7px 7px;' : '' %>"></span>
+                    <span class="relative h-full flex flex-col p-[8%]" style="gap: <%= gap %>;">
+                        <span class="flex items-center justify-between gap-1">
+                            <span class="min-w-0 truncate text-[11px] font-extrabold leading-none <%= upper ? 'uppercase tracking-wide' : '' %>" style="font-family: <%= heading %>; color: var(--text); font-synthesis: style;"><%= sampleName %></span>
+                            <span class="flex-none h-3 w-5" style="background: var(--acc); border-radius: <%= Math.max(2, r) %>px;"></span>
+                        </span>
+                        <span class="grid grid-cols-3 items-start" style="gap: <%= gap %>;">
+                            <% covers.forEach(cover => { %>
+                                <span class="flex flex-col gap-[3px]"
+                                    style="<%= frame === 'filled' ? `background: ${cardBg}; padding: 3px;` : frame === 'outline' ? `border: 1px solid color-mix(in srgb, var(--text) 22%, transparent); padding: 2px;${glass ? ` background: ${cardBg};` : ''}` : '' %> border-radius: <%= r %>px;">
+                                    <span class="relative block aspect-square overflow-hidden" style="background: <%= cover %>; border-radius: <%= Math.max(0, r - 2) %>px;">
+                                        <% if (look.cards.text === 'overlay') { %>
+                                            <span class="absolute inset-x-0 bottom-0 flex flex-col gap-[2px] p-[3px] pt-[8px]" style="background: linear-gradient(transparent, rgb(0 0 0 / 0.7));">
+                                                <span class="block h-[3px] w-4/5 rounded-full bg-white/90"></span>
+                                                <span class="block h-[3px] w-1/2 rounded-full bg-white/60"></span>
+                                            </span>
+                                        <% } %>
+                                    </span>
+                                    <% if (look.cards.text === 'below') { %>
+                                        <span class="block h-[3px] w-4/5 rounded-full" style="background: var(--text); opacity: 0.85;"></span>
+                                        <span class="block h-[3px] w-1/2 rounded-full" style="background: var(--sub); opacity: 0.55;"></span>
+                                    <% } %>
+                                </span>
+                            <% }) %>
+                        </span>
+                    </span>
+                </span>
                 <span class="flex flex-col gap-0.5 px-0.5">
-                    <span class="text-sm font-extrabold" style="font-family: <%= LAYOUT_OPTIONS.fontStacks[p.layout.font] %>"><%= t(p.label) %></span>
-                    <span class="text-[11px] leading-snug opacity-60"><%= t(p.description) %></span>
+                    <span class="text-sm font-extrabold leading-tight <%= upper ? 'uppercase tracking-wide' : '' %>" style="font-family: <%= heading %>; font-synthesis: style;"><%= t('studio.look_' + look.id) %></span>
+                    <span class="text-[11px] leading-snug opacity-60"><%= t('studio.look_' + look.id + '_desc') %></span>
                 </span>
             </button>
         <% }) %>
@@ -35,139 +103,184 @@
 </section>
 
 <%
-    // The collection's own palette (core/theme.ts), edited below the swatches whenever a
-    // part of the app uses it. Until it was first saved it holds the default preset, and
-    // the script starts it from the preset picked instead.
-    const customColors = normalizeCustomTheme(settings.customTheme);
-    const customSaved = Boolean(settings.customTheme && settings.customTheme.light);
-    const customName = THEME_OPTIONS.custom;
-    const themeOf = (key) => (settings.theme[key] && settings.theme[key].preset) || '';
-    const customInUse = homeColor === customName || registry.getEnabled(settings).some(p => themeOf(p.collectionType) === customName);
-    const swatch = 'w-12 h-12 rounded-full flex items-center justify-center ring-1 ring-black/10 dark:ring-white/15 peer-checked:ring-[3px] peer-checked:ring-primary-theme peer-focus-visible:ring-[3px] peer-focus-visible:ring-primary-theme/60 transition';
+    // The collection's own palettes, kept by the script as the JSON of the hidden field
+    // customThemes, which the draft and the save read. Each is picked like a preset.
+    const palettes = normalizePalettes(settings);
+    const prefix = THEME_OPTIONS.palettePrefix;
+    const homeChoice = themeChoiceFor(settings, 'home');
+    const paletteLabel = (p, i) => p.name || t('studio.palette_default_name', { n: i + 1 });
+    const swatch = 'w-11 h-11 rounded-full flex items-center justify-center ring-1 ring-black/10 dark:ring-white/15 peer-checked:ring-[3px] peer-checked:ring-primary-theme peer-focus-visible:ring-[3px] peer-focus-visible:ring-primary-theme/60 transition';
+    const quickColors = ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#10b981', '#06b6d4', '#3b82f6', '#6366f1', '#a855f7', '#ec4899'];
+    const pickerClass = 'w-9 h-9 flex-none rounded-lg border-0 p-0 bg-transparent cursor-pointer [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded-lg [&::-webkit-color-swatch]:border [&::-webkit-color-swatch]:border-black/20 [&::-moz-color-swatch]:rounded-lg';
 %>
-<section class="flex flex-col gap-2.5">
+<section class="flex flex-col gap-3">
     <div class="flex items-baseline justify-between gap-3">
         <span class="<%= sectionLabel %>"><%= t('studio.colors') %></span>
-        <span data-theme-name class="text-xs font-semibold opacity-80"><%= homeColor === customName ? t('studio.custom_colors') : (presets[homeColor] || presets.default).label %></span>
-    </div>
-    <div class="grid grid-cols-4 gap-x-2 gap-y-3">
-        <% for (const [key, val] of Object.entries(presets)) { %>
-            <label class="flex flex-col items-center gap-1.5 cursor-pointer" title="<%= val.label %>">
-                <input type="radio" name="homePreset" value="<%= key %>" class="peer sr-only" <%= homeColor === key ? 'checked' : '' %>
-                    data-label="<%= val.label %>" data-bg="<%= val.dark.bg %>" data-card="<%= val.dark.card %>" data-nav="<%= val.dark.navbar %>" data-accent="<%= val.dark.highlight %>">
-                <span class="<%= swatch %>" style="background-color: <%= val.dark.bg %>;">
-                    <span class="w-5 h-5 rounded-full" style="background-color: <%= val.dark.highlight %>; box-shadow: 0 0 0 5px <%= val.dark.card %>;"></span>
-                </span>
-                <span class="text-[11px] leading-tight text-center opacity-75 max-w-full truncate"><%= val.label %></span>
-            </label>
-        <% } %>
-        <%# The collection's own palette, painted by the script as it is edited. %>
-        <label class="flex flex-col items-center gap-1.5 cursor-pointer" title="<%= t('studio.custom_colors') %>">
-            <input type="radio" name="homePreset" value="<%= customName %>" class="peer sr-only" <%= homeColor === customName ? 'checked' : '' %> data-custom-swatch
-                data-label="<%= t('studio.custom_colors') %>" data-bg="<%= customColors.dark.bg %>" data-card="<%= customColors.dark.card %>" data-nav="<%= customColors.dark.navbar %>" data-accent="<%= customColors.dark.highlight %>">
-            <span data-custom-swatch-bg class="<%= swatch %> relative" style="background-color: <%= customColors.dark.bg %>;">
-                <span data-custom-swatch-dot class="w-5 h-5 rounded-full" style="background-color: <%= customColors.dark.highlight %>; box-shadow: 0 0 0 5px <%= customColors.dark.card %>;"></span>
-                <span class="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full flex items-center justify-center text-[9px] text-white shadow ring-2 ring-[var(--bg-card)]" style="background: conic-gradient(#ef4444, #f59e0b, #10b981, #3b82f6, #a855f7, #ef4444);" aria-hidden="true"><i class="fa-solid fa-pen"></i></span>
-            </span>
-            <span class="text-[11px] leading-tight text-center opacity-75 max-w-full truncate"><%= t('studio.custom_colors') %></span>
-        </label>
+        <span data-theme-name class="text-xs font-semibold opacity-80"></span>
     </div>
 
-    <div data-custom-editor data-custom-saved="<%= customSaved ? '1' : '' %>" class="<%= customInUse ? '' : 'hidden' %> mt-1 rounded-2xl border border-[var(--border-color)] p-3.5 flex flex-col gap-4">
-        <div class="flex flex-col gap-0.5">
-            <span class="text-sm font-extrabold"><i class="fa-solid fa-palette mr-1.5 text-primary-theme" aria-hidden="true"></i><%= t('studio.custom_colors') %></span>
-            <span class="text-xs opacity-60"><%= t('studio.custom_desc') %></span>
+    <div class="flex flex-col gap-2">
+        <span class="text-xs font-bold opacity-70"><%= t('studio.colors_presets') %></span>
+        <div class="grid grid-cols-5 gap-x-1.5 gap-y-3">
+            <% for (const [key, val] of Object.entries(presets)) { %>
+                <label class="flex flex-col items-center gap-1.5 cursor-pointer min-w-0" title="<%= val.label %>">
+                    <input type="radio" name="homePreset" value="<%= key %>" class="peer sr-only" <%= homeChoice === key ? 'checked' : '' %>
+                        data-label="<%= val.label %>" data-bg="<%= val.dark.bg %>" data-card="<%= val.dark.card %>" data-nav="<%= val.dark.navbar %>" data-accent="<%= val.dark.highlight %>">
+                    <span class="<%= swatch %>" style="background-color: <%= val.dark.bg %>;">
+                        <span class="w-[18px] h-[18px] rounded-full" style="background-color: <%= val.dark.highlight %>; box-shadow: 0 0 0 4px <%= val.dark.card %>;"></span>
+                    </span>
+                    <span class="text-[10px] leading-tight text-center opacity-75 max-w-full truncate"><%= val.label %></span>
+                </label>
+            <% } %>
+        </div>
+    </div>
+
+    <div class="flex flex-col gap-2">
+        <span class="text-xs font-bold opacity-70"><%= t('studio.colors_mine') %></span>
+        <%# The swatches are drawn by the script from the list, after this template. %>
+        <template data-palette-swatch>
+            <label class="flex flex-col items-center gap-1.5 cursor-pointer min-w-0">
+                <input type="radio" name="homePreset" class="peer sr-only">
+                <span class="<%= swatch %>">
+                    <span class="w-[18px] h-[18px] rounded-full"></span>
+                </span>
+                <span class="text-[10px] leading-tight text-center opacity-75 max-w-full truncate"></span>
+            </label>
+        </template>
+        <div data-palette-grid class="grid grid-cols-5 gap-x-1.5 gap-y-3">
+            <% palettes.forEach((p, i) => { %>
+                <label class="flex flex-col items-center gap-1.5 cursor-pointer min-w-0" title="<%= paletteLabel(p, i) %>">
+                    <input type="radio" name="homePreset" value="<%= prefix + p.id %>" class="peer sr-only" <%= homeChoice === prefix + p.id ? 'checked' : '' %>
+                        data-label="<%= paletteLabel(p, i) %>" data-bg="<%= p.dark.bg %>" data-card="<%= p.dark.card %>" data-nav="<%= p.dark.navbar %>" data-accent="<%= p.dark.highlight %>">
+                    <span class="<%= swatch %>" style="background-color: <%= p.dark.bg %>;">
+                        <span class="w-[18px] h-[18px] rounded-full" style="background-color: <%= p.dark.highlight %>; box-shadow: 0 0 0 4px <%= p.dark.card %>;"></span>
+                    </span>
+                    <span class="text-[10px] leading-tight text-center opacity-75 max-w-full truncate"><%= paletteLabel(p, i) %></span>
+                </label>
+            <% }) %>
+            <button type="button" data-palette-new title="<%= t('studio.palette_new_hint') %>" class="flex flex-col items-center gap-1.5 min-w-0 group">
+                <span class="w-11 h-11 rounded-full flex items-center justify-center border-2 border-dashed border-current opacity-50 group-hover:opacity-100 group-hover:text-primary-theme transition">
+                    <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                </span>
+                <span class="text-[10px] leading-tight text-center opacity-75 max-w-full truncate"><%= t('studio.palette_new') %></span>
+            </button>
+        </div>
+        <p data-palette-empty class="<%= palettes.length ? 'hidden' : '' %> text-xs opacity-60"><%= t('studio.palette_new_hint') %></p>
+        <input type="hidden" name="customThemes" value="<%= JSON.stringify(palettes) %>">
+    </div>
+
+    <%# The palette picked above, being edited. Every change is a draft like any other. %>
+    <div data-palette-editor class="hidden rounded-2xl border border-[var(--border-color)] p-3.5 flex flex-col gap-4">
+        <div class="flex items-center gap-2">
+            <i class="fa-solid fa-palette text-primary-theme" aria-hidden="true"></i>
+            <input type="text" data-palette-name maxlength="40" aria-label="<%= t('studio.palette_name') %>"
+                class="flex-1 min-w-0 bg-transparent text-sm font-extrabold rounded-lg px-2 py-1.5 -ml-1 border border-transparent hover:border-[var(--border-color)] focus:border-primary-theme outline-none transition">
+            <button type="button" data-palette-duplicate title="<%= t('studio.palette_duplicate') %>" aria-label="<%= t('studio.palette_duplicate') %>"
+                class="w-9 h-9 flex-none rounded-lg flex items-center justify-center opacity-70 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/10 transition"><i class="fa-regular fa-copy" aria-hidden="true"></i></button>
+            <button type="button" data-palette-delete title="<%= t('studio.palette_delete') %>" aria-label="<%= t('studio.palette_delete') %>"
+                class="w-9 h-9 flex-none rounded-lg flex items-center justify-center text-red-500 opacity-80 hover:opacity-100 hover:bg-red-500/10 transition"><i class="fa-regular fa-trash-can" aria-hidden="true"></i></button>
         </div>
 
-        <label class="flex items-center gap-3 cursor-pointer">
-            <input type="color" data-custom-seed value="<%= customColors.light.highlight %>" class="w-12 h-12 flex-none rounded-xl border-0 p-0 bg-transparent cursor-pointer [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded-xl [&::-webkit-color-swatch]:border-0 [&::-moz-color-swatch]:rounded-xl [&::-moz-color-swatch]:border-0">
-            <span class="flex flex-col gap-0.5 min-w-0">
+        <%# The page in this palette, light and dark side by side. %>
+        <div class="grid grid-cols-2 gap-2" aria-hidden="true">
+            <% ['light', 'dark'].forEach(mode => { %>
+                <div data-palette-sample="<%= mode %>" class="rounded-xl p-2 border border-black/10 flex flex-col gap-2">
+                    <div class="flex items-center justify-between">
+                        <i class="fa-solid fa-<%= mode === 'light' ? 'sun' : 'moon' %> text-[10px]" data-sample-icon></i>
+                        <span data-sample-nav class="h-1.5 w-1/2 rounded-full"></span>
+                    </div>
+                    <div data-sample-card class="rounded-lg p-2 flex flex-col gap-1.5">
+                        <span data-sample-text class="text-xs font-bold truncate"><%= t('studio.custom_sample_title') %></span>
+                        <span data-sample-subtext class="text-[10px] truncate"><%= t('studio.custom_sample_text') %></span>
+                        <span data-sample-button class="self-start px-2 py-1 rounded-md text-[10px] font-bold"><%= t('studio.custom_sample_button') %></span>
+                    </div>
+                </div>
+            <% }) %>
+        </div>
+
+        <div class="flex flex-col gap-2">
+            <div class="flex flex-col gap-0.5">
                 <span class="text-sm font-bold"><%= t('studio.custom_seed') %></span>
                 <span class="text-xs opacity-60"><%= t('studio.custom_seed_desc') %></span>
-            </span>
-        </label>
-
-        <div class="flex flex-col gap-1.5">
-            <span class="text-xs font-bold opacity-70"><%= t('studio.custom_mood') %></span>
-            <div class="grid grid-cols-3 gap-1 p-1 rounded-xl bg-black/5 dark:bg-white/5" role="group" aria-label="<%= t('studio.custom_mood') %>">
-                <% ['neutral', 'tinted', 'vivid'].forEach((mood, i) => { %>
-                    <button type="button" data-custom-mood="<%= mood %>" aria-pressed="<%= i === 1 %>"
-                        class="h-9 rounded-lg text-xs font-bold opacity-70 aria-pressed:opacity-100 aria-pressed:bg-[var(--bg-card)] aria-pressed:shadow aria-pressed:text-primary-theme transition"><%= t('studio.custom_mood_' + mood) %></button>
+            </div>
+            <div class="flex items-center gap-1.5 flex-wrap">
+                <label class="relative w-9 h-9 flex-none rounded-full overflow-hidden ring-2 ring-[var(--border-color)] cursor-pointer" title="<%= t('studio.palette_any_color') %>">
+                    <input type="color" data-palette-seed class="absolute -inset-2 w-[calc(100%+1rem)] h-[calc(100%+1rem)] cursor-pointer border-0 p-0" aria-label="<%= t('studio.palette_any_color') %>">
+                </label>
+                <span class="w-px h-6 mx-0.5 bg-[var(--border-color)]" aria-hidden="true"></span>
+                <% quickColors.forEach(c => { %>
+                    <button type="button" data-palette-quick="<%= c %>" aria-label="<%= c %>" class="w-7 h-7 rounded-full ring-1 ring-black/10 hover:scale-110 transition" style="background-color: <%= c %>;"></button>
                 <% }) %>
             </div>
         </div>
 
-        <label class="flex flex-col gap-1.5">
-            <span class="text-xs font-bold opacity-70"><%= t('studio.custom_from') %></span>
-            <select data-custom-from class="<%= selectClass %>">
-                <option value=""><%= t('studio.custom_from_placeholder') %></option>
-                <% for (const [key, val] of Object.entries(presets)) { %>
-                    <option value="<%= key %>"><%= val.label %></option>
-                <% } %>
-            </select>
-        </label>
+        <div class="flex flex-col gap-2">
+            <span class="text-sm font-bold"><%= t('studio.custom_mood') %></span>
+            <div class="grid grid-cols-3 gap-2" role="group" aria-label="<%= t('studio.custom_mood') %>">
+                <% ['neutral', 'tinted', 'vivid'].forEach(mood => { %>
+                    <button type="button" data-palette-mood="<%= mood %>" aria-pressed="false"
+                        class="flex flex-col items-center gap-1.5 p-1.5 rounded-xl border-2 border-transparent bg-black/5 dark:bg-white/5 aria-pressed:border-primary-theme transition">
+                        <span data-mood-sample class="w-full h-9 rounded-lg flex items-center justify-center gap-1 ring-1 ring-black/10" aria-hidden="true">
+                            <span data-mood-card class="w-1/2 h-4 rounded"></span>
+                            <span data-mood-accent class="w-2.5 h-2.5 rounded-full"></span>
+                        </span>
+                        <span class="text-[11px] font-bold"><%= t('studio.custom_mood_' + mood) %></span>
+                    </button>
+                <% }) %>
+            </div>
+        </div>
 
-        <details class="group rounded-xl bg-black/5 dark:bg-white/5" data-custom-adjust>
+        <details class="group rounded-xl bg-black/5 dark:bg-white/5">
             <summary class="flex items-center justify-between gap-3 px-3.5 py-3 cursor-pointer list-none [&::-webkit-details-marker]:hidden text-sm font-semibold">
-                <span><%= t('studio.custom_adjust') %> <span data-custom-warn-count class="hidden ml-1 text-[11px] font-bold text-amber-500"></span></span>
+                <span><%= t('studio.custom_adjust') %> <span data-palette-warn-count class="hidden ml-1 text-[11px] font-bold text-amber-500"></span></span>
                 <i class="fa-solid fa-chevron-down text-xs opacity-50 transition-transform group-open:rotate-180" aria-hidden="true"></i>
             </summary>
-            <div class="px-3.5 pb-3.5 flex flex-col gap-3">
-                <div class="grid grid-cols-2 gap-1 p-1 rounded-xl bg-black/5 dark:bg-white/5" role="group" aria-label="<%= t('studio.custom_mode') %>">
-                    <% ['light', 'dark'].forEach((mode, i) => { %>
-                        <button type="button" data-custom-mode="<%= mode %>" aria-pressed="<%= i === 0 %>"
-                            class="h-9 rounded-lg text-xs font-bold opacity-70 aria-pressed:opacity-100 aria-pressed:bg-[var(--bg-card)] aria-pressed:shadow aria-pressed:text-primary-theme transition">
-                            <i class="fa-solid fa-<%= mode === 'light' ? 'sun' : 'moon' %> mr-1" aria-hidden="true"></i><%= t('studio.mode_' + mode) %>
-                        </button>
-                    <% }) %>
+            <div class="px-2 pb-2">
+                <div class="flex items-center gap-2 px-2 pb-1.5 text-[11px] font-bold opacity-60">
+                    <span class="flex-1"></span>
+                    <span class="w-9 text-center" title="<%= t('studio.mode_light') %>"><i class="fa-solid fa-sun" aria-hidden="true"></i><span class="sr-only"><%= t('studio.mode_light') %></span></span>
+                    <span class="w-9 text-center" title="<%= t('studio.mode_dark') %>"><i class="fa-solid fa-moon" aria-hidden="true"></i><span class="sr-only"><%= t('studio.mode_dark') %></span></span>
                 </div>
-                <% ['light', 'dark'].forEach((mode, i) => { const pal = customColors[mode]; %>
-                    <div data-custom-pane="<%= mode %>" class="<%= i === 0 ? '' : 'hidden' %> flex flex-col gap-3">
-                        <%# A small screen in these colours: the page, a card on it, its text, a button. %>
-                        <div data-custom-sample class="rounded-xl p-3 border border-black/10" style="background-color: <%= pal.bg %>;" aria-hidden="true">
-                            <div data-sample-nav class="h-2 rounded-full mb-2.5 w-full" style="background-color: <%= pal.navbar %>;"></div>
-                            <div data-sample-card class="rounded-lg p-2.5 flex items-center gap-2.5" style="background-color: <%= pal.card %>;">
-                                <span class="flex-1 min-w-0 flex flex-col">
-                                    <span data-sample-text class="text-sm font-bold truncate" style="color: <%= pal.text %>;"><%= t('studio.custom_sample_title') %></span>
-                                    <span data-sample-subtext class="text-xs truncate" style="color: <%= pal.subtext %>;"><%= t('studio.custom_sample_text') %></span>
-                                </span>
-                                <span data-sample-button class="flex-none px-2.5 py-1.5 rounded-lg text-xs font-bold" style="background-color: <%= pal.highlight %>;"><%= t('studio.custom_sample_button') %></span>
-                            </div>
-                        </div>
-                        <div class="rounded-xl overflow-hidden divide-y divide-[var(--border-color)] bg-black/5 dark:bg-white/5">
-                            <% THEME_OPTIONS.tokens.forEach(token => { %>
-                                <label class="flex items-center gap-3 px-3 py-2 cursor-pointer">
-                                    <span class="flex-1 min-w-0 flex flex-col">
-                                        <span class="text-sm font-semibold"><%= t('studio.token_' + token) %></span>
-                                        <span data-contrast-warn="<%= mode %>-<%= token %>" class="hidden text-[11px] font-bold text-amber-500"></span>
-                                    </span>
-                                    <span data-custom-hex="<%= mode %>-<%= token %>" class="text-xs font-mono opacity-60 uppercase"><%= pal[token] %></span>
-                                    <input type="color" name="custom_<%= mode %>_<%= token %>" value="<%= pal[token] %>" data-custom-color
-                                        class="w-9 h-9 flex-none rounded-lg border-0 p-0 bg-transparent cursor-pointer [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded-lg [&::-webkit-color-swatch]:border [&::-webkit-color-swatch]:border-black/20 [&::-moz-color-swatch]:rounded-lg">
-                                </label>
+                <div class="rounded-xl overflow-hidden divide-y divide-[var(--border-color)] bg-[var(--bg-card)]">
+                    <% THEME_OPTIONS.tokens.forEach(token => { %>
+                        <div class="flex items-center gap-2 px-2 py-1.5">
+                            <span class="flex-1 min-w-0 flex flex-col">
+                                <span class="text-sm font-semibold"><%= t('studio.token_' + token) %></span>
+                                <span data-palette-warn="<%= token %>" class="hidden text-[11px] font-bold text-amber-500"></span>
+                            </span>
+                            <% ['light', 'dark'].forEach(mode => { %>
+                                <input type="color" data-palette-color data-mode="<%= mode %>" data-token="<%= token %>"
+                                    aria-label="<%= t('studio.token_' + token) %> (<%= t('studio.mode_' + mode) %>)" class="<%= pickerClass %>">
                             <% }) %>
                         </div>
-                    </div>
-                <% }) %>
+                    <% }) %>
+                </div>
             </div>
         </details>
     </div>
 
-    <details class="group mt-1 rounded-xl bg-black/5 dark:bg-white/5">
+    <details class="group rounded-xl bg-black/5 dark:bg-white/5">
         <summary class="flex items-center justify-between gap-3 px-3.5 py-3 cursor-pointer list-none [&::-webkit-details-marker]:hidden text-sm font-semibold">
             <%= t('studio.colors_per_type') %>
             <i class="fa-solid fa-chevron-down text-xs opacity-50 transition-transform group-open:rotate-180" aria-hidden="true"></i>
         </summary>
         <div class="px-3.5 pb-3.5 flex flex-col gap-3">
             <p class="text-xs opacity-60"><%= t('studio.colors_hint') %></p>
-            <% registry.getEnabled(settings).forEach(p => { %>
+            <% registry.getEnabled(settings).forEach(p => { const choice = themeChoiceFor(settings, p.collectionType); %>
                 <label class="block">
                     <span class="block text-[11px] font-bold uppercase tracking-widest opacity-60 mb-1.5"><i class="fa-solid fa-<%= p.icon %> mr-1"></i><%= t(p.label) %></span>
-                    <select name="<%= p.collectionType %>Preset" class="<%= selectClass %>">
-                        <% for (const [key, val] of Object.entries(presets)) { %>
-                            <option value="<%= key %>" <%= themeOf(p.collectionType) === key ? 'selected' : '' %>><%= val.label %></option>
-                        <% } %>
-                        <option value="<%= customName %>" <%= themeOf(p.collectionType) === customName ? 'selected' : '' %>><%= t('studio.custom_colors') %></option>
+                    <select name="<%= p.collectionType %>Preset" data-type-colors class="<%= selectClass %>">
+                        <option value="<%= THEME_OPTIONS.inherit %>" <%= choice === THEME_OPTIONS.inherit ? 'selected' : '' %>><%= t('studio.colors_inherit') %></option>
+                        <optgroup label="<%= t('studio.colors_presets') %>">
+                            <% for (const [key, val] of Object.entries(presets)) { %>
+                                <option value="<%= key %>" <%= choice === key ? 'selected' : '' %>><%= val.label %></option>
+                            <% } %>
+                        </optgroup>
+                        <optgroup label="<%= t('studio.colors_mine') %>" data-palette-options>
+                            <% palettes.forEach((pal, i) => { %>
+                                <option value="<%= prefix + pal.id %>" <%= choice === prefix + pal.id ? 'selected' : '' %>><%= paletteLabel(pal, i) %></option>
+                            <% }) %>
+                        </optgroup>
                     </select>
                 </label>
             <% }) %>

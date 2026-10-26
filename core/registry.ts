@@ -3,6 +3,7 @@ import { PluginDefinition } from './types';
 import { DEFAULT_PLACEHOLDER_IMAGE } from './placeholderImage';
 import { imagesForItem } from './itemImages';
 import { pluginSources, isSourceConfigured, isSearchable, requiredEnvKeysFor } from './sources';
+import { INHERIT_PRESET } from './theme';
 
 const FLATTENS_EXTRA = Symbol('flattensExtra');
 const RESOLVES_PLACEHOLDER = Symbol('resolvesPlaceholder');
@@ -176,11 +177,11 @@ class PluginRegistry {
     return out;
   }
 
-  /** theme presets map: 'home' + one entry per plugin */
+  /** theme presets map: 'home' + one entry per plugin, which wears the home page's */
   getDefaultThemes(): Record<string, { preset: string }> {
     const theme: Record<string, { preset: string }> = { home: { preset: 'default' } };
     for (const p of this.getAll()) {
-      theme[p.collectionType] = { preset: 'default' };
+      theme[p.collectionType] = { preset: INHERIT_PRESET };
     }
     return theme;
   }
