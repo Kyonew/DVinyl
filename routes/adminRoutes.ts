@@ -36,6 +36,8 @@ import { renderMarkdown } from "../core/markdown";
 import { nativeLookalikesByPlugin } from "../core/pluginExtraFields";
 import { alignImagesAfterRefresh } from "../core/itemImages";
 import { layoutFromForm } from "../core/layout";
+import { customThemeFromForm, isThemeName } from "../core/theme";
+import { cardLookFromForm } from "../core/cardStyle";
 import { clearDraft, getDraft, setDraft, withUpdate } from "../core/lookDraft";
 import { dashboardWidgets, resolveWidgets } from "../core/dashboard";
 import "../core/dashboardWidgets";
@@ -1107,12 +1109,15 @@ function personnalisationUpdate(body: any): Record<string, any> {
     instantAdd: body.instantAdd === "on",
     layout: layoutFromForm(body),
   };
-  // Colour presets by name only: each one lands in a style block on every page.
-  if (typeof homePreset === "string" && PRESETS[homePreset]) update["theme.home.preset"] = homePreset;
+  // Colour presets by name only, or the collection's own palette, whose colours are
+  // checked one by one (core/theme.ts): each one lands in a style block on every page.
+  if (isThemeName(homePreset)) update["theme.home.preset"] = homePreset;
   for (const p of registry.getAll()) {
     const preset = body[`${p.collectionType}Preset`];
-    if (typeof preset === "string" && PRESETS[preset]) update[`theme.${p.collectionType}.preset`] = preset;
+    if (isThemeName(preset)) update[`theme.${p.collectionType}.preset`] = preset;
   }
+  update.customTheme = customThemeFromForm(body);
+  update.cards = cardLookFromForm(body);
   return update;
 }
 
@@ -1182,7 +1187,7 @@ router.post("/personnalisation/pack/read", requireAuth, requireCollectionRole("a
       sections: {
         layout: Boolean(parts.layout),
         colors: parts.colors ? Object.keys(parts.colors).length : 0,
-        cards: Boolean(parts.cards),
+        cards: Boolean(parts.cards || parts.cardLook),
         home: parts.home ? parts.home.length : null
       }
     });

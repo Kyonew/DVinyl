@@ -1,6 +1,9 @@
 <%- include('partials/header', { shellBack: false }) %>
-<link rel="stylesheet" href="<%= baseUrl %>/vendor/fonts/plus-jakarta-sans.css">
-<link rel="stylesheet" href="<%= baseUrl %>/vendor/fonts/poppins.css">
+<%# Every font the studio offers, so each choice is written in its own face. A browser
+    only downloads the files of the faces a page actually draws. %>
+<% [...new Set(Object.values(LAYOUT_OPTIONS.fontSheets))].forEach(sheet => { %>
+<link rel="stylesheet" href="<%= baseUrl %>/vendor/fonts/<%= sheet %>">
+<% }) %>
 
 <%#
     The Personnalisation studio: everything about the collection's look in one place,
@@ -10,8 +13,9 @@
     Changes are a draft (core/lookDraft.ts) until they are saved: the preview frame loads
     pages with ?studio=1, which shows the draft over the saved settings, so members see
     nothing change before "Save". What only restyles (density, corners, size, width,
-    font) is applied in the frame at once; what changes the shell's markup (navigation,
-    colours, cards, shortcuts) reloads it, keeping its scroll. The page counts what
+    fonts) is applied in the frame at once, and so are the collection's own colours while
+    they are being picked; what changes the markup (navigation, colours, cards,
+    shortcuts) reloads it, keeping its scroll. The page counts what
     differs from the saved look, and marks the tabs holding those changes.
 
     The home page's widgets are arranged in the preview itself, with the page's own
@@ -32,18 +36,29 @@
         layout_scale: savedLayout.scale,
         layout_width: savedLayout.width,
         layout_font: savedLayout.font,
+        layout_headingFont: savedLayout.headingFont,
+        layout_headingCase: savedLayout.headingCase === 'upper' ? 'upper' : '',
         homePreset: (savedTheme.home && savedTheme.home.preset) || 'default',
         aspectRatioClass: savedSettings.aspectRatioClass || 'aspect-square',
         navbarShortcuts: (savedSettings.navbarShortcuts || []).map(String),
         fastAdd: savedSettings.fastAdd || '',
         instantAdd: savedSettings.instantAdd === true ? 'on' : ''
     };
+    const savedCards = normalizeCardLook(savedSettings.cards);
+    ['frame', 'hover', 'text'].forEach(key => { savedValues['card_' + key] = savedCards[key]; });
+    savedValues.card_badges = savedCards.badges ? 'on' : '';
+    const savedCustom = normalizeCustomTheme(savedSettings.customTheme);
+    ['light', 'dark'].forEach(mode => THEME_OPTIONS.tokens.forEach(token => {
+        savedValues['custom_' + mode + '_' + token] = savedCustom[mode][token];
+    }));
     registry.getEnabled(savedSettings).forEach(p => {
         savedValues[p.collectionType + 'Preset'] = (savedTheme[p.collectionType] && savedTheme[p.collectionType].preset) || 'default';
     });
     const studioTabs = [
         { id: 'style', icon: 'palette', label: t('studio.tab_style') },
         { id: 'nav', icon: 'table-columns', label: t('studio.tab_nav') },
+        { id: 'cards', icon: 'clone', label: t('studio.tab_cards') },
+        { id: 'text', icon: 'font', label: t('studio.tab_text') },
         { id: 'details', icon: 'sliders', label: t('studio.tab_details') },
         { id: 'home', icon: 'table-cells-large', label: t('studio.tab_home') },
         { id: 'more', icon: 'ellipsis', label: t('studio.tab_more') }
@@ -181,7 +196,10 @@
         contentMax: LAYOUT_OPTIONS.contentMax,
         fontStacks: LAYOUT_OPTIONS.fontStacks
     }) %>;
-    const fontSheets = { jakarta: 'plus-jakarta-sans.css', poppins: 'poppins.css' };
+    const fontSheets = <%- JSON.stringify(LAYOUT_OPTIONS.fontSheets) %>;
+    const themePresets = <%- JSON.stringify(Object.fromEntries(Object.entries(presets).map(([k, v]) => [k, { light: v.light, dark: v.dark }]))).replace(/</g, '\\u003c') %>;
+    const CUSTOM = <%- JSON.stringify(THEME_OPTIONS.custom) %>;
+    const TOKENS = <%- JSON.stringify(THEME_OPTIONS.tokens) %>;
     const savedValues = <%- JSON.stringify(savedValues).replace(/</g, '\\u003c') %>;
     const widgetTypes = <%- JSON.stringify(widgetTypes).replace(/</g, '\\u003c') %>;
     const sizeShort = <%- JSON.stringify({ s: t('dashboard.size_s_short'), m: t('dashboard.size_m_short'), l: t('dashboard.size_l_short'), full: t('dashboard.size_full_short') }) %>;
@@ -195,13 +213,17 @@
         presetCurrent: t('studio.preset_current', { name: '{{name}}' }),
         presetCustom: t('studio.preset_custom'),
         dark: t('studio.mode_dark'),
-        light: t('studio.mode_light')
+        light: t('studio.mode_light'),
+        customColors: t('studio.custom_colors'),
+        lowContrast: t('studio.custom_low_contrast', { ratio: '{{ratio}}' })
     }).replace(/</g, '\\u003c') %>;
     const deviceWidths = { desktop: '100%', tablet: '834px', phone: '390px' };
     const TAB_OF = (name) => {
         if (/^layout_(nav|topStyle|sticky|sidebar|dockLabels)$/.test(name) || name === 'navbarShortcuts') return 'nav';
-        if (/^layout_/.test(name) || name === 'aspectRatioClass') return 'details';
-        if (/Preset$/.test(name)) return 'style';
+        if (/^layout_(font|headingFont|headingCase)$/.test(name)) return 'text';
+        if (/^card_/.test(name) || name === 'aspectRatioClass') return 'cards';
+        if (/^layout_/.test(name)) return 'details';
+        if (/Preset$/.test(name) || name === 'customTheme') return 'style';
         return 'more';
     };
 
@@ -249,16 +271,28 @@
         if (radius) style.setProperty('--dv-radius', String(layoutOptions.radiusFactor[radius]));
         if (width) style.setProperty('--dv-content-max', layoutOptions.contentMax[width]);
         if (scale) style.fontSize = layoutOptions.scalePercent[scale];
-        if (font) {
-            style.setProperty('--dv-font', layoutOptions.fontStacks[font]);
-            const sheet = fontSheets[font];
-            if (sheet && !doc.querySelector(`link[data-studio-font="${font}"]`)) {
+        const loadFont = (key) => {
+            const sheet = fontSheets[key];
+            if (sheet && !doc.querySelector(`link[data-studio-font="${key}"]`)) {
                 const link = doc.createElement('link');
                 Object.assign(link, { rel: 'stylesheet', href: base + '/vendor/fonts/' + sheet });
-                link.dataset.studioFont = font;
+                link.dataset.studioFont = key;
                 doc.head.appendChild(link);
             }
+        };
+        if (font) {
+            style.setProperty('--dv-font', layoutOptions.fontStacks[font]);
+            loadFont(font);
         }
+        const headingFont = value('layout_headingFont');
+        if (headingFont) {
+            const own = headingFont !== 'same';
+            doc.documentElement.dataset.headingFont = own ? 'own' : 'same';
+            style.setProperty('--dv-font-heading', layoutOptions.fontStacks[own ? headingFont : font]);
+            if (own) loadFont(headingFont);
+        }
+        doc.documentElement.dataset.headingCase = value('layout_headingCase') === 'upper' ? 'upper' : 'normal';
+        applyCustomColors();
     }
 
     function isDarkFrame() {
@@ -272,6 +306,7 @@
         const win = frameWindow();
         if (win && darkOverride !== null) win.document.documentElement.classList.toggle('dark', darkOverride);
         syncDarkLabel();
+        applyCustomColors();
     }
 
     // The home tab lists the widgets as the preview shows them.
@@ -361,7 +396,7 @@
     function changedFields() {
         const now = currentValues();
         const offered = new Set([...form.querySelectorAll('[name="navbarShortcuts"]')].map(input => input.value));
-        return Object.keys(savedValues).filter(name => {
+        const changed = Object.keys(savedValues).filter(name => {
             if (name === 'navbarShortcuts') {
                 const saved = savedValues[name].filter(id => offered.has(id)).sort().join();
                 return saved !== now[name].slice().sort().join();
@@ -370,6 +405,8 @@
             if (!form.querySelector(`[name="${name}"]`)) return false;
             return now[name] !== savedValues[name];
         });
+        // The twelve colours of the collection's own palette count as one change.
+        return [...new Set(changed.map(name => (/^custom_/.test(name) ? 'customTheme' : name)))];
     }
     function markChanges() {
         const changed = changedFields();
@@ -469,6 +506,7 @@
         presetButtons.forEach(button => {
             const matches = Object.entries(JSON.parse(button.dataset.studioPreset)).every(([key, val]) => {
                 if (key === 'topStyle') return (value('layout_topStyle') || 'bar') === val;
+                if (key === 'headingCase') return (value('layout_headingCase') || 'normal') === val;
                 const input = form.querySelector(`[name="layout_${key}"]`);
                 if (input && input.type === 'checkbox') return input.checked === (val === true);
                 return value('layout_' + key) === String(val);
@@ -485,6 +523,7 @@
         Object.entries(values).forEach(([key, val]) => {
             form.querySelectorAll(`[name="layout_${key}"]`).forEach(input => {
                 if (key === 'topStyle') input.checked = val === 'floating';
+                else if (key === 'headingCase') input.checked = val === 'upper';
                 else if (input.type === 'checkbox') input.checked = val === true;
                 else input.checked = input.value === String(val);
             });
@@ -495,6 +534,220 @@
         syncAll();
         applyLook();
         pushDraft(true);
+    }));
+
+    // ---- The collection's own colours ------------------------------------------------
+    // Contrast as WCAG 2 counts it, and the text that reads on the accent, as the
+    // server picks it (core/theme.ts).
+    const channel = (hex) => {
+        const n = parseInt(hex.slice(1), 16);
+        return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    };
+    const luminance = (hex) => {
+        const [r, g, b] = channel(hex).map(c => {
+            const v = c / 255;
+            return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+        });
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const contrast = (a, b) => {
+        const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+        return (hi + 0.05) / (lo + 0.05);
+    };
+    const textOn = (accent) => {
+        const white = contrast(accent, '#ffffff');
+        return white >= 3 || white >= contrast(accent, '#111111') ? '#ffffff' : '#111111';
+    };
+
+    // A whole palette from one colour, worked out in OKLCH so that every surface keeps
+    // the colour's hue at an even lightness. The accent stays the colour picked as long
+    // as it stands out from the page (3:1), and is darkened or lightened until it does.
+    const toLinear = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+    const fromLinear = (c) => (c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055);
+    function hexToOklch(hex) {
+        const [r, g, b] = channel(hex).map(v => toLinear(v / 255));
+        const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+        const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+        const q = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+        const A = 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * q;
+        const B = 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * q;
+        return { L: 0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * q, C: Math.hypot(A, B), H: Math.atan2(B, A) };
+    }
+    function oklchToHex(L, C, H) {
+        let chroma = C;
+        let rgb = [0, 0, 0];
+        // Out of the screen's range, the colour loses saturation until it fits.
+        for (let i = 0; i < 40; i++) {
+            const A = chroma * Math.cos(H), B = chroma * Math.sin(H);
+            const l = (L + 0.3963377774 * A + 0.2158037573 * B) ** 3;
+            const m = (L - 0.1055613458 * A - 0.0638541728 * B) ** 3;
+            const q = (L - 0.0894841775 * A - 1.2914855480 * B) ** 3;
+            rgb = [
+                4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * q,
+                -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * q,
+                -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * q
+            ];
+            if (rgb.every(v => v >= -0.001 && v <= 1.001)) break;
+            chroma *= 0.9;
+        }
+        return '#' + rgb.map(v => Math.round(fromLinear(Math.min(1, Math.max(0, v))) * 255).toString(16).padStart(2, '0')).join('');
+    }
+    // How much of the colour the surfaces take.
+    const MOODS = { neutral: 0.006, tinted: 0.022, vivid: 0.05 };
+    function paletteFrom(seed, mood) {
+        const { L, C, H } = hexToOklch(seed);
+        const tint = Math.min(MOODS[mood] || MOODS.tinted, C);
+        const accentOn = (page, step) => {
+            let lightness = L;
+            let hex = seed;
+            for (let i = 0; i < 40 && contrast(hex, page) < 3; i++) {
+                lightness = Math.min(0.98, Math.max(0.05, lightness + step));
+                hex = oklchToHex(lightness, C, H);
+            }
+            return hex;
+        };
+        const light = {
+            bg: oklchToHex(0.975, tint, H),
+            card: oklchToHex(0.997, tint * 0.3, H),
+            navbar: oklchToHex(0.94, tint * 1.5, H),
+            text: oklchToHex(0.24, Math.min(0.05, C * 0.3), H),
+            subtext: oklchToHex(0.47, Math.min(0.06, C * 0.35), H)
+        };
+        light.highlight = accentOn(light.bg, -0.02);
+        const dark = {
+            bg: oklchToHex(0.19, tint, H),
+            card: oklchToHex(0.25, tint * 1.1, H),
+            navbar: oklchToHex(0.15, tint, H),
+            text: oklchToHex(0.97, Math.min(0.012, C * 0.1), H),
+            subtext: oklchToHex(0.78, Math.min(0.03, C * 0.2), H)
+        };
+        dark.highlight = accentOn(dark.bg, 0.02);
+        return { light, dark };
+    }
+
+    const editor = form.querySelector('[data-custom-editor]');
+    const customField = (mode, token) => form.querySelector(`[name="custom_${mode}_${token}"]`);
+    const customPalette = (mode) => Object.fromEntries(TOKENS.map(token => [token, customField(mode, token).value]));
+    // Never saved yet: it starts from the preset in use when it is first picked.
+    let customStarted = editor.dataset.customSaved === '1';
+    let lastPreset = value('homePreset') && value('homePreset') !== CUSTOM ? value('homePreset') : 'default';
+
+    function setCustomPalette(palette) {
+        ['light', 'dark'].forEach(mode => TOKENS.forEach(token => {
+            if (palette[mode] && palette[mode][token]) customField(mode, token).value = palette[mode][token];
+        }));
+        customStarted = true;
+    }
+    const customInUse = () => value('homePreset') === CUSTOM
+        || [...form.querySelectorAll('select[name$="Preset"]')].some(select => select.value === CUSTOM);
+
+    // The pairs of colours that have to read on each other, and how much they need. A
+    // pair that falls short is flagged on what is drawn on top (the text, the accent),
+    // with the worst of its ratios.
+    const CONTRAST_RULES = [
+        { token: 'text', against: 'bg', min: 4.5 },
+        { token: 'text', against: 'card', min: 4.5 },
+        { token: 'text', against: 'navbar', min: 4.5 },
+        { token: 'subtext', against: 'card', min: 3 },
+        { token: 'highlight', against: 'bg', min: 3 }
+    ];
+    function syncCustom() {
+        editor.classList.toggle('hidden', !customInUse());
+        let warnings = 0;
+        ['light', 'dark'].forEach(mode => {
+            const pal = customPalette(mode);
+            TOKENS.forEach(token => {
+                const hex = form.querySelector(`[data-custom-hex="${mode}-${token}"]`);
+                if (hex) hex.textContent = pal[token];
+                const warn = form.querySelector(`[data-contrast-warn="${mode}-${token}"]`);
+                if (warn) warn.classList.add('hidden');
+            });
+            const worst = {};
+            CONTRAST_RULES.forEach(rule => {
+                const ratio = contrast(pal[rule.token], pal[rule.against]);
+                if (ratio < rule.min) worst[rule.token] = Math.min(worst[rule.token] ?? Infinity, ratio);
+            });
+            Object.entries(worst).forEach(([token, ratio]) => {
+                warnings++;
+                const warn = form.querySelector(`[data-contrast-warn="${mode}-${token}"]`);
+                warn.textContent = i18n.lowContrast.replace('{{ratio}}', ratio.toFixed(1));
+                warn.classList.remove('hidden');
+            });
+            const pane = form.querySelector(`[data-custom-pane="${mode}"]`);
+            pane.querySelector('[data-custom-sample]').style.backgroundColor = pal.bg;
+            pane.querySelector('[data-sample-nav]').style.backgroundColor = pal.navbar;
+            pane.querySelector('[data-sample-card]').style.backgroundColor = pal.card;
+            pane.querySelector('[data-sample-text]').style.color = pal.text;
+            pane.querySelector('[data-sample-subtext]').style.color = pal.subtext;
+            const button = pane.querySelector('[data-sample-button]');
+            button.style.backgroundColor = pal.highlight;
+            button.style.color = textOn(pal.highlight);
+        });
+        const count = form.querySelector('[data-custom-warn-count]');
+        count.textContent = warnings ? '⚠ ' + warnings : '';
+        count.classList.toggle('hidden', warnings === 0);
+        // The swatch shows the palette as the others show theirs, in its dark version.
+        const swatch = form.querySelector('[data-custom-swatch]');
+        const dark = customPalette('dark');
+        Object.assign(swatch.dataset, { bg: dark.bg, card: dark.card, nav: dark.navbar, accent: dark.highlight });
+        form.querySelector('[data-custom-swatch-bg]').style.backgroundColor = dark.bg;
+        const dot = form.querySelector('[data-custom-swatch-dot]');
+        dot.style.backgroundColor = dark.highlight;
+        dot.style.boxShadow = `0 0 0 5px ${dark.card}`;
+    }
+
+    // While a colour is being picked, the preview takes it at once when the page it
+    // shows uses the collection's own palette; letting go saves the draft and reloads.
+    function applyCustomColors() {
+        const win = frameWindow();
+        if (!win) return;
+        const root = win.document.documentElement;
+        if (root.dataset.theme !== CUSTOM) return;
+        const pal = customPalette(root.classList.contains('dark') ? 'dark' : 'light');
+        const vars = {
+            '--bg-page': pal.bg, '--bg-card': pal.card, '--bg-nav': pal.navbar, '--text-main': pal.text,
+            '--text-sub': pal.subtext, '--highlight': pal.highlight,
+            '--highlight-rgb': channel(pal.highlight).join(' '), '--on-highlight': textOn(pal.highlight)
+        };
+        Object.entries(vars).forEach(([key, val]) => root.style.setProperty(key, val));
+    }
+
+    form.querySelectorAll('[data-custom-color]').forEach(input => input.addEventListener('input', () => {
+        syncCustom();
+        applyCustomColors();
+    }));
+    let mood = 'tinted';
+    const seedInput = form.querySelector('[data-custom-seed]');
+    const fromSeed = () => {
+        setCustomPalette(paletteFrom(seedInput.value, mood));
+        syncCustom();
+        applyCustomColors();
+    };
+    const customEdited = () => {
+        justSaved = false;
+        syncAll();
+        pushDraft(true);
+    };
+    seedInput.addEventListener('input', fromSeed);
+    seedInput.addEventListener('change', customEdited);
+    form.querySelectorAll('[data-custom-mood]').forEach(button => button.addEventListener('click', () => {
+        mood = button.dataset.customMood;
+        form.querySelectorAll('[data-custom-mood]').forEach(b => b.setAttribute('aria-pressed', String(b === button)));
+        fromSeed();
+        customEdited();
+    }));
+    form.querySelector('[data-custom-from]').addEventListener('change', (event) => {
+        const preset = themePresets[event.target.value];
+        event.target.value = '';
+        if (!preset) return;
+        setCustomPalette(preset);
+        seedInput.value = preset.light.highlight;
+        customEdited();
+    });
+    form.querySelectorAll('[data-custom-mode]').forEach(button => button.addEventListener('click', () => {
+        const mode = button.dataset.customMode;
+        form.querySelectorAll('[data-custom-mode]').forEach(b => b.setAttribute('aria-pressed', String(b === button)));
+        form.querySelectorAll('[data-custom-pane]').forEach(pane => pane.classList.toggle('hidden', pane.dataset.customPane !== mode));
     }));
 
     // The colours picked paint the thumbnails, and their name shows above them.
@@ -509,6 +762,36 @@
         form.querySelector('[data-theme-name]').textContent = picked.dataset.label;
     }
 
+    // ---- Fonts ---------------------------------------------------------------------------
+    function syncFontSample() {
+        const font = value('layout_font');
+        const headingFont = value('layout_headingFont');
+        const upper = value('layout_headingCase') === 'upper';
+        const heading = form.querySelector('[data-font-sample-heading]');
+        heading.style.fontFamily = layoutOptions.fontStacks[headingFont && headingFont !== 'same' ? headingFont : font];
+        heading.style.fontSynthesis = headingFont && headingFont !== 'same' ? 'style' : '';
+        heading.classList.toggle('uppercase', upper);
+        heading.classList.toggle('tracking-wide', upper);
+        form.querySelector('[data-font-sample-body]').style.fontFamily = layoutOptions.fontStacks[font];
+    }
+    const pairButtons = [...form.querySelectorAll('[data-font-pair]')];
+    function markPairs() {
+        pairButtons.forEach(button => {
+            const pair = JSON.parse(button.dataset.fontPair);
+            const matches = value('layout_font') === pair.font && value('layout_headingFont') === pair.headingFont
+                && (value('layout_headingCase') || 'normal') === pair.headingCase;
+            button.setAttribute('aria-pressed', String(matches));
+        });
+    }
+    pairButtons.forEach(button => button.addEventListener('click', () => {
+        const pair = JSON.parse(button.dataset.fontPair);
+        setLayout(pair);
+        justSaved = false;
+        syncAll();
+        applyLook();
+        pushDraft(false);
+    }));
+
     function syncShortcuts() {
         form.querySelector('[data-shortcut-count]').textContent = form.querySelectorAll('[name="navbarShortcuts"]:checked').length;
     }
@@ -517,15 +800,26 @@
         syncNavOptions();
         syncSteppers();
         markPreset();
+        syncCustom();
         syncColors();
+        syncFontSample();
+        markPairs();
         syncShortcuts();
         markChanges();
     }
 
-    const RESTYLE_ONLY = /^layout_(density|radius|scale|width|font)$/;
+    const RESTYLE_ONLY = /^layout_(density|radius|scale|width|font|headingFont|headingCase)$/;
     form.addEventListener('change', (event) => {
         const name = event.target.name;
-        if (!name) return; // the packs section's own fields
+        if (!name) return; // the packs section's and the colour editor's own fields
+        // The collection's own palette, picked for the first time: it starts as the
+        // preset that was in use, rather than as the default one.
+        if (/Preset$/.test(name) && event.target.value === CUSTOM && !customStarted) {
+            const from = themePresets[lastPreset] || themePresets.default;
+            setCustomPalette(from);
+            seedInput.value = from.light.highlight;
+        }
+        if (name === 'homePreset' && event.target.value !== CUSTOM) lastPreset = event.target.value;
         if (name === 'navbarShortcuts' && event.target.checked
             && form.querySelectorAll('[name="navbarShortcuts"]:checked').length > 6) {
             event.target.checked = false;

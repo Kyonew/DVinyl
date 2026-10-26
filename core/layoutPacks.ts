@@ -1,6 +1,8 @@
 import { LayoutSettings, normalizeLayout, DEFAULT_LAYOUT } from './layout';
 import { normalizeWidgets, WidgetEnv } from './dashboard';
 import { CARD_ASPECT_RATIOS } from './customPlugin';
+import { CUSTOM_PRESET, normalizeCustomTheme, ThemeColors } from './theme';
+import { CardLook, normalizeCardLook } from './cardStyle';
 // The widget types a pack's home page is checked against.
 import './dashboardWidgets';
 
@@ -9,9 +11,9 @@ import './dashboardWidgets';
  * another collection or instance can load.
  *
  * A pack is data only, never code: every value it carries is one the Personnalisation
- * page itself offers (a layout option, a colour preset by name, a card shape, widgets
- * of known types with their declared options), and anything else is dropped on the way
- * in. No CSS, no markup, no URL travels in one.
+ * page itself offers (a layout option, a colour preset by name or a palette of #rrggbb
+ * colours, a card shape and look, widgets of known types with their declared options),
+ * and anything else is dropped on the way in. No CSS, no markup, no URL travels in one.
  */
 
 export interface LayoutPreset {
@@ -52,9 +54,13 @@ export interface LookPack {
   name: string;
   exportedAt: string;
   layout?: LayoutSettings;
-  // Colour preset by item type ('home' for the pages that belong to no type).
+  // Colour preset by item type ('home' for the pages that belong to no type), 'custom'
+  // naming the palette in customTheme.
   colors?: Record<string, string>;
+  customTheme?: ThemeColors;
+  // The cover shape, and the rest of the card's look.
   cards?: string;
+  cardLook?: CardLook;
   home?: { widgets: any[] };
 }
 
@@ -76,8 +82,10 @@ export function buildPack(settings: any, name: string): LookPack {
     exportedAt: new Date().toISOString(),
     layout: normalizeLayout(settings?.layout),
     colors,
-    cards: settings?.aspectRatioClass || 'aspect-square'
+    cards: settings?.aspectRatioClass || 'aspect-square',
+    cardLook: normalizeCardLook(settings?.cards)
   };
+  if (Object.values(colors).includes(CUSTOM_PRESET)) pack.customTheme = normalizeCustomTheme(settings?.customTheme);
   // Only a home page someone arranged travels: the default one is rebuilt anywhere.
   if (Array.isArray(settings?.dashboard?.widgets)) pack.home = { widgets: settings.dashboard.widgets };
   return pack;
@@ -94,16 +102,24 @@ export function readPack(raw: any, env: WidgetEnv, colorPresets: string[], itemT
   if (!raw || typeof raw !== 'object' || raw.format !== PACK_FORMAT) throw new PackError('perso.pack_error_format');
   if (typeof raw.version !== 'number' || raw.version > PACK_VERSION) throw new PackError('perso.pack_error_version');
 
-  const parts: { layout?: LayoutSettings; colors?: Record<string, string>; cards?: string; home?: any[] } = {};
+  const parts: {
+    layout?: LayoutSettings; colors?: Record<string, string>; customTheme?: ThemeColors;
+    cards?: string; cardLook?: CardLook; home?: any[];
+  } = {};
   if (raw.layout && typeof raw.layout === 'object') parts.layout = normalizeLayout(raw.layout);
+  // 'custom' only stands for something when the pack carries the palette it names.
+  const hasPalette = Boolean(raw.customTheme && typeof raw.customTheme === 'object');
+  const themeNames = hasPalette ? [...colorPresets, CUSTOM_PRESET] : colorPresets;
   if (raw.colors && typeof raw.colors === 'object') {
     const colors: Record<string, string> = {};
     for (const [key, value] of Object.entries(raw.colors)) {
-      if ((key === 'home' || itemTypes.includes(key)) && typeof value === 'string' && colorPresets.includes(value)) colors[key] = value;
+      if ((key === 'home' || itemTypes.includes(key)) && typeof value === 'string' && themeNames.includes(value)) colors[key] = value;
     }
     if (Object.keys(colors).length > 0) parts.colors = colors;
+    if (Object.values(colors).includes(CUSTOM_PRESET)) parts.customTheme = normalizeCustomTheme(raw.customTheme);
   }
   if ((CARD_ASPECT_RATIOS as readonly string[]).includes(raw.cards)) parts.cards = raw.cards;
+  if (raw.cardLook && typeof raw.cardLook === 'object') parts.cardLook = normalizeCardLook(raw.cardLook);
   if (raw.home && Array.isArray(raw.home.widgets)) parts.home = normalizeWidgets(raw.home.widgets, env);
 
   return {
@@ -119,8 +135,10 @@ export function packUpdate(parts: ReturnType<typeof readPack>['parts'], sections
   if (sections.includes('layout') && parts.layout) update.layout = parts.layout;
   if (sections.includes('colors') && parts.colors) {
     for (const [key, value] of Object.entries(parts.colors)) update[`theme.${key}.preset`] = value;
+    if (parts.customTheme) update.customTheme = parts.customTheme;
   }
   if (sections.includes('cards') && parts.cards) update.aspectRatioClass = parts.cards;
+  if (sections.includes('cards') && parts.cardLook) update.cards = parts.cardLook;
   if (sections.includes('home') && parts.home) update.dashboard = { widgets: parts.home };
   return update;
 }

@@ -1,0 +1,109 @@
+<%#
+    Studio tab "Cards": how the item cards of the grids look (core/cardStyle.ts), and the
+    shape of their covers. Each choice is a small drawing of a card, in the colours of the
+    theme picked (--thumb-*, set by the studio's script).
+%>
+<%
+    const cardLook = normalizeCardLook(settings.cards);
+    const sectionLabel = 'text-sm font-bold';
+    const tile = 'h-full flex flex-col items-center justify-end gap-2 p-2.5 rounded-xl border-2 border-transparent bg-black/5 dark:bg-white/5 peer-checked:border-primary-theme peer-checked:bg-primary-theme/10 peer-focus-visible:ring-2 peer-focus-visible:ring-primary-theme/50 transition';
+    const cover = 'block w-full aspect-square';
+    const line = 'block h-1 rounded-full';
+%>
+<div class="flex flex-col gap-1.5">
+    <h2 class="text-xl font-extrabold"><%= t('studio.tab_cards') %></h2>
+    <p class="text-sm opacity-60"><%= t('studio.cards_desc') %></p>
+</div>
+
+<section class="flex flex-col gap-2.5">
+    <span class="<%= sectionLabel %>"><%= t('studio.cards') %></span>
+    <div class="grid grid-cols-3 gap-2">
+        <%
+        // Values must stay in sync with CARD_ASPECT_RATIOS (core/customPlugin.ts),
+        // which is what the save route accepts.
+        [
+            { value: 'aspect-[2/3]', label: t('create_plugin.shape_poster'), ratio: '2 / 3' },
+            { value: 'aspect-square', label: t('create_plugin.shape_square'), ratio: '1 / 1' },
+            { value: 'aspect-[16/9]', label: t('create_plugin.shape_screen'), ratio: '16 / 9' }
+        ].forEach(opt => { %>
+            <label class="cursor-pointer">
+                <input type="radio" name="aspectRatioClass" value="<%= opt.value %>" class="peer sr-only" <%= (settings.aspectRatioClass || 'aspect-square') === opt.value ? 'checked' : '' %>>
+                <span class="h-24 flex flex-col items-center justify-end gap-2 p-2.5 rounded-xl border-2 border-transparent bg-black/5 dark:bg-white/5 peer-checked:border-primary-theme peer-checked:bg-primary-theme/10 peer-focus-visible:ring-2 peer-focus-visible:ring-primary-theme/50 transition">
+                    <span class="block h-10 max-w-[4rem] rounded bg-current opacity-40" style="aspect-ratio: <%= opt.ratio %>" aria-hidden="true"></span>
+                    <span class="text-xs font-semibold"><%= opt.label %></span>
+                </span>
+            </label>
+        <% }) %>
+    </div>
+</section>
+
+<section class="flex flex-col gap-2.5">
+    <span class="<%= sectionLabel %>"><%= t('studio.card_frame') %></span>
+    <div class="grid grid-cols-3 gap-2">
+        <% CARD_OPTIONS.frame.forEach(v => { %>
+            <label class="cursor-pointer">
+                <input type="radio" name="card_frame" value="<%= v %>" class="peer sr-only" <%= cardLook.frame === v ? 'checked' : '' %>>
+                <span class="<%= tile %>">
+                    <%# A card: a frame (or none), a cover, two lines of text. %>
+                    <span class="block w-12 rounded-md overflow-hidden <%= v === 'outline' ? 'border-2 border-black/25 dark:border-white/30' : '' %>" style="<%= v === 'filled' ? 'background-color: var(--thumb-card, var(--bg-card)); box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);' : '' %>" aria-hidden="true">
+                        <span class="<%= cover %> <%= v === 'frameless' ? 'rounded-md shadow-md' : '' %>" style="background-color: var(--thumb-accent, var(--highlight)); opacity: 0.85;"></span>
+                        <span class="flex flex-col gap-1 <%= v === 'frameless' ? 'px-0.5 pt-1.5 pb-0.5' : 'p-1.5' %>">
+                            <span class="<%= line %> w-4/5 bg-current opacity-60"></span>
+                            <span class="<%= line %> w-1/2 bg-current opacity-30"></span>
+                        </span>
+                    </span>
+                    <span class="text-xs font-semibold"><%= t('studio.card_frame_' + v) %></span>
+                </span>
+            </label>
+        <% }) %>
+    </div>
+</section>
+
+<section class="flex flex-col gap-2.5">
+    <span class="<%= sectionLabel %>"><%= t('studio.card_text') %></span>
+    <div class="grid grid-cols-3 gap-2">
+        <% CARD_OPTIONS.text.forEach(v => { %>
+            <label class="cursor-pointer">
+                <input type="radio" name="card_text" value="<%= v %>" class="peer sr-only" <%= cardLook.text === v ? 'checked' : '' %>>
+                <span class="<%= tile %>">
+                    <span class="block w-12 rounded-md overflow-hidden" style="background-color: var(--thumb-card, var(--bg-card)); box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);" aria-hidden="true">
+                        <span class="relative <%= cover %>" style="background-color: var(--thumb-accent, var(--highlight)); opacity: 0.85;">
+                            <% if (v === 'overlay') { %>
+                                <span class="absolute inset-x-0 bottom-0 flex flex-col gap-1 p-1.5 pt-4 bg-gradient-to-t from-black/80 to-transparent">
+                                    <span class="<%= line %> w-4/5 bg-white/90"></span>
+                                    <span class="<%= line %> w-1/2 bg-white/50"></span>
+                                </span>
+                            <% } %>
+                        </span>
+                        <% if (v === 'below') { %>
+                            <span class="flex flex-col gap-1 p-1.5">
+                                <span class="<%= line %> w-4/5 bg-current opacity-60"></span>
+                                <span class="<%= line %> w-1/2 bg-current opacity-30"></span>
+                            </span>
+                        <% } %>
+                    </span>
+                    <span class="text-xs font-semibold"><%= t('studio.card_text_' + v) %></span>
+                </span>
+            </label>
+        <% }) %>
+    </div>
+</section>
+
+<section class="flex flex-col gap-2.5">
+    <span class="<%= sectionLabel %>"><%= t('studio.card_hover') %></span>
+    <div class="grid grid-cols-4 gap-1 p-1 rounded-xl bg-black/5 dark:bg-white/5" role="radiogroup" aria-label="<%= t('studio.card_hover') %>">
+        <% CARD_OPTIONS.hover.forEach(v => { %>
+            <label class="cursor-pointer">
+                <input type="radio" name="card_hover" value="<%= v %>" class="peer sr-only" <%= cardLook.hover === v ? 'checked' : '' %>>
+                <span class="h-9 flex items-center justify-center rounded-lg text-xs font-bold opacity-70 peer-checked:opacity-100 peer-checked:bg-[var(--bg-card)] peer-checked:shadow peer-checked:text-primary-theme peer-focus-visible:ring-2 peer-focus-visible:ring-primary-theme/50 transition">
+                    <%= t('studio.card_hover_' + v) %>
+                </span>
+            </label>
+        <% }) %>
+    </div>
+    <span class="text-xs opacity-60"><%= t('studio.card_hover_hint') %></span>
+</section>
+
+<div class="rounded-2xl bg-black/5 dark:bg-white/5 p-1">
+    <%- include('toggle', { name: 'card_badges', checked: cardLook.badges, title: t('studio.card_badges'), desc: t('studio.card_badges_desc') }) %>
+</div>

@@ -1,0 +1,78 @@
+<%#
+    Studio tab "Text": the font of the text, the font and case of the headings
+    (core/layout.ts), a few pairings that fill in both, and a sample set in them. All of
+    it restyles the preview at once.
+%>
+<%
+    const textLayout = resolveLayout(settings);
+    const stacks = LAYOUT_OPTIONS.fontStacks;
+    const fontName = (v) => t('layout.font_' + v);
+    // Each pairing only names fonts both lists offer.
+    const pairings = [
+        { id: 'editorial', font: 'inter', headingFont: 'fraunces', headingCase: 'normal' },
+        { id: 'sleeve', font: 'dmsans', headingFont: 'bebas', headingCase: 'upper' },
+        { id: 'studio', font: 'manrope', headingFont: 'grotesk', headingCase: 'normal' },
+        { id: 'classic', font: 'lora', headingFont: 'playfair', headingCase: 'normal' }
+    ];
+%>
+<div class="flex flex-col gap-1.5">
+    <h2 class="text-xl font-extrabold"><%= t('studio.tab_text') %></h2>
+    <p class="text-sm opacity-60"><%= t('studio.text_desc') %></p>
+</div>
+
+<%# Drawn in the fonts chosen, kept in step by the studio's script. %>
+<div data-font-sample class="rounded-2xl p-4 flex flex-col gap-1.5 border border-[var(--border-color)]" style="background-color: var(--bg-page);" aria-hidden="true">
+    <span data-font-sample-heading class="text-2xl font-extrabold leading-tight"><%= t('studio.text_sample_heading') %></span>
+    <span data-font-sample-body class="text-sm opacity-70"><%= t('studio.text_sample_body') %></span>
+</div>
+
+<section class="flex flex-col gap-2.5">
+    <span class="text-sm font-bold"><%= t('studio.text_pairings') %></span>
+    <div class="grid grid-cols-2 gap-2">
+        <% pairings.forEach(p => { %>
+            <button type="button" data-font-pair="<%= JSON.stringify({ font: p.font, headingFont: p.headingFont, headingCase: p.headingCase }) %>" aria-pressed="false"
+                class="flex flex-col items-start gap-0.5 p-3 rounded-xl text-left border-2 border-transparent bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 aria-pressed:border-primary-theme aria-pressed:bg-primary-theme/10 transition">
+                <span class="text-base font-bold leading-tight <%= p.headingCase === 'upper' ? 'uppercase tracking-wide' : '' %>" style="font-family: <%= stacks[p.headingFont] %>; font-synthesis: style;"><%= t('studio.pair_' + p.id) %></span>
+                <span class="text-[11px] opacity-60" style="font-family: <%= stacks[p.font] %>"><%= fontName(p.headingFont) %> + <%= fontName(p.font) %></span>
+            </button>
+        <% }) %>
+    </div>
+</section>
+
+<section class="flex flex-col gap-2.5">
+    <span class="text-sm font-bold"><%= t('studio.text_font') %></span>
+    <% LAYOUT_OPTIONS.fontGroups.forEach(group => { %>
+        <% const inGroup = LAYOUT_OPTIONS.font.filter(v => LAYOUT_OPTIONS.fontGroupOf[v] === group); %>
+        <% if (inGroup.length === 0) return; %>
+        <span class="text-[11px] font-bold uppercase tracking-widest opacity-50 mt-1"><%= t('layout.font_group_' + group) %></span>
+        <div class="rounded-2xl bg-black/5 dark:bg-white/5 overflow-hidden divide-y divide-[var(--border-color)]">
+            <% inGroup.forEach(v => { %>
+                <label class="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 has-[:checked]:bg-primary-theme/10 transition-colors">
+                    <input type="radio" name="layout_font" value="<%= v %>" class="peer sr-only" <%= textLayout.font === v ? 'checked' : '' %>>
+                    <span class="w-9 h-9 flex-none rounded-lg flex items-center justify-center text-lg font-bold bg-black/5 dark:bg-white/10 peer-focus-visible:ring-2 peer-focus-visible:ring-primary-theme/50" style="font-family: <%= stacks[v] %>" aria-hidden="true">Aa</span>
+                    <span class="flex-1 text-sm" style="font-family: <%= stacks[v] %>"><%= fontName(v) %></span>
+                    <i class="fa-solid fa-check text-primary-theme opacity-0 peer-checked:opacity-100" aria-hidden="true"></i>
+                </label>
+            <% }) %>
+        </div>
+    <% }) %>
+</section>
+
+<section class="flex flex-col gap-2.5">
+    <span class="text-sm font-bold"><%= t('studio.text_heading_font') %></span>
+    <div class="grid grid-cols-2 gap-2">
+        <% LAYOUT_OPTIONS.headingFont.forEach(v => { %>
+            <label class="cursor-pointer">
+                <input type="radio" name="layout_headingFont" value="<%= v %>" class="peer sr-only" <%= textLayout.headingFont === v ? 'checked' : '' %>>
+                <span class="h-full flex flex-col gap-0.5 px-3 py-2.5 rounded-xl border-2 border-transparent bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 peer-checked:border-primary-theme peer-checked:bg-primary-theme/10 peer-focus-visible:ring-2 peer-focus-visible:ring-primary-theme/50 transition">
+                    <span class="text-lg font-extrabold leading-tight truncate" <% if (v !== 'same') { %>style="font-family: <%= stacks[v] %>; font-synthesis: style;"<% } %>><%= v === 'same' ? t('studio.text_heading_same') : fontName(v) %></span>
+                    <% if (v === 'same') { %><span class="text-[11px] opacity-60"><%= t('studio.text_heading_same_desc') %></span><% } %>
+                </span>
+            </label>
+        <% }) %>
+    </div>
+</section>
+
+<div class="rounded-2xl bg-black/5 dark:bg-white/5 p-1">
+    <%- include('toggle', { name: 'layout_headingCase', value: 'upper', checked: textLayout.headingCase === 'upper', title: t('studio.text_heading_upper'), desc: t('studio.text_heading_upper_desc') }) %>
+</div>

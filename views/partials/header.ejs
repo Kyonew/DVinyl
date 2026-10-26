@@ -2,7 +2,6 @@
 <% 
   const isDark = (typeof locals.isDark !== 'undefined') ? locals.isDark : true;
   const currentLng = (typeof locals.currentLng !== 'undefined') ? locals.currentLng : 'fr';
-  const THEMES = (typeof locals.allThemes !== 'undefined') ? locals.allThemes : {};
   
   const rawCategory = (typeof locals.currentType !== 'undefined') ? locals.currentType : (locals.detectedType || 'home');
 
@@ -19,22 +18,9 @@
       if (themePlugin) themeKey = themePlugin.collectionType;
   }
 
-  let activePresetKey = 'default';
-  if (typeof settings !== 'undefined' && settings && settings.theme) {
-        if (settings.theme[themeKey] && settings.theme[themeKey].preset) {
-          activePresetKey = settings.theme[themeKey].preset;
-      } 
-      else if (settings.theme.home && settings.theme.home.preset) {
-          activePresetKey = settings.theme.home.preset;
-      }
-  }
-
-  const safeFallback = { 
-      light: { bg: '#e2e8f0', card: '#ffffff', navbar: '#1e293b', navText: '#ffffff', text: '#0f172a', subtext: '#475569', highlight: '#10b981' },
-      dark: { bg: '#171717', card: '#262626', navbar: '#0a0a0a', navText: '#ffffff', text: '#ffffff', subtext: '#a3a3a3', highlight: '#10b981' }
-  };
-
-  const activeTheme = (THEMES[activePresetKey]) ? THEMES[activePresetKey] : (THEMES['default'] || safeFallback);
+  // The preset picked for that part of the app, or the collection's own palette
+  // (core/theme.ts), with the text colour that reads on its accent.
+  const activeTheme = resolveTheme(typeof settings !== 'undefined' ? settings : null, themeKey);
 
   // Accent as separate channels. Tailwind can only honour an opacity modifier
   // (bg-primary-theme/10) when the colour is written as rgb(... / <alpha-value>);
@@ -84,7 +70,9 @@
 %>
 
 <html lang="<%= currentLng %>" class="<%= isDark ? 'dark' : '' %>"
-  data-nav="<%= shellNav.nav %>" data-sidebar-state="<%= shellNav.sidebarState %>" data-dock-labels="<%= shellNav.dockLabels ? 'true' : 'false' %>">
+  data-nav="<%= shellNav.nav %>" data-sidebar-state="<%= shellNav.sidebarState %>" data-dock-labels="<%= shellNav.dockLabels ? 'true' : 'false' %>"
+  data-heading-font="<%= shellNav.headingFont === 'same' ? 'same' : 'own' %>" data-heading-case="<%= shellNav.headingCase %>"
+  data-theme="<%= activeTheme.name %>">
 <head>
   <meta charset="UTF-8" />
   <%# viewport-fit=cover lets the page run under the notch and the home indicator once
@@ -150,9 +138,9 @@
   <script src="<%= baseUrl %>/vendor/flowbite-1.6.5.min.js"></script>
   <link rel="icon" type="image/png" href="<%= baseUrl %>/ressources/logo.png">
 
-  <% if (shellNav.fontStylesheet) { %>
-  <link rel="stylesheet" href="<%= baseUrl %>/vendor/fonts/<%= shellNav.fontStylesheet %>">
-  <% } %>
+  <% shellNav.fontStylesheets.forEach(sheet => { %>
+  <link rel="stylesheet" href="<%= baseUrl %>/vendor/fonts/<%= sheet %>">
+  <% }) %>
   <%- include('shell/styles', { activeTheme, rgbChannels, layout: shellNav }) %>
   <script>
     if (window.navigator.standalone === true) document.documentElement.classList.add('is-standalone');

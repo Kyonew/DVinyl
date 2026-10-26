@@ -74,6 +74,18 @@ const settingsSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.Mixed,
         default: () => ({})
     },
+    // The collection's own colour palette, picked like a preset under the name 'custom':
+    //   { light: { bg, card, navbar, text, subtext, highlight }, dark: { ... } }
+    // Always read through core/theme.ts, which keeps only #rrggbb colours.
+    customTheme: {
+        type: mongoose.Schema.Types.Mixed,
+        default: () => ({})
+    },
+    // How the item cards look: { frame, hover, text, badges }, see core/cardStyle.ts.
+    cards: {
+        type: mongoose.Schema.Types.Mixed,
+        default: () => ({})
+    },
     fastAdd: { type: String, default: '' },
     // Scan mode. A search whose query names one exact item (a source's `exactQuery`,
     // i.e. an ISBN today) and returns a single hit is saved without the confirm page being

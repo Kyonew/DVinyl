@@ -23,13 +23,21 @@ still change when it should.
 | `flowbite-1.6.5.min.js` | 1.6.5 | every page | dropdowns and modals stop opening |
 | `chart-4.4.7.umd.min.js` | 4.4.7 | the estimate modal | the collection value history draws nothing |
 | `zxing-0.23.0.umd.min.js` | 0.23.0 | the add page | the barcode scanner never starts |
-| `fonts/` | see below | login and setup | those two pages fall back to a system font |
+| `fonts/` | see below | login, setup, and the fonts a collection's layout picks | those pages fall back to a system font |
 
 Poppins (login) and Plus Jakarta Sans (setup) are SIL OFL 1.1. Only the `latin` and
 `latin-ext` subsets are kept, and only the weights those two pages actually set: Poppins
 400/500/600/700, and the Plus Jakarta Sans variable file, whose single woff2 covers the
 whole 200-800 range. That family has no 900, so a `font-black` rule on the setup page
 renders at 800.
+
+The other families are the fonts a collection can pick for its text and headings in the
+Personnalisation studio (`FONT_STACKS` in `core/layout.ts`): Inter, DM Sans, Manrope,
+Outfit, Nunito, Space Grotesk, Fraunces, Playfair Display, Lora, Oswald, Bebas Neue and
+JetBrains Mono, all SIL OFL 1.1. Each is its variable file over the whole weight range
+Google Fonts serves (`wght@<min>..<max>`), except Bebas Neue, which only exists at 400.
+A page links only the stylesheet of the fonts its collection uses, and a browser only
+downloads a woff2 once some text is drawn in it.
 
 Tailwind, Flowbite and Chart.js are MIT licensed. Font Awesome Free is CC BY 4.0 (icons),
 SIL OFL 1.1 (fonts) and MIT (code). ZXing for JS is Apache 2.0.
@@ -61,8 +69,10 @@ with a modern desktop UA and the stylesheet is rewritten to point at them locall
 
     UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
     curl -sL -A "$UA" 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap'
+    curl -sL -A "$UA" 'https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap'
     # keep only the /* latin */ and /* latin-ext */ @font-face blocks, download each
-    # woff2 into fonts/, and replace every url(https://...) with url(./<local file>)
+    # woff2 into fonts/ as <family>-<file name>, and replace every url(https://...)
+    # with url(./<local file>)
 
 Then point the views at the new filenames, delete the old files, and record the hashes
 below. The references live in `views/partials/header.ejs` (Tailwind, Font Awesome,

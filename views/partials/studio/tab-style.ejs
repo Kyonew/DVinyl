@@ -34,22 +34,123 @@
     </div>
 </section>
 
+<%
+    // The collection's own palette (core/theme.ts), edited below the swatches whenever a
+    // part of the app uses it. Until it was first saved it holds the default preset, and
+    // the script starts it from the preset picked instead.
+    const customColors = normalizeCustomTheme(settings.customTheme);
+    const customSaved = Boolean(settings.customTheme && settings.customTheme.light);
+    const customName = THEME_OPTIONS.custom;
+    const themeOf = (key) => (settings.theme[key] && settings.theme[key].preset) || '';
+    const customInUse = homeColor === customName || registry.getEnabled(settings).some(p => themeOf(p.collectionType) === customName);
+    const swatch = 'w-12 h-12 rounded-full flex items-center justify-center ring-1 ring-black/10 dark:ring-white/15 peer-checked:ring-[3px] peer-checked:ring-primary-theme peer-focus-visible:ring-[3px] peer-focus-visible:ring-primary-theme/60 transition';
+%>
 <section class="flex flex-col gap-2.5">
     <div class="flex items-baseline justify-between gap-3">
         <span class="<%= sectionLabel %>"><%= t('studio.colors') %></span>
-        <span data-theme-name class="text-xs font-semibold opacity-80"><%= (presets[homeColor] || presets.default).label %></span>
+        <span data-theme-name class="text-xs font-semibold opacity-80"><%= homeColor === customName ? t('studio.custom_colors') : (presets[homeColor] || presets.default).label %></span>
     </div>
     <div class="grid grid-cols-4 gap-x-2 gap-y-3">
         <% for (const [key, val] of Object.entries(presets)) { %>
             <label class="flex flex-col items-center gap-1.5 cursor-pointer" title="<%= val.label %>">
                 <input type="radio" name="homePreset" value="<%= key %>" class="peer sr-only" <%= homeColor === key ? 'checked' : '' %>
                     data-label="<%= val.label %>" data-bg="<%= val.dark.bg %>" data-card="<%= val.dark.card %>" data-nav="<%= val.dark.navbar %>" data-accent="<%= val.dark.highlight %>">
-                <span class="w-12 h-12 rounded-full flex items-center justify-center ring-1 ring-black/10 dark:ring-white/15 peer-checked:ring-[3px] peer-checked:ring-primary-theme peer-focus-visible:ring-[3px] peer-focus-visible:ring-primary-theme/60 transition" style="background-color: <%= val.dark.bg %>;">
+                <span class="<%= swatch %>" style="background-color: <%= val.dark.bg %>;">
                     <span class="w-5 h-5 rounded-full" style="background-color: <%= val.dark.highlight %>; box-shadow: 0 0 0 5px <%= val.dark.card %>;"></span>
                 </span>
                 <span class="text-[11px] leading-tight text-center opacity-75 max-w-full truncate"><%= val.label %></span>
             </label>
         <% } %>
+        <%# The collection's own palette, painted by the script as it is edited. %>
+        <label class="flex flex-col items-center gap-1.5 cursor-pointer" title="<%= t('studio.custom_colors') %>">
+            <input type="radio" name="homePreset" value="<%= customName %>" class="peer sr-only" <%= homeColor === customName ? 'checked' : '' %> data-custom-swatch
+                data-label="<%= t('studio.custom_colors') %>" data-bg="<%= customColors.dark.bg %>" data-card="<%= customColors.dark.card %>" data-nav="<%= customColors.dark.navbar %>" data-accent="<%= customColors.dark.highlight %>">
+            <span data-custom-swatch-bg class="<%= swatch %> relative" style="background-color: <%= customColors.dark.bg %>;">
+                <span data-custom-swatch-dot class="w-5 h-5 rounded-full" style="background-color: <%= customColors.dark.highlight %>; box-shadow: 0 0 0 5px <%= customColors.dark.card %>;"></span>
+                <span class="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full flex items-center justify-center text-[9px] text-white shadow ring-2 ring-[var(--bg-card)]" style="background: conic-gradient(#ef4444, #f59e0b, #10b981, #3b82f6, #a855f7, #ef4444);" aria-hidden="true"><i class="fa-solid fa-pen"></i></span>
+            </span>
+            <span class="text-[11px] leading-tight text-center opacity-75 max-w-full truncate"><%= t('studio.custom_colors') %></span>
+        </label>
+    </div>
+
+    <div data-custom-editor data-custom-saved="<%= customSaved ? '1' : '' %>" class="<%= customInUse ? '' : 'hidden' %> mt-1 rounded-2xl border border-[var(--border-color)] p-3.5 flex flex-col gap-4">
+        <div class="flex flex-col gap-0.5">
+            <span class="text-sm font-extrabold"><i class="fa-solid fa-palette mr-1.5 text-primary-theme" aria-hidden="true"></i><%= t('studio.custom_colors') %></span>
+            <span class="text-xs opacity-60"><%= t('studio.custom_desc') %></span>
+        </div>
+
+        <label class="flex items-center gap-3 cursor-pointer">
+            <input type="color" data-custom-seed value="<%= customColors.light.highlight %>" class="w-12 h-12 flex-none rounded-xl border-0 p-0 bg-transparent cursor-pointer [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded-xl [&::-webkit-color-swatch]:border-0 [&::-moz-color-swatch]:rounded-xl [&::-moz-color-swatch]:border-0">
+            <span class="flex flex-col gap-0.5 min-w-0">
+                <span class="text-sm font-bold"><%= t('studio.custom_seed') %></span>
+                <span class="text-xs opacity-60"><%= t('studio.custom_seed_desc') %></span>
+            </span>
+        </label>
+
+        <div class="flex flex-col gap-1.5">
+            <span class="text-xs font-bold opacity-70"><%= t('studio.custom_mood') %></span>
+            <div class="grid grid-cols-3 gap-1 p-1 rounded-xl bg-black/5 dark:bg-white/5" role="group" aria-label="<%= t('studio.custom_mood') %>">
+                <% ['neutral', 'tinted', 'vivid'].forEach((mood, i) => { %>
+                    <button type="button" data-custom-mood="<%= mood %>" aria-pressed="<%= i === 1 %>"
+                        class="h-9 rounded-lg text-xs font-bold opacity-70 aria-pressed:opacity-100 aria-pressed:bg-[var(--bg-card)] aria-pressed:shadow aria-pressed:text-primary-theme transition"><%= t('studio.custom_mood_' + mood) %></button>
+                <% }) %>
+            </div>
+        </div>
+
+        <label class="flex flex-col gap-1.5">
+            <span class="text-xs font-bold opacity-70"><%= t('studio.custom_from') %></span>
+            <select data-custom-from class="<%= selectClass %>">
+                <option value=""><%= t('studio.custom_from_placeholder') %></option>
+                <% for (const [key, val] of Object.entries(presets)) { %>
+                    <option value="<%= key %>"><%= val.label %></option>
+                <% } %>
+            </select>
+        </label>
+
+        <details class="group rounded-xl bg-black/5 dark:bg-white/5" data-custom-adjust>
+            <summary class="flex items-center justify-between gap-3 px-3.5 py-3 cursor-pointer list-none [&::-webkit-details-marker]:hidden text-sm font-semibold">
+                <span><%= t('studio.custom_adjust') %> <span data-custom-warn-count class="hidden ml-1 text-[11px] font-bold text-amber-500"></span></span>
+                <i class="fa-solid fa-chevron-down text-xs opacity-50 transition-transform group-open:rotate-180" aria-hidden="true"></i>
+            </summary>
+            <div class="px-3.5 pb-3.5 flex flex-col gap-3">
+                <div class="grid grid-cols-2 gap-1 p-1 rounded-xl bg-black/5 dark:bg-white/5" role="group" aria-label="<%= t('studio.custom_mode') %>">
+                    <% ['light', 'dark'].forEach((mode, i) => { %>
+                        <button type="button" data-custom-mode="<%= mode %>" aria-pressed="<%= i === 0 %>"
+                            class="h-9 rounded-lg text-xs font-bold opacity-70 aria-pressed:opacity-100 aria-pressed:bg-[var(--bg-card)] aria-pressed:shadow aria-pressed:text-primary-theme transition">
+                            <i class="fa-solid fa-<%= mode === 'light' ? 'sun' : 'moon' %> mr-1" aria-hidden="true"></i><%= t('studio.mode_' + mode) %>
+                        </button>
+                    <% }) %>
+                </div>
+                <% ['light', 'dark'].forEach((mode, i) => { const pal = customColors[mode]; %>
+                    <div data-custom-pane="<%= mode %>" class="<%= i === 0 ? '' : 'hidden' %> flex flex-col gap-3">
+                        <%# A small screen in these colours: the page, a card on it, its text, a button. %>
+                        <div data-custom-sample class="rounded-xl p-3 border border-black/10" style="background-color: <%= pal.bg %>;" aria-hidden="true">
+                            <div data-sample-nav class="h-2 rounded-full mb-2.5 w-full" style="background-color: <%= pal.navbar %>;"></div>
+                            <div data-sample-card class="rounded-lg p-2.5 flex items-center gap-2.5" style="background-color: <%= pal.card %>;">
+                                <span class="flex-1 min-w-0 flex flex-col">
+                                    <span data-sample-text class="text-sm font-bold truncate" style="color: <%= pal.text %>;"><%= t('studio.custom_sample_title') %></span>
+                                    <span data-sample-subtext class="text-xs truncate" style="color: <%= pal.subtext %>;"><%= t('studio.custom_sample_text') %></span>
+                                </span>
+                                <span data-sample-button class="flex-none px-2.5 py-1.5 rounded-lg text-xs font-bold" style="background-color: <%= pal.highlight %>;"><%= t('studio.custom_sample_button') %></span>
+                            </div>
+                        </div>
+                        <div class="rounded-xl overflow-hidden divide-y divide-[var(--border-color)] bg-black/5 dark:bg-white/5">
+                            <% THEME_OPTIONS.tokens.forEach(token => { %>
+                                <label class="flex items-center gap-3 px-3 py-2 cursor-pointer">
+                                    <span class="flex-1 min-w-0 flex flex-col">
+                                        <span class="text-sm font-semibold"><%= t('studio.token_' + token) %></span>
+                                        <span data-contrast-warn="<%= mode %>-<%= token %>" class="hidden text-[11px] font-bold text-amber-500"></span>
+                                    </span>
+                                    <span data-custom-hex="<%= mode %>-<%= token %>" class="text-xs font-mono opacity-60 uppercase"><%= pal[token] %></span>
+                                    <input type="color" name="custom_<%= mode %>_<%= token %>" value="<%= pal[token] %>" data-custom-color
+                                        class="w-9 h-9 flex-none rounded-lg border-0 p-0 bg-transparent cursor-pointer [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded-lg [&::-webkit-color-swatch]:border [&::-webkit-color-swatch]:border-black/20 [&::-moz-color-swatch]:rounded-lg">
+                                </label>
+                            <% }) %>
+                        </div>
+                    </div>
+                <% }) %>
+            </div>
+        </details>
     </div>
 
     <details class="group mt-1 rounded-xl bg-black/5 dark:bg-white/5">
@@ -64,8 +165,9 @@
                     <span class="block text-[11px] font-bold uppercase tracking-widest opacity-60 mb-1.5"><i class="fa-solid fa-<%= p.icon %> mr-1"></i><%= t(p.label) %></span>
                     <select name="<%= p.collectionType %>Preset" class="<%= selectClass %>">
                         <% for (const [key, val] of Object.entries(presets)) { %>
-                            <option value="<%= key %>" <%= settings.theme[p.collectionType] && settings.theme[p.collectionType].preset === key ? 'selected' : '' %>><%= val.label %></option>
+                            <option value="<%= key %>" <%= themeOf(p.collectionType) === key ? 'selected' : '' %>><%= val.label %></option>
                         <% } %>
+                        <option value="<%= customName %>" <%= themeOf(p.collectionType) === customName ? 'selected' : '' %>><%= t('studio.custom_colors') %></option>
                     </select>
                 </label>
             <% }) %>

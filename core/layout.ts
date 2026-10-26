@@ -3,7 +3,7 @@
  *
  * A layout only moves and restyles the shell (partials/header.ejs and partials/shell/*):
  * where the navigation sits on a large screen, how dense, round, large and wide the
- * interface is, and which font it uses. Pages never read it. Everything below md keeps
+ * interface is, and which fonts its text and headings use. Pages never read it. Everything below md keeps
  * the phone shell (tab bar), whatever is chosen here.
  *
  * Values travel to the page as CSS variables and data attributes on <html>, and the
@@ -18,7 +18,16 @@ export const DENSITIES = ['compact', 'comfortable', 'spacious'] as const;
 export const RADII = ['square', 'soft', 'rounded', 'round'] as const;
 export const SCALES = ['small', 'normal', 'large'] as const;
 export const CONTENT_WIDTHS = ['narrow', 'normal', 'wide', 'full'] as const;
-export const FONTS = ['system', 'jakarta', 'poppins', 'serif', 'mono'] as const;
+export const FONTS = [
+  'system', 'inter', 'jakarta', 'poppins', 'dmsans', 'manrope', 'outfit', 'nunito', 'grotesk',
+  'serif', 'fraunces', 'playfair', 'lora',
+  'oswald',
+  'mono', 'jetbrains'
+] as const;
+// Headings may borrow the text's font ('same'), any text font, or a display face too
+// narrow or all-caps to read a paragraph in.
+export const HEADING_FONTS = ['same', ...FONTS, 'bebas'] as const;
+export const HEADING_CASES = ['normal', 'upper'] as const;
 
 export type NavPosition = typeof NAV_POSITIONS[number];
 
@@ -39,6 +48,9 @@ export interface LayoutSettings {
   scale: typeof SCALES[number];
   width: typeof CONTENT_WIDTHS[number];
   font: typeof FONTS[number];
+  // h1 to h4 of every page: their font, and whether they are set in capitals.
+  headingFont: typeof HEADING_FONTS[number];
+  headingCase: typeof HEADING_CASES[number];
 }
 
 export const DEFAULT_LAYOUT: LayoutSettings = {
@@ -51,7 +63,9 @@ export const DEFAULT_LAYOUT: LayoutSettings = {
   radius: 'rounded',
   scale: 'normal',
   width: 'normal',
-  font: 'system'
+  font: 'system',
+  headingFont: 'same',
+  headingCase: 'normal'
 };
 
 // A viewer's own fold of the sidebar, remembered in the browser and read back on the
@@ -64,13 +78,32 @@ const SCALE_PERCENT: Record<LayoutSettings['scale'], string> = { small: '93.75%'
 const CONTENT_MAX: Record<LayoutSettings['width'], string> = { narrow: '64rem', normal: '80rem', wide: '96rem', full: 'none' };
 
 const SYSTEM_SANS = 'ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"';
-// stylesheet: a vendored @font-face file under public/vendor/fonts, loaded only when picked.
-const FONT_STACKS: Record<LayoutSettings['font'], { stack: string; stylesheet?: string }> = {
-  system: { stack: SYSTEM_SANS },
-  jakarta: { stack: `"Plus Jakarta Sans", ${SYSTEM_SANS}`, stylesheet: 'plus-jakarta-sans.css' },
-  poppins: { stack: `"Poppins", ${SYSTEM_SANS}`, stylesheet: 'poppins.css' },
-  serif: { stack: 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif' },
-  mono: { stack: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace' }
+const SYSTEM_SERIF = 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif';
+const SYSTEM_MONO = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace';
+
+type FontKey = typeof HEADING_FONTS[number];
+export const FONT_GROUPS = ['sans', 'serif', 'display', 'mono'] as const;
+
+// stylesheet: a vendored @font-face file under public/vendor/fonts, loaded only when picked
+// (see public/vendor/README.md). group: where the studio lists it.
+const FONT_STACKS: Record<Exclude<FontKey, 'same'>, { stack: string; group: typeof FONT_GROUPS[number]; stylesheet?: string }> = {
+  system: { stack: SYSTEM_SANS, group: 'sans' },
+  inter: { stack: `"Inter", ${SYSTEM_SANS}`, group: 'sans', stylesheet: 'inter.css' },
+  jakarta: { stack: `"Plus Jakarta Sans", ${SYSTEM_SANS}`, group: 'sans', stylesheet: 'plus-jakarta-sans.css' },
+  poppins: { stack: `"Poppins", ${SYSTEM_SANS}`, group: 'sans', stylesheet: 'poppins.css' },
+  dmsans: { stack: `"DM Sans", ${SYSTEM_SANS}`, group: 'sans', stylesheet: 'dm-sans.css' },
+  manrope: { stack: `"Manrope", ${SYSTEM_SANS}`, group: 'sans', stylesheet: 'manrope.css' },
+  outfit: { stack: `"Outfit", ${SYSTEM_SANS}`, group: 'sans', stylesheet: 'outfit.css' },
+  nunito: { stack: `"Nunito", ${SYSTEM_SANS}`, group: 'sans', stylesheet: 'nunito.css' },
+  grotesk: { stack: `"Space Grotesk", ${SYSTEM_SANS}`, group: 'sans', stylesheet: 'space-grotesk.css' },
+  serif: { stack: SYSTEM_SERIF, group: 'serif' },
+  fraunces: { stack: `"Fraunces", ${SYSTEM_SERIF}`, group: 'serif', stylesheet: 'fraunces.css' },
+  playfair: { stack: `"Playfair Display", ${SYSTEM_SERIF}`, group: 'serif', stylesheet: 'playfair-display.css' },
+  lora: { stack: `"Lora", ${SYSTEM_SERIF}`, group: 'serif', stylesheet: 'lora.css' },
+  oswald: { stack: `"Oswald", ${SYSTEM_SANS}`, group: 'display', stylesheet: 'oswald.css' },
+  bebas: { stack: `"Bebas Neue", "Oswald", ${SYSTEM_SANS}`, group: 'display', stylesheet: 'bebas-neue.css' },
+  mono: { stack: SYSTEM_MONO, group: 'mono' },
+  jetbrains: { stack: `"JetBrains Mono", ${SYSTEM_MONO}`, group: 'mono', stylesheet: 'jetbrains-mono.css' }
 };
 
 const pick = <T extends readonly string[]>(allowed: T, value: unknown, fallback: T[number]): T[number] =>
@@ -100,7 +133,9 @@ export function normalizeLayout(raw: any): LayoutSettings {
     radius: pick(RADII, src.radius, d.radius),
     scale: pick(SCALES, src.scale, d.scale),
     width: pick(CONTENT_WIDTHS, src.width, d.width),
-    font: pick(FONTS, src.font, d.font)
+    font: pick(FONTS, src.font, d.font),
+    headingFont: pick(HEADING_FONTS, src.headingFont, d.headingFont),
+    headingCase: pick(HEADING_CASES, src.headingCase, d.headingCase)
   };
 }
 
@@ -120,7 +155,9 @@ export function layoutFromForm(body: any): LayoutSettings {
     radius: src.layout_radius,
     scale: src.layout_scale,
     width: src.layout_width,
-    font: src.layout_font
+    font: src.layout_font,
+    headingFont: src.layout_headingFont,
+    headingCase: src.layout_headingCase === 'upper' ? 'upper' : 'normal'
   });
 }
 
@@ -129,7 +166,8 @@ export interface ResolvedLayout extends LayoutSettings {
   // the fold they chose for themselves.
   sidebarState: 'expanded' | 'rail';
   cssVars: Record<string, string>;
-  fontStylesheet: string | null;
+  // The @font-face files the text and heading fonts need, none for system fonts.
+  fontStylesheets: string[];
 }
 
 export function resolveLayout(settings: any, cookies?: Record<string, string>): ResolvedLayout {
@@ -137,6 +175,7 @@ export function resolveLayout(settings: any, cookies?: Record<string, string>): 
   const ownFold = cookies?.[SIDEBAR_COOKIE];
   const sidebarState = ownFold === 'rail' || ownFold === 'expanded' ? ownFold : layout.sidebar;
   const font = FONT_STACKS[layout.font];
+  const heading = layout.headingFont === 'same' ? font : FONT_STACKS[layout.headingFont];
   return {
     ...layout,
     sidebarState,
@@ -144,9 +183,10 @@ export function resolveLayout(settings: any, cookies?: Record<string, string>): 
       '--dv-space': String(DENSITY_FACTOR[layout.density]),
       '--dv-radius': String(RADIUS_FACTOR[layout.radius]),
       '--dv-content-max': CONTENT_MAX[layout.width],
-      '--dv-font': font.stack
+      '--dv-font': font.stack,
+      '--dv-font-heading': heading.stack
     },
-    fontStylesheet: font.stylesheet || null
+    fontStylesheets: [...new Set([font.stylesheet, heading.stylesheet].filter((s): s is string => Boolean(s)))]
   };
 }
 
@@ -165,7 +205,11 @@ export const LAYOUT_OPTIONS = {
   scale: SCALES,
   width: CONTENT_WIDTHS,
   font: FONTS,
+  headingFont: HEADING_FONTS,
+  fontGroups: FONT_GROUPS,
+  fontGroupOf: Object.fromEntries(Object.entries(FONT_STACKS).map(([k, v]) => [k, v.group])) as Record<string, string>,
   fontStacks: Object.fromEntries(Object.entries(FONT_STACKS).map(([k, v]) => [k, v.stack])) as Record<string, string>,
+  fontSheets: Object.fromEntries(Object.entries(FONT_STACKS).filter(([, v]) => v.stylesheet).map(([k, v]) => [k, v.stylesheet])) as Record<string, string>,
   radiusFactor: RADIUS_FACTOR,
   densityFactor: DENSITY_FACTOR,
   scalePercent: SCALE_PERCENT,
