@@ -2286,6 +2286,9 @@
     "ambience_glass": "Effetto vetro",
     "ambience_glass_desc": "Pannelli e navigazione lasciano intravedere lo sfondo.",
     "ambience_coverAccent": "Accento dalla copertina",
-    "ambience_coverAccent_desc": "Nella pagina di un oggetto, l'accento prende il colore della copertina, se l'host dell'immagine lo consente."
+    "ambience_coverAccent_desc": "Nella pagina di un oggetto, l'accento prende il colore della copertina, se l'host dell'immagine lo consente.",
+    "sheet_expand": "Espandi le impostazioni",
+    "sheet_collapse": "Riduci le impostazioni",
+    "show_desktop": "Vedi come su un computer"
   }
 }

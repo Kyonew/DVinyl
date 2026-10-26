@@ -88,7 +88,21 @@
     /* The tick on the picked thumbnail: a preset button (aria-pressed) or a radio card. */
     .dv-picked { display: none; }
     [aria-pressed="true"] > .dv-picked, label:has(input:checked) > .dv-picked { display: flex; }
-    @media (prefers-reduced-motion: reduce) { .dv-stop { transition: none; } }
+    /* Below lg the settings are a sheet over the preview, at one of three heights
+       (data-sheet on #studio): peek (the tabs only, the preview nearly full screen),
+       half, and full. The preview shrinks to what the sheet leaves, so the page it shows
+       is never hidden behind it; --sheet is set inline while the sheet is dragged. */
+    @media (max-width: 1023px) {
+        #studio { --sheet: 55%; }
+        #studio[data-sheet="peek"] { --sheet: calc(var(--sheet-peek, 7.5rem) + env(safe-area-inset-bottom)); }
+        #studio[data-sheet="full"] { --sheet: 100%; }
+        #studio[data-sheet="full"]:not(.is-dragging) [data-studio-stage] { visibility: hidden; }
+        [data-studio-preview] { width: 100%; height: calc(100% - var(--sheet) + 1.5rem); transition: height 0.32s var(--dv-ease); }
+        [data-studio-panel] { position: absolute; left: 0; right: 0; bottom: 0; height: var(--sheet); transition: height 0.32s var(--dv-ease); }
+        #studio.is-dragging [data-studio-preview], #studio.is-dragging [data-studio-panel] { transition: none; }
+        #studioForm { padding-bottom: env(safe-area-inset-bottom); }
+    }
+    @media (prefers-reduced-motion: reduce) { .dv-stop, [data-studio-preview], [data-studio-panel] { transition: none; } }
 </style>
 
 <div id="studio" class="fixed inset-0 z-[55] flex flex-col bg-[var(--bg-page)] text-[var(--text-main)]">
@@ -116,16 +130,18 @@
         </button>
     </header>
 
-    <div class="flex-1 min-h-0 flex max-lg:flex-col">
+    <div data-studio-body class="flex-1 min-h-0 flex max-lg:relative">
         <%# The preview: the real app in a frame, the page, device and mode it is shown in
-            in a small bar floating under it. %>
+            in a small bar floating under it on a large screen, in the sheet's own bar on
+            a small one (the script moves it). A device wider than the room left is drawn
+            at its own width and scaled down to fit. %>
         <section data-studio-preview aria-label="<%= t('studio.preview') %>"
-            class="min-w-0 flex flex-col items-center gap-3 px-3 pt-3 pb-3 lg:flex-1 lg:px-6 lg:pt-5 lg:pb-4 max-lg:h-[46vh] max-lg:flex-none bg-black/[0.04] dark:bg-black/30">
-            <div data-studio-stage class="flex-1 min-h-0 w-full flex justify-center">
+            class="min-w-0 flex flex-col items-center gap-3 px-3 pt-3 pb-7 lg:flex-1 lg:px-6 lg:pt-5 lg:pb-4 bg-black/[0.04] dark:bg-black/30">
+            <div data-studio-stage class="relative flex-1 min-h-0 w-full flex justify-center">
                 <iframe data-studio-frame title="<%= t('studio.preview') %>"
                     class="h-full w-full flex-none rounded-2xl border border-[var(--border-color)] shadow-2xl bg-[var(--bg-page)] transition-[width] duration-300"></iframe>
             </div>
-            <div class="flex-none flex items-center gap-1 p-1.5 rounded-2xl card-theme shadow-xl max-w-full">
+            <div data-studio-tools class="flex-none flex items-center gap-1 max-w-full min-w-0 lg:p-1.5 lg:rounded-2xl lg:border lg:border-[var(--border-color)] lg:shadow-xl" style="background-color: var(--bg-card);">
                 <label class="flex items-center gap-2 pl-2 text-sm opacity-90">
                     <span class="max-sm:hidden opacity-70"><%= t('studio.page') %></span>
                     <select data-studio-page aria-label="<%= t('studio.page') %>" class="h-9 max-w-[10rem] rounded-lg border-0 bg-black/5 dark:bg-white/10 px-2 text-sm focus:ring-2 focus:ring-primary-theme/40">
@@ -141,11 +157,11 @@
                         <% }) %>
                     </select>
                 </label>
-                <span class="max-lg:hidden w-px h-6 mx-1 bg-[var(--border-color)]" aria-hidden="true"></span>
-                <div class="max-lg:hidden flex items-center gap-0.5" role="group" aria-label="<%= t('studio.device') %>">
+                <span class="w-px h-6 mx-1 bg-[var(--border-color)]" aria-hidden="true"></span>
+                <div class="flex items-center gap-0.5" role="group" aria-label="<%= t('studio.device') %>">
                     <% [['desktop', 'fa-desktop'], ['tablet', 'fa-tablet-screen-button'], ['phone', 'fa-mobile-screen']].forEach(([id, icon]) => { %>
                         <button type="button" data-studio-device="<%= id %>" aria-pressed="<%= id === 'desktop' %>" title="<%= t('studio.device_' + id) %>" aria-label="<%= t('studio.device_' + id) %>"
-                            class="w-9 h-9 rounded-lg flex items-center justify-center opacity-60 hover:opacity-100 aria-pressed:opacity-100 aria-pressed:bg-primary-theme/15 aria-pressed:text-primary-theme transition">
+                            class="<%= id === 'tablet' ? 'max-lg:hidden' : '' %> w-9 h-9 rounded-lg flex items-center justify-center opacity-60 hover:opacity-100 aria-pressed:opacity-100 aria-pressed:bg-primary-theme/15 aria-pressed:text-primary-theme transition">
                             <i class="fa-solid <%= icon %> text-sm" aria-hidden="true"></i>
                         </button>
                     <% }) %>
@@ -161,8 +177,17 @@
         </section>
 
         <aside data-studio-panel aria-label="<%= t('perso.title') %>"
-            class="flex-none flex lg:w-[420px] lg:border-l border-[var(--border-color)] max-lg:flex-col max-lg:flex-1 max-lg:min-h-0 max-lg:rounded-t-3xl max-lg:-mt-3 max-lg:relative max-lg:shadow-[0_-12px_30px_rgba(0,0,0,0.35)]"
+            class="flex-none flex lg:w-[420px] lg:border-l border-[var(--border-color)] max-lg:flex-col max-lg:overflow-hidden max-lg:rounded-t-3xl max-lg:shadow-[0_-12px_30px_rgba(0,0,0,0.35)]"
             style="background-color: var(--bg-card);">
+            <%# The sheet's bar, small screens only: dragged, or tapped, to move the sheet
+                between its heights, and home to the preview's controls. %>
+            <div data-sheet-bar class="lg:hidden flex-none relative flex items-center gap-1 pt-4 pb-1.5 px-2 touch-none select-none cursor-grab">
+                <span class="absolute top-1.5 left-1/2 -translate-x-1/2 w-10 h-1.5 rounded-full bg-current opacity-25" aria-hidden="true"></span>
+                <div data-sheet-tools class="flex-1 min-w-0 flex"></div>
+                <button type="button" data-sheet-toggle aria-label="<%= t('studio.sheet_expand') %>" title="<%= t('studio.sheet_expand') %>" class="<%= toolButton %> !w-10 !h-10 flex-none">
+                    <i class="fa-solid fa-chevron-up transition-transform" aria-hidden="true"></i>
+                </button>
+            </div>
             <nav aria-label="<%= t('studio.sections') %>" role="tablist"
                 class="flex-none flex gap-1 p-2 overflow-x-auto [scrollbar-width:none] lg:w-[76px] lg:flex-col lg:py-3.5 lg:overflow-visible border-[var(--border-color)] max-lg:border-b lg:border-r"
                 style="background-color: rgb(0 0 0 / 0.08);">
@@ -180,7 +205,7 @@
 
             <form id="studioForm" action="<%= baseUrl %>/admin/personnalisation/save" method="POST" class="flex-1 min-w-0 min-h-0 overflow-y-auto overscroll-contain">
                 <% studioTabs.forEach((tab, i) => { %>
-                    <div id="studio-pane-<%= tab.id %>" data-studio-pane="<%= tab.id %>" role="tabpanel" class="<%= i === 0 ? 'is-active' : '' %> px-5 pt-5 pb-8 flex flex-col gap-6">
+                    <div id="studio-pane-<%= tab.id %>" data-studio-pane="<%= tab.id %>" role="tabpanel" class="<%= i === 0 ? 'is-active' : '' %> px-5 pt-4 lg:pt-5 pb-8 flex flex-col gap-6">
                         <%- include('partials/studio/tab-' + tab.id) %>
                     </div>
                 <% }) %>
@@ -221,12 +246,17 @@
         presetCustom: t('studio.preset_custom'),
         dark: t('studio.mode_dark'),
         light: t('studio.mode_light'),
+        sheetExpand: t('studio.sheet_expand'),
+        sheetCollapse: t('studio.sheet_collapse'),
         customColors: t('studio.custom_colors'),
         lowContrast: t('studio.custom_low_contrast', { ratio: '{{ratio}}' }),
         uploading: t('studio.ambience_uploading'),
         uploadFailed: t('image_manager.upload_failed')
     }).replace(/</g, '\\u003c') %>;
-    const deviceWidths = { desktop: '100%', tablet: '834px', phone: '390px' };
+    // The width each device is drawn at. A large screen shows the desktop at the room it
+    // has; a small one shows the phone that way, and everything else scaled down.
+    const DEVICE_WIDTH = { desktop: 1280, tablet: 834, phone: 390 };
+    const smallScreen = window.matchMedia('(max-width: 1023px)');
     const TAB_OF = (name) => {
         if (/^layout_(nav|topStyle|sticky|sidebar|dockLabels)$/.test(name) || name === 'navbarShortcuts') return 'nav';
         if (/^layout_(font|headingFont|headingCase)$/.test(name)) return 'text';
@@ -248,7 +278,11 @@
         form.scrollTop = 0;
         try { sessionStorage.setItem('studioTab', id); } catch (e) { /* private mode */ }
     }
-    tabs.forEach(tab => tab.addEventListener('click', () => showTab(tab.dataset.studioTab)));
+    tabs.forEach(tab => tab.addEventListener('click', () => {
+        showTab(tab.dataset.studioTab);
+        // A tab picked with the sheet folded down: its settings come up.
+        if (smallScreen.matches && studio.dataset.sheet === 'peek') setSheet('half');
+    }));
 
     // ---- The frame ----------------------------------------------------------------
     const inStudio = (path) => {
@@ -373,15 +407,100 @@
 
     pageSelect.addEventListener('change', () => { frame.src = inStudio(pageSelect.value).toString(); });
     studio.querySelector('[data-studio-reload]').addEventListener('click', reloadFrame);
-    studio.querySelectorAll('[data-studio-device]').forEach(button => button.addEventListener('click', () => {
-        studio.querySelectorAll('[data-studio-device]').forEach(b => b.setAttribute('aria-pressed', String(b === button)));
-        const device = button.dataset.studioDevice;
-        frame.style.width = deviceWidths[device];
-        // A phone gets a bezel, so it reads as one.
-        frame.classList.toggle('!rounded-[2.5rem]', device === 'phone');
-        frame.classList.toggle('!border-[10px]', device === 'phone');
-        frame.classList.toggle('!border-black', device === 'phone');
-    }));
+    // ---- Device and size of the preview -------------------------------------------------
+    const stage = studio.querySelector('[data-studio-stage]');
+    let device = smallScreen.matches ? 'phone' : 'desktop';
+    function layoutFrame() {
+        const fills = smallScreen.matches ? device === 'phone' : device === 'desktop';
+        // A phone gets a bezel on a large screen, so it reads as one.
+        const bezel = device === 'phone' && !smallScreen.matches;
+        frame.classList.toggle('!rounded-[2.5rem]', bezel);
+        frame.classList.toggle('!border-[10px]', bezel);
+        frame.classList.toggle('!border-black', bezel);
+        stage.classList.toggle('overflow-hidden', !fills);
+        if (fills) {
+            Object.assign(frame.style, { position: '', top: '', left: '', width: '', height: '', transform: '' });
+            return;
+        }
+        const box = stage.getBoundingClientRect();
+        const width = DEVICE_WIDTH[device];
+        const scale = Math.min(1, box.width / width);
+        Object.assign(frame.style, {
+            position: 'absolute', top: '0', left: '50%', width: width + 'px', height: (box.height / scale) + 'px',
+            transform: `translateX(-50%) scale(${scale})`, transformOrigin: 'top center'
+        });
+    }
+    function setDevice(next) {
+        device = next;
+        studio.querySelectorAll('[data-studio-device]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.studioDevice === device)));
+        layoutFrame();
+    }
+    studio.querySelectorAll('[data-studio-device]').forEach(button => button.addEventListener('click', () => setDevice(button.dataset.studioDevice)));
+    new ResizeObserver(layoutFrame).observe(stage);
+
+    // ---- The sheet (small screens) ----------------------------------------------------------
+    const body = studio.querySelector('[data-studio-body]');
+    const panel = studio.querySelector('[data-studio-panel]');
+    const sheetBar = studio.querySelector('[data-sheet-bar]');
+    const sheetToggle = studio.querySelector('[data-sheet-toggle]');
+    const tools = studio.querySelector('[data-studio-tools]');
+    const toolsHome = tools.parentElement;
+    function setSheet(state) {
+        studio.dataset.sheet = state;
+        const full = state === 'full';
+        sheetToggle.querySelector('i').classList.toggle('rotate-180', full);
+        const label = full ? i18n.sheetCollapse : i18n.sheetExpand;
+        sheetToggle.setAttribute('aria-label', label);
+        sheetToggle.title = label;
+        try { sessionStorage.setItem('studioSheet', state); } catch (e) { /* private mode */ }
+    }
+    // Peek shows the bar and the tabs, whatever their height in this language and size.
+    function measurePeek() {
+        const tabs = panel.querySelector('[role="tablist"]');
+        studio.style.setProperty('--sheet-peek', (sheetBar.offsetHeight + tabs.offsetHeight) + 'px');
+    }
+    function placeTools() {
+        (smallScreen.matches ? sheetBar.querySelector('[data-sheet-tools]') : toolsHome).appendChild(tools);
+        setDevice(smallScreen.matches ? 'phone' : 'desktop');
+        measurePeek();
+    }
+    smallScreen.addEventListener('change', placeTools);
+    sheetToggle.addEventListener('click', () => setSheet(studio.dataset.sheet === 'full' ? 'half' : 'full'));
+
+    // Dragged by its bar, it settles at the nearest height; a tap on the bar folds it
+    // down to the tabs, or brings it back up halfway.
+    sheetBar.addEventListener('pointerdown', (event) => {
+        if (!smallScreen.matches || event.button > 0 || event.target.closest('button, select, a, input, label')) return;
+        const startY = event.clientY;
+        const startHeight = panel.getBoundingClientRect().height;
+        const room = body.getBoundingClientRect().height;
+        const peek = sheetBar.offsetHeight + panel.querySelector('[role="tablist"]').offsetHeight;
+        let height = startHeight;
+        let moved = false;
+        studio.classList.add('is-dragging');
+        frame.style.pointerEvents = 'none';
+        const move = (ev) => {
+            const dy = ev.clientY - startY;
+            if (Math.abs(dy) > 6) moved = true;
+            height = Math.min(room, Math.max(peek, startHeight - dy));
+            studio.style.setProperty('--sheet', height + 'px');
+        };
+        const end = () => {
+            window.removeEventListener('pointermove', move);
+            window.removeEventListener('pointerup', end);
+            window.removeEventListener('pointercancel', end);
+            studio.classList.remove('is-dragging');
+            frame.style.pointerEvents = '';
+            studio.style.removeProperty('--sheet');
+            if (!moved) return setSheet(studio.dataset.sheet === 'peek' ? 'half' : 'peek');
+            const snaps = { peek, half: room * 0.55, full: room };
+            setSheet(Object.keys(snaps).reduce((a, b) => (Math.abs(snaps[b] - height) < Math.abs(snaps[a] - height) ? b : a)));
+        };
+        window.addEventListener('pointermove', move);
+        window.addEventListener('pointerup', end);
+        window.addEventListener('pointercancel', end);
+    });
+
     studio.querySelector('[data-studio-dark]').addEventListener('click', () => {
         darkOverride = !isDarkFrame();
         applyDark();
@@ -932,7 +1051,14 @@
         const url = inStudio('/dashboard');
         url.hash = 'arrange';
         frame.src = url.toString();
+        // Widgets are arranged in the preview: on a small screen it gets the room.
+        if (smallScreen.matches) setSheet('peek');
     });
+    // The navigation only applies to large screens: a small one can show it there.
+    form.querySelectorAll('[data-studio-show-device]').forEach(button => button.addEventListener('click', () => {
+        setDevice(button.dataset.studioShowDevice);
+        if (studio.dataset.sheet === 'full') setSheet('half');
+    }));
 
     // ---- Start --------------------------------------------------------------------------
     const params = new URLSearchParams(window.location.search);
@@ -945,6 +1071,10 @@
     if (startTab && tabs.some(tab => tab.dataset.studioTab === startTab)) showTab(startTab);
     syncAll();
     syncDarkLabel();
+    placeTools();
+    let startSheet = null;
+    try { startSheet = sessionStorage.getItem('studioSheet'); } catch (e) { /* private mode */ }
+    setSheet(<%- JSON.stringify(Boolean(startArrange)) %> ? 'peek' : (['peek', 'half', 'full'].includes(startSheet) ? startSheet : 'half'));
     const start = inStudio(<%- JSON.stringify(startPage).replace(/</g, '\\u003c') %>);
     if (<%- JSON.stringify(Boolean(startArrange)) %>) start.hash = 'arrange';
     frame.src = start.toString();

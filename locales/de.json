@@ -2286,6 +2286,9 @@
     "ambience_glass": "Milchglas",
     "ambience_glass_desc": "Flächen und Navigation lassen den Hintergrund durchscheinen.",
     "ambience_coverAccent": "Akzent aus dem Cover",
-    "ambience_coverAccent_desc": "Auf der Seite eines Objekts nimmt der Akzent die Farbe seines Covers an, sofern der Bild-Host es erlaubt."
+    "ambience_coverAccent_desc": "Auf der Seite eines Objekts nimmt der Akzent die Farbe seines Covers an, sofern der Bild-Host es erlaubt.",
+    "sheet_expand": "Einstellungen vergrößern",
+    "sheet_collapse": "Einstellungen verkleinern",
+    "show_desktop": "Wie am Computer ansehen"
   }
 }

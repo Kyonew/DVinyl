@@ -2286,6 +2286,9 @@
     "ambience_glass": "Efecto cristal",
     "ambience_glass_desc": "Los paneles y la navegación dejan entrever el fondo.",
     "ambience_coverAccent": "Acento de la portada",
-    "ambience_coverAccent_desc": "En la página de un objeto, el acento toma el color de su portada, si el servidor de la imagen lo permite."
+    "ambience_coverAccent_desc": "En la página de un objeto, el acento toma el color de su portada, si el servidor de la imagen lo permite.",
+    "sheet_expand": "Ampliar los ajustes",
+    "sheet_collapse": "Reducir los ajustes",
+    "show_desktop": "Verlo como en un ordenador"
   }
 }

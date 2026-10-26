@@ -2286,6 +2286,9 @@
     "ambience_glass": "Frosted glass",
     "ambience_glass_desc": "Panels and navigation let the background show through.",
     "ambience_coverAccent": "Accent from the cover",
-    "ambience_coverAccent_desc": "On an item's page, the accent takes the colour of its cover, when the cover host allows it."
+    "ambience_coverAccent_desc": "On an item's page, the accent takes the colour of its cover, when the cover host allows it.",
+    "sheet_expand": "Expand the settings",
+    "sheet_collapse": "Shrink the settings",
+    "show_desktop": "See it as on a computer"
   }
 }

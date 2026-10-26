@@ -8,7 +8,7 @@
     const stepOptions = (key) => LAYOUT_OPTIONS[key].map(v => ({ value: v, label: t('layout.' + key + '_' + v) }));
 %>
 <div class="flex flex-col gap-1.5">
-    <h2 class="text-xl font-extrabold"><%= t('studio.tab_details') %></h2>
+    <h2 class="text-xl font-extrabold max-lg:hidden"><%= t('studio.tab_details') %></h2>
     <p class="text-sm opacity-60"><%= t('studio.details_desc') %></p>
 </div>
 

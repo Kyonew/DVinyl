@@ -8,9 +8,17 @@
     const radiusNow = LAYOUT_OPTIONS.radiusFactor[navLayout.radius];
 %>
 <div class="flex flex-col gap-1.5">
-    <h2 class="text-xl font-extrabold"><%= t('layout.nav_label') %></h2>
+    <h2 class="text-xl font-extrabold max-lg:hidden"><%= t('layout.nav_label') %></h2>
     <p class="text-sm opacity-60"><%= t('studio.nav_desc') %></p>
 </div>
+
+<%# On a small screen the preview shows the phone, whose tab bar none of this changes. %>
+<button type="button" data-studio-show-device="desktop"
+    class="lg:hidden flex items-center gap-3 p-3 rounded-xl text-left bg-primary-theme/10 text-primary-theme hover:bg-primary-theme/15 transition">
+    <i class="fa-solid fa-desktop text-lg" aria-hidden="true"></i>
+    <span class="flex-1 text-sm font-bold"><%= t('studio.show_desktop') %></span>
+    <i class="fa-solid fa-chevron-right text-xs" aria-hidden="true"></i>
+</button>
 
 <div class="grid grid-cols-2 gap-2.5">
     <% LAYOUT_OPTIONS.nav.forEach(pos => { %>
