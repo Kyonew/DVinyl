@@ -52,6 +52,12 @@
                             <% if (album.containsLabel) { %>
                                 <p class="text-[10px] font-bold text-primary-theme truncate"><%= t(album.containsLabel.key, album.containsLabel.params) %></p>
                             <% } %>
+                            <% const rowAway = locals.awayItems && awayItems.get(String(album._id)); %>
+                            <% if (rowAway) { %>
+                                <p class="text-[10px] font-bold truncate <%= rowAway.overdue ? 'text-red-500' : 'text-primary-theme' %>">
+                                    <i class="fa-solid fa-<%= rowAway.icon %> mr-1" aria-hidden="true"></i><%= t('requests.away_with', { name: rowAway.holder }) %>
+                                </p>
+                            <% } %>
                             <%# On a phone the info and location columns would scroll off screen, so they read under the title instead. %>
                             <% const mobileInfo = [infoHtml, locals.isShareView ? '' : highlightMatches(album.location, '')].filter(Boolean).join(' · '); %>
                             <% if (mobileInfo) { %>

@@ -1,0 +1,359 @@
+<%# The Requests tab of the collection's admin page: the switch, the collection's request
+    types, and the builder they are made with. Expects requestAdmin
+    (core/routes/requestAdminRoute.ts). %>
+<%
+    const ra = requestAdmin;
+    const toggle = (name, checked) => `
+        <span class="relative inline-flex items-center cursor-pointer flex-none">
+            <input type="checkbox" name="${name}" ${checked ? 'checked' : ''} class="sr-only peer">
+            <span class="w-11 h-6 bg-black/10 dark:bg-white/10 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></span>
+        </span>`;
+    const embed = v => JSON.stringify(v).replace(/</g, '\\u003c');
+    const summary = type => [
+        t('requests.builder.visibility_' + type.visibility),
+        type.holder !== 'none' ? t('requests.builder.holder_' + type.holder) : null,
+        type.steps.length ? type.steps.map(s => s.label).join(' → ') : null
+    ].filter(Boolean).join(' · ');
+    const inputClass = 'w-full rounded-xl bg-black/5 dark:bg-white/5 border border-[var(--border-color)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-theme';
+    const labelClass = 'block text-xs font-bold uppercase tracking-widest opacity-60 mb-1.5';
+    const chipButton = 'text-xs font-bold px-3 py-1.5 rounded-lg bg-black/5 dark:bg-white/10 hover:bg-primary-theme hover:text-white transition-colors';
+%>
+<section class="card-theme rounded-3xl p-6 shadow-sm transition-colors">
+    <div class="flex items-center gap-4 mb-6">
+        <div class="w-12 h-12 rounded-2xl bg-primary-theme/10 text-primary-theme flex items-center justify-center shrink-0">
+            <i class="fa-solid fa-paper-plane text-xl" aria-hidden="true"></i>
+        </div>
+        <div>
+            <h2 class="text-sm font-black uppercase tracking-widest opacity-80"><%= t('requests.admin.title') %></h2>
+            <p class="text-xs opacity-50"><%= t('requests.admin.description') %></p>
+        </div>
+    </div>
+
+    <form action="<%= baseUrl %>/admin/requests/settings" method="POST" data-save-bar class="space-y-4">
+        <label class="flex items-center justify-between gap-4 p-4 rounded-2xl bg-black/5 dark:bg-white/5 cursor-pointer">
+            <span>
+                <span class="block text-sm font-bold"><%= t('requests.admin.enable') %></span>
+                <span class="block text-xs opacity-60 mt-0.5"><%= t('requests.admin.enable_hint') %></span>
+            </span>
+            <%- toggle('enabled', ra.enabled) %>
+        </label>
+
+        <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+            <h3 class="text-xs font-bold uppercase tracking-widest opacity-50"><%= t('requests.admin.types_title') %></h3>
+            <% if (ra.types.length < ra.maxTypes) { %>
+                <div class="flex flex-wrap gap-2">
+                    <button type="button" data-type-new class="<%= chipButton %>"><i class="fa-solid fa-plus mr-1" aria-hidden="true"></i><%= t('requests.builder.new_btn') %></button>
+                    <% Object.entries(ra.templates).forEach(([id, tpl]) => { %>
+                        <button type="button" data-type-template="<%= id %>" class="<%= chipButton %>">
+                            <i class="fa-solid fa-<%= tpl.icon %> mr-1" aria-hidden="true"></i><%= t('requests.builder.from_template', { name: tpl.name }) %>
+                        </button>
+                    <% }) %>
+                </div>
+            <% } %>
+        </div>
+
+        <% if (ra.types.length === 0) { %>
+            <p class="text-sm opacity-60 text-center py-6 px-4"><%= t('requests.builder.empty') %></p>
+        <% } else { %>
+            <ul class="divide-y divide-black/5 dark:divide-white/5 rounded-2xl bg-black/5 dark:bg-white/5 overflow-hidden">
+                <% ra.types.forEach(type => { %>
+                    <li class="flex items-center gap-4 p-4">
+                        <span class="w-10 h-10 flex-none rounded-xl bg-primary-theme/15 text-primary-theme flex items-center justify-center">
+                            <i class="fa-solid fa-<%= type.icon %>" aria-hidden="true"></i>
+                        </span>
+                        <span class="min-w-0 flex-1">
+                            <span class="block font-bold truncate"><%= type.name %></span>
+                            <span class="block text-xs opacity-60 truncate"><%= summary(type) %></span>
+                        </span>
+                        <button type="button" data-type-edit="<%= type._id %>" class="w-9 h-9 flex-none rounded-lg bg-black/5 dark:bg-white/10 hover:bg-primary-theme hover:text-white transition-colors" aria-label="<%= t('common.edit') %>">
+                            <i class="fa-solid fa-pen text-xs" aria-hidden="true"></i>
+                        </button>
+                        <button type="submit" form="deleteType-<%= type._id %>" class="w-9 h-9 flex-none rounded-lg bg-black/5 dark:bg-white/10 hover:bg-red-500 hover:text-white transition-colors" aria-label="<%= t('common.delete') %>">
+                            <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>
+                        </button>
+                        <span title="<%= t('requests.admin.type_enabled') %>"><%- toggle('type_' + type.slug, type.enabled) %></span>
+                    </li>
+                <% }) %>
+            </ul>
+        <% } %>
+
+        <div class="flex justify-end pt-2">
+            <button type="submit" class="px-6 py-3 rounded-2xl text-sm font-black uppercase tracking-widest bg-primary-theme text-white shadow-lg hover:opacity-90 transition-opacity">
+                <i class="fa-solid fa-floppy-disk mr-2" aria-hidden="true"></i><%= t('common.save') %>
+            </button>
+        </div>
+    </form>
+    <%# Outside the switches' form, which a form cannot be nested in; the buttons above name them. %>
+    <% ra.types.forEach(type => { %>
+        <form id="deleteType-<%= type._id %>" action="<%= baseUrl %>/admin/request-types/<%= type._id %>/delete" method="POST" class="hidden"
+            onsubmit="return confirm(<%= JSON.stringify(t('requests.builder.delete_confirm')) %>)"></form>
+    <% }) %>
+</section>
+
+<dialog id="typeBuilder" class="card-theme rounded-3xl p-0 w-[min(42rem,calc(100vw-2rem))] max-h-[90vh] shadow-2xl backdrop:bg-black/60 backdrop:backdrop-blur-sm text-[var(--text-main)]">
+    <form id="typeBuilderForm" class="p-6 space-y-6" novalidate>
+        <div class="flex items-center justify-between gap-3">
+            <h3 class="font-bold text-lg" data-builder-title></h3>
+            <button type="button" data-builder-close class="w-8 h-8 rounded-lg opacity-60 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/10" aria-label="<%= t('requests.close') %>">
+                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+            </button>
+        </div>
+
+        <div data-builder-errors class="hidden rounded-2xl px-4 py-3 text-sm bg-red-500/15 text-red-700 dark:text-red-300"></div>
+
+        <div class="grid grid-cols-[1fr,auto] gap-3 items-end">
+            <div>
+                <label class="<%= labelClass %>" for="tbName"><%= t('requests.builder.name') %></label>
+                <input id="tbName" maxlength="60" class="<%= inputClass %>" placeholder="<%= t('requests.builder.name_placeholder') %>">
+            </div>
+            <div>
+                <label class="<%= labelClass %>" for="tbIcon"><%= t('requests.builder.icon') %></label>
+                <div class="flex items-center gap-2">
+                    <span class="w-10 h-10 rounded-xl bg-primary-theme/15 text-primary-theme flex items-center justify-center"><i data-icon-preview class="fa-solid fa-paper-plane" aria-hidden="true"></i></span>
+                    <input id="tbIcon" list="tbIcons" maxlength="40" class="<%= inputClass %> w-36" placeholder="paper-plane">
+                    <datalist id="tbIcons">
+                        <% ['paper-plane', 'hand-holding', 'gift', 'headphones', 'calendar-days', 'broom', 'heart', 'star', 'comment', 'dice', 'music', 'book-open', 'film', 'gamepad', 'cubes', 'truck', 'camera', 'tag', 'wrench', 'magnifying-glass'].forEach(i => { %><option value="<%= i %>"><% }) %>
+                    </datalist>
+                </div>
+            </div>
+        </div>
+        <div>
+            <label class="<%= labelClass %>" for="tbDescription"><%= t('requests.builder.description_field') %></label>
+            <textarea id="tbDescription" rows="2" maxlength="300" class="<%= inputClass %>"></textarea>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+                <label class="<%= labelClass %>" for="tbMinRole"><%= t('requests.builder.min_role') %></label>
+                <select id="tbMinRole" class="<%= inputClass %>">
+                    <% ['viewer', 'editor', 'admin'].forEach(role => { %><option value="<%= role %>"><%= t('requests.builder.role_' + role) %></option><% }) %>
+                </select>
+            </div>
+            <div>
+                <label class="<%= labelClass %>" for="tbVisibility"><%= t('requests.builder.visibility') %></label>
+                <select id="tbVisibility" class="<%= inputClass %>">
+                    <option value="members"><%= t('requests.builder.visibility_members') %></option>
+                    <option value="private"><%= t('requests.builder.visibility_private') %></option>
+                </select>
+            </div>
+            <div>
+                <label class="<%= labelClass %>" for="tbHolder"><%= t('requests.builder.holder') %></label>
+                <select id="tbHolder" class="<%= inputClass %>">
+                    <option value="none"><%= t('requests.builder.holder_none') %></option>
+                    <option value="sender"><%= t('requests.builder.holder_sender') %></option>
+                    <option value="recipient"><%= t('requests.builder.holder_recipient') %></option>
+                </select>
+            </div>
+        </div>
+        <p class="text-xs opacity-60 -mt-3" data-holder-hint></p>
+
+        <div>
+            <div class="flex items-center justify-between mb-1">
+                <span class="<%= labelClass %> !mb-0"><%= t('requests.builder.fields') %></span>
+                <button type="button" data-field-add class="<%= chipButton %>"><i class="fa-solid fa-plus mr-1" aria-hidden="true"></i><%= t('requests.builder.field_add') %></button>
+            </div>
+            <p class="text-xs opacity-50 mb-2"><%= t('requests.builder.fields_hint') %></p>
+            <ul data-fields class="space-y-2"></ul>
+        </div>
+
+        <div>
+            <div class="flex items-center justify-between mb-1">
+                <span class="<%= labelClass %> !mb-0"><%= t('requests.builder.steps') %></span>
+                <button type="button" data-step-add class="<%= chipButton %>"><i class="fa-solid fa-plus mr-1" aria-hidden="true"></i><%= t('requests.builder.step_add') %></button>
+            </div>
+            <p class="text-xs opacity-50 mb-2"><%= t('requests.builder.steps_hint') %></p>
+            <ol data-steps class="space-y-2"></ol>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-1">
+            <button type="button" data-builder-close class="px-4 py-2 rounded-xl text-sm font-bold bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-colors"><%= t('common.cancel') %></button>
+            <button type="submit" class="px-4 py-2 rounded-xl text-sm font-bold bg-primary-theme text-white hover:opacity-90 transition-opacity"><%= t('common.save') %></button>
+        </div>
+    </form>
+</dialog>
+
+<template id="typeFieldRow">
+    <li class="p-3 rounded-2xl bg-black/5 dark:bg-white/5 space-y-2" data-field-row>
+        <div class="grid grid-cols-[1fr,auto,auto] gap-2 items-center">
+            <input data-f="label" maxlength="60" class="<%= inputClass %>" placeholder="<%= t('requests.builder.field_label') %>">
+            <select data-f="type" class="<%= inputClass %> w-auto">
+                <% ['text', 'textarea', 'number', 'date', 'select', 'boolean'].forEach(type => { %>
+                    <option value="<%= type %>"><%= t('requests.builder.type_' + type) %></option>
+                <% }) %>
+            </select>
+            <button type="button" data-remove class="w-9 h-9 rounded-lg hover:bg-red-500 hover:text-white transition-colors" aria-label="<%= t('common.delete') %>">
+                <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>
+            </button>
+        </div>
+        <div class="flex flex-wrap gap-x-5 gap-y-1">
+            <label class="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+                <input type="checkbox" data-f="required" class="w-4 h-4 accent-primary-theme"><%= t('requests.builder.field_required') %>
+            </label>
+            <label class="flex items-center gap-2 text-xs font-semibold cursor-pointer" data-deadline-wrap>
+                <input type="checkbox" data-f="deadline" class="w-4 h-4 accent-primary-theme"><%= t('requests.builder.field_deadline') %>
+            </label>
+        </div>
+        <textarea data-f="options" rows="3" class="<%= inputClass %> hidden" placeholder="<%= t('requests.builder.field_options') %>"></textarea>
+    </li>
+</template>
+
+<template id="typeStepRow">
+    <li class="p-3 rounded-2xl bg-black/5 dark:bg-white/5 flex flex-wrap items-center gap-3" data-step-row>
+        <span class="w-6 h-6 flex-none rounded-full bg-primary-theme/15 text-primary-theme text-xs font-bold flex items-center justify-center" data-step-number></span>
+        <input data-s="label" maxlength="60" class="<%= inputClass %> flex-1 min-w-[10rem]" placeholder="<%= t('requests.builder.step_label') %>">
+        <label class="flex items-center gap-2 text-xs font-semibold cursor-pointer" data-out-wrap>
+            <input type="checkbox" data-s="out" class="w-4 h-4 accent-primary-theme"><%= t('requests.builder.step_out') %>
+        </label>
+        <button type="button" data-remove class="w-9 h-9 rounded-lg hover:bg-red-500 hover:text-white transition-colors" aria-label="<%= t('common.delete') %>">
+            <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>
+        </button>
+    </li>
+</template>
+
+<script type="application/json" id="typeBuilderData"><%- embed({
+    types: ra.types,
+    templates: ra.templates,
+    texts: {
+        newTitle: t('requests.builder.new_title'),
+        editTitle: t('requests.builder.edit_title'),
+        holderHints: {
+            none: t('requests.builder.holder_none_hint'),
+            sender: t('requests.builder.holder_sender_hint'),
+            recipient: t('requests.builder.holder_recipient_hint')
+        },
+        error: t('errors.generic_server_error')
+    }
+}) %></script>
+
+<script>
+    (() => {
+        const data = JSON.parse(document.getElementById('typeBuilderData').textContent);
+        const dialog = document.getElementById('typeBuilder');
+        const form = document.getElementById('typeBuilderForm');
+        const $ = id => form.querySelector('#' + id);
+        const fieldsList = form.querySelector('[data-fields]');
+        const stepsList = form.querySelector('[data-steps]');
+        const errorsBox = form.querySelector('[data-builder-errors]');
+        const holder = $('tbHolder');
+        let editing = null;
+
+        const iconInput = $('tbIcon');
+        const iconPreview = form.querySelector('[data-icon-preview]');
+        const showIcon = () => { iconPreview.className = 'fa-solid fa-' + (/^[a-z0-9-]+$/.test(iconInput.value) ? iconInput.value : 'paper-plane'); };
+        iconInput.addEventListener('input', showIcon);
+
+        // A step only takes the item away when someone is named to have it, and the last
+        // step always brings it back.
+        const sync = () => {
+            const moves = holder.value !== 'none';
+            form.querySelector('[data-holder-hint]').textContent = data.texts.holderHints[holder.value] || '';
+            const rows = [...stepsList.querySelectorAll('[data-step-row]')];
+            rows.forEach((row, index) => {
+                row.querySelector('[data-step-number]').textContent = index + 1;
+                const last = index === rows.length - 1;
+                const out = row.querySelector('[data-s="out"]');
+                row.querySelector('[data-out-wrap]').classList.toggle('hidden', !moves || last);
+                if (!moves || last) out.checked = false;
+            });
+            fieldsList.querySelectorAll('[data-field-row]').forEach(row => {
+                const type = row.querySelector('[data-f="type"]').value;
+                row.querySelector('[data-f="options"]').classList.toggle('hidden', type !== 'select');
+                row.querySelector('[data-deadline-wrap]').classList.toggle('hidden', type !== 'date');
+            });
+        };
+        holder.addEventListener('change', sync);
+
+        const addRow = (list, templateId, fill) => {
+            const row = document.getElementById(templateId).content.firstElementChild.cloneNode(true);
+            fill(row);
+            row.querySelector('[data-remove]').addEventListener('click', () => { row.remove(); sync(); });
+            row.querySelectorAll('select, input[type=checkbox]').forEach(el => el.addEventListener('change', sync));
+            list.appendChild(row);
+            return row;
+        };
+        const addField = (f = {}) => addRow(fieldsList, 'typeFieldRow', row => {
+            row.dataset.key = f.key || '';
+            row.querySelector('[data-f="label"]').value = f.label || '';
+            row.querySelector('[data-f="type"]').value = f.type || 'text';
+            row.querySelector('[data-f="required"]').checked = !!f.required;
+            row.querySelector('[data-f="deadline"]').checked = !!f.deadline;
+            row.querySelector('[data-f="options"]').value = (f.options || []).join('\n');
+        });
+        const addStep = (s = {}) => addRow(stepsList, 'typeStepRow', row => {
+            row.dataset.key = s.key || '';
+            row.querySelector('[data-s="label"]').value = s.label || '';
+            row.querySelector('[data-s="out"]').checked = !!s.out;
+        });
+        form.querySelector('[data-field-add]').addEventListener('click', () => { addField().querySelector('input').focus(); sync(); });
+        form.querySelector('[data-step-add]').addEventListener('click', () => { addStep().querySelector('input').focus(); sync(); });
+
+        const open = (type, isEdit) => {
+            editing = isEdit ? type : null;
+            errorsBox.classList.add('hidden');
+            fieldsList.innerHTML = '';
+            stepsList.innerHTML = '';
+            const k = type || { icon: 'paper-plane', minRole: 'viewer', visibility: 'members', holder: 'none', fields: [], steps: [] };
+            dialog.querySelector('[data-builder-title]').textContent = isEdit ? data.texts.editTitle : data.texts.newTitle;
+            $('tbName').value = k.name || '';
+            iconInput.value = k.icon || 'paper-plane';
+            $('tbDescription').value = k.description || '';
+            $('tbMinRole').value = k.minRole || 'viewer';
+            $('tbVisibility').value = k.visibility || 'members';
+            holder.value = k.holder || 'none';
+            (k.fields || []).forEach(addField);
+            (k.steps || []).forEach(addStep);
+            showIcon();
+            sync();
+            dialog.showModal();
+        };
+
+        document.querySelectorAll('[data-type-new]').forEach(b => b.addEventListener('click', () => open(null, false)));
+        document.querySelectorAll('[data-type-template]').forEach(b => b.addEventListener('click', () => open(data.templates[b.dataset.typeTemplate], false)));
+        document.querySelectorAll('[data-type-edit]').forEach(b => b.addEventListener('click', () => open(data.types.find(k => k._id === b.dataset.typeEdit), true)));
+        dialog.querySelectorAll('[data-builder-close]').forEach(b => b.addEventListener('click', () => dialog.close()));
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const body = {
+                name: $('tbName').value,
+                icon: iconInput.value,
+                description: $('tbDescription').value,
+                minRole: $('tbMinRole').value,
+                visibility: $('tbVisibility').value,
+                holder: holder.value,
+                fields: [...fieldsList.querySelectorAll('[data-field-row]')].map(row => ({
+                    key: row.dataset.key || undefined,
+                    label: row.querySelector('[data-f="label"]').value,
+                    type: row.querySelector('[data-f="type"]').value,
+                    required: row.querySelector('[data-f="required"]').checked,
+                    deadline: row.querySelector('[data-f="deadline"]').checked,
+                    options: row.querySelector('[data-f="options"]').value.split('\n')
+                })),
+                steps: [...stepsList.querySelectorAll('[data-step-row]')].map(row => ({
+                    key: row.dataset.key || undefined,
+                    label: row.querySelector('[data-s="label"]').value,
+                    out: row.querySelector('[data-s="out"]').checked
+                }))
+            };
+            const url = '<%= baseUrl %>/admin/request-types' + (editing ? '/' + editing._id : '');
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const result = await response.json().catch(() => ({}));
+                if (response.ok && result.success) {
+                    window.location.hash = 'requests';
+                    window.location.reload();
+                    return;
+                }
+                errorsBox.textContent = (result.errors || [data.texts.error]).join(' ');
+            } catch (e) {
+                errorsBox.textContent = data.texts.error;
+            }
+            errorsBox.classList.remove('hidden');
+            errorsBox.scrollIntoView({ block: 'nearest' });
+        });
+    })();
+</script>

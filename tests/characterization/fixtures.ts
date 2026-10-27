@@ -68,6 +68,8 @@ export interface InstanceDump {
   collections: any[];
   furniture: any[];
   lists: any[];
+  requests: any[];
+  requestTypes: any[];
   customPlugins: any[];
   priceHistory: any[];
   logs: any[];

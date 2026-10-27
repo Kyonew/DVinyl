@@ -39,7 +39,7 @@ describe('instance backup', { skip: !source || !target }, () => {
   it('exports every table with the dump metadata', async () => {
     assert.deepEqual(Object.keys(dump).sort(), [
       'albums', 'collections', 'customPlugins', 'furniture', 'instanceSettings', 'lists', 'logs', 'metadata',
-      'priceHistory', 'settings', 'users'
+      'priceHistory', 'requestTypes', 'requests', 'settings', 'users'
     ]);
     assert.equal(dump.metadata.version, require('../../package.json').version);
     assert.deepEqual(titles(dump), ['Abbey Road', 'Blue Train', 'Dune', 'Other Shelf', 'The Wall']);

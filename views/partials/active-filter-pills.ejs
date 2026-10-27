@@ -5,6 +5,7 @@
     const activePills = [];
     if (locals.querySearch) activePills.push({ key: 'search', label: t('collection.filter_placeholder') + ': "' + locals.querySearch + '"' });
     if (locals.queryLocation) activePills.push({ key: 'location', label: t('common.location') + ': "' + locals.queryLocation + '"' });
+    if (locals.queryAway) activePills.push({ key: 'away', label: t(locals.queryAway === 'out' ? 'requests.filter_out' : 'requests.filter_in') });
     if (locals.queryArtist) activePills.push({ key: 'artist', label: (locals.creatorFilterLabel || t('collection.artist_filter')) + ': "' + locals.queryArtist + '"' });
 
     if (locals.queryDecade) {

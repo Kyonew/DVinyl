@@ -1,0 +1,113 @@
+<%# The form that sends a request about one item: which type, to whom, the type's own
+    questions, and a message. Each type's questions only show, and are only sent, while
+    that type is picked.
+    Params: types (the collection's, enabled and allowed), recipients ([{ id, username }]),
+    itemId, back (the page to come back to), dialogId. %>
+<%
+    const inputClass = 'w-full rounded-xl bg-black/5 dark:bg-white/5 border border-[var(--border-color)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-theme';
+    const labelClass = 'block text-xs font-bold uppercase tracking-widest opacity-60 mb-1.5';
+%>
+<dialog id="<%= dialogId %>" class="card-theme rounded-3xl p-0 w-[min(34rem,calc(100vw-2rem))] max-h-[90vh] shadow-2xl backdrop:bg-black/60 backdrop:backdrop-blur-sm text-[var(--text-main)]">
+    <form action="<%= baseUrl %>/requests" method="POST" class="p-6 space-y-5" data-request-form>
+        <input type="hidden" name="itemId" value="<%= itemId %>">
+        <input type="hidden" name="back" value="<%= back %>">
+        <div class="flex items-center justify-between gap-3">
+            <h3 class="font-bold text-lg"><%= t('requests.new_title') %></h3>
+            <button type="button" onclick="this.closest('dialog').close()" class="w-8 h-8 rounded-lg opacity-60 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/10" aria-label="<%= t('requests.close') %>">
+                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+            </button>
+        </div>
+
+        <fieldset>
+            <legend class="<%= labelClass %>"><%= t('requests.field_type') %></legend>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <% types.forEach((type, i) => { %>
+                    <label class="flex items-start gap-3 p-3 rounded-2xl bg-black/5 dark:bg-white/5 border-2 border-transparent cursor-pointer has-[:checked]:border-primary-theme has-[:checked]:bg-primary-theme/10 transition-colors">
+                        <input type="radio" name="type" value="<%= type.slug %>" class="sr-only" <%= i === 0 ? 'checked' : '' %> required>
+                        <span class="w-9 h-9 flex-none rounded-xl bg-primary-theme/15 text-primary-theme flex items-center justify-center">
+                            <i class="fa-solid fa-<%= type.icon %>" aria-hidden="true"></i>
+                        </span>
+                        <span class="min-w-0">
+                            <span class="block font-bold text-sm"><%= type.name %></span>
+                            <% if (type.description) { %><span class="block text-xs opacity-60 mt-0.5"><%= type.description %></span><% } %>
+                        </span>
+                    </label>
+                <% }) %>
+            </div>
+        </fieldset>
+
+        <div>
+            <label for="<%= dialogId %>-recipient" class="<%= labelClass %>"><%= t('requests.field_recipient') %></label>
+            <select id="<%= dialogId %>-recipient" name="recipient" class="<%= inputClass %>" required>
+                <option value=""><%= t('requests.recipient_placeholder') %></option>
+                <% recipients.forEach(m => { %><option value="<%= m.id %>"><%= m.username %></option><% }) %>
+            </select>
+        </div>
+
+        <% types.forEach((type, i) => { %>
+            <% if ((type.fields || []).length) { %>
+            <div data-type-fields="<%= type.slug %>" class="space-y-4 <%= i === 0 ? '' : 'hidden' %>">
+                <% type.fields.forEach(f => { const name = 'f_' + f.key; const id = dialogId + '-' + type.slug + '-' + f.key; %>
+                    <% if (f.type === 'boolean') { %>
+                        <label class="flex items-center gap-3 text-sm font-semibold cursor-pointer">
+                            <input type="checkbox" name="<%= name %>" class="w-4 h-4 accent-primary-theme" <%= f.required ? 'required' : '' %> <%= i === 0 ? '' : 'disabled' %>>
+                            <%= f.label %><% if (f.required) { %> <span class="text-red-500">*</span><% } %>
+                        </label>
+                    <% } else { %>
+                        <div>
+                            <label for="<%= id %>" class="<%= labelClass %>">
+                                <%= f.label %><% if (f.required) { %> <span class="text-red-500">*</span><% } %>
+                                <% if (f.deadline) { %><i class="fa-regular fa-clock ml-1" title="<%= t('requests.deadline_hint') %>" aria-hidden="true"></i><% } %>
+                            </label>
+                            <% const disabled = i === 0 ? '' : 'disabled'; %>
+                            <% if (f.type === 'textarea') { %>
+                                <textarea id="<%= id %>" name="<%= name %>" rows="3" maxlength="1000" class="<%= inputClass %>" <%= f.required ? 'required' : '' %> <%= disabled %>></textarea>
+                            <% } else if (f.type === 'select') { %>
+                                <select id="<%= id %>" name="<%= name %>" class="<%= inputClass %>" <%= f.required ? 'required' : '' %> <%= disabled %>>
+                                    <option value=""></option>
+                                    <% (f.options || []).forEach(o => { %><option value="<%= o %>"><%= o %></option><% }) %>
+                                </select>
+                            <% } else { %>
+                                <input id="<%= id %>" name="<%= name %>" class="<%= inputClass %>"
+                                    type="<%= f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : 'text' %>"
+                                    <%= f.type === 'number' ? 'step=any' : '' %> <%= f.type === 'text' ? 'maxlength=200' : '' %>
+                                    <%= f.required ? 'required' : '' %> <%= disabled %>>
+                            <% } %>
+                        </div>
+                    <% } %>
+                <% }) %>
+            </div>
+            <% } %>
+        <% }) %>
+
+        <div>
+            <label for="<%= dialogId %>-message" class="<%= labelClass %>"><%= t('requests.field_message') %></label>
+            <textarea id="<%= dialogId %>-message" name="message" rows="2" maxlength="500" class="<%= inputClass %>"
+                placeholder="<%= t('requests.message_placeholder') %>"></textarea>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-1">
+            <button type="button" onclick="this.closest('dialog').close()" class="px-4 py-2 rounded-xl text-sm font-bold bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-colors"><%= t('common.cancel') %></button>
+            <button type="submit" class="px-4 py-2 rounded-xl text-sm font-bold bg-primary-theme text-white hover:opacity-90 transition-opacity">
+                <i class="fa-solid fa-paper-plane mr-1" aria-hidden="true"></i><%= t('requests.send_btn') %>
+            </button>
+        </div>
+    </form>
+</dialog>
+<script>
+    (() => {
+        const form = document.querySelector('#<%= dialogId %> [data-request-form]');
+        // Only the picked type's questions show and are sent: the others are disabled, so
+        // their required fields never block the form.
+        const sync = () => {
+            const picked = form.querySelector('input[name="type"]:checked')?.value;
+            form.querySelectorAll('[data-type-fields]').forEach(box => {
+                const on = box.dataset.typeFields === picked;
+                box.classList.toggle('hidden', !on);
+                box.querySelectorAll('input, select, textarea').forEach(el => { el.disabled = !on; });
+            });
+        };
+        form.querySelectorAll('input[name="type"]').forEach(radio => radio.addEventListener('change', sync));
+        sync();
+    })();
+</script>

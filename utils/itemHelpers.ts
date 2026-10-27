@@ -5,6 +5,7 @@ import { idOf } from '../core/db/ids';
 import { visibilityFilter } from './visibilityHelper';
 import { deleteUnusedManagedItemImages, managedItemImagesFrom } from '../core/itemImageStorage';
 import { pullItemsFromLists } from '../core/listStore';
+import { closeRequestsOnItems } from '../core/requests';
 
 /**
  * Resolves, for a page of items, what each one should actually show on the shelf.
@@ -76,13 +77,14 @@ export async function deleteItemsAndContents(ids: any[]): Promise<number> {
     const wanted = ids.map(idOf);
     const doomed = await db.items.find(
         or(isIn('_id', wanted), isIn('parent', wanted)),
-        { fields: ['_id', 'cover_image', 'user_image', 'images'] }
+        { fields: ['_id', 'title', 'cover_image', 'user_image', 'images'] }
     );
     const all = doomed.map((item: any) => item._id);
     const images = doomed.flatMap(managedItemImagesFrom);
 
     const deleted = await db.items.deleteMany(isIn('_id', all.map(idOf)));
     await pullItemsFromLists(all);
+    await closeRequestsOnItems(all, new Map(doomed.map((item: any) => [idOf(item._id), item.title || ''])));
     try {
         await deleteUnusedManagedItemImages(images);
     } catch (err) {

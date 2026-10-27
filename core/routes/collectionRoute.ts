@@ -22,6 +22,7 @@ import {
 } from '../pluginExtraFields';
 import { filterCandidates, filterOverrides, activeFilters, CORE_FILTER_IDS } from '../filterFields';
 import { isTranslationKey } from '../cardFields';
+import { anyTypeMovesItems, outByItem, outItemIds, requestsEnabled } from '../requests';
 
 const router = express.Router();
 
@@ -190,6 +191,18 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
     // shelf name by trying it, which is the same disclosure the hidden control avoids.
     if (location && !res.locals.isShareView) {
       conditions.push(contains('location', String(location)));
+    }
+
+    // AWAY FILTER
+    // Items a request has taken away (a loan, for one), with whoever has them. Only when
+    // one of the collection's request types can do that; never for a share link, which
+    // says nothing about who has what.
+    const awayFilterOffered = !inWishlist && !res.locals.isShareView && requestsEnabled(res.locals.settings)
+      && await anyTypeMovesItems(activeCollectionId);
+    const awayFilter = awayFilterOffered && (req.query.away === 'out' || req.query.away === 'in') ? req.query.away : '';
+    if (awayFilter) {
+      const away = await outItemIds(activeCollectionId);
+      conditions.push(awayFilter === 'out' ? isIn('_id', away) : notIn('_id', away));
     }
 
     // ARTIST / CREATOR FILTER
@@ -434,6 +447,9 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
       }
     })();
 
+    // Who has the items of this page that are away, so a card can say so.
+    const awayItems = awayFilterOffered ? await outByItem(activeCollectionId, albums.map(a => a._id)) : new Map();
+
     const albumsFormatted = albums.map(item => {
       const plugin = registry.getByKind(item.kind as any);
       return plugin ? plugin.formatForView(item) : item;
@@ -535,6 +551,9 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
       currentFormat: format || 'all',
       querySearch: trimmedSearch,
       queryLocation: res.locals.isShareView ? '' : (location || ''),
+      queryAway: awayFilter,
+      awayFilterOffered,
+      awayItems,
       queryGenre: genre || '',
       queryStyle: style || '',
       queryPlatform: platform || '',

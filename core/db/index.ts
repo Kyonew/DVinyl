@@ -72,6 +72,9 @@ export const db = {
   loginLogs: store('LoginLog', 'login_logs'),
   blockedIps: store('blockedIP', 'blocked_ips'),
   lists: store('List', 'lists', 'collection'),
+  requests: store('Request', 'requests', 'collection'),
+  requestTypes: store('RequestType', 'request_types', 'collection'),
+  notifications: store('Notification', 'notifications', 'user'),
   furniture: store('Furniture', 'furniture', 'collection'),
   priceHistory: store('PriceHistory', 'price_history', 'collection'),
   customPlugins: store('CustomPlugin', 'custom_plugins')

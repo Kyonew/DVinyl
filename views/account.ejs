@@ -24,6 +24,25 @@
         <i class="fa-solid fa-chevron-right text-xs opacity-40" aria-hidden="true"></i>
     </a>
 
+    <section>
+        <div class="<%= group %>">
+            <a href="<%= baseUrl %>/notifications" class="<%= row %>">
+                <i class="fa-solid fa-bell w-5 text-center text-primary-theme" aria-hidden="true"></i>
+                <span class="flex-1"><%= t('notifications.title') %></span>
+                <span data-notif-count class="min-w-[1.5rem] px-2 rounded-full bg-red-500 text-white text-xs font-bold leading-6 text-center <%= locals.unreadNotifications ? '' : 'hidden' %>"><%= (locals.unreadNotifications || 0) > 99 ? '99+' : (locals.unreadNotifications || 0) %></span>
+                <i class="fa-solid fa-chevron-right text-xs opacity-40" aria-hidden="true"></i>
+            </a>
+            <% if (locals.requestsOn && locals.activeCollectionId) { %>
+                <a href="<%= baseUrl %>/requests" class="<%= row %>">
+                    <i class="fa-solid fa-inbox w-5 text-center text-primary-theme" aria-hidden="true"></i>
+                    <span class="flex-1"><%= t('requests.title') %></span>
+                    <% if (locals.requestsTodo) { %><span class="min-w-[1.5rem] px-2 rounded-full bg-amber-500 text-white text-xs font-bold leading-6 text-center"><%= requestsTodo %></span><% } %>
+                    <i class="fa-solid fa-chevron-right text-xs opacity-40" aria-hidden="true"></i>
+                </a>
+            <% } %>
+        </div>
+    </section>
+
     <% if (showCollections) { %>
     <section>
         <h2 class="<%= groupTitle %>"><%= t('nav.collections') %></h2>

@@ -1,0 +1,55 @@
+<%- include('partials/header') %>
+
+<%
+    const dayKey = d => new Date(d).toISOString().slice(0, 10);
+    const dayText = d => new Date(d).toLocaleDateString(dateLocaleFor(currentLng), { weekday: 'long', day: 'numeric', month: 'long' });
+    const timeText = d => new Date(d).toLocaleTimeString(dateLocaleFor(currentLng), { hour: '2-digit', minute: '2-digit' });
+    const days = [];
+    notifications.forEach(n => {
+        const key = dayKey(n.createdAt);
+        if (!days.length || days[days.length - 1].key !== key) days.push({ key, label: dayText(n.createdAt), rows: [] });
+        days[days.length - 1].rows.push(n);
+    });
+    const anyUnread = notifications.some(n => !n.read);
+%>
+
+<div class="max-w-screen-md mx-auto pb-16">
+    <div class="pt-6 mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h1 class="text-3xl font-bold transition-colors"><%= t('notifications.title') %></h1>
+        <% if (anyUnread) { %>
+            <form action="<%= baseUrl %>/notifications/read" method="POST">
+                <button type="submit" class="px-4 py-2 rounded-xl text-sm font-bold bg-black/5 dark:bg-white/10 hover:bg-primary-theme hover:text-white transition-colors">
+                    <i class="fa-solid fa-check-double mr-1" aria-hidden="true"></i><%= t('notifications.mark_all_read') %>
+                </button>
+            </form>
+        <% } %>
+    </div>
+
+    <% if (notifications.length === 0) { %>
+        <div class="card-theme rounded-3xl p-10 text-center shadow-sm">
+            <i class="fa-solid fa-bell text-4xl text-primary-theme opacity-60 mb-4" aria-hidden="true"></i>
+            <p class="font-bold mb-1"><%= t('notifications.empty_title') %></p>
+            <p class="text-sm opacity-60 max-w-md mx-auto"><%= t('notifications.empty_hint') %></p>
+        </div>
+    <% } %>
+
+    <% days.forEach(day => { %>
+        <h2 class="mt-8 first:mt-0 mb-3 text-xs font-bold uppercase tracking-widest opacity-50"><%= day.label %></h2>
+        <ul class="card-theme rounded-2xl overflow-hidden shadow-sm divide-y divide-black/5 dark:divide-white/5">
+            <% day.rows.forEach(n => { %>
+                <li>
+                    <a href="<%= baseUrl %>/notifications/<%= n.id %>/open" class="flex items-center gap-4 px-4 py-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors <%= n.read ? 'opacity-60' : '' %>">
+                        <span class="w-10 h-10 flex-none rounded-xl <%= n.read ? 'bg-black/5 dark:bg-white/10' : 'bg-primary-theme/15 text-primary-theme' %> flex items-center justify-center">
+                            <i class="fa-solid fa-<%= n.icon %>" aria-hidden="true"></i>
+                        </span>
+                        <span class="min-w-0 flex-1 text-sm <%= n.read ? '' : 'font-semibold' %>"><%= n.text %></span>
+                        <span class="text-xs opacity-60 flex-none"><%= timeText(n.createdAt) %></span>
+                        <% if (!n.read) { %><span class="w-2 h-2 rounded-full bg-primary-theme flex-none" aria-label="<%= t('notifications.unread') %>"></span><% } %>
+                    </a>
+                </li>
+            <% }) %>
+        </ul>
+    <% }) %>
+</div>
+
+<%- include('partials/footer') %>

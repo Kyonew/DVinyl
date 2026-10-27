@@ -19,6 +19,8 @@ import { canRefresh, refreshPatchFor, gatherImages, pluginSources } from "../cor
 import { CARD_ASPECT_RATIOS } from "../core/customPlugin";
 import { PermanentRefreshError, syncStamp, getPublicProtocol } from "../core/helpers";
 import { deleteItemsAndContents } from "../utils/itemHelpers";
+import { cancelRequestsOf } from "../core/requests";
+import { deleteNotificationsOf } from "../core/notify";
 import { AI_PROVIDERS } from "../core/ai/providers";
 import { getAiConfig, getStoredAiSettings, saveAiSettings } from "../core/ai/instance";
 import { isAiConfigured, resolveTestConfig } from "../core/ai/config";
@@ -44,6 +46,7 @@ import { dashboardWidgets, resolveWidgets } from "../core/dashboard";
 import "../core/dashboardWidgets";
 import { buildPack, readPack, packUpdate, PackError, MAX_PACK_BYTES, PACK_SECTIONS } from "../core/layoutPacks";
 import { LOOK_STYLES, lookStyleFields } from "../core/lookStyles";
+import { requestAdminData } from "../core/routes/requestAdminRoute";
 
 const router = express.Router();
 
@@ -179,6 +182,7 @@ router.get("/", requireAuth, requireCollectionRole("admin"), async (req: any, re
     res.render("admin", {
       ...data,
       fieldLookalikes,
+      requestAdmin: await requestAdminData(res, req.t.bind(req)),
       user: res.locals.user,
       successMessage: msgKey ? req.t(`messages.${msgKey}`) : null,
       messageIsError: isErrorMessageKey(msgKey),
@@ -469,6 +473,9 @@ router.post("/collections/:id/delete", requireAuth, requireAdmin, async (req: an
     // Shelves and lists only mean anything next to the items they arrange.
     await db.furniture.deleteMany(ofTarget);
     await db.lists.deleteMany(ofTarget);
+    await db.requests.deleteMany(ofTarget);
+    await db.requestTypes.deleteMany(ofTarget);
+    await deleteNotificationsOf({ collection: target._id });
     // Users pointing at this collection self-heal to another membership on next request
     await db.users.updateMany(eq("lastActiveCollectionId", idOf(target._id)), { set: { lastActiveCollectionId: null } });
     await db.users.updateMany(eq("homeCollectionId", idOf(target._id)), { set: { homeCollectionId: null } });
@@ -563,6 +570,8 @@ function activeCollection(res: any): Filter {
  * sending it somewhere it can no longer enter.
  */
 async function clearMembership(collectionId: string, userId: string): Promise<void> {
+  // What was still open with them there can no longer go anywhere.
+  await cancelRequestsOf(userId, collectionId);
   await db.collections.updateOne(eq("_id", collectionId), { pull: { members: eq("user", userId) } });
   await db.users.updateOne(and(eq("_id", userId), eq("lastActiveCollectionId", collectionId)), { set: { lastActiveCollectionId: null } });
   await db.users.updateOne(and(eq("_id", userId), eq("homeCollectionId", collectionId)), { set: { homeCollectionId: null } });
@@ -597,6 +606,7 @@ router.post("/members/create", requireAuth, requireCollectionRole("admin"), asyn
     const data = await loadCollectionAdminData(res.locals.activeCollectionId);
     res.render("admin", {
       ...data,
+      requestAdmin: await requestAdminData(res, req.t.bind(req)),
       user: res.locals.user,
       successMessage: req.t("messages.user_created_success", { name: username }),
       newPassword: password,
@@ -710,6 +720,7 @@ router.post("/members/reset-password", requireAuth, requireCollectionRole("admin
     const data = await loadCollectionAdminData(res.locals.activeCollectionId);
     res.render("admin", {
       ...data,
+      requestAdmin: await requestAdminData(res, req.t.bind(req)),
       user: res.locals.user,
       // A name is a value, not markup: the view escapes it on the way out, and letting
       // i18next escape it first would print the entities instead of the apostrophe.
@@ -943,6 +954,10 @@ router.post("/delete-user", requireAuth, requireAdmin, async (req: any, res: any
     const target = await db.users.findById(req.body.userId);
     if (target && target.isAdmin)
       return res.redirect("/admin/instance?msg=delete_admin_error");
+    if (target) {
+      await cancelRequestsOf(target._id);
+      await deleteNotificationsOf({ user: target._id });
+    }
     await db.users.deleteOne(eq("_id", req.body.userId));
     await db.collections.updateMany(all(), { pull: { members: eq("user", req.body.userId) } });
     console.log(`[ADMIN] User deleted: ${req.body.userId} by ${res.locals.user?.email}`);

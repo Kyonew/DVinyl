@@ -89,6 +89,18 @@
         </div>
         <% } %>
 
+        <%# Offered when a request type of the collection can take an item away (see collectionRoute.ts). %>
+        <% if (locals.awayFilterOffered) { %>
+        <div class="filter-advanced max-sm:order-4 w-full lg:w-36 relative">
+            <select id="awaySelect" onchange="reloadPage()" aria-label="<%= t('requests.filter_label') %>"
+                class="block w-full p-2.5 text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme outline-none transition-all <%= locals.queryAway ? '' : 'opacity-70' %>">
+                <option value="" <%= locals.queryAway ? '' : 'selected' %>><%= t('requests.filter_label') %></option>
+                <option value="out" <%= locals.queryAway === 'out' ? 'selected' : '' %>><%= t('requests.filter_out') %></option>
+                <option value="in" <%= locals.queryAway === 'in' ? 'selected' : '' %>><%= t('requests.filter_in') %></option>
+            </select>
+        </div>
+        <% } %>
+
         <%# Each control below is dropped when the selected type has nothing to
             offer for it, rather than showing an empty or foreign list %>
         <% if (locals.hasYear) { %>
@@ -484,6 +496,7 @@
             validateAndSetUrlSearchParamString('format', currentFormat);
             validateAndSetUrlSearchParamString('search', filterInput?.value);
             validateAndSetUrlSearchParamString('location', locationInput?.value);
+            validateAndSetUrlSearchParamString('away', document.getElementById('awaySelect')?.value);
 
             if (currentType !== 'all') {
                 const genreMenu = document.getElementById('genre-multi-select');

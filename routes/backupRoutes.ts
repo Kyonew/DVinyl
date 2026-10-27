@@ -108,6 +108,8 @@ async function buildInstanceBackup(): Promise<StreamedDocument> {
         collections: await db.collections.find(all()),
         furniture: await db.furniture.find(all()),
         lists: await db.lists.find(all()),
+        requests: await db.requests.find(all()),
+        requestTypes: await db.requestTypes.find(all()),
         customPlugins: await db.customPlugins.find(all()),
         priceHistory: await db.priceHistory.find(all()),
         instanceSettings: await db.instanceSettings.findOne(eq('key', 'instance')),
@@ -187,6 +189,9 @@ const importInstanceBackup = async (req: any, res: any) => {
         // Lists name items by id, and a whole-instance restore keeps every id as it was, so
         // they go back untouched. Settled here, before the wipe.
         const listsToRestore = hasCollections ? restorableLists(data.lists, list => list) : [];
+        // Requests and their types keep their ids too. A dump older than them has none.
+        const requestsToRestore = hasCollections ? restorableRecords(db.requests, data.requests, 'request') : [];
+        const requestTypesToRestore = hasCollections ? restorableRecords(db.requestTypes, data.requestTypes, 'request type') : [];
         const replacedImagePaths = await managedItemImagesForQuery(all());
         // The wipe below takes the info pages with it, so their uploads are candidates
         // for release too, exactly like the items' own images.
@@ -208,6 +213,10 @@ const importInstanceBackup = async (req: any, res: any) => {
             db.collections.deleteMany(all()),
             db.furniture.deleteMany(all()),
             db.lists.deleteMany(all()),
+            db.requests.deleteMany(all()),
+            db.requestTypes.deleteMany(all()),
+            // They point at ids that may no longer mean the same thing: an inbox starts over.
+            db.notifications.deleteMany(all()),
             db.customPlugins.deleteMany(all()),
             db.priceHistory.deleteMany(all()),
             db.instanceSettings.deleteMany(all())
@@ -253,6 +262,8 @@ const importInstanceBackup = async (req: any, res: any) => {
         if (listsToRestore.length > 0) {
             await db.lists.insertMany(listsToRestore);
         }
+        if (requestTypesToRestore.length > 0) await db.requestTypes.insertMany(requestTypesToRestore);
+        if (requestsToRestore.length > 0) await db.requests.insertMany(requestsToRestore);
 
         if (data.users && data.users.length > 0) {
             const cleanUsers = data.users.map((u: any) => {
@@ -438,11 +449,24 @@ async function buildCollectionBackup(activeCollectionId: any, collection: any): 
         return rest;
     });
 
+    // The request types go as they are. The requests follow their items like the lists,
+    // and only come back for members of the collection they land in.
+    const requestTypes = (await db.requestTypes.find(eq('collection', idOf(activeCollectionId)))).map((type: any) => {
+        const { _id, __v, collection: owner, createdBy, ...rest } = type;
+        return rest;
+    });
+    const requests = (await db.requests.find(eq('collection', idOf(activeCollectionId)))).map((request: any) => {
+        const { _id, __v, collection: owner, ...rest } = request;
+        return rest;
+    });
+
     return {
         collectionName: collection?.name || 'Collection',
         albums,
         furniture,
         lists,
+        requestTypes,
+        requests,
         // The collection's own page travels with it: it is written about these items,
         // and its pictures are picked up by the archive alongside theirs.
         info: collectionInfoOf(collection),
@@ -661,6 +685,29 @@ const isDumpId = (value: unknown) => isId(String(value ?? ''));
  * whole-instance restore inserts the lists before the accounts. Such a list is left out
  * rather than costing the rest of the restore, and so is a line naming no valid item.
  */
+/**
+ * The records of a dump that pass the rules of `store`, each in the shape `place` gives
+ * it, or left out when `place` finds nothing left to point at. Settled before anything
+ * is wiped, like the lists.
+ */
+function restorableRecords(store: any, records: unknown, label: string, place: (record: any) => any | null = r => r): any[] {
+    if (!Array.isArray(records)) return [];
+    const kept: any[] = [];
+    let dropped = 0;
+    for (const raw of records) {
+        const record = raw && typeof raw === 'object' ? place({ ...raw }) : null;
+        if (!record || store.validate(record)) {
+            dropped++;
+            continue;
+        }
+        kept.push(record);
+    }
+    if (dropped > 0) {
+        console.warn(`[BACKUP] ${dropped} ${label}(s) of the dump could not be restored as they are and were left out.`);
+    }
+    return kept;
+}
+
 function restorableLists(lists: unknown, place: (list: any) => any): any[] {
     if (!Array.isArray(lists)) return [];
 
@@ -787,6 +834,19 @@ const importCollectionBackup = async (req: any, res: any) => {
             };
         });
 
+        // A request follows its item to the new id, between members of this collection only.
+        const memberIds = new Set((res.locals.activeCollection?.members || []).map((m: any) => idOf(m.user)));
+        const requestTypesToRestore = restorableRecords(db.requestTypes, data.requestTypes, 'request type', (type: any) => {
+            const { _id, __v, collection: _owner, createdBy: _by, ...rest } = type;
+            return { ...rest, collection: activeCollectionId, createdBy: req.user._id };
+        });
+        const requestsToRestore = restorableRecords(db.requests, data.requests, 'request', (request: any) => {
+            const { _id, __v, collection: _owner, ...rest } = request;
+            const item = idMap.get(String(rest.item));
+            if (!item || !memberIds.has(idOf(rest.sender)) || !memberIds.has(idOf(rest.recipient))) return null;
+            return { ...rest, item, collection: activeCollectionId };
+        });
+
         // Replacement semantics: the collection's current items are wiped first.
         const replacedImagePaths = await managedItemImagesForQuery(eq('collection', idOf(activeCollectionId)));
         const ofCollection = eq('collection', idOf(activeCollectionId));
@@ -796,6 +856,17 @@ const importCollectionBackup = async (req: any, res: any) => {
         // Replacement semantics for the lists too.
         await db.lists.deleteMany(ofCollection);
         await db.lists.insertMany(listsToRestore);
+
+        // And for the requests and their types. A dump older than them carries none and
+        // leaves the collection's own in place.
+        if (Array.isArray(data.requestTypes)) {
+            await db.requestTypes.deleteMany(ofCollection);
+            if (requestTypesToRestore.length > 0) await db.requestTypes.insertMany(requestTypesToRestore);
+        }
+        if (Array.isArray(data.requests)) {
+            await db.requests.deleteMany(ofCollection);
+            if (requestsToRestore.length > 0) await db.requests.insertMany(requestsToRestore);
+        }
 
         // Replacement semantics again: the collection's own furniture goes with its items.
         await db.furniture.deleteMany(ofCollection);

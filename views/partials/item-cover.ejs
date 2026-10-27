@@ -13,6 +13,10 @@
     // either: treat the cover as a poster, the safe non-cropping case.
     const coverAspect = (locals.plugin && plugin.aspectRatioClass) || 'aspect-[2/3]';
     const fitsGrid = coverAspect === gridAspect;
+    // Away with someone (a request took it, a loan for one): the cover dims and says with
+    // whom, in the middle, the one place no badge or corner label ever takes. Only the
+    // collection pages hand these down.
+    const coverAway = locals.awayItems && awayItems.get(String(item._id));
 %>
 <div class="<%= gridAspect %> w-full relative overflow-hidden bg-black/5 dark:bg-white/5 flex items-center justify-center">
     <% if (!fitsGrid) { %>
@@ -20,8 +24,16 @@
             class="absolute inset-0 w-full h-full object-cover blur-xl opacity-30 scale-110 pointer-events-none">
     <% } %>
     <img src="<%= itemImageUrl(item.cover_image) %>"
-        class="relative z-10 w-full h-full <%= fitsGrid ? 'object-cover' : 'object-contain p-2' %> transition-transform duration-500 <%= typeof locals.imageHover === 'string' ? locals.imageHover : 'group-hover:scale-105' %>"
+        class="relative z-10 w-full h-full <%= fitsGrid ? 'object-cover' : 'object-contain p-2' %> transition-transform duration-500 <%= typeof locals.imageHover === 'string' ? locals.imageHover : 'group-hover:scale-105' %> <%= coverAway ? 'opacity-50 grayscale' : '' %>"
         loading="lazy">
+    <% if (coverAway) { %>
+        <span class="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+            <span class="max-w-[85%] truncate text-white text-[10px] font-bold px-2 py-1 rounded-full backdrop-blur-md border border-white/10 shadow-sm <%= coverAway.overdue ? 'bg-red-600/80' : 'bg-black/70' %>"
+                title="<%= coverAway.typeName %> · <%= t('requests.away_with', { name: coverAway.holder }) %>">
+                <i class="fa-solid fa-<%= coverAway.icon %> mr-1" aria-hidden="true"></i><%= coverAway.holder %>
+            </span>
+        </span>
+    <% } %>
     <% if (locals.cornerLabel) { %>
         <span class="absolute top-2 left-2 z-20 text-white text-[9px] font-bold px-2 py-1 rounded backdrop-blur-md border border-white/10 shadow-sm bg-black/60">
             <i class="fa-solid fa-layer-group mr-1"></i><%= cornerLabel %>

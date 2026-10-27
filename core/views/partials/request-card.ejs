@@ -1,0 +1,47 @@
+<%# The requests card of an item page: what is under way about this item (who has it,
+    what was asked), and the button to send a request about it.
+    Expects: item, plugin, requestCard (core/requests.ts requestCardData). %>
+<% const back = plugin.routePrefix + '/' + item._id + '#requests'; %>
+<section id="requests" class="max-md:order-3 card-theme rounded-xl max-md:rounded-2xl p-6 max-md:p-4 shadow-sm transition-colors scroll-mt-24 space-y-3">
+    <div class="flex items-center justify-between gap-3">
+        <h3 class="text-xs uppercase font-bold opacity-50 flex items-center gap-2">
+            <i class="fa-solid fa-paper-plane" aria-hidden="true"></i><%= t('requests.card_title') %>
+        </h3>
+        <% if (requestCard.types.length) { %>
+            <button type="button" onclick="document.getElementById('requestForm').showModal()"
+                class="text-xs font-bold px-3 py-2 rounded-lg bg-primary-theme text-white hover:brightness-110 transition-all active:scale-95">
+                <i class="fa-solid fa-plus mr-1" aria-hidden="true"></i><%= t('requests.new_btn') %>
+            </button>
+        <% } %>
+    </div>
+
+    <%- include('../../../views/partials/request-message', { requestMsg: locals.requestMsg, requestField: locals.requestField }) %>
+
+    <% if (requestCard.open.length) { %>
+        <ul class="divide-y divide-black/5 dark:divide-white/5 -mx-4 md:-mx-6">
+            <% requestCard.open.forEach(r => { %>
+                <%- include('../../../views/partials/request-row', { r, back, onItemPage: true }) %>
+            <% }) %>
+        </ul>
+    <% } else { %>
+        <p class="text-sm opacity-60"><%= t('requests.card_empty') %></p>
+    <% } %>
+
+    <% if (requestCard.past.length) { %>
+        <details class="group">
+            <summary class="list-none cursor-pointer text-xs font-bold opacity-60 hover:opacity-100 flex items-center gap-2">
+                <i class="fa-solid fa-chevron-right text-[9px] transition-transform group-open:rotate-90" aria-hidden="true"></i>
+                <%= t('requests.card_history', { count: requestCard.past.length }) %>
+            </summary>
+            <ul class="divide-y divide-black/5 dark:divide-white/5 -mx-4 md:-mx-6 mt-2">
+                <% requestCard.past.forEach(r => { %>
+                    <%- include('../../../views/partials/request-row', { r, back, onItemPage: true }) %>
+                <% }) %>
+            </ul>
+        </details>
+    <% } %>
+
+    <% if (requestCard.types.length) { %>
+        <%- include('../../../views/partials/request-form', { types: requestCard.types, recipients: requestCard.recipients, itemId: item._id, back, dialogId: 'requestForm' }) %>
+    <% } %>
+</section>

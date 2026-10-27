@@ -17,7 +17,10 @@
 <% if (accountVariant === 'side') { %>
 <button type="button" id="user-menu-button" data-dropdown-toggle="user-dropdown" data-dropdown-placement="<%= accountPlacement %>"
   class="w-full flex items-center justify-center gap-3 p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 transition text-left">
-  <img class="w-9 h-9 flex-none rounded-full object-cover" src="<%= baseUrl + user.img %>" alt="">
+  <span class="relative flex-none">
+    <img class="w-9 h-9 rounded-full object-cover" src="<%= baseUrl + user.img %>" alt="">
+    <%- include('notif-badge') %>
+  </span>
   <span class="dv-side-wide min-w-0 flex-1">
     <span class="block text-sm font-bold truncate"><%= user.username %></span>
     <span class="block text-xs opacity-60 truncate"><%= user.email %></span>
@@ -27,8 +30,9 @@
 <% } else if (accountVariant === 'dock') { %>
 <button type="button" id="user-menu-button" data-dropdown-toggle="user-dropdown" data-dropdown-placement="<%= accountPlacement %>"
   class="dv-dock-item focus:outline-none" aria-label="<%= t('nav.account') %>">
-  <span class="dv-dock-icon">
+  <span class="dv-dock-icon relative">
     <img class="w-10 h-10 rounded-full object-cover" src="<%= baseUrl + user.img %>" alt="">
+    <%- include('notif-badge') %>
   </span>
   <% if (locals.dockLabels) { %>
     <span class="dv-dock-caption text-[10px] font-bold max-w-[4.5rem] truncate opacity-75"><%= t('nav.account') %></span>
@@ -36,7 +40,10 @@
 </button>
 <% } else { %>
 <button type="button" class="<%= locals.accountHideOnPhone ? 'hidden md:flex' : 'flex' %> text-sm bg-black/5 dark:bg-white/10 rounded-full focus:ring-4 focus:ring-gray-300 dark:focus:ring-gray-600" id="user-menu-button" data-dropdown-toggle="user-dropdown">
-  <img class="w-8 h-8 rounded-full object-cover" src="<%= baseUrl + user.img %>" alt="user photo">
+  <span class="relative">
+    <img class="w-8 h-8 rounded-full object-cover" src="<%= baseUrl + user.img %>" alt="user photo">
+    <%- include('notif-badge') %>
+  </span>
 </button>
 <% } %>
 

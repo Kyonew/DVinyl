@@ -106,6 +106,7 @@
             { id: 'settings', icon: 'sliders', label: t('admin.tabs.settings') },
             { id: 'members', icon: 'users', label: t('admin.tabs.members'), count: (locals.members || []).length },
             { id: 'collection', icon: 'layer-group', label: t('admin.tabs.collection') },
+            { id: 'requests', icon: 'inbox', label: t('requests.admin.tab') },
             { id: 'imports', icon: 'cloud-arrow-down', label: t('admin.tabs.imports') },
             { id: 'maintenance', icon: 'wrench', label: t('admin.tabs.maintenance') }
         ] }) %>
@@ -536,6 +537,10 @@
                             </a>
                         </div>
                     </div>
+                </section>
+
+                <section data-tab-panel="requests">
+                    <% if (locals.requestAdmin) { %><%- include('partials/admin-requests') %><% } %>
                 </section>
 
                 <section data-tab-panel="imports">

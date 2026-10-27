@@ -1,0 +1,27 @@
+<%# Keeps the unread badges and counts of the shell current while the page stays open:
+    the server sends the new count to the account's room (core/notify.ts). Without the
+    socket, the counts are simply those of the page load. %>
+<% if (locals.user && !locals.isShareView) { %>
+<script>
+  (function () {
+    function paint(unread) {
+      const text = unread > 99 ? '99+' : String(unread);
+      document.querySelectorAll('[data-notif-badge], [data-notif-count]').forEach(function (el) {
+        el.textContent = text;
+        el.classList.toggle('hidden', !unread);
+      });
+    }
+    function connect() {
+      if (typeof io !== 'function') return;
+      const socket = io({ path: '<%= baseUrl %>/socket.io' });
+      socket.on('notifications', function (msg) { if (msg && typeof msg.unread === 'number') paint(msg.unread); });
+    }
+    if (typeof io === 'function') return connect();
+    const script = document.createElement('script');
+    script.src = '<%= baseUrl %>/socket.io/socket.io.js';
+    script.async = true;
+    script.onload = connect;
+    document.head.appendChild(script);
+  })();
+</script>
+<% } %>

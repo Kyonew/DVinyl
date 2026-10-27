@@ -58,6 +58,10 @@ import collectionRoute from './core/routes/collectionRoute.js';
 import collectionInfoRoute from './core/routes/collectionInfoRoute.js';
 import shelfRoute from './core/routes/shelfRoute.js';
 import listRoute from './core/routes/listRoute.js';
+import requestRoute from './core/routes/requestRoute.js';
+import requestAdminRoute from './core/routes/requestAdminRoute.js';
+import { attachNotificationSockets, purgeOldNotifications, unreadCount } from './core/notify';
+import { inboxCount, requestsEnabled } from './core/requests';
 import searchRoute from './core/routes/searchRoute.js';
 import accountRoute from './core/routes/accountRoute.js';
 import manualAddRoute from './core/routes/manualAddRoute.js';
@@ -149,6 +153,8 @@ app.locals.canRefresh = canRefresh;
 app.locals.sourceStatusFor = sourceStatusFor;
 app.locals.searchableSources = searchableSources;
 app.set('io', io); // Expose io to routes
+// A signed-in page joins its account's room, where its unread count is sent.
+attachNotificationSockets(io);
 
 // Global middlewares
 // nosniff on the whole static tree, because part of it is now supplied by users: an
@@ -286,6 +292,22 @@ app.use(collectionMiddleware);
 // Load the active collection's settings (per-collection container)
 app.use(settingsMiddleware);
 
+// What the shell shows next to the account: unread notifications, and the requests
+// waiting for the member's answer in the active collection. Pages only, never the assets.
+app.use(async (req: any, res, next) => {
+  res.locals.unreadNotifications = 0;
+  res.locals.requestsTodo = 0;
+  res.locals.requestsOn = requestsEnabled(res.locals.settings);
+  if (!req.user || res.locals.isShareView || req.method !== 'GET') return next();
+  try {
+    res.locals.unreadNotifications = await unreadCount(req.user._id);
+    res.locals.requestsTodo = await inboxCount(res.locals.activeCollectionId, req.user._id, res.locals.settings);
+  } catch (err: any) {
+    console.error('[ERR] Shell counters:', err.message);
+  }
+  next();
+});
+
 // Installation gatekeeper middleware
 app.use(async (req, res, next) => {
   // Ignore paths that should not be redirected during setup
@@ -339,6 +361,7 @@ loadPlugins();
 app.use(BASE_URL + '/setup', setupRoutes);
 app.use(BASE_URL, authRoutes);
 app.use(BASE_URL, shareRoutes);
+app.use(BASE_URL + '/admin', requestAdminRoute);
 app.use(BASE_URL + '/admin', adminRoutes);
 app.use(BASE_URL + '/settings', settingsRoutes);
 app.use(BASE_URL + '/create-plugin', pluginBuilderRoutes);
@@ -353,6 +376,7 @@ app.use(BASE_URL, collectionRoute);
 app.use(BASE_URL, collectionInfoRoute);
 app.use(BASE_URL, shelfRoute);
 app.use(BASE_URL, listRoute);
+app.use(BASE_URL, requestRoute);
 app.use(BASE_URL, searchRoute);
 app.use(BASE_URL, accountRoute);
 app.use(BASE_URL, manualAddRoute);
@@ -401,6 +425,9 @@ connectDB()
     // boot-only pass leaves an instance that stays up for months collecting them. Repeat
     // it on a timer, unref'd so it never holds the process open on its own.
     setInterval(() => { void sweepAbandonedItemImages('CLEANUP'); }, ITEM_IMAGE_SWEEP_INTERVAL_MS).unref();
+    const purgeNotifications = () => purgeOldNotifications().catch((err: any) => console.warn('[CLEANUP] Notification purge failed:', err));
+    void purgeNotifications();
+    setInterval(() => { void purgeNotifications(); }, 24 * 3600 * 1000).unref();
     const port = process.env.VINYL_PORT || 3099;
     server.listen(port, () => {
       console.log(`[BOOT] Server started on port ${port} (BASE_URL="${BASE_URL || '/'}", env=${process.env.PROD === 'true' ? 'production' : 'development'})`);

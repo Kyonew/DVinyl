@@ -9,6 +9,27 @@
 %>
 <ul class="py-2">
   <%
+    const menuUnread = locals.unreadNotifications || 0;
+    const menuTodo = locals.requestsTodo || 0;
+    const menuRequests = locals.requestsOn && locals.activeCollectionId;
+    const countPill = 'ml-auto min-w-[1.25rem] px-1.5 rounded-full text-[10px] font-bold leading-5 text-center';
+  %>
+  <li>
+    <a href="<%= baseUrl %>/notifications" class="block px-4 py-2 text-sm text-[var(--text-main)] hover:bg-black/5 dark:hover:bg-white/10 mx-2 rounded transition flex items-center gap-3">
+      <i class="fa-solid fa-bell w-5 text-center opacity-70"></i> <span><%= t('notifications.title') %></span>
+      <span data-notif-count class="<%= countPill %> bg-red-500 text-white <%= menuUnread ? '' : 'hidden' %>"><%= menuUnread > 99 ? '99+' : menuUnread %></span>
+    </a>
+  </li>
+  <% if (menuRequests) { %>
+  <li>
+    <a href="<%= baseUrl %>/requests" class="block px-4 py-2 text-sm text-[var(--text-main)] hover:bg-black/5 dark:hover:bg-white/10 mx-2 rounded transition flex items-center gap-3">
+      <i class="fa-solid fa-inbox w-5 text-center opacity-70"></i> <span><%= t('requests.title') %></span>
+      <% if (menuTodo) { %><span class="<%= countPill %> bg-amber-500 text-white"><%= menuTodo %></span><% } %>
+    </a>
+  </li>
+  <% } %>
+  <li class="border-t border-black/5 dark:border-white/10 my-1"></li>
+  <%
     // The collections block shows the switcher (only useful with 2+ memberships)
     // and/or the self-service creation entry, so it appears as soon as either applies.
     const hasSwitcher = (locals.userCollections || []).length > 1;

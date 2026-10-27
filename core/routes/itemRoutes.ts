@@ -12,6 +12,7 @@ import { getExtraFields, toFieldDefinitions } from '../pluginExtraFields';
 import { buildFieldSuggestions } from '../fieldSuggestions';
 import { resolveShelfLocation } from '../shelfStore';
 import { findWishlistDuplicate } from '../wishlistDuplicate';
+import { requestCardData } from '../requests';
 import { deleteItemsAndContents, moveContentsToWishlist } from '../../utils/itemHelpers';
 import { visibilityFilter, shareScopeFilter, pluginKindFilter, isWithinShareScope } from '../../utils/visibilityHelper';
 import { db } from '../db';
@@ -1065,6 +1066,9 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
 
       res.render('detail', {
         item: formatted,
+        requestCard: await requestCardData(res, item, req.t.bind(req)),
+        requestMsg: req.query.request_msg,
+        requestField: req.query.request_field,
         plugin,
         variants: variants.map(v => plugin.formatForView(v)),
         addedBy: toProfile(addedBy),

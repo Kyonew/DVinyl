@@ -528,6 +528,12 @@
 
             </div>
 
+            <%# The requests about this item: who has it, what was asked. On a phone it
+                follows the copy section. %>
+            <% if (locals.requestCard) { %>
+                <%- include('partials/request-card', { item, plugin, requestCard }) %>
+            <% } %>
+
             <!-- Price estimation panel (plugins that declare supportsPriceEstimate, e.g. music) -->
             <% const estimateId = plugin.externalIdField ? item[plugin.externalIdField] : null; %>
             <% if (plugin.supportsPriceEstimate && estimateId) { %>
