@@ -229,7 +229,7 @@ describe('accounts and administration', { skip: !backend }, () => {
     reply = await admin.postForm('/admin/personnalisation/save', {
       navbarShortcuts: ['global_home', 'global_wishlist'], statsWidgets: 'total', aspectRatioClass: 'aspect-square', fastAdd: ''
     });
-    assert.equal(reply.location, '/admin/personnalisation?msg=saved');
+    assert.equal(reply.location, '/dashboard');
     const settings = dump.settings.find(s => String(s.collection) === String(collectionNamed(dump, 'Vinyl')._id));
     const saved = (await refresh()).settings.find(s => String(s.collection) === String(settings.collection));
     assert.deepEqual([saved.navbarShortcuts, saved.statsWidgets], [['global_home', 'global_wishlist'], ['total']]);

@@ -1154,7 +1154,6 @@
     function stayOnTab() {
         try { sessionStorage.setItem('studioStay', '1'); } catch (e) { /* private mode */ }
     }
-    form.addEventListener('submit', stayOnTab);
 
     discardButtons.forEach(button => button.addEventListener('click', async () => {
         if (!confirm(i18n.discardConfirm)) return;
@@ -1183,7 +1182,7 @@
         justSaved = true;
         history.replaceState(null, '', window.location.pathname);
     }
-    // Opened afresh, the studio starts on Style; reloaded, saved or discarded, it stays
+    // Opened afresh, the studio starts on Style; reloaded or discarded, it stays
     // on the tab it was on.
     let startTab = <%- JSON.stringify(startArrange ? 'home' : null) %>;
     const navigation = performance.getEntriesByType('navigation')[0];

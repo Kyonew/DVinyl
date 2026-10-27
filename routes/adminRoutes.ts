@@ -1125,7 +1125,8 @@ function personnalisationUpdate(body: any): Record<string, any> {
   return update;
 }
 
-// Publishes the studio's form, and drops the draft it was previewed from.
+// Publishes the studio's form, drops the draft it was previewed from, and leaves the
+// studio for the home page.
 router.post(
   "/personnalisation/save",
   requireAuth,
@@ -1134,7 +1135,7 @@ router.post(
     try {
       await db.settings.updateOne(eq("collection", idOf(res.locals.activeCollectionId)), { set: personnalisationUpdate(req.body) }, { upsert: true });
       clearDraft(req);
-      res.redirect("/admin/personnalisation?msg=saved");
+      res.redirect("/dashboard");
     } catch (err) {
       console.error("[ERR] perso save", err);
       res.status(500).send("[ERR] perso save failed.");
