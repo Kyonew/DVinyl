@@ -1067,8 +1067,10 @@ router.get("/personnalisation", requireAuth, requireCollectionRole("admin"), asy
       hasDraft: Boolean(draft),
       widgetTypes,
       homeWidgets: resolveWidgets(widgetEnv).map(w => ({ type: w.type, size: w.size })),
-      // The page the preview opens on, a path of this instance only.
-      startPage: typeof req.query.page === "string" && /^\/(?![\/\\])/.test(req.query.page) ? req.query.page : "/dashboard",
+      // The page the preview opens on, a path of this instance only. Browsers drop tabs and
+      // newlines from an address, so "/<tab>/host" would read as "//host": no whitespace,
+      // control character or backslash passes.
+      startPage: typeof req.query.page === "string" && /^\/(?![\/\\])[^\s\x00-\x1f\\]*$/.test(req.query.page) ? req.query.page : "/dashboard",
       startArrange: req.query.arrange === "1",
       presets: PRESETS,
       lookStyles: LOOK_STYLES.map(look => ({ ...look, fields: lookStyleFields(look) })),

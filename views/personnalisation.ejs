@@ -290,7 +290,9 @@
 
     // ---- The frame ----------------------------------------------------------------
     const inStudio = (path) => {
-        const url = new URL(base + path, window.location.origin);
+        let url = new URL(base + path, window.location.origin);
+        // The preview only ever shows this instance's pages.
+        if (url.origin !== window.location.origin) url = new URL(base + '/dashboard', window.location.origin);
         url.searchParams.set('studio', '1');
         return url;
     };
