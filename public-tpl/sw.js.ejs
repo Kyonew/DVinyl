@@ -101,12 +101,14 @@ self.addEventListener('push', event => {
     if (typeof message.unread === 'number' && self.navigator.setAppBadge) {
       try { await self.navigator.setAppBadge(message.unread); } catch (e) { /* no badge here */ }
     }
-    // The item's cover where the platform shows a picture (Android, desktop); iOS keeps
-    // the app's own icon whatever is sent. One notification per request: a later step
+    // The item's cover where the platform shows a picture (Android, desktop). iOS shows
+    // neither an icon nor an image from a web app: only its own icon, the title and the text. One notification per request: a later step
     // replaces the earlier one instead of piling up, and still makes itself heard.
     await self.registration.showNotification(message.title || 'DVinyl', {
       body: message.body || '',
       icon: message.icon || BASE + '/ressources/icone-192.png',
+      // Shown large under the text where the platform can (Chrome on Android and desktop).
+      image: message.icon || undefined,
       badge: BASE + '/ressources/icone-192.png',
       tag: message.tag || undefined,
       renotify: !!message.tag,

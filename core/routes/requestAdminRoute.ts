@@ -3,7 +3,7 @@ import { db } from '../db';
 import { and, eq, idOf } from '../db/query';
 import { requireAuth, requireCollectionRole } from '../../middleware/authMiddleware';
 import { requestsEnabled } from '../requests';
-import { MAX_TYPES, cleanRequestType, freeSlug, ownType, requestTemplates, typesOf } from '../requestTypes';
+import { MAX_TYPES, REQUEST_TYPE_ICONS, cleanRequestType, freeSlug, ownType, requestTemplates, typesOf } from '../requestTypes';
 
 /**
  * The Requests tab of the collection's admin page: the switch, and the request types the
@@ -30,6 +30,7 @@ export async function requestAdminData(res: any, t: (k: string) => string) {
       steps: type.steps || []
     })),
     templates: requestTemplates(t),
+    icons: REQUEST_TYPE_ICONS,
     maxTypes: MAX_TYPES
   };
 }

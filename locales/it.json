@@ -2147,6 +2147,10 @@
   "notifications": {
     "title": "Notifiche",
     "mark_all_read": "Segna tutto come letto",
+    "settings": "Impostazioni",
+    "clear_read": "Elimina le lette",
+    "clear_read_confirm": "Eliminare le notifiche già lette?",
+    "see_more": "Vedi le più vecchie",
     "empty_title": "Niente di nuovo",
     "empty_hint": "Le richieste ricevute e le loro risposte arrivano qui.",
     "unread": "Non letta",
@@ -2183,7 +2187,7 @@
       "remove_btn": "Rimuovi",
       "test_body": "Le notifiche push funzionano su questo dispositivo.",
       "prefs_title": "Cosa arriva sui miei dispositivi",
-      "prefs_hint": "Tutto resta nella casella qui sopra; qui scegli solo cosa viene anche inviato in push.",
+      "prefs_hint": "Tutto resta nelle tue notifiche; qui scegli solo cosa arriva anche sui tuoi dispositivi.",
       "msg_removed": "Dispositivo rimosso.",
       "msg_test_sent": "Test inviato. Dovrebbe comparire tra pochi secondi.",
       "msg_test_gone": "Questo dispositivo non accetta più notifiche ed è stato rimosso.",
@@ -2201,16 +2205,16 @@
         "request_overdue": "Una scadenza superata",
         "request_item_removed": "Un elemento rimosso"
       },
-      "quote": "«{{text}}»",
+      "quote": "\"{{text}}\"",
       "date_locale": "it-IT",
       "text": {
-        "request_received": "{{actor}} ti invia una richiesta",
-        "request_accepted": "✓ {{actor}} ha detto sì",
-        "request_declined": "{{actor}} ha detto no",
-        "request_step": "{{step}}, segnato da {{actor}}",
-        "request_cancelled": "{{actor}} ha annullato",
-        "request_overdue": "Scadenza il {{date}}: è in ritardo",
-        "request_item_removed": "L'elemento è stato rimosso, la richiesta è annullata"
+        "request_received": "📩 {{kind}} · {{item}}",
+        "request_accepted": "✅ ha accettato · {{kind}}\n{{item}}",
+        "request_declined": "❌ ha rifiutato · {{kind}}\n{{item}}",
+        "request_step": "➡️ {{step}} · {{kind}}\n{{item}}",
+        "request_cancelled": "🗑️ ha annullato · {{kind}}\n{{item}}",
+        "request_overdue": "⏰ In ritardo dal {{date}} · {{kind}}",
+        "request_item_removed": "🗑️ Rimosso, {{kind}} è annullata"
       }
     }
   },

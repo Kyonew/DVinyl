@@ -13,22 +13,23 @@ describe('push wording', () => {
     en = i18n.getFixedT('en');
   });
 
-  it('titles a push with what it is about, never with the site', () => {
+  it('reads like a message: who in the title, what and about which item below', () => {
     const row = { event: 'request.received', payload: { actor: "Kyo'", kind: 'Emprunter', item: 'Charizard ex', quote: 'Je te le rends vite !' } };
-    assert.deepEqual(pushWording(row, fr, 'Vinyl'), { title: 'Emprunter · Charizard ex', body: "Kyo' vous envoie une demande\n« Je te le rends vite ! »" });
-    assert.equal(pushWording(row, en).body, "Kyo' sent you a request\n“Je te le rends vite !”");
+    assert.deepEqual(pushWording(row, fr, 'Vinyl'), { title: "Kyo'", body: '📩 Emprunter · Charizard ex\n"Je te le rends vite !"' });
+    assert.equal(pushWording({ event: 'request.accepted', payload: { actor: 'Alex', kind: 'Borrow', item: 'Dune' } }, en).body, '✅ accepted · Borrow\nDune');
   });
 
   it('says the step reached, and the due date of a late one', () => {
-    assert.equal(pushWording({ event: 'request.step', payload: { actor: 'Alex', kind: 'Emprunter', item: 'Dune', step: 'Rendu' } }, fr).body, 'Rendu, marqué par Alex');
-    assert.equal(pushWording({ event: 'request.overdue', payload: { kind: 'Emprunter', item: 'Dune', due: '2026-10-20' } }, fr).body, 'Échéance le 20 octobre : c\'est en retard');
+    assert.equal(pushWording({ event: 'request.step', payload: { actor: 'Alex', kind: 'Emprunter', item: 'Dune', step: 'Rendu' } }, fr).body, '➡️ Rendu · Emprunter\nDune');
+    const late = pushWording({ event: 'request.overdue', payload: { kind: 'Emprunter', item: 'Dune', due: '2026-10-20' } }, fr);
+    assert.deepEqual(late, { title: 'Dune', body: '⏰ En retard depuis le 20 octobre · Emprunter' });
   });
 
-  it('cuts a long quote and keeps the title when the item is unknown', () => {
+  it('cuts a long quote, and falls back on the collection with nobody and nothing named', () => {
     const long = 'a'.repeat(400);
-    const { title, body } = pushWording({ event: 'request.declined', payload: { actor: 'Alex', quote: long } }, fr, 'Vinyl');
-    assert.equal(title, 'Vinyl');
+    const { body } = pushWording({ event: 'request.declined', payload: { actor: 'Alex', quote: long } }, fr, 'Vinyl');
+    assert.equal(pushWording({ event: 'request.overdue', payload: {} }, fr, 'Vinyl').title, 'Vinyl');
     assert.ok(body.length < 200);
-    assert.ok(body.endsWith('… »'));
+    assert.ok(body.endsWith('…"'));
   });
 });

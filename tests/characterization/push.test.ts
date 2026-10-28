@@ -36,18 +36,18 @@ describe('push', { skip: !backend }, () => {
     }
     // The same browser subscribing again stays one device.
     await admin.postJson('/push/subscriptions', subscription('https://fcm.googleapis.com/fcm/send/device-1'));
-    const page = (await admin.get('/notifications')).text;
+    const page = (await admin.get('/notifications/settings')).text;
     assert.equal((page.match(/<li [^>]*data-device-endpoint=/g) || []).length, 1);
   });
 
   it('tests and removes a device of my own', async () => {
-    const page = (await admin.get('/notifications')).text;
+    const page = (await admin.get('/notifications/settings')).text;
     const id = page.match(/\/push\/subscriptions\/([0-9a-f]{24})\/test/)![1];
     let reply = await admin.postForm(`/push/subscriptions/${id}/test`, {});
-    assert.equal(reply.location, '/notifications?push_msg=test_sent#push');
+    assert.equal(reply.location, '/notifications/settings?push_msg=test_sent');
     reply = await admin.postForm(`/push/subscriptions/${id}/delete`, {});
-    assert.equal(reply.location, '/notifications?push_msg=removed#push');
-    assert.doesNotMatch((await admin.get('/notifications')).text, /<li [^>]*data-device-endpoint=/);
+    assert.equal(reply.location, '/notifications/settings?push_msg=removed');
+    assert.doesNotMatch((await admin.get('/notifications/settings')).text, /<li [^>]*data-device-endpoint=/);
   });
 
   it('saves which events reach my devices', async () => {
@@ -55,6 +55,6 @@ describe('push', { skip: !backend }, () => {
     const me = (await exportInstance(admin)).users[0];
     assert.equal(me.notificationPrefs.push.request_received, undefined);
     assert.equal(me.notificationPrefs.push.request_accepted, false);
-    assert.doesNotMatch((await admin.get('/notifications')).text, /name="push_request_accepted" class="[^"]*" checked/);
+    assert.doesNotMatch((await admin.get('/notifications/settings')).text, /name="push_request_accepted" class="[^"]*" checked/);
   });
 });

@@ -8,7 +8,7 @@ import {
   OPEN_STATUSES, ownRequest, readableBy, requestableItem, requestsEnabled, sendRequest
 } from '../requests';
 import { typeBySlug } from '../requestTypes';
-import { describeNotification, markRead, notificationsOf, ownNotification, NOTIFICATION_EVENTS } from '../notify';
+import { clearRead, describeNotification, markRead, notificationsOf, ownNotification, NOTIFICATION_EVENTS, NOTIFICATIONS_PAGE_SIZE } from '../notify';
 import { prefKey, subscriptionsOf, wantsPush } from '../push';
 
 /**
@@ -177,15 +177,36 @@ router.post('/requests/:id/cancel', requireAuth, requireCollectionRole('viewer')
   (request, ctx, req) => cancelRequest({ request, ctx, actorName: req.user.username }), 'msg_cancelled'));
 
 // GET /notifications -> my inbox, latest first, grouped by day in the view
+// How many notifications the inbox shows at first, and how many more each "see more" adds.
+const INBOX_STEP = 30;
+
 router.get('/notifications', requireAuth, async (req: any, res: any) => {
   try {
     const t = req.t.bind(req);
-    const rows = (await notificationsOf(req.user._id)).map((n: any) => ({
+    const wanted = Math.min(Math.max(Number(req.query.shown) || INBOX_STEP, INBOX_STEP), NOTIFICATIONS_PAGE_SIZE * 5);
+    // One more than shown, to know whether a "see more" is worth offering.
+    const found = await notificationsOf(req.user._id, wanted + 1);
+    const rows = found.slice(0, wanted).map((n: any) => ({
       id: idOf(n._id),
       ...describeNotification(n, t),
       read: !!n.readAt,
       createdAt: n.created_at
     }));
+    res.render('notifications', {
+      user: res.locals.user,
+      notifications: rows,
+      moreShown: found.length > wanted ? wanted + INBOX_STEP : 0,
+      anyRead: rows.some((r: any) => r.read)
+    });
+  } catch (err: any) {
+    console.error('[ERR] Notifications page:', err.message);
+    res.status(500).send(req.t('errors.generic_server_error'));
+  }
+});
+
+// GET /notifications/settings -> my push devices, and what reaches them
+router.get('/notifications/settings', requireAuth, async (req: any, res: any) => {
+  try {
     const devices = (await subscriptionsOf(req.user._id)).map((d: any) => ({
       id: idOf(d._id),
       endpoint: d.endpoint,
@@ -199,15 +220,25 @@ router.get('/notifications', requireAuth, async (req: any, res: any) => {
       label: req.t(`notifications.push.events.${prefKey(event)}`),
       push: wantsPush(req.user, event)
     }));
-    res.render('notifications', {
+    res.render('notification-settings', {
       user: res.locals.user,
-      notifications: rows,
       devices,
       prefs,
       pushMsg: typeof req.query.push_msg === 'string' ? req.query.push_msg : ''
     });
   } catch (err: any) {
-    console.error('[ERR] Notifications page:', err.message);
+    console.error('[ERR] Notification settings page:', err.message);
+    res.status(500).send(req.t('errors.generic_server_error'));
+  }
+});
+
+// POST /notifications/clear-read -> the ones already read, gone
+router.post('/notifications/clear-read', requireAuth, async (req: any, res: any) => {
+  try {
+    await clearRead(req.user._id);
+    res.redirect('/notifications');
+  } catch (err: any) {
+    console.error('[ERR] Clear read notifications:', err.message);
     res.status(500).send(req.t('errors.generic_server_error'));
   }
 });

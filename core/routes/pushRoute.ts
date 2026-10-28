@@ -53,7 +53,7 @@ router.post('/push/subscriptions/:id/delete', requireAuth, async (req: any, res:
   try {
     await removeSubscription(req.user._id, req.params.id);
     if (wantsJson(req)) return res.json({ success: true });
-    res.redirect('/notifications?push_msg=removed#push');
+    res.redirect('/notifications/settings?push_msg=removed');
   } catch (err: any) {
     console.error('[ERR] Push unsubscribe:', err.message);
     res.status(500).send(req.t('errors.generic_server_error'));
@@ -64,7 +64,7 @@ router.post('/push/subscriptions/:id/delete', requireAuth, async (req: any, res:
 router.post('/push/subscriptions/:id/test', requireAuth, async (req: any, res: any) => {
   try {
     const device = await ownSubscription(req.user._id, req.params.id);
-    if (!device) return res.redirect('/notifications#push');
+    if (!device) return res.redirect('/notifications/settings');
     await rememberOrigin(req);
     const outcome = await sendToDevice(device, {
       title: 'DVinyl',
@@ -73,7 +73,7 @@ router.post('/push/subscriptions/:id/test', requireAuth, async (req: any, res: a
       tag: 'test'
     });
     const msg = outcome === 'sent' || outcome === 'dry' ? 'test_sent' : outcome === 'gone' ? 'test_gone' : 'test_failed';
-    res.redirect(`/notifications?push_msg=${msg}#push`);
+    res.redirect(`/notifications/settings?push_msg=${msg}`);
   } catch (err: any) {
     console.error('[ERR] Push test:', err.message);
     res.status(500).send(req.t('errors.generic_server_error'));
@@ -88,7 +88,7 @@ router.post('/notifications/prefs', requireAuth, async (req: any, res: any) => {
       if (req.body[`push_${prefKey(event)}`] !== 'on') push[prefKey(event)] = false;
     }
     await db.users.updateOne(eq('_id', idOf(req.user._id)), { set: { 'notificationPrefs.push': push } });
-    res.redirect('/notifications?push_msg=prefs_saved#push');
+    res.redirect('/notifications/settings?push_msg=prefs_saved');
   } catch (err: any) {
     console.error('[ERR] Notification prefs:', err.message);
     res.status(500).send(req.t('errors.generic_server_error'));

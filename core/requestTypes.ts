@@ -13,13 +13,22 @@ export type FieldType = typeof FIELD_TYPES[number];
 export type TypeField = { key: string; label: string; type: FieldType; required?: boolean; options?: string[]; deadline?: boolean };
 export type TypeStep = { key: string; label: string; out?: boolean };
 
+// The icons a request type can wear, picked from a grid in the builder: nobody has to know
+// an icon's name. Anything else sent is replaced by the first.
+export const REQUEST_TYPE_ICONS = [
+  'paper-plane', 'hand-holding', 'gift', 'heart', 'star', 'bookmark', 'handshake', 'right-left',
+  'headphones', 'music', 'compact-disc', 'record-vinyl', 'book-open', 'film', 'tv', 'gamepad',
+  'dice', 'puzzle-piece', 'cubes', 'calendar-days', 'clock', 'house', 'truck', 'box',
+  'broom', 'wrench', 'screwdriver-wrench', 'camera', 'magnifying-glass', 'comment', 'bell', 'tag',
+  'cake-candles', 'champagne-glasses', 'mug-hot', 'ticket'
+] as const;
+
 export const MAX_TYPES = 30;
 export const MAX_TYPE_FIELDS = 10;
 export const MAX_TYPE_STEPS = 8;
 const MAX_LABEL = 60;
 const MAX_DESCRIPTION = 300;
 const MAX_OPTIONS = 30;
-const ICON_RE = /^[a-z0-9-]{1,40}$/;
 const KEY_RE = /^[a-z][a-z0-9_]{0,29}$/;
 
 /** A key no other entry of `used` has, from what was given or from the label. */
@@ -81,7 +90,7 @@ export function cleanRequestType(raw: any): { type: Record<string, any> | null; 
   return {
     type: {
       name,
-      icon: ICON_RE.test(String(raw?.icon || '')) ? String(raw.icon) : 'paper-plane',
+      icon: (REQUEST_TYPE_ICONS as readonly string[]).includes(String(raw?.icon)) ? String(raw.icon) : REQUEST_TYPE_ICONS[0],
       description: cleanText(raw?.description, MAX_DESCRIPTION),
       enabled: raw?.enabled !== false,
       minRole: ['editor', 'admin'].includes(raw?.minRole) ? raw.minRole : 'viewer',

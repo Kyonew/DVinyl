@@ -14,15 +14,28 @@
 %>
 
 <div class="max-w-screen-md mx-auto pb-16">
+    <% const headButton = 'h-10 px-3 md:px-4 rounded-xl text-sm font-bold bg-black/5 dark:bg-white/10 transition-colors flex items-center gap-2'; %>
     <div class="pt-6 mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 class="text-3xl font-bold transition-colors"><%= t('notifications.title') %></h1>
-        <% if (anyUnread) { %>
-            <form action="<%= baseUrl %>/notifications/read" method="POST">
-                <button type="submit" class="px-4 py-2 rounded-xl text-sm font-bold bg-black/5 dark:bg-white/10 hover:bg-primary-theme hover:text-white transition-colors">
-                    <i class="fa-solid fa-check-double mr-1" aria-hidden="true"></i><%= t('notifications.mark_all_read') %>
-                </button>
-            </form>
-        <% } %>
+        <div class="flex flex-wrap items-center gap-2">
+            <% if (anyUnread) { %>
+                <form action="<%= baseUrl %>/notifications/read" method="POST">
+                    <button type="submit" class="<%= headButton %> hover:bg-primary-theme hover:text-white" title="<%= t('notifications.mark_all_read') %>">
+                        <i class="fa-solid fa-check-double" aria-hidden="true"></i><span class="max-sm:sr-only"><%= t('notifications.mark_all_read') %></span>
+                    </button>
+                </form>
+            <% } %>
+            <% if (anyRead) { %>
+                <form action="<%= baseUrl %>/notifications/clear-read" method="POST" onsubmit="return confirm(<%= JSON.stringify(t('notifications.clear_read_confirm')) %>)">
+                    <button type="submit" class="<%= headButton %> hover:bg-red-500 hover:text-white" title="<%= t('notifications.clear_read') %>">
+                        <i class="fa-solid fa-broom" aria-hidden="true"></i><span class="max-sm:sr-only"><%= t('notifications.clear_read') %></span>
+                    </button>
+                </form>
+            <% } %>
+            <a href="<%= baseUrl %>/notifications/settings" class="<%= headButton %> hover:bg-primary-theme hover:text-white" title="<%= t('notifications.settings') %>">
+                <i class="fa-solid fa-gear" aria-hidden="true"></i><span class="max-sm:sr-only"><%= t('notifications.settings') %></span>
+            </a>
+        </div>
     </div>
 
     <% if (notifications.length === 0) { %>
@@ -50,7 +63,13 @@
             <% }) %>
         </ul>
     <% }) %>
-    <%- include('partials/push-settings') %>
+    <% if (locals.moreShown) { %>
+        <div class="mt-6 flex justify-center">
+            <a href="<%= baseUrl %>/notifications?shown=<%= moreShown %>" class="px-4 py-2 rounded-xl text-sm font-bold bg-black/5 dark:bg-white/10 hover:bg-primary-theme hover:text-white transition-colors">
+                <%= t('notifications.see_more') %>
+            </a>
+        </div>
+    <% } %>
 </div>
 
 <%- include('partials/footer') %>

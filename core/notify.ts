@@ -131,10 +131,10 @@ async function pushRows(rows: any[], collectionId: any): Promise<void> {
 const PUSH_QUOTE = 140;
 
 /**
- * A push reads differently from an inbox line: what it is about as the title (the
- * request's type and its item), what happened as the body, with the member's own words
- * quoted when there are some. The browser already says which site it comes from, so the
- * title never repeats it.
+ * A push reads like a message: whoever did something as the title, what they did and
+ * about which item as the body, with their own words quoted when there are some. What
+ * nobody did (a due date passing, an item removed) is titled with the item instead. The
+ * browser already says which site it comes from, so the title never repeats it.
  */
 export function pushWording(row: any, t: (key: string, options?: any) => string, collectionName = ''): { title: string; body: string } {
   const payload = row.payload || {};
@@ -147,7 +147,7 @@ export function pushWording(row: any, t: (key: string, options?: any) => string,
     date: payload.due ? new Date(`${payload.due}T12:00:00Z`).toLocaleDateString(t('notifications.push.date_locale'), { timeZone: 'UTC', day: 'numeric', month: 'long' }) : '',
     interpolation: { escapeValue: false }
   };
-  const title = [payload.kind, payload.item].filter(Boolean).join(' · ') || collectionName || 'DVinyl';
+  const title = payload.actor || payload.item || collectionName || 'DVinyl';
   let body = t(`notifications.push.text.${key}`, { ...params, defaultValue: '' }) || describeNotification(row, t).text;
   const quote = String(payload.quote || '').replace(/\s+/g, ' ').trim();
   if (quote) body += '\n' + t('notifications.push.quote', { text: quote.length > PUSH_QUOTE ? quote.slice(0, PUSH_QUOTE - 1) + '…' : quote, interpolation: { escapeValue: false } });
@@ -192,6 +192,11 @@ export function describeNotification(notification: any, t: (key: string, options
     defaultValue: notification.event
   });
   return { icon: NOTIFICATION_EVENTS[notification.event]?.icon || 'bell', text };
+}
+
+/** A member's read notifications, gone at their request. */
+export async function clearRead(userId: any): Promise<void> {
+  await db.notifications.deleteMany(and(eq('user', idOf(userId)), range('readAt', { lte: new Date() })));
 }
 
 /** Clears out what was read long ago. */

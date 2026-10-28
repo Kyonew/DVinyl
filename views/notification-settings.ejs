@@ -1,0 +1,14 @@
+<%- include('partials/header') %>
+
+<div class="max-w-screen-md mx-auto pb-16">
+    <div class="pt-6 mb-6">
+        <a href="<%= baseUrl %>/notifications" class="text-sm opacity-60 hover:opacity-100 hover:text-primary-theme transition-colors">
+            <i class="fa-solid fa-arrow-left mr-1" aria-hidden="true"></i><%= t('notifications.title') %>
+        </a>
+        <h1 class="text-3xl font-bold mt-2 transition-colors"><%= t('notifications.settings') %></h1>
+    </div>
+
+    <%- include('partials/push-settings') %>
+</div>
+
+<%- include('partials/footer') %>

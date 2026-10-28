@@ -1,4 +1,4 @@
-<%# Push notifications on the notifications page: turning them on for this device, the
+<%# Push notifications, on the notification settings page: turning them on for this device, the
     member's devices, and which events reach them. Expects devices, prefs and pushMsg
     (core/routes/requestRoute.ts). What the browser can do is only known on the device,
     so the state of this device is drawn by the script below. %>
@@ -8,7 +8,7 @@
     const msg = pushMessages.includes(locals.pushMsg) ? pushMsg : '';
     const button = 'px-4 py-2 rounded-xl text-sm font-bold transition-colors';
 %>
-<section id="push" class="mt-12 scroll-mt-24 space-y-4">
+<section id="push" class="scroll-mt-24 space-y-4">
     <h2 class="text-xs font-bold uppercase tracking-widest opacity-50"><%= t('notifications.push.title') %></h2>
 
     <% if (msg) { %>

@@ -2147,6 +2147,10 @@
   "notifications": {
     "title": "Benachrichtigungen",
     "mark_all_read": "Alle als gelesen markieren",
+    "settings": "Einstellungen",
+    "clear_read": "Gelesene löschen",
+    "clear_read_confirm": "Bereits gelesene Benachrichtigungen löschen?",
+    "see_more": "Ältere anzeigen",
     "empty_title": "Nichts Neues",
     "empty_hint": "Erhaltene Anfragen und ihre Antworten erscheinen hier.",
     "unread": "Ungelesen",
@@ -2183,7 +2187,7 @@
       "remove_btn": "Entfernen",
       "test_body": "Push-Benachrichtigungen funktionieren auf diesem Gerät.",
       "prefs_title": "Was auf meinen Geräten ankommt",
-      "prefs_hint": "Alles bleibt im Posteingang oben; hier wählst du nur, was zusätzlich gepusht wird.",
+      "prefs_hint": "Alles bleibt in deinen Benachrichtigungen; hier wählst du nur, was zusätzlich auf deine Geräte gepusht wird.",
       "msg_removed": "Gerät entfernt.",
       "msg_test_sent": "Test gesendet. Er sollte in wenigen Sekunden erscheinen.",
       "msg_test_gone": "Dieses Gerät nimmt keine Benachrichtigungen mehr an und wurde entfernt.",
@@ -2201,16 +2205,16 @@
         "request_overdue": "Eine Fälligkeit überschritten",
         "request_item_removed": "Ein Objekt entfernt"
       },
-      "quote": "„{{text}}“",
+      "quote": "\"{{text}}\"",
       "date_locale": "de-DE",
       "text": {
-        "request_received": "{{actor}} schickt dir eine Anfrage",
-        "request_accepted": "✓ {{actor}} hat zugesagt",
-        "request_declined": "{{actor}} hat abgelehnt",
-        "request_step": "{{step}}, markiert von {{actor}}",
-        "request_cancelled": "{{actor}} hat abgebrochen",
-        "request_overdue": "Fällig am {{date}}: überfällig",
-        "request_item_removed": "Das Objekt wurde entfernt, die Anfrage ist abgebrochen"
+        "request_received": "📩 {{kind}} · {{item}}",
+        "request_accepted": "✅ hat angenommen · {{kind}}\n{{item}}",
+        "request_declined": "❌ hat abgelehnt · {{kind}}\n{{item}}",
+        "request_step": "➡️ {{step}} · {{kind}}\n{{item}}",
+        "request_cancelled": "🗑️ hat abgebrochen · {{kind}}\n{{item}}",
+        "request_overdue": "⏰ Überfällig seit {{date}} · {{kind}}",
+        "request_item_removed": "🗑️ Entfernt, {{kind}} ist abgebrochen"
       }
     }
   },

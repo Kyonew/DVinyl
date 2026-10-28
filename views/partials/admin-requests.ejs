@@ -101,22 +101,21 @@
 
         <div data-builder-errors class="hidden rounded-2xl px-4 py-3 text-sm bg-red-500/15 text-red-700 dark:text-red-300"></div>
 
-        <div class="grid grid-cols-[1fr,auto] gap-3 items-end">
-            <div>
-                <label class="<%= labelClass %>" for="tbName"><%= t('requests.builder.name') %></label>
-                <input id="tbName" maxlength="60" class="<%= inputClass %>" placeholder="<%= t('requests.builder.name_placeholder') %>">
-            </div>
-            <div>
-                <label class="<%= labelClass %>" for="tbIcon"><%= t('requests.builder.icon') %></label>
-                <div class="flex items-center gap-2">
-                    <span class="w-10 h-10 rounded-xl bg-primary-theme/15 text-primary-theme flex items-center justify-center"><i data-icon-preview class="fa-solid fa-paper-plane" aria-hidden="true"></i></span>
-                    <input id="tbIcon" list="tbIcons" maxlength="40" class="<%= inputClass %> w-36" placeholder="paper-plane">
-                    <datalist id="tbIcons">
-                        <% ['paper-plane', 'hand-holding', 'gift', 'headphones', 'calendar-days', 'broom', 'heart', 'star', 'comment', 'dice', 'music', 'book-open', 'film', 'gamepad', 'cubes', 'truck', 'camera', 'tag', 'wrench', 'magnifying-glass'].forEach(i => { %><option value="<%= i %>"><% }) %>
-                    </datalist>
-                </div>
-            </div>
+        <div>
+            <label class="<%= labelClass %>" for="tbName"><%= t('requests.builder.name') %></label>
+            <input id="tbName" maxlength="60" class="<%= inputClass %>" placeholder="<%= t('requests.builder.name_placeholder') %>">
         </div>
+        <fieldset>
+            <legend class="<%= labelClass %>"><%= t('requests.builder.icon') %></legend>
+            <div class="flex flex-wrap gap-2" role="radiogroup" data-icon-grid>
+                <% ra.icons.forEach(icon => { %>
+                    <button type="button" role="radio" aria-checked="false" data-icon-choice="<%= icon %>" aria-label="<%= icon %>"
+                        class="w-10 h-10 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-primary-theme/20 flex items-center justify-center transition-all">
+                        <i class="fa-solid fa-<%= icon %>" aria-hidden="true"></i>
+                    </button>
+                <% }) %>
+            </div>
+        </fieldset>
         <div>
             <label class="<%= labelClass %>" for="tbDescription"><%= t('requests.builder.description_field') %></label>
             <textarea id="tbDescription" rows="2" maxlength="300" class="<%= inputClass %>"></textarea>
@@ -237,10 +236,19 @@
         const holder = $('tbHolder');
         let editing = null;
 
-        const iconInput = $('tbIcon');
-        const iconPreview = form.querySelector('[data-icon-preview]');
-        const showIcon = () => { iconPreview.className = 'fa-solid fa-' + (/^[a-z0-9-]+$/.test(iconInput.value) ? iconInput.value : 'paper-plane'); };
-        iconInput.addEventListener('input', showIcon);
+        // The icon is picked from the grid; the first one stands in when none matches.
+        const iconButtons = [...form.querySelectorAll('[data-icon-choice]')];
+        let pickedIcon = iconButtons[0].dataset.iconChoice;
+        const pickIcon = (icon) => {
+            pickedIcon = iconButtons.some(b => b.dataset.iconChoice === icon) ? icon : iconButtons[0].dataset.iconChoice;
+            iconButtons.forEach(b => {
+                const on = b.dataset.iconChoice === pickedIcon;
+                b.setAttribute('aria-checked', String(on));
+                ['bg-primary-theme', 'text-white', 'shadow-lg', 'ring-2', 'ring-primary-theme', 'ring-offset-2', 'ring-offset-[var(--bg-card)]'].forEach(c => b.classList.toggle(c, on));
+                ['bg-black/5', 'dark:bg-white/5'].forEach(c => b.classList.toggle(c, !on));
+            });
+        };
+        iconButtons.forEach(b => b.addEventListener('click', () => pickIcon(b.dataset.iconChoice)));
 
         // A step only takes the item away when someone is named to have it, and the last
         // step always brings it back.
@@ -295,14 +303,13 @@
             const k = type || { icon: 'paper-plane', minRole: 'viewer', visibility: 'members', holder: 'none', fields: [], steps: [] };
             dialog.querySelector('[data-builder-title]').textContent = isEdit ? data.texts.editTitle : data.texts.newTitle;
             $('tbName').value = k.name || '';
-            iconInput.value = k.icon || 'paper-plane';
+            pickIcon(k.icon);
             $('tbDescription').value = k.description || '';
             $('tbMinRole').value = k.minRole || 'viewer';
             $('tbVisibility').value = k.visibility || 'members';
             holder.value = k.holder || 'none';
             (k.fields || []).forEach(addField);
             (k.steps || []).forEach(addStep);
-            showIcon();
             sync();
             dialog.showModal();
         };
@@ -316,7 +323,7 @@
             event.preventDefault();
             const body = {
                 name: $('tbName').value,
-                icon: iconInput.value,
+                icon: pickedIcon,
                 description: $('tbDescription').value,
                 minRole: $('tbMinRole').value,
                 visibility: $('tbVisibility').value,

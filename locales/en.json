@@ -2147,6 +2147,10 @@
   "notifications": {
     "title": "Notifications",
     "mark_all_read": "Mark all as read",
+    "settings": "Settings",
+    "clear_read": "Clear read",
+    "clear_read_confirm": "Delete the notifications already read?",
+    "see_more": "See older ones",
     "empty_title": "Nothing new",
     "empty_hint": "Requests you receive and their answers show up here.",
     "unread": "Unread",
@@ -2183,7 +2187,7 @@
       "remove_btn": "Remove",
       "test_body": "Push notifications work on this device.",
       "prefs_title": "What reaches my devices",
-      "prefs_hint": "Everything stays in the inbox above; this only chooses what is also pushed.",
+      "prefs_hint": "Everything stays in your notifications; this only chooses what is also pushed to your devices.",
       "msg_removed": "Device removed.",
       "msg_test_sent": "Test sent. It should show up in a few seconds.",
       "msg_test_gone": "This device no longer accepts notifications; it was removed.",
@@ -2201,16 +2205,16 @@
         "request_overdue": "A due date passed",
         "request_item_removed": "An item removed"
       },
-      "quote": "“{{text}}”",
+      "quote": "\"{{text}}\"",
       "date_locale": "en-GB",
       "text": {
-        "request_received": "{{actor}} sent you a request",
-        "request_accepted": "✓ {{actor}} said yes",
-        "request_declined": "{{actor}} said no",
-        "request_step": "{{step}}, marked by {{actor}}",
-        "request_cancelled": "{{actor}} called it off",
-        "request_overdue": "Due on {{date}}: it is late",
-        "request_item_removed": "The item was removed, so the request is called off"
+        "request_received": "📩 {{kind}} · {{item}}",
+        "request_accepted": "✅ accepted · {{kind}}\n{{item}}",
+        "request_declined": "❌ declined · {{kind}}\n{{item}}",
+        "request_step": "➡️ {{step}} · {{kind}}\n{{item}}",
+        "request_cancelled": "🗑️ called off · {{kind}}\n{{item}}",
+        "request_overdue": "⏰ Late since {{date}} · {{kind}}",
+        "request_item_removed": "🗑️ Removed, so {{kind}} is called off"
       }
     }
   },
