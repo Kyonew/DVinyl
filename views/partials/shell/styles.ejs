@@ -286,6 +286,12 @@
     -webkit-backdrop-filter: blur(16px) saturate(1.3);
     backdrop-filter: blur(16px) saturate(1.3);
   }
+  /* What floats over the page (dialogs, sheets, dropdown menus) stays nearly solid: the
+     page behind is dimmed and blurred already, and letting it through again only washes
+     out what is being read. */
+  html[data-glass="true"] :is(.dv-overlay .card-theme, dialog.card-theme, .dv-fade.card-theme, [role="dialog"].card-theme) {
+    background-color: rgb(var(--card-rgb) / 0.94) !important;
+  }
   html[data-glass="true"] :is(#dvTopBar, #dvSidebar, #dvDock > div, #tabBar) {
     background-color: rgb(var(--nav-rgb) / 0.7) !important;
     -webkit-backdrop-filter: blur(18px) saturate(1.4);

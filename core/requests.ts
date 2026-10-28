@@ -185,8 +185,20 @@ function snapshotOf(type: any) {
 
 const logEntry = (by: any, action: string, step?: number) => ({ at: new Date(), by: idOf(by), action, ...(step !== undefined ? { step } : {}) });
 
-function payloadOf(request: any, actorName: string, itemTitle: string, extra: Record<string, any> = {}) {
-  return { actor: actorName, kind: request.snapshot?.name || request.type, item: itemTitle, ...extra };
+/**
+ * What a notification about a request keeps: names frozen as they read now (never text
+ * already translated), the item's cover for a push to show, and the request it is about,
+ * so a later push on the same request replaces the earlier one.
+ */
+function payloadOf(request: any, actorName: string, item: any, extra: Record<string, any> = {}) {
+  return {
+    actor: actorName,
+    kind: request.snapshot?.name || request.type,
+    item: item?.title || '',
+    cover: item?.cover_image || '',
+    request: idOf(request._id),
+    ...extra
+  };
 }
 
 export const isParty = (request: any, userId: any) =>
@@ -194,7 +206,7 @@ export const isParty = (request: any, userId: any) =>
 
 /** Tells the member on the other side of the request what the actor just did to it. */
 async function tellOther(event: string, request: any, ctx: RequestContext, actorName: string, extra: Record<string, any> = {}) {
-  const item = await db.items.findOne(eq('_id', idOf(request.item)), { fields: ['title'] });
+  const item = await db.items.findOne(eq('_id', idOf(request.item)), { fields: ['title', 'cover_image'] });
   const other = idOf(request.sender) === ctx.userId ? request.recipient : request.sender;
   // A collection admin moving someone else's request along tells both of them.
   const to = isParty(request, ctx.userId) ? [other] : [request.sender, request.recipient];
@@ -203,7 +215,7 @@ async function tellOther(event: string, request: any, ctx: RequestContext, actor
     to,
     actor: ctx.userId,
     collection: ctx.collectionId,
-    payload: payloadOf(request, actorName, item?.title || '', extra),
+    payload: payloadOf(request, actorName, item, extra),
     link: `/requests/${idOf(request._id)}`
   });
 }
@@ -253,7 +265,7 @@ export async function sendRequest(params: {
     to: [recipient],
     actor: ctx.userId,
     collection: ctx.collectionId,
-    payload: payloadOf(request, params.actorName, item.title || ''),
+    payload: payloadOf(request, params.actorName, item, { quote: request.message || '' }),
     link: `/requests/${idOf(request._id)}`
   });
   return { request };
@@ -276,7 +288,7 @@ export async function answerRequest(params: { request: any; ctx: RequestContext;
     } }
   );
   if (!answered) return { error: 'requests.err_already_answered' };
-  await tellOther(accept ? 'request.accepted' : 'request.declined', answered, ctx, params.actorName);
+  await tellOther(accept ? 'request.accepted' : 'request.declined', answered, ctx, params.actorName, { quote: answered.response || '' });
   return { request: answered };
 }
 
@@ -484,7 +496,7 @@ export async function closeRequestsOnItems(itemIds: any[], titles: Map<string, s
       event: 'request.item_removed',
       to: [r.sender, r.recipient],
       collection: r.collection,
-      payload: { kind: r.snapshot?.name || r.type, item: titles.get(idOf(r.item)) || '' },
+      payload: payloadOf(r, '', { title: titles.get(idOf(r.item)) || '' }),
       link: '/requests'
     });
   }
@@ -497,4 +509,25 @@ export async function cancelRequestsOf(userId: any, collectionId?: any): Promise
     and(or(eq('sender', me), eq('recipient', me)), isIn('status', OPEN_STATUSES), collectionId ? ofCollection(collectionId) : null),
     { set: { status: 'cancelled' } }
   );
+}
+
+/**
+ * Tells both members of each request that went past its due date, once: a daily pass,
+ * plus one at boot. A request with no due date, or not under way, is never late.
+ */
+export async function notifyOverdueRequests(now = new Date()): Promise<number> {
+  const ongoing = await db.requests.find(and(eq('status', 'accepted'), eq('overdueNotifiedAt', null)), { defaults: true });
+  const late = ongoing.filter((r: any) => isOverdue(r, now));
+  for (const r of late) {
+    const item = await db.items.findOne(eq('_id', idOf(r.item)), { fields: ['title', 'cover_image'] });
+    await db.requests.updateOne(eq('_id', idOf(r._id)), { set: { overdueNotifiedAt: now } });
+    await notify({
+      event: 'request.overdue',
+      to: [r.sender, r.recipient],
+      collection: r.collection,
+      payload: payloadOf(r, '', item, { due: dueDateOf(r) || '' }),
+      link: `/requests/${idOf(r._id)}`
+    });
+  }
+  return late.length;
 }

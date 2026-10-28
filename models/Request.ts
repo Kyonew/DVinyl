@@ -29,7 +29,9 @@ const requestSchema = new mongoose.Schema({
   // What happened to it, oldest first: [{ at, by, action, step }].
   log: { type: mongoose.Schema.Types.Mixed, default: () => [] },
   // How the type read when the request was sent: { name, icon, holder, fields, steps }.
-  snapshot: { type: mongoose.Schema.Types.Mixed, default: () => ({}) }
+  snapshot: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
+  // When both members were told it is past its due date, so they are told once.
+  overdueNotifiedAt: { type: Date, default: null }
 }, {
   collection: 'requests',
   suppressReservedKeysWarning: true,

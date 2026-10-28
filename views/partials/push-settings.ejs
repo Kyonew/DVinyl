@@ -1,0 +1,164 @@
+<%# Push notifications on the notifications page: turning them on for this device, the
+    member's devices, and which events reach them. Expects devices, prefs and pushMsg
+    (core/routes/requestRoute.ts). What the browser can do is only known on the device,
+    so the state of this device is drawn by the script below. %>
+<%
+    const dayText = d => d ? new Date(d).toLocaleDateString(dateLocaleFor(currentLng)) : '';
+    const pushMessages = ['removed', 'test_sent', 'test_gone', 'test_failed', 'prefs_saved'];
+    const msg = pushMessages.includes(locals.pushMsg) ? pushMsg : '';
+    const button = 'px-4 py-2 rounded-xl text-sm font-bold transition-colors';
+%>
+<section id="push" class="mt-12 scroll-mt-24 space-y-4">
+    <h2 class="text-xs font-bold uppercase tracking-widest opacity-50"><%= t('notifications.push.title') %></h2>
+
+    <% if (msg) { %>
+        <div role="status" class="rounded-2xl px-4 py-3 text-sm font-semibold <%= msg === 'test_failed' || msg === 'test_gone' ? 'bg-red-500/15 text-red-700 dark:text-red-300' : 'bg-green-500/15 text-green-700 dark:text-green-300' %>">
+            <%= t('notifications.push.msg_' + msg) %>
+        </div>
+    <% } %>
+
+    <div class="card-theme rounded-2xl shadow-sm p-4 flex flex-wrap items-center gap-4" data-push-device>
+        <span class="w-10 h-10 flex-none rounded-xl bg-primary-theme/15 text-primary-theme flex items-center justify-center">
+            <i class="fa-solid fa-mobile-screen" aria-hidden="true"></i>
+        </span>
+        <div class="flex-1 min-w-[12rem]">
+            <p class="font-bold"><%= t('notifications.push.this_device') %></p>
+            <p class="text-sm opacity-70" data-push-state><%= t('notifications.push.state_checking') %></p>
+        </div>
+        <button type="button" data-push-enable class="hidden <%= button %> bg-primary-theme text-white hover:opacity-90">
+            <i class="fa-solid fa-bell mr-1" aria-hidden="true"></i><%= t('notifications.push.enable_btn') %>
+        </button>
+        <button type="button" data-push-disable class="hidden <%= button %> bg-black/5 dark:bg-white/10 hover:bg-red-500 hover:text-white">
+            <%= t('notifications.push.disable_btn') %>
+        </button>
+    </div>
+
+    <% if (devices.length) { %>
+        <ul class="card-theme rounded-2xl overflow-hidden shadow-sm divide-y divide-black/5 dark:divide-white/5">
+            <% devices.forEach(d => { %>
+                <li class="flex flex-wrap items-center gap-3 px-4 py-3" data-device-endpoint="<%= d.endpoint %>">
+                    <i class="fa-solid fa-display opacity-50 w-5 text-center" aria-hidden="true"></i>
+                    <span class="flex-1 min-w-[10rem]">
+                        <span class="block font-semibold text-sm"><%= d.label %> <span data-device-current class="hidden text-xs font-bold text-primary-theme ml-1"><%= t('notifications.push.current') %></span></span>
+                        <span class="block text-xs opacity-60">
+                            <%= t('notifications.push.added_on', { date: dayText(d.createdAt) }) %><% if (d.lastSuccessAt) { %> &middot; <%= t('notifications.push.last_sent', { date: dayText(d.lastSuccessAt) }) %><% } %>
+                        </span>
+                    </span>
+                    <form action="<%= baseUrl %>/push/subscriptions/<%= d.id %>/test" method="POST">
+                        <button type="submit" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-black/5 dark:bg-white/10 hover:bg-primary-theme hover:text-white transition-colors"><%= t('notifications.push.test_btn') %></button>
+                    </form>
+                    <form action="<%= baseUrl %>/push/subscriptions/<%= d.id %>/delete" method="POST">
+                        <button type="submit" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-black/5 dark:bg-white/10 hover:bg-red-500 hover:text-white transition-colors"><%= t('notifications.push.remove_btn') %></button>
+                    </form>
+                </li>
+            <% }) %>
+        </ul>
+    <% } %>
+
+    <form action="<%= baseUrl %>/notifications/prefs" method="POST" class="card-theme rounded-2xl shadow-sm p-4 space-y-3">
+        <p class="text-sm font-bold"><%= t('notifications.push.prefs_title') %></p>
+        <p class="text-xs opacity-60 -mt-2"><%= t('notifications.push.prefs_hint') %></p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <% prefs.forEach(p => { %>
+                <label class="flex items-center gap-3 p-3 rounded-xl bg-black/5 dark:bg-white/5 cursor-pointer text-sm">
+                    <input type="checkbox" name="push_<%= p.key %>" class="w-4 h-4 accent-primary-theme" <%= p.push ? 'checked' : '' %>>
+                    <i class="fa-solid fa-<%= p.icon %> opacity-60 w-4 text-center" aria-hidden="true"></i>
+                    <span><%= p.label %></span>
+                </label>
+            <% }) %>
+        </div>
+        <div class="flex justify-end">
+            <button type="submit" class="<%= button %> bg-primary-theme text-white hover:opacity-90"><%= t('common.save') %></button>
+        </div>
+    </form>
+</section>
+
+<script type="application/json" id="pushTexts"><%- JSON.stringify({
+    insecure: t('notifications.push.state_insecure'),
+    unsupported: t('notifications.push.state_unsupported'),
+    ios: t('notifications.push.state_ios'),
+    denied: t('notifications.push.state_denied'),
+    on: t('notifications.push.state_on'),
+    off: t('notifications.push.state_off'),
+    error: t('notifications.push.state_error')
+}).replace(/</g, '\\u003c') %></script>
+<script>
+    (() => {
+        const texts = JSON.parse(document.getElementById('pushTexts').textContent);
+        const box = document.querySelector('[data-push-device]');
+        const state = box.querySelector('[data-push-state]');
+        const enable = box.querySelector('[data-push-enable]');
+        const disable = box.querySelector('[data-push-disable]');
+        const base = '<%= baseUrl %>';
+        const show = (text, canEnable, canDisable) => {
+            state.textContent = text;
+            enable.classList.toggle('hidden', !canEnable);
+            disable.classList.toggle('hidden', !canDisable);
+        };
+        const post = (url, body) => fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify(body || {})
+        });
+        // The VAPID key comes as base64url; the browser wants its bytes.
+        const keyBytes = key => {
+            const padded = (key + '='.repeat((4 - key.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/');
+            return Uint8Array.from(atob(padded), c => c.charCodeAt(0));
+        };
+        const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        const installed = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+
+        async function refresh() {
+            if (!window.isSecureContext) return show(texts.insecure, false, false);
+            if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+                return show(ios && !installed ? texts.ios : texts.unsupported, false, false);
+            }
+            if (Notification.permission === 'denied') return show(texts.denied, false, false);
+            const registration = await navigator.serviceWorker.ready;
+            const current = await registration.pushManager.getSubscription();
+            const row = current && document.querySelector(`[data-device-endpoint="${CSS.escape(current.endpoint)}"]`);
+            if (row) row.querySelector('[data-device-current]').classList.remove('hidden');
+            if (current && row) return show(texts.on, false, true);
+            show(texts.off, true, false);
+        }
+
+        enable.addEventListener('click', async () => {
+            enable.disabled = true;
+            try {
+                if (await Notification.requestPermission() !== 'granted') return refresh();
+                const { publicKey } = await (await fetch(base + '/push/key', { headers: { Accept: 'application/json' } })).json();
+                const registration = await navigator.serviceWorker.ready;
+                let subscription = await registration.pushManager.getSubscription();
+                // A subscription made under another key cannot be reused: start over.
+                if (subscription) await subscription.unsubscribe();
+                subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(publicKey) });
+                const reply = await post(base + '/push/subscriptions', { subscription: subscription.toJSON() });
+                const result = await reply.json().catch(() => ({}));
+                if (!reply.ok) {
+                    await subscription.unsubscribe();
+                    return show(result.error || texts.error, true, false);
+                }
+                window.location.reload();
+            } catch (e) {
+                console.warn('[push]', e);
+                show(texts.error, true, false);
+            } finally {
+                enable.disabled = false;
+            }
+        });
+
+        disable.addEventListener('click', async () => {
+            const registration = await navigator.serviceWorker.ready;
+            const current = await registration.pushManager.getSubscription();
+            if (current) {
+                const row = document.querySelector(`[data-device-endpoint="${CSS.escape(current.endpoint)}"]`);
+                const form = row && row.querySelector('form[action$="/delete"]');
+                await current.unsubscribe();
+                if (form) return form.submit();
+            }
+            window.location.reload();
+        });
+
+        refresh().catch(() => show(texts.error, true, false));
+    })();
+</script>

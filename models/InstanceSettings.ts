@@ -39,6 +39,15 @@ const instanceSettingsSchema = new mongoose.Schema({
         model: { type: String, default: '' },
         visionModel: { type: String, default: '' },
         apiKeyEncrypted: { type: String, default: '' }
+    },
+    // The instance's own VAPID keys, made on first use (core/push.ts). The private key is
+    // stored encrypted, like the AI key; one that no longer decrypts is replaced.
+    push: {
+        publicKey: { type: String, default: '' },
+        privateKeyEncrypted: { type: String, default: '' },
+        // The contact the keys are signed with: the HTTPS address members turned push on
+        // from. Apple's push service refuses a token whose contact is not a real one.
+        subject: { type: String, default: '' }
     }
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
 

@@ -10,7 +10,12 @@
         el.textContent = text;
         el.classList.toggle('hidden', !unread);
       });
+      // The installed app's icon carries the same count, where the platform shows one.
+      if (navigator.setAppBadge) {
+        (unread ? navigator.setAppBadge(unread) : navigator.clearAppBadge()).catch(function () {});
+      }
     }
+    paint(<%= Number(locals.unreadNotifications || 0) %>);
     function connect() {
       if (typeof io !== 'function') return;
       const socket = io({ path: '<%= baseUrl %>/socket.io' });

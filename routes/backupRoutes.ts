@@ -1,3 +1,4 @@
+import { invalidateVapidCache } from '../core/push';
 import express from 'express';
 import { db } from '../core/db';
 import { all, eq, idOf, isId } from '../core/db/query';
@@ -217,6 +218,8 @@ const importInstanceBackup = async (req: any, res: any) => {
             db.requestTypes.deleteMany(all()),
             // They point at ids that may no longer mean the same thing: an inbox starts over.
             db.notifications.deleteMany(all()),
+            // A device subscribed to the accounts being replaced.
+            db.pushSubscriptions.deleteMany(all()),
             db.customPlugins.deleteMany(all()),
             db.priceHistory.deleteMany(all()),
             db.instanceSettings.deleteMany(all())
@@ -225,6 +228,7 @@ const importInstanceBackup = async (req: any, res: any) => {
         // authorizing (or blocking) collection creation until the next restart.
         invalidateInstanceSettingsCache();
         invalidateAiConfigCache();
+        invalidateVapidCache();
 
         if (hasCollections) {
             await db.collections.insertMany(data.collections);

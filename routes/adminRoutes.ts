@@ -21,6 +21,7 @@ import { PermanentRefreshError, syncStamp, getPublicProtocol } from "../core/hel
 import { deleteItemsAndContents } from "../utils/itemHelpers";
 import { cancelRequestsOf } from "../core/requests";
 import { deleteNotificationsOf } from "../core/notify";
+import { deleteSubscriptionsOf } from "../core/push";
 import { AI_PROVIDERS } from "../core/ai/providers";
 import { getAiConfig, getStoredAiSettings, saveAiSettings } from "../core/ai/instance";
 import { isAiConfigured, resolveTestConfig } from "../core/ai/config";
@@ -957,6 +958,7 @@ router.post("/delete-user", requireAuth, requireAdmin, async (req: any, res: any
     if (target) {
       await cancelRequestsOf(target._id);
       await deleteNotificationsOf({ user: target._id });
+      await deleteSubscriptionsOf(target._id);
     }
     await db.users.deleteOne(eq("_id", req.body.userId));
     await db.collections.updateMany(all(), { pull: { members: eq("user", req.body.userId) } });

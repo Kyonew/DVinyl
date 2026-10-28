@@ -53,6 +53,9 @@ const userSchema = new mongoose.Schema({
     // Plugin-scoped user data: { [pluginId]: { [key]: value } }, e.g. { music: { discogsUsername: 'foo' } }.
     // Lets a plugin persist per-user state without adding a field to the core User model.
     pluginData: { type: mongoose.Schema.Types.Mixed, default: {} },
+    // Which notifications reach this user's devices: { push: { [event_with_underscores]: false } }.
+    // An event is pushed unless switched off; the inbox always gets it (core/notify.ts).
+    notificationPrefs: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
     // The collection this user is currently browsing. Persisted (not session-only)
     // so it survives logout / a new browser / another device.
     lastActiveCollectionId: {

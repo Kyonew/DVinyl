@@ -1,11 +1,16 @@
 import jwt from 'jsonwebtoken';
+import i18next from 'i18next';
 import { db } from './db';
-import { and, desc, eq, idOf, isId, range } from './db/query';
+import { and, desc, eq, idOf, isId, isIn, range } from './db/query';
+import { BASE_URL } from '../config/constants';
+import { pushToUser, wantsPush } from './push';
+import { itemImageUrl } from './itemImageStorage';
 
 /**
  * The one way the core tells a member something happened: notify() writes a line to the
- * inbox of each recipient and pushes the new unread count to their open pages. The rest
- * of the core calls it without knowing which channels exist.
+ * inbox of each recipient, sends the new unread count to their open pages, then pushes it
+ * to the devices they turned push on for (core/push.ts). The rest of the core calls it
+ * without knowing which channels exist.
  */
 
 /** What each event looks like in the inbox. Its text is notifications.events.<event>. */
@@ -15,6 +20,7 @@ export const NOTIFICATION_EVENTS: Record<string, { icon: string }> = {
   'request.declined': { icon: 'circle-xmark' },
   'request.cancelled': { icon: 'ban' },
   'request.step': { icon: 'forward-step' },
+  'request.overdue': { icon: 'clock' },
   'request.item_removed': { icon: 'trash-can' }
 };
 
@@ -81,19 +87,77 @@ export async function notify(params: {
   const recipients = [...new Set(params.to.filter(Boolean).map(idOf))].filter(id => isId(id) && id !== actor);
   if (recipients.length === 0) return;
   try {
-    await db.notifications.insertMany(recipients.map(user => ({
+    const rows = recipients.map(user => ({
+      _id: db.newId(),
       user,
       collection: params.collection ? idOf(params.collection) : null,
       event: params.event,
       payload: params.payload || {},
       link: params.link || '',
       readAt: null
-    })));
+    }));
+    await db.notifications.insertMany(rows);
     await Promise.all(recipients.map(pushCount));
+    await pushRows(rows, params.collection);
   } catch (err: any) {
     // Telling someone is never worth failing what they are being told about.
     console.error('[NOTIFY]', params.event, err.message);
   }
+}
+
+/**
+ * Each line pushed to its recipient's devices, worded in the recipient's own language and
+ * titled with the collection it is about. Tapping it opens the line, which marks it read.
+ */
+async function pushRows(rows: any[], collectionId: any): Promise<void> {
+  const users = await db.users.find(isIn('_id', rows.map(r => r.user)), { fields: ['language', 'notificationPrefs'] });
+  const byId = new Map(users.map((u: any) => [idOf(u._id), u]));
+  const collection = collectionId ? await db.collections.findById(idOf(collectionId), { fields: ['name'] }) : null;
+  for (const row of rows) {
+    const user = byId.get(idOf(row.user));
+    if (!user || !wantsPush(user, row.event)) continue;
+    const t = i18next.getFixedT(user.language || 'en') as any;
+    pushToUser(row.user, {
+      ...pushWording(row, t, collection?.name || ''),
+      url: `${BASE_URL}/notifications/${idOf(row._id)}/open`,
+      tag: row.payload?.request ? `request-${row.payload.request}` : idOf(row._id),
+      icon: pushIcon(row.payload?.cover),
+      unread: await unreadCount(row.user)
+    });
+  }
+}
+
+// The longest quote of a message a push carries; the rest is on the request's page.
+const PUSH_QUOTE = 140;
+
+/**
+ * A push reads differently from an inbox line: what it is about as the title (the
+ * request's type and its item), what happened as the body, with the member's own words
+ * quoted when there are some. The browser already says which site it comes from, so the
+ * title never repeats it.
+ */
+export function pushWording(row: any, t: (key: string, options?: any) => string, collectionName = ''): { title: string; body: string } {
+  const payload = row.payload || {};
+  const key = String(row.event).replace(/\./g, '_');
+  const params = {
+    actor: payload.actor || t('notifications.someone'),
+    kind: payload.kind || '',
+    item: payload.item || '',
+    step: payload.step || '',
+    date: payload.due ? new Date(`${payload.due}T12:00:00Z`).toLocaleDateString(t('notifications.push.date_locale'), { timeZone: 'UTC', day: 'numeric', month: 'long' }) : '',
+    interpolation: { escapeValue: false }
+  };
+  const title = [payload.kind, payload.item].filter(Boolean).join(' · ') || collectionName || 'DVinyl';
+  let body = t(`notifications.push.text.${key}`, { ...params, defaultValue: '' }) || describeNotification(row, t).text;
+  const quote = String(payload.quote || '').replace(/\s+/g, ' ').trim();
+  if (quote) body += '\n' + t('notifications.push.quote', { text: quote.length > PUSH_QUOTE ? quote.slice(0, PUSH_QUOTE - 1) + '…' : quote, interpolation: { escapeValue: false } });
+  return { title, body };
+}
+
+/** An item's cover as a push icon: one of this instance's own images, or an HTTPS one. */
+function pushIcon(cover: unknown): string {
+  const url = itemImageUrl(cover);
+  return url.startsWith('/') || url.startsWith('https://') ? url : '';
 }
 
 /** A member's latest notifications, newest first. */

@@ -75,6 +75,7 @@ export const db = {
   requests: store('Request', 'requests', 'collection'),
   requestTypes: store('RequestType', 'request_types', 'collection'),
   notifications: store('Notification', 'notifications', 'user'),
+  pushSubscriptions: store('PushSubscription', 'push_subscriptions', 'user'),
   furniture: store('Furniture', 'furniture', 'collection'),
   priceHistory: store('PriceHistory', 'price_history', 'collection'),
   customPlugins: store('CustomPlugin', 'custom_plugins')

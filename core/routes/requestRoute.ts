@@ -8,7 +8,8 @@ import {
   OPEN_STATUSES, ownRequest, readableBy, requestableItem, requestsEnabled, sendRequest
 } from '../requests';
 import { typeBySlug } from '../requestTypes';
-import { describeNotification, markRead, notificationsOf, ownNotification } from '../notify';
+import { describeNotification, markRead, notificationsOf, ownNotification, NOTIFICATION_EVENTS } from '../notify';
+import { prefKey, subscriptionsOf, wantsPush } from '../push';
 
 /**
  * Requests between members, and the inbox. A request is always read back within the
@@ -185,7 +186,26 @@ router.get('/notifications', requireAuth, async (req: any, res: any) => {
       read: !!n.readAt,
       createdAt: n.created_at
     }));
-    res.render('notifications', { user: res.locals.user, notifications: rows });
+    const devices = (await subscriptionsOf(req.user._id)).map((d: any) => ({
+      id: idOf(d._id),
+      endpoint: d.endpoint,
+      label: d.label || req.t('notifications.push.device_unknown'),
+      createdAt: d.created_at,
+      lastSuccessAt: d.lastSuccessAt
+    }));
+    const prefs = Object.entries(NOTIFICATION_EVENTS).map(([event, info]) => ({
+      key: prefKey(event),
+      icon: info.icon,
+      label: req.t(`notifications.push.events.${prefKey(event)}`),
+      push: wantsPush(req.user, event)
+    }));
+    res.render('notifications', {
+      user: res.locals.user,
+      notifications: rows,
+      devices,
+      prefs,
+      pushMsg: typeof req.query.push_msg === 'string' ? req.query.push_msg : ''
+    });
   } catch (err: any) {
     console.error('[ERR] Notifications page:', err.message);
     res.status(500).send(req.t('errors.generic_server_error'));

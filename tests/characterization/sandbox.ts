@@ -95,6 +95,8 @@ export async function startApp(
       PROD: 'false',
       PASSJWT: 'characterization-jwt-secret',
       SESSION_SECRET: 'characterization-session-secret',
+      // Push notifications are prepared but never leave the machine.
+      PUSH_DRY_RUN: 'true',
       ...extraEnv
     },
     stdio: ['ignore', 'pipe', 'pipe']

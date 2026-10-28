@@ -60,8 +60,9 @@ import shelfRoute from './core/routes/shelfRoute.js';
 import listRoute from './core/routes/listRoute.js';
 import requestRoute from './core/routes/requestRoute.js';
 import requestAdminRoute from './core/routes/requestAdminRoute.js';
+import pushRoute from './core/routes/pushRoute.js';
 import { attachNotificationSockets, purgeOldNotifications, unreadCount } from './core/notify';
-import { inboxCount, requestsEnabled } from './core/requests';
+import { inboxCount, notifyOverdueRequests, requestsEnabled } from './core/requests';
 import searchRoute from './core/routes/searchRoute.js';
 import accountRoute from './core/routes/accountRoute.js';
 import manualAddRoute from './core/routes/manualAddRoute.js';
@@ -377,6 +378,7 @@ app.use(BASE_URL, collectionInfoRoute);
 app.use(BASE_URL, shelfRoute);
 app.use(BASE_URL, listRoute);
 app.use(BASE_URL, requestRoute);
+app.use(BASE_URL, pushRoute);
 app.use(BASE_URL, searchRoute);
 app.use(BASE_URL, accountRoute);
 app.use(BASE_URL, manualAddRoute);
@@ -428,6 +430,11 @@ connectDB()
     const purgeNotifications = () => purgeOldNotifications().catch((err: any) => console.warn('[CLEANUP] Notification purge failed:', err));
     void purgeNotifications();
     setInterval(() => { void purgeNotifications(); }, 24 * 3600 * 1000).unref();
+    // Requests past their due date, told once to both members. Hourly, so a day's change
+    // is caught within the hour whatever time the instance started.
+    const remindOverdue = () => notifyOverdueRequests().catch((err: any) => console.warn('[REQUESTS] Overdue pass failed:', err));
+    void remindOverdue();
+    setInterval(() => { void remindOverdue(); }, 3600 * 1000).unref();
     const port = process.env.VINYL_PORT || 3099;
     server.listen(port, () => {
       console.log(`[BOOT] Server started on port ${port} (BASE_URL="${BASE_URL || '/'}", env=${process.env.PROD === 'true' ? 'production' : 'development'})`);

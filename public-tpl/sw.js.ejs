@@ -90,3 +90,46 @@ self.addEventListener('fetch', event => {
     return response;
   })());
 });
+
+// Push notifications (core/push.ts). The payload carries the words already in the
+// member's language, and the page to open: the notification's own line, which marks it read.
+self.addEventListener('push', event => {
+  let message = {};
+  try { message = event.data ? event.data.json() : {}; } catch (e) { message = { body: event.data ? event.data.text() : '' }; }
+  event.waitUntil((async () => {
+    // The app icon's count follows the inbox, where the platform shows one.
+    if (typeof message.unread === 'number' && self.navigator.setAppBadge) {
+      try { await self.navigator.setAppBadge(message.unread); } catch (e) { /* no badge here */ }
+    }
+    // The item's cover where the platform shows a picture (Android, desktop); iOS keeps
+    // the app's own icon whatever is sent. One notification per request: a later step
+    // replaces the earlier one instead of piling up, and still makes itself heard.
+    await self.registration.showNotification(message.title || 'DVinyl', {
+      body: message.body || '',
+      icon: message.icon || BASE + '/ressources/icone-192.png',
+      badge: BASE + '/ressources/icone-192.png',
+      tag: message.tag || undefined,
+      renotify: !!message.tag,
+      timestamp: Date.now(),
+      data: { url: message.url || BASE + '/notifications' }
+    });
+  })());
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const target = new URL((event.notification.data && event.notification.data.url) || BASE + '/notifications', self.location.origin);
+  // Only ever a page of this instance, whatever a payload says.
+  if (target.origin !== self.location.origin) return;
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const open = windows.find(client => new URL(client.url).origin === self.location.origin);
+    if (open) {
+      await open.focus();
+      try {
+        if (open.navigate) return await open.navigate(target.href);
+      } catch (e) { /* a page this worker does not control: open a new one */ }
+    }
+    return self.clients.openWindow(target.href);
+  })());
+});
