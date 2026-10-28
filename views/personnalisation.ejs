@@ -103,7 +103,10 @@
 </style>
 
 <div id="studio" class="fixed inset-0 z-[55] flex flex-col bg-[var(--bg-page)] text-[var(--text-main)]">
-    <header class="flex-none flex items-center gap-2 md:gap-3 px-2 md:px-4 h-[60px] border-b border-[var(--border-color)]" style="background-color: var(--bg-nav); padding-top: env(safe-area-inset-top);">
+    <%# The status bar of an installed app sits over the top of the screen: its height
+        comes on top of the bar's 60px rather than out of them, or the buttons end up
+        squeezed under the clock. %>
+    <header class="flex-none flex items-center gap-2 md:gap-3 px-2 md:px-4 border-b border-[var(--border-color)]" style="background-color: var(--bg-nav); height: calc(60px + env(safe-area-inset-top)); padding-top: env(safe-area-inset-top); padding-left: max(0.5rem, env(safe-area-inset-left)); padding-right: max(0.5rem, env(safe-area-inset-right));">
         <a href="<%= baseUrl %>/dashboard" aria-label="<%= t('nav.back') %>" title="<%= t('nav.back') %>" class="<%= toolButton %> !w-10 !h-10">
             <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
         </a>

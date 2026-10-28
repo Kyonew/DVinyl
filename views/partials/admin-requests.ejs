@@ -90,9 +90,9 @@
     <% }) %>
 </section>
 
-<dialog id="typeBuilder" class="card-theme rounded-3xl p-0 w-[min(42rem,calc(100vw-2rem))] max-h-[90vh] shadow-2xl backdrop:bg-black/60 backdrop:backdrop-blur-sm text-[var(--text-main)]">
+<dialog id="typeBuilder" class="card-theme rounded-3xl p-0 w-[min(42rem,calc(100vw-2rem))] shadow-2xl backdrop:bg-black/60 backdrop:backdrop-blur-sm text-[var(--text-main)]">
     <form id="typeBuilderForm" class="p-6 space-y-6" novalidate>
-        <div class="flex items-center justify-between gap-3">
+        <div data-dialog-head class="flex items-center justify-between gap-3">
             <h3 class="font-bold text-lg" data-builder-title></h3>
             <button type="button" data-builder-close class="w-8 h-8 rounded-lg opacity-60 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/10" aria-label="<%= t('requests.close') %>">
                 <i class="fa-solid fa-xmark" aria-hidden="true"></i>
@@ -164,7 +164,7 @@
             <ol data-steps class="space-y-2"></ol>
         </div>
 
-        <div class="flex justify-end gap-2 pt-1">
+        <div data-dialog-foot class="flex justify-end gap-2">
             <button type="button" data-builder-close class="px-4 py-2 rounded-xl text-sm font-bold bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-colors"><%= t('common.cancel') %></button>
             <button type="submit" class="px-4 py-2 rounded-xl text-sm font-bold bg-primary-theme text-white hover:opacity-90 transition-opacity"><%= t('common.save') %></button>
         </div>

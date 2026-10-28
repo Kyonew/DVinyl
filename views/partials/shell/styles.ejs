@@ -165,6 +165,42 @@
   .dv-fade.hidden { opacity: 0; }
   @starting-style { .dv-fade { opacity: 0; } }
 
+  /* Native modal dialogs. The reset Tailwind applies to every element takes away the
+     auto margins that centre one, and the page under it would still scroll: on a phone
+     the dialog sat in a corner while a swipe moved the page behind it. Centred again,
+     within what the status bar and the home indicator leave of the screen (an installed
+     app runs under both), never taller than that, scrolled on its own without the scroll
+     running on to the page, which stays put meanwhile. */
+  dialog:modal {
+    inset: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    margin: auto;
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 2rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  /* A dialog's title row and its buttons stay on screen while its content scrolls,
+     solid so nothing scrolling under them shows through. They reach over the padding
+     of the form they sit in (--dialog-pad) to cover the dialog edge to edge. The form
+     spaces its children with space-y, whose margins win over plain ones, hence the
+     !important on these two. */
+  dialog:modal { --dialog-pad: 1.5rem; }
+  dialog:modal [data-dialog-head], dialog:modal [data-dialog-foot] {
+    position: sticky;
+    z-index: 1;
+    background-color: rgb(var(--card-rgb));
+  }
+  dialog:modal [data-dialog-head] {
+    top: 0;
+    margin: calc(-1 * var(--dialog-pad)) calc(-1 * var(--dialog-pad)) 0 !important;
+    padding: var(--dialog-pad) var(--dialog-pad) 0.75rem;
+  }
+  dialog:modal [data-dialog-foot] {
+    bottom: 0;
+    margin: 0.5rem calc(-1 * var(--dialog-pad)) calc(-1 * var(--dialog-pad)) !important;
+    padding: 0.75rem var(--dialog-pad) var(--dialog-pad);
+  }
+  :root:has(dialog:modal), :root:has(dialog:modal) body { overflow: hidden; }
+
   /* Touch feedback: rows of a sheet and tab bar icons dip under the finger. */
   .dv-overlay [role="dialog"] :is(a, button) { transition: background-color 0.15s ease; }
   .dv-overlay [role="dialog"] .divide-y > :is(a, button):active { background-color: rgb(0 0 0 / 0.05); }

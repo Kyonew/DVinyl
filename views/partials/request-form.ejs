@@ -7,11 +7,11 @@
     const inputClass = 'w-full rounded-xl bg-black/5 dark:bg-white/5 border border-[var(--border-color)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-theme';
     const labelClass = 'block text-xs font-bold uppercase tracking-widest opacity-60 mb-1.5';
 %>
-<dialog id="<%= dialogId %>" class="card-theme rounded-3xl p-0 w-[min(34rem,calc(100vw-2rem))] max-h-[90vh] shadow-2xl backdrop:bg-black/60 backdrop:backdrop-blur-sm text-[var(--text-main)]">
+<dialog id="<%= dialogId %>" class="card-theme rounded-3xl p-0 w-[min(34rem,calc(100vw-2rem))] shadow-2xl backdrop:bg-black/60 backdrop:backdrop-blur-sm text-[var(--text-main)]">
     <form action="<%= baseUrl %>/requests" method="POST" class="p-6 space-y-5" data-request-form>
         <input type="hidden" name="itemId" value="<%= itemId %>">
         <input type="hidden" name="back" value="<%= back %>">
-        <div class="flex items-center justify-between gap-3">
+        <div data-dialog-head class="flex items-center justify-between gap-3">
             <h3 class="font-bold text-lg"><%= t('requests.new_title') %></h3>
             <button type="button" onclick="this.closest('dialog').close()" class="w-8 h-8 rounded-lg opacity-60 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/10" aria-label="<%= t('requests.close') %>">
                 <i class="fa-solid fa-xmark" aria-hidden="true"></i>
@@ -86,7 +86,7 @@
                 placeholder="<%= t('requests.message_placeholder') %>"></textarea>
         </div>
 
-        <div class="flex justify-end gap-2 pt-1">
+        <div data-dialog-foot class="flex justify-end gap-2">
             <button type="button" onclick="this.closest('dialog').close()" class="px-4 py-2 rounded-xl text-sm font-bold bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-colors"><%= t('common.cancel') %></button>
             <button type="submit" class="px-4 py-2 rounded-xl text-sm font-bold bg-primary-theme text-white hover:opacity-90 transition-opacity">
                 <i class="fa-solid fa-paper-plane mr-1" aria-hidden="true"></i><%= t('requests.send_btn') %>
