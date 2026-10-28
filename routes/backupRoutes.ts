@@ -1,4 +1,3 @@
-import { invalidateVapidCache } from '../core/push';
 import express from 'express';
 import { db } from '../core/db';
 import { all, eq, idOf, isId } from '../core/db/query';
@@ -9,6 +8,7 @@ import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
 import { invalidateInstanceSettingsCache } from '../utils/instanceSettings';
 import { invalidateAiConfigCache } from '../core/ai/instance';
+import { invalidateVapidCache } from '../core/push';
 import { requireAuth, requireAdmin, requireCollectionRole } from '../middleware/authMiddleware';
 import { registry } from '../core/registry';
 import { buildSortTitle, csvLine, getPublicProtocol } from '../core/helpers';
@@ -682,14 +682,6 @@ function restorableFurniture(data: any, collectionId: any, userId: any): any[] |
 const isDumpId = (value: unknown) => isId(String(value ?? ''));
 
 /**
- * The lists of a dump that can go back, each in the shape `place` gives it. Settled
- * before anything is wiped, for the same reason as the furniture: a list the model
- * refuses (a kind this version does not know, a name left blank in a file edited by
- * hand) would only fail its insert once the replacement had already started, and a
- * whole-instance restore inserts the lists before the accounts. Such a list is left out
- * rather than costing the rest of the restore, and so is a line naming no valid item.
- */
-/**
  * The records of a dump that pass the rules of `store`, each in the shape `place` gives
  * it, or left out when `place` finds nothing left to point at. Settled before anything
  * is wiped, like the lists.
@@ -712,6 +704,14 @@ function restorableRecords(store: any, records: unknown, label: string, place: (
     return kept;
 }
 
+/**
+ * The lists of a dump that can go back, each in the shape `place` gives it. Settled
+ * before anything is wiped, for the same reason as the furniture: a list the model
+ * refuses (a kind this version does not know, a name left blank in a file edited by
+ * hand) would only fail its insert once the replacement had already started, and a
+ * whole-instance restore inserts the lists before the accounts. Such a list is left out
+ * rather than costing the rest of the restore, and so is a line naming no valid item.
+ */
 function restorableLists(lists: unknown, place: (list: any) => any): any[] {
     if (!Array.isArray(lists)) return [];
 
