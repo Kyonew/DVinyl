@@ -36,7 +36,7 @@ test('while DVinyl has the file open, another process can neither read nor write
     closeDatabase();
   }
 
-  const after = runOther(file, `console.log(new D(file).prepare('SELECT count(*) AS n FROM things').get().n);`);
+  const after = runOther(file, `console.log(String(new D(file).prepare('SELECT count(*) AS n FROM things').get().n));`);
   assert.equal(after.stdout.trim(), '1', 'closing releases the file');
 });
 
