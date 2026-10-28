@@ -48,6 +48,16 @@ const instanceSettingsSchema = new mongoose.Schema({
         // The contact the keys are signed with: the HTTPS address members turned push on
         // from. Apple's push service refuses a token whose contact is not a real one.
         subject: { type: String, default: '' }
+    },
+    // Whether the instance asks GitHub once a day for the latest release, and what it
+    // learnt: off until an admin turns it on, since it is a call outside the instance.
+    updateCheck: {
+        enabled: { type: Boolean, default: false },
+        latest: { type: String, default: '' },
+        url: { type: String, default: '' },
+        checkedAt: { type: Date, default: null },
+        // The release the admins were last told about, so each one is told once.
+        notified: { type: String, default: '' }
     }
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
 

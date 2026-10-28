@@ -8,7 +8,7 @@ import {
   OPEN_STATUSES, ownRequest, readableBy, requestableItem, requestsEnabled, sendRequest
 } from '../requests';
 import { typeBySlug } from '../requestTypes';
-import { clearRead, describeNotification, markRead, notificationsOf, ownNotification, NOTIFICATION_EVENTS, NOTIFICATIONS_PAGE_SIZE } from '../notify';
+import { clearRead, describeNotification, eventsFor, markRead, notificationsOf, ownNotification, NOTIFICATIONS_PAGE_SIZE } from '../notify';
 import { prefKey, subscriptionsOf, wantsPush } from '../push';
 
 /**
@@ -214,9 +214,10 @@ router.get('/notifications/settings', requireAuth, async (req: any, res: any) =>
       createdAt: d.created_at,
       lastSuccessAt: d.lastSuccessAt
     }));
-    const prefs = Object.entries(NOTIFICATION_EVENTS).map(([event, info]) => ({
+    const prefs = eventsFor(req.user).map(([event, info]) => ({
       key: prefKey(event),
       icon: info.icon,
+      group: info.group,
       label: req.t(`notifications.push.events.${prefKey(event)}`),
       push: wantsPush(req.user, event)
     }));

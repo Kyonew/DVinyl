@@ -27,6 +27,7 @@ import { IdentificationGuess } from '../ai/identify';
 import { isAcceptedImage } from '../ai/images';
 import { getAiConfig, isAiReady } from '../ai/instance';
 import { isAiConfigured } from '../ai/config';
+import { noticeWish } from '../wishlistNotices';
 
 /**
  * Names what was just saved in the path an add comes back to, so the add page can say so.
@@ -711,7 +712,10 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           } catch (cleanupError) {
             console.warn('[ITEM IMAGE] Post-create cleanup failed:', cleanupError);
           }
-          if (isWishlist) return res.redirect('/wishlist');
+          if (isWishlist) {
+            void noticeWish({ collection: res.locals.activeCollection, actor: req.user, item: { title: updateData.title, cover_image: updateData.cover_image }, itemPath: plugin.routePrefix });
+            return res.redirect('/wishlist');
+          }
           return res.redirect(afterAdd
             ? withAddedNotice(afterAdd, updateData.title, null)
             : `/collection?type=${plugin.collectionType}`);
@@ -852,11 +856,14 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           { kind: plugin.kind, allowUndeclared: true }
         );
       } else {
-        await db.items.create({
+        const created = await db.items.create({
           ...updateData,
           owner: adminId,
           collection: activeCollectionId
         });
+        if (isWishlist) {
+          void noticeWish({ collection: res.locals.activeCollection, actor: req.user, item: created, itemPath: plugin.routePrefix });
+        }
       }
 
       try {

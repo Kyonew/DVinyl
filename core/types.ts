@@ -224,6 +224,12 @@ export interface PluginDefinition {
   // until all of them are present; the admin shows an indicator.
   requiredEnvKeys?: string[];
 
+  // Ready-made request types offered to the collection's admin next to the core's own
+  // (a loan, a gift) while the plugin is on. Only a starting point for the builder:
+  // nothing is created until the admin saves it, and from then on it is the collection's
+  // own type. Words are i18n keys, or plain text for a plugin that has none.
+  requestTemplates?: RequestTemplate[];
+
   // Extra plugin-specific settings (⚙ button in the admin).
   // Values stored in settings.pluginSettings[plugin.id][key] and read by the plugin.
   settings?: PluginSetting[];
@@ -466,6 +472,20 @@ export interface StatWidget {
   color: string; // Tailwind classes for the badge background
   text?: string; // Tailwind class for the text (count widgets)
   kind: 'count' | 'top'; // 'count' -> number; 'top' -> { name, count }
+}
+
+export interface RequestTemplate {
+  // Unique within the plugin; offered as `<plugin id>.<id>`.
+  id: string;
+  name: string;
+  // One of REQUEST_TYPE_ICONS (core/requestTypes.ts); anything else shows the first.
+  icon: string;
+  description?: string;
+  minRole?: 'viewer' | 'editor' | 'admin';
+  visibility?: 'members' | 'private';
+  holder?: 'none' | 'sender' | 'recipient';
+  fields?: { label: string; type: 'text' | 'textarea' | 'number' | 'date' | 'select' | 'boolean'; required?: boolean; options?: string[]; deadline?: boolean }[];
+  steps?: { label: string; out?: boolean }[];
 }
 
 export interface PluginSetting {

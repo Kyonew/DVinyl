@@ -550,7 +550,18 @@
         "users": "Utilisateurs",
         "backup": "Sauvegarde",
         "security": "Sécurité",
-        "logs": "Journaux"
+        "logs": "Journaux",
+        "updates": "Mises à jour"
+      },
+      "updates": {
+        "title": "Mises à jour",
+        "toggle": "Me prévenir quand une nouvelle version sort",
+        "toggle_desc": "Une fois par jour, l'instance demande à GitHub la dernière version de DVinyl. GitHub voit l'adresse de votre serveur, rien d'autre n'est envoyé. Les admins de l'instance sont notifiés une fois par nouvelle version.",
+        "available": "DVinyl {{version}} est disponible. Cette instance tourne en {{current}}.",
+        "release_notes": "Notes de version",
+        "running": "Cette instance tourne en DVinyl {{version}}",
+        "checked_at": "vérifié le {{date}}",
+        "checked_up_to_date": "à jour, vérifié le {{date}}"
       }
     },
     "logs_delete_last": {
@@ -2078,6 +2089,13 @@
         "name": "Cadeau",
         "description": "Dire à quelqu'un que cet item vous ferait plaisir.",
         "step_given": "Offert"
+      },
+      "play": {
+        "name": "Jouer ensemble",
+        "description": "Proposer une partie à quelqu'un.",
+        "when": "Quand",
+        "where": "Où",
+        "step_played": "Partie jouée"
       }
     },
     "admin": {
@@ -2164,7 +2182,12 @@
       "request_cancelled": "{{- actor}} a annulé une demande : {{- kind}} · {{- item}}",
       "request_step": "{{- actor}} a marqué {{- kind}} · {{- item}} : {{- step}}",
       "request_item_removed": "Une demande ({{- kind}}) est annulée : {{- item}} a été supprimé",
-      "request_overdue": "{{- kind}} · {{- item}} a dépassé son échéance"
+      "request_overdue": "{{- kind}} · {{- item}} a dépassé son échéance",
+      "wishlist_added": "{{- actor}} a ajouté {{- item}} à la liste de souhaits",
+      "wishlist_added_many": "{{- actor}} a ajouté {{count}} items à la liste de souhaits, dont {{- item}}",
+      "account_new_login": "Nouvelle connexion à votre compte : {{- device}}, {{- place}}",
+      "account_locked": "Votre compte a été bloqué quelques minutes après trop de mots de passe erronés (depuis {{- ip}})",
+      "instance_update_available": "DVinyl {{version}} est sorti (cette instance tourne en {{current}})"
     },
     "push": {
       "title": "Sur mes appareils",
@@ -2203,7 +2226,11 @@
         "request_cancelled": "Une demande annulée",
         "request_step": "Une demande qui avance",
         "request_overdue": "Une échéance dépassée",
-        "request_item_removed": "Un item supprimé"
+        "request_item_removed": "Un item supprimé",
+        "wishlist_added": "Un nouveau souhait",
+        "account_new_login": "Une connexion depuis un nouvel appareil",
+        "account_locked": "Mon compte bloqué",
+        "instance_update_available": "Une nouvelle version de DVinyl"
       },
       "quote": "\"{{text}}\"",
       "date_locale": "fr-FR",
@@ -2214,8 +2241,24 @@
         "request_step": "➡️ {{step}} · {{kind}}\n{{item}}",
         "request_cancelled": "🗑️ a annulé · {{kind}}\n{{item}}",
         "request_overdue": "⏰ En retard depuis le {{date}} · {{kind}}",
-        "request_item_removed": "🗑️ Supprimé, la demande {{kind}} est annulée"
+        "request_item_removed": "🗑️ Supprimé, la demande {{kind}} est annulée",
+        "wishlist_added": "⭐ a ajouté à la liste de souhaits\n{{item}}",
+        "wishlist_added_many": "⭐ a ajouté {{count}} items à la liste de souhaits\nDernier : {{item}}",
+        "account_new_login": "🔐 {{device}} · {{place}}\nCe n'est pas vous ? Changez votre mot de passe.",
+        "account_locked": "🔒 Trop de mots de passe erronés depuis {{ip}}. Bloqué quelques minutes.",
+        "instance_update_available": "🚀 Une nouvelle version est disponible (vous êtes en {{current}})"
+      },
+      "titles": {
+        "account_new_login": "Nouvelle connexion",
+        "account_locked": "Compte bloqué",
+        "instance_update_available": "DVinyl {{version}}"
       }
+    },
+    "groups": {
+      "requests": "Demandes",
+      "collection": "Collection",
+      "account": "Mon compte",
+      "instance": "Instance"
     }
   },
   "layout": {

@@ -3,6 +3,7 @@ import { db } from '../db';
 import { and, eq, idOf } from '../db/query';
 import { requireAuth, requireCollectionRole } from '../../middleware/authMiddleware';
 import { requestsEnabled } from '../requests';
+import { registry } from '../registry';
 import { MAX_TYPES, REQUEST_TYPE_ICONS, cleanRequestType, freeSlug, ownType, requestTemplates, typesOf } from '../requestTypes';
 
 /**
@@ -12,7 +13,7 @@ import { MAX_TYPES, REQUEST_TYPE_ICONS, cleanRequestType, freeSlug, ownType, req
 const router = express.Router();
 
 /** What the Requests tab draws. */
-export async function requestAdminData(res: any, t: (k: string) => string) {
+export async function requestAdminData(res: any, t: (k: string, options?: any) => string) {
   const types = await typesOf(res.locals.activeCollectionId);
   return {
     enabled: requestsEnabled(res.locals.settings),
@@ -29,7 +30,7 @@ export async function requestAdminData(res: any, t: (k: string) => string) {
       fields: type.fields || [],
       steps: type.steps || []
     })),
-    templates: requestTemplates(t),
+    templates: requestTemplates(t, registry.getEnabled(res.locals.settings)),
     icons: REQUEST_TYPE_ICONS,
     maxTypes: MAX_TYPES
   };

@@ -22,6 +22,7 @@ import { deleteItemsAndContents } from "../utils/itemHelpers";
 import { cancelRequestsOf } from "../core/requests";
 import { deleteNotificationsOf } from "../core/notify";
 import { deleteSubscriptionsOf } from "../core/push";
+import { checkForUpdate, setUpdateCheck, updateStatus } from "../core/updateCheck";
 import { AI_PROVIDERS } from "../core/ai/providers";
 import { getAiConfig, getStoredAiSettings, saveAiSettings } from "../core/ai/instance";
 import { isAiConfigured, resolveTestConfig } from "../core/ai/config";
@@ -77,6 +78,7 @@ interface InstanceAdminData {
   collections: any[];
   itemsTotal: number;
   instanceSettings: InstanceSettingsData;
+  updates: Awaited<ReturnType<typeof updateStatus>>;
 }
 
 /**
@@ -150,6 +152,7 @@ async function loadInstanceAdminData(): Promise<InstanceAdminData> {
     collections,
     itemsTotal,
     instanceSettings: await getInstanceSettings(),
+    updates: await updateStatus(),
   };
 }
 
@@ -325,6 +328,20 @@ router.post("/instance/settings", requireAuth, requireAdmin, async (req: any, re
   } catch (err) {
     console.error("[ADMIN] Instance settings error:", err);
     res.redirect("/admin/instance?msg=generic_error");
+  }
+});
+
+// POST /admin/instance/updates -> the daily check for a newer release, on or off; turning
+// it on checks at once, so the page already says where the instance stands
+router.post("/instance/updates", requireAuth, requireAdmin, async (req: any, res: any) => {
+  try {
+    const enabled = req.body.enabled === "on";
+    await setUpdateCheck(enabled);
+    if (enabled) await checkForUpdate();
+    res.redirect("/admin/instance?msg=saved#updates");
+  } catch (err) {
+    console.error("[ADMIN] Update check setting error:", err);
+    res.redirect("/admin/instance?msg=generic_error#updates");
   }
 });
 

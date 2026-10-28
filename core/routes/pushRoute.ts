@@ -2,7 +2,7 @@ import express from 'express';
 import { db } from '../db';
 import { eq, idOf } from '../db/query';
 import { requireAuth } from '../../middleware/authMiddleware';
-import { NOTIFICATION_EVENTS } from '../notify';
+import { eventsFor } from '../notify';
 import { ownSubscription, prefKey, rememberPushOrigin, removeSubscription, saveSubscription, sendToDevice, vapidKeys } from '../push';
 import { getPublicProtocol } from '../helpers';
 
@@ -84,7 +84,7 @@ router.post('/push/subscriptions/:id/test', requireAuth, async (req: any, res: a
 router.post('/notifications/prefs', requireAuth, async (req: any, res: any) => {
   try {
     const push: Record<string, boolean> = {};
-    for (const event of Object.keys(NOTIFICATION_EVENTS)) {
+    for (const [event] of eventsFor(req.user)) {
       if (req.body[`push_${prefKey(event)}`] !== 'on') push[prefKey(event)] = false;
     }
     await db.users.updateOne(eq('_id', idOf(req.user._id)), { set: { 'notificationPrefs.push': push } });

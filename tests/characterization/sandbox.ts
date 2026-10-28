@@ -97,6 +97,8 @@ export async function startApp(
       SESSION_SECRET: 'characterization-session-secret',
       // Push notifications are prepared but never leave the machine.
       PUSH_DRY_RUN: 'true',
+      // Nor does the check for a newer release: a closed port unless a test serves one.
+      UPDATE_CHECK_URL: 'http://127.0.0.1:9/',
       ...extraEnv
     },
     stdio: ['ignore', 'pipe', 'pipe']

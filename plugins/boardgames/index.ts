@@ -34,6 +34,21 @@ export const boardGamesPlugin: PluginDefinition = {
     return item.bgg_id ? { label: 'BoardGameGeek', url: `https://boardgamegeek.com/boardgame/${item.bgg_id}` } : null;
   },
 
+  // Asking a member to sit down for a game: when and where, then whether it was played.
+  requestTemplates: [{
+    id: 'play',
+    name: 'requests.templates.play.name',
+    icon: 'dice',
+    description: 'requests.templates.play.description',
+    visibility: 'members',
+    holder: 'none',
+    fields: [
+      { label: 'requests.templates.play.when', type: 'date', required: true },
+      { label: 'requests.templates.play.where', type: 'text' }
+    ],
+    steps: [{ label: 'requests.templates.play.step_played' }]
+  }],
+
   creatorField: 'designer',
   creatorSearchFields: ['designer', 'publisher'],
   extraSearchFields: ['bgg_id'],

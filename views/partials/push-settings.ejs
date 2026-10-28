@@ -58,15 +58,18 @@
     <form action="<%= baseUrl %>/notifications/prefs" method="POST" class="card-theme rounded-2xl shadow-sm p-4 space-y-3">
         <p class="text-sm font-bold"><%= t('notifications.push.prefs_title') %></p>
         <p class="text-xs opacity-60 -mt-2"><%= t('notifications.push.prefs_hint') %></p>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <% prefs.forEach(p => { %>
-                <label class="flex items-center gap-3 p-3 rounded-xl bg-black/5 dark:bg-white/5 cursor-pointer text-sm">
-                    <input type="checkbox" name="push_<%= p.key %>" class="w-4 h-4 accent-primary-theme" <%= p.push ? 'checked' : '' %>>
-                    <i class="fa-solid fa-<%= p.icon %> opacity-60 w-4 text-center" aria-hidden="true"></i>
-                    <span><%= p.label %></span>
-                </label>
-            <% }) %>
-        </div>
+        <% [...new Set(prefs.map(p => p.group))].forEach(group => { %>
+            <p class="pt-1 text-xs font-bold uppercase tracking-widest opacity-50"><%= t(`notifications.groups.${group}`) %></p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <% prefs.filter(p => p.group === group).forEach(p => { %>
+                    <label class="flex items-center gap-3 p-3 rounded-xl bg-black/5 dark:bg-white/5 cursor-pointer text-sm">
+                        <input type="checkbox" name="push_<%= p.key %>" class="w-4 h-4 accent-primary-theme" <%= p.push ? 'checked' : '' %>>
+                        <i class="fa-solid fa-<%= p.icon %> opacity-60 w-4 text-center" aria-hidden="true"></i>
+                        <span><%= p.label %></span>
+                    </label>
+                <% }) %>
+            </div>
+        <% }) %>
         <div class="flex justify-end">
             <button type="submit" class="<%= button %> bg-primary-theme text-white hover:opacity-90"><%= t('common.save') %></button>
         </div>

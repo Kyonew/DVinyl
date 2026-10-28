@@ -63,6 +63,7 @@ import requestAdminRoute from './core/routes/requestAdminRoute.js';
 import pushRoute from './core/routes/pushRoute.js';
 import { attachNotificationSockets, purgeOldNotifications, unreadCount } from './core/notify';
 import { inboxCount, notifyOverdueRequests, requestsEnabled } from './core/requests';
+import { checkForUpdate, UPDATE_CHECK_INTERVAL_MS } from './core/updateCheck';
 import searchRoute from './core/routes/searchRoute.js';
 import accountRoute from './core/routes/accountRoute.js';
 import manualAddRoute from './core/routes/manualAddRoute.js';
@@ -435,6 +436,9 @@ connectDB()
     const remindOverdue = () => notifyOverdueRequests().catch((err: any) => console.warn('[REQUESTS] Overdue pass failed:', err));
     void remindOverdue();
     setInterval(() => { void remindOverdue(); }, 3600 * 1000).unref();
+    // A newer release, for the admins of an instance that asked to be told.
+    void checkForUpdate();
+    setInterval(() => { void checkForUpdate(); }, UPDATE_CHECK_INTERVAL_MS).unref();
     const port = process.env.VINYL_PORT || 3099;
     server.listen(port, () => {
       console.log(`[BOOT] Server started on port ${port} (BASE_URL="${BASE_URL || '/'}", env=${process.env.PROD === 'true' ? 'production' : 'development'})`);

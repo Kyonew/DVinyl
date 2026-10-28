@@ -1,6 +1,7 @@
 import { db } from './db';
 import { and, asc, eq, idOf } from './db/query';
 import { cleanText, slugify } from './customPluginStore';
+import type { RequestTemplate } from './types';
 
 /**
  * The request types of a collection, made up by its admin from the admin page. A
@@ -103,36 +104,63 @@ export function cleanRequestType(raw: any): { type: Record<string, any> | null; 
   };
 }
 
+// The core's own starting points, offered whatever plugins are on.
+const CORE_TEMPLATES: RequestTemplate[] = [
+  {
+    id: 'loan',
+    name: 'requests.templates.loan.name',
+    icon: 'hand-holding',
+    description: 'requests.templates.loan.description',
+    minRole: 'viewer',
+    visibility: 'members',
+    holder: 'sender',
+    fields: [{ label: 'requests.templates.loan.due', type: 'date', required: false, deadline: true }],
+    steps: [
+      { label: 'requests.templates.loan.step_out', out: true },
+      { label: 'requests.templates.loan.step_back', out: false }
+    ]
+  },
+  {
+    id: 'gift',
+    name: 'requests.templates.gift.name',
+    icon: 'gift',
+    description: 'requests.templates.gift.description',
+    minRole: 'viewer',
+    visibility: 'private',
+    holder: 'none',
+    fields: [],
+    steps: [{ label: 'requests.templates.gift.step_given', out: false }]
+  }
+];
+
 /**
- * Ready-made starting points for the builder, worded in the admin's language. Nothing is
- * created from them until the admin saves the form they fill in.
+ * Ready-made starting points for the builder: the core's, then those of the plugins
+ * that are on, worded in the admin's language. A word that is no key reads as written.
+ * Nothing is created from them until the admin saves the form they fill in.
  */
-export function requestTemplates(t: (k: string) => string) {
-  return {
-    loan: {
-      name: t('requests.templates.loan.name'),
-      icon: 'hand-holding',
-      description: t('requests.templates.loan.description'),
-      minRole: 'viewer',
-      visibility: 'members',
-      holder: 'sender',
-      fields: [{ label: t('requests.templates.loan.due'), type: 'date', required: false, deadline: true }],
-      steps: [
-        { label: t('requests.templates.loan.step_out'), out: true },
-        { label: t('requests.templates.loan.step_back'), out: false }
-      ]
-    },
-    gift: {
-      name: t('requests.templates.gift.name'),
-      icon: 'gift',
-      description: t('requests.templates.gift.description'),
-      minRole: 'viewer',
-      visibility: 'private',
-      holder: 'none',
-      fields: [],
-      steps: [{ label: t('requests.templates.gift.step_given'), out: false }]
-    }
+export function requestTemplates(t: (k: string, options?: any) => string, plugins: { id: string; requestTemplates?: RequestTemplate[] }[] = []) {
+  const word = (text: unknown) => {
+    const value = String(text || '');
+    return value ? t(value, { defaultValue: value }) : '';
   };
+  const worded = (template: RequestTemplate) => ({
+    name: word(template.name),
+    icon: (REQUEST_TYPE_ICONS as readonly string[]).includes(template.icon) ? template.icon : REQUEST_TYPE_ICONS[0],
+    description: word(template.description),
+    minRole: template.minRole || 'viewer',
+    visibility: template.visibility || 'members',
+    holder: template.holder || 'none',
+    fields: (template.fields || []).map(f => ({ ...f, label: word(f.label), options: f.options?.map(word) })),
+    steps: (template.steps || []).map(s => ({ ...s, label: word(s.label) }))
+  });
+  const templates: Record<string, ReturnType<typeof worded>> = {};
+  for (const template of CORE_TEMPLATES) templates[template.id] = worded(template);
+  for (const plugin of plugins) {
+    for (const template of plugin.requestTemplates || []) {
+      if (template?.id && template.name) templates[`${plugin.id}.${template.id}`] = worded(template);
+    }
+  }
+  return templates;
 }
 
 /** A slug no type of the collection has had, while requests may still carry it. */

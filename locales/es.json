@@ -286,7 +286,18 @@
         "users": "Usuarios",
         "backup": "Copia de seguridad",
         "security": "Seguridad",
-        "logs": "Registros"
+        "logs": "Registros",
+        "updates": "Actualizaciones"
+      },
+      "updates": {
+        "title": "Actualizaciones",
+        "toggle": "Avisarme cuando salga una nueva versión",
+        "toggle_desc": "Una vez al día, la instancia pregunta a GitHub por la última versión de DVinyl. GitHub ve la dirección de tu servidor, no se envía nada más. Los administradores de la instancia reciben un aviso por cada nueva versión.",
+        "available": "DVinyl {{version}} está disponible. Esta instancia usa {{current}}.",
+        "release_notes": "Notas de la versión",
+        "running": "Esta instancia usa DVinyl {{version}}",
+        "checked_at": "comprobado el {{date}}",
+        "checked_up_to_date": "al día, comprobado el {{date}}"
       }
     },
     "logs_delete_last": {
@@ -2078,6 +2089,13 @@
         "name": "Regalo",
         "description": "Dile a alguien que este elemento te haría ilusión.",
         "step_given": "Regalado"
+      },
+      "play": {
+        "name": "Jugar juntos",
+        "description": "Proponer una partida a alguien.",
+        "when": "Cuándo",
+        "where": "Dónde",
+        "step_played": "Jugada"
       }
     },
     "admin": {
@@ -2164,7 +2182,12 @@
       "request_cancelled": "{{- actor}} canceló una solicitud: {{- kind}} · {{- item}}",
       "request_step": "{{- actor}} marcó {{- kind}} · {{- item}}: {{- step}}",
       "request_item_removed": "Una solicitud ({{- kind}}) se canceló: {{- item}} fue eliminado",
-      "request_overdue": "{{- kind}} · {{- item}} ha pasado su vencimiento"
+      "request_overdue": "{{- kind}} · {{- item}} ha pasado su vencimiento",
+      "wishlist_added": "{{- actor}} añadió {{- item}} a la lista de deseos",
+      "wishlist_added_many": "{{- actor}} añadió {{count}} elementos a la lista de deseos, el último {{- item}}",
+      "account_new_login": "Nuevo inicio de sesión en tu cuenta: {{- device}}, {{- place}}",
+      "account_locked": "Tu cuenta se bloqueó unos minutos tras demasiadas contraseñas incorrectas (desde {{- ip}})",
+      "instance_update_available": "Ha salido DVinyl {{version}} (esta instancia usa {{current}})"
     },
     "push": {
       "title": "En mis dispositivos",
@@ -2203,7 +2226,11 @@
         "request_cancelled": "Una solicitud cancelada",
         "request_step": "Una solicitud avanza",
         "request_overdue": "Un vencimiento pasado",
-        "request_item_removed": "Un elemento eliminado"
+        "request_item_removed": "Un elemento eliminado",
+        "wishlist_added": "Un nuevo deseo",
+        "account_new_login": "Un inicio de sesión desde un dispositivo nuevo",
+        "account_locked": "Mi cuenta bloqueada",
+        "instance_update_available": "Una nueva versión de DVinyl"
       },
       "quote": "\"{{text}}\"",
       "date_locale": "es-ES",
@@ -2214,8 +2241,24 @@
         "request_step": "➡️ {{step}} · {{kind}}\n{{item}}",
         "request_cancelled": "🗑️ ha cancelado · {{kind}}\n{{item}}",
         "request_overdue": "⏰ Con retraso desde el {{date}} · {{kind}}",
-        "request_item_removed": "🗑️ Eliminado, {{kind}} queda cancelada"
+        "request_item_removed": "🗑️ Eliminado, {{kind}} queda cancelada",
+        "wishlist_added": "⭐ añadió a la lista de deseos\n{{item}}",
+        "wishlist_added_many": "⭐ añadió {{count}} elementos a la lista de deseos\nÚltimo: {{item}}",
+        "account_new_login": "🔐 {{device}} · {{place}}\n¿No eras tú? Cambia tu contraseña.",
+        "account_locked": "🔒 Demasiadas contraseñas incorrectas desde {{ip}}. Bloqueada unos minutos.",
+        "instance_update_available": "🚀 Hay una nueva versión disponible (usas {{current}})"
+      },
+      "titles": {
+        "account_new_login": "Nuevo inicio de sesión",
+        "account_locked": "Cuenta bloqueada",
+        "instance_update_available": "DVinyl {{version}}"
       }
+    },
+    "groups": {
+      "requests": "Solicitudes",
+      "collection": "Colección",
+      "account": "Mi cuenta",
+      "instance": "Instancia"
     }
   },
   "layout": {

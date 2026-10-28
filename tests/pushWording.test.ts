@@ -32,4 +32,17 @@ describe('push wording', () => {
     assert.ok(body.length < 200);
     assert.ok(body.endsWith('…"'));
   });
+
+  it('names a sign-in\'s country in the reader\'s language, and titles what nobody did', () => {
+    const row = { event: 'account.new_login', payload: { device: 'Safari · iOS', country: 'DE', city: 'Berlin', ip: '1.2.3.4' } };
+    assert.deepEqual(pushWording(row, fr), { title: 'Nouvelle connexion', body: "🔐 Safari · iOS · Berlin, Allemagne\nCe n'est pas vous ? Changez votre mot de passe." });
+    assert.match(pushWording(row, en).body, /Berlin, Germany/);
+    assert.match(pushWording({ event: 'account.new_login', payload: { device: 'Chrome', country: 'XX', city: '' } }, en).body, /Chrome · Unknown/);
+    assert.equal(pushWording({ event: 'instance.update_available', payload: { version: '4.1.0', current: '4.0.0' } }, en).title, 'DVinyl 4.1.0');
+  });
+
+  it('counts what a grouped line stands for', () => {
+    assert.equal(pushWording({ event: 'wishlist.added', payload: { actor: 'Alex', item: 'Dune', count: 1 } }, en).body, '⭐ added to the wishlist\nDune');
+    assert.equal(pushWording({ event: 'wishlist.added', payload: { actor: 'Alex', item: 'Dune', count: 3 } }, en).body, '⭐ added 3 items to the wishlist\nLatest: Dune');
+  });
 });

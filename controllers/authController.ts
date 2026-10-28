@@ -3,6 +3,7 @@ import { findByLoginIdentifier, login } from '../core/accounts';
 import { validationMessages } from '../core/db/errors';
 import jwt from 'jsonwebtoken';
 import { isLocalLoginDisabled } from '../config/oidc';
+import { isUnfamiliarLogin, noticeLocked, noticeNewLogin } from '../core/accountNotices';
 
 /**
  * Retrieve the client IP address from request headers or socket details.
@@ -110,6 +111,8 @@ export const login_get = (req: any, res: any) => {
 export const issueSession = async (req: any, res: any, user: any) => {
   const clientIp = getClientIp(req);
   const geo = await getGeoLocation(clientIp);
+  const userAgent = String(req.headers['user-agent'] || '');
+  const unfamiliar = await isUnfamiliarLogin(user._id, userAgent, geo?.country || 'XX').catch(() => false);
 
   await db.loginLogs.create({
     user: user._id,
@@ -121,6 +124,10 @@ export const issueSession = async (req: any, res: any, user: any) => {
     userAgent: req.headers['user-agent'],
     status: 'success'
   });
+
+  if (unfamiliar) {
+    void noticeNewLogin(user._id, { userAgent, country: geo?.country || 'XX', city: geo?.city || '', ip: clientIp });
+  }
 
   console.log(`[AUTH] Session issued for ${user.email} (${clientIp}${geo?.country ? ', ' + geo.country : ''})`);
 
@@ -189,6 +196,7 @@ export const login_post = async (req: any, res: any) => {
     if (loginAttempts[key].count >= MAX_ATTEMPTS) {
       loginAttempts[key].blockedUntil = now + BLOCK_TIME;
       console.warn(`[AUTH] ${identifier} temporarily blocked after ${loginAttempts[key].count} failed attempts (from ${getClientIp(req)})`);
+      if (account) void noticeLocked(account._id, getClientIp(req));
       return res.status(429).json({
         errors: { login: req.t('errors.too_many_attempts_blocked') }
       });

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { dueDateOf, holderOf, isOut, isOverdue, nextStep, readRequestData, requestsEnabled } from '../core/requests';
 import { cleanRequestType, requestTemplates } from '../core/requestTypes';
+import { boardGamesPlugin } from '../plugins/boardgames';
 
 const loanLike = (over: Record<string, any> = {}) => ({
   sender: 'aaaaaaaaaaaaaaaaaaaaaaaa',
@@ -81,9 +82,19 @@ describe('requests', () => {
     assert.ok(cleanRequestType({ name: 'x', fields: [{ label: 'a', type: 'date', deadline: true }, { label: 'b', type: 'date', deadline: true }] }).errors.includes('requests.builder.err_one_deadline'));
   });
 
-  it('offers templates the builder accepts as they are', () => {
-    for (const template of Object.values(requestTemplates(k => k))) {
+  it('offers templates the builder accepts as they are, the plugins\' among them', () => {
+    const templates = requestTemplates(k => k, [boardGamesPlugin]);
+    assert.ok(templates['boardgames.play'], 'a plugin\'s, under its own id');
+    for (const template of Object.values(templates)) {
       assert.deepEqual(cleanRequestType(template).errors, []);
     }
+  });
+
+  it('reads a plugin template\'s words as keys, or as written', () => {
+    const plugin = { id: 'x', requestTemplates: [{ id: 'swap', name: 'Swap it', icon: 'no-such-icon', steps: [{ label: 'Swapped' }] }] };
+    const swap = requestTemplates((k: string, o?: any) => o?.defaultValue ?? k, [plugin])['x.swap']!;
+    assert.equal(swap.name, 'Swap it');
+    assert.equal(swap.icon, 'paper-plane', 'an icon off the grid shows the first');
+    assert.equal(swap.steps[0]!.label, 'Swapped');
   });
 });

@@ -12,12 +12,15 @@ export interface Reply {
 
 export class Client {
   private cookies = new Map<string, string>();
+  // The browser this client says it is, when a test needs one in particular.
+  userAgent = '';
 
   constructor(readonly baseUrl: string) {}
 
   private async send(method: string, url: string, body?: BodyInit, contentType?: string): Promise<Reply> {
     const headers: Record<string, string> = { 'Accept-Language': 'en' };
     if (contentType) headers['Content-Type'] = contentType;
+    if (this.userAgent) headers['User-Agent'] = this.userAgent;
     if (this.cookies.size) {
       headers.Cookie = [...this.cookies].map(([name, value]) => `${name}=${value}`).join('; ');
     }

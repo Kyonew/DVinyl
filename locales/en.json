@@ -550,7 +550,18 @@
         "users": "Users",
         "backup": "Backup",
         "security": "Security",
-        "logs": "Logs"
+        "logs": "Logs",
+        "updates": "Updates"
+      },
+      "updates": {
+        "title": "Updates",
+        "toggle": "Tell me when a new version is out",
+        "toggle_desc": "Once a day, the instance asks GitHub for the latest DVinyl release. GitHub sees your server's address, nothing else is sent. The instance admins are notified once per new version.",
+        "available": "DVinyl {{version}} is available. This instance runs {{current}}.",
+        "release_notes": "Release notes",
+        "running": "This instance runs DVinyl {{version}}",
+        "checked_at": "checked on {{date}}",
+        "checked_up_to_date": "up to date, checked on {{date}}"
       }
     },
     "logs_delete_last": {
@@ -2078,6 +2089,13 @@
         "name": "Gift",
         "description": "Let someone know you would love this item.",
         "step_given": "Given"
+      },
+      "play": {
+        "name": "Play together",
+        "description": "Suggest a game to someone.",
+        "when": "When",
+        "where": "Where",
+        "step_played": "Played"
       }
     },
     "admin": {
@@ -2164,7 +2182,12 @@
       "request_cancelled": "{{- actor}} called off a request: {{- kind}} · {{- item}}",
       "request_step": "{{- actor}} marked {{- kind}} · {{- item}}: {{- step}}",
       "request_item_removed": "A request ({{- kind}}) was called off: {{- item}} was removed",
-      "request_overdue": "{{- kind}} · {{- item}} is past its due date"
+      "request_overdue": "{{- kind}} · {{- item}} is past its due date",
+      "wishlist_added": "{{- actor}} added {{- item}} to the wishlist",
+      "wishlist_added_many": "{{- actor}} added {{count}} items to the wishlist, the latest {{- item}}",
+      "account_new_login": "New sign-in to your account: {{- device}}, {{- place}}",
+      "account_locked": "Your account was locked for a few minutes after too many wrong passwords (from {{- ip}})",
+      "instance_update_available": "DVinyl {{version}} is out (this instance runs {{current}})"
     },
     "push": {
       "title": "On my devices",
@@ -2203,7 +2226,11 @@
         "request_cancelled": "A request called off",
         "request_step": "A request moved on",
         "request_overdue": "A due date passed",
-        "request_item_removed": "An item removed"
+        "request_item_removed": "An item removed",
+        "wishlist_added": "A new wish",
+        "account_new_login": "A sign-in from a new device",
+        "account_locked": "My account locked",
+        "instance_update_available": "A new DVinyl version"
       },
       "quote": "\"{{text}}\"",
       "date_locale": "en-GB",
@@ -2214,8 +2241,24 @@
         "request_step": "➡️ {{step}} · {{kind}}\n{{item}}",
         "request_cancelled": "🗑️ called off · {{kind}}\n{{item}}",
         "request_overdue": "⏰ Late since {{date}} · {{kind}}",
-        "request_item_removed": "🗑️ Removed, so {{kind}} is called off"
+        "request_item_removed": "🗑️ Removed, so {{kind}} is called off",
+        "wishlist_added": "⭐ added to the wishlist\n{{item}}",
+        "wishlist_added_many": "⭐ added {{count}} items to the wishlist\nLatest: {{item}}",
+        "account_new_login": "🔐 {{device}} · {{place}}\nNot you? Change your password.",
+        "account_locked": "🔒 Too many wrong passwords from {{ip}}. Locked for a few minutes.",
+        "instance_update_available": "🚀 A new version is available (you run {{current}})"
+      },
+      "titles": {
+        "account_new_login": "New sign-in",
+        "account_locked": "Account locked",
+        "instance_update_available": "DVinyl {{version}}"
       }
+    },
+    "groups": {
+      "requests": "Requests",
+      "collection": "Collection",
+      "account": "My account",
+      "instance": "Instance"
     }
   },
   "layout": {
