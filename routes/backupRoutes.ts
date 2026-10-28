@@ -418,7 +418,7 @@ router.post(
 
 // ============ PER-COLLECTION BACKUP (collection admin) ============
 
-async function buildCollectionBackup(activeCollectionId: any, collection: any): Promise<StreamedDocument> {
+async function buildCollectionBackup(activeCollectionId: any, collection: any, exporterId: any): Promise<StreamedDocument> {
     const settings = await db.settings.findOne(eq('collection', idOf(activeCollectionId)));
     if (settings) {
         delete settings._id;
@@ -459,8 +459,13 @@ async function buildCollectionBackup(activeCollectionId: any, collection: any): 
         const { _id, __v, collection: owner, createdBy, ...rest } = type;
         return rest;
     });
+    // A private request is only for its two members: when the admin exporting is neither,
+    // what they wrote stays out and only the request itself goes.
+    const exporter = idOf(exporterId);
     const requests = (await db.requests.find(eq('collection', idOf(activeCollectionId)))).map((request: any) => {
         const { _id, __v, collection: owner, ...rest } = request;
+        const party = idOf(rest.sender) === exporter || idOf(rest.recipient) === exporter;
+        if (rest.visibility === 'private' && !party) return { ...rest, message: '', response: '', data: {} };
         return rest;
     });
 
@@ -487,7 +492,7 @@ router.get('/collection/export', requireAuth, requireCollectionRole('admin'), as
     try {
         const activeCollectionId = res.locals.activeCollectionId;
         const collection = res.locals.activeCollection;
-        const data = await buildCollectionBackup(activeCollectionId, collection);
+        const data = await buildCollectionBackup(activeCollectionId, collection, req.user._id);
 
         const slug = collection?.slug || 'collection';
         const fileName = `dvinyl_collection-${slug}_${new Date().toISOString().split('T')[0]}.json`;
@@ -503,7 +508,7 @@ router.get('/collection/export-archive', requireAuth, requireCollectionRole('adm
     try {
         const activeCollectionId = res.locals.activeCollectionId;
         const collection = res.locals.activeCollection;
-        const data = await buildCollectionBackup(activeCollectionId, collection);
+        const data = await buildCollectionBackup(activeCollectionId, collection, req.user._id);
         const slug = collection?.slug || 'collection';
         const fileName = `dvinyl_collection-${slug}_${new Date().toISOString().split('T')[0]}.zip`;
         await sendBackupArchive(res, data, fileName);

@@ -25,6 +25,7 @@ describe('requests', { skip: !backend }, () => {
   let eve: Client;
   let adminId: string;
   let bobId: string;
+  let eveId: string;
 
   const idOf = async (title: string) => String(itemByTitle(await exportInstance(admin), title)._id);
   const requestsOn = async (title: string) => {
@@ -52,6 +53,7 @@ describe('requests', { skip: !backend }, () => {
     const users = (await exportInstance(admin)).users;
     adminId = String(users.find((u: any) => u.username !== 'bob' && u.username !== 'eve')._id);
     bobId = String(users.find((u: any) => u.username === 'bob')._id);
+    eveId = String(users.find((u: any) => u.username === 'eve')._id);
   });
   after(async () => { await app?.stop(); });
 
@@ -151,8 +153,12 @@ describe('requests', { skip: !backend }, () => {
   });
 
   it('carries the types and the requests through a collection backup', async () => {
+    await bob.postForm('/requests', { type: 'gift', itemId: await idOf('Kind of Blue'), recipient: eveId, message: 'Between us' });
     const backup = (await admin.get('/backup/collection/export')).json();
     assert.deepEqual(backup.requestTypes.map((t: any) => t.slug), ['borrow', 'gift']);
+    const gifts = backup.requests.filter((r: any) => r.visibility === 'private');
+    assert.equal(gifts.find((r: any) => String(r.recipient) === eveId).message, '', 'a private request the admin is not part of keeps its words');
+    assert.equal(gifts.find((r: any) => String(r.recipient) === adminId).message, 'Someday?', 'one the admin is part of goes whole');
     const reply = await admin.postJson('/backup/collection/import', backup);
     assert.equal(reply.status, 200, reply.text);
     const dump = await exportInstance(admin);
