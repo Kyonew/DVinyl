@@ -1,7 +1,7 @@
 import { db } from '../core/db';
 import { eq, idOf } from '../core/db/query';
 import themesConfig from '../config/themes';
-import { BASE_URL } from '../config/constants';
+import { BASE_URL, DEFAULT_LANGUAGE } from '../config/constants';
 import { registry } from '../core/registry';
 import { resolveLayout } from '../core/layout';
 import { getDraft, isStudioRequest, withUpdate } from '../core/lookDraft';
@@ -57,7 +57,7 @@ async function settingsMiddleware(req: any, res: any, next: any) {
         // The preview shows the collection's sidebar, whatever the admin folded for themselves.
         res.locals.layout = resolveLayout(settings, res.locals.studioPreview ? undefined : req.cookies);
 
-        res.locals.currentLng = res.locals.user?.language || req.language || 'fr';
+        res.locals.currentLng = res.locals.user?.language || req.language || DEFAULT_LANGUAGE;
         res.locals.isDark = res.locals.user ? (res.locals.user.theme === 'dark') : true;
 
         const fullPath = req.path.toLowerCase();
@@ -119,7 +119,7 @@ async function settingsMiddleware(req: any, res: any, next: any) {
     } catch (err) {
         console.error("[ERR] SettingsMiddleware:", err);
         res.locals.isDark = true;
-        res.locals.currentLng = 'fr';
+        res.locals.currentLng = DEFAULT_LANGUAGE;
         res.locals.settings = {
             theme: { home: { preset: 'default' } },
             modules: registry.getDefaultModules(),

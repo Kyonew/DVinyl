@@ -4,18 +4,24 @@
 
 import bcrypt from 'bcrypt';
 import { db } from './db';
-import { eq } from './db/query';
+import { ci, eq } from './db/query';
 
 /**
  * The account a sign-in identifier names: its email or its username. Emails are stored
  * lowercased, so the typed address is too; an email match wins over a username spelled
- * like an address. Null when it names none.
+ * like an address. A username is matched as typed first, then ignoring case, since a
+ * phone keyboard capitalises its first letter; ignoring case only counts when it names
+ * a single account, two of them spelled apart by case keep needing the exact spelling.
+ * Null when it names none.
  */
 export async function findByLoginIdentifier(identifier: unknown): Promise<any | null> {
   const id = String(identifier || '').trim();
   if (!id) return null;
-  return await db.users.findOne(eq('email', id.toLowerCase()), { defaults: true })
+  const exact = await db.users.findOne(eq('email', id.toLowerCase()), { defaults: true })
     || await db.users.findOne(eq('username', id), { defaults: true });
+  if (exact) return exact;
+  const loose = await db.users.find(ci('username', id), { defaults: true, limit: 2 });
+  return loose.length === 1 ? loose[0] : null;
 }
 
 /**

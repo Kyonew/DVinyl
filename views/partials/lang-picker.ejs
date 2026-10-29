@@ -1,0 +1,23 @@
+<%#
+  The interface language for someone without an account (a share link, the sign-in page),
+  who has no settings to pick it in. A chip showing the current code, with the native list
+  laid invisibly over it, so it fits a top bar, a sidebar rail and the dock alike.
+  ?lng= is what i18next reads first and keeps in a cookie, so the choice holds on every
+  later page; the rest of the address (filters, page) stays as it was. window.URL is
+  spelled out because an inline handler looks names up on document first, where URL is
+  the page's address as text.
+
+  langPickerClass: colours of the chip, the shell's by default.
+%>
+<label title="<%= t('settings.language_label') %>"
+  class="relative inline-flex items-center justify-center gap-1.5 h-8 px-2.5 rounded-full text-xs font-bold cursor-pointer transition-colors focus-within:ring-2 focus-within:ring-current <%= locals.langPickerClass || 'bg-black/5 dark:bg-white/10 text-[var(--text-sub)] hover:text-primary-theme' %>">
+  <i class="fa-solid fa-globe" aria-hidden="true"></i>
+  <span aria-hidden="true"><%= String(currentLng).toUpperCase() %></span>
+  <select aria-label="<%= t('settings.language_label') %>"
+    class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+    onchange="const u = new window.URL(location.href); u.searchParams.set('lng', this.value); location.assign(u);">
+    <% Object.entries(LANGUAGE_NAMES).forEach(([code, name]) => { %>
+      <option value="<%= code %>" lang="<%= code %>" <%= currentLng === code ? 'selected' : '' %>><%= name %></option>
+    <% }) %>
+  </select>
+</label>

@@ -5,6 +5,7 @@ import {
 } from "../core/db/query";
 import { isDuplicateError, isValidationError } from "../core/db/errors";
 import { withMemberAccounts } from "../core/collectionMembers";
+import { findByLoginIdentifier } from "../core/accounts";
 import { pluginKindFilter } from "../utils/visibilityHelper";
 import bcrypt from "bcrypt";
 import QRCode from "qrcode";
@@ -642,7 +643,7 @@ router.post("/members/invite", requireAuth, requireCollectionRole("admin"), asyn
     const role = MEMBER_ROLES.includes(req.body.role) ? req.body.role : "viewer";
     if (!identifier) return res.redirect("/admin?msg=error_member_not_found");
 
-    const target: any = await db.users.findOne(or(eq("email", identifier.toLowerCase()), eq("username", identifier)));
+    const target: any = await findByLoginIdentifier(identifier);
     if (!target) return res.redirect("/admin?msg=error_member_not_found");
 
     const already = await db.collections.exists(and(activeCollection(res), eq("members.user", idOf(target._id))));

@@ -45,6 +45,7 @@
           <i class="fa-solid fa-eye"></i>
           <%= t('nav.share_view') %>
         </span>
+        <%- include('../lang-picker') %>
       <% } else { %>
         <a href="<%= baseUrl %>/login" class="text-sm font-bold text-primary-theme hover:underline"><%= t('nav.login') %></a>
       <% } %>

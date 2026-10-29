@@ -46,6 +46,7 @@
       <span class="dv-dock-item text-primary-theme" title="<%= t('nav.share_view') %>">
         <span class="dv-dock-icon"><i class="fa-solid fa-eye" aria-hidden="true"></i></span>
       </span>
+      <%- include('../lang-picker') %>
     <% } else { %>
       <%- divider %>
       <a href="<%= baseUrl %>/login" class="dv-dock-item focus:outline-none text-primary-theme">

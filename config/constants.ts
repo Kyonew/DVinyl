@@ -10,7 +10,23 @@ export const SUPPORTED_LANGUAGES = ['fr', 'en', 'de', 'es', 'it'] as const;
 
 export type SupportedLanguage = typeof SUPPORTED_LANGUAGES[number];
 
-export const DEFAULT_LANGUAGE: SupportedLanguage = 'fr';
+/**
+ * What a browser asking only for languages the app does not ship (Dutch, Polish...) gets,
+ * and the fallback of a missing key. English, the one most visitors can read whatever
+ * their own language.
+ */
+export const DEFAULT_LANGUAGE: SupportedLanguage = 'en';
+
+/**
+ * Each language under its own name, the way someone looking for theirs recognises it.
+ */
+export const LANGUAGE_NAMES: Record<SupportedLanguage, string> = {
+  fr: 'Français',
+  en: 'English',
+  de: 'Deutsch',
+  es: 'Español',
+  it: 'Italiano'
+};
 
 /**
  * Currencies a user can pick for prices, which the User schema also accepts. Each one is

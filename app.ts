@@ -12,7 +12,7 @@ import i18nMiddleware from 'i18next-http-middleware';
 import settingsMiddleware from './middleware/settingsMiddleware.js';
 import collectionMiddleware from './middleware/collectionMiddleware.js';
 import themesConfig from './config/themes.js';
-import { BASE_URL, SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE, normalizeLanguage, dateLocaleFor } from './config/constants.js';
+import { BASE_URL, SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE, LANGUAGE_NAMES, normalizeLanguage, dateLocaleFor } from './config/constants.js';
 import { isOidcEnabled, getOidcButtonLabel, isLocalLoginDisabled } from './config/oidc.js';
 import { connectDB } from './config/db.js';
 import { StartupError } from './config/startupError.js';
@@ -117,6 +117,8 @@ app.locals.DEFAULT_CORNER_POSITION = DEFAULT_CORNER_POSITION;
 app.locals.SHARE_HIDDEN_FIELDS = SHARE_HIDDEN_FIELDS;
 // The CSV mapping screen lists the destinations of every enabled module
 app.locals.importableFields = importableFields;
+// The language picker of visitors without an account (partials/lang-picker)
+app.locals.LANGUAGE_NAMES = LANGUAGE_NAMES;
 // Shared by the image-manager partial so its client-side guard matches the save route.
 app.locals.MAX_ITEM_IMAGES = MAX_ITEM_IMAGES;
 app.locals.MAX_ITEM_IMAGE_BYTES = MAX_ITEM_IMAGE_BYTES;

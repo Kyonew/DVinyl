@@ -328,7 +328,7 @@
                     <!-- Invite an existing instance user -->
                     <form action="<%= baseUrl %>/admin/members/invite" method="POST"
                         class="flex flex-col sm:flex-row items-stretch gap-2 mb-6">
-                        <input type="text" name="identifier" required
+                        <input type="text" name="identifier" required autocapitalize="none" autocorrect="off" spellcheck="false"
                             placeholder="<%= t('admin.members.invite_placeholder') %>"
                             class="flex-1 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary-theme/40 transition-colors">
                         <select name="role"

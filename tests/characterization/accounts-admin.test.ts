@@ -277,6 +277,22 @@ describe('accounts and administration', { skip: !backend }, () => {
     assert.ok(maker);
   });
 
+  it('signs in with a username typed in another case, unless two accounts share that name', async () => {
+    await login(app, 'Admin', ADMIN.password);
+    await login(app, '  ADMIN ', ADMIN.password);
+
+    const first = shownPassword((await admin.postForm('/admin/members/create', { username: 'Twin', email: 'twin1@example.test', role: 'viewer' })).text);
+    const second = shownPassword((await admin.postForm('/admin/members/create', { username: 'twin', email: 'twin2@example.test', role: 'viewer' })).text);
+    await tick();
+    await login(app, 'Twin', first);
+    await login(app, 'twin', second);
+    const reply = await app.client().postJson('/login', { email: 'TWIN', password: first });
+    assert.equal(reply.status, 400, 'a spelling shared by two accounts names neither');
+
+    const invited = await admin.postForm('/admin/members/invite', { identifier: 'TAKEN', role: 'viewer' });
+    assert.notEqual(invited.location, '/admin?msg=error_member_not_found');
+  });
+
   it('removes the most recent items of a type in bulk', async () => {
     await saveItem(admin, 'music', { title: 'Newest', artist: 'Z', media_type: 'vinyl', tracklist_json: '[]', added_at: '2099-01-01T00:00:00.000Z' });
     const reply = await admin.postJson('/admin/delete-last-items', { count: 1, kind: 'Music' });
