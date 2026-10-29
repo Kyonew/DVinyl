@@ -5,13 +5,13 @@ import {
 } from "../core/db/query";
 import { isDuplicateError, isValidationError } from "../core/db/errors";
 import { withMemberAccounts } from "../core/collectionMembers";
-import { findByLoginIdentifier } from "../core/accounts";
+import { findByLoginIdentifier, usernameTaken } from "../core/accounts";
 import { pluginKindFilter } from "../utils/visibilityHelper";
 import bcrypt from "bcrypt";
 import QRCode from "qrcode";
 import { requireAuth, requireAdmin, requireCollectionRole } from "../middleware/authMiddleware";
 import { generateUniqueSlug, generateShareToken } from "../utils/collectionHelpers";
-import { BASE_URL, SUPPORTED_LANGUAGES } from "../config/constants";
+import { BASE_URL, SUPPORTED_LANGUAGES, normalizeLanguage } from "../config/constants";
 import { getInstanceSettings, saveInstanceSettings, InstanceSettingsData } from "../utils/instanceSettings";
 import PRESETS from "../config/themes";
 
@@ -242,14 +242,17 @@ function userCreationErrorKey(err: any): string {
 router.post("/add-user", requireAuth, requireAdmin, async (req: any, res: any) => {
   try {
     const { username, email } = req.body;
+    if (await usernameTaken(username)) return res.redirect("/admin/instance?msg=error_username_taken");
     const password = createPassword();
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user then force-update the stored password hash.
+    // Create user then force-update the stored password hash. The account starts in the
+    // language of the admin creating it, the best guess there is until it signs in.
     const newUser = await db.users.create({
       username,
       email,
       password: password,
+      language: normalizeLanguage(res.locals.user?.language),
       lastChange: new Date(),
     });
 
@@ -512,6 +515,24 @@ router.post("/collections/:id/delete", requireAuth, requireAdmin, async (req: an
   }
 });
 
+// Hand the instance collection's role to another collection. That role is what the boot
+// migration and an admin without any membership fall back on, and recreating it when
+// missing is why its holder cannot be deleted: moving it is what frees the old one. The
+// new holder is marked before the old one is cleared, so no moment is left without one.
+router.post("/collections/:id/make-default", requireAuth, requireAdmin, async (req: any, res: any) => {
+  try {
+    const target = isId(req.params.id) ? await db.collections.findById(req.params.id, { fields: ["_id"] }) : null;
+    if (!target) return res.redirect("/admin/instance");
+    await db.collections.updateOne(eq("_id", idOf(target._id)), { set: { isDefault: true } });
+    await db.collections.updateMany(and(eq("isDefault", true), ne("_id", idOf(target._id))), { set: { isDefault: false } });
+    console.log(`[ADMIN] Instance collection moved to ${target._id} by ${res.locals.user?.email}`);
+    res.redirect("/admin/instance?msg=default_collection_changed");
+  } catch (err) {
+    console.error("Instance collection change error:", err);
+    res.redirect("/admin/instance");
+  }
+});
+
 // ============ INSTANCE-LEVEL MEMBER MANAGEMENT (any collection by :id) ============
 // The instance admin manages any collection's members straight from /admin/instance.
 
@@ -608,13 +629,16 @@ router.post("/members/create", requireAuth, requireCollectionRole("admin"), asyn
   try {
     const { username, email } = req.body;
     const role = MEMBER_ROLES.includes(req.body.role) ? req.body.role : "viewer";
+    if (await usernameTaken(username)) return res.redirect("/admin?msg=error_username_taken");
     const password = createPassword();
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Same language as the admin creating it, as on the instance page.
     const newUser = await db.users.create({
       username,
       email,
       password: password,
+      language: normalizeLanguage(res.locals.user?.language),
       lastChange: new Date(),
     });
     await db.users.updateOne(eq("_id", idOf(newUser._id)), { set: { password: hashedPassword } });

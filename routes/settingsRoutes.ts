@@ -7,6 +7,7 @@ import bcrypt from 'bcrypt';
 import { db } from '../core/db';
 import { and, eq, idOf, isId } from '../core/db/query';
 import { requireAuth } from '../middleware/authMiddleware';
+import { usernameTaken } from '../core/accounts';
 import { SUPPORTED_CURRENCIES } from '../config/constants';
 import { viewRegistry } from '../core/viewRegistry';
 import { applyHomeCollection, HOME_PAGES, isHomePage } from '../utils/homePage';
@@ -82,8 +83,7 @@ router.post('/check-username', requireAuth, async (req, res) => {
             return res.json({ success: true, message: req.t('messages.username_current') });
         }
 
-        const userExists = await db.users.findOne(eq('username', username));
-        if (userExists) {
+        if (await usernameTaken(username, res.locals.user._id)) {
             return res.status(400).json({ success: false, message: req.t('errors.username_taken') });
         }
         res.json({ success: true, message: req.t('messages.username_available') });
@@ -96,8 +96,7 @@ router.post('/check-username', requireAuth, async (req, res) => {
 router.post('/update-username', requireAuth, async (req, res) => {
     const { username } = req.body;
     try {
-        const userExists = await db.users.findOne(eq('username', username));
-        if (userExists && userExists._id.toString() !== res.locals.user._id.toString()) {
+        if (await usernameTaken(username, res.locals.user._id)) {
             return res.status(400).json({ success: false, message: req.t('errors.username_taken') });
         }
         await db.users.updateOne(eq('_id', idOf(res.locals.user._id)), { set: { username: username } });

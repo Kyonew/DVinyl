@@ -25,6 +25,18 @@ export async function findByLoginIdentifier(identifier: unknown): Promise<any | 
 }
 
 /**
+ * Whether another account already goes by this name, whatever its case. Sign-in matches a
+ * username ignoring case, so two names apart only by case would leave both needing their
+ * exact spelling. `exceptId` is the account being renamed, which may change its own case.
+ */
+export async function usernameTaken(username: unknown, exceptId?: unknown): Promise<boolean> {
+  const name = String(username || '').trim();
+  if (!name) return false;
+  const holders = await db.users.find(ci('username', name), { fields: ['_id'], limit: 2 });
+  return holders.some((u: any) => String(u._id) !== String(exceptId ?? ''));
+}
+
+/**
  * The account behind an identifier (email or username) and its password. Throws
  * 'incorrect email' when no account matches and 'incorrect password' otherwise, which
  * the login controller turns into its messages.

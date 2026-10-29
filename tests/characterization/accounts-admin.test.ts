@@ -277,20 +277,43 @@ describe('accounts and administration', { skip: !backend }, () => {
     assert.ok(maker);
   });
 
-  it('signs in with a username typed in another case, unless two accounts share that name', async () => {
+  it('hands the instance collection role to another collection, which then is the one kept', async () => {
+    const vinyl = collectionNamed(await refresh(), 'Vinyl');
+    const mine = collectionNamed(dump, 'Mine');
+    let reply = await admin.postForm(`/admin/collections/${mine._id}/make-default`, {});
+    assert.equal(reply.location, '/admin/instance?msg=default_collection_changed');
+    await refresh();
+    assert.deepEqual(dump.collections.filter(c => c.isDefault).map(c => c.name), ['Mine']);
+
+    reply = await admin.postForm(`/admin/collections/${mine._id}/delete`, {});
+    assert.equal(reply.location, '/admin/instance?msg=error_delete_default_collection');
+    assert.equal((await admin.postForm(`/admin/collections/${vinyl._id}/make-default`, {})).location, '/admin/instance?msg=default_collection_changed');
+    assert.equal((await admin.postForm('/admin/collections/nope/make-default', {})).location, '/admin/instance');
+    assert.deepEqual((await refresh()).collections.filter(c => c.isDefault).map(c => c.name), ['Vinyl']);
+  });
+
+  it('signs in with a username typed in another case, and keeps names apart whatever their case', async () => {
     await login(app, 'Admin', ADMIN.password);
     await login(app, '  ADMIN ', ADMIN.password);
 
-    const first = shownPassword((await admin.postForm('/admin/members/create', { username: 'Twin', email: 'twin1@example.test', role: 'viewer' })).text);
-    const second = shownPassword((await admin.postForm('/admin/members/create', { username: 'twin', email: 'twin2@example.test', role: 'viewer' })).text);
-    await tick();
-    await login(app, 'Twin', first);
-    await login(app, 'twin', second);
-    const reply = await app.client().postJson('/login', { email: 'TWIN', password: first });
-    assert.equal(reply.status, 400, 'a spelling shared by two accounts names neither');
-
     const invited = await admin.postForm('/admin/members/invite', { identifier: 'TAKEN', role: 'viewer' });
     assert.notEqual(invited.location, '/admin?msg=error_member_not_found');
+
+    let reply = await admin.postForm('/admin/members/create', { username: 'Taken', email: 'twin@example.test', role: 'viewer' });
+    assert.equal(reply.location, '/admin?msg=error_username_taken');
+    reply = await admin.postForm('/admin/add-user', { username: 'TAKEN', email: 'twin@example.test' });
+    assert.equal(reply.location, '/admin/instance?msg=error_username_taken');
+    assert.equal((await admin.postJson('/settings/check-username', { username: 'Taken' })).status, 400);
+    assert.equal((await admin.postJson('/settings/check-username', { username: 'ADMIN' })).json().success, true, 'its own name in another case');
+    assert.ok(!(await refresh()).users.some(u => u.email === 'twin@example.test'));
+  });
+
+  it('starts a new account in the language of the admin creating it', async () => {
+    await admin.postForm('/settings/update-language', { language: 'de' });
+    const page = await admin.postForm('/admin/members/create', { username: 'deutsch', email: 'deutsch@example.test', role: 'viewer' });
+    assert.equal(page.status, 200);
+    await admin.postForm('/settings/update-language', { language: 'en' });
+    assert.equal(userNamed(await refresh(), 'deutsch').language, 'de');
   });
 
   it('removes the most recent items of a type in bulk', async () => {

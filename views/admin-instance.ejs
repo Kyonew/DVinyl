@@ -115,7 +115,8 @@
                                         <h3 class="text-lg font-black truncate flex items-center gap-2">
                                             <%= c.name %>
                                             <% if (c.isDefault) { %>
-                                                <span class="text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-primary-theme/10 text-primary-theme whitespace-nowrap">
+                                                <span title="<%= t('admin.collections.default_badge_hint') %>"
+                                                    class="text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-primary-theme/10 text-primary-theme whitespace-nowrap cursor-help">
                                                     <%= t('admin.collections.default_badge') %>
                                                 </span>
                                             <% } %>
@@ -129,6 +130,13 @@
                                             <%= t('admin.instance.manage') %>
                                         </button>
                                         <% if (!c.isDefault) { %>
+                                            <form action="<%= baseUrl %>/admin/collections/<%= c._id %>/make-default" method="POST">
+                                                <button type="submit"
+                                                    class="bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white p-2 rounded-xl transition-colors"
+                                                    title="<%= t('admin.collections.make_default') %>" aria-label="<%= t('admin.collections.make_default') %>">
+                                                    <i class="fa-solid fa-house-flag"></i>
+                                                </button>
+                                            </form>
                                             <form action="<%= baseUrl %>/admin/collections/<%= c._id %>/delete" method="POST"
                                                 onsubmit="return confirm(<%= JSON.stringify(t('admin.collections.confirm_delete', { name: c.name })) %>)">
                                                 <button type="submit"

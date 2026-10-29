@@ -48,6 +48,8 @@ describe('notices', { skip: !backend }, () => {
     app = await startApp(backend!, { UPDATE_CHECK_URL: `http://127.0.0.1:${port}/` });
     admin = await setupAdmin(app);
     bob = await member('bob');
+    // Reads French while the admin reads English, so a notice is seen worded for its reader.
+    await bob.postForm('/settings/update-language', { language: 'fr' });
   });
   after(async () => {
     await app?.stop();

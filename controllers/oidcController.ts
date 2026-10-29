@@ -2,6 +2,8 @@ import { db } from '../core/db';
 import { isDuplicateError } from '../core/db/errors';
 import { eq, idOf } from '../core/db/query';
 import { issueSession } from './authController';
+import { usernameTaken } from '../core/accounts';
+import { normalizeLanguage } from '../config/constants';
 import {
     getOidcConfig,
     getOidcRedirectUri,
@@ -49,14 +51,16 @@ const deriveUsername = (claims: any, email: string): string => {
 
 /**
  * Create a JIT-provisioned, SSO-only account (no local password). On a username
- * collision a numeric suffix is appended and creation retried; a duplicate email
- * or oidc.sub is a genuine conflict and is allowed to propagate.
+ * collision (whatever its case) a numeric suffix is appended and creation retried; a
+ * duplicate email or oidc.sub is a genuine conflict and is allowed to propagate. The
+ * account starts in the language of the browser it signed in from.
  */
 const createProvisionedUser = async (
     email: string,
     baseUsername: string,
     sub: string,
-    isAdmin: boolean
+    isAdmin: boolean,
+    language: string
 ) => {
     // Backdate lastChange: we issue a JWT immediately after creation, and its
     // `iat` is floored to whole seconds. A same-instant `new Date()` would sit a
@@ -66,11 +70,13 @@ const createProvisionedUser = async (
 
     for (let attempt = 0; attempt < 20; attempt++) {
         const username = attempt === 0 ? baseUsername : `${baseUsername}${attempt + 1}`;
+        if (await usernameTaken(username)) continue;
         try {
             return await db.users.create({
                 username,
                 email,
                 isAdmin,
+                language,
                 oidc: { sub, linkedAt: new Date(), autoProvisioned: true },
                 lastChange
             });
@@ -249,7 +255,7 @@ export const oidc_callback_get = async (req: any, res: any) => {
 
         const adminGroup = getOidcAdminGroup();
         const isAdmin = !!(adminGroup && groups.includes(adminGroup));
-        const newUser = await createProvisionedUser(email, deriveUsername(claims, email), sub, isAdmin);
+        const newUser = await createProvisionedUser(email, deriveUsername(claims, email), sub, isAdmin, normalizeLanguage(req.language));
         console.log(`[OIDC] Provisioned account ${newUser.username} <${email}>${isAdmin ? ' (admin)' : ''} from SSO`);
 
         await issueSession(req, res, newUser);
