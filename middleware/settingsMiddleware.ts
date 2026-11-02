@@ -45,6 +45,10 @@ async function settingsMiddleware(req: any, res: any, next: any) {
         res.locals.settings = settings;
 
         res.locals.currentLng = res.locals.user?.language || req.language || 'fr';
+        // Язык из профиля применяем к самому i18next, иначе он остаётся на cookie браузера
+        if (res.locals.user?.language && req.i18n && req.i18n.language !== res.locals.user.language) {
+            await req.i18n.changeLanguage(res.locals.user.language);
+        }
         res.locals.isDark = res.locals.user ? (res.locals.user.theme === 'dark') : true;
 
         const fullPath = req.path.toLowerCase();
