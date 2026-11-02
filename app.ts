@@ -82,7 +82,8 @@ i18next
       fr: { translation: require('./locales/fr.json') },
       es: { translation: require('./locales/es.json') },
       it: { translation: require('./locales/it.json') },
-      de: { translation: require('./locales/de.json') }
+      de: { translation: require('./locales/de.json') },
+      ru: { translation: require('./locales/ru.json') }
     },
     detection: {
       order: ['querystring', 'cookie', 'header'], // detection order

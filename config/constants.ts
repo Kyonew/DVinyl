@@ -6,7 +6,7 @@ export const BASE_URL: string = process.env.BASE_URL
  * Languages the app ships. Also the values the User schema accepts, so anything
  * stored on a user has to be one of these exact codes.
  */
-export const SUPPORTED_LANGUAGES = ['fr', 'en', 'de', 'es', 'it'] as const;
+export const SUPPORTED_LANGUAGES = ['fr', 'en', 'de', 'es', 'it', 'ru'] as const;
 
 export type SupportedLanguage = typeof SUPPORTED_LANGUAGES[number];
 
@@ -27,7 +27,8 @@ const DATE_LOCALES: Record<SupportedLanguage, string> = {
   en: 'en-US',
   de: 'de-DE',
   es: 'es-ES',
-  it: 'it-IT'
+  it: 'it-IT',
+  ru: 'ru-RU'
 };
 
 /**
