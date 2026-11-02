@@ -770,7 +770,7 @@
         const estimateErrorMsg = <%- JSON.stringify(t('messages.estimate_error')) %>;
         const historyEmptyMsg = <%- JSON.stringify(t('modal.history_empty')) %>;
         const historyOtherCurrencyMsg = <%- JSON.stringify(t('modal.history_other_currency')) %>;
-        const currentLocale = '<%= currentLng === "fr" ? "fr-FR" : "en-US" %>';
+        const currentLocale = '<%= dateLocaleFor(currentLng) %>';
         const currentCurrency = '<%= user.currency || "USD" %>';
 
         let activeEstimate = null;
