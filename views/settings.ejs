@@ -151,6 +151,11 @@
                                     ? 'selected' : '' %>>
                                     <%= t('settings.currency_gbp') %>
                                 </option>
+
+                                <option value="RUB" class="bg-white dark:bg-[#1a1a1a]" <%=user.currency==='RUB'
+                                    ? 'selected' : '' %>>
+                                    <%= t('settings.currency_rub') %>
+                                </option>
                             </select>
                         </form>
                     </div>

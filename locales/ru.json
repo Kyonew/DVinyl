@@ -83,7 +83,8 @@
     "home_page_collection": "Коллекция",
     "home_page_wishlist": "Желаемое",
     "home_view_label": "Вид по умолчанию",
-    "home_view_last": "Последний"
+    "home_view_last": "Последний",
+    "currency_rub": "Российский рубль (₽)"
   },
   "errors": {
     "username_taken": "Такое имя уже занято.",

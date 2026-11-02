@@ -47,7 +47,7 @@ const userSchema = new mongoose.Schema({
     },
     currency: {
         type: String,
-        enum: ['EUR', 'USD', 'GBP'],
+        enum: ['EUR', 'USD', 'GBP', 'RUB'],
         default: 'USD'
     },
     // Plugin-scoped user data: { [pluginId]: { [key]: value } }, e.g. { music: { discogsUsername: 'foo' } }.

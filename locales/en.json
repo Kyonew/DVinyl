@@ -83,7 +83,8 @@
     "home_page_collection": "Collection",
     "home_page_wishlist": "Wishlist",
     "home_view_label": "Default view",
-    "home_view_last": "Last used"
+    "home_view_last": "Last used",
+    "currency_rub": "Russian Ruble (₽)"
   },
   "errors": {
     "username_taken": "This username is already taken.",
