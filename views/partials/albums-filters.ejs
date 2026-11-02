@@ -93,11 +93,29 @@
             offer for it, rather than showing an empty or foreign list %>
         <% if (locals.hasYear) { %>
         <div class="filter-advanced max-sm:order-4 w-full lg:w-36 relative">
-            <button onclick="toggleDecadeMenu(event)" id="decadeSelectorBtn"
+            <% // Десятилетия пишутся по-разному: в русском «2020-е», в немецком «2020er»,
+   // во французском и испанском это отдельное слово перед годом. Твёрдое «s» в конце
+   // годится только для английского.
+   const decadeText = (year) => {
+       switch (currentLng) {
+           case 'ru': return year + '-е';
+           case 'de': return year + 'er';
+           case 'fr': return 'années ' + year;
+           case 'es': return 'años ' + year;
+           case 'it': return 'anni ' + year;
+           default: return year + 's';
+       }
+   };
+%>
+<button onclick="toggleDecadeMenu(event)" id="decadeSelectorBtn"
                 class="block w-full p-2.5 text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme outline-none transition-all flex justify-between items-center group">
                 <span class="truncate transition-opacity <%= locals.queryDecade ? '' : 'opacity-50 group-hover:opacity-100' %>">
                     <% const currentDecadeArr = locals.queryDecade ? locals.queryDecade.split(',') : []; %>
-                    <%= currentDecadeArr.length > 0 ? (currentDecadeArr.length === 1 ? currentDecadeArr[0] + 's' : currentDecadeArr.length + ' ' + t('collection.decade_filter')) : t('collection.decade_filter') %>
+                    <%= currentDecadeArr.length === 0
+                        ? t('collection.decade_filter')
+                        : currentDecadeArr.length <= 2
+                            ? currentDecadeArr.map(decadeText).join(', ')
+                            : decadeText(currentDecadeArr[0]) + ' … ' + decadeText(currentDecadeArr[currentDecadeArr.length - 1]) %>
                 </span>
                 <i class="fa-solid fa-chevron-down text-[10px] opacity-20 group-hover:opacity-60 transition-all"></i>
             </button>
@@ -110,7 +128,7 @@
                         <label class="flex items-center gap-3 p-2 text-sm rounded-lg hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer transition-colors group">
                             <input type="checkbox" class="decade-checkbox accent-primary-theme w-4 h-4 rounded border-gray-300 transition-all cursor-pointer" 
                                     value="<%= y %>" <%= isActive ? 'checked' : '' %>>
-                            <span class="group-hover:translate-x-0.5 transition-transform"><%= y %>s</span>
+                            <span class="group-hover:translate-x-0.5 transition-transform"><%= decadeText(y) %></span>
                         </label>
                     <% } %>
                 </div>
