@@ -1554,6 +1554,8 @@
     "sort_formats": "Trier les formats par ordre alphabétique",
     "card_fields": "Champs de la carte",
     "card_fields_hint": "Affichés sous la pochette dans toutes les grilles, dans l'ordre déclaré par le plugin. {{count}} maximum.",
+    "table_columns": "Colonnes du tableau",
+    "table_columns_hint": "Chacune devient une colonne de la vue tableau une fois ce type sélectionné. Sur téléphone, elles se lisent sous le titre. Quand tous les types sont affichés, le tableau garde ses colonnes Infos et Emplacement.",
     "corner_field": "Coin de la pochette",
     "corner_field_hint": "Affiché dans le coin bas-gauche de chaque pochette, à l’opposé du badge de format. La valeur stockée est utilisée telle quelle, pour rester courte.",
     "filters": "Filtres",

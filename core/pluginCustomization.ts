@@ -32,6 +32,9 @@ export interface PluginCosmetics {
   // Filters switched on or off for this type on the collection page, by id. Only what
   // differs from the default is stored; see core/filterFields.ts.
   filters?: Record<string, boolean>;
+  // Fields shown as columns in the table view. An empty array is a deliberate "title only".
+  // Absent, the table follows the card fields; see core/cardFields.ts.
+  tableColumns?: string[];
 }
 
 export type PluginCustomizationMap = Record<string, PluginCosmetics>;
@@ -44,7 +47,7 @@ export function decoratePlugin(
 ): PluginDefinition {
   const cosmetics = map?.[plugin.id];
   const extraDefs = settings ? getExtraFields(settings, plugin.id) : [];
-  const hasCosmetics = !!cosmetics && (!!cosmetics.icon || !!cosmetics.formatColors || !!cosmetics.cardFields || !!cosmetics.sortFormats || !!cosmetics.cornerField);
+  const hasCosmetics = !!cosmetics && (!!cosmetics.icon || !!cosmetics.formatColors || !!cosmetics.cardFields || !!cosmetics.sortFormats || !!cosmetics.cornerField || !!cosmetics.tableColumns);
   if (!hasCosmetics && extraDefs.length === 0) return plugin;
 
   const clone: any = { ...plugin };
@@ -68,6 +71,9 @@ export function decoratePlugin(
   }
   if (cosmetics?.cardFields) {
     clone.defaultCardFields = cosmetics.cardFields;
+  }
+  if (cosmetics?.tableColumns) {
+    clone.tableColumns = cosmetics.tableColumns;
   }
   if (cosmetics?.sortFormats) {
     // Sorted on what the reader sees, not on the raw label: a native plugin's labels are

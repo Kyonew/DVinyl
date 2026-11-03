@@ -1606,6 +1606,8 @@
     "sort_formats": "Ordina i formati in ordine alfabetico",
     "card_fields": "Campi della scheda",
     "card_fields_hint": "Mostrati sotto la copertina in tutte le griglie, nell'ordine dichiarato dal plugin. Massimo {{count}}.",
+    "table_columns": "Colonne della tabella",
+    "table_columns_hint": "Ogni campo è una colonna della vista tabella quando questo tipo è selezionato. Sul telefono si leggono sotto il titolo. Mostrando tutti i tipi, la tabella mantiene le colonne Info e Posizione.",
     "corner_field": "Angolo della copertina",
     "corner_field_hint": "Mostrato nell’angolo in basso a sinistra di ogni copertina, di fronte al badge del formato. Il valore memorizzato è usato così com’è, per restare breve.",
     "filters": "Filtri",

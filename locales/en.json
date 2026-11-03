@@ -1554,6 +1554,8 @@
     "sort_formats": "Sort formats alphabetically",
     "card_fields": "Card fields",
     "card_fields_hint": "Shown under the cover in every grid, in the order the plugin declares them. Up to {{count}}.",
+    "table_columns": "Table columns",
+    "table_columns_hint": "Each one is a column of the table view once this type is selected. On a phone they read under the title. Showing every type at once, the table keeps its Info and Location columns.",
     "corner_field": "Corner of the cover",
     "corner_field_hint": "Shown in the bottom-left corner of every cover, opposite the format badge. The stored value is used as is, so it stays short.",
     "filters": "Filters",

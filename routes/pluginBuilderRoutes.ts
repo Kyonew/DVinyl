@@ -15,7 +15,7 @@ import {
 import { sanitizeExtraFields, getExtraFields, nativeLookalikesByPlugin } from '../core/pluginExtraFields';
 import { SUPPORTED_LANGUAGES } from '../config/constants';
 import { placeholderUrl } from '../core/placeholderImage';
-import { cardFieldCandidates, isTranslationKey, getCardLines, MAX_CARD_LINES, CORNER_POSITIONS, DEFAULT_CORNER_POSITION } from '../core/cardFields';
+import { cardFieldCandidates, isTranslationKey, getCardLines, MAX_CARD_LINES, CORNER_POSITIONS, DEFAULT_CORNER_POSITION, defaultTableColumnNames, sanitizeTableColumns, tableColumnNames } from '../core/cardFields';
 import { filterCandidates, filterOverrides, activeFilters, sanitizeFilterSelection } from '../core/filterFields';
 import { registerPluginDirAtRuntime, unregisterPluginAtRuntime } from '../core/pluginRuntime';
 import { saveCustomPluginToDB, deleteCustomPluginFromDB } from '../core/customPluginSync';
@@ -99,6 +99,7 @@ router.get('/', async (req: any, res: any) => {
       })),
       // What the cards show today, so an untouched plugin opens on its real state
       cardFields: p.defaultCardFields || [p.creatorField],
+      tableColumns: tableColumnNames(p),
       // Read on the bare plugin for the same reason as the lookalikes above
       filterChoices: (() => {
         const bare = registry.get(p.id);
@@ -190,6 +191,16 @@ router.post('/customize/:pluginId', async (req: any, res: any) => {
         .slice(0, MAX_CARD_LINES);
     }
 
+    // Table columns, after the card fields, which an untouched table follows.
+    if (Array.isArray(req.body.tableColumns)) {
+      const decorated = res.locals.registry.get(plugin.id) || plugin;
+      const tableColumns = sanitizeTableColumns(decorated, req.body.tableColumns, [
+        defaultTableColumnNames(decorated),
+        defaultTableColumnNames({ ...decorated, defaultCardFields: cosmetics.cardFields || decorated.defaultCardFields })
+      ]);
+      if (tableColumns) cosmetics.tableColumns = tableColumns;
+    }
+
     // Filters shown on the collection page once this type is selected. Only what differs
     // from the default is kept (see core/filterFields.ts), so leaving every box as it
     // came stores nothing. Read against the fields declared before this save: one added
@@ -216,7 +227,7 @@ router.post('/customize/:pluginId', async (req: any, res: any) => {
     const cosmeticsPath = `pluginCustomization.${plugin.id}`;
     const set: Record<string, any> = {};
     const unset: string[] = [];
-    if (cosmetics.icon || cosmetics.formatColors || cosmetics.cardFields || cosmetics.sortFormats || cosmetics.cornerField || cosmetics.filters) set[cosmeticsPath] = cosmetics;
+    if (cosmetics.icon || cosmetics.formatColors || cosmetics.cardFields || cosmetics.sortFormats || cosmetics.cornerField || cosmetics.filters || cosmetics.tableColumns) set[cosmeticsPath] = cosmetics;
     else unset.push(cosmeticsPath);
     if (extraUpdate?.set) Object.assign(set, extraUpdate.set);
     if (extraUpdate?.unset) unset.push(extraUpdate.unset);

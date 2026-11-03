@@ -29,7 +29,7 @@ import { loadPlugins } from './core/loadPlugins.js';
 import { syncCustomPluginsOnBoot } from './core/customPluginSync.js';
 import { mountPluginRoutes, pluginDispatcher } from './core/pluginRuntime.js';
 import { applyPluginCustomization } from './core/pluginCustomization.js';
-import { getCardLines, getCornerBadge, isTranslationKey, CORNER_POSITIONS, DEFAULT_CORNER_POSITION, SHARE_HIDDEN_FIELDS } from './core/cardFields.js';
+import { getCardLines, getCornerBadge, isTranslationKey, CORNER_POSITIONS, DEFAULT_CORNER_POSITION, SHARE_HIDDEN_FIELDS, getTableCell, getTableColumns } from './core/cardFields.js';
 import { highlightMatches } from './core/searchHighlight.js';
 import { importableFields } from './core/csvMapping.js';
 import { MAX_ITEM_IMAGES, MAX_ITEM_IMAGE_BYTES } from './core/itemImages.js';
@@ -107,6 +107,8 @@ app.set('view engine', 'ejs');
 app.set('views', [path.join(__dirname, 'views'), path.join(__dirname, 'core/views')]);
 // Card bodies are resolved from the plugin declarations, not inlined per grid
 app.locals.getCardLines = getCardLines;
+app.locals.getTableColumns = getTableColumns;
+app.locals.getTableCell = getTableCell;
 app.locals.getCornerBadge = getCornerBadge;
 app.locals.isTranslationKey = isTranslationKey;
 // Lights up the searched text on the cards and table rows it brought back

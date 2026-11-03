@@ -1,7 +1,9 @@
 <%# Item table shared by the collection and wishlist pages.
     Same items as the grid, read as rows instead of covers: no cover art, no
-    per-item measuring, nothing beyond what core/cardFields.ts already resolves
-    for the card body. That is what keeps this the lightest view to draw.
+    per-item measuring, nothing beyond what core/cardFields.ts resolves. That is
+    what keeps this the lightest view to draw. With a type selected (tablePlugin),
+    each column its collection chose is drawn; showing every type, the rows hold
+    different fields, so they share one column of card lines and the location.
 
     Params: albums, and optionally
       gridId     id set on the table element
@@ -14,6 +16,8 @@
     const hit = s => highlightMatches(s, locals.querySearch);
     const lineHtml = l => (l.showLabel ? highlightMatches(tr(l.label), '') + ' : ' : '') + hit(lineText(l));
     const showWishlistAction = locals.wishlist === true && locals.canEditCollection;
+    const columnPlugin = locals.tablePlugin;
+    const columns = columnPlugin ? getTableColumns(columnPlugin, { isShareView: locals.isShareView === true }) : [];
 %>
 <div class="card-theme rounded-2xl overflow-hidden shadow-lg transition-colors">
     <div class="overflow-x-auto">
@@ -22,8 +26,12 @@
                 <tr>
                     <% if (locals.selectable) { %><th class="p-0"></th><% } %>
                     <th class="px-4 py-3"><%= t('collection.table_col_title') %></th>
-                    <th class="hidden sm:table-cell px-4 py-3"><%= t('collection.table_col_info') %></th>
-                    <% if (!locals.isShareView) { %><th class="hidden sm:table-cell px-4 py-3"><%= t('common.location') %></th><% } %>
+                    <% if (columnPlugin) { %>
+                        <% columns.forEach(column => { %><th class="hidden sm:table-cell px-4 py-3 whitespace-nowrap"><%= tr(column.label) %></th><% }) %>
+                    <% } else { %>
+                        <th class="hidden sm:table-cell px-4 py-3"><%= t('collection.table_col_info') %></th>
+                        <% if (!locals.isShareView) { %><th class="hidden sm:table-cell px-4 py-3"><%= t('common.location') %></th><% } %>
+                    <% } %>
                     <% if (showWishlistAction) { %><th class="px-4 py-3"></th><% } %>
                 </tr>
             </thead>
@@ -32,7 +40,11 @@
                     <%
                         const itemPlugin = registry.getByKind(album.kind);
                         const routePrefix = itemPlugin ? itemPlugin.routePrefix : '/album';
-                        const cardLines = getCardLines(itemPlugin, album, { lang: currentLng, isShareView: locals.isShareView === true });
+                        const cells = columns.map(column => getTableCell(columnPlugin, column, album, { lang: currentLng }));
+                        const cellText = cell => cell.translate ? tr(cell.value) : cell.value;
+                        // The location has a column of its own there, so it is not a card line too.
+                        const cardLines = columnPlugin ? [] : getCardLines(itemPlugin, album, { lang: currentLng, isShareView: locals.isShareView === true })
+                            .filter(l => l.name !== 'location');
                         const infoText = cardLines.map(l => (l.showLabel ? tr(l.label) + ' : ' : '') + lineText(l)).join(' · ');
                         const infoHtml = cardLines.map(lineHtml).join(' · ');
                     %>
@@ -58,19 +70,33 @@
                                     <i class="fa-solid fa-<%= rowAway.icon %> mr-1" aria-hidden="true"></i><%= t('requests.away_with', { name: rowAway.holder }) %>
                                 </p>
                             <% } %>
-                            <%# On a phone the info and location columns would scroll off screen, so they read under the title instead. %>
-                            <% const mobileInfo = [infoHtml, locals.isShareView ? '' : highlightMatches(album.location, '')].filter(Boolean).join(' · '); %>
+                            <%# On a phone the other columns would scroll off screen, so they read under the title instead. %>
+                            <% const mobileInfo = (columnPlugin
+                                ? cells.filter(cell => cell.value).map(cell => hit(cellText(cell)))
+                                : [infoHtml, locals.isShareView ? '' : highlightMatches(album.location, '')].filter(Boolean)).join(' · '); %>
                             <% if (mobileInfo) { %>
                                 <p class="sm:hidden text-xs opacity-60 truncate"><%- mobileInfo %></p>
                             <% } %>
                         </td>
-                        <td class="hidden sm:table-cell px-4 py-2 align-middle opacity-70 max-w-sm">
-                            <% if (infoText) { %>
-                                <span class="truncate block" title="<%= infoText %>"><%- infoHtml %></span>
+                        <% if (columnPlugin) { %>
+                            <% cells.forEach(cell => { %>
+                                <td class="hidden sm:table-cell px-4 py-2 align-middle opacity-70 max-w-xs">
+                                    <% if (cell.flag) { %>
+                                        <i class="fa-solid fa-check text-primary-theme" aria-hidden="true"></i><span class="sr-only"><%= cellText(cell) %></span>
+                                    <% } else if (cell.value) { %>
+                                        <span class="truncate block" title="<%= cellText(cell) %>"><%- hit(cellText(cell)) %></span>
+                                    <% } %>
+                                </td>
+                            <% }) %>
+                        <% } else { %>
+                            <td class="hidden sm:table-cell px-4 py-2 align-middle opacity-70 max-w-sm">
+                                <% if (infoText) { %>
+                                    <span class="truncate block" title="<%= infoText %>"><%- infoHtml %></span>
+                                <% } %>
+                            </td>
+                            <% if (!locals.isShareView) { %>
+                                <td class="hidden sm:table-cell px-4 py-2 align-middle opacity-70 truncate"><%= album.location || '' %></td>
                             <% } %>
-                        </td>
-                        <% if (!locals.isShareView) { %>
-                            <td class="hidden sm:table-cell px-4 py-2 align-middle opacity-70 truncate"><%= album.location || '' %></td>
                         <% } %>
                         <% if (showWishlistAction) { %>
                             <td class="px-4 py-2 align-middle text-right">

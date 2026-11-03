@@ -90,10 +90,15 @@ function stringifyValue(field: FieldDefinition | undefined, raw: any, lang?: str
   return { value: String(raw), translate: false };
 }
 
-/**
- * Lines to render under the cover, title excluded (the views own it).
- * Capped at MAX_CARD_LINES, empty values dropped.
- */
+// A plugin may rewrite its own value for display (e.g. music trimming the noise words out
+// of format_type); anything else falls back to the generic reading.
+function readField(plugin: PluginDefinition, field: FieldDefinition | undefined, name: string, item: any, lang?: string): StringifiedValue {
+  const override = plugin.cardFieldValue?.(name, item);
+  return override !== undefined && override !== null
+    ? { value: override, translate: false }
+    : stringifyValue(field, item[name] ?? item.extra?.[name], lang);
+}
+
 /**
  * Where the chosen field may sit on a cover. Top-right is absent on purpose: the format
  * badge lives there in every grid, and two pills in one corner would overlap.
@@ -154,6 +159,10 @@ export function getCornerBadge(
   return String(raw);
 }
 
+/**
+ * Lines to render under the cover, title excluded (the views own it).
+ * Capped at MAX_CARD_LINES, empty values dropped.
+ */
 export function getCardLines(
   plugin: PluginDefinition | undefined,
   item: any,
@@ -173,13 +182,7 @@ export function getCardLines(
     const field = (plugin.formFields || []).find(f => f.name === name);
     const style = plugin.cardFieldStyles?.[name] || 'text';
 
-    // A plugin may rewrite its own value for the card (e.g. music trimming the noise
-    // words out of format_type); anything else falls back to the generic reading.
-    const override = plugin.cardFieldValue?.(name, item);
-    const resolved = override !== undefined && override !== null
-      ? { value: override, translate: false }
-      : stringifyValue(field, item[name] ?? item.extra?.[name], options.lang);
-
+    const resolved = readField(plugin, field, name, item, options.lang);
     if (!resolved.value) continue;
 
     lines.push({
@@ -196,4 +199,64 @@ export function getCardLines(
   }
 
   return lines;
+}
+
+/**
+ * The table view's columns, title excluded (the view owns it), chosen per type and per
+ * collection. They come from the same fields as the cards. A collection that never chose
+ * gets what its cards show plus the location, each in a column of its own, and keeps
+ * following its cards until it does: only a choice that differs from that is stored.
+ *
+ * The page showing every type at once has no columns of this kind: its rows hold different
+ * fields, so no single type's choice applies to them.
+ */
+export interface TableColumn {
+  name: string;
+  label: string;
+}
+
+export interface TableCell {
+  value: string;
+  translate: boolean;
+  // A true boolean: its column already says what it is, the row only has to tick it.
+  flag: boolean;
+}
+
+/** What a type's table shows when nobody chose, in the order the type declares its fields. */
+export function defaultTableColumnNames(plugin: PluginDefinition): string[] {
+  const wanted = new Set([...(plugin.defaultCardFields || [plugin.creatorField]), 'location']);
+  return cardFieldCandidates(plugin).map(f => f.name).filter(name => wanted.has(name));
+}
+
+/** The names of a type's columns, which `plugin.tableColumns` overrides once it is set. */
+export function tableColumnNames(plugin: PluginDefinition): string[] {
+  return plugin.tableColumns || defaultTableColumnNames(plugin);
+}
+
+/** The columns to draw. Anything no longer declared, such as a deleted field, is dropped. */
+export function getTableColumns(plugin: PluginDefinition, options: { isShareView?: boolean } = {}): TableColumn[] {
+  const candidates = cardFieldCandidates(plugin);
+  return tableColumnNames(plugin).flatMap(name => {
+    const field = candidates.find(f => f.name === name);
+    return field && !(options.isShareView && SHARE_HIDDEN_FIELDS.has(name)) ? [{ name, label: field.label }] : [];
+  });
+}
+
+export function getTableCell(plugin: PluginDefinition, column: TableColumn, item: any, options: { lang?: string } = {}): TableCell {
+  const field = (plugin.formFields || []).find(f => f.name === column.name);
+  const { value, translate } = readField(plugin, field, column.name, item, options.lang);
+  return { value, translate, flag: field?.type === 'boolean' && !!value };
+}
+
+/**
+ * What to store from a submission listing the columns left on, or undefined when nothing
+ * has to be. Checked against the type's fields and put back in their order, so a crafted
+ * payload cannot name an arbitrary path. `defaults` are what the table follows when nobody
+ * chose, before and after the same submission changes the cards: leaving the boxes as they
+ * opened is no choice, or the first save of any setting would stop the table following them.
+ */
+export function sanitizeTableColumns(plugin: PluginDefinition, submitted: unknown[], defaults: string[][]): string[] | undefined {
+  const picked = new Set(submitted.filter(name => typeof name === 'string'));
+  const names = cardFieldCandidates(plugin).map(f => f.name).filter(name => picked.has(name));
+  return defaults.some(list => list.join() === names.join()) ? undefined : names;
 }

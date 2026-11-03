@@ -61,6 +61,8 @@ export interface PluginDefinition {
   // Fields shown under the cover on cards, in this order (see cardFields.ts).
   // Defaults to the creator field alone. Capped at MAX_CARD_LINES.
   defaultCardFields?: string[];
+  // Fields shown as columns in the table view. Without it, the card fields and the location.
+  tableColumns?: string[];
 
   // Per-field presentation on cards; 'text' (default) is a plain line.
   cardFieldStyles?: Record<string, 'text' | 'pill' | 'dot'>;
