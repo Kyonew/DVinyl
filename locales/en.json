@@ -133,6 +133,10 @@
     "member_role_updated": "Role updated!",
     "member_removed": "Member removed.",
     "collection_deleted": "Collection deleted.",
+    "backup_started": "Backup started.",
+    "error_backup_folder_absolute": "The backup folder must be a full path, starting from the root. Nothing was saved.",
+    "error_backup_folder_public": "That folder is served by the web server, so anyone could download the backups. Nothing was saved.",
+    "error_backup_folder_unwritable": "DVinyl cannot write to that folder. Nothing was saved.",
     "error_member": "Operation failed.",
     "error_member_not_found": "User not found.",
     "error_member_exists": "This user is already a member.",
@@ -555,6 +559,31 @@
         "security": "Security",
         "logs": "Logs",
         "updates": "Updates"
+      },
+      "scheduled_backups": {
+        "title": "Automatic backups",
+        "toggle": "Back up the whole instance automatically",
+        "toggle_desc": "DVinyl writes a backup of every account, collection and setting to a folder on its server, which restores like any other instance backup. The instance admins are notified if one fails.",
+        "frequency": "How often",
+        "daily": "Every day",
+        "weekly": "Every week",
+        "format": "What it holds",
+        "format_zip": "ZIP, with the images",
+        "format_json": "JSON, without the images",
+        "keep": "Backups to keep",
+        "keep_hint": "The oldest ones go after each backup that works.",
+        "folder": "Folder",
+        "folder_hint": "Leave empty for the default folder. With Docker, this is a path inside the container, and to reach a NAS or another disk, that folder must be mounted first. Backups already written stay where they are.",
+        "folder_locked": "Set by BACKUP_DIR on the server.",
+        "folder_not_mounted": "This folder is not mounted from the host: its backups will be lost the next time the container is recreated.",
+        "folder_private": "These files hold the accounts and their password hashes: keep them private.",
+        "run_now": "Back up now",
+        "running": "A backup is running. Reload the page in a moment to see how it went.",
+        "last_success": "Last backup: {{date}} ({{size}})",
+        "never": "No backup yet.",
+        "last_error": "The last attempt failed on {{date}}: {{error}}",
+        "files": "Backups in the folder",
+        "download": "Download"
       },
       "updates": {
         "title": "Updates",
@@ -2190,7 +2219,8 @@
       "wishlist_added_many": "{{- actor}} added {{count}} items to the wishlist, the latest {{- item}}",
       "account_new_login": "New sign-in to your account: {{- device}}, {{- place}}",
       "account_locked": "Your account was locked for a few minutes after too many wrong passwords (from {{- ip}})",
-      "instance_update_available": "DVinyl {{version}} is out (this instance runs {{current}})"
+      "instance_update_available": "DVinyl {{version}} is out (this instance runs {{current}})",
+      "instance_backup_failed": "The automatic backup failed. Open the backup page to see why."
     },
     "push": {
       "title": "On my devices",
@@ -2233,7 +2263,8 @@
         "wishlist_added": "A new wish",
         "account_new_login": "A sign-in from a new device",
         "account_locked": "My account locked",
-        "instance_update_available": "A new DVinyl version"
+        "instance_update_available": "A new DVinyl version",
+        "instance_backup_failed": "A failed automatic backup"
       },
       "quote": "\"{{text}}\"",
       "date_locale": "en-GB",
@@ -2249,12 +2280,14 @@
         "wishlist_added_many": "⭐ added {{count}} items to the wishlist\nLatest: {{item}}",
         "account_new_login": "🔐 {{device}} · {{place}}\nNot you? Change your password.",
         "account_locked": "🔒 Too many wrong passwords from {{ip}}. Locked for a few minutes.",
-        "instance_update_available": "🚀 A new version is available (you run {{current}})"
+        "instance_update_available": "🚀 A new version is available (you run {{current}})",
+        "instance_backup_failed": "⚠️ Open the backup page to see why."
       },
       "titles": {
         "account_new_login": "New sign-in",
         "account_locked": "Account locked",
-        "instance_update_available": "DVinyl {{version}}"
+        "instance_update_available": "DVinyl {{version}}",
+        "instance_backup_failed": "Automatic backup failed"
       }
     },
     "groups": {

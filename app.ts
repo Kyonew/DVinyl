@@ -64,6 +64,7 @@ import pushRoute from './core/routes/pushRoute.js';
 import { attachNotificationSockets, purgeOldNotifications, unreadCount } from './core/notify';
 import { inboxCount, notifyOverdueRequests, requestsEnabled } from './core/requests';
 import { checkForUpdate, UPDATE_CHECK_INTERVAL_MS } from './core/updateCheck';
+import { BACKUP_CHECK_INTERVAL_MS, runBackupIfDue } from './core/instanceBackup';
 import searchRoute from './core/routes/searchRoute.js';
 import accountRoute from './core/routes/accountRoute.js';
 import manualAddRoute from './core/routes/manualAddRoute.js';
@@ -441,6 +442,9 @@ connectDB()
     // A newer release, for the admins of an instance that asked to be told.
     void checkForUpdate();
     setInterval(() => { void checkForUpdate(); }, UPDATE_CHECK_INTERVAL_MS).unref();
+    // The automatic backup, for an instance that turned it on.
+    void runBackupIfDue();
+    setInterval(() => { void runBackupIfDue(); }, BACKUP_CHECK_INTERVAL_MS).unref();
     const port = process.env.VINYL_PORT || 3099;
     server.listen(port, () => {
       console.log(`[BOOT] Server started on port ${port} (BASE_URL="${BASE_URL || '/'}", env=${process.env.PROD === 'true' ? 'production' : 'development'})`);

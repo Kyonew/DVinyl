@@ -291,6 +291,31 @@
         "logs": "Log",
         "updates": "Aggiornamenti"
       },
+      "scheduled_backups": {
+        "title": "Backup automatici",
+        "toggle": "Esegui automaticamente il backup di tutta l'istanza",
+        "toggle_desc": "DVinyl scrive un backup di tutti gli account, le collezioni e le impostazioni in una cartella del suo server, che si ripristina come qualsiasi altro backup dell'istanza. Gli admin dell'istanza vengono avvisati se uno non riesce.",
+        "frequency": "Frequenza",
+        "daily": "Ogni giorno",
+        "weekly": "Ogni settimana",
+        "format": "Contenuto",
+        "format_zip": "ZIP, con le immagini",
+        "format_json": "JSON, senza le immagini",
+        "keep": "Backup da conservare",
+        "keep_hint": "I più vecchi vengono rimossi dopo ogni backup riuscito.",
+        "folder": "Cartella",
+        "folder_hint": "Lascia vuoto per la cartella predefinita. Con Docker, è un percorso nel container, e per raggiungere un NAS o un altro disco, quella cartella deve prima essere montata. I backup già scritti restano dove sono.",
+        "folder_locked": "Impostata da BACKUP_DIR sul server.",
+        "folder_not_mounted": "Questa cartella non è montata dall'host: i suoi backup andranno persi alla prossima ricreazione del container.",
+        "folder_private": "Questi file contengono gli account e gli hash delle loro password: tienili privati.",
+        "run_now": "Esegui il backup ora",
+        "running": "Un backup è in corso. Ricarica la pagina tra un momento per vedere il risultato.",
+        "last_success": "Ultimo backup: {{date}} ({{size}})",
+        "never": "Ancora nessun backup.",
+        "last_error": "L'ultimo tentativo non è riuscito il {{date}}: {{error}}",
+        "files": "Backup nella cartella",
+        "download": "Scarica"
+      },
       "updates": {
         "title": "Aggiornamenti",
         "toggle": "Avvisami quando esce una nuova versione",
@@ -1111,6 +1136,10 @@
     "member_role_updated": "Ruolo aggiornato!",
     "member_removed": "Membro rimosso.",
     "collection_deleted": "Collezione eliminata.",
+    "backup_started": "Backup avviato.",
+    "error_backup_folder_absolute": "La cartella dei backup deve essere un percorso completo, dalla radice. Non è stato salvato nulla.",
+    "error_backup_folder_public": "Quella cartella è servita dal server web, quindi chiunque potrebbe scaricare i backup. Non è stato salvato nulla.",
+    "error_backup_folder_unwritable": "DVinyl non può scrivere in quella cartella. Non è stato salvato nulla.",
     "error_member": "Operazione fallita.",
     "error_member_not_found": "Utente non trovato.",
     "error_member_exists": "Questo utente è già membro.",
@@ -2190,7 +2219,8 @@
       "wishlist_added_many": "{{- actor}} ha aggiunto {{count}} elementi alla lista dei desideri, l'ultimo {{- item}}",
       "account_new_login": "Nuovo accesso al tuo account: {{- device}}, {{- place}}",
       "account_locked": "Il tuo account è stato bloccato per qualche minuto dopo troppe password errate (da {{- ip}})",
-      "instance_update_available": "È uscito DVinyl {{version}} (questa istanza usa {{current}})"
+      "instance_update_available": "È uscito DVinyl {{version}} (questa istanza usa {{current}})",
+      "instance_backup_failed": "Il backup automatico non è riuscito. Apri la pagina dei backup per vedere il motivo."
     },
     "push": {
       "title": "Sui miei dispositivi",
@@ -2233,7 +2263,8 @@
         "wishlist_added": "Un nuovo desiderio",
         "account_new_login": "Un accesso da un nuovo dispositivo",
         "account_locked": "Il mio account bloccato",
-        "instance_update_available": "Una nuova versione di DVinyl"
+        "instance_update_available": "Una nuova versione di DVinyl",
+        "instance_backup_failed": "Un backup automatico non riuscito"
       },
       "quote": "\"{{text}}\"",
       "date_locale": "it-IT",
@@ -2249,12 +2280,14 @@
         "wishlist_added_many": "⭐ ha aggiunto {{count}} elementi alla lista dei desideri\nUltimo: {{item}}",
         "account_new_login": "🔐 {{device}} · {{place}}\nNon sei tu? Cambia la password.",
         "account_locked": "🔒 Troppe password errate da {{ip}}. Bloccato per qualche minuto.",
-        "instance_update_available": "🚀 È disponibile una nuova versione (usi {{current}})"
+        "instance_update_available": "🚀 È disponibile una nuova versione (usi {{current}})",
+        "instance_backup_failed": "⚠️ Apri la pagina dei backup per vedere il motivo."
       },
       "titles": {
         "account_new_login": "Nuovo accesso",
         "account_locked": "Account bloccato",
-        "instance_update_available": "DVinyl {{version}}"
+        "instance_update_available": "DVinyl {{version}}",
+        "instance_backup_failed": "Backup automatico non riuscito"
       }
     },
     "groups": {

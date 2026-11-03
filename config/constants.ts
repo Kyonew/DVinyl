@@ -1,6 +1,10 @@
+import path from 'path';
+
 export const BASE_URL: string = process.env.BASE_URL
   ? (process.env.BASE_URL.startsWith('/') ? process.env.BASE_URL : `/${process.env.BASE_URL}`)
   : ''
+
+export const SQLITE_PATH: string = process.env.SQLITE_PATH || path.join(__dirname, '..', 'data', 'dvinyl.sqlite');
 
 /**
  * Languages the app ships. Also the values the User schema accepts, so anything

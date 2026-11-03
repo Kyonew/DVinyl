@@ -30,7 +30,8 @@ export const NOTIFICATION_EVENTS: Record<string, NotificationEvent> = {
   'wishlist.added': { icon: 'star', group: 'collection' },
   'account.new_login': { icon: 'right-to-bracket', group: 'account' },
   'account.locked': { icon: 'lock', group: 'account' },
-  'instance.update_available': { icon: 'rocket', group: 'instance', instanceAdmin: true }
+  'instance.update_available': { icon: 'rocket', group: 'instance', instanceAdmin: true },
+  'instance.backup_failed': { icon: 'triangle-exclamation', group: 'instance', instanceAdmin: true }
 };
 
 /** The events this member can receive, for the settings page. */

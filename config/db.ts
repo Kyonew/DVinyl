@@ -12,9 +12,9 @@ import { importFromMongo, wantsImport } from '../core/db/importFromMongo';
 import { DatabaseInUseError } from '../core/db/sqlite/database';
 import { assertDataPersisted } from './dataVolume';
 import { StartupError } from './startupError';
+import { SQLITE_PATH } from './constants';
 
 const MONGODB_URL = process.env.MONGODB_URL;
-const SQLITE_PATH = process.env.SQLITE_PATH || path.join(__dirname, '..', 'data', 'dvinyl.sqlite');
 
 /** The message a second DVinyl started on the same SQLite file stops with. */
 export function inUseMessage(file: string): string {

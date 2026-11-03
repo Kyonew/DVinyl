@@ -572,6 +572,116 @@
                             </div>
                         </div>
                     </div>
+
+                    <% const bak = locals.backups || { enabled: false, frequency: 'daily', format: 'zip', keep: 7, files: [], folder: '', chosenFolder: '', defaultFolder: '', folderLocked: false, folderPersists: true };
+                       const bakT = (key, params) => t('admin.instance.scheduled_backups.' + key, { ...params, interpolation: { escapeValue: false } });
+                       const bakDate = (date) => new Date(date).toLocaleString(dateLocaleFor(currentLng), { dateStyle: 'medium', timeStyle: 'short' });
+                       const bakSize = (bytes) => bytes >= 1048576 ? (bytes / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(bytes / 1024)) + ' KB'; %>
+                    <div class="card-theme rounded-3xl p-6 md:p-8 shadow-sm transition-colors space-y-6 mt-6">
+                        <h2 class="text-xl font-bold flex items-center gap-2">
+                            <i class="fa-solid fa-clock-rotate-left text-primary-theme"></i>
+                            <%= bakT('title') %>
+                        </h2>
+
+                        <form action="<%= baseUrl %>/admin/instance/backups" method="POST" data-save-bar class="space-y-6">
+                            <label class="flex items-start justify-between gap-6 cursor-pointer">
+                                <div>
+                                    <p class="text-sm font-black"><%= bakT('toggle') %></p>
+                                    <p class="text-xs opacity-60 mt-1 leading-relaxed max-w-2xl"><%= bakT('toggle_desc') %></p>
+                                </div>
+                                <div class="relative inline-flex items-center shrink-0 mt-1">
+                                    <input type="checkbox" name="enabled" <%= bak.enabled ? 'checked' : '' %> class="sr-only peer">
+                                    <div class="w-11 h-6 bg-black/10 dark:bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500">
+                                    </div>
+                                </div>
+                            </label>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <label class="block">
+                                    <span class="block text-xs font-bold opacity-60 mb-2"><%= bakT('frequency') %></span>
+                                    <select name="frequency" class="w-full bg-black/5 dark:bg-white/5 border border-transparent rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-primary-theme/40 cursor-pointer">
+                                        <option value="daily" class="bg-white dark:bg-[#1a1a1a]" <%= bak.frequency === 'daily' ? 'selected' : '' %>><%= bakT('daily') %></option>
+                                        <option value="weekly" class="bg-white dark:bg-[#1a1a1a]" <%= bak.frequency === 'weekly' ? 'selected' : '' %>><%= bakT('weekly') %></option>
+                                    </select>
+                                </label>
+                                <label class="block">
+                                    <span class="block text-xs font-bold opacity-60 mb-2"><%= bakT('format') %></span>
+                                    <select name="format" class="w-full bg-black/5 dark:bg-white/5 border border-transparent rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-primary-theme/40 cursor-pointer">
+                                        <option value="zip" class="bg-white dark:bg-[#1a1a1a]" <%= bak.format === 'zip' ? 'selected' : '' %>><%= bakT('format_zip') %></option>
+                                        <option value="json" class="bg-white dark:bg-[#1a1a1a]" <%= bak.format === 'json' ? 'selected' : '' %>><%= bakT('format_json') %></option>
+                                    </select>
+                                </label>
+                                <label class="block">
+                                    <span class="block text-xs font-bold opacity-60 mb-2"><%= bakT('keep') %></span>
+                                    <input type="number" name="keep" min="1" max="90" value="<%= bak.keep %>"
+                                        class="w-full bg-black/5 dark:bg-white/5 border border-transparent rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-primary-theme/40">
+                                    <span class="block text-xs opacity-60 mt-2 leading-relaxed"><%= bakT('keep_hint') %></span>
+                                </label>
+                            </div>
+
+                            <div>
+                                <label for="backupFolder" class="block text-xs font-bold opacity-60 mb-2"><%= bakT('folder') %></label>
+                                <input type="text" id="backupFolder" name="folder" spellcheck="false" autocapitalize="none" autocorrect="off"
+                                    value="<%= bak.folderLocked ? bak.folder : bak.chosenFolder %>" placeholder="<%= bak.defaultFolder %>" <%= bak.folderLocked ? 'disabled' : '' %>
+                                    class="w-full font-mono bg-black/5 dark:bg-white/5 border border-transparent rounded-xl p-3 text-xs outline-none focus:ring-2 focus:ring-primary-theme/40 disabled:opacity-60 disabled:cursor-not-allowed">
+                                <p class="text-xs opacity-60 mt-2 leading-relaxed max-w-2xl"><%= bakT(bak.folderLocked ? 'folder_locked' : 'folder_hint') %></p>
+                                <% if (!bak.folderPersists) { %>
+                                    <p class="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-start gap-2 mt-2 max-w-2xl">
+                                        <i class="fa-solid fa-triangle-exclamation mt-0.5" aria-hidden="true"></i><%= bakT('folder_not_mounted') %>
+                                    </p>
+                                <% } %>
+                                <p class="text-xs opacity-60 mt-2 leading-relaxed max-w-2xl"><%= bakT('folder_private') %></p>
+                            </div>
+
+                            <div class="flex justify-end">
+                                <button type="submit"
+                                    class="flex items-center gap-2 bg-primary-theme hover:brightness-110 text-white px-5 py-3 rounded-2xl shadow-lg shadow-primary-theme/20 transition-all active:scale-95">
+                                    <i class="fa-solid fa-floppy-disk text-sm"></i>
+                                    <span class="text-xs font-black"><%= t('common.save') %></span>
+                                </button>
+                            </div>
+                        </form>
+
+                        <div class="border-t border-black/5 dark:border-white/5 pt-6 space-y-4">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div class="text-xs leading-relaxed min-w-0">
+                                    <% if (bak.running) { %>
+                                        <p class="font-bold text-primary-theme"><%= bakT('running') %></p>
+                                    <% } else if (bak.lastSuccessAt) { %>
+                                        <p class="opacity-60"><%= bakT('last_success', { date: bakDate(bak.lastSuccessAt), size: bakSize(bak.lastSize) }) %></p>
+                                    <% } else { %>
+                                        <p class="opacity-60"><%= bakT('never') %></p>
+                                    <% } %>
+                                    <% if (bak.lastError && !bak.running) { %>
+                                        <p class="font-bold text-red-600 dark:text-red-400 mt-1 break-words"><%= bakT('last_error', { date: bakDate(bak.lastAttemptAt), error: bak.lastError }) %></p>
+                                    <% } %>
+                                </div>
+                                <form action="<%= baseUrl %>/admin/instance/backups/run" method="POST" class="shrink-0">
+                                    <button type="submit" <%= bak.running ? 'disabled' : '' %>
+                                        class="flex items-center gap-2 bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white disabled:opacity-50 px-5 py-3 rounded-xl text-xs font-black transition-all">
+                                        <i class="fa-solid fa-play" aria-hidden="true"></i><%= bakT('run_now') %>
+                                    </button>
+                                </form>
+                            </div>
+
+                            <% if (bak.files.length > 0) { %>
+                                <div>
+                                    <p class="text-xs font-bold opacity-60 mb-2"><%= bakT('files') %></p>
+                                    <ul class="divide-y divide-black/5 dark:divide-white/5">
+                                        <% bak.files.forEach(file => { %>
+                                            <li class="flex items-center justify-between gap-4 py-2 text-xs">
+                                                <span class="font-mono truncate min-w-0"><%= file.name %></span>
+                                                <span class="flex items-center gap-4 shrink-0">
+                                                    <span class="opacity-60"><%= bakSize(file.size) %></span>
+                                                    <a href="<%= baseUrl %>/admin/instance/backups/<%= file.name %>" class="font-bold text-primary-theme hover:underline"><%= bakT('download') %></a>
+                                                </span>
+                                            </li>
+                                        <% }) %>
+                                    </ul>
+                                </div>
+                            <% } %>
+                        </div>
+                    </div>
                 </section>
 
                 <!-- ============ UPDATES ============ -->

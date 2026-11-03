@@ -27,6 +27,7 @@ import { collectExtraDateFields, reviveExtraDates } from '../core/pluginExtraFie
 import { deleteUnusedManagedItemImages, managedItemImageFile, managedItemImagesForQuery } from '../core/itemImageStorage';
 import { MAX_BACKUP_UPLOAD_BYTES, readBackupArchive, sendBackupArchive } from '../core/backupArchive';
 import { jsonStream, StreamedDocument } from '../core/jsonStream';
+import { buildInstanceBackup } from '../core/instanceBackup';
 import { BASE_URL } from '../config/constants';
 import { ambienceImages } from '../core/ambience';
 
@@ -95,30 +96,6 @@ function exportFailed(res: any, label: string, err: unknown): void {
     else console.error(`[BACKUP] ${label} failed:`, err);
     if (!res.headersSent) res.status(500).send('Export failed');
     else res.destroy(err as Error);
-}
-
-// The items are given as a way to go through them (see core/jsonStream.ts): the export
-// writes them one at a time instead of holding the whole collection, which on a large one
-// is more than a small host has to spare.
-async function buildInstanceBackup(): Promise<StreamedDocument> {
-    return {
-        users: await db.users.find(all()),
-        albums: () => db.items.each(all()),
-        logs: await db.loginLogs.find(all()),
-        settings: await db.settings.find(all()),
-        collections: await db.collections.find(all()),
-        furniture: await db.furniture.find(all()),
-        lists: await db.lists.find(all()),
-        requests: await db.requests.find(all()),
-        requestTypes: await db.requestTypes.find(all()),
-        customPlugins: await db.customPlugins.find(all()),
-        priceHistory: await db.priceHistory.find(all()),
-        instanceSettings: await db.instanceSettings.findOne(eq('key', 'instance')),
-        metadata: {
-            version: pkg.version,
-            date: new Date()
-        }
-    };
 }
 
 router.get('/export', requireAuth, requireAdmin, async (req, res) => {

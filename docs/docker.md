@@ -197,6 +197,31 @@ cannot transport those files to another installation. When a ZIP export encounte
 stored inline as a data URL, it moves that image into the archive's `images/` directory;
 restoring the ZIP therefore migrates it to the file-based storage automatically.
 
+## 🗄️ Automatic backups
+
+The **Backup** tab of the **Instance** admin page (`/admin/instance`) can write a whole-instance
+backup on a schedule, every day or every week, as a ZIP with the images or a JSON without them.
+It is off until you turn it on. Only the number of backups you choose is kept, the oldest going
+after each one that works, and the instance admins get a notification if one fails. A backup
+restores like any other instance backup, with **Import Database**.
+
+They go to a `backups` folder next to the database, so `./data/backups` with the
+`docker-compose.yml` of this repository. That is the same disk as your collection: to survive
+losing it, mount another folder into the container, then enter its path (`/backups` here) in the
+**Folder** field of that tab:
+
+```yaml
+    volumes:
+      - /mnt/nas/dvinyl-backups:/backups
+```
+
+The page warns you when the folder is not mounted, since its backups would then be lost with
+the container. To set the folder from the server instead, use `BACKUP_DIR`: it takes priority and
+locks the field.
+
+> [!WARNING]
+> These files hold every account with its password hash. Keep the folder private.
+
 ## 🧩 No-code plugins and Docker
 
 Collection types you build with the in-app **plugin editor** (`/create-plugin`) are stored **in the

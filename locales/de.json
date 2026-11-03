@@ -291,6 +291,31 @@
         "logs": "Protokolle",
         "updates": "Updates"
       },
+      "scheduled_backups": {
+        "title": "Automatische Sicherungen",
+        "toggle": "Die gesamte Instanz automatisch sichern",
+        "toggle_desc": "DVinyl schreibt eine Sicherung aller Konten, Sammlungen und Einstellungen in einen Ordner auf seinem Server, die sich wie jede andere Instanzsicherung wiederherstellen lässt. Die Instanz-Admins werden benachrichtigt, wenn eine fehlschlägt.",
+        "frequency": "Häufigkeit",
+        "daily": "Jeden Tag",
+        "weekly": "Jede Woche",
+        "format": "Inhalt",
+        "format_zip": "ZIP, mit den Bildern",
+        "format_json": "JSON, ohne die Bilder",
+        "keep": "Aufzubewahrende Sicherungen",
+        "keep_hint": "Die ältesten werden nach jeder erfolgreichen Sicherung entfernt.",
+        "folder": "Ordner",
+        "folder_hint": "Leer lassen für den Standardordner. Mit Docker ist dies ein Pfad im Container, und für ein NAS oder eine andere Festplatte muss dieser Ordner zuerst eingebunden werden. Bereits geschriebene Sicherungen bleiben, wo sie sind.",
+        "folder_locked": "Durch BACKUP_DIR auf dem Server festgelegt.",
+        "folder_not_mounted": "Dieser Ordner ist nicht vom Host eingebunden: Seine Sicherungen gehen verloren, wenn der Container das nächste Mal neu erstellt wird.",
+        "folder_private": "Diese Dateien enthalten die Konten und ihre Passwort-Hashes: Halten Sie sie privat.",
+        "run_now": "Jetzt sichern",
+        "running": "Eine Sicherung läuft. Laden Sie die Seite gleich neu, um das Ergebnis zu sehen.",
+        "last_success": "Letzte Sicherung: {{date}} ({{size}})",
+        "never": "Noch keine Sicherung.",
+        "last_error": "Der letzte Versuch ist am {{date}} fehlgeschlagen: {{error}}",
+        "files": "Sicherungen im Ordner",
+        "download": "Herunterladen"
+      },
       "updates": {
         "title": "Updates",
         "toggle": "Benachrichtige mich bei einer neuen Version",
@@ -1111,6 +1136,10 @@
     "member_role_updated": "Rolle aktualisiert!",
     "member_removed": "Mitglied entfernt.",
     "collection_deleted": "Sammlung gelöscht.",
+    "backup_started": "Sicherung gestartet.",
+    "error_backup_folder_absolute": "Der Sicherungsordner muss ein vollständiger Pfad ab dem Stammverzeichnis sein. Es wurde nichts gespeichert.",
+    "error_backup_folder_public": "Dieser Ordner wird vom Webserver bereitgestellt, jeder könnte die Sicherungen herunterladen. Es wurde nichts gespeichert.",
+    "error_backup_folder_unwritable": "DVinyl kann nicht in diesen Ordner schreiben. Es wurde nichts gespeichert.",
     "error_member": "Vorgang fehlgeschlagen.",
     "error_member_not_found": "Benutzer nicht gefunden.",
     "error_member_exists": "Dieser Benutzer ist bereits Mitglied.",
@@ -2190,7 +2219,8 @@
       "wishlist_added_many": "{{- actor}} hat {{count}} Einträge zur Wunschliste hinzugefügt, zuletzt {{- item}}",
       "account_new_login": "Neue Anmeldung bei deinem Konto: {{- device}}, {{- place}}",
       "account_locked": "Dein Konto wurde nach zu vielen falschen Passwörtern für einige Minuten gesperrt (von {{- ip}})",
-      "instance_update_available": "DVinyl {{version}} ist erschienen (diese Instanz läuft mit {{current}})"
+      "instance_update_available": "DVinyl {{version}} ist erschienen (diese Instanz läuft mit {{current}})",
+      "instance_backup_failed": "Die automatische Sicherung ist fehlgeschlagen. Öffnen Sie die Sicherungsseite, um den Grund zu sehen."
     },
     "push": {
       "title": "Auf meinen Geräten",
@@ -2233,7 +2263,8 @@
         "wishlist_added": "Ein neuer Wunsch",
         "account_new_login": "Eine Anmeldung von einem neuen Gerät",
         "account_locked": "Mein Konto gesperrt",
-        "instance_update_available": "Eine neue DVinyl-Version"
+        "instance_update_available": "Eine neue DVinyl-Version",
+        "instance_backup_failed": "Eine fehlgeschlagene automatische Sicherung"
       },
       "quote": "\"{{text}}\"",
       "date_locale": "de-DE",
@@ -2249,12 +2280,14 @@
         "wishlist_added_many": "⭐ hat {{count}} Einträge zur Wunschliste hinzugefügt\nZuletzt: {{item}}",
         "account_new_login": "🔐 {{device}} · {{place}}\nNicht du? Ändere dein Passwort.",
         "account_locked": "🔒 Zu viele falsche Passwörter von {{ip}}. Für einige Minuten gesperrt.",
-        "instance_update_available": "🚀 Eine neue Version ist verfügbar (du nutzt {{current}})"
+        "instance_update_available": "🚀 Eine neue Version ist verfügbar (du nutzt {{current}})",
+        "instance_backup_failed": "⚠️ Öffnen Sie die Sicherungsseite, um den Grund zu sehen."
       },
       "titles": {
         "account_new_login": "Neue Anmeldung",
         "account_locked": "Konto gesperrt",
-        "instance_update_available": "DVinyl {{version}}"
+        "instance_update_available": "DVinyl {{version}}",
+        "instance_backup_failed": "Automatische Sicherung fehlgeschlagen"
       }
     },
     "groups": {

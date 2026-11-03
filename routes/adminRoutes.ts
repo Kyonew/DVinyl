@@ -24,6 +24,7 @@ import { cancelRequestsOf } from "../core/requests";
 import { deleteNotificationsOf } from "../core/notify";
 import { deleteSubscriptionsOf } from "../core/push";
 import { checkForUpdate, setUpdateCheck, updateStatus } from "../core/updateCheck";
+import { backupFile, backupStatus, runBackup, runBackupIfDue, saveBackupChoices } from "../core/instanceBackup";
 import { AI_PROVIDERS } from "../core/ai/providers";
 import { getAiConfig, getStoredAiSettings, saveAiSettings } from "../core/ai/instance";
 import { isAiConfigured, resolveTestConfig } from "../core/ai/config";
@@ -80,6 +81,7 @@ interface InstanceAdminData {
   itemsTotal: number;
   instanceSettings: InstanceSettingsData;
   updates: Awaited<ReturnType<typeof updateStatus>>;
+  backups: Awaited<ReturnType<typeof backupStatus>>;
 }
 
 /**
@@ -154,6 +156,7 @@ async function loadInstanceAdminData(): Promise<InstanceAdminData> {
     itemsTotal,
     instanceSettings: await getInstanceSettings(),
     updates: await updateStatus(),
+    backups: await backupStatus(),
   };
 }
 
@@ -272,6 +275,41 @@ router.post("/add-user", requireAuth, requireAdmin, async (req: any, res: any) =
   } catch (err) {
     console.error("[ADMIN] User creation error:", err);
     res.redirect(`/admin/instance?msg=${userCreationErrorKey(err)}`);
+  }
+});
+
+// POST /admin/instance/backups -> the automatic backup's schedule. Turning it on writes
+// the first one straight away, so the page soon shows whether the folder works.
+router.post("/instance/backups", requireAuth, requireAdmin, async (req: any, res: any) => {
+  try {
+    const issue = await saveBackupChoices({ ...req.body, enabled: req.body.enabled === "on" });
+    if (issue) return res.redirect(`/admin/instance?msg=${issue}#backup`);
+    void runBackupIfDue();
+    res.redirect("/admin/instance?msg=saved#backup");
+  } catch (err) {
+    console.error("[ADMIN] Backup schedule error:", err);
+    res.redirect("/admin/instance?msg=generic_error#backup");
+  }
+});
+
+// POST /admin/instance/backups/run -> one backup now, on or off schedule. It runs on after
+// the answer: on a large instance it outlasts what a browser waits for.
+router.post("/instance/backups/run", requireAuth, requireAdmin, (req: any, res: any) => {
+  void runBackup();
+  res.redirect("/admin/instance?msg=backup_started#backup");
+});
+
+// GET /admin/instance/backups/:file -> one of the folder's backups
+router.get("/instance/backups/:file", requireAuth, requireAdmin, async (req: any, res: any) => {
+  try {
+    const file = await backupFile(req.params.file);
+    if (!file) return res.status(404).render("404");
+    res.download(file, req.params.file, (err: any) => {
+      if (err && !res.headersSent) res.status(404).render("404");
+    });
+  } catch (err) {
+    console.error("[ADMIN] Backup download error:", err);
+    res.status(500).render("404");
   }
 });
 

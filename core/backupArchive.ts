@@ -4,7 +4,7 @@ import { promises as fs } from 'fs';
 import type { Response } from 'express';
 import { ZipFile as OutputZipFile } from 'yazl';
 import { Entry, openPromise, ZipFile as InputZipFile } from 'yauzl';
-import type { Readable } from 'stream';
+import type { Readable, Writable } from 'stream';
 import {
   deleteUnusedManagedItemImages,
   isJpegBuffer,
@@ -148,6 +148,21 @@ export async function sendBackupArchive(
   data: StreamedDocument,
   fileName: string
 ): Promise<void> {
+  await writeBackupArchive(res, data, () => {
+    res.setHeader('Content-disposition', `attachment; filename=${fileName}`);
+    res.setHeader('Content-type', 'application/zip');
+  });
+}
+
+/**
+ * The same archive onto any stream. `onReady` runs once the images are known and just
+ * before the first byte, the last moment a download can still answer with an error.
+ */
+export async function writeBackupArchive(
+  output: Writable,
+  data: StreamedDocument,
+  onReady?: () => void
+): Promise<void> {
   const albums: Records = Array.isArray(data.albums) || typeof data.albums === 'function' ? data.albums as Records : [];
   // The document as the archive writes it, keys in the same order. The items stand in as
   // an empty list while the images are looked for.
@@ -221,8 +236,7 @@ export async function sendBackupArchive(
       }
   };
 
-  res.setHeader('Content-disposition', `attachment; filename=${fileName}`);
-  res.setHeader('Content-type', 'application/zip');
+  onReady?.();
 
   const archive = new OutputZipFile();
   let backupJson: Readable | null = null;
@@ -242,14 +256,14 @@ export async function sendBackupArchive(
     };
 
     archive.outputStream.on('error', fail);
-    res.on('finish', finish);
-    res.on('error', fail);
+    output.on('finish', finish);
+    output.on('error', fail);
     // A download the browser gives up on closes the response without finishing it: stop
     // there, rather than wait forever with the items half read.
-    res.on('close', () => {
-      if (!res.writableFinished) fail(Object.assign(new Error('Premature close'), { code: 'ERR_STREAM_PREMATURE_CLOSE' }));
+    output.on('close', () => {
+      if (!output.writableFinished) fail(Object.assign(new Error('Premature close'), { code: 'ERR_STREAM_PREMATURE_CLOSE' }));
     });
-    archive.outputStream.pipe(res);
+    archive.outputStream.pipe(output);
     // Written from a stream opened when the archive reaches it, not built as one string.
     archive.addReadStreamLazy('backup.json', { compress: true, compressionLevel: 9 }, (done: (err: Error | null, stream: any) => void) => {
       backupJson = jsonStream(archivedData);

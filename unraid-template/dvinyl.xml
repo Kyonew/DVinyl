@@ -26,6 +26,8 @@
   
   <Config Name="Data Volume" Target="/app/data" Default="/mnt/user/appdata/dvinyl/data" Mode="rw" Description="Where DVinyl keeps your collection: one SQLite file. Required: the container refuses to start while it is not set. Back this folder up." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/dvinyl/data</Config>
   
+  <Config Name="Backups Folder" Target="BACKUP_DIR" Default="" Mode="" Description="Optional. Fixes the folder of automatic backups, a path inside the container, and locks that field on the Instance admin page (Backup tab). Leave empty to choose it on that page." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  
   <Config Name="Uploads Volume" Target="/app/public/uploads" Default="/mnt/user/appdata/dvinyl/uploads" Mode="rw" Description="Directory to store uploaded files like covers." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/dvinyl/uploads</Config>
   
   <Config Name="MongoDB URL (upgrade from 3.x only)" Target="MONGODB_URL" Default="" Mode="" Description="Only to upgrade from DVinyl 3.x: the MongoDB your data is on, for example mongodb://[IP_OF_MONGODB]:27017/dvinyl. The first start of 4.0 copies everything into SQLite, then this is ignored. Leave empty on a new install." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>

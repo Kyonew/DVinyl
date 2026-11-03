@@ -291,6 +291,31 @@
         "logs": "Registros",
         "updates": "Actualizaciones"
       },
+      "scheduled_backups": {
+        "title": "Copias de seguridad automáticas",
+        "toggle": "Hacer copia de toda la instancia automáticamente",
+        "toggle_desc": "DVinyl escribe una copia de todas las cuentas, colecciones y ajustes en una carpeta de su servidor, que se restaura como cualquier otra copia de la instancia. Se avisa a los admins de la instancia si una falla.",
+        "frequency": "Frecuencia",
+        "daily": "Cada día",
+        "weekly": "Cada semana",
+        "format": "Contenido",
+        "format_zip": "ZIP, con las imágenes",
+        "format_json": "JSON, sin las imágenes",
+        "keep": "Copias que conservar",
+        "keep_hint": "Las más antiguas se eliminan tras cada copia correcta.",
+        "folder": "Carpeta",
+        "folder_hint": "Déjalo vacío para la carpeta predeterminada. Con Docker, es una ruta dentro del contenedor, y para llegar a un NAS u otro disco, esa carpeta debe montarse antes. Las copias ya escritas se quedan donde están.",
+        "folder_locked": "Definida por BACKUP_DIR en el servidor.",
+        "folder_not_mounted": "Esta carpeta no está montada desde el host: sus copias se perderán la próxima vez que se recree el contenedor.",
+        "folder_private": "Estos archivos contienen las cuentas y los hashes de sus contraseñas: mantenlos privados.",
+        "run_now": "Hacer copia ahora",
+        "running": "Hay una copia en curso. Recarga la página en un momento para ver el resultado.",
+        "last_success": "Última copia: {{date}} ({{size}})",
+        "never": "Todavía no hay copias.",
+        "last_error": "El último intento falló el {{date}}: {{error}}",
+        "files": "Copias en la carpeta",
+        "download": "Descargar"
+      },
       "updates": {
         "title": "Actualizaciones",
         "toggle": "Avisarme cuando salga una nueva versión",
@@ -1111,6 +1136,10 @@
     "member_role_updated": "¡Rol actualizado!",
     "member_removed": "Miembro eliminado.",
     "collection_deleted": "Colección eliminada.",
+    "backup_started": "Copia iniciada.",
+    "error_backup_folder_absolute": "La carpeta de copias debe ser una ruta completa, desde la raíz. No se ha guardado nada.",
+    "error_backup_folder_public": "El servidor web sirve esa carpeta, así que cualquiera podría descargar las copias. No se ha guardado nada.",
+    "error_backup_folder_unwritable": "DVinyl no puede escribir en esa carpeta. No se ha guardado nada.",
     "error_member": "Operación fallida.",
     "error_member_not_found": "Usuario no encontrado.",
     "error_member_exists": "Este usuario ya es miembro.",
@@ -2190,7 +2219,8 @@
       "wishlist_added_many": "{{- actor}} añadió {{count}} elementos a la lista de deseos, el último {{- item}}",
       "account_new_login": "Nuevo inicio de sesión en tu cuenta: {{- device}}, {{- place}}",
       "account_locked": "Tu cuenta se bloqueó unos minutos tras demasiadas contraseñas incorrectas (desde {{- ip}})",
-      "instance_update_available": "Ha salido DVinyl {{version}} (esta instancia usa {{current}})"
+      "instance_update_available": "Ha salido DVinyl {{version}} (esta instancia usa {{current}})",
+      "instance_backup_failed": "La copia automática ha fallado. Abre la página de copias para ver el motivo."
     },
     "push": {
       "title": "En mis dispositivos",
@@ -2233,7 +2263,8 @@
         "wishlist_added": "Un nuevo deseo",
         "account_new_login": "Un inicio de sesión desde un dispositivo nuevo",
         "account_locked": "Mi cuenta bloqueada",
-        "instance_update_available": "Una nueva versión de DVinyl"
+        "instance_update_available": "Una nueva versión de DVinyl",
+        "instance_backup_failed": "Una copia automática fallida"
       },
       "quote": "\"{{text}}\"",
       "date_locale": "es-ES",
@@ -2249,12 +2280,14 @@
         "wishlist_added_many": "⭐ añadió {{count}} elementos a la lista de deseos\nÚltimo: {{item}}",
         "account_new_login": "🔐 {{device}} · {{place}}\n¿No eras tú? Cambia tu contraseña.",
         "account_locked": "🔒 Demasiadas contraseñas incorrectas desde {{ip}}. Bloqueada unos minutos.",
-        "instance_update_available": "🚀 Hay una nueva versión disponible (usas {{current}})"
+        "instance_update_available": "🚀 Hay una nueva versión disponible (usas {{current}})",
+        "instance_backup_failed": "⚠️ Abre la página de copias para ver el motivo."
       },
       "titles": {
         "account_new_login": "Nuevo inicio de sesión",
         "account_locked": "Cuenta bloqueada",
-        "instance_update_available": "DVinyl {{version}}"
+        "instance_update_available": "DVinyl {{version}}",
+        "instance_backup_failed": "La copia automática ha fallado"
       }
     },
     "groups": {

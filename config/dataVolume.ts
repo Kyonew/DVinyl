@@ -59,15 +59,19 @@ export function unmountedMessage(dir: string): string {
   ].join('\n');
 }
 
+/** Whether what is written to `dir` outlives the container, outside of one always. */
+export function persistsWithContainer(dir: string): boolean {
+  if (!inContainer()) return true;
+  try {
+    return isPersisted(dir, parseMountInfo(fs.readFileSync('/proc/self/mountinfo', 'utf8')));
+  } catch {
+    return true; // Nothing tells what is mounted: do not stand in the way.
+  }
+}
+
 /** Throws when the SQLite file `file` would be lost with the container. */
 export function assertDataPersisted(file: string): void {
-  if (file === ':memory:' || process.env.EPHEMERAL_DATA === 'true' || !inContainer()) return;
-  let mountInfo: string;
-  try {
-    mountInfo = fs.readFileSync('/proc/self/mountinfo', 'utf8');
-  } catch {
-    return; // Nothing tells what is mounted: do not stand in the way.
-  }
+  if (file === ':memory:' || process.env.EPHEMERAL_DATA === 'true') return;
   const dir = path.dirname(path.resolve(file));
-  if (!isPersisted(dir, parseMountInfo(mountInfo))) throw new StartupError(unmountedMessage(dir));
+  if (!persistsWithContainer(dir)) throw new StartupError(unmountedMessage(dir));
 }

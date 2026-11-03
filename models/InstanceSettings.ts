@@ -58,6 +58,22 @@ const instanceSettingsSchema = new mongoose.Schema({
         checkedAt: { type: Date, default: null },
         // The release the admins were last told about, so each one is told once.
         notified: { type: String, default: '' }
+    },
+    // The whole-instance backup written on a schedule (core/instanceBackup.ts), and how
+    // the last ones went. Off until an admin turns it on.
+    backups: {
+        enabled: { type: Boolean, default: false },
+        frequency: { type: String, default: 'daily' },
+        format: { type: String, default: 'zip' },
+        keep: { type: Number, default: 7 },
+        // Empty for the default folder, next to the database. BACKUP_DIR overrides it.
+        folder: { type: String, default: '' },
+        lastAttemptAt: { type: Date, default: null },
+        lastSuccessAt: { type: Date, default: null },
+        lastSize: { type: Number, default: 0 },
+        lastError: { type: String, default: '' },
+        // So a run of failures is told to the admins once, not at every retry.
+        failureNotified: { type: Boolean, default: false }
     }
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
 
