@@ -1343,7 +1343,8 @@
     "home_page_collection": "Sammlung",
     "home_page_wishlist": "Wunschliste",
     "home_view_label": "Standardansicht",
-    "home_view_last": "Zuletzt verwendet"
+    "home_view_last": "Zuletzt verwendet",
+    "currency_rub": "Russischer Rubel (₽)"
   },
   "setup": {
     "admin_config": "Admin-Konfiguration",

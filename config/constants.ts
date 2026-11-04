@@ -36,7 +36,7 @@ export const LANGUAGE_NAMES: Record<SupportedLanguage, string> = {
  * Currencies a user can pick for prices, which the User schema also accepts. Each one is
  * labelled by the `settings.currency_<code in lower case>` key.
  */
-export const SUPPORTED_CURRENCIES = ['EUR', 'USD', 'GBP'] as const;
+export const SUPPORTED_CURRENCIES = ['EUR', 'USD', 'GBP', 'RUB'] as const;
 
 /**
  * Reduces any language tag to a supported code, dropping the region a browser
