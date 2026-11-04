@@ -66,3 +66,27 @@ const DATE_LOCALES: Record<SupportedLanguage, string> = {
 export function dateLocaleFor(value: any): string {
   return DATE_LOCALES[normalizeLanguage(value)];
 }
+
+// Keyed by language code: the decade reads differently per language, and a language this
+// map does not know keeps the English "s" rather than falling into a half-written form.
+const DECADE_PATTERNS: Record<string, string> = {
+  ru: '{year}-е',
+  de: '{year}er',
+  fr: 'Années {year}',
+  es: 'Años {year}'
+};
+
+/**
+ * A decade written the way its language writes it: "2020s" in English, "2020-е" in Russian,
+ * "2020er" in German, and the two romance languages that put a word first ("Années 2020",
+ * "Años 2020"). The filter bar and the pill above the grid both need this, so it lives here
+ * rather than in either template.
+ */
+export function decadeText(decade: number | string, language: any): string {
+  const year = String(decade);
+  // The language code, not normalizeLanguage(): that helper clamps an unknown code to the
+  // default language, which would turn a language the app does not ship yet back into English.
+  const code = String(language || '').toLowerCase().split('-')[0] ?? '';
+  const pattern = DECADE_PATTERNS[code];
+  return pattern ? pattern.replace('{year}', year) : year + 's';
+}
