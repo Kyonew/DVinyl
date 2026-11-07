@@ -300,6 +300,8 @@
         <% } %>
     </div>
 
+    <%- include('shelf-strays') %>
+
     <% if (locals.canEditCollection) { %>
         <%# The editor panel needs a piece of furniture to edit, so with none built yet
             only its "create" step is reachable, on its own. %>
@@ -509,6 +511,8 @@
             </div>
         </div>
     <% } %>
+
+    <%- include('shelf-strays') %>
 
     <%# Shown next to a spine under the pointer: the cover and the creator the spine has
         no room for. Moved by script; one for the whole page. %>

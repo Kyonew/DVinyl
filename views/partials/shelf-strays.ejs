@@ -1,0 +1,55 @@
+<%# The places items still name although no furniture holds them any more, each with a
+    way to forget it. Building a shelf of the same name is the other way out, and needs
+    nothing here: the items go straight back onto it.
+
+    Expects: shelfStrays (only filled for someone who can edit the collection). %>
+
+<% if (locals.shelfStrays && shelfStrays.length > 0) { %>
+    <div class="mt-8 card-theme border rounded-2xl p-5" id="shelfStrays">
+        <h2 class="text-xs font-bold uppercase tracking-widest opacity-50 mb-1"><%= t('collection.shelf_strays_title') %></h2>
+        <p class="text-xs opacity-60 mb-4"><%= t('collection.shelf_strays_hint') %></p>
+        <ul class="space-y-2">
+            <% shelfStrays.forEach(stray => { %>
+                <li class="flex items-center gap-3 bg-black/5 dark:bg-white/5 rounded-lg px-3 py-2">
+                    <span class="flex-grow min-w-0 truncate text-sm font-bold"><%= stray.name %></span>
+                    <span class="text-[10px] font-bold uppercase tracking-widest opacity-40 tabular-nums"><%= stray.count %> <%= t('common.items') %></span>
+                    <button type="button" data-stray-forget data-key="<%= stray.key %>" data-name="<%= stray.name %>" data-count="<%= stray.count %>"
+                        class="px-3 py-1.5 rounded-lg text-xs font-bold text-red-500 hover:bg-red-500/10 active:scale-95 transition-all">
+                        <i class="fa-solid fa-eraser mr-1.5"></i><%= t('collection.shelf_forget') %>
+                    </button>
+                </li>
+            <% }) %>
+        </ul>
+    </div>
+
+    <script>
+        <%# Listens on the document, so a copy of this block swapped in by the live search
+            keeps working, and the guard keeps a second copy of the script from listening twice. %>
+        (function () {
+            if (window.__shelfStraysWired) return;
+            window.__shelfStraysWired = true;
+            const confirmText = <%- JSON.stringify(t('collection.shelf_confirm_forget')) %>;
+            const failText = <%- JSON.stringify(t('errors.generic_server_error')) %>;
+            document.addEventListener('click', async event => {
+                const button = event.target.closest('[data-stray-forget]');
+                if (!button || button.disabled) return;
+                const message = confirmText.replace('%s', button.dataset.name).replace('%d', button.dataset.count);
+                if (!confirm(message)) return;
+                button.disabled = true;
+                try {
+                    const res = await fetch('<%= baseUrl %>/shelf/forget', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ key: button.dataset.key })
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok || !data.success) throw new Error(data.error || String(res.status));
+                    window.location.reload();
+                } catch (err) {
+                    button.disabled = false;
+                    alert(failText);
+                }
+            });
+        })();
+    </script>
+<% } %>

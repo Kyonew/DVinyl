@@ -1,6 +1,6 @@
 import { db } from './db';
 import { isDuplicateError } from './db/errors';
-import { and, asc, eq, idOf, notIn } from './db/query';
+import { and, asc, eq, idOf, isIn, notIn } from './db/query';
 import {
   locationKey, normalizeLocationName, pickDisplayName, capacityPerFurniture, fitGrid,
   MAX_FURNITURE_ROWS
@@ -30,6 +30,50 @@ export async function shelfChoices(collectionId: any): Promise<string[]> {
     if (key && !byKey.has(key)) byKey.set(key, normalizeLocationName(value));
   }
   return [...byKey.values()].sort((a, b) => a.localeCompare(b));
+}
+
+/**
+ * Takes every item standing on the given shelves off them, whatever spelling of the
+ * place each one stored, and returns how many were moved. The shelves themselves are the
+ * caller's business: this only empties the `location` that pointed at them.
+ */
+export async function clearShelfItems(collectionId: any, keys: string[]): Promise<number> {
+  const wanted = new Set(keys.filter(Boolean));
+  if (wanted.size === 0) return 0;
+
+  const stored = await db.items.distinct('location', and(eq('collection', idOf(collectionId)), notIn('location', ['', null])));
+  const spellings = stored.map(value => String(value)).filter(value => wanted.has(locationKey(value)));
+  if (spellings.length === 0) return 0;
+
+  const result = await db.items.updateMany(
+    and(eq('collection', idOf(collectionId)), isIn('location', spellings)),
+    { set: { location: '' } }
+  );
+  return result.modified;
+}
+
+/**
+ * The places items still name although no furniture holds them any more: a piece
+ * deleted while things stood on it, an import, an older backup. One entry per place,
+ * in the spelling most of its items use, with how many items name it.
+ */
+export async function strayLocations(collectionId: any): Promise<{ key: string; name: string; count: number }[]> {
+  const shelved = new Set((await shelfNames(collectionId)).map(locationKey));
+  const stored = await db.items.countBy('location', and(eq('collection', idOf(collectionId)), notIn('location', ['', null])));
+
+  const groups = new Map<string, { name: string; count: number }[]>();
+  for (const entry of stored) {
+    const raw = String(entry.value ?? '');
+    const key = locationKey(raw);
+    if (!key || shelved.has(key)) continue;
+    groups.set(key, [...(groups.get(key) || []), { name: raw, count: entry.count }]);
+  }
+
+  return [...groups].map(([key, variants]) => ({
+    key,
+    name: normalizeLocationName(pickDisplayName(variants)),
+    count: variants.reduce((sum, v) => sum + v.count, 0)
+  })).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /**

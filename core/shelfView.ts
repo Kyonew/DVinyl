@@ -4,6 +4,7 @@ import { resolveShelfItems } from '../utils/itemHelpers';
 import { registry } from './registry';
 import { measureSpines, tallestFormat, arrangeCompartment, pileUp, formatOf, SPINE_MAX_HEIGHT_PX } from './spine';
 import { CollectionView } from './types';
+import { strayLocations } from './shelfStore';
 
 // A reserve holding a whole collection is a wall of spines nobody can read, and a page
 // nobody can load. Draw a screenful of it and say how much more there is.
@@ -62,10 +63,13 @@ export const SHELF_VIEW: CollectionView = {
       (piece as any).href = '?' + params.toString();
     }
 
+    // Only whoever can tidy them up is shown the places no furniture holds any more.
+    const shelfStrays = res.locals.canEditCollection === true ? await strayLocations(collectionId) : [];
+
     const requestedId = String(req.query.furniture || '');
     const activeFurniture = furnitureList.find(f => String(f._id) === requestedId) || furnitureList[0];
     if (!activeFurniture) {
-      return { furnitureList, activeFurniture: null, shelfRows: [], shelfColumns: 1, shelfNarrowed: false, shelfMatched: 0, shelfTotal: 0, unsorted: [], unsortedPiles: [], unsortedTotal: 0, unsortedShown: 0 };
+      return { furnitureList, activeFurniture: null, shelfRows: [], shelfColumns: 1, shelfNarrowed: false, shelfMatched: 0, shelfTotal: 0, unsorted: [], unsortedPiles: [], unsortedTotal: 0, unsortedShown: 0, shelfStrays };
     }
 
     const cells: any[] = activeFurniture.cells || [];
@@ -176,7 +180,8 @@ export const SHELF_VIEW: CollectionView = {
       // reserve is drawn.
       unsortedPiles: pileUp(unsorted, (item: any) => item.kind + '|' + formatOf(item)),
       unsortedTotal,
-      unsortedShown: unsorted.length
+      unsortedShown: unsorted.length,
+      shelfStrays
     };
   }
 };

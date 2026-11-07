@@ -3,7 +3,7 @@ import { db } from '../db';
 import { isDuplicateError } from '../db/errors';
 import { and, eq, idOf, isId, isIn, ne } from '../db/query';
 import { requireAuth, requireCollectionRole } from '../../middleware/authMiddleware';
-import { resolveShelfLocation } from '../shelfStore';
+import { clearShelfItems, resolveShelfLocation } from '../shelfStore';
 import {
   locationKey, normalizeLocationName, findDuplicateCellKey, fitGrid,
   MAX_FURNITURE_COLUMNS, MAX_FURNITURE_ROWS
@@ -178,6 +178,17 @@ router.post('/shelf/furniture/:id', requireAuth, requireCollectionRole('editor')
       set: { name: furniture.name, layout: furniture.layout, columns: furniture.columns, rows: furniture.rows, cells: furniture.cells }
     }, { validate: true });
 
+    // A shelf removed from the list is only taken off the furniture, unless the caller
+    // asked for what stood on it to be taken off as well. Either way the items end up in
+    // the reserve; asked, they also stop naming a place nobody builds again.
+    let cleared = 0;
+    const clearRemoved = req.body?.clearRemoved === true;
+    if (clearRemoved) {
+      const kept = new Set(cells.flatMap(cell => [cell.key, cell.from].filter(Boolean)));
+      const removed = [...storedByKey.keys()].filter(key => !kept.has(key));
+      cleared = await clearShelfItems(res.locals.activeCollectionId, removed);
+    }
+
     // One pass, so a pair of shelves swapping names cannot see each other's work: run in
     // sequence, "A becomes B" then "B becomes A" would land everything on A.
     let moved = 0;
@@ -189,7 +200,7 @@ router.post('/shelf/furniture/:id', requireAuth, requireCollectionRole('editor')
       );
     }
 
-    res.json({ success: true, renamed: renames.length, moved });
+    res.json({ success: true, renamed: renames.length, moved, ...(clearRemoved ? { cleared } : {}) });
   } catch (err: any) {
     if (isDuplicateError(err)) {
       return res.status(409).json({ success: false, error: 'duplicate_shelf' });
@@ -200,9 +211,10 @@ router.post('/shelf/furniture/:id', requireAuth, requireCollectionRole('editor')
 });
 
 /**
- * Takes a piece of furniture away. The items that stood in it are left alone: nothing
- * points at them any more, so they show up in the reserve, still saying where they used
- * to be. Building the same shelf again puts them straight back on it.
+ * Takes a piece of furniture away. By default the items that stood in it are left alone:
+ * nothing points at them any more, so they show up in the reserve, still saying where
+ * they used to be, and building the same shelf again puts them straight back on it.
+ * With `clearItems` they are taken off it too, and the place is forgotten.
  */
 router.post('/shelf/furniture/:id/delete', requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
   try {
@@ -210,9 +222,40 @@ router.post('/shelf/furniture/:id/delete', requireAuth, requireCollectionRole('e
     if (!furniture) return res.status(404).json({ success: false, error: 'not_found' });
 
     await db.furniture.deleteOne(eq('_id', idOf(furniture._id)));
+
+    if (req.body?.clearItems === true) {
+      const keys = (furniture.cells as any[]).map((cell: any) => cell.key);
+      const cleared = await clearShelfItems(res.locals.activeCollectionId, keys);
+      return res.json({ success: true, cleared });
+    }
     res.json({ success: true });
   } catch (err: any) {
     console.error('Furniture delete error:', err.message);
+    res.status(500).json({ success: false, error: 'server_error' });
+  }
+});
+
+/**
+ * Forgets a place no furniture holds: the items still naming it lose their location and
+ * stay in the reserve. Refused for a shelf that exists, which is emptied by moving its
+ * items or removing it from its furniture instead.
+ */
+router.post('/shelf/forget', requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
+  try {
+    const activeCollectionId = res.locals.activeCollectionId;
+    if (!activeCollectionId) return res.status(400).json({ success: false, error: 'no_active_collection' });
+
+    const key = locationKey(req.body?.key);
+    if (!key) return res.status(400).json({ success: false, error: 'bad_request' });
+
+    if (await db.furniture.exists(and(eq('collection', idOf(activeCollectionId)), eq('cells.key', key)))) {
+      return res.status(409).json({ success: false, error: 'shelf_exists' });
+    }
+
+    const cleared = await clearShelfItems(activeCollectionId, [key]);
+    res.json({ success: true, cleared });
+  } catch (err: any) {
+    console.error('Shelf forget error:', err.message);
     res.status(500).json({ success: false, error: 'server_error' });
   }
 });

@@ -58,6 +58,15 @@
 
     <p id="shelfEditorError" class="hidden mt-4 text-xs font-bold text-red-500"></p>
 
+    <%# Off by default: a removed shelf's items keep the place they name, so building it
+        again puts them back. Only offered when something stands on this furniture. %>
+    <% if (shelfCells.some(c => c.count > 0)) { %>
+        <label class="flex items-start gap-2.5 mt-5 text-xs cursor-pointer">
+            <input type="checkbox" id="shelfEditorClear" class="mt-0.5 w-4 h-4 accent-primary-theme cursor-pointer">
+            <span class="opacity-70"><%= t('collection.shelf_clear_removed') %></span>
+        </label>
+    <% } %>
+
     <div class="flex flex-wrap gap-2 mt-6 pt-5 border-t border-black/5 dark:border-white/10">
         <button type="button" id="shelfEditorSave" onclick="shelfEditor.save()"
             class="px-5 py-2.5 bg-primary-theme text-white rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all disabled:opacity-50">
@@ -88,7 +97,9 @@
             remove: t('collection.shelf_remove'),
             items: t('common.items'),
             confirmDeleteFurniture: t('collection.shelf_confirm_delete_furniture'),
+            confirmDeleteFurnitureClear: t('collection.shelf_confirm_delete_furniture_clear'),
             confirmRemoveShelf: t('collection.shelf_confirm_remove'),
+            confirmRemoveShelfClear: t('collection.shelf_confirm_remove_clear'),
             newFurniture: t('collection.shelf_new_furniture_prompt'),
             duplicate: t('collection.shelf_error_duplicate'),
             elsewhere: t('collection.shelf_error_elsewhere'),
@@ -104,6 +115,7 @@
         const list = document.getElementById('shelfEditorList');
         const panel = document.getElementById('shelfEditor');
         const error = document.getElementById('shelfEditorError');
+        const clearItems = () => document.getElementById('shelfEditorClear')?.checked === true;
 
         function render() {
             list.innerHTML = '';
@@ -185,9 +197,12 @@
 
         function removeShelf(index) {
             const shelf = shelves[index];
-            // Emptying a shelf is not the same as losing what stood on it: the items keep
-            // saying where they were and simply show up in the reserve.
-            if (shelf.count > 0 && !confirm(text.confirmRemoveShelf.replace('%d', shelf.count))) return;
+            // Emptying a shelf is not the same as losing what stood on it: the items show
+            // up in the reserve, still saying where they were unless the box is ticked.
+            // Read when the shelf is removed, and the save applies whatever the box says
+            // then: the wording only tells which of the two the user is about to get.
+            const message = clearItems() ? text.confirmRemoveShelfClear : text.confirmRemoveShelf;
+            if (shelf.count > 0 && !confirm(message.replace('%d', shelf.count))) return;
             shelves.splice(index, 1);
             render();
         }
@@ -252,7 +267,8 @@
                         layout: document.getElementById('shelfEditorLayout').value,
                         columns: document.getElementById('shelfEditorColumns').value,
                         rows: document.getElementById('shelfEditorRows').value,
-                        cells: shelves.map(s => ({ from: s.from, name: s.name, capacity: s.capacity }))
+                        cells: shelves.map(s => ({ from: s.from, name: s.name, capacity: s.capacity })),
+                        clearRemoved: clearItems()
                     });
                     window.location.reload();
                 } catch (err) {
@@ -262,9 +278,9 @@
             },
 
             async removeFurniture() {
-                if (!confirm(text.confirmDeleteFurniture)) return;
+                if (!confirm(clearItems() ? text.confirmDeleteFurnitureClear : text.confirmDeleteFurniture)) return;
                 try {
-                    await post('/shelf/furniture/' + furnitureId + '/delete');
+                    await post('/shelf/furniture/' + furnitureId + '/delete', { clearItems: clearItems() });
                     window.location.href = baseUrl + '/collection?view=shelf';
                 } catch (err) { fail(err); }
             },

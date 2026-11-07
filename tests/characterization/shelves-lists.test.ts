@@ -105,6 +105,48 @@ describe('shelves', { skip: !backend }, () => {
     assert.ok(dump.furniture.some(piece => String(piece._id) === String(billy._id)));
     assert.equal(itemByTitle(dump, 'One').location, 'Upper', 'items keep their location');
   });
+
+  it('forgets a place no furniture holds, whatever its spelling, and refuses a real shelf', async () => {
+    // 'Upper' went with Shelf A above; a second spelling of it comes from an import.
+    await addMusic(admin, { title: 'Stray', artist: 'A', location: 'Middle' });
+    let dump = await exportInstance(admin);
+    const billy = dump.furniture.find(piece => piece.name === 'Billy');
+
+    let reply = await admin.postJson('/shelf/forget', { key: 'Middle' });
+    assert.equal(reply.status, 409);
+    assert.equal(reply.json().error, 'shelf_exists');
+    assert.equal((await admin.postJson('/shelf/forget', { key: '  ' })).status, 400);
+
+    reply = await admin.postJson('/shelf/forget', { key: ' UPPER ' });
+    assert.deepEqual(reply.json(), { success: true, cleared: 2 });
+    dump = await exportInstance(admin);
+    assert.equal(itemByTitle(dump, 'One').location, '');
+    assert.equal(itemByTitle(dump, 'Loose').location, '');
+    assert.equal(itemByTitle(dump, 'Stray').location, 'Middle');
+
+    // Removing a shelf with the box ticked takes its items off it; renamed shelves keep theirs.
+    reply = await admin.postJson(`/shelf/furniture/${billy._id}`, {
+      name: 'Billy', columns: 2, clearRemoved: true,
+      cells: [{ name: 'Lower', from: 'bottom' }]
+    });
+    assert.deepEqual(reply.json(), { success: true, renamed: 1, moved: 0, cleared: 1 });
+    dump = await exportInstance(admin);
+    assert.equal(itemByTitle(dump, 'Stray').location, '');
+  });
+
+  it('deletes furniture and, when asked, takes its items off it', async () => {
+    let reply = await admin.postJson('/shelf/furniture', { name: 'Loft' });
+    const loft = reply.json().id;
+    await admin.postJson(`/shelf/furniture/${loft}`, { name: 'Loft', cells: [{ name: 'Attic' }] });
+    await addMusic(admin, { title: 'Kept', artist: 'A', location: 'attic' });
+    await addMusic(admin, { title: 'Elsewhere', artist: 'A', location: 'Lower' });
+
+    reply = await admin.postJson(`/shelf/furniture/${loft}/delete`, { clearItems: true });
+    assert.deepEqual(reply.json(), { success: true, cleared: 1 });
+    const dump = await exportInstance(admin);
+    assert.equal(itemByTitle(dump, 'Kept').location, '');
+    assert.equal(itemByTitle(dump, 'Elsewhere').location, 'Lower', 'other furniture untouched');
+  });
 });
 
 describe('lists', { skip: !backend }, () => {
