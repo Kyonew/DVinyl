@@ -5,6 +5,7 @@ import { db } from './db';
 import { and, ci, eq, idOf } from './db/query';
 import { createShelfLocationResolver } from './shelfStore';
 import { findWishlistDuplicate } from './wishlistDuplicate';
+import { metadataLanguage } from './metadataLanguage';
 
 /**
  * Generic engine behind the CSV importers declared by plugins (Libib & co.).
@@ -427,7 +428,7 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
       const exactCode = canEnrich ? exactLookupFor(plugin, enrichSource, data) : '';
       const query = exactCode || (spec.searchQuery ? spec.searchQuery(row, data) : data.title);
       const searchOptions = {
-        language: req.language,
+        language: metadataLanguage(req),
         ...(plugin.enrichSearchOptions ? plugin.enrichSearchOptions(data) : {}),
         ...(spec.searchOptions ? spec.searchOptions(row, data) : {})
       };

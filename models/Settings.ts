@@ -114,6 +114,9 @@ const settingsSchema = new mongoose.Schema({
     // creates its own entry, even when the plugin's duplicate key matches. Item types
     // without a format (custom plugins) otherwise merge on title + creator alone.
     mergeDuplicates: { type: Boolean, default: true },
+    // The language sources are asked in (core/metadataLanguage.ts). Empty: each member's
+    // own interface language, as it always was.
+    metadataLanguage: { type: String, default: '' },
     visibility: {
         applyToAdmin: { type: Boolean, default: false },
         hiddenItems: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Item' }],

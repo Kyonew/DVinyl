@@ -251,6 +251,9 @@
     "advanced_cd_desc": "También busca los formatos SACD y CDr en Discogs",
     "merge_duplicates": "Fusionar duplicados",
     "merge_duplicates_desc": "Añadir un ítem que ya está en la colección aumenta su cantidad en vez de crear una segunda entrada. Desactívalo para crear siempre una entrada separada.",
+    "metadata_language": "Idioma de la información obtenida",
+    "metadata_language_desc": "Los títulos, sinopsis y géneros llegan de fuentes como TMDB en este idioma, sea cual sea el idioma en que cada miembro lee la aplicación. Los elementos ya añadidos cambian en su próxima actualización. Las fuentes sin traducciones lo ignoran.",
+    "metadata_language_same": "Idioma de cada miembro",
     "collections": {
       "title": "Colecciones ({{count}})",
       "name_placeholder": "Nombre de la nueva colección",
@@ -755,6 +758,8 @@
     "field_barcode": "Código de barras",
     "field_comments": "Notas / Comentarios",
     "field_director": "Director",
+    "field_original_title": "Título original",
+    "field_cast": "Reparto",
     "field_duration": "Duración",
     "field_format": "Formato",
     "field_quantity": "Cantidad",
@@ -879,6 +884,7 @@
     "label_page_title": "Etiqueta"
   },
   "dvd_detail": {
+    "cast_search": "Buscar a {{name}} en la colección",
     "barcode_label": "Código de barras",
     "boxset": "caja",
     "episodes_title": "Episodios",

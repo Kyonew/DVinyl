@@ -70,6 +70,7 @@ import accountRoute from './core/routes/accountRoute.js';
 import manualAddRoute from './core/routes/manualAddRoute.js';
 import csvImportRoute from './core/routes/csvImportRoute.js';
 import aiImportRoute from './core/routes/aiImportRoute.js';
+import { METADATA_LANGUAGES } from './core/metadataLanguage';
 
 const app = express();
 const server = http.createServer(app);
@@ -122,6 +123,8 @@ app.locals.SHARE_HIDDEN_FIELDS = SHARE_HIDDEN_FIELDS;
 app.locals.importableFields = importableFields;
 // The language picker of visitors without an account (partials/lang-picker)
 app.locals.LANGUAGE_NAMES = LANGUAGE_NAMES;
+// The languages a collection may ask its sources in (admin page)
+app.locals.METADATA_LANGUAGES = METADATA_LANGUAGES;
 // Shared by the image-manager partial so its client-side guard matches the save route.
 app.locals.MAX_ITEM_IMAGES = MAX_ITEM_IMAGES;
 app.locals.MAX_ITEM_IMAGE_BYTES = MAX_ITEM_IMAGE_BYTES;

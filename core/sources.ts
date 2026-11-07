@@ -1,5 +1,6 @@
 import { PluginDefinition, ExternalSource, SearchProvider } from './types';
 import { PermanentRefreshError } from './helpers';
+import { metadataLanguage } from './metadataLanguage';
 
 /**
  * Where a plugin looks items up, and which of those places is usable right now.
@@ -296,7 +297,7 @@ export async function refreshPatchFor(
         // only an admin restarting the instance can change.
         throw new PermanentRefreshError(`${source.name} is not configured`);
       }
-      const details = await source.getDetails(String(externalId), { language: req?.language });
+      const details = await source.getDetails(String(externalId), { language: metadataLanguage(req) });
       return plugin.mergeRefresh(item, details);
     }
   }

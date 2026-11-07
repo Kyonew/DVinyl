@@ -1,12 +1,13 @@
 import path from 'path';
 import { PluginDefinition } from '../../core/types';
 import { sourceFromProvider } from '../../core/sources';
-import { TMDBProvider, tmdbFetch } from './tmdb';
+import { TMDBProvider, tmdbFetch, isProfilePath, MAX_CAST } from './tmdb';
 import { dvdImporters } from './importers';
-import { escapeRegExp, PermanentRefreshError, editStamp } from '../../core/helpers';
+import { escapeRegExp, PermanentRefreshError, editStamp, splitTagFields } from '../../core/helpers';
 import { db } from '../../core/db';
 import { and, ci, eq, idOf, isId, isIn, missing, ne, or, textOrUnset, Filter } from '../../core/db/query';
-import { TMDB_LANG_MAP, formatSeasonCount, describeOwnedSeasons } from './constants';
+import { describeOwnedSeasons } from './constants';
+import { metadataLanguage, withRegion } from '../../core/metadataLanguage';
 
 const tmdbProvider = new TMDBProvider();
 
@@ -18,7 +19,7 @@ const tmdb = sourceFromProvider(tmdbProvider, {
   async searchImages(query: string, options?: { language?: string }): Promise<string[]> {
     const tmdbApiKey = process.env.TMDB_API_KEY;
     if (!tmdbApiKey) throw new Error('Missing TMDB API Key');
-    const tmdbLang = TMDB_LANG_MAP[options?.language || ''] || 'en-US';
+    const tmdbLang = withRegion(options?.language);
     const data = await tmdbFetch(
       'search/multi',
       { query, language: tmdbLang },
@@ -52,7 +53,8 @@ export const dvdPlugin: PluginDefinition = {
   routePrefix: '/dvd',
   collectionType: 'dvd',
   creatorField: 'director',
-  extraSearchFields: ['studio'],
+  // A film is also looked for by its original title and by who is in it.
+  extraSearchFields: ['studio', 'original_title', 'cast'],
   supportsBarcodeSearch: true,
   barcodeNoiseTerms: ['DVD', 'Blu-ray', 'Blu Ray', 'Bluray', '4K', 'UHD', 'Ultra HD', 'Coffret', 'Edition', 'Édition', 'Steelbook', 'Combo'],
   sources: [tmdb],
@@ -64,6 +66,7 @@ export const dvdPlugin: PluginDefinition = {
   detailZones: [
     { id: 'badge', partial: 'dvd-status.ejs' },
     { id: 'sidebar', partial: 'status-blocks.ejs' },
+    { id: 'content', partial: 'cast.ejs' },
     { id: 'content', partial: 'seasons-list.ejs' }
   ],
 
@@ -169,7 +172,7 @@ export const dvdPlugin: PluginDefinition = {
 
           const asked = req.query.season !== undefined ? Number(req.query.season) : item.season;
           const { seasons, season, episodes } = await new TMDBProvider()
-            .getSeasonEpisodes(item.tmdb_id, asked ?? null, req.language);
+            .getSeasonEpisodes(item.tmdb_id, asked ?? null, metadataLanguage(req));
 
           res.render(path.join(__dirname, 'partials/episodes'), {
             item,
@@ -211,8 +214,43 @@ export const dvdPlugin: PluginDefinition = {
 
   defaultCardFields: ['director'],
 
+  // The cast field posts its names as one comma-separated line.
+  normalizeForSave(data: Record<string, any>): void {
+    splitTagFields(data, ['cast']);
+    // Posted by the confirm page, so anything could arrive: only plain text and TMDB
+    // portrait paths are kept.
+    if (data.cast_details !== undefined) {
+      data.cast_details = (Array.isArray(data.cast_details) ? data.cast_details : [])
+        .filter((c: any) => c && typeof c.name === 'string' && c.name.trim())
+        .slice(0, MAX_CAST)
+        .map((c: any) => ({
+          name: c.name.trim().slice(0, 200),
+          character: typeof c.character === 'string' ? c.character.trim().slice(0, 200) : '',
+          photo: isProfilePath(c.photo) ? c.photo : '',
+          tmdb_id: Number.isInteger(c.tmdb_id) ? c.tmdb_id : null
+        }));
+    }
+  },
+
   storedFields: {
     director: { type: 'text', required: true },
+    // The title in its own language, when TMDB gave the item another one ("The Shawshank
+    // Redemption" under "Skazani na Shawshank"). Empty when the two are the same.
+    original_title: { type: 'text', default: '' },
+    // The leading actors, in billing order.
+    cast: { type: 'texts', default: [] },
+    // What TMDB says about each of them: the part they play and their portrait. Shown on
+    // the item page for the names still in `cast`, so taking a name out by hand takes its
+    // portrait away too. Never typed in, only filled by TMDB.
+    cast_details: {
+      type: 'records',
+      fields: {
+        name: { type: 'text' },
+        character: { type: 'text' },
+        photo: { type: 'text' },
+        tmdb_id: { type: 'number' }
+      }
+    },
     studio: { type: 'text' },
     duration: { type: 'text' },
     rating: { type: 'text' },
@@ -293,12 +331,37 @@ export const dvdPlugin: PluginDefinition = {
       group: 'main'
     },
     {
+      name: 'original_title',
+      label: 'confirm_dvd.field_original_title',
+      type: 'text',
+      showIn: ['edit', 'confirm', 'detail', 'manual'],
+      group: 'main'
+    },
+    {
       name: 'director',
       label: 'confirm_dvd.field_director',
       type: 'text',
       required: true,
       showIn: ['edit', 'confirm', 'detail', 'manual'],
       group: 'main'
+    },
+    {
+      // Drawn as a row of portraits on the item page (partials/cast.ejs), not in the grid.
+      name: 'cast',
+      label: 'confirm_dvd.field_cast',
+      type: 'tags',
+      showIn: ['edit', 'confirm', 'manual'],
+      group: 'metadata'
+    },
+    {
+      // Carries the parts and portraits from the confirm page to the save, as cast_details_json.
+      name: 'cast_details',
+      label: 'confirm_dvd.field_cast',
+      type: 'custom',
+      partial: 'cast-details-input.ejs',
+      showIn: ['confirm'],
+      showCondition: 'api-only',
+      group: 'metadata'
     },
     {
       name: 'studio',
@@ -554,6 +617,9 @@ export const dvdPlugin: PluginDefinition = {
         description: show.description,
         duration: show.duration,
         director: show.director || data.director,
+        original_title: show.original_title || '',
+        cast: show.cast || [],
+        cast_details: show.cast_details || [],
         owner: ctx.ownerId,
         collection: ctx.collectionId
       }))._id;
@@ -578,6 +644,9 @@ export const dvdPlugin: PluginDefinition = {
         description: seasonData.description,
         duration: seasonData.duration,
         director: seasonData.director || data.director,
+        original_title: seasonData.original_title || '',
+        cast: seasonData.cast || [],
+        cast_details: seasonData.cast_details || [],
         season: number,
         parent: holderId,
         owner: ctx.ownerId,
@@ -710,77 +779,46 @@ export const dvdPlugin: PluginDefinition = {
 
     const tmdbApiKey = process.env.TMDB_API_KEY;
     if (!tmdbApiKey) throw new PermanentRefreshError("TMDB_API_KEY missing");
-    const lang = req.language || 'fr';
-    const tmdbLang = TMDB_LANG_MAP[lang] || "en-US";
 
     // A season is refreshed against the season, not against the show. Read from the show
-    // endpoint below it would come back wearing the show's title, poster and year, which
-    // is the opposite of what a refresh is for. This is also where a season added before
-    // the episodes were stored picks them up.
-    if (item.media_type === 'tv' && typeof item.season === 'number') {
-      const fresh: any = await new TMDBProvider().getDetails(`tv_${item.tmdb_id}`, {
-        language: lang,
-        season: item.season
-      });
-      return {
-        title: fresh.title,
-        year: fresh.year,
-        duration: fresh.duration,
-        cover_image: fresh.cover_image,
-        description: fresh.description,
-        director: fresh.director,
-        studio: fresh.studio,
-        genres: fresh.genres || [],
-        genre: (fresh.genres || [])[0] || '',
-        // TMDB owns the title, the runtime and the synopsis; the owner owns whether they
-        // watched it, what they thought of it and what they wrote down. Merged by episode
-        // number rather than replaced, otherwise a refresh for a corrected air date would
-        // quietly wipe every note on the season.
-        episodes: (fresh.episodes || []).map((episode: any) => {
-          const mine = (item.episodes || []).find((e: any) => e.number === episode.number);
-          return mine
-            ? { ...episode, watched: mine.watched, rating: mine.rating, notes: mine.notes }
-            : episode;
-        })
-      };
-    }
+    // endpoint it would come back wearing the show's title, poster and year, which is the
+    // opposite of what a refresh is for. This is also where a season added before the
+    // episodes were stored picks them up.
+    const isSeason = item.media_type === 'tv' && typeof item.season === 'number';
+    const fresh: any = await new TMDBProvider().getDetails(`${item.media_type || 'movie'}_${item.tmdb_id}`, {
+      language: metadataLanguage(req),
+      ...(isSeason ? { season: item.season } : {})
+    });
 
-    const mediaType = item.media_type || 'movie';
-    const data = await tmdbFetch(`${mediaType}/${item.tmdb_id}`, { language: tmdbLang, append_to_response: 'credits' });
-
-    let director = "Unknown";
-    if (mediaType === "movie" && data.credits && data.credits.crew) {
-      const dirObj = data.credits.crew.find((member: any) => member.job === "Director");
-      if (dirObj) director = dirObj.name;
-    } else if (mediaType === "tv" && data.created_by && data.created_by.length > 0) {
-      director = data.created_by.map((c: any) => c.name).join(", ");
-    }
-
-    const studio = data.production_companies && data.production_companies.length > 0
-      ? data.production_companies[0].name
-      : "";
-
-    const year = mediaType === "tv"
-      ? (data.first_air_date || "").substring(0, 4)
-      : (data.release_date || "").substring(0, 4);
-
-    const duration = mediaType === "tv"
-      ? formatSeasonCount(data.number_of_seasons, lang)
-      : `${data.runtime || "?"} min`;
-
-    const cover = data.poster_path ? `https://image.tmdb.org/t/p/w500${data.poster_path}` : "";
-
-    const refreshedGenres = data.genres ? data.genres.map((g: any) => g.name) : [];
-    return {
-      cover_image: cover,
-      description: data.overview || "",
-      genres: refreshedGenres,
+    const patch: Record<string, any> = {
+      year: fresh.year,
+      duration: fresh.duration,
+      cover_image: fresh.cover_image,
+      description: fresh.description,
+      director: fresh.director,
+      studio: fresh.studio,
+      original_title: fresh.original_title || '',
+      cast: fresh.cast || [],
+      cast_details: fresh.cast_details || [],
+      genres: fresh.genres || [],
       // keep the singular `genre` in sync so the genre filter/distinct queries don't go stale
-      genre: refreshedGenres[0] || "",
-      director,
-      studio,
-      year,
-      duration
+      genre: (fresh.genres || [])[0] || ''
+    };
+    if (!isSeason) return patch;
+
+    return {
+      ...patch,
+      title: fresh.title,
+      // TMDB owns the title, the runtime and the synopsis; the owner owns whether they
+      // watched it, what they thought of it and what they wrote down. Merged by episode
+      // number rather than replaced, otherwise a refresh for a corrected air date would
+      // quietly wipe every note on the season.
+      episodes: (fresh.episodes || []).map((episode: any) => {
+        const mine = (item.episodes || []).find((e: any) => e.number === episode.number);
+        return mine
+          ? { ...episode, watched: mine.watched, rating: mine.rating, notes: mine.notes }
+          : episode;
+      })
     };
   }
 };

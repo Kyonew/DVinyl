@@ -51,6 +51,7 @@ import "../core/dashboardWidgets";
 import { buildPack, readPack, packUpdate, PackError, MAX_PACK_BYTES, PACK_SECTIONS } from "../core/layoutPacks";
 import { LOOK_STYLES, lookStyleFields } from "../core/lookStyles";
 import { requestAdminData } from "../core/routes/requestAdminRoute";
+import { isMetadataLanguage, metadataLanguage } from "../core/metadataLanguage";
 
 const router = express.Router();
 
@@ -1335,6 +1336,8 @@ router.post("/modules/save", requireAuth, requireCollectionRole("admin"), async 
     }
 
     update.mergeDuplicates = req.body.mergeDuplicates === "on";
+    // Anything not offered goes back to each member's own language.
+    update.metadataLanguage = isMetadataLanguage(req.body.metadataLanguage) ? req.body.metadataLanguage : "";
 
     // Plugin-scoped settings (⚙ per module): pluginSetting_<pluginId>_<key>
     for (const p of registry.getAll()) {
@@ -1464,7 +1467,7 @@ router.get(
       }
 
       // Every image source of the plugin at once, merged and deduplicated.
-      const urls = await gatherImages(plugin, q, { language: req.language }, res.locals.settings);
+      const urls = await gatherImages(plugin, q, { language: metadataLanguage(req) }, res.locals.settings);
       console.log(`[SEARCH] ${plugin.id} found: ${urls.length} images`);
       res.json(urls);
     } catch (err: any) {

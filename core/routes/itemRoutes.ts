@@ -28,6 +28,7 @@ import { isAcceptedImage } from '../ai/images';
 import { getAiConfig, isAiReady } from '../ai/instance';
 import { isAiConfigured } from '../ai/config';
 import { noticeWish } from '../wishlistNotices';
+import { metadataLanguage } from '../metadataLanguage';
 
 /**
  * Names what was just saved in the path an add comes back to, so the add page can say so.
@@ -204,7 +205,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           country,
           genre_filter,
           label_filter,
-          language: req.language,
+          language: metadataLanguage(req),
           // Pass the plugin's own settings so the provider stays the only one that knows its option keys
           pluginSettings: settings?.pluginSettings?.[plugin.id] || {}
         });
@@ -369,7 +370,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         const details = await source.getDetails(externalId, {
           ...req.query,
           type: searchTypeHint,
-          language: req.language
+          language: metadataLanguage(req)
         });
 
         // Where this item is about to come from. Written on the confirm form as a hidden
@@ -704,7 +705,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           body: req.body,
           ownerId: adminId,
           collectionId: activeCollectionId,
-          language: req.language
+          language: metadataLanguage(req)
         });
         if (handled) {
           try {

@@ -1,11 +1,4 @@
-// TMDB language codes, dvd-specific.
-export const TMDB_LANG_MAP: Record<string, string> = {
-  fr: 'fr-FR',
-  en: 'en-US',
-  es: 'es-ES',
-  it: 'it-IT',
-  de: 'de-DE'
-};
+import { baseLanguage } from '../../core/metadataLanguage';
 
 // A show's duration is a season count, and it is stored already formatted, next to the
 // "120 min" of a film. Plugins have no access to the translation files, so the word lives
@@ -20,7 +13,7 @@ const SEASON_LABELS: Record<string, [string, string]> = {
 };
 
 export function formatSeasonCount(count: number, lang?: string): string {
-  const labels = SEASON_LABELS[lang || ''] || SEASON_LABELS.en!;
+  const labels = SEASON_LABELS[baseLanguage(lang)] || SEASON_LABELS.en!;
   const n = Number(count) || 0;
   return `${n} ${n === 1 ? labels[0] : labels[1]}`;
 }
@@ -55,7 +48,7 @@ export function describeOwnedSeasons(numbers: number[]): { key: string; params: 
 }
 
 export function formatEpisodeCount(count: number, lang?: string): string {
-  const labels = EPISODE_LABELS[lang || ''] || EPISODE_LABELS.en!;
+  const labels = EPISODE_LABELS[baseLanguage(lang)] || EPISODE_LABELS.en!;
   const n = Number(count) || 0;
   return `${n} ${n === 1 ? labels[0] : labels[1]}`;
 }

@@ -9,6 +9,7 @@ import { escapeRegExp, fetchJson } from '../../core/helpers';
 import { igdbRequest } from './igdbHelper';
 import { db } from '../../core/db';
 import { and, ci, eq, idOf, missing, ne, or, textOrUnset, Filter } from '../../core/db/query';
+import { withRegion } from '../../core/metadataLanguage';
 
 const igdbProvider = new IGDBProvider();
 
@@ -65,8 +66,7 @@ const tmdbImages = imageSourceFrom({
   name: 'TMDB',
   requiredEnvKeys: ['TMDB_API_KEY'],
   async searchImages(query: string, options?: { language?: string }): Promise<string[]> {
-    const langMap: Record<string, string> = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', it: 'it-IT', de: 'de-DE' };
-    const tmdbLang = langMap[options?.language || ''] || 'en-US';
+    const tmdbLang = withRegion(options?.language);
     // Same rule as the Movies plugin: TMDB_API_KEY may hold the short API key or the
     // Read Access Token, a JWT that only works as a bearer header. Kept here rather than
     // imported from that plugin, so this one still loads on an instance without it.

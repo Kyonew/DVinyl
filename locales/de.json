@@ -251,6 +251,9 @@
     "advanced_cd_desc": "Sucht auch nach SACD- und CDr-Formaten auf Discogs",
     "merge_duplicates": "Duplikate zusammenführen",
     "merge_duplicates_desc": "Ein bereits vorhandenes Objekt erhöht beim Hinzufügen seine Menge, statt einen zweiten Eintrag zu erstellen. Deaktivieren, um immer einen separaten Eintrag anzulegen.",
+    "metadata_language": "Sprache der abgerufenen Informationen",
+    "metadata_language_desc": "Titel, Inhaltsangaben und Genres kommen von Quellen wie TMDB in dieser Sprache, unabhängig davon, in welcher Sprache jedes Mitglied die App liest. Bereits hinzugefügte Einträge ändern sich bei ihrer nächsten Aktualisierung. Quellen ohne Übersetzungen ignorieren dies.",
+    "metadata_language_same": "Sprache jedes Mitglieds",
     "collections": {
       "title": "Sammlungen ({{count}})",
       "name_placeholder": "Name der neuen Sammlung",
@@ -755,6 +758,8 @@
     "field_barcode": "Barcode",
     "field_comments": "Notizen / Kommentare",
     "field_director": "Direktor",
+    "field_original_title": "Originaltitel",
+    "field_cast": "Besetzung",
     "field_duration": "Dauer",
     "field_format": "Format",
     "field_quantity": "Menge",
@@ -879,6 +884,7 @@
     "label_page_title": "Etikett"
   },
   "dvd_detail": {
+    "cast_search": "{{name}} in der Sammlung finden",
     "barcode_label": "Barcode",
     "boxset": "Boxset",
     "episodes_title": "Folgen",

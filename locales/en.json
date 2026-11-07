@@ -520,6 +520,9 @@
     "advanced_cd_desc": "Also search SACD and CDr formats on Discogs",
     "merge_duplicates": "Merge duplicates",
     "merge_duplicates_desc": "Adding an item already in the collection increases its quantity instead of creating a second entry. Turn this off to always create a separate entry.",
+    "metadata_language": "Language of fetched information",
+    "metadata_language_desc": "Titles, synopses and genres come from sources like TMDB in this language, whatever language each member reads the app in. Items already added change on their next refresh. Sources without translations ignore it.",
+    "metadata_language_same": "Each member's language",
     "collections": {
       "title": "Collections ({{count}})",
       "name_placeholder": "New collection name",
@@ -1306,6 +1309,8 @@
     "movie": "Movie",
     "field_title": "Title",
     "field_director": "Director",
+    "field_original_title": "Original title",
+    "field_cast": "Cast",
     "field_studio": "Studio",
     "field_year": "Year",
     "field_duration": "Duration",
@@ -1342,6 +1347,7 @@
     "title": "Edit DVD / TV Show"
   },
   "dvd_detail": {
+    "cast_search": "Find {{name}} in the collection",
     "tech_specs": "Technical Details",
     "delete_confirm": "Are you sure you want to delete this item from your collection?",
     "boxset": "Boxset",

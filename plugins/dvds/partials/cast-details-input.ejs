@@ -1,0 +1,5 @@
+<%# What TMDB says about each actor (their part, their portrait), carried to the save as
+    JSON. Nothing to see: the names themselves are the cast field above. %>
+<% if (Array.isArray(item.cast_details) && item.cast_details.length > 0) { %>
+    <input type="hidden" name="cast_details_json" value="<%= JSON.stringify(item.cast_details) %>">
+<% } %>

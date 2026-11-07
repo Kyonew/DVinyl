@@ -520,6 +520,9 @@
     "advanced_cd_desc": "Recherche aussi les formats SACD et CDr sur Discogs",
     "merge_duplicates": "Fusionner les doublons",
     "merge_duplicates_desc": "Ajouter un item déjà présent dans la collection augmente sa quantité au lieu de créer une seconde entrée. Désactivez pour toujours créer une entrée séparée.",
+    "metadata_language": "Langue des informations récupérées",
+    "metadata_language_desc": "Titres, synopsis et genres viennent de sources comme TMDB dans cette langue, quelle que soit la langue dans laquelle chaque membre lit l'application. Les éléments déjà ajoutés changent à leur prochaine actualisation. Les sources sans traductions l'ignorent.",
+    "metadata_language_same": "Langue de chaque membre",
     "collections": {
       "title": "Collections ({{count}})",
       "name_placeholder": "Nom de la nouvelle collection",
@@ -1306,6 +1309,8 @@
     "movie": "Film",
     "field_title": "Titre",
     "field_director": "Réalisateur",
+    "field_original_title": "Titre original",
+    "field_cast": "Distribution",
     "field_studio": "Studio",
     "field_year": "Année",
     "field_duration": "Durée",
@@ -1342,6 +1347,7 @@
     "title": "Modifier l'exemplaire"
   },
   "dvd_detail": {
+    "cast_search": "Trouver {{name}} dans la collection",
     "tech_specs": "Détails Techniques",
     "delete_confirm": "Voulez-vous vraiment supprimer cet exemplaire de votre collection ?",
     "boxset": "Coffret",
