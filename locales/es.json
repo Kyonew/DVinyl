@@ -737,7 +737,8 @@
     "forbidden": "Acceso prohibido",
     "no_format": "Sin formato",
     "no_value": "Sin valor",
-    "purchase_price": "Precio de compra (por ejemplar)"
+    "purchase_price": "Precio de compra (por ejemplar)",
+    "add_row": "Añadir una fila"
   },
   "confirm_book": {
     "btn_collection": "Agregar a la biblioteca",
@@ -852,7 +853,15 @@
     "field_disc_size": "Tamaño",
     "field_speed": "Velocidad",
     "field_release_type": "Tipo de lanzamiento",
-    "field_disc_count": "Discos"
+    "field_disc_count": "Discos",
+    "field_pressing_plant": "Planta de prensado",
+    "field_mastering_studio": "Estudio de masterización",
+    "field_mastering_engineer": "Ingeniero de masterización",
+    "field_rights_society": "Sociedad de derechos",
+    "field_runouts": "Runout / matriz",
+    "runout_side": "Cara",
+    "runout_inscription": "Inscripción",
+    "runout_notes": "Notas"
   },
   "detail": {
     "label_no_barcode": "Este objeto no tiene código de barras: añade uno al editarlo.",
@@ -1667,7 +1676,10 @@
     "ai_section_hint": "Basta una frase. Revisarás y editarás cada campo antes de guardar.",
     "ai_placeholder": "p. ej. «Botellas antiguas de Coca-Cola de vidrio»",
     "ai_generate_btn": "Generar",
-    "ai_generating": "Generando…"
+    "ai_generating": "Generando…",
+    "type_rows": "Filas repetibles",
+    "field_columns_ph": "Columnas, separadas por comas (p. ej. Cara, Inscripción, Notas)",
+    "err_rows_needs_columns": "Un campo repetible necesita al menos una columna."
   },
   "add_lego": {
     "title": "Añadir un set LEGO",

@@ -497,7 +497,8 @@
             select: t('create_plugin.type_select'),
             boolean: t('create_plugin.type_boolean'),
             tags: t('create_plugin.type_tags'),
-            date: t('create_plugin.type_date')
+            date: t('create_plugin.type_date'),
+            rows: t('create_plugin.type_rows')
         },
         groupMain: t('create_plugin.field_group_main'),
         groupMeta: t('create_plugin.field_group_meta'),
@@ -505,6 +506,7 @@
         fieldLabelPh: t('create_plugin.field_label_ph'),
         formatPh: t('create_plugin.format_name_ph'),
         optionsPh: t('create_plugin.field_options_ph'),
+        columnsPh: t('create_plugin.field_columns_ph'),
         deleteConfirm: t('create_plugin.delete_confirm'),
         saving: t('create_plugin.saving'),
         aiGenerating: t('create_plugin.ai_generating'),
@@ -834,7 +836,9 @@
         row.append(top, bottom);
 
         function syncOptionsVisibility() {
-            options.classList.toggle('hidden', type.value !== 'select');
+            // A list takes its options, a repeating field its columns, in the same box.
+            options.classList.toggle('hidden', type.value !== 'select' && type.value !== 'rows');
+            options.placeholder = type.value === 'rows' ? i18n.columnsPh : i18n.optionsPh;
         }
         type.addEventListener('change', () => { syncOptionsVisibility(); renderPreview(); });
         syncOptionsVisibility();
@@ -1125,7 +1129,9 @@
         row.append(top, bottom);
 
         function syncOptionsVisibility() {
-            options.classList.toggle('hidden', type.value !== 'select');
+            // A list takes its options, a repeating field its columns, in the same box.
+            options.classList.toggle('hidden', type.value !== 'select' && type.value !== 'rows');
+            options.placeholder = type.value === 'rows' ? i18n.columnsPh : i18n.optionsPh;
         }
         type.addEventListener('change', syncOptionsVisibility);
         syncOptionsVisibility();

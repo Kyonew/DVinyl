@@ -1,0 +1,80 @@
+<%# A field that repeats (core/rowsField.ts): one line per entry, one input per column, a
+    button to add a line and one to remove each. The whole list is posted as JSON in
+    `<name>_json`, kept up to date on every keystroke. Built node by node: every value is
+    text someone typed and must never be read as markup. %>
+<%
+    const rowsColumns = (Array.isArray(field.columns) && field.columns.length > 0)
+        ? field.columns
+        : (field.options || []).filter(o => o.value !== '').map(o => ({ name: o.value, label: o.label }));
+    const shownLabel = l => t(l, { defaultValue: l });
+    const rowsValue = Array.isArray(value) ? value : [];
+%>
+<div data-rows-field>
+    <label class="block mb-2 text-sm font-bold uppercase tracking-widest opacity-60"><%= shownLabel(field.label) %></label>
+    <input type="hidden" name="<%= field.name %>_json" value="<%= JSON.stringify(rowsValue) %>" data-rows-value>
+    <script type="application/json" data-rows-columns><%- JSON.stringify(rowsColumns.map(c => ({ name: c.name, label: shownLabel(c.label) }))).replace(/</g, '\\u003c') %></script>
+    <div class="space-y-2" data-rows-list></div>
+    <button type="button" data-rows-add
+        class="mt-2 px-3 py-1.5 bg-black/5 dark:bg-white/10 rounded-lg text-xs font-bold hover:brightness-110 active:scale-95 transition-all">
+        <i class="fa-solid fa-plus mr-1.5"></i><%= t('common.add_row') %>
+    </button>
+</div>
+
+<script>
+    (function () {
+        if (window.__rowsFieldsWired) { window.__rowsFieldsInit && window.__rowsFieldsInit(); return; }
+        window.__rowsFieldsWired = true;
+        const removeLabel = <%- JSON.stringify(t('common.delete')) %>;
+
+        function init() {
+            document.querySelectorAll('[data-rows-field]:not([data-rows-ready])').forEach(box => {
+                box.dataset.rowsReady = '1';
+                const hidden = box.querySelector('[data-rows-value]');
+                const columns = JSON.parse(box.querySelector('[data-rows-columns]').textContent || '[]');
+                const list = box.querySelector('[data-rows-list]');
+                let rows = [];
+                try { rows = JSON.parse(hidden.value || '[]'); } catch (e) { rows = []; }
+
+                const sync = () => { hidden.value = JSON.stringify(rows); };
+
+                function render() {
+                    list.innerHTML = '';
+                    rows.forEach((row, index) => {
+                        const line = document.createElement('div');
+                        line.className = 'flex flex-wrap md:flex-nowrap items-center gap-2 bg-black/5 dark:bg-white/5 rounded-lg p-2';
+                        columns.forEach(column => {
+                            const input = document.createElement('input');
+                            input.type = 'text';
+                            input.placeholder = column.label;
+                            input.setAttribute('aria-label', column.label);
+                            input.value = row[column.name] || '';
+                            input.className = 'flex-1 min-w-[6rem] bg-transparent border border-black/10 dark:border-white/10 rounded-md text-sm p-2 outline-none focus:ring-1 focus:ring-primary-theme';
+                            input.addEventListener('input', () => { row[column.name] = input.value; sync(); });
+                            line.appendChild(input);
+                        });
+                        const remove = document.createElement('button');
+                        remove.type = 'button';
+                        remove.title = removeLabel;
+                        remove.className = 'w-8 h-8 flex-none flex items-center justify-center rounded-md text-red-500 hover:bg-red-500/10';
+                        remove.innerHTML = '<i class="fa-solid fa-xmark text-xs"></i>';
+                        remove.addEventListener('click', () => { rows.splice(index, 1); sync(); render(); });
+                        line.appendChild(remove);
+                        list.appendChild(line);
+                    });
+                }
+
+                box.querySelector('[data-rows-add]').addEventListener('click', () => {
+                    rows.push({});
+                    sync();
+                    render();
+                    const inputs = list.querySelectorAll('input');
+                    if (inputs.length) inputs[inputs.length - columns.length].focus();
+                });
+                render();
+            });
+        }
+        window.__rowsFieldsInit = init;
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+        else init();
+    })();
+</script>

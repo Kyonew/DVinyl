@@ -12,7 +12,7 @@
     const rows = [];
     let pending = null;
     for (const field of fields) {
-        if (field.type === 'textarea') {
+        if (field.type === 'textarea' || field.type === 'rows') {
             if (pending) { rows.push([pending]); pending = null; }
             rows.push([field]);
         } else if (pending) {

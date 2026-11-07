@@ -737,7 +737,8 @@
     "forbidden": "Zugriff verboten",
     "no_format": "Kein Format",
     "no_value": "Kein Wert",
-    "purchase_price": "Kaufpreis (pro Exemplar)"
+    "purchase_price": "Kaufpreis (pro Exemplar)",
+    "add_row": "Zeile hinzufügen"
   },
   "confirm_book": {
     "btn_collection": "Zur Bibliothek hinzufügen",
@@ -852,7 +853,15 @@
     "field_disc_size": "Größe",
     "field_speed": "Geschwindigkeit",
     "field_release_type": "Veröffentlichungsart",
-    "field_disc_count": "Tonträger"
+    "field_disc_count": "Tonträger",
+    "field_pressing_plant": "Presswerk",
+    "field_mastering_studio": "Mastering-Studio",
+    "field_mastering_engineer": "Mastering-Ingenieur",
+    "field_rights_society": "Verwertungsgesellschaft",
+    "field_runouts": "Matrix / Auslaufrille",
+    "runout_side": "Seite",
+    "runout_inscription": "Gravur",
+    "runout_notes": "Notizen"
   },
   "detail": {
     "label_no_barcode": "Dieses Objekt hat keinen Barcode: Füge beim Bearbeiten einen hinzu.",
@@ -1667,7 +1676,10 @@
     "ai_section_hint": "Ein Satz genügt. Du prüfst und bearbeitest jedes Feld vor dem Speichern.",
     "ai_placeholder": "z. B. „Alte Coca-Cola-Glasflaschen“",
     "ai_generate_btn": "Erstellen",
-    "ai_generating": "Wird erstellt…"
+    "ai_generating": "Wird erstellt…",
+    "type_rows": "Wiederholbare Zeilen",
+    "field_columns_ph": "Spalten, durch Kommas getrennt (z. B. Seite, Gravur, Notizen)",
+    "err_rows_needs_columns": "Ein wiederholbares Feld braucht mindestens eine Spalte."
   },
   "add_lego": {
     "title": "LEGO-Set hinzufügen",

@@ -51,7 +51,7 @@ export interface CustomPluginConfig {
 export interface CustomFieldConfig {
   name: string; // slug, becomes the Mongo path
   label: string; // plain text
-  type: 'text' | 'number' | 'textarea' | 'select' | 'boolean' | 'tags' | 'date';
+  type: 'text' | 'number' | 'textarea' | 'select' | 'boolean' | 'tags' | 'date' | 'rows';
   required?: boolean;
   group?: 'main' | 'metadata';
   placeholder?: string;
@@ -135,7 +135,11 @@ export function createCustomPlugin(config: CustomPluginConfig): PluginDefinition
         : f.type === 'boolean' ? { type: 'boolean', default: !!f.default }
           : f.type === 'tags' ? { type: 'texts', default: [] }
             : f.type === 'date' ? { type: 'date' }
-              : { type: 'text' };
+              : f.type === 'rows' ? {
+                type: 'records',
+                fields: Object.fromEntries((f.options || []).map(o => [o.value, { type: 'text' as const }]))
+              }
+                : { type: 'text' };
   }
 
   // ---- Form fields ----------------------------------------------------------
@@ -249,7 +253,7 @@ export function createCustomPlugin(config: CustomPluginConfig): PluginDefinition
   for (const f of customFields) {
     manualDefaults[f.name] = f.default !== undefined ? f.default
       : f.type === 'boolean' ? false
-        : f.type === 'tags' ? []
+        : f.type === 'tags' || f.type === 'rows' ? []
           : f.type === 'select' ? (f.options?.[0]?.value ?? '')
             : ''; // 'date' included: the date input reads an empty string as "no value"
   }
@@ -390,6 +394,7 @@ function toFieldDefinition(f: CustomFieldConfig, group: 'main' | 'metadata'): Fi
   };
   if (f.placeholder) field.placeholder = f.placeholder;
   if (f.type === 'select') field.options = f.options || [];
+  if (f.type === 'rows') field.columns = (f.options || []).map(o => ({ name: o.value, label: o.label }));
   if (f.default !== undefined) field.default = f.default;
   return field;
 }

@@ -2,6 +2,7 @@ import { PluginDefinition } from '../../core/types';
 import { sourceFromProvider, imageSourceFrom } from '../../core/sources';
 import { DiscogsProvider } from './discogs';
 import { STANDARD_FORMAT_TERMS } from './constants';
+import { pressingFromDiscogs } from './pressing';
 import { DISC_SIZES, RELEASE_TYPES, SPEEDS, physicalFrom, physicalFromDiscogs, wordsOf } from './formatDetails';
 import { musicImporters } from './importers';
 import { musicApiRoutes, discogsGalleryImages } from './apiRoutes';
@@ -58,7 +59,7 @@ export const musicPlugin: PluginDefinition = {
   routePrefix: '/album',
   collectionType: 'music',
   creatorField: 'artist',
-  extraSearchFields: ['tracklist.title', 'tracklist.tags'],
+  extraSearchFields: ['tracklist.title', 'tracklist.tags', 'runouts.inscription', 'runouts.notes', 'pressing_plant', 'mastering_studio', 'mastering_engineer', 'catalog_number'],
   supportsBarcodeSearch: false,
   aspectRatioClass: 'aspect-square',
   imageLabels: { main: 'detail.official_cover' },
@@ -121,7 +122,7 @@ export const musicPlugin: PluginDefinition = {
   defaultCardFields: ['artist', 'format_type', 'variant_color'],
   // Size, speed and release type are how a record collection is browsed ("the 7\"
   // singles"), so they are in the filter bar from the start.
-  defaultFilters: ['disc_size', 'speed', 'release_type'],
+  defaultFilters: ['disc_size', 'speed', 'release_type', 'pressing_plant', 'mastering_studio'],
   cardFieldStyles: { format_type: 'pill', variant_color: 'dot' },
 
   // format_type comes from Discogs as a full descriptor ("Vinyl, LP, Album, Reissue").
@@ -152,6 +153,16 @@ export const musicPlugin: PluginDefinition = {
     speed: { type: 'text' },
     release_type: { type: 'text' },
     disc_count: { type: 'number', min: 1 },
+    // How and where it was made, from Discogs' companies, credits and identifiers
+    // (pressing.ts). One runout row per inscription, the side it is on first.
+    pressing_plant: { type: 'texts', default: [] },
+    mastering_studio: { type: 'texts', default: [] },
+    mastering_engineer: { type: 'texts', default: [] },
+    rights_society: { type: 'texts', default: [] },
+    runouts: {
+      type: 'records',
+      fields: { side: { type: 'text' }, inscription: { type: 'text' }, notes: { type: 'text' } }
+    },
     sleeve_condition: { type: 'text', default: '' },
     discogs_id: { type: 'number' },
     country: { type: 'text', default: '' },
@@ -281,6 +292,22 @@ export const musicPlugin: PluginDefinition = {
       type: 'number',
       showIn: ['edit', 'confirm', 'detail', 'manual'],
       group: 'main'
+    },
+    { name: 'pressing_plant', label: 'confirm_vinyl.field_pressing_plant', type: 'tags', showIn: ['edit', 'confirm', 'detail', 'manual'], group: 'metadata' },
+    { name: 'mastering_studio', label: 'confirm_vinyl.field_mastering_studio', type: 'tags', showIn: ['edit', 'confirm', 'detail', 'manual'], group: 'metadata' },
+    { name: 'mastering_engineer', label: 'confirm_vinyl.field_mastering_engineer', type: 'tags', showIn: ['edit', 'confirm', 'detail', 'manual'], group: 'metadata' },
+    { name: 'rights_society', label: 'confirm_vinyl.field_rights_society', type: 'tags', showIn: ['edit', 'confirm', 'detail', 'manual'], group: 'metadata' },
+    {
+      name: 'runouts',
+      label: 'confirm_vinyl.field_runouts',
+      type: 'rows',
+      columns: [
+        { name: 'side', label: 'confirm_vinyl.runout_side' },
+        { name: 'inscription', label: 'confirm_vinyl.runout_inscription' },
+        { name: 'notes', label: 'confirm_vinyl.runout_notes' }
+      ],
+      showIn: ['edit', 'confirm', 'detail', 'manual'],
+      group: 'metadata'
     },
     {
       name: 'barcode',
@@ -633,7 +660,7 @@ export const musicPlugin: PluginDefinition = {
     const formats: any[] = data.formats || [];
     const media = String(item.media_type || 'vinyl').toLowerCase();
     const own = formats.find(f => String(f.name || '').toLowerCase().includes(media === 'cd' ? 'cd' : media)) || formats[0];
-    Object.assign(updateData, physicalFromDiscogs(own));
+    Object.assign(updateData, physicalFromDiscogs(own), pressingFromDiscogs(data));
 
     // Returned rather than written here: the caller writes it as a Music item, after
     // leaving out what the owner rewrote by hand (core/keptFields.ts).

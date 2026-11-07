@@ -45,7 +45,8 @@ export const CORE_FILTER_IDS = {
 
 // Types a plugin's own field may be filtered on: those whose values are known up
 // front, so the control is a short list rather than everything ever typed.
-const NATIVE_FILTER_TYPES = new Set(['select', 'boolean']);
+// A list of words (a pressing plant, a studio) offers the values the collection holds.
+const NATIVE_FILTER_TYPES = new Set(['select', 'boolean', 'tags']);
 
 // Plugin fields already covered by a core control (the format chips, the platform
 // menu), which a second control would only duplicate.
@@ -62,7 +63,7 @@ function nativeFilterFields(plugin: PluginDefinition): FilterableField[] {
     out.push({
       name: f.name,
       label: f.label,
-      type: f.type as 'select' | 'boolean',
+      type: f.type as 'select' | 'boolean' | 'tags',
       options: (f.options || []).filter(o => o.value !== '').map(o => ({ value: o.value, label: o.label })),
       // What an item without a stored value is shown as (a book nobody marked is "to
       // read"), so the filter can count those items under it too.

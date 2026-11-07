@@ -1,6 +1,7 @@
 import { PluginDefinition, FieldDefinition } from './types';
 import { blank, contains, eq, filled, Filter, isIn, ne, range, Sort } from './db/filter';
 import { CustomFieldConfig } from './customPlugin';
+import { MAX_COLUMNS } from './rowsField';
 import { RESERVED_FIELD_NAMES, FIELD_NAME_RE, FIELD_TYPES, cleanText, slugify } from './customPluginStore';
 import {
   createExtraFieldKey,
@@ -127,6 +128,7 @@ export function toFieldDefinitions(defs: ExtraFieldConfig[]): FieldDefinition[] 
       extraField: true
     };
     if (f.placeholder) field.placeholder = f.placeholder;
+    if (f.type === 'rows') field.columns = (f.options || []).map(o => ({ name: o.value, label: o.label }));
     if (f.type === 'select') {
       // An optional dropdown leads with a blank entry, otherwise a <select> selects its
       // first option on its own and every item saved without touching the field carries
@@ -169,7 +171,7 @@ export type FilterableField = ExtraFieldConfig & { native?: boolean };
 
 // Types the collection search box looks into: the ones holding words. Numbers, dates
 // and booleans are reached through their filter instead.
-const SEARCHABLE_TYPES = new Set(['text', 'textarea', 'select', 'tags']);
+const SEARCHABLE_TYPES = new Set(['text', 'textarea', 'select', 'tags', 'rows']);
 
 /**
  * Alternatives matching the search box against the user-defined fields of every given
@@ -184,7 +186,13 @@ export function extraSearchConditions(settings: any, plugins: PluginDefinition[]
     for (const field of getExtraFields(settings, plugin.id)) {
       if (!SEARCHABLE_TYPES.has(field.type)) continue;
       const path = `extra.${field.name}`;
-      if (field.type === 'select') {
+      if (field.type === 'rows') {
+        // Each column of each row, reached through the list.
+        for (const column of field.options || []) {
+          const columnPath = `${path}.${column.value}`;
+          if (!seen.has(columnPath)) { seen.add(columnPath); conditions.push(contains(columnPath, text)); }
+        }
+      } else if (field.type === 'select') {
         const values = (field.options || [])
           .filter(o => o.label.toLocaleLowerCase().includes(needle))
           .map(o => o.value);
@@ -402,16 +410,16 @@ export function sanitizeExtraFields(
     const placeholder = cleanText(item?.placeholder, 60);
     if (placeholder) field.placeholder = placeholder;
 
-    if (type === 'select') {
-      const options = (Array.isArray(item?.options) ? item.options.slice(0, 20) : [])
+    if (type === 'select' || type === 'rows') {
+      const options = (Array.isArray(item?.options) ? item.options.slice(0, type === 'rows' ? MAX_COLUMNS : 20) : [])
         .map((o: any) => {
           const optLabel = cleanText(typeof o === 'string' ? o : o?.label, 40);
           const optValue = slugify(cleanText(typeof o === 'string' ? o : (o?.value || o?.label), 40)).replace(/-/g, '_');
           return optLabel && optValue ? { value: optValue, label: optLabel } : null;
         })
         .filter(Boolean) as { value: string; label: string }[];
-      if (options.length === 0) { errors.push('create_plugin.err_select_needs_options'); continue; }
-      field.options = options;
+      if (options.length === 0) { errors.push(type === 'rows' ? 'create_plugin.err_rows_needs_columns' : 'create_plugin.err_select_needs_options'); continue; }
+      field.options = options.filter((o, i) => options.findIndex(x => x.value === o.value) === i);
     }
 
     fields.push(field);

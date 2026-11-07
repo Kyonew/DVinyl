@@ -2,6 +2,7 @@ import { SearchProvider, SearchOptions, SearchResult, ConfirmData } from '../../
 import { fetchJson } from '../../core/helpers';
 import { STANDARD_FORMAT_TERMS } from './constants';
 import { physicalFromDiscogs, PhysicalDetails } from './formatDetails';
+import { pressingFromDiscogs } from './pressing';
 
 export class DiscogsProvider implements SearchProvider {
   name = 'Discogs';
@@ -212,7 +213,8 @@ export class DiscogsProvider implements SearchProvider {
       styles: data.styles || [],
       barcode: barcode,
       media_type: finalMediaType,
-      ...physical
+      ...physical,
+      ...pressingFromDiscogs(data)
     };
   }
 }

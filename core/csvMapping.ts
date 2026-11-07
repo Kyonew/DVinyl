@@ -61,7 +61,7 @@ const BASE_TARGET_FIELDS: ImportTargetField[] = [
 
 // Editors backed by a dedicated widget (a tracklist, an image picker...) hold a
 // structure no single CSV cell can express, so they are not offered as destinations.
-const UNMAPPABLE_TYPES = new Set<FieldDefinition['type']>(['custom']);
+const UNMAPPABLE_TYPES = new Set<FieldDefinition['type']>(['custom', 'rows']);
 
 /**
  * The import type of a schema path, or null when no single CSV cell can fill it.

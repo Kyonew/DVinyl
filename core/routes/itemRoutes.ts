@@ -31,6 +31,7 @@ import { noticeWish } from '../wishlistNotices';
 import { metadataLanguage } from '../metadataLanguage';
 import { offeredSourceValues, trackOwnerEdits } from '../keptFields';
 import { memberWishesFor } from '../memberWishes';
+import { parseRows, rowColumns } from '../rowsField';
 
 /**
  * Names what was just saved in the path an add comes back to, so the add page can say so.
@@ -670,6 +671,11 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         if (field.type === 'custom' && req.body[`${field.name}_json`]) {
           // Custom editors (e.g. the tracklist editor) post their value as `<name>_json`
           value = JSON.parse(req.body[`${field.name}_json`]);
+        } else if (field.type === 'rows') {
+          // Posted the same way, and reduced to the declared columns. A form that does not
+          // carry the field posts nothing, which leaves the stored rows alone.
+          const posted = req.body[`${field.name}_json`];
+          value = posted === undefined ? undefined : parseRows(posted, rowColumns(field));
         } else if (field.type === 'number') {
           value = value ? Number(value) : undefined;
         } else if (field.type === 'date') {
@@ -685,9 +691,9 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           value = value === 'on' || value === 'true' || value === true;
         } else if (field.type === 'tags' && typeof value === 'string') {
           // Tags inputs post a raw comma-separated string. Plugins with their own
-          // schema path split it in normalizeForSave(); extra fields have no plugin
-          // to do it for them, so the generic split happens here.
-          if (field.extraField) {
+          // schema path may split it in normalizeForSave(); extra fields, and any path
+          // the plugin stores as a list of texts, are split here.
+          if (field.extraField || (plugin.storedFields || {})[field.name]?.type === 'texts') {
             value = value.split(',').map((s: string) => s.trim()).filter(Boolean);
           }
         }

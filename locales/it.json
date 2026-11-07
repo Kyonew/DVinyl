@@ -737,7 +737,8 @@
     "forbidden": "Accesso vietato",
     "no_format": "Nessun formato",
     "no_value": "Nessun valore",
-    "purchase_price": "Prezzo d'acquisto (per copia)"
+    "purchase_price": "Prezzo d'acquisto (per copia)",
+    "add_row": "Aggiungi una riga"
   },
   "confirm_book": {
     "btn_collection": "Aggiungi alla libreria",
@@ -852,7 +853,15 @@
     "field_disc_size": "Formato disco",
     "field_speed": "Velocità",
     "field_release_type": "Tipo di uscita",
-    "field_disc_count": "Dischi"
+    "field_disc_count": "Dischi",
+    "field_pressing_plant": "Stabilimento di stampa",
+    "field_mastering_studio": "Studio di mastering",
+    "field_mastering_engineer": "Ingegnere del mastering",
+    "field_rights_society": "Società dei diritti",
+    "field_runouts": "Runout / matrice",
+    "runout_side": "Lato",
+    "runout_inscription": "Iscrizione",
+    "runout_notes": "Note"
   },
   "detail": {
     "label_no_barcode": "Questo oggetto non ha un codice a barre: aggiungine uno modificandolo.",
@@ -1667,7 +1676,10 @@
     "ai_section_hint": "Basta una frase. Controllerai e modificherai ogni campo prima di salvare.",
     "ai_placeholder": "es. «Vecchie bottiglie di vetro della Coca-Cola»",
     "ai_generate_btn": "Genera",
-    "ai_generating": "Generazione…"
+    "ai_generating": "Generazione…",
+    "type_rows": "Righe ripetibili",
+    "field_columns_ph": "Colonne, separate da virgole (es. Lato, Iscrizione, Note)",
+    "err_rows_needs_columns": "Un campo ripetibile richiede almeno una colonna."
   },
   "add_lego": {
     "title": "Aggiungi un set LEGO",

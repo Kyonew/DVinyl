@@ -72,6 +72,19 @@
                 return Number(value).toFixed(2) + ' ' + (currency || '');
             }
         };
+        // A rows field (core/rowsField.ts) as a small table: its columns, then one line per
+        // entry. Escaped here, since the caller prints it raw.
+        const rowsTable = (field, rows) => {
+            const columns = (Array.isArray(field.columns) && field.columns.length > 0)
+                ? field.columns
+                : (field.options || []).filter(o => o.value !== '').map(o => ({ name: o.value, label: o.label }));
+            const esc = v => String(v ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+            const head = columns.map(c => '<th class="text-left font-semibold opacity-60 pr-4 pb-1">' + esc(t(c.label, { defaultValue: c.label })) + '</th>').join('');
+            const body = rows.map(row => '<tr class="border-t border-black/5 dark:border-white/5">'
+                + columns.map(c => '<td class="pr-4 py-1 align-top font-mono whitespace-pre-line break-words">' + esc(row && row[c.name]) + '</td>').join('')
+                + '</tr>').join('');
+            return '<div class="overflow-x-auto"><table class="w-full text-xs"><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table></div>';
+        };
         const isEmptyValue = val => val === undefined || val === null || val === ''
             || val === 0 || (Array.isArray(val) && val.length === 0);
         // A field's value as text, for every type but tags and textarea, which are laid
@@ -348,6 +361,11 @@
                                 <span class="opacity-70 text-sm"><%= t(field.label) %></span>
                                 <div class="flex flex-wrap gap-1.5"><% val.forEach(tag => { %><span class="bg-black/5 dark:bg-white/10 text-xs font-medium px-2.5 py-1 rounded-full"><%= tag %></span><% }) %></div>
                             </div>
+                        <% } else if (field.type === 'rows' && Array.isArray(val)) { %>
+                            <div class="px-4 py-3 flex flex-col gap-2 border-b border-black/5 dark:border-white/5 last:border-b-0">
+                                <span class="opacity-70 text-sm"><%= t(field.label, { defaultValue: field.label }) %></span>
+                                <%- rowsTable(field, val) %>
+                            </div>
                         <% } else if (field.type === 'textarea') { %>
                             <div class="px-4 py-3 flex flex-col gap-1 border-b border-black/5 dark:border-white/5 last:border-b-0">
                                 <span class="opacity-70 text-sm"><%= t(field.label) %></span>
@@ -457,7 +475,7 @@
                     // A boolean field is meaningful even when false, unlike an empty string
                     if (!isEmptyValue(val) || field.type === 'boolean') {
                 %>
-                    <div class="<%= field.type === 'textarea' ? 'col-span-2' : '' %>">
+                    <div class="<%= field.type === 'textarea' || field.type === 'rows' ? 'col-span-2' : '' %>">
                         <span class="block text-xs opacity-50 uppercase font-bold mb-1">
                             <%= t(field.label) %>
                         </span>
@@ -467,6 +485,8 @@
                                     <span class="bg-black/5 dark:bg-white/10 text-xs font-medium px-2.5 py-1 rounded-full transition-colors"><%= tag %></span>
                                 <% }) %>
                             </div>
+                        <% } else if (field.type === 'rows' && Array.isArray(val)) { %>
+                            <%- rowsTable(field, val) %>
                         <% } else if (field.type === 'textarea') { %>
                             <p class="font-medium whitespace-pre-line transition-colors"><%= val %></p>
                         <% } else { %>

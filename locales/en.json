@@ -39,7 +39,8 @@
     "forbidden": "Access Forbidden",
     "no_format": "No format",
     "no_value": "No value",
-    "purchase_price": "Purchase price (per copy)"
+    "purchase_price": "Purchase price (per copy)",
+    "add_row": "Add a row"
   },
   "settings": {
     "page_title": "Account Settings",
@@ -969,7 +970,15 @@
     "field_disc_size": "Size",
     "field_speed": "Speed",
     "field_release_type": "Release type",
-    "field_disc_count": "Discs"
+    "field_disc_count": "Discs",
+    "field_pressing_plant": "Pressing plant",
+    "field_mastering_studio": "Mastering studio",
+    "field_mastering_engineer": "Mastering engineer",
+    "field_rights_society": "Rights society",
+    "field_runouts": "Runout / matrix",
+    "runout_side": "Side",
+    "runout_inscription": "Inscription",
+    "runout_notes": "Notes"
   },
   "edit_vinyl": {
     "title": "Edit Album",
@@ -1615,7 +1624,10 @@
     "ai_section_hint": "A sentence is enough. You will review and edit every field before saving.",
     "ai_placeholder": "e.g. \"Old glass Coca-Cola bottles\"",
     "ai_generate_btn": "Generate",
-    "ai_generating": "Generating…"
+    "ai_generating": "Generating…",
+    "type_rows": "Repeating rows",
+    "field_columns_ph": "Columns, comma-separated (e.g. Side, Inscription, Notes)",
+    "err_rows_needs_columns": "A repeating field needs at least one column."
   },
   "add_lego": {
     "title": "Add a LEGO set",

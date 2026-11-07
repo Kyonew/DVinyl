@@ -306,9 +306,11 @@ export interface PluginDefinition {
 export interface FieldDefinition {
   name: string;
   label: string;
-  type: 'text' | 'number' | 'select' | 'radio-cards' | 'boolean' | 'rating' | 'hidden' | 'tags' | 'textarea' | 'date' | 'custom';
+  type: 'text' | 'number' | 'select' | 'radio-cards' | 'boolean' | 'rating' | 'hidden' | 'tags' | 'textarea' | 'date' | 'rows' | 'custom';
   required?: boolean;
   options?: { value: string; label: string; icon?: string }[];
+  // A `rows` field's columns (core/rowsField.ts). A custom field gives them as options.
+  columns?: { name: string; label: string }[];
   default?: any;
   showIn: ('edit' | 'add' | 'confirm' | 'detail' | 'manual')[];
   group?: 'main' | 'metadata' | 'status' | 'hidden';

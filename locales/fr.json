@@ -39,7 +39,8 @@
     "forbidden": "Accès interdit",
     "no_format": "Aucun format",
     "no_value": "Aucune valeur",
-    "purchase_price": "Prix d'achat (par exemplaire)"
+    "purchase_price": "Prix d'achat (par exemplaire)",
+    "add_row": "Ajouter une ligne"
   },
   "settings": {
     "page_title": "Paramètres du compte",
@@ -969,7 +970,15 @@
     "field_disc_size": "Taille",
     "field_speed": "Vitesse",
     "field_release_type": "Type de sortie",
-    "field_disc_count": "Disques"
+    "field_disc_count": "Disques",
+    "field_pressing_plant": "Usine de pressage",
+    "field_mastering_studio": "Studio de mastering",
+    "field_mastering_engineer": "Ingénieur mastering",
+    "field_rights_society": "Société de droits",
+    "field_runouts": "Runout / matrice",
+    "runout_side": "Face",
+    "runout_inscription": "Inscription",
+    "runout_notes": "Notes"
   },
   "edit_vinyl": {
     "title": "Modifier l'album",
@@ -1615,7 +1624,10 @@
     "ai_section_hint": "Une phrase suffit. Vous relirez et modifierez chaque champ avant d'enregistrer.",
     "ai_placeholder": "ex : « Vieilles bouteilles en verre Coca-Cola »",
     "ai_generate_btn": "Générer",
-    "ai_generating": "Génération…"
+    "ai_generating": "Génération…",
+    "type_rows": "Lignes répétables",
+    "field_columns_ph": "Colonnes, séparées par des virgules (ex. : Face, Inscription, Notes)",
+    "err_rows_needs_columns": "Un champ répétable a besoin d'au moins une colonne."
   },
   "add_lego": {
     "title": "Ajouter un set LEGO",
