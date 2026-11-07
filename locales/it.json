@@ -1511,6 +1511,7 @@
     "instant_blocked": "Manca un dato richiesto dal modulo. Completalo e aggiungi.",
     "added": "«{{title}}» aggiunto.",
     "added_again": "«{{title}}» c'era già: ora ne hai {{quantity}}.",
+    "found_elsewhere": "{{missing}} non conosce questo, questi risultati vengono da {{found}}.",
     "identifier_no_match": "Nessun risultato per {{code}}.",
     "photo_btn": "Cerca con una foto",
     "photo_reading": "Lettura della foto…",

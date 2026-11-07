@@ -1511,6 +1511,7 @@
     "instant_blocked": "Hier fehlt eine Angabe, die das Formular benötigt. Bitte ergänzen und hinzufügen.",
     "added": "„{{title}}“ hinzugefügt.",
     "added_again": "„{{title}}“ war schon vorhanden: Sie haben jetzt {{quantity}}.",
+    "found_elsewhere": "{{missing}} kennt diesen Titel nicht, diese Ergebnisse stammen von {{found}}.",
     "identifier_no_match": "Nichts gefunden für {{code}}.",
     "photo_btn": "Mit einem Foto suchen",
     "photo_reading": "Foto wird gelesen…",

@@ -1,7 +1,7 @@
 import { SearchProvider, SearchOptions, SearchResult, ConfirmData } from '../../core/types';
 import { fetchJson } from '../../core/helpers';
 
-const BOOK_GENRES_WHITELIST: string[] = [
+export const BOOK_GENRES_WHITELIST: string[] = [
   'Fiction', 'Non-Fiction', 'Fantasy', 'Sci-Fi', 'Science Fiction', 'Mystery',
   'Thriller', 'Horror', 'Historical', 'Romance', 'Comedy', 'Young Adult',
   'Children', 'Biography', 'Autobiography', 'Memoir', 'Poetry', 'Essay',

@@ -9,7 +9,7 @@ import {
 } from '../../utils/libib';
 import { db } from '../../core/db';
 import { and, eq, idOf } from '../../core/db/query';
-import { fetchOpenLibraryEdition } from './openLibrary';
+import { fetchOpenLibraryEdition, languageFromMarc } from './openLibrary';
 
 function parseRssXml(xmlText: string): any[] {
   const items: any[] = [];
@@ -120,19 +120,7 @@ async function importGoodreads(req: any, res: any) {
               publisher = olBook.publisher;
 
               const langKey = olBook.languageCode;
-              const langMap: Record<string, string> = {
-                fre: 'fr', fra: 'fr',
-                eng: 'en',
-                spa: 'es',
-                deu: 'de',
-                ita: 'it',
-                jpn: 'ja',
-                por: 'pt',
-                nld: 'nl',
-                kor: 'ko',
-                zho: 'zh',
-              };
-              language = langMap[langKey] || langKey || defaultLanguage;
+              language = languageFromMarc(langKey) || defaultLanguage;
 
               if (format === defaultFormat && !hasAsianChars) {
                 const pub = publisher.toLowerCase();

@@ -1459,6 +1459,7 @@
     "instant_blocked": "Something the form needs is missing here. Fill it in and add it.",
     "added": "“{{title}}” added.",
     "added_again": "“{{title}}” was already there: you now have {{quantity}}.",
+    "found_elsewhere": "{{missing}} doesn't know this one, these results come from {{found}}.",
     "identifier_no_match": "Nothing found for {{code}}.",
     "photo_btn": "Search with a photo",
     "photo_reading": "Reading the photo…",

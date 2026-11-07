@@ -143,6 +143,11 @@
             <span class="bg-black/10 dark:bg-white/10 text-xs font-mono px-2 py-1 rounded opacity-70 transition-colors"><%= results.length %></span>
         </div>
 
+        <% if (locals.fallbackNotice && results.length > 0) { %>
+            <p role="status" class="mb-4 flex items-start gap-2 text-sm font-bold text-primary-theme">
+                <i class="fa-solid fa-circle-info mt-0.5" aria-hidden="true"></i><%= fallbackNotice %>
+            </p>
+        <% } %>
         <% if (results.length === 0) { %>
             <%# An empty list and a failed lookup read the same to the user unless we say so.
                 A lookup that failed gets the loud box: it is read from wherever the scanner

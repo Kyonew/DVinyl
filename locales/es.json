@@ -1511,6 +1511,7 @@
     "instant_blocked": "Falta un dato que el formulario necesita. Complétalo y añádelo.",
     "added": "«{{title}}» añadido.",
     "added_again": "«{{title}}» ya estaba: ahora tienes {{quantity}}.",
+    "found_elsewhere": "{{missing}} no conoce este, estos resultados vienen de {{found}}.",
     "identifier_no_match": "No se ha encontrado nada para {{code}}.",
     "photo_btn": "Buscar con una foto",
     "photo_reading": "Leyendo la foto…",

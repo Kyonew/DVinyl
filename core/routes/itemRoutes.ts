@@ -223,6 +223,26 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           results = await runSearch(searchQuery);
         }
 
+        // A code the chosen source does not know may well be known elsewhere: Hardcover
+        // misses many books printed outside the US that Open Library has. The plugin's other
+        // sources that read the same code are asked in turn, and the page says where the
+        // results came from. Never for a text query: an empty list there is an answer, not a
+        // gap.
+        let answering = source;
+        if (results.length === 0 && !guess && !resolvedTitle && source.exactQuery?.(searchQuery)) {
+          for (const other of sources.filter(s => s.id !== source.id && s.exactQuery?.(searchQuery))) {
+            try {
+              const found = await other.search(searchQuery, { type: type || plugin.id, language: metadataLanguage(req), pluginSettings: settings?.pluginSettings?.[plugin.id] || {} });
+              if (found.length === 0) continue;
+              results = found;
+              answering = other;
+              break;
+            } catch (err: any) {
+              console.warn(`[SEARCH] ${other.name} fallback failed for ${plugin.id}:`, err.message);
+            }
+          }
+        }
+
         // What the search box shows on the way back. After a scan the digits are useless
         // there: on a hit it is the query that actually matched, and on a miss the whole
         // product name, which is the thing the user has to correct. An identifier is
@@ -236,7 +256,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         // it out, so it travels with it: the confirm link needs to ask the same source
         // for the details, and the item ends up storing the pair.
         for (const result of results) {
-          result.source = source.id;
+          result.source = answering.id;
           result.confirmPath = confirmPathFor(plugin.id, result, { searchType: type, scannedBarcode });
         }
 
@@ -270,7 +290,9 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           user: res.locals.user,
           currentType: `add-${plugin.id}`,
           sources,
-          activeSource: source.id,
+          activeSource: answering.id,
+          // Named on the page when another source answered for the one asked.
+          fallbackNotice: answering !== source ? req.t('add.found_elsewhere', { missing: source.name, found: answering.name }) : '',
           plugin
         });
       } catch (err: any) {

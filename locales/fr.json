@@ -1459,6 +1459,7 @@
     "instant_blocked": "Il manque ici une information obligatoire. Complétez-la puis ajoutez.",
     "added": "« {{title}} » ajouté.",
     "added_again": "« {{title}} » y était déjà : vous en avez maintenant {{quantity}}.",
+    "found_elsewhere": "{{missing}} ne connaît pas celui-ci, ces résultats viennent de {{found}}.",
     "identifier_no_match": "Rien trouvé pour {{code}}.",
     "photo_btn": "Chercher avec une photo",
     "photo_reading": "Lecture de la photo…",

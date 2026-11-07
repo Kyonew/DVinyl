@@ -1,5 +1,6 @@
 import { PluginDefinition } from '../../core/types';
-import { sourceFromProvider, imageSourceFrom } from '../../core/sources';
+import { sourceFromProvider } from '../../core/sources';
+import { OpenLibraryProvider } from './openLibrary';
 import { HardcoverProvider, normalizeIsbn, editionsQuery, preferPickedEdition } from './hardcover';
 import { booksImporters } from './importers';
 import { escapeRegExp, fetchJson, PermanentRefreshError } from '../../core/helpers';
@@ -26,12 +27,15 @@ const hardcover = sourceFromProvider(hardcoverProvider, {
   exactQuery: (query: string) => normalizeIsbn(query) !== ''
 });
 
-// Covers only, and from a different service than the metadata: books are described by
-// Hardcover and pictured by Open Library. Needs no key, so the picker keeps working on
-// an instance that never configured Hardcover at all.
-const openLibrary = imageSourceFrom({
+// Covers, and a search of its own for the books Hardcover does not know (see
+// OpenLibraryProvider). Needs no key, so the picker and the search keep working on an
+// instance that never configured Hardcover at all. Its id predates the search side, when
+// it only fed the image picker, and stays: collections store it in their source order.
+const openLibrary = sourceFromProvider(new OpenLibraryProvider(), {
   id: 'openlibrary',
-  name: 'Open Library',
+  legacyIdField: null,
+  exactQuery: (query: string) => normalizeIsbn(query) !== '',
+  itemUrl: (externalId: string) => /^OL\d+M$/.test(externalId) ? `https://openlibrary.org/books/${externalId}` : null,
   async searchImages(query: string): Promise<string[]> {
     const data = await fetchJson(
       `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=10`,
@@ -53,7 +57,11 @@ export const booksPlugin: PluginDefinition = {
   creatorSearchFields: ['publisher'],
   summaryField: { label: 'confirm_book.publisher_label', field: 'publisher' },
   externalLink(item: any) {
-    return item.hardcover_slug ? { label: 'Hardcover', url: `https://hardcover.app/books/${item.hardcover_slug}` } : null;
+    if (item.hardcover_slug) return { label: 'Hardcover', url: `https://hardcover.app/books/${item.hardcover_slug}` };
+    if (item.source === 'openlibrary' && /^OL\d+M$/.test(String(item.source_id || ''))) {
+      return { label: 'Open Library', url: `https://openlibrary.org/books/${item.source_id}` };
+    }
+    return null;
   },
   icon: 'book',
   routePrefix: '/book',
@@ -437,6 +445,22 @@ export const booksPlugin: PluginDefinition = {
   },
 
   async refreshItem(item: any, req: any): Promise<Record<string, any>> {
+    // A book added from Open Library is refreshed from it, its edition being the print it is.
+    if (item.source === 'openlibrary' && /^OL\d+M$/.test(String(item.source_id || ''))) {
+      const fresh: any = await new OpenLibraryProvider().getDetails(item.source_id, {});
+      return {
+        cover_image: fresh.cover_image,
+        description: fresh.description,
+        genres: fresh.genres,
+        genre: fresh.genres[0] || '',
+        pages: fresh.pages,
+        language: fresh.language,
+        publisher: fresh.publisher,
+        isbn: item.barcode_locked ? item.isbn : fresh.isbn,
+        barcode: item.barcode_locked ? item.barcode : fresh.isbn
+      };
+    }
+
     // Hardcover's numeric id first: it survives a title fix, the slug does not, since the
     // slug is derived from the title. The slug remains the way in for a book saved before
     // the id was kept, and for one whose id no longer answers (a record merged into
