@@ -254,6 +254,9 @@
     "metadata_language": "Idioma de la información obtenida",
     "metadata_language_desc": "Los títulos, sinopsis y géneros llegan de fuentes como TMDB en este idioma, sea cual sea el idioma en que cada miembro lee la aplicación. Los elementos ya añadidos cambian en su próxima actualización. Las fuentes sin traducciones lo ignoran.",
     "metadata_language_same": "Idioma de cada miembro",
+    "sort_articles": "Artículos ignorados al ordenar por título",
+    "sort_articles_desc": "Palabras con las que puede empezar un título y que la ordenación omite, separadas por comas. «La Bamba» se ordena entonces en la B. Termina una con apóstrofo, como l', para artículos unidos a la palabra siguiente. Déjalo vacío para no ignorar ninguno.",
+    "sort_articles_placeholder": "el, la, los, las, un, una, the",
     "collections": {
       "title": "Colecciones ({{count}})",
       "name_placeholder": "Nombre de la nueva colección",

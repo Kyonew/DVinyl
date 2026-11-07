@@ -523,6 +523,9 @@
     "metadata_language": "Langue des informations récupérées",
     "metadata_language_desc": "Titres, synopsis et genres viennent de sources comme TMDB dans cette langue, quelle que soit la langue dans laquelle chaque membre lit l'application. Les éléments déjà ajoutés changent à leur prochaine actualisation. Les sources sans traductions l'ignorent.",
     "metadata_language_same": "Langue de chaque membre",
+    "sort_articles": "Articles ignorés dans le tri par titre",
+    "sort_articles_desc": "Les mots qu'un titre peut avoir au début et que le tri saute, séparés par des virgules. « Les Misérables » est alors rangé à M. Terminez par une apostrophe, comme l', pour un article collé au mot suivant. Laissez vide pour n'en ignorer aucun.",
+    "sort_articles_placeholder": "le, la, les, l', un, une, the",
     "collections": {
       "title": "Collections ({{count}})",
       "name_placeholder": "Nom de la nouvelle collection",

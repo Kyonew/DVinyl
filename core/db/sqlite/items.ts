@@ -5,6 +5,7 @@
 
 import Item from '../../../models/Item';
 import { buildSortTitle, CreatorFieldSource } from '../../helpers';
+import { sortArticlesFor } from '../../sortArticles';
 import type { Filter, Scalar, Sort } from '../filter';
 import * as F from '../filter';
 import type { Patch } from '../patch';
@@ -33,12 +34,14 @@ type WriteResult = { matched: number; modified: number };
 export const table = new Table('items', 'collection');
 const base = () => Item as any;
 
-// The title an item sorts on follows its title, whatever writes it.
+// The title an item sorts on follows its title, whatever writes it, with the articles
+// its own collection ignores.
 function deriveSortTitle(record: any): void {
-  if (typeof record.title === 'string') record.sort_title = buildSortTitle(record.title);
+  if (typeof record.title === 'string') record.sort_title = buildSortTitle(record.title, sortArticlesFor(record.collection));
 }
 const deriveOnTitleChange = (record: any, patch: Patch) => {
-  if (typeof patch.set?.title === 'string') deriveSortTitle(record);
+  // An item moved to another collection is sorted with that collection's articles.
+  if (typeof patch.set?.title === 'string' || patch.set?.collection !== undefined) deriveSortTitle(record);
 };
 
 // An item type's own model only ever writes items of that type.

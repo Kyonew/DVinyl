@@ -12,6 +12,7 @@ import { invalidateVapidCache } from '../core/push';
 import { requireAuth, requireAdmin, requireCollectionRole } from '../middleware/authMiddleware';
 import { registry } from '../core/registry';
 import { buildSortTitle, csvLine, getPublicProtocol } from '../core/helpers';
+import { reconcileSortTitles } from '../core/sortTitles';
 import { importableFields, fieldValue, ImportTargetField } from '../core/csvMapping';
 
 // Stamped into every dump so a restore log says which build produced the file.
@@ -904,6 +905,9 @@ const importCollectionBackup = async (req: any, res: any) => {
         // Collection restores do not run the whole boot migration. Apply the same
         // custom-field identity upgrade explicitly before the restored data is used.
         await upgradeRestoredExtraFields({ collectionId: activeCollectionId });
+        // The items were filed with the articles the collection ignored before its
+        // settings came back with the dump, which may name others.
+        await reconcileSortTitles(activeCollectionId);
 
         try {
             await deleteUnusedManagedItemImages(replacedImagePaths);

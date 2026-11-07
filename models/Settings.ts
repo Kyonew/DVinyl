@@ -117,6 +117,9 @@ const settingsSchema = new mongoose.Schema({
     // The language sources are asked in (core/metadataLanguage.ts). Empty: each member's
     // own interface language, as it always was.
     metadataLanguage: { type: String, default: '' },
+    // The articles a title's sort ignores (core/sortArticles.ts). Absent: English ones,
+    // as it always was; an empty list ignores none.
+    sortArticles: { type: [String], default: undefined },
     visibility: {
         applyToAdmin: { type: Boolean, default: false },
         hiddenItems: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Item' }],

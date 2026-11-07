@@ -52,6 +52,8 @@ import { buildPack, readPack, packUpdate, PackError, MAX_PACK_BYTES, PACK_SECTIO
 import { LOOK_STYLES, lookStyleFields } from "../core/lookStyles";
 import { requestAdminData } from "../core/routes/requestAdminRoute";
 import { isMetadataLanguage, metadataLanguage } from "../core/metadataLanguage";
+import { articlesFromSetting, parseSortArticles } from "../core/sortArticles";
+import { reconcileSortTitles } from "../core/sortTitles";
 
 const router = express.Router();
 
@@ -1338,6 +1340,9 @@ router.post("/modules/save", requireAuth, requireCollectionRole("admin"), async 
     update.mergeDuplicates = req.body.mergeDuplicates === "on";
     // Anything not offered goes back to each member's own language.
     update.metadataLanguage = isMetadataLanguage(req.body.metadataLanguage) ? req.body.metadataLanguage : "";
+    const articlesChanged = typeof req.body.sortArticles === "string"
+      && parseSortArticles(req.body.sortArticles).join(",") !== articlesFromSetting(res.locals.settings?.sortArticles).join(",");
+    if (articlesChanged) update.sortArticles = parseSortArticles(req.body.sortArticles);
 
     // Plugin-scoped settings (⚙ per module): pluginSetting_<pluginId>_<key>
     for (const p of registry.getAll()) {
@@ -1359,6 +1364,8 @@ router.post("/modules/save", requireAuth, requireCollectionRole("admin"), async 
     }
 
     await db.settings.updateOne(eq("collection", idOf(res.locals.activeCollectionId)), { set: update }, { upsert: true });
+    // Every title already stored is filed again with the new list.
+    if (articlesChanged) await reconcileSortTitles(res.locals.activeCollectionId);
 
     res.redirect("/admin?msg=saved");
   } catch (err) {

@@ -1,6 +1,7 @@
 import bwipjs from 'bwip-js';
 import { BASE_URL } from '../config/constants';
 import type { PluginDefinition } from './types';
+import { DEFAULT_SORT_ARTICLES } from './sortArticles';
 
 /**
  * Builds the seed object for the "copy an item to a new entry" flow from an already
@@ -157,19 +158,34 @@ export function isItemSubPage(path: string, routePrefix: string): boolean {
  * article. "The Wall" files under W and "Ámbar" next to "Amber", the way a record shop
  * shelves them.
  *
- * Stored on the document rather than applied to the rendered results, because Mongo sorts
- * before it paginates: normalizing in JS would only reorder the 25 items of the current
- * page. English articles only for now.
+ * Stored on the document rather than applied to the rendered results, because the
+ * database sorts before it paginates: normalizing in JS would only reorder the 25 items
+ * of the current page. Which articles are dropped is the collection's choice (see
+ * core/sortArticles.ts); an article ending in an apostrophe, like "l'", needs no space
+ * after it.
  */
-export function buildSortTitle(title: string | null | undefined): string {
+export function buildSortTitle(
+  title: string | null | undefined,
+  articles: readonly string[] = DEFAULT_SORT_ARTICLES
+): string {
   const base = String(title || '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .trim();
   if (!base) return '';
-  // A title made of nothing but an article keeps it, otherwise it would sort as empty.
-  return base.replace(/^(?:a|an|the)\s+/, '') || base;
+
+  // Longest first, so "l'" is not cut short by a shorter article it starts with, and a
+  // title made of nothing but an article keeps it rather than sorting as empty.
+  const sorted = [...articles].sort((a, b) => b.length - a.length);
+  for (const article of sorted) {
+    const elided = article.endsWith("'");
+    const stem = escapeRegExp(elided ? article.slice(0, -1) : article);
+    const pattern = elided ? new RegExp(`^${stem}['\u2019\u02bc]\\s*`) : new RegExp(`^${stem}\\s+`);
+    const stripped = base.replace(pattern, '');
+    if (stripped !== base && stripped) return stripped;
+  }
+  return base;
 }
 
 // Minimal shape the distinct-titles group key needs off a plugin: which `kind` its

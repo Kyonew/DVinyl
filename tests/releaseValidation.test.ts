@@ -3,6 +3,7 @@ import test from 'node:test';
 import { fetchOpenLibraryEdition } from '../plugins/books/openLibrary';
 import { dvdPlugin } from '../plugins/dvds';
 import { buildSortTitle } from '../core/helpers';
+import { articlesFromSetting, parseSortArticles } from '../core/sortArticles';
 import { normalizeThemePresets } from '../utils/migrate';
 
 // 1. OpenLibrary edition resilience
@@ -185,3 +186,17 @@ test('dvdPlugin duplicate detection scopes to media_type with backward compatibi
   }
 });
 
+
+test('buildSortTitle drops the articles it is given, elided ones included', () => {
+  const french = parseSortArticles("le, LA, les; l’, un");
+  assert.deepEqual(french, ['le', 'la', 'les', "l'", 'un']);
+  assert.equal(buildSortTitle('Les Misérables', french), 'miserables');
+  assert.equal(buildSortTitle("L'Écume des jours", french), 'ecume des jours');
+  assert.equal(buildSortTitle('L’Arnaque', french), 'arnaque');
+  assert.equal(buildSortTitle('Lapin', french), 'lapin');
+  assert.equal(buildSortTitle('La', french), 'la');
+  assert.equal(buildSortTitle('The Wall', french), 'the wall');
+  assert.equal(buildSortTitle('The Wall', []), 'the wall');
+  assert.deepEqual(articlesFromSetting(undefined), ['the', 'a', 'an']);
+  assert.deepEqual(articlesFromSetting([]), []);
+});

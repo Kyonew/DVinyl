@@ -523,6 +523,9 @@
     "metadata_language": "Language of fetched information",
     "metadata_language_desc": "Titles, synopses and genres come from sources like TMDB in this language, whatever language each member reads the app in. Items already added change on their next refresh. Sources without translations ignore it.",
     "metadata_language_same": "Each member's language",
+    "sort_articles": "Articles ignored when sorting by title",
+    "sort_articles_desc": "Words a title may start with that its sort skips, separated by commas. \"The Wall\" then files under W. End one with an apostrophe, like l', for articles joined to the next word. Leave it empty to ignore none.",
+    "sort_articles_placeholder": "the, a, an, le, la, les, l'",
     "collections": {
       "title": "Collections ({{count}})",
       "name_placeholder": "New collection name",

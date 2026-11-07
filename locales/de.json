@@ -254,6 +254,9 @@
     "metadata_language": "Sprache der abgerufenen Informationen",
     "metadata_language_desc": "Titel, Inhaltsangaben und Genres kommen von Quellen wie TMDB in dieser Sprache, unabhängig davon, in welcher Sprache jedes Mitglied die App liest. Bereits hinzugefügte Einträge ändern sich bei ihrer nächsten Aktualisierung. Quellen ohne Übersetzungen ignorieren dies.",
     "metadata_language_same": "Sprache jedes Mitglieds",
+    "sort_articles": "Beim Sortieren nach Titel ignorierte Artikel",
+    "sort_articles_desc": "Wörter am Anfang eines Titels, die die Sortierung überspringt, durch Kommas getrennt. „Die Ärzte“ steht dann unter Ä. Mit einem Apostroph enden lassen, etwa l', für Artikel, die am nächsten Wort hängen. Leer lassen, um keinen zu ignorieren.",
+    "sort_articles_placeholder": "der, die, das, ein, eine, the",
     "collections": {
       "title": "Sammlungen ({{count}})",
       "name_placeholder": "Name der neuen Sammlung",

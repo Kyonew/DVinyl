@@ -3,7 +3,7 @@ import {
     all, and, eq, exists, idOf, isIn, missing, ne, notIn, ofType, or
 } from '../core/db/query';
 import { registry } from '../core/registry';
-import { buildSortTitle } from '../core/helpers';
+import { reconcileSortTitles } from '../core/sortTitles';
 import { findOrCreateDefaultCollection } from './collectionHelpers';
 import { seedFurnitureFromLocations } from '../core/shelfStore';
 import { legacySource, legacyIdFieldFor } from '../core/sources';
@@ -211,14 +211,11 @@ export const migrateDatabase = async () => {
         // none and would sort as an empty string, ahead of the whole collection. Each item
         // gets its own value, written as stored like the `kind` backfill above. Idempotent,
         // it only looks at items where the field is missing.
-        const staleTitles = await db.items.find(missing('sort_title'), { fields: ['title'] });
-        if (staleTitles.length > 0) {
-            await db.items.updateEach(staleTitles.map((doc: any) => ({
-                id: doc._id,
-                patch: { set: { sort_title: buildSortTitle(doc.title) } }
-            })));
-            console.log(`[MIGRATION] sort_title computed for ${staleTitles.length} item(s).`);
-        }
+        //
+        // The same pass keeps every key in line with its collection's articles (see
+        // core/sortArticles.ts), which a restore can change under items already stored.
+        const resorted = await reconcileSortTitles();
+        if (resorted > 0) console.log(`[MIGRATION] sort_title computed for ${resorted} item(s).`);
 
         // Until 3.1.2 an edit was written past the rules of the item's type. The form posts
         // every value as a string and an item of no type knows nothing of `tmdb_id` or

@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { buildSortTitle } from '../core/helpers';
+import { sortArticlesFor } from '../core/sortArticles';
 
 const options = {
   discriminatorKey: 'kind',
@@ -80,13 +81,13 @@ const itemSchema = new mongoose.Schema({
 // schema middleware keeps the two in sync without asking each of those to remember, and
 // the discriminators inherit these hooks as long as they are declared before the model.
 itemSchema.pre('save', function (this: any, next) {
-  if (this.isModified('title')) this.sort_title = buildSortTitle(this.title);
+  if (this.isModified('title') || this.isModified('collection')) this.sort_title = buildSortTitle(this.title, sortArticlesFor(this.collection));
   next();
 });
 
 itemSchema.pre('insertMany', function (next: any, docs: any[]) {
   for (const doc of Array.isArray(docs) ? docs : []) {
-    if (doc && typeof doc.title === 'string') doc.sort_title = buildSortTitle(doc.title);
+    if (doc && typeof doc.title === 'string') doc.sort_title = buildSortTitle(doc.title, sortArticlesFor(doc.collection));
   }
   next();
 });
@@ -94,13 +95,21 @@ itemSchema.pre('insertMany', function (next: any, docs: any[]) {
 // A title reaches an update either inside $set or at the top level of a plain update
 // object; mixing the two forms in one payload is what Mongo rejects, so follow the shape
 // that is already there.
-function stampSortTitleOnUpdate(this: any, next: any): void {
+//
+// The articles dropped are the item's collection's, read off the filter when it names the
+// collection and off the stored item otherwise.
+async function stampSortTitleOnUpdate(this: any): Promise<void> {
   const update = this.getUpdate();
-  if (!update || Array.isArray(update)) return next();
+  if (!update || Array.isArray(update)) return;
 
   const title = update.$set?.title ?? update.title;
   if (typeof title === 'string') {
-    const sortTitle = buildSortTitle(title);
+    let collection = update.$set?.collection ?? update.collection ?? this.getFilter()?.collection;
+    if (collection == null || typeof collection === 'object' && !collection._bsontype) {
+      const stored = await this.model.findOne(this.getFilter()).select('collection').lean();
+      collection = stored?.collection;
+    }
+    const sortTitle = buildSortTitle(title, sortArticlesFor(collection));
     if (Object.keys(update).some(key => key.startsWith('$'))) {
       update.$set = { ...(update.$set || {}), sort_title: sortTitle };
     } else {
@@ -108,7 +117,6 @@ function stampSortTitleOnUpdate(this: any, next: any): void {
     }
     this.setUpdate(update);
   }
-  next();
 }
 
 for (const op of ['updateOne', 'updateMany', 'findOneAndUpdate'] as const) {

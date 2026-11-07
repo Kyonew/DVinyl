@@ -71,6 +71,7 @@ import manualAddRoute from './core/routes/manualAddRoute.js';
 import csvImportRoute from './core/routes/csvImportRoute.js';
 import aiImportRoute from './core/routes/aiImportRoute.js';
 import { METADATA_LANGUAGES } from './core/metadataLanguage';
+import { articlesFromSetting } from './core/sortArticles';
 
 const app = express();
 const server = http.createServer(app);
@@ -125,6 +126,7 @@ app.locals.importableFields = importableFields;
 app.locals.LANGUAGE_NAMES = LANGUAGE_NAMES;
 // The languages a collection may ask its sources in (admin page)
 app.locals.METADATA_LANGUAGES = METADATA_LANGUAGES;
+app.locals.articlesFromSetting = articlesFromSetting;
 // Shared by the image-manager partial so its client-side guard matches the save route.
 app.locals.MAX_ITEM_IMAGES = MAX_ITEM_IMAGES;
 app.locals.MAX_ITEM_IMAGE_BYTES = MAX_ITEM_IMAGE_BYTES;

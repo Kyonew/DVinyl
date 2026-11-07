@@ -319,6 +319,22 @@
                             </select>
                         </div>
 
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5">
+                            <div class="flex items-start gap-3">
+                                <div class="w-10 h-10 rounded-xl flex items-center justify-center bg-white dark:bg-black/20 shadow-sm shrink-0">
+                                    <i class="fa-solid fa-arrow-down-a-z text-sm"></i>
+                                </div>
+                                <div>
+                                    <label for="sortArticles" class="text-sm font-bold opacity-80"><%= t('admin.sort_articles') %></label>
+                                    <p class="text-xs opacity-50 mt-0.5"><%= t('admin.sort_articles_desc') %></p>
+                                </div>
+                            </div>
+                            <input type="text" id="sortArticles" name="sortArticles" maxlength="600" autocomplete="off" spellcheck="false"
+                                value="<%= articlesFromSetting(settings.sortArticles).join(', ') %>"
+                                placeholder="<%= t('admin.sort_articles_placeholder') %>"
+                                class="sm:w-56 shrink-0 bg-white dark:bg-black/20 border border-transparent rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-primary-theme/40">
+                        </div>
+
                         <div class="flex justify-end pt-2">
                             <button type="submit"
                                 class="w-full sm:w-auto bg-primary-theme text-white text-xs font-black uppercase tracking-widest px-10 py-4 rounded-2xl hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-primary-theme/20 flex items-center justify-center gap-3">
