@@ -37,7 +37,7 @@ const DUMP = {
   ],
   lists: [{ _id: '64c000000000000000000030', collection: COLLECTION, name: 'Favourites', kind: 'items', entries: [{ item: '64c000000000000000000010' }] }],
   furniture: [],
-  metadata: { version: '3.3.0' }
+  metadata: { version: '4.0.0' }
 };
 
 describe('statistics and contained items', { skip: !backend }, () => {

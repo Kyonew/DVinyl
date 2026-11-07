@@ -128,7 +128,7 @@ describe('episodes of a season', { skip: !backend }, () => {
         { _id: SEASON, kind: 'Dvd', title: 'Dark: Season 1', director: 'Baran bo Odar', media_type: 'tv', format: 'bluray', tmdb_id: 70523, season: 1, parent: '64d000000000000000000020', owner: USER, collection: COLLECTION, in_wishlist: false, quantity: 1,
           episodes: [{ number: 1, name: 'Secrets', runtime: 51 }, { number: 2, name: 'Lies', runtime: 44 }] }
       ],
-      metadata: { version: '3.3.0' }
+      metadata: { version: '4.0.0' }
     };
     const reply = await app.client().postJson('/backup/import', dump);
     assert.equal(reply.status, 200, reply.text);
