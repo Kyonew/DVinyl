@@ -876,6 +876,7 @@
     "sort_year": "По году",
     "artist_filter": "Исполнитель",
     "decade_filter": "Десятилетие",
+    "decade_value": "{{year}}-е",
     "filter_mode_show": "Показать найденное",
     "filter_mode_hide": "Скрыть найденное",
     "styles_filter": "Стили",

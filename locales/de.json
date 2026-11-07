@@ -631,6 +631,7 @@
     "sort_title": "Titel",
     "sort_year": "Jahr",
     "decade_filter": "Jahrzehnt",
+    "decade_value": "{{year}}er",
     "filter_mode_hide": "Treffer ausblenden",
     "filter_mode_show": "Treffer anzeigen",
     "styles_filter": "Styles",

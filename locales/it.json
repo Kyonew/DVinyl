@@ -631,6 +631,7 @@
     "sort_title": "Titolo",
     "sort_year": "Anno",
     "decade_filter": "Decennio",
+    "decade_value": "Anni {{year}}",
     "filter_mode_hide": "Nascondi i risultati",
     "filter_mode_show": "Mostra i risultati",
     "styles_filter": "Stili",

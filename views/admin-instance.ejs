@@ -159,7 +159,7 @@
                                     </span>
                                     <span class="flex items-center gap-2 ml-auto">
                                         <i class="fa-regular fa-calendar opacity-50"></i>
-                                        <%= c.created_at ? new Date(c.created_at).toLocaleDateString(currentLng==='fr' ? 'fr-FR' : 'en-US') : '-' %>
+                                        <%= c.created_at ? new Date(c.created_at).toLocaleDateString(dateLocaleFor(currentLng)) : '-' %>
                                     </span>
                                 </div>
                                 <!-- Member avatars preview -->
@@ -416,8 +416,7 @@
                                             <% } %>
                                         </td>
                                         <td class="px-6 py-4 text-xs opacity-70">
-                                            <%= new Date(u.lastChange).toLocaleDateString(currentLng==='fr' ? 'fr-FR'
-                                                : 'en-US' ) %>
+                                            <%= new Date(u.lastChange).toLocaleDateString(dateLocaleFor(currentLng)) %>
                                         </td>
                                         <td class="px-6 py-4 text-right flex justify-end gap-2">
                                             <% if (!isOtherAdmin) { %>
@@ -495,8 +494,7 @@
                                             <%= t('admin.table.last_change') %>
                                         </span>
                                         <span class="text-xs opacity-70">
-                                            <%= new Date(u.lastChange).toLocaleDateString(currentLng==='fr' ? 'fr-FR'
-                                                : 'en-US' ) %>
+                                            <%= new Date(u.lastChange).toLocaleDateString(dateLocaleFor(currentLng)) %>
                                         </span>
                                     </div>
                                     <div class="flex gap-2">
@@ -753,8 +751,7 @@
                                             <%= ip.ip %>
                                         </span>
                                         <span class="text-[10px] opacity-50 uppercase tracking-tighter">
-                                            <%= new Date(ip.createdAt).toLocaleDateString(currentLng==='fr' ? 'fr-FR'
-                                                : 'en-US' ) %>
+                                            <%= new Date(ip.createdAt).toLocaleDateString(dateLocaleFor(currentLng)) %>
                                         </span>
                                     </div>
                                     <form action="<%= baseUrl %>/admin/unblock-ip" method="POST">
@@ -867,8 +864,7 @@
                                                 <% const diff=Math.floor((new Date() - new Date(log.timestamp)) /
                                                     60000); let timeText=diff < 60 ? t('admin.time_ago_min', { count:
                                                     diff }) : new
-                                                    Date(log.timestamp).toLocaleDateString(currentLng==='fr' ? 'fr-FR'
-                                                    : 'en-US' ); %>
+                                                    Date(log.timestamp).toLocaleDateString(dateLocaleFor(currentLng)); %>
                                                     <%= timeText %>
                                             </td>
                                             <td class="px-6 py-4 text-right">

@@ -9,7 +9,7 @@
     if (locals.queryArtist) activePills.push({ key: 'artist', label: (locals.creatorFilterLabel || t('collection.artist_filter')) + ': "' + locals.queryArtist + '"' });
 
     if (locals.queryDecade) {
-        activePills.push({ key: 'decade', label: t('collection.decade_filter') + ': ' + locals.queryDecade.split(',').map(d => decadeText(d, currentLng)).join(', ') });
+        activePills.push({ key: 'decade', label: t('collection.decade_filter') + ': ' + locals.queryDecade.split(',').map(d => t('collection.decade_value', { year: d })).join(', ') });
     }
     if (locals.queryGenre) {
         activePills.push({ key: 'genre', label: t('confirm_vinyl.field_genres') + ': ' + locals.queryGenre.split(',').join(', ') });

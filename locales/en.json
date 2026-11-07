@@ -885,6 +885,7 @@
     "sort_year": "Year",
     "artist_filter": "Artist",
     "decade_filter": "Decade",
+    "decade_value": "{{year}}s",
     "filter_mode_show": "Show matches",
     "filter_mode_hide": "Hide matches",
     "styles_filter": "Styles",

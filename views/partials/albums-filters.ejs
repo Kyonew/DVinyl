@@ -109,7 +109,7 @@
                 class="block w-full p-2.5 text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme outline-none transition-all flex justify-between items-center group">
                 <span class="truncate transition-opacity <%= locals.queryDecade ? '' : 'opacity-50 group-hover:opacity-100' %>">
                     <% const currentDecadeArr = locals.queryDecade ? locals.queryDecade.split(',') : []; %>
-                    <%= currentDecadeArr.length > 0 ? (currentDecadeArr.length === 1 ? decadeText(currentDecadeArr[0], currentLng) : currentDecadeArr.length + ' ' + t('collection.decade_filter')) : t('collection.decade_filter') %>
+                    <%= currentDecadeArr.length > 0 ? (currentDecadeArr.length === 1 ? t('collection.decade_value', { year: currentDecadeArr[0] }) : currentDecadeArr.length + ' ' + t('collection.decade_filter')) : t('collection.decade_filter') %>
                 </span>
                 <i class="fa-solid fa-chevron-down text-[10px] opacity-20 group-hover:opacity-60 transition-all"></i>
             </button>
@@ -122,7 +122,7 @@
                         <label class="flex items-center gap-3 p-2 text-sm rounded-lg hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer transition-colors group">
                             <input type="checkbox" class="decade-checkbox accent-primary-theme w-4 h-4 rounded border-gray-300 transition-all cursor-pointer" 
                                     value="<%= y %>" <%= isActive ? 'checked' : '' %>>
-                            <span class="group-hover:translate-x-0.5 transition-transform"><%= decadeText(y, currentLng) %></span>
+                            <span class="group-hover:translate-x-0.5 transition-transform"><%= t('collection.decade_value', { year: y }) %></span>
                         </label>
                     <% } %>
                 </div>

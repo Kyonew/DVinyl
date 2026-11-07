@@ -885,6 +885,7 @@
     "sort_title": "Titre",
     "sort_year": "Année",
     "decade_filter": "Décennie",
+    "decade_value": "Années {{year}}",
     "filter_mode_show": "Afficher les correspondances",
     "filter_mode_hide": "Masquer les correspondances",
     "styles_filter": "Styles",

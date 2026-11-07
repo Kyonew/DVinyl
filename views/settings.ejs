@@ -230,7 +230,7 @@
                             </p>
                             <p class="opacity-50 text-xs mt-1 transition-colors">
                                 <%= t('settings.last_change') %> : <%= new
-                                        Date(user.lastChange).toLocaleDateString(currentLng==='fr' ? 'fr-FR' : 'en-US' )
+                                        Date(user.lastChange).toLocaleDateString(dateLocaleFor(currentLng))
                                         %>
                             </p>
                         </div>

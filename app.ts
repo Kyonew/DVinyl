@@ -12,7 +12,7 @@ import i18nMiddleware from 'i18next-http-middleware';
 import settingsMiddleware from './middleware/settingsMiddleware.js';
 import collectionMiddleware from './middleware/collectionMiddleware.js';
 import themesConfig from './config/themes.js';
-import { BASE_URL, SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE, LANGUAGE_NAMES, normalizeLanguage, dateLocaleFor, decadeText } from './config/constants.js';
+import { BASE_URL, SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE, LANGUAGE_NAMES, normalizeLanguage, dateLocaleFor } from './config/constants.js';
 import { isOidcEnabled, getOidcButtonLabel, isLocalLoginDisabled } from './config/oidc.js';
 import { connectDB } from './config/db.js';
 import { StartupError } from './config/startupError.js';
@@ -136,8 +136,6 @@ app.locals.MAX_ITEM_IMAGE_BYTES = MAX_ITEM_IMAGE_BYTES;
 app.locals.itemImageUrl = itemImageUrl;
 // Dates read the same way wherever a view prints one
 app.locals.dateLocaleFor = dateLocaleFor;
-// Decades too: the filter bar and the active-filter pill must agree on "2020-е" against "2020s".
-app.locals.decadeText = decadeText;
 // Every entry point to the collection info page asks the same question before it links
 // to it, share visitors included (core/collectionInfo.ts).
 app.locals.isCollectionInfoVisible = isCollectionInfoVisible;
