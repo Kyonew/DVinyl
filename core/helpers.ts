@@ -6,8 +6,8 @@ import { DEFAULT_SORT_ARTICLES } from './sortArticles';
 /**
  * Builds the seed object for the "copy an item to a new entry" flow from an already
  * `formatForView`'d source, so the result saves as a brand-new document: server-managed
- * bookkeeping goes, along with the barcode and its lock, which belong to one physical
- * copy. The external link stays by default, since for most plugins it names the work
+ * bookkeeping goes, along with the barcode and its lock and the price paid, which belong
+ * to one physical copy. The external link stays by default, since for most plugins it names the work
  * (the same film on TMDB whatever the disc, the same Lego set sealed or built) and keeps
  * the copy refreshable. A plugin whose ids name one edition instead lists them in
  * `copyDropFields`, so a refresh never pulls the original's edition over the copy.
@@ -16,7 +16,8 @@ import { DEFAULT_SORT_ARTICLES } from './sortArticles';
 export function buildCopySeed(formatted: any, plugin: PluginDefinition): any {
   const seed: any = formatted;
   for (const key of ['_id', 'mongo_id', '__v', 'added_at', 'modified_at', 'synced_at',
-    'owner', 'modified_by', 'parent', 'in_wishlist', 'quantity', 'barcode', 'barcode_locked']) {
+    'owner', 'modified_by', 'parent', 'in_wishlist', 'quantity', 'barcode', 'barcode_locked',
+    'purchase_price', 'purchase_currency', 'kept_fields', 'source_values']) {
     delete seed[key];
   }
   for (const f of plugin.copyDropFields || []) delete seed[f];

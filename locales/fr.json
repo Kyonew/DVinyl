@@ -38,7 +38,8 @@
     "btn_add_anyway": "Ajouter quand même",
     "forbidden": "Accès interdit",
     "no_format": "Aucun format",
-    "no_value": "Aucune valeur"
+    "no_value": "Aucune valeur",
+    "purchase_price": "Prix d'achat (par exemplaire)"
   },
   "settings": {
     "page_title": "Paramètres du compte",
@@ -292,7 +293,9 @@
     "add_hub_search": "Rechercher",
     "add_hub_search_hint": "Par titre, nom ou référence",
     "add_hub_photo_hint": "L'IA reconnaît l'objet",
-    "add_hub_manual_hint": "Remplir la fiche soi-même"
+    "add_hub_manual_hint": "Remplir la fiche soi-même",
+    "paid_label": "Par rapport à ce que vous avez payé",
+    "paid_summary": "Payé {{paid}}, estimé à {{estimate}} aujourd'hui : {{difference}}. Compte les items qui ont un prix d'achat ({{count}})."
   },
   "add_vinyl": {
     "title": "Ajouter un disque",
@@ -1014,7 +1017,8 @@
     "print_label_btn": "Imprimer l'étiquette",
     "qr_option": "QR code",
     "barcode_option": "Code-barres",
-    "label_page_title": "Étiquette"
+    "label_page_title": "Étiquette",
+    "paid_vs_estimate": "Payé {{paid}} :"
   },
   "wishlist": {
     "title": "Liste de Souhaits",

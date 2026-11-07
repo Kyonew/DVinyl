@@ -732,7 +732,8 @@
     "btn_add_anyway": "Trotzdem hinzufügen",
     "forbidden": "Zugriff verboten",
     "no_format": "Kein Format",
-    "no_value": "Kein Wert"
+    "no_value": "Kein Wert",
+    "purchase_price": "Kaufpreis (pro Exemplar)"
   },
   "confirm_book": {
     "btn_collection": "Zur Bibliothek hinzufügen",
@@ -892,7 +893,8 @@
     "print_label_btn": "Etikett drucken",
     "qr_option": "QR-Code",
     "barcode_option": "Barcode",
-    "label_page_title": "Etikett"
+    "label_page_title": "Etikett",
+    "paid_vs_estimate": "Bezahlt {{paid}}:"
   },
   "dvd_detail": {
     "cast_search": "{{name}} in der Sammlung finden",
@@ -1209,7 +1211,9 @@
     "history_title": "Wertverlauf",
     "max_label": "Maximum (Neuwertig)",
     "min_label": "Minimum (G)",
-    "start_btn": "Analyse starten"
+    "start_btn": "Analyse starten",
+    "paid_label": "Verglichen mit dem Kaufpreis",
+    "paid_summary": "Bezahlt {{paid}}, heute auf {{estimate}} geschätzt: {{difference}}. Berücksichtigt die Objekte mit Kaufpreis ({{count}})."
   },
   "account": {
     "appearance": "Darstellung"

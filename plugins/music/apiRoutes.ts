@@ -18,7 +18,7 @@ async function getCollectionIds(req: any, res: any) {
       eq('collection', idOf(res.locals.activeCollectionId)),
       eq('in_wishlist', false),
       or(eq('kind', 'Music'), missing('kind'))
-    ), { fields: ['discogs_id', 'quantity'] });
+    ), { fields: ['discogs_id', 'quantity', 'purchase_price', 'purchase_currency'] });
 
     console.log(`📦 Global estimate: ${albums.length} albums sent to front-end.`);
     res.json({ success: true, albums });

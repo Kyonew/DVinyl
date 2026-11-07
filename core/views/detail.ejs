@@ -63,11 +63,21 @@
             !(locals.isShareView && SHARE_HIDDEN_FIELDS.has(f.name)) &&
             f.type !== 'custom'
         );
+        // An amount in the currency it carries, written the way the interface language
+        // writes money.
+        const formatMoney = (value, currency) => {
+            try {
+                return new Intl.NumberFormat(dateLocaleFor(currentLng), { style: 'currency', currency: currency || 'USD' }).format(Number(value));
+            } catch (e) {
+                return Number(value).toFixed(2) + ' ' + (currency || '');
+            }
+        };
         const isEmptyValue = val => val === undefined || val === null || val === ''
             || val === 0 || (Array.isArray(val) && val.length === 0);
         // A field's value as text, for every type but tags and textarea, which are laid
         // out by the caller.
         const fieldText = (field, val) => {
+            if (field.name === 'purchase_price') return formatMoney(val, item.purchase_currency);
             if (field.type === 'boolean') return val ? t('common.yes') : t('common.no');
             if (field.type === 'date') return formatDay(val);
             if (field.options) {
@@ -84,7 +94,7 @@
         // is, its condition, its notes), the edition it belongs to next. These are the
         // fields that describe the copy rather than the release; location has a row of
         // its own at the top of that section.
-        const copyFieldNames = ['quantity', 'sleeve_condition', 'variant_color', 'user_rating', 'rating'];
+        const copyFieldNames = ['quantity', 'sleeve_condition', 'variant_color', 'user_rating', 'rating', 'purchase_price'];
         const shownFields = detailFields.filter(f => !isEmptyValue(item[f.name]) || f.type === 'boolean');
         const copyFields = shownFields.filter(f => copyFieldNames.includes(f.name));
         const editionFields = shownFields.filter(f => !copyFieldNames.includes(f.name) && f.name !== 'location');
@@ -953,6 +963,7 @@
         market_price: t('detail.market_price'),
         historical_estimate: t('detail.historical_estimate'),
         shipping_hint: t('detail.shipping_hint'),
+        paid_vs_estimate: t('detail.paid_vs_estimate'),
         view_discogs: t('detail.view_discogs'),
         unavailable_data: t('detail.unavailable_data'),
         analyzing: t('detail.market_analysis'),
@@ -1194,6 +1205,8 @@
         }
     }
 
+    const purchase = <%- JSON.stringify({ price: Number(item.purchase_price) || 0, currency: item.purchase_currency || '' }).replace(/</g, '\\u003c') %>;
+
     async function fetchEstimation(id, quantity, condition) {
         const btn = document.getElementById('btnEstimate');
         const resultDiv = document.getElementById('priceResult');
@@ -1238,6 +1251,18 @@
                     `;
                 }
 
+                // Set against what was paid for one copy, only when both amounts are in the
+                // same currency: they are never converted.
+                let paidMarkup = '';
+                if (purchase.price > 0 && purchase.currency === currency) {
+                    const fmt = value => new Intl.NumberFormat(currentLocale, { style: 'currency', currency }).format(value);
+                    const diff = individualPrice - purchase.price;
+                    const percent = Math.round((diff / purchase.price) * 100);
+                    const signed = (diff >= 0 ? '+' : '\u2212') + fmt(Math.abs(diff)) + ' (' + (percent >= 0 ? '+' : '\u2212') + Math.abs(percent) + '%)';
+                    const tone = diff >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500';
+                    paidMarkup = `<span class="text-xs mb-1 mt-1">${translations.paid_vs_estimate.replace('{{paid}}', fmt(purchase.price))} <span class="font-bold ${tone}">${signed}</span></span>`;
+                }
+
                 resultDiv.innerHTML = `
                     <div class="flex flex-col items-center justify-center py-4 bg-black/5 dark:bg-white/5 rounded-lg border border-transparent mt-2 transition-colors">
                         <span class="text-[10px] opacity-60 uppercase font-bold mb-1 flex items-center">
@@ -1245,6 +1270,7 @@
                         </span>
                         <span class="text-3xl font-black ${colorClass} mb-0 transition-colors">${finalDisplayPrice}*</span>
                         ${quantityMarkup}
+                        ${paidMarkup}
                         <span class="text-xs opacity-60 mb-1 mt-1 transition-colors">${data.details}</span>
                         <span class="text-[9px] opacity-50 mb-2 transition-colors">
                             ${translations.shipping_hint}

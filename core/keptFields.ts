@@ -13,7 +13,8 @@
 const NEVER_KEPT = new Set([
   '_id', '__v', 'kind', 'owner', 'collection', 'parent', 'quantity', 'added_at', 'created_at', 'updated_at',
   'modified_at', 'modified_by', 'synced_at', 'in_wishlist', 'comments', 'location', 'barcode_locked',
-  'sort_title', 'source', 'source_id', 'kept_fields', 'source_values', 'images', 'user_image', 'extra'
+  'sort_title', 'source', 'source_id', 'kept_fields', 'source_values', 'images', 'user_image', 'extra',
+  'purchase_price', 'purchase_currency'
 ]);
 
 /** A value in the form two of them can be compared in, whatever round trip it made. */

@@ -70,10 +70,32 @@ function resolvePlaceholderCover(plugin: PluginDefinition): void {
   (plugin as any)[RESOLVES_PLACEHOLDER] = true;
 }
 
+/**
+ * Gives every item type the fields the core keeps for any copy of anything, whatever its
+ * plugin declares: what the owner paid for it, today. Placed after the location when the
+ * plugin has one, so the facts about the copy stay together; a plugin declaring the
+ * field itself keeps its own definition.
+ */
+function addCoreCopyFields(plugin: PluginDefinition): void {
+  const fields = plugin.formFields || (plugin.formFields = []);
+  if (fields.some(f => f.name === 'purchase_price')) return;
+  const field = {
+    name: 'purchase_price',
+    label: 'common.purchase_price',
+    type: 'number' as const,
+    showIn: ['edit', 'confirm', 'manual', 'detail'] as ('edit' | 'confirm' | 'manual' | 'detail')[],
+    group: 'metadata' as const
+  };
+  const after = fields.findIndex(f => f.name === 'location');
+  if (after >= 0) fields.splice(after + 1, 0, field);
+  else fields.push(field);
+}
+
 class PluginRegistry {
   private plugins: Map<string, PluginDefinition> = new Map();
 
   register(plugin: PluginDefinition): void {
+    addCoreCopyFields(plugin);
     flattenExtraValues(plugin);
     resolvePlaceholderCover(plugin);
     this.plugins.set(plugin.id, plugin);

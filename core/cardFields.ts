@@ -43,7 +43,8 @@ interface StringifiedValue {
  * business naming the room, the cupboard or the safe. The choice stays available to the
  * members, who are the ones it was written for.
  */
-export const SHARE_HIDDEN_FIELDS = new Set(['location']);
+// What the owner paid is theirs too, like where they keep it.
+export const SHARE_HIDDEN_FIELDS = new Set(['location', 'purchase_price']);
 
 /**
  * Whether a string is one of the catalogue's own keys, which all read "namespace.key".

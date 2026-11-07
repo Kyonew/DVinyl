@@ -11,7 +11,7 @@ async function getCollectionIds(req: any, res: any) {
       eq('in_wishlist', false),
       eq('kind', 'Yugioh'),
       filled('ygo_card_id')
-    ), { fields: ['ygo_card_id', 'quantity'] });
+    ), { fields: ['ygo_card_id', 'quantity', 'purchase_price', 'purchase_currency'] });
     res.json({ success: true, albums: items });
   } catch (err: any) {
     console.error('API Yu-Gi-Oh Collection IDs error:', err.message);

@@ -38,7 +38,8 @@
     "btn_add_anyway": "Add anyway",
     "forbidden": "Access Forbidden",
     "no_format": "No format",
-    "no_value": "No value"
+    "no_value": "No value",
+    "purchase_price": "Purchase price (per copy)"
   },
   "settings": {
     "page_title": "Account Settings",
@@ -292,7 +293,9 @@
     "add_hub_search": "Search",
     "add_hub_search_hint": "By title, name or reference",
     "add_hub_photo_hint": "AI recognises the item",
-    "add_hub_manual_hint": "Fill in the details yourself"
+    "add_hub_manual_hint": "Fill in the details yourself",
+    "paid_label": "Compared with what you paid",
+    "paid_summary": "Paid {{paid}}, estimated at {{estimate}} today: {{difference}}. Counts the items carrying a purchase price ({{count}})."
   },
   "add_vinyl": {
     "title": "Add a Record",
@@ -1014,7 +1017,8 @@
     "print_label_btn": "Print label",
     "qr_option": "QR code",
     "barcode_option": "Barcode",
-    "label_page_title": "Label"
+    "label_page_title": "Label",
+    "paid_vs_estimate": "Paid {{paid}}:"
   },
   "wishlist": {
     "title": "My Wishlist",

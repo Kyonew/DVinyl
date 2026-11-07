@@ -94,3 +94,13 @@ test('buildCopySeed keeps work-level and duplicate-check fields intact', () => {
   assert.equal(seed.variant_color, 'blue');
   assert.equal(seed.format, 'LP');
 });
+
+test('buildCopySeed drops what was paid and the fields kept across refreshes', () => {
+  const seed = buildCopySeed({
+    title: 'Kind of Blue', purchase_price: 12.5, purchase_currency: 'EUR',
+    kept_fields: ['description'], source_values: { description: 'x' }
+  }, stub());
+  for (const key of ['purchase_price', 'purchase_currency', 'kept_fields', 'source_values']) {
+    assert.ok(!(key in seed), `${key} should be stripped`);
+  }
+});

@@ -508,6 +508,19 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
       // distinct value in the file, the rest served from the resolver's memory.
       if (data.location !== undefined) data.location = await resolveLocation(data.location);
 
+      // A price paid is an amount in a currency, the importer's, as when it is typed in.
+      if (data.purchase_price !== undefined && data.purchase_price !== null && data.purchase_price !== '') {
+        const amount = Number(String(data.purchase_price).replace(/\s/g, '').replace(',', '.'));
+        if (Number.isFinite(amount) && amount >= 0) {
+          data.purchase_price = Math.round(amount * 100) / 100;
+          data.purchase_currency = ctx.req.user?.currency || 'USD';
+        } else {
+          delete data.purchase_price;
+        }
+      } else {
+        delete data.purchase_price;
+      }
+
       await db.items.create({
         ...data,
         kind: plugin.kind,

@@ -11,7 +11,7 @@ async function getCollectionIds(req: any, res: any) {
       eq('in_wishlist', false),
       eq('kind', 'Mtg'),
       filled('scryfall_id')
-    ), { fields: ['scryfall_id', 'quantity'] });
+    ), { fields: ['scryfall_id', 'quantity', 'purchase_price', 'purchase_currency'] });
     res.json({ success: true, albums: items });
   } catch (err: any) {
     console.error('API MTG Collection IDs error:', err.message);

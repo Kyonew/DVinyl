@@ -412,6 +412,12 @@
                         <span id="maxPrice" class="font-bold text-lg">--</span>
                     </div>
                 </div>
+                <%# What was paid for the items that carry a price, against what those same
+                    items are estimated at. Hidden when none of them does. %>
+                <div id="estimatePaid" class="hidden bg-gray-100 dark:bg-black/20 p-3 rounded-lg text-sm">
+                    <span class="opacity-60 block text-[10px] uppercase font-bold mb-1"><%= t('modal.paid_label') %></span>
+                    <span id="estimatePaidText"></span>
+                </div>
                 <div id="estimateHistory" class="mt-2">
                     <p class="opacity-60 text-xs uppercase font-bold tracking-wider mb-2 text-left">
                         <%= t('modal.history_title') %>
@@ -785,6 +791,12 @@
         // used to decide whether the resulting total is representative enough to persist
         // as a history snapshot. See showResults().
         let pricedCount = 0;
+        // What was paid for the priced items that carry a purchase price in the same
+        // currency as their estimate, and what those same items are estimated at.
+        let paidTotal = 0;
+        let paidEstimate = 0;
+        let paidCount = 0;
+        const paidSummaryMsg = <%- JSON.stringify(t('modal.paid_summary')) %>;
 
         function openEstimateModal(action) {
             if (action && action.estimate) activeEstimate = action.estimate;
@@ -811,11 +823,14 @@
                 totalPriceMin = 0;
                 totalPriceMax = 0;
                 pricedCount = 0;
+                paidTotal = 0;
+                paidEstimate = 0;
+                paidCount = 0;
 
                 countSpan.innerText = `0 / ${totalAlbums}`;
 
                 for (const album of albumsToEstimate) {
-                    await estimateOneAlbum(album[activeEstimate.idField], album.quantity || 1);
+                    await estimateOneAlbum(album[activeEstimate.idField], album.quantity || 1, album);
                     currentProcessed++;
 
                     const percent = totalAlbums ? Math.round((currentProcessed / totalAlbums) * 100) : 100;
@@ -833,7 +848,7 @@
             }
         }
 
-        async function estimateOneAlbum(id, quantity) {
+        async function estimateOneAlbum(id, quantity, album) {
             try {
                 const res = await fetch(`<%= baseUrl %>${activeEstimate.estimateEndpoint}/${id}`);
                 const data = await res.json();
@@ -843,6 +858,13 @@
                     totalPriceMin += val;
                     totalPriceMax += (val * (activeEstimate.maxMultiplier || 1.3));
                     pricedCount++;
+                    // Never converted: an amount paid in another currency is left out.
+                    const paid = Number(album && album.purchase_price);
+                    if (paid > 0 && album.purchase_currency === data.price.currency && data.price.currency === currentCurrency) {
+                        paidTotal += paid * quantity;
+                        paidEstimate += val;
+                        paidCount++;
+                    }
                 }
             } catch (e) { }
         }
@@ -862,6 +884,21 @@
             document.getElementById('finalPrice').innerText = fmt(totalPriceVG);
             document.getElementById('minPrice').innerText = fmt(totalPriceMin);
             document.getElementById('maxPrice').innerText = fmt(totalPriceMax);
+
+            const paidBlock = document.getElementById('estimatePaid');
+            if (paidCount > 0) {
+                const diff = paidEstimate - paidTotal;
+                const percent = paidTotal > 0 ? Math.round((diff / paidTotal) * 100) : 0;
+                const signed = (diff >= 0 ? '+' : '\u2212') + fmt(Math.abs(diff)) + ' (' + (percent >= 0 ? '+' : '\u2212') + Math.abs(percent) + '%)';
+                document.getElementById('estimatePaidText').textContent = paidSummaryMsg
+                    .replace('{{count}}', paidCount)
+                    .replace('{{paid}}', fmt(paidTotal))
+                    .replace('{{estimate}}', fmt(paidEstimate))
+                    .replace('{{difference}}', signed);
+                paidBlock.classList.remove('hidden');
+            } else {
+                paidBlock.classList.add('hidden');
+            }
 
             document.getElementById('progressContainer').classList.add('hidden');
             resultDiv.classList.remove('hidden');

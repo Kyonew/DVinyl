@@ -45,6 +45,11 @@ const itemSchema = new mongoose.Schema({
   in_wishlist: { type: Boolean, default: false },
   comments: { type: String, default: '' },
   location: { type: String, default: '' },
+  // What the owner paid for this copy, in the currency of the member who entered it,
+  // which is kept beside it: members of one collection may count in different
+  // currencies, and an amount is never compared with one in another (see the estimates).
+  purchase_price: { type: Number, min: 0 },
+  purchase_currency: String,
   quantity: { type: Number, default: 1, min: 1 },
   genre: String,
   genres: [String],

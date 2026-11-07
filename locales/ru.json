@@ -38,7 +38,8 @@
     "btn_add_anyway": "Всё равно добавить",
     "forbidden": "Доступ закрыт",
     "no_format": "Без формата",
-    "no_value": "Не задано"
+    "no_value": "Не задано",
+    "purchase_price": "Цена покупки (за экземпляр)"
   },
   "settings": {
     "page_title": "Настройки аккаунта",
@@ -292,7 +293,9 @@
     "add_hub_search": "Поиск",
     "add_hub_search_hint": "По названию или номеру",
     "add_hub_photo_hint": "ИИ распознаёт запись",
-    "add_hub_manual_hint": "Заполнить вручную"
+    "add_hub_manual_hint": "Заполнить вручную",
+    "paid_label": "По сравнению с ценой покупки",
+    "paid_summary": "Оплачено {{paid}}, сегодня оценивается в {{estimate}}: {{difference}}. Учтены записи с ценой покупки ({{count}})."
   },
   "add_vinyl": {
     "title": "Добавить винил",
@@ -1034,7 +1037,8 @@
     "print_label_btn": "Печать лейбла",
     "qr_option": "QR-код",
     "barcode_option": "Штрихкод",
-    "label_page_title": "Лейбл"
+    "label_page_title": "Лейбл",
+    "paid_vs_estimate": "Оплачено {{paid}}:"
   },
   "wishlist": {
     "title": "Желаемое",

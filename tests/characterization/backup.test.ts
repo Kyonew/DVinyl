@@ -148,7 +148,7 @@ describe('collection backup', { skip: !source }, () => {
     assert.equal(header, [
       'Type', 'Title', 'Cover (URL)', 'Year', 'Main genre', 'Genres', 'Styles', 'Barcode', 'Location', 'Quantity',
       'Personal notes', 'Date added', 'Artist', 'Media Type / Support', 'Format (Music)', 'Color / Edition', 'Label',
-      'Catalog', 'Country', 'Sleeve Condition', 'discogs_id', 'Author(s)', 'Publisher', 'Format (Books)', 'Pages',
+      'Catalog', 'Country', 'Purchase price (per copy)', 'Sleeve Condition', 'discogs_id', 'Author(s)', 'Publisher', 'Format (Books)', 'Pages',
       'Language', 'Series', 'Volume', 'Status', 'Rating (out of 5)', 'hardcover_slug', 'ISBN', 'Description', 'Wishlist'
     ].join(','));
     assert.equal(rows.length, 4);

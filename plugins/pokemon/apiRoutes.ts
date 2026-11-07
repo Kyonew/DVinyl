@@ -15,7 +15,7 @@ async function getCollectionIds(req: any, res: any) {
       eq('in_wishlist', false),
       eq('kind', 'Pokemon'),
       filled('pokemon_card_id')
-    ), { fields: ['pokemon_card_id', 'quantity'] });
+    ), { fields: ['pokemon_card_id', 'quantity', 'purchase_price', 'purchase_currency'] });
     res.json({ success: true, albums: items });
   } catch (err: any) {
     console.error('API Pokemon Collection IDs error:', err.message);

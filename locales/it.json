@@ -732,7 +732,8 @@
     "btn_add_anyway": "Aggiungi comunque",
     "forbidden": "Accesso vietato",
     "no_format": "Nessun formato",
-    "no_value": "Nessun valore"
+    "no_value": "Nessun valore",
+    "purchase_price": "Prezzo d'acquisto (per copia)"
   },
   "confirm_book": {
     "btn_collection": "Aggiungi alla libreria",
@@ -892,7 +893,8 @@
     "print_label_btn": "Stampa l'etichetta",
     "qr_option": "Codice QR",
     "barcode_option": "Codice a barre",
-    "label_page_title": "Etichetta"
+    "label_page_title": "Etichetta",
+    "paid_vs_estimate": "Pagato {{paid}}:"
   },
   "dvd_detail": {
     "cast_search": "Trova {{name}} nella collezione",
@@ -1209,7 +1211,9 @@
     "history_title": "Cronologia del valore",
     "max_label": "Massimo (nuovo)",
     "min_label": "Minimo (G)",
-    "start_btn": "Avvia analisi"
+    "start_btn": "Avvia analisi",
+    "paid_label": "Rispetto a quanto hai pagato",
+    "paid_summary": "Pagato {{paid}}, stimato oggi {{estimate}}: {{difference}}. Conta gli elementi con un prezzo d'acquisto ({{count}})."
   },
   "account": {
     "appearance": "Aspetto"

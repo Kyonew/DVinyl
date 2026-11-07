@@ -11,7 +11,7 @@ async function getCollectionIds(req: any, res: any) {
       eq('in_wishlist', false),
       eq('kind', 'Swu'),
       filled('swu_card_id')
-    ), { fields: ['swu_card_id', 'quantity'] });
+    ), { fields: ['swu_card_id', 'quantity', 'purchase_price', 'purchase_currency'] });
     res.json({ success: true, albums: items });
   } catch (err: any) {
     console.error('API SWU Collection IDs error:', err.message);

@@ -698,6 +698,19 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         updateData.extra = extraValues;
       }
 
+      // A price paid is an amount in a currency. A new one is taken in the currency of
+      // whoever enters it; an edit keeps the one the amount already carries (below). An
+      // amount that is not one (negative, a typo the browser let through) is dropped.
+      if (updateData.purchase_price !== undefined) {
+        const amount = Number(String(req.body.purchase_price).replace(',', '.'));
+        if (Number.isFinite(amount) && amount >= 0) {
+          updateData.purchase_price = Math.round(amount * 100) / 100;
+          updateData.purchase_currency = res.locals.user?.currency || 'USD';
+        } else {
+          delete updateData.purchase_price;
+        }
+      }
+
       // Plugin schema fields without a form field (external ids like discogs_id,
       // tmdb_id, igdb_id, hardcover_slug...) are posted as hidden inputs
       for (const key of Object.keys(plugin.storedFields || {})) {
@@ -810,6 +823,19 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
             if (isBlank && !alreadyResolved && hasStoredValue) {
               unsetObj[fieldName] = '';
               delete saveObj[fieldName];
+            }
+          }
+
+          // The price paid follows the same rule, as a base path the loop above does not
+          // see, and takes its currency along when emptied. Kept in the currency it was
+          // entered in: the edit form showed the amount in that one, whoever edits it now.
+          if (typeof req.body.purchase_price === 'string') {
+            if (saveObj.purchase_price === undefined) {
+              if (existingItem.purchase_price !== undefined && existingItem.purchase_price !== null) unsetObj.purchase_price = '';
+              if (existingItem.purchase_currency) unsetObj.purchase_currency = '';
+              delete saveObj.purchase_currency;
+            } else if (existingItem.purchase_currency) {
+              saveObj.purchase_currency = existingItem.purchase_currency;
             }
           }
 
