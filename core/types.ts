@@ -53,6 +53,13 @@ export interface PluginDefinition {
 
   // Shows the price estimate block on the detail page (needs externalIdField + an /api/estimate apiRoute)
   supportsPriceEstimate?: boolean;
+  // The plugin's own fixed-list fields shown in the collection's filter bar until the
+  // collection says otherwise. The others stay off by default (see core/filterFields.ts).
+  defaultFilters?: string[];
+  // Brings the items already stored up to date with what the plugin now keeps, run at
+  // boot and after a restore. Must be idempotent and must not reach the network. Returns
+  // how many items it changed.
+  migrateItems?(): Promise<number>;
 
   // Format badge shown on cards (collection/wishlist/dashboard).
   // If absent, the core derives label+color from `formats` and the item's format.

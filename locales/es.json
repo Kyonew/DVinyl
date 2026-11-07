@@ -662,7 +662,11 @@
     "delete_selected_error": "La eliminación ha fallado: no se ha eliminado nada.",
     "delete_selected_too_many": "Solo se pueden eliminar {{max}} elementos a la vez.",
     "label_sheet_title": "Imprimir las etiquetas",
-    "label_sheet_empty": "Ninguno de los elementos seleccionados tiene código de barras, así que no hay nada que imprimir."
+    "label_sheet_empty": "Ninguno de los elementos seleccionados tiene código de barras, así que no hay nada que imprimir.",
+    "saved_views": "Vistas guardadas",
+    "save_view": "Guardar esta vista",
+    "save_view_prompt": "Nombre de la vista (p. ej. sencillos de 7\"):",
+    "delete_view_confirm": "¿Eliminar la vista «%s»? Los elementos no cambian."
   },
   "collection_info": {
     "title": "Información de la colección",
@@ -844,7 +848,11 @@
     "sleeve_condition_label": "Estado de la funda",
     "sleeve_condition_placeholder": "Seleccionar estado...",
     "sleeve_condition_generic": "Funda genérica",
-    "tracklist_label": "Lista de pistas"
+    "tracklist_label": "Lista de pistas",
+    "field_disc_size": "Tamaño",
+    "field_speed": "Velocidad",
+    "field_release_type": "Tipo de lanzamiento",
+    "field_disc_count": "Discos"
   },
   "detail": {
     "label_no_barcode": "Este objeto no tiene código de barras: añade uno al editarlo.",
@@ -2651,5 +2659,14 @@
     "self_near": "Deseas este título, en otra edición ({{collection}})",
     "badge_member": "Deseado por {{member}}",
     "badge_self": "En tu lista de deseos"
+  },
+  "release_types": {
+    "single": "Sencillo",
+    "maxi_single": "Maxi sencillo",
+    "ep": "EP",
+    "mini_album": "Mini álbum",
+    "lp": "LP",
+    "album": "Álbum",
+    "compilation": "Recopilatorio"
   }
 }

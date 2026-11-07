@@ -37,6 +37,65 @@
     });
 %>
 
+<%# The collection's saved views (core/savedFilters.ts): each a link to the page as it was
+    saved, the one being looked at marked. Editors save the current view and remove one.
+    Only set on the collection page itself, for its members. %>
+<% if (locals.savedFilters) {
+    const canSaveView = locals.canEditCollection && locals.currentFilterQuery
+        && !savedFilters.some(f => f.query === currentFilterQuery);
+%>
+    <% if (savedFilters.length > 0 || canSaveView) { %>
+        <div class="flex flex-wrap items-center gap-2 mt-4 text-xs" data-saved-views>
+            <span class="opacity-60 font-semibold"><i class="fa-solid fa-bookmark mr-1"></i><%= t('collection.saved_views') %></span>
+            <% savedFilters.forEach(view => { const active = view.query === currentFilterQuery; %>
+                <span class="inline-flex items-center gap-1 rounded-full border transition-all <%= active ? 'bg-primary-theme text-white border-primary-theme' : 'card-theme hover:border-primary-theme/50' %>">
+                    <a href="<%= baseUrl %>/collection?<%= view.query %>" class="pl-3 <%= locals.canEditCollection ? 'pr-1' : 'pr-3' %> py-1 font-semibold"><%= view.name %></a>
+                    <% if (locals.canEditCollection) { %>
+                        <button type="button" data-delete-view="<%= view.id %>" data-view-name="<%= view.name %>" class="pr-2.5 pl-0.5 py-1 opacity-60 hover:opacity-100 hover:text-red-500 font-bold" title="<%= t('common.delete') %>">&times;</button>
+                    <% } %>
+                </span>
+            <% }) %>
+            <% if (canSaveView) { %>
+                <button type="button" data-save-view class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-dashed border-primary-theme/40 text-primary-theme font-semibold hover:bg-primary-theme/10 transition-all">
+                    <i class="fa-solid fa-plus text-[10px]"></i><%= t('collection.save_view') %>
+                </button>
+            <% } %>
+        </div>
+        <script>
+            <%# On the document, so the copy the live search swaps in keeps working; the guard
+                keeps a second copy from listening twice. %>
+            (function () {
+                if (window.__savedViewsWired) return;
+                window.__savedViewsWired = true;
+                const text = <%- JSON.stringify({ prompt: t('collection.save_view_prompt'), confirmDelete: t('collection.delete_view_confirm'), fail: t('errors.generic_server_error') }).replace(/</g, '\u003c') %>;
+                const post = async (url, body) => {
+                    const res = await fetch('<%= baseUrl %>' + url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok || !data.success) throw new Error(data.error || String(res.status));
+                };
+                document.addEventListener('click', async event => {
+                    const save = event.target.closest('[data-save-view]');
+                    const remove = event.target.closest('[data-delete-view]');
+                    if (!save && !remove) return;
+                    try {
+                        if (save) {
+                            const name = prompt(text.prompt);
+                            if (!name || !name.trim()) return;
+                            await post('/collection/saved-filters', { name, query: window.location.search });
+                        } else {
+                            if (!confirm(text.confirmDelete.replace('%s', remove.dataset.viewName))) return;
+                            await post('/collection/saved-filters/' + encodeURIComponent(remove.dataset.deleteView) + '/delete');
+                        }
+                        window.location.reload();
+                    } catch (err) {
+                        alert(text.fail);
+                    }
+                });
+            })();
+        </script>
+    <% } %>
+<% } %>
+
 <% if (activePills.length > 0) { %>
     <div class="flex flex-wrap items-center gap-2 mt-4 text-xs animate-in fade-in duration-200">
         <span class="opacity-60 font-semibold"><%= t('collection.active_filters') %></span>

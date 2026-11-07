@@ -120,6 +120,11 @@ const settingsSchema = new mongoose.Schema({
     // The articles a title's sort ignores (core/sortArticles.ts). Absent: English ones,
     // as it always was; an empty list ignores none.
     sortArticles: { type: [String], default: undefined },
+    // Named views of the collection page, shared by its members (core/savedFilters.ts).
+    savedFilters: {
+        type: [{ _id: false, id: String, name: String, query: String }],
+        default: undefined
+    },
     visibility: {
         applyToAdmin: { type: Boolean, default: false },
         hiddenItems: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Item' }],

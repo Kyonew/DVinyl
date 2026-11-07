@@ -22,6 +22,7 @@ import {
 } from '../pluginExtraFields';
 import { filterCandidates, filterOverrides, activeFilters, CORE_FILTER_IDS } from '../filterFields';
 import { isTranslationKey } from '../cardFields';
+import { canonicalQuery, MAX_SAVED_FILTERS, newSavedFilter, savedFiltersOf } from '../savedFilters';
 import { anyTypeMovesItems, outByItem, outItemIds, requestsEnabled } from '../requests';
 
 const router = express.Router();
@@ -37,6 +38,12 @@ router.get('/wishlist', requireAuth, async (req: any, res: any) => {
 router.get('/collection', requireAuthOrShareView, async (req: any, res: any) => {
   const data = await buildShelfView(req, res, false);
   if (!data) return;
+  // The collection's saved views, for its members only: a share link is shown one view
+  // of the collection, not the ones its members keep.
+  if (!res.locals.isShareView) {
+    data.savedFilters = savedFiltersOf(res.locals.settings);
+    data.currentFilterQuery = canonicalQuery(req.query);
+  }
   if (isPartialRequest(req)) return renderShelfPartial(res, data, false);
   res.vary('X-Requested-With');
   res.render('collection', data);
@@ -619,6 +626,35 @@ const MAX_BULK_DELETE_SELECTION = 500;
 // Bulk/sheet QR labels for a set of items picked on the collection page. Generic
 // rather than per-plugin: a mixed-type collection page can select items across
 // kinds in one go, so each item resolves its own plugin individually below.
+// Saves what the collection page shows now as a named view for every member.
+router.post('/collection/saved-filters', requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
+  try {
+    const collectionId = res.locals.activeCollectionId;
+    const current = savedFiltersOf(res.locals.settings);
+    if (current.length >= MAX_SAVED_FILTERS) return res.status(400).json({ success: false, error: 'too_many' });
+    const entry = newSavedFilter(req.body?.name, req.body?.query);
+    if ('error' in entry) return res.status(400).json({ success: false, error: entry.error });
+    await db.settings.updateOne(eq('collection', idOf(collectionId)), { set: { savedFilters: [...current, entry] } }, { upsert: true });
+    res.json({ success: true, filter: entry });
+  } catch (err: any) {
+    console.error('Saved filter error:', err.message);
+    res.status(500).json({ success: false, error: 'server_error' });
+  }
+});
+
+router.post('/collection/saved-filters/:id/delete', requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
+  try {
+    const current = savedFiltersOf(res.locals.settings);
+    const kept = current.filter(f => f.id !== String(req.params.id));
+    if (kept.length === current.length) return res.status(404).json({ success: false, error: 'not_found' });
+    await db.settings.updateOne(eq('collection', idOf(res.locals.activeCollectionId)), { set: { savedFilters: kept } });
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('Saved filter delete error:', err.message);
+    res.status(500).json({ success: false, error: 'server_error' });
+  }
+});
+
 router.post('/collection/labels', requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
   try {
     const activeCollectionId = res.locals.activeCollectionId;

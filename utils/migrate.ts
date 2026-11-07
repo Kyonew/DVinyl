@@ -4,6 +4,22 @@ import {
 } from '../core/db/query';
 import { registry } from '../core/registry';
 import { reconcileSortTitles } from '../core/sortTitles';
+
+/**
+ * Each plugin's own upgrade of the items it stores (PluginDefinition.migrateItems). One
+ * failing does not stop the others nor the boot: it runs again on the next one.
+ */
+export async function migratePluginItems(): Promise<void> {
+    for (const plugin of registry.getAll()) {
+        if (typeof plugin.migrateItems !== 'function') continue;
+        try {
+            const changed = await plugin.migrateItems();
+            if (changed > 0) console.log(`[MIGRATION] ${plugin.id}: ${changed} item(s) brought up to date.`);
+        } catch (err: any) {
+            console.error(`[MIGRATION] ${plugin.id}: item migration failed:`, err?.message || err);
+        }
+    }
+}
 import { findOrCreateDefaultCollection } from './collectionHelpers';
 import { seedFurnitureFromLocations } from '../core/shelfStore';
 import { legacySource, legacyIdFieldFor } from '../core/sources';
@@ -216,6 +232,8 @@ export const migrateDatabase = async () => {
         // core/sortArticles.ts), which a restore can change under items already stored.
         const resorted = await reconcileSortTitles();
         if (resorted > 0) console.log(`[MIGRATION] sort_title computed for ${resorted} item(s).`);
+
+        await migratePluginItems();
 
         // Until 3.1.2 an edit was written past the rules of the item's type. The form posts
         // every value as a string and an item of no type knows nothing of `tmdb_id` or

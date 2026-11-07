@@ -919,7 +919,11 @@
     "delete_selected_error": "La suppression a échoué : rien n'a été supprimé.",
     "delete_selected_too_many": "Seuls {{max}} éléments peuvent être supprimés en une fois.",
     "label_sheet_title": "Imprimer les étiquettes",
-    "label_sheet_empty": "Aucun des items sélectionnés n'a de code-barres, il n'y a donc rien à imprimer."
+    "label_sheet_empty": "Aucun des items sélectionnés n'a de code-barres, il n'y a donc rien à imprimer.",
+    "saved_views": "Vues enregistrées",
+    "save_view": "Enregistrer cette vue",
+    "save_view_prompt": "Nom de la vue (ex. : Singles 7\") :",
+    "delete_view_confirm": "Supprimer la vue « %s » ? Les disques ne sont pas touchés."
   },
   "confirm_vinyl": {
     "cover_preview": "Aperçu Pochette",
@@ -961,7 +965,11 @@
     "add_cover": "Ajouter une pochette",
     "manual_title": "Ajouter un album manuellement",
     "manual_mode_hint": "Saisie manuelle - pas de données Discogs. L'estimation de marché ne sera pas disponible.",
-    "tracklist_label": "Liste des pistes"
+    "tracklist_label": "Liste des pistes",
+    "field_disc_size": "Taille",
+    "field_speed": "Vitesse",
+    "field_release_type": "Type de sortie",
+    "field_disc_count": "Disques"
   },
   "edit_vinyl": {
     "title": "Modifier l'album",
@@ -2651,5 +2659,14 @@
     "self_near": "Vous souhaitez ce titre, dans une autre édition ({{collection}})",
     "badge_member": "Souhaité par {{member}}",
     "badge_self": "Dans vos souhaits"
+  },
+  "release_types": {
+    "single": "Single",
+    "maxi_single": "Maxi-single",
+    "ep": "EP",
+    "mini_album": "Mini-album",
+    "lp": "LP",
+    "album": "Album",
+    "compilation": "Compilation"
   }
 }

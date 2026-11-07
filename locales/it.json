@@ -662,7 +662,11 @@
     "delete_selected_error": "Eliminazione non riuscita: non è stato eliminato nulla.",
     "delete_selected_too_many": "È possibile eliminare al massimo {{max}} elementi alla volta.",
     "label_sheet_title": "Stampa le etichette",
-    "label_sheet_empty": "Nessuno degli elementi selezionati ha un codice a barre, quindi non c’è nulla da stampare."
+    "label_sheet_empty": "Nessuno degli elementi selezionati ha un codice a barre, quindi non c’è nulla da stampare.",
+    "saved_views": "Viste salvate",
+    "save_view": "Salva questa vista",
+    "save_view_prompt": "Nome della vista (es. singoli 7\"):",
+    "delete_view_confirm": "Eliminare la vista «%s»? Gli elementi restano come sono."
   },
   "collection_info": {
     "title": "Informazioni collezione",
@@ -844,7 +848,11 @@
     "add_cover": "Aggiungi copertina",
     "manual_title": "Aggiungi album manualmente",
     "manual_mode_hint": "Inserimento manuale - nessun dato Discogs. La stima di mercato non sarà disponibile.",
-    "tracklist_label": "Tracce"
+    "tracklist_label": "Tracce",
+    "field_disc_size": "Formato disco",
+    "field_speed": "Velocità",
+    "field_release_type": "Tipo di uscita",
+    "field_disc_count": "Dischi"
   },
   "detail": {
     "label_no_barcode": "Questo oggetto non ha un codice a barre: aggiungine uno modificandolo.",
@@ -2651,5 +2659,14 @@
     "self_near": "Desideri questo titolo, in un'altra edizione ({{collection}})",
     "badge_member": "Desiderato da {{member}}",
     "badge_self": "Nella tua lista dei desideri"
+  },
+  "release_types": {
+    "single": "Singolo",
+    "maxi_single": "Maxi singolo",
+    "ep": "EP",
+    "mini_album": "Mini album",
+    "lp": "LP",
+    "album": "Album",
+    "compilation": "Compilation"
   }
 }

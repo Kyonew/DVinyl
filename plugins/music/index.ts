@@ -1,6 +1,8 @@
 import { PluginDefinition } from '../../core/types';
 import { sourceFromProvider, imageSourceFrom } from '../../core/sources';
 import { DiscogsProvider } from './discogs';
+import { STANDARD_FORMAT_TERMS } from './constants';
+import { DISC_SIZES, RELEASE_TYPES, SPEEDS, physicalFrom, physicalFromDiscogs, wordsOf } from './formatDetails';
 import { musicImporters } from './importers';
 import { musicApiRoutes, discogsGalleryImages } from './apiRoutes';
 import { escapeRegExp, fetchJson, PermanentRefreshError, syncStamp } from '../../core/helpers';
@@ -117,6 +119,9 @@ export const musicPlugin: PluginDefinition = {
   ],
 
   defaultCardFields: ['artist', 'format_type', 'variant_color'],
+  // Size, speed and release type are how a record collection is browsed ("the 7\"
+  // singles"), so they are in the filter bar from the start.
+  defaultFilters: ['disc_size', 'speed', 'release_type'],
   cardFieldStyles: { format_type: 'pill', variant_color: 'dot' },
 
   // format_type comes from Discogs as a full descriptor ("Vinyl, LP, Album, Reissue").
@@ -142,6 +147,11 @@ export const musicPlugin: PluginDefinition = {
     media_type: { type: 'text', values: ['vinyl', 'cd', 'cassette', 'digital'], default: 'vinyl' },
     format_type: { type: 'text', default: 'Vinyl' },
     variant_color: { type: 'text' },
+    // What the record physically is, read from Discogs' format words (formatDetails.ts).
+    disc_size: { type: 'text' },
+    speed: { type: 'text' },
+    release_type: { type: 'text' },
+    disc_count: { type: 'number', min: 1 },
     sleeve_condition: { type: 'text', default: '' },
     discogs_id: { type: 'number' },
     country: { type: 'text', default: '' },
@@ -237,6 +247,39 @@ export const musicPlugin: PluginDefinition = {
       label: 'confirm_vinyl.field_edition',
       type: 'text',
       showIn: ['edit', 'confirm', 'manual'],
+      group: 'main'
+    },
+    // The values are Discogs' own words, so what it sends lands on an option as is. A
+    // stored value outside the list (an 11" disc) is kept and shown by the select.
+    {
+      name: 'disc_size',
+      label: 'confirm_vinyl.field_disc_size',
+      type: 'select',
+      options: [{ value: '', label: 'common.not_specified' }, ...DISC_SIZES.map(v => ({ value: v, label: v }))],
+      showIn: ['edit', 'confirm', 'detail', 'manual'],
+      group: 'main'
+    },
+    {
+      name: 'speed',
+      label: 'confirm_vinyl.field_speed',
+      type: 'select',
+      options: [{ value: '', label: 'common.not_specified' }, ...SPEEDS.map(v => ({ value: v, label: v }))],
+      showIn: ['edit', 'confirm', 'detail', 'manual'],
+      group: 'main'
+    },
+    {
+      name: 'release_type',
+      label: 'confirm_vinyl.field_release_type',
+      type: 'select',
+      options: [{ value: '', label: 'common.not_specified' }, ...RELEASE_TYPES.map(v => ({ value: v, label: `release_types.${v.toLowerCase().replace('-', '_')}` }))],
+      showIn: ['edit', 'confirm', 'detail', 'manual'],
+      group: 'main'
+    },
+    {
+      name: 'disc_count',
+      label: 'confirm_vinyl.field_disc_count',
+      type: 'number',
+      showIn: ['edit', 'confirm', 'detail', 'manual'],
       group: 'main'
     },
     {
@@ -585,10 +628,45 @@ export const musicPlugin: PluginDefinition = {
       updateData.genre = data.genres[0];
     }
 
-    // Written as a Music item: without the kind, only the fields every item has would be
-    // stored, and `tracklist` would be dropped while the refresh looked successful.
-    await db.items.updateOne(eq('_id', idOf(item._id)), { set: { ...updateData, ...syncStamp() } }, { kind: 'Music' });
+    // The physical facts of the format this copy is: the one matching its media when the
+    // release comes in several (a vinyl with a CD inside), else the first.
+    const formats: any[] = data.formats || [];
+    const media = String(item.media_type || 'vinyl').toLowerCase();
+    const own = formats.find(f => String(f.name || '').toLowerCase().includes(media === 'cd' ? 'cd' : media)) || formats[0];
+    Object.assign(updateData, physicalFromDiscogs(own));
+
+    // Returned rather than written here: the caller writes it as a Music item, after
+    // leaving out what the owner rewrote by hand (core/keptFields.ts).
     return updateData;
+  },
+
+  // Items from before the size, speed and release type were kept get them from the
+  // format and edition lines they already store. Only fields never set are filled, so a
+  // value the owner cleared stays cleared; a word that is not there is not guessed (an
+  // LP is not assumed to be 12").
+  async migrateItems(): Promise<number> {
+    const items = await db.items.find(eq('kind', 'Music'), {
+      fields: ['format_type', 'variant_color', 'disc_size', 'speed', 'release_type', 'disc_count']
+    });
+    const changes: { id: any; patch: any }[] = [];
+    for (const item of items as any[]) {
+      const found: Record<string, any> = physicalFrom(wordsOf(item.format_type, item.variant_color));
+      const set: Record<string, any> = {};
+      for (const [field, value] of Object.entries(found)) {
+        if (item[field] === undefined || item[field] === null) set[field] = value;
+      }
+      // Words now read as format were filed as the edition before: moved back.
+      const edition = wordsOf(item.variant_color);
+      const kept = edition.filter(w => !STANDARD_FORMAT_TERMS.includes(w));
+      if (kept.length !== edition.length) {
+        set.variant_color = kept.join(', ');
+        const format = wordsOf(item.format_type);
+        set.format_type = [...format, ...edition.filter(w => STANDARD_FORMAT_TERMS.includes(w) && !format.includes(w))].join(', ');
+      }
+      if (Object.keys(set).length > 0) changes.push({ id: item._id, patch: { set } });
+    }
+    if (changes.length > 0) await db.items.updateEach(changes);
+    return changes.length;
   }
 };
 

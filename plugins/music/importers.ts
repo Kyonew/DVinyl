@@ -9,6 +9,7 @@ import {
 } from '../../utils/libib';
 import { db } from '../../core/db';
 import { and, ci, eq, idOf, ne } from '../../core/db/query';
+import { physicalFromDiscogs } from './formatDetails';
 import { STANDARD_FORMAT_TERMS } from './constants';
 
 // DISCOGS COLLECTION/WISHLIST IMPORT ROUTE
@@ -143,6 +144,7 @@ async function importDiscogs(req: any, res: any) {
           format_type: formatType.join(', '),
           variant_color: variantColor.join(', '),
           media_type: mediaType,
+          ...physicalFromDiscogs(firstFormat),
           cover_image: info.cover_image || info.thumb || '',
           tracklist,
           discogs_id: info.id,

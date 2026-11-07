@@ -1,6 +1,7 @@
 import { SearchProvider, SearchOptions, SearchResult, ConfirmData } from '../../core/types';
 import { fetchJson } from '../../core/helpers';
 import { STANDARD_FORMAT_TERMS } from './constants';
+import { physicalFromDiscogs, PhysicalDetails } from './formatDetails';
 
 export class DiscogsProvider implements SearchProvider {
   name = 'Discogs';
@@ -141,6 +142,7 @@ export class DiscogsProvider implements SearchProvider {
     let formatType: string[] = [];
     let variantColor: string[] = [];
     let finalMediaType = 'vinyl';
+    let physical: PhysicalDetails = {};
 
     if (data.formats && data.formats.length > 0) {
       let bestFormat = data.formats[0];
@@ -151,6 +153,7 @@ export class DiscogsProvider implements SearchProvider {
       }
 
       formatType.push(bestFormat.name);
+      physical = physicalFromDiscogs(bestFormat);
 
       if (bestFormat.text) {
         const parts = bestFormat.text.split(',').map((p: string) => p.trim());
@@ -208,7 +211,8 @@ export class DiscogsProvider implements SearchProvider {
       genres: data.genres || [],
       styles: data.styles || [],
       barcode: barcode,
-      media_type: finalMediaType
+      media_type: finalMediaType,
+      ...physical
     };
   }
 }

@@ -919,7 +919,11 @@
     "delete_selected_error": "The deletion failed: nothing was deleted.",
     "delete_selected_too_many": "Only {{max}} items can be deleted at once.",
     "label_sheet_title": "Print labels",
-    "label_sheet_empty": "None of the selected items has a barcode, so there is nothing to print."
+    "label_sheet_empty": "None of the selected items has a barcode, so there is nothing to print.",
+    "saved_views": "Saved views",
+    "save_view": "Save this view",
+    "save_view_prompt": "Name this view (e.g. 7\" singles):",
+    "delete_view_confirm": "Delete the saved view \"%s\"? The records stay as they are."
   },
   "confirm_vinyl": {
     "cover_preview": "Cover Preview",
@@ -961,7 +965,11 @@
     "add_cover": "Add cover",
     "manual_title": "Add album manually",
     "manual_mode_hint": "Manual entry - no Discogs data. Market estimation will not be available.",
-    "tracklist_label": "Tracklist"
+    "tracklist_label": "Tracklist",
+    "field_disc_size": "Size",
+    "field_speed": "Speed",
+    "field_release_type": "Release type",
+    "field_disc_count": "Discs"
   },
   "edit_vinyl": {
     "title": "Edit Album",
@@ -2651,5 +2659,14 @@
     "self_near": "You wish for this title, in another release ({{collection}})",
     "badge_member": "Wished by {{member}}",
     "badge_self": "On your wishlist"
+  },
+  "release_types": {
+    "single": "Single",
+    "maxi_single": "Maxi-single",
+    "ep": "EP",
+    "mini_album": "Mini-album",
+    "lp": "LP",
+    "album": "Album",
+    "compilation": "Compilation"
   }
 }

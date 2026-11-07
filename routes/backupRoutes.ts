@@ -18,7 +18,7 @@ import { importableFields, fieldValue, ImportTargetField } from '../core/csvMapp
 // Stamped into every dump so a restore log says which build produced the file.
 // Read from package.json rather than copied, which is how it came to say 3.1.0 on 3.1.1.
 const pkg = require('../package.json');
-import { liftLegacyAccountFields, migrateDatabase, normalizeThemePresets } from '../utils/migrate';
+import { liftLegacyAccountFields, migrateDatabase, migratePluginItems, normalizeThemePresets } from '../utils/migrate';
 import { migrateExtraFieldIdentities } from '../utils/migrateExtraFieldIdentities';
 import { seedFurnitureFromLocations } from '../core/shelfStore';
 import { findDuplicateCellKey } from '../utils/shelfHelpers';
@@ -908,6 +908,8 @@ const importCollectionBackup = async (req: any, res: any) => {
         // The items were filed with the articles the collection ignored before its
         // settings came back with the dump, which may name others.
         await reconcileSortTitles(activeCollectionId);
+        // Nor the plugins' own item upgrades, which an older dump needs as much.
+        await migratePluginItems();
 
         try {
             await deleteUnusedManagedItemImages(replacedImagePaths);

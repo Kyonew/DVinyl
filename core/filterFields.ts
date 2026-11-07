@@ -13,7 +13,7 @@ import { ExtraFieldConfig, FilterableField, isFilterable } from './pluginExtraFi
  *
  * Only deviations from the default are stored, so a key that is absent keeps the
  * filter where it always was: core controls and user-defined fields on, the plugin's
- * own fields off. A field declared later therefore shows up on its own, as it did
+ * own fields off unless it lists them in `defaultFilters`. A field declared later therefore shows up on its own, as it did
  * before this setting existed.
  *
  * The page showing every type at once is left alone: its filters span all plugins,
@@ -100,7 +100,7 @@ export function filterCandidates(plugin: PluginDefinition, extraDefs: ExtraField
   });
 
   for (const field of nativeFilterFields(plugin)) {
-    out.push({ id: field.name, label: field.label, source: 'native', defaultOn: false, field });
+    out.push({ id: field.name, label: field.label, source: 'native', defaultOn: (plugin.defaultFilters || []).includes(field.name), field });
   }
   for (const field of extraDefs.filter(isFilterable)) {
     out.push({ id: field.name, label: field.label, source: 'extra', defaultOn: true, field });

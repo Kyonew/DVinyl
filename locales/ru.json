@@ -910,7 +910,11 @@
     "delete_selected_error": "Удалить не удалось: ничего не изменилось.",
     "delete_selected_too_many": "За раз можно удалить не больше {{max}} записей.",
     "label_sheet_title": "Печать этикеток",
-    "label_sheet_empty": "У выбранных записей нет штрихкода — печатать нечего."
+    "label_sheet_empty": "У выбранных записей нет штрихкода — печатать нечего.",
+    "saved_views": "Сохранённые виды",
+    "save_view": "Сохранить этот вид",
+    "save_view_prompt": "Название вида (например, синглы 7\"):",
+    "delete_view_confirm": "Удалить вид «%s»? Записи не изменятся."
   },
   "collection_info": {
     "title": "О коллекции",
@@ -981,7 +985,11 @@
     "add_cover": "Добавить обложку",
     "manual_title": "Добавить альбом вручную",
     "manual_mode_hint": "Ручной ввод, данных Discogs нет. Оценку стоимости посчитать не получится.",
-    "tracklist_label": "Треклист"
+    "tracklist_label": "Треклист",
+    "field_disc_size": "Размер",
+    "field_speed": "Скорость",
+    "field_release_type": "Тип релиза",
+    "field_disc_count": "Дисков"
   },
   "edit_vinyl": {
     "title": "Редактировать альбом",
@@ -2640,5 +2648,14 @@
     "self_near": "Вы хотите это название в другом издании ({{collection}})",
     "badge_member": "Хочет {{member}}",
     "badge_self": "В вашем желаемом"
+  },
+  "release_types": {
+    "single": "Сингл",
+    "maxi_single": "Макси-сингл",
+    "ep": "EP",
+    "mini_album": "Мини-альбом",
+    "lp": "LP",
+    "album": "Альбом",
+    "compilation": "Сборник"
   }
 }
