@@ -2642,5 +2642,14 @@
     "palette_any_color": "Any colour",
     "custom_low_contrast_light": "Hard to read in light mode ({{ratio}}:1)",
     "custom_low_contrast_dark": "Hard to read in dark mode ({{ratio}}:1)"
+  },
+  "wishes": {
+    "found_title": "Wished for in your collections",
+    "member_exact": "{{member}} wishes for this release ({{collection}})",
+    "member_near": "{{member}} wishes for this title, in another release ({{collection}})",
+    "self_exact": "You wish for this release ({{collection}})",
+    "self_near": "You wish for this title, in another release ({{collection}})",
+    "badge_member": "Wished by {{member}}",
+    "badge_self": "On your wishlist"
   }
 }

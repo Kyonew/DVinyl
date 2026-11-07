@@ -200,6 +200,18 @@
                                 often several results that only this tells apart. %>
                             <p class="opacity-40 text-[10px] mb-2 transition-colors line-clamp-1"><%= [item.country || item.platforms_text, item.year].filter(Boolean).join(' • ') %></p>
 
+                            <%# Someone in the reader's collections wishes for it. The first wish
+                                is named, the rest counted; all of them in the tooltip. %>
+                            <% if (item.memberWishes && item.memberWishes.length > 0) {
+                                const wishText = w => t(w.member ? (w.exact ? 'wishes.member_exact' : 'wishes.member_near') : (w.exact ? 'wishes.self_exact' : 'wishes.self_near'), { member: w.member, collection: w.collection, interpolation: { escapeValue: false } });
+                                const first = item.memberWishes[0];
+                            %>
+                                <div class="flex items-center gap-1 mb-2 text-[10px] font-bold <%= first.exact ? 'text-pink-500' : 'text-pink-500/70' %>" title="<%= item.memberWishes.map(wishText).join('\n') %>">
+                                    <i class="fa-<%= first.exact ? 'solid' : 'regular' %> fa-heart text-[9px]"></i>
+                                    <span class="truncate"><%= first.member ? t('wishes.badge_member', { member: first.member, interpolation: { escapeValue: false } }) : t('wishes.badge_self') %><% if (item.memberWishes.length > 1) { %> +<%= item.memberWishes.length - 1 %><% } %></span>
+                                </div>
+                            <% } %>
+
                             <%# Where the result came from, so two databases answering the same
                                 query stay tellable apart. Pointless when only one can answer. %>
                             <% if ((locals.sources || []).length > 1 && item.source) { %>

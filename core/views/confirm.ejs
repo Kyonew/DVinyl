@@ -25,6 +25,21 @@
         </button>
     </nav>
 
+    <%# Members of the reader's collections who wish for this release, or for the same
+        title in another one: worth knowing before buying it, or before passing it by. %>
+    <% if (locals.memberWishes && memberWishes.length > 0) { %>
+        <div class="mb-6 rounded-xl border border-pink-500/30 bg-pink-500/10 px-4 py-3 text-sm">
+            <p class="font-bold flex items-center gap-2 mb-1"><i class="fa-solid fa-heart text-pink-500"></i><%= t('wishes.found_title') %></p>
+            <ul class="space-y-0.5">
+                <% memberWishes.forEach(wish => { %>
+                    <li class="opacity-80">
+                        <%= t(wish.member ? (wish.exact ? 'wishes.member_exact' : 'wishes.member_near') : (wish.exact ? 'wishes.self_exact' : 'wishes.self_near'), { member: wish.member, collection: wish.collection, interpolation: { escapeValue: false } }) %>
+                    </li>
+                <% }) %>
+            </ul>
+        </div>
+    <% } %>
+
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
         <!-- Left Side: Visual & Quick Details -->

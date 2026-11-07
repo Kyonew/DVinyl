@@ -2631,5 +2631,14 @@
     "palette_any_color": "Любой цвет",
     "custom_low_contrast_light": "Плохо читается в светлой теме ({{ratio}}:1)",
     "custom_low_contrast_dark": "Плохо читается в тёмной теме ({{ratio}}:1)"
+  },
+  "wishes": {
+    "found_title": "В желаемом ваших коллекций",
+    "member_exact": "{{member}} хочет это издание ({{collection}})",
+    "member_near": "{{member}} хочет это название в другом издании ({{collection}})",
+    "self_exact": "Вы хотите это издание ({{collection}})",
+    "self_near": "Вы хотите это название в другом издании ({{collection}})",
+    "badge_member": "Хочет {{member}}",
+    "badge_self": "В вашем желаемом"
   }
 }

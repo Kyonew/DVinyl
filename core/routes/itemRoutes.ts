@@ -30,6 +30,7 @@ import { isAiConfigured } from '../ai/config';
 import { noticeWish } from '../wishlistNotices';
 import { metadataLanguage } from '../metadataLanguage';
 import { offeredSourceValues, trackOwnerEdits } from '../keptFields';
+import { memberWishesFor } from '../memberWishes';
 
 /**
  * Names what was just saved in the path an add comes back to, so the add page can say so.
@@ -260,6 +261,9 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           result.source = answering.id;
           result.confirmPath = confirmPathFor(plugin.id, result, { searchType: type, scannedBarcode });
         }
+        // Who among the members of the reader's collections wishes for each result.
+        const wishes = await memberWishesFor(plugin, req.user?._id, results);
+        results.forEach((result: any, index: number) => { result.memberWishes = wishes[index]; });
 
         // Scan mode: the query named one exact item and one thing came back, so there is
         // nothing to choose between. Straight to the confirm page, which submits itself.
@@ -425,6 +429,8 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           existingItemsArray = exactDuplicate ? [exactDuplicate] : [];
         }
 
+        const [memberWishes] = await memberWishesFor(plugin, req.user?._id, [details]);
+
         res.render('confirm', {
           item: details,
           user: res.locals.user,
@@ -432,6 +438,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           genres,
           currentType: plugin.collectionType,
           existingItems: existingItemsArray,
+          memberWishes,
           plugin,
           isManual: false,
           // Scan mode sends every add back to the add page, whether it submitted itself or

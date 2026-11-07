@@ -2642,5 +2642,14 @@
     "palette_any_color": "N'importe quelle couleur",
     "custom_low_contrast_light": "Peu lisible en clair ({{ratio}}:1)",
     "custom_low_contrast_dark": "Peu lisible en sombre ({{ratio}}:1)"
+  },
+  "wishes": {
+    "found_title": "Souhaité dans vos collections",
+    "member_exact": "{{member}} souhaite cette édition ({{collection}})",
+    "member_near": "{{member}} souhaite ce titre, dans une autre édition ({{collection}})",
+    "self_exact": "Vous souhaitez cette édition ({{collection}})",
+    "self_near": "Vous souhaitez ce titre, dans une autre édition ({{collection}})",
+    "badge_member": "Souhaité par {{member}}",
+    "badge_self": "Dans vos souhaits"
   }
 }
