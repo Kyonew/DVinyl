@@ -1364,7 +1364,8 @@
     "home_page_collection": "Recopilación",
     "home_page_wishlist": "Lista de deseos",
     "home_view_label": "Vista predeterminada",
-    "home_view_last": "Última utilizada"
+    "home_view_last": "Última utilizada",
+    "currency_rub": "Rublo ruso (₽)"
   },
   "setup": {
     "admin_config": "Configuración de administrador",

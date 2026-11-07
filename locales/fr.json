@@ -83,7 +83,8 @@
     "home_page_collection": "Collection",
     "home_page_wishlist": "Souhaits",
     "home_view_label": "Vue par défaut",
-    "home_view_last": "Dernière utilisée"
+    "home_view_last": "Dernière utilisée",
+    "currency_rub": "Rouble russe (₽)"
   },
   "errors": {
     "invalid_fields": "Vérifiez ces champs : {{fields}}.",
