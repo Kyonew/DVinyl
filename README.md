@@ -61,7 +61,7 @@ read-only preview of a finished instance.
 - **Modular dashboard.** Pick your stat widgets and add custom navigation shortcuts.
 - **Collection info page.** Add a rich Markdown presentation page with photos for your collections.
 - **Responsive.** Designed to feel natural on desktop, tablet and mobile.
-- **Multilingual.** English, French, German, Spanish and Italian.
+- **Multilingual.** English, French, German, Spanish, Italian and Russian.
 
 ### 👥 Share it, your way
 - **Users and roles.** Invite people to a collection as admin, editor or viewer, so everyone gets
