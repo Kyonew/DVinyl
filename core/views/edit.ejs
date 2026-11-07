@@ -40,6 +40,12 @@
                         .filter(f => f.showIn.includes('edit'))
                         .map(f => f.name));
                     if (plugin.externalIdField) editVisible.add(plugin.externalIdField);
+                    // The summary a source wrote is the owner's to rewrite (a board game's in
+                    // their own language, say), whatever the type, so it gets an input of its
+                    // own wherever the type stores one and declares none.
+                    const summaryLabel = t('confirm_' + plugin.i18nKey + '.description_title', { defaultValue: t('confirm_book.description_title') });
+                    const editSummary = Object.prototype.hasOwnProperty.call(plugin.storedFields || {}, 'description') && !editVisible.has('description');
+                    if (editSummary) editVisible.add('description');
 
                     const editHidden = [];
                     Object.keys(plugin.storedFields || {}).forEach(k => {
@@ -87,6 +93,12 @@
                         <%- include('partials/field-grid', { fields: mainFields, item, isEdit: true }) %>
                     </div>
 
+                    <% if (editSummary) { %>
+                        <div>
+                            <%- include('partials/fields/textarea', { field: { name: 'description', label: summaryLabel }, value: item.description }) %>
+                        </div>
+                    <% } %>
+
                     <!-- Custom inputs from formFields (like tracklist editor), end of the "album info" section -->
                     <%
                     const customFields = plugin.formFields.filter(f => f.showIn.includes('edit') && f.type === 'custom');
@@ -104,6 +116,40 @@
                         %>
                         <%- include('partials/field-grid', { fields: metaFields, item, isEdit: true }) %>
                     </div>
+
+                    <%# Fields the owner rewrote are kept across refreshes. Those a refresh has
+                        since brought another value for are listed, each with a way to hand it
+                        back to the source. %>
+                    <% if (locals.canRefreshItem) {
+                        const labelOf = name => {
+                            if (name === 'description') return summaryLabel;
+                            if (name === 'cover_image') return t('generic.kept_cover');
+                            const declared = (plugin.formFields || []).find(f => f.name === name);
+                            return declared ? t(declared.label) : name;
+                        };
+                        const sourceName = locals.refreshSourceName || t('generic.kept_source_fallback');
+                    %>
+                        <div class="rounded-xl border border-black/5 dark:border-white/10 p-4 space-y-3">
+                            <p class="text-xs opacity-60"><i class="fa-solid fa-lock mr-1.5"></i><%= t('generic.kept_hint') %></p>
+                            <% (locals.offeredSourceValues || []).forEach(offer => {
+                                const shown = Array.isArray(offer.value) ? offer.value.map(v => typeof v === 'object' ? (v.name || '') : v).filter(Boolean).join(', ') : String(offer.value ?? '');
+                            %>
+                                <label class="flex items-start gap-3 bg-black/5 dark:bg-white/5 rounded-lg p-3 cursor-pointer">
+                                    <input type="checkbox" name="revert_fields" value="<%= offer.field %>" class="mt-1 w-4 h-4 accent-primary-theme cursor-pointer">
+                                    <span class="min-w-0 flex-grow">
+                                        <span class="block text-sm font-bold"><%= t('generic.kept_use_source', { field: labelOf(offer.field), source: sourceName }) %></span>
+                                        <% if (offer.field === 'cover_image' && shown) { %>
+                                            <img src="<%= itemImageUrl(shown) %>" alt="" class="mt-2 h-20 rounded object-cover">
+                                        <% } else if (shown) { %>
+                                            <span class="block mt-1 text-xs opacity-60 line-clamp-3 whitespace-pre-line"><%= shown %></span>
+                                        <% } else { %>
+                                            <span class="block mt-1 text-xs opacity-40 italic"><%= t('generic.kept_source_empty') %></span>
+                                        <% } %>
+                                    </span>
+                                </label>
+                            <% }) %>
+                        </div>
+                    <% } %>
 
                     <input type="hidden" name="in_wishlist" value="<%= item.in_wishlist %>">
                     <input type="hidden" name="mongo_id" value="<%= item._id %>">

@@ -1284,7 +1284,12 @@
     "main_image": "Image principale",
     "secondary_image": "Image secondaire",
     "image_preview": "Aperçu de l'image",
-    "genre": "Genre"
+    "genre": "Genre",
+    "kept_hint": "Ce que vous modifiez ici est conservé lors d'un rafraîchissement.",
+    "kept_use_source": "Reprendre le champ « {{field}} » de {{source}}",
+    "kept_source_fallback": "la source",
+    "kept_source_empty": "Rien : la source n'a pas de valeur pour ce champ.",
+    "kept_cover": "pochette"
   },
   "image_source": {
     "local": "Fichier local",

@@ -19,7 +19,7 @@ import { db } from '../db';
 import { and, eq, Filter, isIn, missing, ne, or } from '../db/filter';
 import { idOf, isId } from '../db/ids';
 import { isValidationError, validationMessages } from '../db/errors';
-import { hasSearch, searchableSources, resolveSource, canRefresh, refreshPatchFor } from '../sources';
+import { hasSearch, searchableSources, resolveSource, canRefresh, refreshPatchFor, sourceForItem, legacySource } from '../sources';
 import { resolveBarcodeWithAi } from '../ai/barcode';
 import { resolveCardScanWithAi } from '../ai/cardScan';
 import { identifyFromPhoto } from '../ai/photo';
@@ -29,6 +29,7 @@ import { getAiConfig, isAiReady } from '../ai/instance';
 import { isAiConfigured } from '../ai/config';
 import { noticeWish } from '../wishlistNotices';
 import { metadataLanguage } from '../metadataLanguage';
+import { offeredSourceValues, trackOwnerEdits } from '../keptFields';
 
 /**
  * Names what was just saved in the path an add comes back to, so the add page can say so.
@@ -878,6 +879,20 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           { set: { ...saveObj, ...editStamp(adminId) }, unset: Object.keys(unsetObj) },
           { kind: plugin.kind, allowUndeclared: true }
         );
+
+        // What the owner rewrote in the edit form outlives the next refresh, and what they
+        // hand back goes to the source again (core/keptFields.ts). Read off the stored
+        // item before and after, once every value has been cast, so a value that only
+        // made the round trip through the form is not taken for a change.
+        if (isEdit) {
+          const after = await db.items.findOne(eq('_id', idOf(existingItem._id)), { defaults: true });
+          const posted = req.body.revert_fields;
+          const reverted = (Array.isArray(posted) ? posted : [posted]).filter((f: any) => typeof f === 'string' && f);
+          const tracked = after && trackOwnerEdits(existingItem, after, reverted, [plugin.externalIdField].filter(Boolean) as string[]);
+          if (tracked) {
+            await db.items.updateOne(eq('_id', idOf(existingItem._id)), tracked, { kind: plugin.kind, allowUndeclared: true });
+          }
+        }
       } else {
         const created = await db.items.create({
           ...updateData,
@@ -954,9 +969,15 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       const suggestions = await buildFieldSuggestions(plugin, activeCollectionId, item);
       const genres = await genresInUse(activeCollectionId);
 
+      // The source a refresh asks, named on the offer to take its values back.
+      const refreshSource = sourceForItem(plugin, item) || legacySource(plugin);
+
       res.render('edit', {
         item: plugin.formatForView(item),
         plugin,
+        canRefreshItem: canRefresh(plugin),
+        offeredSourceValues: offeredSourceValues(item),
+        refreshSourceName: refreshSource?.name || '',
         suggestions,
         genres,
         // Handed over by the item page and posted back with the form: the Referer here is

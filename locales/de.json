@@ -1003,7 +1003,12 @@
     "main_image": "Hauptbild",
     "secondary_image": "Zweitbild",
     "image_preview": "Bildvorschau",
-    "genre": "Genre"
+    "genre": "Genre",
+    "kept_hint": "Was du hier änderst, bleibt beim Aktualisieren erhalten.",
+    "kept_use_source": "„{{field}}“ wieder von {{source}} übernehmen",
+    "kept_source_fallback": "der Quelle",
+    "kept_source_empty": "Nichts: Die Quelle hat dafür keinen Wert.",
+    "kept_cover": "Cover"
   },
   "image_manager": {
     "title": "Bilder des Eintrags",

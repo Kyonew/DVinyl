@@ -1,6 +1,7 @@
 import { PluginDefinition, ExternalSource, SearchProvider } from './types';
 import { PermanentRefreshError } from './helpers';
 import { metadataLanguage } from './metadataLanguage';
+import { keepOwnerValues } from './keptFields';
 
 /**
  * Where a plugin looks items up, and which of those places is usable right now.
@@ -298,11 +299,12 @@ export async function refreshPatchFor(
         throw new PermanentRefreshError(`${source.name} is not configured`);
       }
       const details = await source.getDetails(String(externalId), { language: metadataLanguage(req) });
-      return plugin.mergeRefresh(item, details);
+      return keepOwnerValues(item, plugin.mergeRefresh(item, details));
     }
   }
 
-  if (plugin.refreshItem) return plugin.refreshItem(item, req);
+  // Whatever the way in, the fields the owner rewrote by hand stay theirs.
+  if (plugin.refreshItem) return keepOwnerValues(item, await plugin.refreshItem(item, req));
 
   throw new PermanentRefreshError('This item carries nothing to refresh it from');
 }

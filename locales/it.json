@@ -1003,7 +1003,12 @@
     "main_image": "Immagine principale",
     "secondary_image": "Immagine secondaria",
     "image_preview": "Anteprima dell'immagine",
-    "genre": "Genere"
+    "genre": "Genere",
+    "kept_hint": "Ciò che modifichi qui viene mantenuto quando l'elemento viene aggiornato.",
+    "kept_use_source": "Usa di nuovo «{{field}}» da {{source}}",
+    "kept_source_fallback": "la fonte",
+    "kept_source_empty": "Niente: la fonte non ha un valore per questo campo.",
+    "kept_cover": "copertina"
   },
   "image_manager": {
     "title": "Immagini dell'elemento",

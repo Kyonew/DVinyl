@@ -65,6 +65,11 @@ const itemSchema = new mongoose.Schema({
   // a source is free to hand out slugs.
   source: { type: String, default: '' },
   source_id: { type: String, default: '' },
+  // The fields the owner changed by hand, which a metadata refresh leaves alone, and what
+  // the source said about them on the last refresh, offered back by the edit form. See
+  // core/keptFields.ts.
+  kept_fields: { type: [String], default: undefined },
+  source_values: { type: mongoose.Schema.Types.Mixed, default: undefined },
   added_at: { type: Date, default: Date.now },
 
   // Values of the user-defined fields declared per collection in

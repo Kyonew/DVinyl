@@ -1284,7 +1284,12 @@
     "main_image": "Main image",
     "secondary_image": "Secondary image",
     "image_preview": "Image preview",
-    "genre": "Genre"
+    "genre": "Genre",
+    "kept_hint": "What you change here is kept when the item is refreshed.",
+    "kept_use_source": "Use the {{field}} from {{source}} again",
+    "kept_source_fallback": "the source",
+    "kept_source_empty": "Nothing: the source has no value for it.",
+    "kept_cover": "cover"
   },
   "image_source": {
     "local": "Local file",
