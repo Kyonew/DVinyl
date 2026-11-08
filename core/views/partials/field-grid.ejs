@@ -31,8 +31,9 @@
                 <%# `location` is a core path every module carries, and the core draws it its
                     own way: a picker over the collection's shelves rather than the plain
                     text box its type asks for. %>
-                <%# So is `purchase_price`, an amount in a currency rather than a bare number. %>
-                <%- include('fields/' + (field.name === 'location' ? 'location' : field.name === 'purchase_price' ? 'price' : field.type), { field, value: item[field.name], item, isEdit: locals.isEdit === true }) %>
+                <%# So is `purchase_price`, an amount in a currency rather than a bare number, and
+                    `extra_formats`, boxes over the type's own formats. %>
+                <%- include('fields/' + (field.name === 'location' ? 'location' : field.name === 'purchase_price' ? 'price' : field.name === 'extra_formats' ? 'formats' : field.type), { field, value: item[field.name], item, isEdit: locals.isEdit === true }) %>
             </div>
         <% }) %>
     </div>

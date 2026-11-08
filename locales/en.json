@@ -40,6 +40,8 @@
     "no_format": "No format",
     "no_value": "No value",
     "purchase_price": "Purchase price (per copy)",
+    "extra_formats": "Also contains",
+    "extra_formats_hint": "Other formats in the same box, such as the Blu-ray that comes with a 4K UHD. The edition then shows under each of them.",
     "add_row": "Add a row"
   },
   "settings": {

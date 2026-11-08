@@ -4,6 +4,7 @@ import { DEFAULT_PLACEHOLDER_IMAGE } from './placeholderImage';
 import { imagesForItem } from './itemImages';
 import { pluginSources, isSourceConfigured, isSearchable, requiredEnvKeysFor } from './sources';
 import { INHERIT_PRESET } from './theme';
+import { addExtraFormatsField } from './extraFormats';
 
 const FLATTENS_EXTRA = Symbol('flattensExtra');
 const RESOLVES_PLACEHOLDER = Symbol('resolvesPlaceholder');
@@ -96,6 +97,7 @@ class PluginRegistry {
 
   register(plugin: PluginDefinition): void {
     addCoreCopyFields(plugin);
+    addExtraFormatsField(plugin);
     flattenExtraValues(plugin);
     resolvePlaceholderCover(plugin);
     this.plugins.set(plugin.id, plugin);

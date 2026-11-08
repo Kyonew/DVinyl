@@ -8,6 +8,7 @@ import { db } from '../../core/db';
 import { and, ci, eq, idOf, isId, isIn, missing, ne, or, textOrUnset, Filter } from '../../core/db/query';
 import { describeOwnedSeasons } from './constants';
 import { metadataLanguage, withRegion } from '../../core/metadataLanguage';
+import { holdsFormat } from '../../core/extraFormats';
 
 const tmdbProvider = new TMDBProvider();
 
@@ -290,6 +291,8 @@ export const dvdPlugin: PluginDefinition = {
     description: { type: 'text', default: '' }
   },
 
+  // A 4K UHD box very often holds the Blu-ray too.
+  multipleFormats: true,
   formats: [
     { value: 'dvd', label: 'media.dvd', color: 'bg-sky-600/90' },
     { value: 'bluray', label: 'media.bluray', color: 'bg-indigo-700/90' },
@@ -484,7 +487,7 @@ export const dvdPlugin: PluginDefinition = {
   getStats(items: any[]): Record<string, any> {
     const countByFormat = (format: string) => {
       return items
-        .filter(i => (i.format || '').toLowerCase() === format.toLowerCase())
+        .filter(i => holdsFormat(i, format))
         .reduce((acc, i) => acc + Number(i.quantity || 1), 0);
     };
 

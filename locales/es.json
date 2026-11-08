@@ -738,6 +738,8 @@
     "no_format": "Sin formato",
     "no_value": "Sin valor",
     "purchase_price": "Precio de compra (por ejemplar)",
+    "extra_formats": "También contiene",
+    "extra_formats_hint": "Otros formatos en la misma caja, como el Blu-ray que acompaña a un 4K UHD. La edición aparece entonces en cada uno de ellos.",
     "add_row": "Añadir una fila"
   },
   "confirm_book": {

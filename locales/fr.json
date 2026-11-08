@@ -40,6 +40,8 @@
     "no_format": "Aucun format",
     "no_value": "Aucune valeur",
     "purchase_price": "Prix d'achat (par exemplaire)",
+    "extra_formats": "Contient aussi",
+    "extra_formats_hint": "Les autres formats dans la même boîte, comme le Blu-ray fourni avec un 4K UHD. L'édition apparaît alors sous chacun d'eux.",
     "add_row": "Ajouter une ligne"
   },
   "settings": {

@@ -189,7 +189,8 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
 
     // FORMAT FILTER
     if (format && format !== 'all') {
-      conditions.push(or(ci('media_type', String(format)), ci('format', String(format))));
+      // An edition holding the format besides its own counts too (core/extraFormats.ts).
+      conditions.push(or(ci('media_type', String(format)), ci('format', String(format)), ci('extra_formats', String(format))));
     }
 
     // LOCATION FILTER

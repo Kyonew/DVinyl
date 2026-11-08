@@ -32,6 +32,7 @@ import { metadataLanguage } from '../metadataLanguage';
 import { offeredSourceValues, trackOwnerEdits } from '../keptFields';
 import { memberWishesFor } from '../memberWishes';
 import { parseRows, rowColumns } from '../rowsField';
+import { EXTRA_FORMATS_FIELD, parseExtraFormats } from '../extraFormats';
 
 /**
  * Names what was just saved in the path an add comes back to, so the add page can say so.
@@ -668,7 +669,12 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
 
         let value = req.body[field.name];
 
-        if (field.type === 'custom' && req.body[`${field.name}_json`]) {
+        if (field.name === EXTRA_FORMATS_FIELD) {
+          // Posted as boxes, behind an empty value that says the form carried the field,
+          // so ticking none clears it. A form without it leaves the stored list alone.
+          value = value === undefined ? undefined
+            : parseExtraFormats(value, plugin, req.body.format ?? req.body.media_type);
+        } else if (field.type === 'custom' && req.body[`${field.name}_json`]) {
           // Custom editors (e.g. the tracklist editor) post their value as `<name>_json`
           value = JSON.parse(req.body[`${field.name}_json`]);
         } else if (field.type === 'rows') {

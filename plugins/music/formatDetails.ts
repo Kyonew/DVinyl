@@ -50,6 +50,25 @@ export function physicalFromDiscogs(format: any): PhysicalDetails {
   return physicalFrom(words, format.qty);
 }
 
+/**
+ * The media a Discogs release comes in besides the one this copy is filed as: the CD of
+ * a "Vinyl + CD" release, the download card of a vinyl. Names that are none of the
+ * plugin's media (a DVD, a box) are left out.
+ */
+export function otherMediaFromDiscogs(formats: any[] | undefined, own: string): string[] {
+  const out: string[] = [];
+  for (const format of formats || []) {
+    const name = String(format?.name || '').toLowerCase();
+    const media = name.includes('cassette') ? 'cassette'
+      : /\b(cd|cdr|sacd|hybrid)\b/.test(name) ? 'cd'
+      : /vinyl|lathe|flexi|acetate|shellac/.test(name) ? 'vinyl'
+      : name === 'file' ? 'digital'
+      : '';
+    if (media && media !== own && !out.includes(media)) out.push(media);
+  }
+  return out;
+}
+
 /** Splits a stored format or edition line back into its words. */
 export const wordsOf = (...lines: unknown[]): string[] =>
   lines.flatMap(line => String(line ?? '').split(',')).map(w => w.trim()).filter(Boolean);

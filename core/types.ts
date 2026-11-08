@@ -86,6 +86,11 @@ export interface PluginDefinition {
 
   formats: FormatOption[];
 
+  // Whether one edition may hold several of these formats at once (a 4K UHD sold with
+  // its Blu-ray). The core then adds an "also contains" field, and the format filter,
+  // the counts per format and the card badge read it (see core/extraFormats.ts).
+  multipleFormats?: boolean;
+
   // Real-world footprint of one item standing on its spine, per format value, in
   // millimetres. What the shelf view draws to scale: a CD is thicker than an LP sleeve
   // but far shorter, and that is what makes a mixed shelf read as a real one.

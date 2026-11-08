@@ -50,6 +50,9 @@ const itemSchema = new mongoose.Schema({
   // currencies, and an amount is never compared with one in another (see the estimates).
   purchase_price: { type: Number, min: 0 },
   purchase_currency: String,
+  // The other formats this edition holds besides its own, for a type that allows it
+  // (see core/extraFormats.ts).
+  extra_formats: { type: [String], default: undefined },
   quantity: { type: Number, default: 1, min: 1 },
   genre: String,
   genres: [String],

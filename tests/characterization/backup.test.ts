@@ -147,7 +147,7 @@ describe('collection backup', { skip: !source }, () => {
     // The header is what a later CSV import maps from, so its labels and order are kept.
     assert.equal(header, [
       'Type', 'Title', 'Cover (URL)', 'Year', 'Main genre', 'Genres', 'Styles', 'Barcode', 'Location', 'Quantity',
-      'Personal notes', 'Date added', 'Artist', 'Media Type / Support', 'Format (Music)', 'Color / Edition', 'Size', 'Speed', 'Release type', 'Discs', 'Pressing plant', 'Mastering studio', 'Mastering engineer', 'Rights society', 'Label',
+      'Personal notes', 'Date added', 'Artist', 'Media Type / Support', 'Also contains', 'Format (Music)', 'Color / Edition', 'Size', 'Speed', 'Release type', 'Discs', 'Pressing plant', 'Mastering studio', 'Mastering engineer', 'Rights society', 'Label',
       'Catalog', 'Country', 'Purchase price (per copy)', 'Sleeve Condition', 'discogs_id', 'Author(s)', 'Publisher', 'Format (Books)', 'Pages',
       'Language', 'Series', 'Volume', 'Status', 'Rating (out of 5)', 'hardcover_slug', 'ISBN', 'Description', 'Wishlist'
     ].join(','));

@@ -21,7 +21,8 @@ const NEVER_KEPT = new Set([
 function comparable(value: any): any {
   if (value === undefined || value === null) return '';
   if (value instanceof Date) return value.toISOString();
-  if (Array.isArray(value)) return value.map(comparable);
+  // An empty list says nothing was filled in, as an absent field does.
+  if (Array.isArray(value)) return value.length === 0 ? '' : value.map(comparable);
   if (typeof value === 'object') {
     if (typeof value.toHexString === 'function') return value.toHexString();
     return Object.fromEntries(Object.keys(value).sort().map(key => [key, comparable(value[key])]));

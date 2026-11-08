@@ -127,6 +127,13 @@
         const baseFmtLabel = (baseFmt || item.format_type)
             ? (baseFmtOpt ? t(baseFmtOpt.label, { defaultValue: baseFmtOpt.label }) : t('media.' + baseFmt, { defaultValue: baseFmt || item.format_type }))
             : '';
+        // The other formats the edition holds, after its own (core/extraFormats.ts).
+        const extraFmtLabels = (plugin.multipleFormats && Array.isArray(item.extra_formats))
+            ? [...new Set(item.extra_formats.map(v => String(v).toLowerCase()))]
+                .filter(v => v && v !== String(baseFmt).toLowerCase())
+                .map(v => { const o = (plugin.formats || []).find(f => String(f.value) === v); return o ? t(o.label, { defaultValue: o.label }) : v; })
+            : [];
+        const fmtLabel = baseFmtLabel ? [baseFmtLabel, ...extraFmtLabels].join(' + ') : '';
         const mobileRow = 'flex items-center justify-between gap-4 px-4 min-h-[48px] py-2 border-b border-black/5 dark:border-white/5 last:border-b-0';
         const mobileSectionTitle = 'mb-2 ml-1 text-xs font-bold uppercase tracking-widest opacity-60';
     %>
@@ -160,8 +167,8 @@
         <% } %>
         <% } %>
         <div class="min-w-0 flex flex-col gap-1 mt-4">
-            <% if (baseFmtLabel) { %>
-                <span class="self-start px-2 py-0.5 rounded-md bg-black/5 dark:bg-white/10 text-[11px] font-bold uppercase tracking-wider opacity-80"><%= baseFmtLabel %></span>
+            <% if (fmtLabel) { %>
+                <span class="self-start px-2 py-0.5 rounded-md bg-black/5 dark:bg-white/10 text-[11px] font-bold uppercase tracking-wider opacity-80"><%= fmtLabel %></span>
             <% } %>
             <h1 class="text-2xl font-extrabold leading-tight tracking-tight break-words"><%= item.title %></h1>
             <span class="text-base opacity-80 truncate"><%= item[plugin.creatorField] || 'Unknown' %></span>
@@ -250,9 +257,9 @@
                         <%= item.in_wishlist ? t('nav.wishlist') : t('detail.in_collection') %>
                     </span>
                     <!-- Base Format Badge: physical format lives in `format`; music keeps it in media_type -->
-                    <% if (baseFmtLabel) { %>
+                    <% if (fmtLabel) { %>
                     <span class="max-md:hidden px-3 py-1 rounded-full text-xs font-bold tracking-wider bg-primary-theme text-white shadow-sm">
-                        <%= baseFmtLabel %>
+                        <%= fmtLabel %>
                     </span>
                     <% } %>
 

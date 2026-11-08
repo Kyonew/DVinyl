@@ -6,6 +6,7 @@ import { and, ci, eq, idOf } from './db/query';
 import { createShelfLocationResolver } from './shelfStore';
 import { findWishlistDuplicate } from './wishlistDuplicate';
 import { metadataLanguage } from './metadataLanguage';
+import { allowsExtraFormats, parseExtraFormats } from './extraFormats';
 
 /**
  * Generic engine behind the CSV importers declared by plugins (Libib & co.).
@@ -507,6 +508,12 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
       // beside it: "salon" in a CSV is the "Salon" the furniture holds. One lookup per
       // distinct value in the file, the rest served from the resolver's memory.
       if (data.location !== undefined) data.location = await resolveLocation(data.location);
+
+      // The other formats of the edition, held to the type's own list as on the form.
+      if (data.extra_formats !== undefined) {
+        const extras = allowsExtraFormats(plugin) ? parseExtraFormats(data.extra_formats, plugin, data.format ?? data.media_type) : [];
+        if (extras.length > 0) data.extra_formats = extras; else delete data.extra_formats;
+      }
 
       // A price paid is an amount in a currency, the importer's, as when it is typed in.
       if (data.purchase_price !== undefined && data.purchase_price !== null && data.purchase_price !== '') {

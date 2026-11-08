@@ -3,12 +3,13 @@ import { sourceFromProvider, imageSourceFrom } from '../../core/sources';
 import { DiscogsProvider } from './discogs';
 import { STANDARD_FORMAT_TERMS } from './constants';
 import { pressingFromDiscogs } from './pressing';
-import { DISC_SIZES, RELEASE_TYPES, SPEEDS, physicalFrom, physicalFromDiscogs, wordsOf } from './formatDetails';
+import { DISC_SIZES, RELEASE_TYPES, SPEEDS, otherMediaFromDiscogs, physicalFrom, physicalFromDiscogs, wordsOf } from './formatDetails';
 import { musicImporters } from './importers';
 import { musicApiRoutes, discogsGalleryImages } from './apiRoutes';
 import { escapeRegExp, fetchJson, PermanentRefreshError, syncStamp } from '../../core/helpers';
 import { db } from '../../core/db';
 import { and, ci, eq, idOf, ne, or, textOrUnset, Filter } from '../../core/db/query';
+import { holdsFormat } from '../../core/extraFormats';
 
 const discogsProvider = new DiscogsProvider();
 
@@ -188,6 +189,8 @@ export const musicPlugin: PluginDefinition = {
     }
   },
 
+  // A vinyl sold with the CD, a box with both.
+  multipleFormats: true,
   formats: [
     { value: 'vinyl', label: 'media.vinyl', color: 'bg-green-600/90' },
     { value: 'cd', label: 'media.cd', color: 'bg-blue-600/90' },
@@ -443,7 +446,7 @@ export const musicPlugin: PluginDefinition = {
   getStats(items: any[]): Record<string, any> {
     const countByFormat = (format: string) => {
       return items
-        .filter(i => (i.media_type || '').toLowerCase() === format.toLowerCase())
+        .filter(i => holdsFormat(i, format))
         .reduce((acc, i) => acc + Number(i.quantity || 1), 0);
     };
 
@@ -661,6 +664,7 @@ export const musicPlugin: PluginDefinition = {
     const media = String(item.media_type || 'vinyl').toLowerCase();
     const own = formats.find(f => String(f.name || '').toLowerCase().includes(media === 'cd' ? 'cd' : media)) || formats[0];
     Object.assign(updateData, physicalFromDiscogs(own), pressingFromDiscogs(data));
+    updateData.extra_formats = otherMediaFromDiscogs(formats, media);
 
     // Returned rather than written here: the caller writes it as a Music item, after
     // leaving out what the owner rewrote by hand (core/keptFields.ts).
