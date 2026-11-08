@@ -146,7 +146,7 @@ test('a plugin text field is a filter over the values held, off unless the plugi
   const candidates = filterCandidates(music, []);
   const native = candidates.filter(c => c.source === 'native');
   assert.deepEqual(native.map(c => [c.id, c.defaultOn]), [['label', false], ['country', true]]);
-  assert.equal(filterParam(native[0].field!), 'nf_label');
-  const [condition] = buildExtraFieldConditions([native[1].field!], { nf_country: 'Germany' });
+  assert.equal(filterParam(native[0]!.field!), 'nf_label');
+  const [condition] = buildExtraFieldConditions([native[1]!.field!], { nf_country: 'Germany' });
   assert.equal(JSON.stringify(condition).includes('"country"'), true);
 });

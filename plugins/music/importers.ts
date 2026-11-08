@@ -11,6 +11,7 @@ import { db } from '../../core/db';
 import { and, ci, eq, idOf, ne } from '../../core/db/query';
 import { physicalFromDiscogs } from './formatDetails';
 import { STANDARD_FORMAT_TERMS } from './constants';
+import { cleanName } from './pressing';
 
 // DISCOGS COLLECTION/WISHLIST IMPORT ROUTE
 async function importDiscogs(req: any, res: any) {
@@ -139,7 +140,7 @@ async function importDiscogs(req: any, res: any) {
           title: info.title,
           artist: info.artists.map((a: any) => a.name).join(', '),
           year: info.year || 0,
-          label: info.labels?.[0]?.name || 'Unknown',
+          label: cleanName(info.labels?.[0]?.name) || 'Unknown',
           catalog_number: info.labels?.[0]?.catno || '',
           format_type: formatType.join(', '),
           variant_color: variantColor.join(', '),
@@ -265,7 +266,7 @@ async function importMusikSammler(req: any, res: any) {
       }
 
       const year = parseInt(row[yearReleaseIndex] || row[yearAlbumIndex] || '') || 0;
-      const label = row[labelIndex]?.trim() || 'Unknown';
+      const label = cleanName(row[labelIndex]) || 'Unknown';
       const catalog_number = row[catnoIndex]?.trim() || '';
       const barcode = (row[barcodeIndex] || '').replace(/\s/g, '');
       const rawMediaType = (row[typeIndex] || '').toLowerCase();

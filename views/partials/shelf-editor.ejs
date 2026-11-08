@@ -295,4 +295,11 @@
             }
         };
     })();
+
+    // Reached from "Manage locations" next to an item's location field: the editor opens
+    // straight away, which is where shelves are renamed and removed.
+    if (new URLSearchParams(window.location.search).get('arrange') === '1') {
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => shelfEditor.open());
+        else shelfEditor.open();
+    }
 </script>

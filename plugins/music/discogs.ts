@@ -2,7 +2,7 @@ import { SearchProvider, SearchOptions, SearchResult, ConfirmData } from '../../
 import { fetchJson } from '../../core/helpers';
 import { STANDARD_FORMAT_TERMS } from './constants';
 import { otherMediaFromDiscogs, physicalFromDiscogs, PhysicalDetails } from './formatDetails';
-import { pressingFromDiscogs } from './pressing';
+import { cleanName, pressingFromDiscogs } from './pressing';
 
 export class DiscogsProvider implements SearchProvider {
   name = 'Discogs';
@@ -201,7 +201,7 @@ export class DiscogsProvider implements SearchProvider {
       creator: artist,
       artist,
       year: data.year || '',
-      label: data.labels && data.labels.length > 0 ? data.labels[0].name : '',
+      label: data.labels && data.labels.length > 0 ? cleanName(data.labels[0].name) : '',
       catalog_number: data.labels && data.labels.length > 0 ? data.labels[0].catno : '',
       format_type: formatType.join(', '),
       variant_color: variantColor.join(', '),

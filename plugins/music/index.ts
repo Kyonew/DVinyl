@@ -2,7 +2,7 @@ import { PluginDefinition } from '../../core/types';
 import { sourceFromProvider, imageSourceFrom } from '../../core/sources';
 import { DiscogsProvider } from './discogs';
 import { STANDARD_FORMAT_TERMS } from './constants';
-import { pressingFromDiscogs } from './pressing';
+import { cleanName, pressingFromDiscogs } from './pressing';
 import { DISC_SIZES, RELEASE_TYPES, SPEEDS, otherMediaFromDiscogs, physicalFrom, physicalFromDiscogs, wordsOf } from './formatDetails';
 import { musicImporters } from './importers';
 import { musicApiRoutes, discogsGalleryImages } from './apiRoutes';
@@ -687,10 +687,11 @@ export const musicPlugin: PluginDefinition = {
   // Items from before the size, speed and release type were kept get them from the
   // format and edition lines they already store. Only fields never set are filled, so a
   // value the owner cleared stays cleared; a word that is not there is not guessed (an
-  // LP is not assumed to be 12").
+  // LP is not assumed to be 12"). A label still carrying the number Discogs gives
+  // homonyms ("ADA (6)") loses it, as new ones do.
   async migrateItems(): Promise<number> {
     const items = await db.items.find(eq('kind', 'Music'), {
-      fields: ['format_type', 'variant_color', 'disc_size', 'speed', 'release_type', 'disc_count']
+      fields: ['format_type', 'variant_color', 'disc_size', 'speed', 'release_type', 'disc_count', 'label']
     });
     const changes: { id: any; patch: any }[] = [];
     for (const item of items as any[]) {
@@ -699,6 +700,7 @@ export const musicPlugin: PluginDefinition = {
       for (const [field, value] of Object.entries(found)) {
         if (item[field] === undefined || item[field] === null) set[field] = value;
       }
+      if (typeof item.label === 'string' && /\s*\(\d+\)$/.test(item.label)) set.label = cleanName(item.label);
       // Words now read as format were filed as the edition before: moved back.
       const edition = wordsOf(item.variant_color);
       const kept = edition.filter(w => !STANDARD_FORMAT_TERMS.includes(w));

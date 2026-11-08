@@ -46,7 +46,7 @@ function cuttingMethodOf(release: any, companies: any[], credits: any[], identif
 
 const unique = (values: string[]) => [...new Set(values.map(v => v.trim()).filter(Boolean))];
 // Discogs numbers homonyms: "Sterling Sound (2)" is still Sterling Sound to a reader.
-const cleanName = (name: unknown) => String(name ?? '').replace(/\s*\(\d+\)$/, '').trim();
+export const cleanName = (name: unknown) => String(name ?? '').replace(/\s*\(\d+\)$/, '').trim();
 
 /**
  * Reads a Discogs release (the full one, from /releases/:id). The side a runout belongs
