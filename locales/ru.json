@@ -914,7 +914,7 @@
     "label_sheet_empty": "У выбранных записей нет штрихкода — печатать нечего.",
     "saved_views": "Сохранённые виды",
     "save_view": "Сохранить этот вид",
-    "save_view_prompt": "Название вида (например, синглы 7\"):",
+    "save_view_prompt": "Назовите вид (например, синглы 7\"):",
     "delete_view_confirm": "Удалить вид «%s»? Записи не изменятся."
   },
   "collection_info": {
@@ -989,9 +989,9 @@
     "tracklist_label": "Треклист",
     "field_disc_size": "Размер",
     "field_speed": "Скорость",
-    "field_release_type": "Тип релиза",
+    "field_release_type": "Тип издания",
     "field_disc_count": "Дисков",
-    "field_pressing_plant": "Завод",
+    "field_pressing_plant": "Завод прессинга",
     "field_mastering_studio": "Студия мастеринга",
     "field_mastering_engineer": "Инженер мастеринга",
     "field_rights_society": "Общество по правам",
@@ -2653,13 +2653,13 @@
     "custom_low_contrast_dark": "Плохо читается в тёмной теме ({{ratio}}:1)"
   },
   "wishes": {
-    "found_title": "В желаемом ваших коллекций",
+    "found_title": "Желаемое в ваших коллекциях",
     "member_exact": "{{member}} хочет это издание ({{collection}})",
     "member_near": "{{member}} хочет это название в другом издании ({{collection}})",
     "self_exact": "Вы хотите это издание ({{collection}})",
     "self_near": "Вы хотите это название в другом издании ({{collection}})",
     "badge_member": "Хочет {{member}}",
-    "badge_self": "В вашем желаемом"
+    "badge_self": "В желаемом"
   },
   "release_types": {
     "single": "Сингл",
