@@ -563,7 +563,7 @@ router.post("/collections/:id/delete", requireAuth, requireAdmin, async (req: an
   }
 });
 
-// Hand the instance collection's role to another collection. That role is what the boot
+// Hand the main collection's role to another collection. That role is what the boot
 // migration and an admin without any membership fall back on, and recreating it when
 // missing is why its holder cannot be deleted: moving it is what frees the old one. The
 // new holder is marked before the old one is cleared, so no moment is left without one.
@@ -573,10 +573,10 @@ router.post("/collections/:id/make-default", requireAuth, requireAdmin, async (r
     if (!target) return res.redirect("/admin/instance");
     await db.collections.updateOne(eq("_id", idOf(target._id)), { set: { isDefault: true } });
     await db.collections.updateMany(and(eq("isDefault", true), ne("_id", idOf(target._id))), { set: { isDefault: false } });
-    console.log(`[ADMIN] Instance collection moved to ${target._id} by ${res.locals.user?.email}`);
+    console.log(`[ADMIN] Main collection moved to ${target._id} by ${res.locals.user?.email}`);
     res.redirect("/admin/instance?msg=default_collection_changed");
   } catch (err) {
-    console.error("Instance collection change error:", err);
+    console.error("Main collection change error:", err);
     res.redirect("/admin/instance");
   }
 });
