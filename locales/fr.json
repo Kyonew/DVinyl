@@ -2716,5 +2716,29 @@
     "error_box_inside": "Cet item est lui-même rangé dans un autre, ou c'est une saison.",
     "error_holds_items": "Cet item contient d'autres items : sortez-les d'abord.",
     "error_wishlist": "Les items de la wishlist ne se rangent pas dans un coffret."
+  },
+  "image_download": {
+    "toggle": "Garder une copie des images liées",
+    "toggle_desc": "Les pochettes choisies dans une recherche et les images ajoutées par adresse sont téléchargées sur ce serveur : elles ne disparaissent plus si l'autre site change, et elles partent dans les sauvegardes. Chaque collection peut en décider autrement. Les adresses de votre réseau local ne sont jamais contactées.",
+    "existing_title": "Images déjà liées",
+    "existing_desc": "Activer les copies s'applique aux nouvelles images. Celles déjà là ne sont téléchargées que si vous le lancez ici.",
+    "counting": "Comptage des images liées…",
+    "none_pending": "Plus aucune image liée à copier.",
+    "pending": "__IMAGES__ images liées sur __ITEMS__ items peuvent être copiées.",
+    "run": "Télécharger les __IMAGES__ images",
+    "confirm": "Télécharger __IMAGES__ images sur ce serveur ? Ça tourne en arrière-plan et peut prendre du temps ; les adresses qui échouent restent telles quelles.",
+    "running": "__DONE__ / __TOTAL__ items · __COPIED__ copiées · __FAILED__ en échec",
+    "finished": "Terminé : __COPIED__ copiées, __FAILED__ en échec.",
+    "disk_low": "Arrêté : le disque est presque plein.",
+    "busy": "Un téléchargement est déjà en cours.",
+    "collection_label": "Copies des images liées",
+    "collection_desc": "Si cette collection télécharge les images vers lesquelles elle pointe.",
+    "mode_inherit_on": "Comme l'instance (oui)",
+    "mode_inherit_off": "Comme l'instance (non)",
+    "mode_download": "Toujours",
+    "mode_keep": "Jamais",
+    "pending_with_failed": "__IMAGES__ images liées peuvent être copiées, et __FAILED__ n'ont pas répondu la dernière fois.",
+    "only_failed": "Tout est copié, sauf __FAILED__ images dont l'adresse ne répond plus (supprimées ou déplacées par l'autre site).",
+    "retry": "Réessayer les __FAILED__"
   }
 }

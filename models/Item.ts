@@ -52,6 +52,11 @@ const itemSchema = new mongoose.Schema({
   // currencies, and an amount is never compared with one in another (see the estimates).
   purchase_price: { type: Number, min: 0 },
   purchase_currency: String,
+  // Images kept on this server that were downloaded from elsewhere (core/imageDownload.ts):
+  // which address each local file came from, so a refresh bringing the same address back
+  // keeps the copy, and the addresses that could not be fetched, not tried again on their own.
+  image_origins: { type: [{ _id: false, file: String, url: String }], default: undefined },
+  image_download_failed: { type: [String], default: undefined },
   // The other formats this edition holds besides its own, for a type that allows it
   // (see core/extraFormats.ts).
   extra_formats: { type: [String], default: undefined },

@@ -49,6 +49,12 @@ const instanceSettingsSchema = new mongoose.Schema({
         // from. Apple's push service refuses a token whose contact is not a real one.
         subject: { type: String, default: '' }
     },
+    // Whether the collections keep a copy of the images they link to, unless one of them
+    // says otherwise (core/imageDownload.ts), and since when.
+    imageDownload: {
+        enabled: { type: Boolean, default: false },
+        since: { type: Date, default: null }
+    },
     // Whether the instance asks GitHub once a day for the latest release, and what it
     // learnt: off until an admin turns it on, since it is a call outside the instance.
     updateCheck: {

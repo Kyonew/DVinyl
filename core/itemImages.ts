@@ -85,6 +85,15 @@ export function alignImagesAfterRefresh(item: any, update: Record<string, any>):
   if (typeof nextCover !== 'string' || !nextCover) return null;
 
   const previousCover = typeof item?.cover_image === 'string' ? item.cover_image.trim() : '';
+
+  // A cover kept on this server is a copy of the address the source gives again (#136,
+  // core/imageDownload.ts): the copy stays, rather than being swapped back for the
+  // address and downloaded once more on every refresh.
+  const origins = Array.isArray(item?.image_origins) ? item.image_origins : [];
+  if (origins.some((o: any) => o && o.file === previousCover && o.url === nextCover)) {
+    delete update.cover_image;
+    return null;
+  }
   if (!previousCover || previousCover === nextCover) return null;
 
   // A legacy item carries no array to realign: its gallery is derived from cover_image

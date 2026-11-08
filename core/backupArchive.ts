@@ -7,6 +7,7 @@ import { Entry, openPromise, ZipFile as InputZipFile } from 'yauzl';
 import type { Readable, Writable } from 'stream';
 import {
   deleteUnusedManagedItemImages,
+  imageExtensionOf,
   isJpegBuffer,
   managedItemImageFile,
   managedItemImagesFrom,
@@ -19,7 +20,7 @@ const MAX_BACKUP_JSON_BYTES = 50 * 1024 * 1024;
 const MAX_ARCHIVED_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_BACKUP_UNCOMPRESSED_BYTES = 10 * 1024 * 1024 * 1024;
 const MAX_BACKUP_ENTRIES = 500_001;
-const ARCHIVE_IMAGE = /^images\/(item-[0-9a-f-]{36}\.jpg)$/i;
+const ARCHIVE_IMAGE = /^images\/(item-[0-9a-f-]{36}\.(?:jpg|png|webp|gif))$/i;
 
 interface ImportedBackupArchive {
   data: any;
@@ -339,7 +340,7 @@ export async function readBackupArchive(file: string): Promise<ImportedBackupArc
       const entry = imageEntries.get(image);
       if (!entry) continue;
       const buffer = await readEntryBuffer(directory, entry, MAX_ARCHIVED_IMAGE_BYTES);
-      if (!isJpegBuffer(buffer)) throw new Error('backup_invalid_image');
+      if (!imageExtensionOf(buffer)) throw new Error('backup_invalid_image');
       const replacement = await storeItemImage(buffer);
       importedImages.push(replacement);
       replacements.set(image, replacement);

@@ -1,0 +1,89 @@
+<%# The run over the images already there (core/imageDownload.ts): how many would be
+    downloaded, the button that starts it after a confirmation, and its progress, read
+    every two seconds while it goes. Expects: statusUrl, runUrl. %>
+<% const idrId = 'idr' + Math.random().toString(36).slice(2, 8); %>
+<div id="<%= idrId %>" class="space-y-3">
+    <p class="text-xs opacity-70" data-idr-pending><%= t('image_download.counting') %></p>
+    <div class="hidden" data-idr-progress>
+        <div class="h-2 rounded-full bg-black/10 dark:bg-white/10 overflow-hidden">
+            <div class="h-full bg-primary-theme transition-all" style="width: 0%" data-idr-bar></div>
+        </div>
+        <p class="text-xs opacity-70 mt-1.5" data-idr-text></p>
+    </div>
+    <button type="button" data-idr-run class="hidden text-xs font-bold px-4 py-2 rounded-xl bg-black/5 dark:bg-white/10 hover:brightness-110 transition-all">
+        <i class="fa-solid fa-cloud-arrow-down mr-1.5" aria-hidden="true"></i><span data-idr-run-label></span>
+    </button>
+</div>
+<script>
+    (function () {
+        const root = document.getElementById('<%= idrId %>');
+        const statusUrl = <%- JSON.stringify(baseUrl + statusUrl) %>;
+        const runUrl = <%- JSON.stringify(baseUrl + runUrl) %>;
+        const text = <%- JSON.stringify({
+            none: t('image_download.none_pending'),
+            pending: t('image_download.pending', { images: '__IMAGES__', items: '__ITEMS__' }),
+            pendingWithFailed: t('image_download.pending_with_failed', { images: '__IMAGES__', failed: '__FAILED__' }),
+            onlyFailed: t('image_download.only_failed', { failed: '__FAILED__' }),
+            run: t('image_download.run', { images: '__IMAGES__' }),
+            retry: t('image_download.retry', { failed: '__FAILED__' }),
+            confirm: t('image_download.confirm', { images: '__IMAGES__' }),
+            running: t('image_download.running', { done: '__DONE__', total: '__TOTAL__', copied: '__COPIED__', failed: '__FAILED__' }),
+            finished: t('image_download.finished', { copied: '__COPIED__', failed: '__FAILED__' }),
+            diskLow: t('image_download.disk_low'),
+            busy: t('image_download.busy')
+        }).replace(/</g, '\\u003c') %>;
+        const $ = sel => root.querySelector(sel);
+        const fill = (s, map) => Object.keys(map).reduce((out, k) => out.split('__' + k + '__').join(map[k]), s);
+        let timer = null;
+        let pendingImages = 0;
+
+        function paint(data) {
+            const st = data.status || {};
+            pendingImages = (data.pending && data.pending.images) || 0;
+            const runBtn = $('[data-idr-run]');
+            if (st.running) {
+                $('[data-idr-progress]').classList.remove('hidden');
+                const pct = st.items ? Math.round(100 * st.doneItems / st.items) : 0;
+                $('[data-idr-bar]').style.width = pct + '%';
+                $('[data-idr-text]').textContent = fill(text.running, { DONE: st.doneItems, TOTAL: st.items, COPIED: st.copied, FAILED: st.failed });
+                runBtn.classList.add('hidden');
+                if (!timer) timer = setInterval(load, 2000);
+                return;
+            }
+            if (timer) { clearInterval(timer); timer = null; }
+            if (st.finishedAt) {
+                $('[data-idr-progress]').classList.remove('hidden');
+                $('[data-idr-bar]').style.width = '100%';
+                $('[data-idr-text]').textContent = fill(text.finished, { COPIED: st.copied, FAILED: st.failed }) + (st.stopped === 'disk_low' ? ' ' + text.diskLow : '');
+            }
+            // Images never tried and images whose address did not answer are told apart:
+            // a run copies the first and only tries the second again.
+            const failedImages = (data.pending && data.pending.failed) || 0;
+            const fresh = pendingImages - failedImages;
+            $('[data-idr-pending]').textContent = pendingImages === 0 ? text.none
+                : fresh === 0 ? fill(text.onlyFailed, { FAILED: failedImages })
+                : failedImages > 0 ? fill(text.pendingWithFailed, { IMAGES: fresh, FAILED: failedImages })
+                : fill(text.pending, { IMAGES: pendingImages, ITEMS: data.pending.items });
+            runBtn.classList.toggle('hidden', pendingImages === 0);
+            $('[data-idr-run-label]').textContent = fresh === 0
+                ? fill(text.retry, { FAILED: failedImages })
+                : fill(text.run, { IMAGES: pendingImages });
+        }
+
+        async function load() {
+            try {
+                const res = await fetch(statusUrl, { headers: { 'Accept': 'application/json' } });
+                paint(await res.json());
+            } catch (e) { /* tried again on the next tick or visit */ }
+        }
+
+        $('[data-idr-run]').addEventListener('click', async () => {
+            if (!confirm(fill(text.confirm, { IMAGES: pendingImages }))) return;
+            const res = await fetch(runUrl, { method: 'POST', headers: { 'Accept': 'application/json' } });
+            const data = await res.json().catch(() => ({}));
+            if (data && data.started === false) alert(text.busy);
+            load();
+        });
+        load();
+    })();
+</script>

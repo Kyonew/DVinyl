@@ -117,6 +117,11 @@ const settingsSchema = new mongoose.Schema({
     // The language sources are asked in (core/metadataLanguage.ts). Empty: each member's
     // own interface language, as it always was.
     metadataLanguage: { type: String, default: '' },
+    // Whether this collection keeps a copy of the images it links to (core/imageDownload.ts):
+    // as the instance says, always, or never. When it started to, so the automatic pass
+    // takes what changed since and leaves the rest to an admin's explicit run.
+    imageDownload: { type: String, enum: ['inherit', 'download', 'keep'], default: 'inherit' },
+    imageDownloadSince: { type: Date, default: null },
     // The articles a title's sort ignores (core/sortArticles.ts). Absent: English ones,
     // as it always was; an empty list ignores none.
     sortArticles: { type: [String], default: undefined },

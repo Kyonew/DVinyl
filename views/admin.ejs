@@ -319,6 +319,34 @@
                             </select>
                         </div>
 
+                        <%# Copies of the images items link to (#136, core/imageDownload.ts): as the
+                            instance says, always or never, and the run over what is already there. %>
+                        <% const imgMode = settings.imageDownload || 'inherit';
+                           const imgInstanceOn = !!(locals.instanceImageDownload && instanceImageDownload.enabled);
+                           const imgKeeps = imgMode === 'download' || (imgMode === 'inherit' && imgInstanceOn); %>
+                        <div class="p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 space-y-4">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div class="flex items-start gap-3">
+                                    <div class="w-10 h-10 rounded-xl flex items-center justify-center bg-white dark:bg-black/20 shadow-sm shrink-0">
+                                        <i class="fa-solid fa-images text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <label for="imageDownload" class="text-sm font-bold opacity-80"><%= t('image_download.collection_label') %></label>
+                                        <p class="text-xs opacity-50 mt-0.5"><%= t('image_download.collection_desc') %></p>
+                                    </div>
+                                </div>
+                                <select id="imageDownload" name="imageDownload"
+                                    class="sm:w-56 shrink-0 bg-white dark:bg-black/20 border border-transparent rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-primary-theme/40 cursor-pointer">
+                                    <option value="inherit" class="bg-white dark:bg-[#1a1a1a]" <%= imgMode === 'inherit' ? 'selected' : '' %>><%= t(imgInstanceOn ? 'image_download.mode_inherit_on' : 'image_download.mode_inherit_off') %></option>
+                                    <option value="download" class="bg-white dark:bg-[#1a1a1a]" <%= imgMode === 'download' ? 'selected' : '' %>><%= t('image_download.mode_download') %></option>
+                                    <option value="keep" class="bg-white dark:bg-[#1a1a1a]" <%= imgMode === 'keep' ? 'selected' : '' %>><%= t('image_download.mode_keep') %></option>
+                                </select>
+                            </div>
+                            <% if (imgKeeps) { %>
+                                <%- include('partials/image-download-run', { statusUrl: '/admin/images', runUrl: '/admin/images/run' }) %>
+                            <% } %>
+                        </div>
+
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5">
                             <div class="flex items-start gap-3">
                                 <div class="w-10 h-10 rounded-xl flex items-center justify-center bg-white dark:bg-black/20 shadow-sm shrink-0">

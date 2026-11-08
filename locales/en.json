@@ -2716,5 +2716,29 @@
     "error_box_inside": "That item is itself inside another one, or is a season.",
     "error_holds_items": "This item holds other items: take them out first.",
     "error_wishlist": "Wishlist items cannot be put in a box."
+  },
+  "image_download": {
+    "toggle": "Keep a copy of linked images",
+    "toggle_desc": "Covers chosen from a search and pictures added by address are downloaded to this server, so they never vanish when the other site changes and they travel in backups. Each collection can say otherwise. Addresses on your own network are never fetched.",
+    "existing_title": "Images already linked",
+    "existing_desc": "Turning copies on handles new images. The ones already there are downloaded only when you start it here.",
+    "counting": "Counting the linked images…",
+    "none_pending": "No linked image left to copy.",
+    "pending": "__IMAGES__ linked images on __ITEMS__ items can be copied.",
+    "run": "Download the __IMAGES__ images",
+    "confirm": "Download __IMAGES__ images to this server? It runs in the background and can take a while; addresses that fail stay as they are.",
+    "running": "__DONE__ / __TOTAL__ items · __COPIED__ copied · __FAILED__ failed",
+    "finished": "Done: __COPIED__ copied, __FAILED__ failed.",
+    "disk_low": "Stopped: the disk is almost full.",
+    "busy": "A download is already running.",
+    "collection_label": "Copies of linked images",
+    "collection_desc": "Whether this collection downloads the images it links to.",
+    "mode_inherit_on": "As the instance (yes)",
+    "mode_inherit_off": "As the instance (no)",
+    "mode_download": "Always",
+    "mode_keep": "Never",
+    "pending_with_failed": "__IMAGES__ linked images can be copied, and __FAILED__ did not answer last time.",
+    "only_failed": "Everything is copied, except __FAILED__ images whose address no longer answers (deleted or moved by the other site).",
+    "retry": "Try the __FAILED__ again"
   }
 }

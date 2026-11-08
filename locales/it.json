@@ -2716,5 +2716,29 @@
     "error_box_inside": "Quell'oggetto è già dentro un altro, o è una stagione.",
     "error_holds_items": "Questo oggetto ne contiene altri: estraili prima.",
     "error_wishlist": "Gli oggetti della wishlist non vanno in un cofanetto."
+  },
+  "image_download": {
+    "toggle": "Conserva una copia delle immagini collegate",
+    "toggle_desc": "Le copertine scelte da una ricerca e le immagini aggiunte tramite indirizzo vengono scaricate su questo server: non spariscono più se l'altro sito cambia e finiscono nei backup. Ogni collezione può decidere diversamente. Gli indirizzi della tua rete locale non vengono mai contattati.",
+    "existing_title": "Immagini già collegate",
+    "existing_desc": "Attivare le copie vale per le nuove immagini. Quelle già presenti vengono scaricate solo se lo avvii qui.",
+    "counting": "Conteggio delle immagini collegate…",
+    "none_pending": "Nessuna immagine collegata da copiare.",
+    "pending": "__IMAGES__ immagini collegate su __ITEMS__ oggetti possono essere copiate.",
+    "run": "Scarica le __IMAGES__ immagini",
+    "confirm": "Scaricare __IMAGES__ immagini su questo server? Avviene in background e può richiedere tempo; gli indirizzi che falliscono restano come sono.",
+    "running": "__DONE__ / __TOTAL__ oggetti · __COPIED__ copiate · __FAILED__ non riuscite",
+    "finished": "Fatto: __COPIED__ copiate, __FAILED__ non riuscite.",
+    "disk_low": "Interrotto: il disco è quasi pieno.",
+    "busy": "È già in corso un download.",
+    "collection_label": "Copie delle immagini collegate",
+    "collection_desc": "Se questa collezione scarica le immagini a cui rimanda.",
+    "mode_inherit_on": "Come l'istanza (sì)",
+    "mode_inherit_off": "Come l'istanza (no)",
+    "mode_download": "Sempre",
+    "mode_keep": "Mai",
+    "pending_with_failed": "__IMAGES__ immagini collegate possono essere copiate, e __FAILED__ non hanno risposto l'ultima volta.",
+    "only_failed": "Tutto è copiato, tranne __FAILED__ immagini il cui indirizzo non risponde più (eliminate o spostate dall'altro sito).",
+    "retry": "Riprova le __FAILED__"
   }
 }

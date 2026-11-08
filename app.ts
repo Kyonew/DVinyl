@@ -67,6 +67,7 @@ import { attachNotificationSockets, purgeOldNotifications, unreadCount } from '.
 import { inboxCount, notifyOverdueRequests, requestsEnabled } from './core/requests';
 import { checkForUpdate, UPDATE_CHECK_INTERVAL_MS } from './core/updateCheck';
 import { BACKUP_CHECK_INTERVAL_MS, runBackupIfDue } from './core/instanceBackup';
+import { scheduleImageDownloads } from './core/imageDownload';
 import searchRoute from './core/routes/searchRoute.js';
 import accountRoute from './core/routes/accountRoute.js';
 import manualAddRoute from './core/routes/manualAddRoute.js';
@@ -457,6 +458,8 @@ connectDB()
     // The automatic backup, for an instance that turned it on.
     void runBackupIfDue();
     setInterval(() => { void runBackupIfDue(); }, BACKUP_CHECK_INTERVAL_MS).unref();
+    // Copies of linked images, for what came in by imports since copies were turned on.
+    scheduleImageDownloads();
     const port = process.env.VINYL_PORT || 3099;
     server.listen(port, () => {
       console.log(`[BOOT] Server started on port ${port} (BASE_URL="${BASE_URL || '/'}", env=${process.env.PROD === 'true' ? 'production' : 'development'})`);

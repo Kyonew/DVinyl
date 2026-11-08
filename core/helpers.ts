@@ -17,7 +17,7 @@ export function buildCopySeed(formatted: any, plugin: PluginDefinition): any {
   const seed: any = formatted;
   for (const key of ['_id', 'mongo_id', '__v', 'added_at', 'modified_at', 'synced_at',
     'owner', 'modified_by', 'parent', 'inside', 'in_wishlist', 'quantity', 'barcode', 'barcode_locked',
-    'purchase_price', 'purchase_currency', 'kept_fields', 'source_values']) {
+    'purchase_price', 'purchase_currency', 'kept_fields', 'source_values', 'image_download_failed']) {
     delete seed[key];
   }
   for (const f of plugin.copyDropFields || []) delete seed[f];

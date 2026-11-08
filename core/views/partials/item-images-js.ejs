@@ -188,7 +188,12 @@
                     canvas.width = Math.max(1, Math.round(image.width * scale));
                     canvas.height = Math.max(1, Math.round(image.height * scale));
                     canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
-                    canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('compression_failed')), 'image/jpeg', 0.82);
+                    // WebP when the browser can write it: smaller, and keeps transparency.
+                    // One that cannot hands back a PNG instead, so JPEG takes over then.
+                    canvas.toBlob(webp => {
+                        if (webp && webp.type === 'image/webp') return resolve(webp);
+                        canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('compression_failed')), 'image/jpeg', 0.82);
+                    }, 'image/webp', 0.82);
                 };
                 image.src = event.target.result;
             };
@@ -198,7 +203,7 @@
 
     async function uploadImage(blob) {
         const form = new FormData();
-        form.append('image', blob, 'item-image.jpg');
+        form.append('image', blob, blob.type === 'image/webp' ? 'item-image.webp' : 'item-image.jpg');
         const response = await fetch(uploadEndpoint, { method: 'POST', body: form });
         let data = {};
         try { data = await response.json(); } catch (_) {}

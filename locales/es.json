@@ -2716,5 +2716,29 @@
     "error_box_inside": "Ese objeto ya está dentro de otro, o es una temporada.",
     "error_holds_items": "Este objeto contiene otros: sácalos primero.",
     "error_wishlist": "Los objetos de la lista de deseos no se guardan en una caja."
+  },
+  "image_download": {
+    "toggle": "Guardar una copia de las imágenes enlazadas",
+    "toggle_desc": "Las portadas elegidas en una búsqueda y las imágenes añadidas por dirección se descargan en este servidor: ya no desaparecen si el otro sitio cambia y viajan en las copias de seguridad. Cada colección puede decidir otra cosa. Nunca se consultan direcciones de tu red local.",
+    "existing_title": "Imágenes ya enlazadas",
+    "existing_desc": "Activar las copias se aplica a las imágenes nuevas. Las existentes solo se descargan si lo inicias aquí.",
+    "counting": "Contando las imágenes enlazadas…",
+    "none_pending": "No queda ninguna imagen enlazada por copiar.",
+    "pending": "Se pueden copiar __IMAGES__ imágenes enlazadas en __ITEMS__ objetos.",
+    "run": "Descargar las __IMAGES__ imágenes",
+    "confirm": "¿Descargar __IMAGES__ imágenes en este servidor? Se hace en segundo plano y puede tardar; las direcciones que fallen se quedan como están.",
+    "running": "__DONE__ / __TOTAL__ objetos · __COPIED__ copiadas · __FAILED__ fallidas",
+    "finished": "Hecho: __COPIED__ copiadas, __FAILED__ fallidas.",
+    "disk_low": "Detenido: el disco está casi lleno.",
+    "busy": "Ya hay una descarga en curso.",
+    "collection_label": "Copias de las imágenes enlazadas",
+    "collection_desc": "Si esta colección descarga las imágenes a las que enlaza.",
+    "mode_inherit_on": "Como la instancia (sí)",
+    "mode_inherit_off": "Como la instancia (no)",
+    "mode_download": "Siempre",
+    "mode_keep": "Nunca",
+    "pending_with_failed": "Se pueden copiar __IMAGES__ imágenes enlazadas, y __FAILED__ no respondieron la última vez.",
+    "only_failed": "Todo está copiado, salvo __FAILED__ imágenes cuya dirección ya no responde (borradas o movidas por el otro sitio).",
+    "retry": "Reintentar las __FAILED__"
   }
 }

@@ -34,6 +34,7 @@ import { memberWishesFor } from '../memberWishes';
 import { parseRows, rowColumns } from '../rowsField';
 import { EXTRA_FORMATS_FIELD, parseExtraFormats } from '../extraFormats';
 import { contentsOf, itemHref } from '../insideItems';
+import { copyItemImagesSoon } from '../imageDownload';
 import { registry } from '../registry';
 
 /**
@@ -808,6 +809,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           : await plugin.findDuplicate(activeCollectionId, req.body);
       }
 
+      let savedItemId: any = existingItem?._id;
       if (existingItem) {
         const qtyToAdd = parseInt(quantity) || 1;
         // Wanting a title twice is still one wish: only owned copies add up.
@@ -949,7 +951,10 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         if (isWishlist) {
           void noticeWish({ collection: res.locals.activeCollection, actor: req.user, item: created, itemPath: plugin.routePrefix });
         }
+        savedItemId = created?._id;
       }
+      // A copy of the images it links to, when the collection keeps them (#136).
+      copyItemImagesSoon(savedItemId, activeCollectionId);
 
       try {
         await deleteUnusedManagedItemImages([
@@ -1302,6 +1307,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         const update = { ...(result || {}) };
         const replacedCover = alignImagesAfterRefresh(item, update);
         await db.items.updateOne(eq('_id', idOf(item._id)), { set: { ...update, ...syncStamp() } }, { kind: plugin.kind });
+        copyItemImagesSoon(item._id, item.collection);
         if (replacedCover) {
           try {
             await deleteUnusedManagedItemImages([replacedCover]);

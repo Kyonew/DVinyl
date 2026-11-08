@@ -32,6 +32,10 @@ import { keyHint } from "../core/ai/secret";
 import { aiChat, AiError } from "../core/ai/client";
 import { deleteUnusedManagedItemImages, managedItemImagesForQuery } from "../core/itemImageStorage";
 import {
+  copyItemImagesSoon, countExistingExternalImages, imageDownloadStatus, instanceImageDownload,
+  setCollectionImageDownload, setInstanceImageDownload, startExistingImageDownload, COLLECTION_IMAGE_MODES
+} from "../core/imageDownload";
+import {
   collectionInfoFromForm,
   collectionInfoOf,
   MAX_COLLECTION_INFO_BODY,
@@ -204,6 +208,8 @@ router.get("/", requireAuth, requireCollectionRole("admin"), async (req: any, re
       // Known once, server-side, from the config this page already has every reason to
       // read - no reason to make the browser ask again just to decide whether to show the card.
       aiConfigured: isAiConfigured(await getAiConfig()),
+      // What the instance says about image copies, for the collection's own choice.
+      instanceImageDownload: await instanceImageDownload(),
     });
   } catch (err) {
     console.error(err);
@@ -226,6 +232,7 @@ router.get("/instance", requireAuth, requireAdmin, async (req: any, res: any) =>
       messageIsError: isErrorMessageKey(msgKey),
       newPassword: null,
       apiKeyStatus: registry.getApiKeyStatus(),
+      imageDownload: await instanceImageDownload(),
     });
   } catch (err) {
     console.error(err);
@@ -1324,6 +1331,45 @@ router.post("/personnalisation/pack/apply", requireAuth, requireCollectionRole("
   }
 });
 
+// Copies of the images items link to (#136, core/imageDownload.ts). The instance admin
+// sets the default and may run over every collection; a collection admin sees and runs
+// their own collection.
+router.get("/instance/images", requireAuth, requireAdmin, async (_req: any, res: any) => {
+  try {
+    res.json({ success: true, ...(await instanceImageDownload()), status: imageDownloadStatus(), pending: await countExistingExternalImages() });
+  } catch (err) {
+    console.error("[ADMIN] Image download status error:", err);
+    res.status(500).json({ success: false });
+  }
+});
+
+router.post("/instance/images", requireAuth, requireAdmin, async (req: any, res: any) => {
+  try {
+    await setInstanceImageDownload(req.body.enabled === "on");
+    res.redirect("/admin/instance?msg=saved#backup");
+  } catch (err) {
+    console.error("[ADMIN] Image download setting error:", err);
+    res.redirect("/admin/instance?msg=generic_error#backup");
+  }
+});
+
+router.post("/instance/images/run", requireAuth, requireAdmin, (_req: any, res: any) => {
+  res.json({ success: true, started: startExistingImageDownload(), status: imageDownloadStatus() });
+});
+
+router.get("/images", requireAuth, requireCollectionRole("admin"), async (_req: any, res: any) => {
+  try {
+    res.json({ success: true, status: imageDownloadStatus(), pending: await countExistingExternalImages(res.locals.activeCollectionId) });
+  } catch (err) {
+    console.error("[ADMIN] Image download status error:", err);
+    res.status(500).json({ success: false });
+  }
+});
+
+router.post("/images/run", requireAuth, requireCollectionRole("admin"), (_req: any, res: any) => {
+  res.json({ success: true, started: startExistingImageDownload(res.locals.activeCollectionId), status: imageDownloadStatus() });
+});
+
 router.post("/modules/save", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
   try {
     const moduleKeys = registry.getAll().map(p => p.collectionType);
@@ -1340,6 +1386,12 @@ router.post("/modules/save", requireAuth, requireCollectionRole("admin"), async 
     update.mergeDuplicates = req.body.mergeDuplicates === "on";
     // Anything not offered goes back to each member's own language.
     update.metadataLanguage = isMetadataLanguage(req.body.metadataLanguage) ? req.body.metadataLanguage : "";
+    // Copies of linked images (core/imageDownload.ts): switching to "always" dates the
+    // automatic pass, so only what changes from now on is taken without asking.
+    if (COLLECTION_IMAGE_MODES.includes(req.body.imageDownload)) {
+      update.imageDownload = req.body.imageDownload;
+      if (req.body.imageDownload === "download" && res.locals.settings?.imageDownload !== "download") update.imageDownloadSince = new Date();
+    }
     const articlesChanged = typeof req.body.sortArticles === "string"
       && parseSortArticles(req.body.sortArticles).join(",") !== articlesFromSetting(res.locals.settings?.sortArticles).join(",");
     if (articlesChanged) update.sortArticles = parseSortArticles(req.body.sortArticles);
@@ -1593,6 +1645,7 @@ router.post(
               // as refreshed while writing back only the fields the base schema shares.
               // The single-item route sidesteps this by casting through `kind` in its filter.
               await db.items.updateOne(eq("_id", idOf(item._id)), { set: { ...update, ...syncStamp() } }, { kind: plugin.kind });
+              copyItemImagesSoon(item._id, item.collection);
               if (replacedCover) {
                 try {
                   await deleteUnusedManagedItemImages([replacedCover]);

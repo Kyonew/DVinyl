@@ -11,7 +11,7 @@
 // Paths that are the owner's own business or the app's bookkeeping, never a source's.
 // Changing them is not overriding anything, so it marks nothing.
 const NEVER_KEPT = new Set([
-  '_id', '__v', 'kind', 'owner', 'collection', 'parent', 'inside', 'quantity', 'added_at', 'created_at', 'updated_at',
+  '_id', '__v', 'kind', 'owner', 'collection', 'parent', 'inside', 'image_origins', 'image_download_failed', 'quantity', 'added_at', 'created_at', 'updated_at',
   'modified_at', 'modified_by', 'synced_at', 'in_wishlist', 'comments', 'location', 'barcode_locked',
   'sort_title', 'source', 'source_id', 'kept_fields', 'source_values', 'images', 'user_image', 'extra',
   'purchase_price', 'purchase_currency'

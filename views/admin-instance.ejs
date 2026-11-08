@@ -680,6 +680,37 @@
                             <% } %>
                         </div>
                     </div>
+
+                    <%# Copies of the images items link to (#136): what makes a backup carry
+                        every picture, not only the uploaded ones. %>
+                    <% const imgDl = locals.imageDownload || { enabled: false }; %>
+                    <div class="card-theme rounded-3xl p-6 md:p-8 shadow-sm transition-colors mt-6 space-y-6">
+                        <form action="<%= baseUrl %>/admin/instance/images" method="POST" data-save-bar class="space-y-6">
+                            <label class="flex items-start justify-between gap-6 cursor-pointer">
+                                <div>
+                                    <p class="text-sm font-black flex items-center gap-2"><i class="fa-solid fa-images text-primary-theme"></i><%= t('image_download.toggle') %></p>
+                                    <p class="text-xs opacity-60 mt-1 leading-relaxed max-w-2xl"><%= t('image_download.toggle_desc') %></p>
+                                </div>
+                                <div class="relative inline-flex items-center shrink-0 mt-1">
+                                    <input type="checkbox" name="enabled" <%= imgDl.enabled ? 'checked' : '' %> class="sr-only peer">
+                                    <div class="w-11 h-6 bg-black/10 dark:bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500">
+                                    </div>
+                                </div>
+                            </label>
+                            <div class="flex justify-end">
+                                <button type="submit"
+                                    class="flex items-center gap-2 bg-primary-theme hover:brightness-110 text-white px-5 py-3 rounded-2xl shadow-lg shadow-primary-theme/20 transition-all active:scale-95">
+                                    <i class="fa-solid fa-floppy-disk text-sm"></i>
+                                    <span class="text-xs font-black"><%= t('common.save') %></span>
+                                </button>
+                            </div>
+                        </form>
+                        <div class="border-t border-black/5 dark:border-white/5 pt-6">
+                            <p class="text-sm font-black mb-1"><%= t('image_download.existing_title') %></p>
+                            <p class="text-xs opacity-60 mb-3 max-w-2xl"><%= t('image_download.existing_desc') %></p>
+                            <%- include('partials/image-download-run', { statusUrl: '/admin/instance/images', runUrl: '/admin/instance/images/run' }) %>
+                        </div>
+                    </div>
                 </section>
 
                 <!-- ============ UPDATES ============ -->

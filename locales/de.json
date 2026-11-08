@@ -2716,5 +2716,29 @@
     "error_box_inside": "Dieses Objekt liegt selbst in einem anderen oder ist eine Staffel.",
     "error_holds_items": "Dieses Objekt enthält andere: nimm sie zuerst heraus.",
     "error_wishlist": "Objekte der Wunschliste kommen in keine Box."
+  },
+  "image_download": {
+    "toggle": "Kopie verlinkter Bilder behalten",
+    "toggle_desc": "Aus einer Suche gewählte Cover und per Adresse hinzugefügte Bilder werden auf diesen Server geladen: Sie verschwinden nicht mehr, wenn sich die andere Seite ändert, und landen in Sicherungen. Jede Sammlung kann anders entscheiden. Adressen im eigenen Netzwerk werden nie abgerufen.",
+    "existing_title": "Bereits verlinkte Bilder",
+    "existing_desc": "Das Einschalten gilt für neue Bilder. Bestehende werden nur geladen, wenn du es hier startest.",
+    "counting": "Verlinkte Bilder werden gezählt…",
+    "none_pending": "Kein verlinktes Bild mehr zu kopieren.",
+    "pending": "__IMAGES__ verlinkte Bilder in __ITEMS__ Objekten können kopiert werden.",
+    "run": "Die __IMAGES__ Bilder laden",
+    "confirm": "__IMAGES__ Bilder auf diesen Server laden? Das läuft im Hintergrund und kann dauern; fehlgeschlagene Adressen bleiben, wie sie sind.",
+    "running": "__DONE__ / __TOTAL__ Objekte · __COPIED__ kopiert · __FAILED__ fehlgeschlagen",
+    "finished": "Fertig: __COPIED__ kopiert, __FAILED__ fehlgeschlagen.",
+    "disk_low": "Angehalten: Der Datenträger ist fast voll.",
+    "busy": "Es läuft bereits ein Download.",
+    "collection_label": "Kopien verlinkter Bilder",
+    "collection_desc": "Ob diese Sammlung die verlinkten Bilder herunterlädt.",
+    "mode_inherit_on": "Wie die Instanz (ja)",
+    "mode_inherit_off": "Wie die Instanz (nein)",
+    "mode_download": "Immer",
+    "mode_keep": "Nie",
+    "pending_with_failed": "__IMAGES__ verlinkte Bilder können kopiert werden, __FAILED__ haben beim letzten Mal nicht geantwortet.",
+    "only_failed": "Alles ist kopiert, außer __FAILED__ Bildern, deren Adresse nicht mehr antwortet (von der anderen Seite gelöscht oder verschoben).",
+    "retry": "Die __FAILED__ erneut versuchen"
   }
 }

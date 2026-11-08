@@ -2,7 +2,7 @@ import express from 'express';
 import multer from 'multer';
 import { requireAuth, requireCollectionRole } from '../middleware/authMiddleware';
 import {
-  isJpegBuffer,
+  imageExtensionOf,
   MAX_ITEM_IMAGE_UPLOAD_BYTES,
   storeItemImage
 } from '../core/itemImageStorage';
@@ -27,7 +27,9 @@ router.post(
         });
       }
 
-      if (!req.file || req.file.mimetype !== 'image/jpeg' || !isJpegBuffer(req.file.buffer)) {
+      // JPEG, or WebP from a browser that can write it (#136); the bytes decide.
+      const extension = req.file ? imageExtensionOf(req.file.buffer) : null;
+      if (!req.file || !['image/jpeg', 'image/webp'].includes(req.file.mimetype) || (extension !== 'jpg' && extension !== 'webp')) {
         return res.status(400).json({ success: false, error: req.t('image_manager.upload_invalid') });
       }
 
