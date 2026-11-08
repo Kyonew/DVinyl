@@ -323,6 +323,11 @@ export interface FieldDefinition {
   placeholder?: string;
   hint?: string;
   showCondition?: 'manual-only' | 'api-only' | 'always';
+  // Shown only while another field of the item holds one of `values` ('' standing for
+  // no value yet): a console has a manufacturer, a game a developer. On a form the field
+  // follows the other one as it changes, and while hidden it is not posted, so what it
+  // stored stays (core/fieldConditions.ts).
+  showWhen?: { field: string; values: string[] };
 
   // User-defined field declared in settings.pluginExtraFields, not by the plugin itself.
   // Its value is stored under item.extra[name] instead of a real schema path.

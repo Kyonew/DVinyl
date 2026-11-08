@@ -1,4 +1,7 @@
-<div class="w-full mt-6 grid grid-cols-2 gap-4">
+<%# A console or an accessory is not played through: only its rating is shown. %>
+<% const isGameItem = !item.item_kind || item.item_kind === 'game'; %>
+<div class="w-full mt-6 grid <%= isGameItem ? 'grid-cols-2' : 'grid-cols-1' %> gap-4">
+    <% if (isGameItem) { %>
     <div class="card-theme p-4 rounded-xl text-center shadow-sm">
         <span class="block text-[10px] uppercase font-bold opacity-50 mb-1">
             <%= t('confirm_game.field_status') %>
@@ -10,6 +13,7 @@
             <%= item.playStatus === 'playing' ? t('confirm_game.status_playing') : (item.playStatus === 'played' ? t('confirm_game.status_played') : t('confirm_game.status_to_play')) %>
         </span>
     </div>
+    <% } %>
     <div class="card-theme p-4 rounded-xl text-center shadow-sm">
         <span class="block text-[10px] uppercase font-bold opacity-50 mb-1">
             <%= t('confirm_game.field_rating') %>

@@ -1496,7 +1496,13 @@
     "btn_collection": "В коллекцию",
     "btn_wishlist": "В желаемое",
     "cover_preview": "Предпросмотр обложки",
-    "publisher_label": "Издатель"
+    "publisher_label": "Издатель",
+    "field_item_kind": "Тип предмета",
+    "kind_game": "Игра",
+    "kind_console": "Консоль",
+    "kind_accessory": "Аксессуар",
+    "field_manufacturer": "Производитель",
+    "field_serial_number": "Серийный номер"
   },
   "edit_game": {
     "title": "Редактировать игру"

@@ -1461,7 +1461,13 @@
     "btn_collection": "Add to Collection",
     "btn_wishlist": "Add to Wishlist",
     "cover_preview": "Cover Preview",
-    "publisher_label": "Publisher"
+    "publisher_label": "Publisher",
+    "field_item_kind": "Item type",
+    "kind_game": "Game",
+    "kind_console": "Console",
+    "kind_accessory": "Accessory",
+    "field_manufacturer": "Manufacturer",
+    "field_serial_number": "Serial number"
   },
   "edit_game": {
     "title": "Edit game"

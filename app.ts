@@ -30,6 +30,7 @@ import { syncCustomPluginsOnBoot } from './core/customPluginSync.js';
 import { mountPluginRoutes, pluginDispatcher } from './core/pluginRuntime.js';
 import { applyPluginCustomization } from './core/pluginCustomization.js';
 import { getCardLines, getCornerBadge, isTranslationKey, CORNER_POSITIONS, DEFAULT_CORNER_POSITION, SHARE_HIDDEN_FIELDS, getTableCell, getTableColumns } from './core/cardFields.js';
+import { fieldShownFor } from './core/fieldConditions.js';
 import { highlightMatches } from './core/searchHighlight.js';
 import { importableFields } from './core/csvMapping.js';
 import { MAX_ITEM_IMAGES, MAX_ITEM_IMAGE_BYTES } from './core/itemImages.js';
@@ -114,6 +115,7 @@ app.locals.getTableColumns = getTableColumns;
 app.locals.getTableCell = getTableCell;
 app.locals.getCornerBadge = getCornerBadge;
 app.locals.isTranslationKey = isTranslationKey;
+app.locals.fieldShownFor = fieldShownFor;
 // Lights up the searched text on the cards and table rows it brought back
 app.locals.highlightMatches = highlightMatches;
 app.locals.CORNER_POSITIONS = CORNER_POSITIONS;

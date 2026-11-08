@@ -1513,7 +1513,13 @@
     "btn_collection": "Zur Sammlung hinzufügen",
     "btn_wishlist": "Zur Wishlist hinzufügen",
     "cover_preview": "Cover-Vorschau",
-    "publisher_label": "Publisher"
+    "publisher_label": "Publisher",
+    "field_item_kind": "Art",
+    "kind_game": "Spiel",
+    "kind_console": "Konsole",
+    "kind_accessory": "Zubehör",
+    "field_manufacturer": "Hersteller",
+    "field_serial_number": "Seriennummer"
   },
   "edit_game": {
     "title": "Spiel bearbeiten"

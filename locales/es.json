@@ -1513,7 +1513,13 @@
     "btn_collection": "Añadir a la colección",
     "btn_wishlist": "Añadir a la Wishlist",
     "cover_preview": "Vista previa de portada",
-    "publisher_label": "Editor"
+    "publisher_label": "Editor",
+    "field_item_kind": "Tipo de objeto",
+    "kind_game": "Juego",
+    "kind_console": "Consola",
+    "kind_accessory": "Accesorio",
+    "field_manufacturer": "Fabricante",
+    "field_serial_number": "Número de serie"
   },
   "edit_game": {
     "title": "Editar juego"

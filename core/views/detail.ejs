@@ -58,6 +58,7 @@
         // everywhere or nowhere.
         const detailFields = plugin.formFields.filter(f =>
             f.showIn.includes('detail') &&
+            fieldShownFor(f, item) &&
             !['title', plugin.creatorField].includes(f.name) &&
             !renderedElsewhere.includes(f.name) &&
             !(locals.isShareView && SHARE_HIDDEN_FIELDS.has(f.name)) &&

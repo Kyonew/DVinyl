@@ -1,6 +1,7 @@
 import { PluginDefinition } from '../../core/types';
 import { sourceFromProvider, imageSourceFrom } from '../../core/sources';
 import { IGDBProvider } from './igdb';
+import { IGDBPlatformsProvider } from './igdbPlatforms';
 import {
   ScreenScraperProvider, screenScraperMediaRoute, screenScraperSystemsRoute, SCREENSCRAPER_LOOKUP_TIMEOUT_MS
 } from './screenscraper';
@@ -41,6 +42,21 @@ const igdb = sourceFromProvider(igdbProvider, {
     });
   }
 });
+
+// Consoles, the hardware a game runs on (#195). Its own source, so the add page offers
+// it beside the games once IGDB is configured, and an item it filled in refreshes from
+// it. Its ids are IGDB's platform ids, never stored where a game keeps its own.
+const igdbConsoles = sourceFromProvider(new IGDBPlatformsProvider(), {
+  id: 'igdb_consoles',
+  requiredEnvKeys: ['TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET'],
+  legacyIdField: null
+});
+
+// What one entry of the collection is. Everything else on the form follows it: a game has
+// a developer, a publisher and a play status, hardware a manufacturer.
+const GAME_ONLY = { field: 'item_kind', values: ['game', ''] };
+const HARDWARE_ONLY = { field: 'item_kind', values: ['console', 'accessory'] };
+const isHardware = (item: any) => item?.item_kind === 'console' || item?.item_kind === 'accessory';
 
 // The retro side of the catalogue: MS-DOS, arcade and the 8 and 16-bit consoles, which
 // ScreenScraper documents far better than IGDB. Second in line, so IGDB stays the default
@@ -115,16 +131,19 @@ export const gamesPlugin: PluginDefinition = {
   creatorSearchFields: ['publisher'],
   summaryField: { label: 'confirm_game.publisher_label', field: 'publisher' },
   externalLink(item: any) {
+    if (item.igdb_platform_slug) return { label: 'IGDB', url: `https://www.igdb.com/platforms/${encodeURIComponent(item.igdb_platform_slug)}` };
     return item.igdb_id ? { label: 'IGDB', url: `https://www.igdb.com/games/${item.igdb_id}` } : null;
   },
   icon: 'gamepad',
   routePrefix: '/game',
   collectionType: 'games',
   creatorField: 'developer',
-  extraSearchFields: ['platform', 'publisher'],
+  extraSearchFields: ['platform', 'publisher', 'manufacturer', 'serial_number'],
   supportsBarcodeSearch: true,
   barcodeNoiseTerms: ['Nintendo', 'PlayStation', 'Xbox', 'PS2', 'PS3', 'PS4', 'PS5', 'Switch', 'Wii U', 'Wii', 'Series X', 'Series S', 'One'],
-  sources: [igdb, screenscraper, tmdbImages, itunesSoftware],
+  sources: [igdb, igdbConsoles, screenscraper, tmdbImages, itunesSoftware],
+  // Games and hardware share the collection, one click apart.
+  defaultFilters: ['item_kind'],
   // Relays ScreenScraper thumbnails to the add page, since their own addresses carry the
   // instance's credentials and must never reach a browser, and lists its systems for the
   // search form.
@@ -190,6 +209,10 @@ export const gamesPlugin: PluginDefinition = {
   defaultCardFields: ['developer'],
 
   storedFields: {
+    item_kind: { type: 'text', values: ['game', 'console', 'accessory'], default: 'game' },
+    manufacturer: { type: 'text', default: '' },
+    serial_number: { type: 'text', default: '' },
+    igdb_platform_slug: { type: 'text' },
     developer: { type: 'text', default: '' },
     publisher: { type: 'text', default: '' },
     platform: { type: 'text', default: 'other' },
@@ -241,14 +264,16 @@ export const gamesPlugin: PluginDefinition = {
       label: 'confirm_game.field_developer',
       type: 'text',
       showIn: ['edit', 'confirm', 'detail', 'manual'],
-      group: 'main'
+      group: 'main',
+      showWhen: GAME_ONLY
     },
     {
       name: 'publisher',
       label: 'confirm_game.field_publisher',
       type: 'text',
       showIn: ['edit', 'confirm', 'detail', 'manual'],
-      group: 'main'
+      group: 'main',
+      showWhen: GAME_ONLY
     },
     {
       name: 'year',
@@ -257,6 +282,27 @@ export const gamesPlugin: PluginDefinition = {
       showIn: ['edit', 'confirm', 'detail', 'manual'],
       group: 'main',
       placeholder: 'placeholders.year'
+    },
+    {
+      name: 'item_kind',
+      label: 'confirm_game.field_item_kind',
+      type: 'select',
+      showIn: ['edit', 'confirm', 'detail', 'manual'],
+      group: 'main',
+      options: [
+        { value: 'game', label: 'confirm_game.kind_game' },
+        { value: 'console', label: 'confirm_game.kind_console' },
+        { value: 'accessory', label: 'confirm_game.kind_accessory' }
+      ]
+    },
+    {
+      name: 'manufacturer',
+      label: 'confirm_game.field_manufacturer',
+      type: 'text',
+      showIn: ['edit', 'confirm', 'detail', 'manual'],
+      group: 'main',
+      placeholder: 'Sony, Nintendo, Sega...',
+      showWhen: HARDWARE_ONLY
     },
     {
       name: 'platform',
@@ -300,6 +346,14 @@ export const gamesPlugin: PluginDefinition = {
       placeholder: 'Code-barres...'
     },
     {
+      // What insurers ask for, and what tells two copies of one console apart.
+      name: 'serial_number',
+      label: 'confirm_game.field_serial_number',
+      type: 'text',
+      showIn: ['edit', 'confirm', 'detail', 'manual'],
+      group: 'metadata'
+    },
+    {
       name: 'quantity',
       label: 'confirm_game.field_quantity',
       type: 'number',
@@ -312,6 +366,7 @@ export const gamesPlugin: PluginDefinition = {
       type: 'select',
       showIn: ['edit', 'confirm', 'manual'],
       group: 'metadata',
+      showWhen: GAME_ONLY,
       options: [
         { value: 'to_play', label: 'confirm_game.status_to_play' },
         { value: 'playing', label: 'confirm_game.status_playing' },
@@ -350,7 +405,9 @@ export const gamesPlugin: PluginDefinition = {
     return { label: item.platform || 'Game', colorClass: (opt && opt.color) || 'bg-gray-600/90' };
   },
 
-  getStats(items: any[]): Record<string, any> {
+  getStats(allItems: any[]): Record<string, any> {
+    // The game counts and tops are about games: a console is not a physical game.
+    const items = allItems.filter(i => !isHardware(i));
     const countByFormat = (format: string) => {
       return items
         .filter(i => (i.format || '').toLowerCase() === format.toLowerCase())
@@ -392,7 +449,9 @@ export const gamesPlugin: PluginDefinition = {
     const obj = item.toObject ? item.toObject() : item;
     return {
       ...obj,
-      developer: obj.developer || 'Unknown',
+      item_kind: obj.item_kind || 'game',
+      // The line under the title: who made the game, or who made the hardware.
+      developer: isHardware(obj) ? (obj.manufacturer || '') : (obj.developer || 'Unknown'),
       cover_image: obj.cover_image || '/ressources/logo.png',
       publisher: obj.publisher || '',
       year: obj.year || '',
@@ -469,6 +528,16 @@ export const gamesPlugin: PluginDefinition = {
       ? details.cover_image
       : '';
 
+    if (isHardware(item)) {
+      // A console reads back its own page: picture, year and summary, nothing a game has.
+      return {
+        cover_image: freshCover || item.cover_image,
+        year: details.year || item.year,
+        description: details.description || item.description,
+        igdb_platform_slug: details.igdb_platform_slug || item.igdb_platform_slug
+      };
+    }
+
     return {
       cover_image: freshCover || item.cover_image,
       genres,
@@ -489,6 +558,9 @@ export const gamesPlugin: PluginDefinition = {
   getManualDefaults(): Record<string, any> {
     return {
       title: '',
+      item_kind: 'game',
+      manufacturer: '',
+      serial_number: '',
       developer: '',
       publisher: '',
       year: '',

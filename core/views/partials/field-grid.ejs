@@ -26,8 +26,10 @@
 %>
 <% rows.forEach(row => { %>
     <div class="grid grid-cols-1 <%= row.length === 2 ? 'md:grid-cols-2' : '' %> gap-6">
-        <% row.forEach(field => { %>
-            <div>
+        <% row.forEach(field => { const shown = fieldShownFor(field, item); %>
+            <%# A field shown for some values of another one only (showWhen) carries them,
+                for the script below to follow the other field as it changes. %>
+            <div <% if (field.showWhen) { %>data-show-when-field="<%= field.showWhen.field %>" data-show-when-values="<%= JSON.stringify(field.showWhen.values) %>"<% } %> class="<%= shown ? '' : 'hidden' %>">
                 <%# `location` is a core path every module carries, and the core draws it its
                     own way: a picker over the collection's shelves rather than the plain
                     text box its type asks for. %>
@@ -38,3 +40,38 @@
         <% }) %>
     </div>
 <% }) %>
+
+<% if (fields.some(f => f.showWhen)) { %>
+<script>
+    (function () {
+        // Shows each conditional field while the field it follows holds one of its values,
+        // and disables what it holds while hidden so the form does not post it: what was
+        // stored stays. Wired once per page, whichever grid includes it first.
+        if (window.__showWhenWired) { window.__showWhenSync && window.__showWhenSync(); return; }
+        window.__showWhenWired = true;
+        function valueOf(form, name) {
+            const checked = form.querySelector('[name="' + name + '"]:checked');
+            if (checked) return checked.value;
+            const input = form.querySelector('select[name="' + name + '"], input[name="' + name + '"]:not([type=radio]):not([type=checkbox])');
+            return input ? input.value : '';
+        }
+        function sync() {
+            document.querySelectorAll('[data-show-when-field]').forEach(box => {
+                const form = box.closest('form');
+                if (!form) return;
+                let values = [];
+                try { values = JSON.parse(box.dataset.showWhenValues || '[]'); } catch (e) { values = []; }
+                const shown = values.includes(valueOf(form, box.dataset.showWhenField));
+                box.classList.toggle('hidden', !shown);
+                box.querySelectorAll('input, select, textarea').forEach(el => { el.disabled = !shown; });
+            });
+        }
+        window.__showWhenSync = sync;
+        document.addEventListener('change', e => {
+            if (e.target && e.target.name && document.querySelector('[data-show-when-field="' + e.target.name + '"]')) sync();
+        });
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', sync);
+        else sync();
+    })();
+</script>
+<% } %>
