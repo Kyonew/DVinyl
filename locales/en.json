@@ -596,7 +596,11 @@
         "never": "No backup yet.",
         "last_error": "The last attempt failed on {{date}}: {{error}}",
         "files": "Backups in the folder",
-        "download": "Download"
+        "download": "Download",
+        "zip_title": "ZIP, with the images",
+        "zip_desc": "Everything comes back as it was, pictures included.",
+        "json_title": "JSON, data only",
+        "json_desc": "Much lighter, but uploaded pictures are not in it."
       },
       "updates": {
         "title": "Updates",

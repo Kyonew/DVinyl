@@ -596,7 +596,11 @@
         "never": "Aucune sauvegarde pour l'instant.",
         "last_error": "La dernière tentative a échoué le {{date}} : {{error}}",
         "files": "Sauvegardes dans le dossier",
-        "download": "Télécharger"
+        "download": "Télécharger",
+        "zip_title": "ZIP, avec les images",
+        "zip_desc": "Tout revient tel quel, images comprises.",
+        "json_title": "JSON, données seules",
+        "json_desc": "Bien plus léger, mais sans les images envoyées."
       },
       "updates": {
         "title": "Mises à jour",

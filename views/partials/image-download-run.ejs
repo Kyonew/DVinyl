@@ -3,14 +3,14 @@
     every two seconds while it goes. Expects: statusUrl, runUrl. %>
 <% const idrId = 'idr' + Math.random().toString(36).slice(2, 8); %>
 <div id="<%= idrId %>" class="space-y-3">
-    <p class="text-xs opacity-70" data-idr-pending><%= t('image_download.counting') %></p>
+    <p class="text-sm opacity-80" data-idr-pending><%= t('image_download.counting') %></p>
     <div class="hidden" data-idr-progress>
         <div class="h-2 rounded-full bg-black/10 dark:bg-white/10 overflow-hidden">
             <div class="h-full bg-primary-theme transition-all" style="width: 0%" data-idr-bar></div>
         </div>
-        <p class="text-xs opacity-70 mt-1.5" data-idr-text></p>
+        <p class="text-sm opacity-70 mt-2" data-idr-text></p>
     </div>
-    <button type="button" data-idr-run class="hidden text-xs font-bold px-4 py-2 rounded-xl bg-black/5 dark:bg-white/10 hover:brightness-110 transition-all">
+    <button type="button" data-idr-run class="hidden text-sm font-bold px-5 py-3 rounded-xl bg-primary-theme text-white shadow-lg shadow-primary-theme/20 hover:brightness-110 active:scale-95 transition-all">
         <i class="fa-solid fa-cloud-arrow-down mr-1.5" aria-hidden="true"></i><span data-idr-run-label></span>
     </button>
 </div>

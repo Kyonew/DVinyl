@@ -320,7 +320,11 @@
         "never": "Todavía no hay copias.",
         "last_error": "El último intento falló el {{date}}: {{error}}",
         "files": "Copias en la carpeta",
-        "download": "Descargar"
+        "download": "Descargar",
+        "zip_title": "ZIP, con las imágenes",
+        "zip_desc": "Todo vuelve tal cual, imágenes incluidas.",
+        "json_title": "JSON, solo datos",
+        "json_desc": "Mucho más ligero, pero sin las imágenes subidas."
       },
       "updates": {
         "title": "Actualizaciones",

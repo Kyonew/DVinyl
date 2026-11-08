@@ -575,88 +575,117 @@
                        const bakT = (key, params) => t('admin.instance.scheduled_backups.' + key, { ...params, interpolation: { escapeValue: false } });
                        const bakDate = (date) => new Date(date).toLocaleString(dateLocaleFor(currentLng), { dateStyle: 'medium', timeStyle: 'short' });
                        const bakSize = (bytes) => bytes >= 1048576 ? (bytes / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(bytes / 1024)) + ' KB'; %>
-                    <div class="card-theme rounded-3xl p-6 md:p-8 shadow-sm transition-colors space-y-6 mt-6">
-                        <h2 class="text-xl font-bold flex items-center gap-2">
-                            <i class="fa-solid fa-clock-rotate-left text-primary-theme"></i>
-                            <%= bakT('title') %>
-                        </h2>
-
-                        <form action="<%= baseUrl %>/admin/instance/backups" method="POST" data-save-bar class="space-y-6">
-                            <label class="flex items-start justify-between gap-6 cursor-pointer">
-                                <div>
-                                    <p class="text-sm font-black"><%= bakT('toggle') %></p>
-                                    <p class="text-xs opacity-60 mt-1 leading-relaxed max-w-2xl"><%= bakT('toggle_desc') %></p>
-                                </div>
-                                <div class="relative inline-flex items-center shrink-0 mt-1">
-                                    <input type="checkbox" name="enabled" <%= bak.enabled ? 'checked' : '' %> class="sr-only peer">
-                                    <div class="w-11 h-6 bg-black/10 dark:bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500">
-                                    </div>
-                                </div>
+                    <%# The two cards share one layout: what it is and its switch on top, its
+                        settings only once it is on, then where things stand. Choices are
+                        buttons rather than menus, so every option can be read at a glance. %>
+                    <% const switchTrack = "w-12 h-7 bg-black/10 dark:bg-white/10 rounded-full peer peer-focus-visible:ring-2 peer-focus-visible:ring-primary-theme/50 peer-checked:after:translate-x-5 after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-5 after:w-5 after:shadow after:transition-all peer-checked:bg-green-500 transition-colors";
+                       const pill = 'cursor-pointer select-none px-4 py-2.5 rounded-xl text-sm font-bold bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 peer-checked:bg-primary-theme peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-primary-theme/50 transition-colors';
+                       const fieldLabel = 'block text-sm font-bold mb-2'; %>
+                    <div class="card-theme rounded-3xl shadow-sm transition-colors mt-6 overflow-hidden">
+                        <form action="<%= baseUrl %>/admin/instance/backups" method="POST" data-save-bar data-toggle-card>
+                            <label class="flex items-start gap-4 p-6 md:p-8 cursor-pointer">
+                                <span class="w-12 h-12 rounded-2xl bg-primary-theme/10 text-primary-theme hidden sm:flex items-center justify-center shrink-0">
+                                    <i class="fa-solid fa-clock-rotate-left text-lg" aria-hidden="true"></i>
+                                </span>
+                                <span class="flex-1 min-w-0">
+                                    <span class="block text-lg font-bold"><%= bakT('title') %></span>
+                                    <span class="block text-sm opacity-70 mt-1 leading-relaxed max-w-2xl"><%= bakT('toggle_desc') %></span>
+                                </span>
+                                <span class="relative inline-flex items-center shrink-0 mt-1" title="<%= bakT('toggle') %>">
+                                    <input type="checkbox" name="enabled" <%= bak.enabled ? 'checked' : '' %> class="sr-only peer" aria-label="<%= bakT('toggle') %>" data-toggle-card-switch>
+                                    <span class="<%= switchTrack %>"></span>
+                                </span>
                             </label>
 
-                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                <label class="block">
-                                    <span class="block text-xs font-bold opacity-60 mb-2"><%= bakT('frequency') %></span>
-                                    <select name="frequency" class="w-full bg-black/5 dark:bg-white/5 border border-transparent rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-primary-theme/40 cursor-pointer">
-                                        <option value="daily" class="bg-white dark:bg-[#1a1a1a]" <%= bak.frequency === 'daily' ? 'selected' : '' %>><%= bakT('daily') %></option>
-                                        <option value="weekly" class="bg-white dark:bg-[#1a1a1a]" <%= bak.frequency === 'weekly' ? 'selected' : '' %>><%= bakT('weekly') %></option>
-                                    </select>
-                                </label>
-                                <label class="block">
-                                    <span class="block text-xs font-bold opacity-60 mb-2"><%= bakT('format') %></span>
-                                    <select name="format" class="w-full bg-black/5 dark:bg-white/5 border border-transparent rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-primary-theme/40 cursor-pointer">
-                                        <option value="zip" class="bg-white dark:bg-[#1a1a1a]" <%= bak.format === 'zip' ? 'selected' : '' %>><%= bakT('format_zip') %></option>
-                                        <option value="json" class="bg-white dark:bg-[#1a1a1a]" <%= bak.format === 'json' ? 'selected' : '' %>><%= bakT('format_json') %></option>
-                                    </select>
-                                </label>
-                                <label class="block">
-                                    <span class="block text-xs font-bold opacity-60 mb-2"><%= bakT('keep') %></span>
-                                    <input type="number" name="keep" min="1" max="90" value="<%= bak.keep %>"
-                                        class="w-full bg-black/5 dark:bg-white/5 border border-transparent rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-primary-theme/40">
-                                    <span class="block text-xs opacity-60 mt-2 leading-relaxed"><%= bakT('keep_hint') %></span>
-                                </label>
-                            </div>
+                            <div class="px-6 md:px-8 pb-6 md:pb-8 space-y-6 <%= bak.enabled ? '' : 'hidden' %>" data-toggle-card-body>
+                                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                    <div>
+                                        <span class="<%= fieldLabel %>"><%= bakT('frequency') %></span>
+                                        <div class="flex flex-wrap gap-2">
+                                            <% [['daily', 'fa-sun'], ['weekly', 'fa-calendar-week']].forEach(([value, icon]) => { %>
+                                                <label class="relative">
+                                                    <input type="radio" name="frequency" value="<%= value %>" class="sr-only peer" <%= bak.frequency === value ? 'checked' : '' %>>
+                                                    <span class="<%= pill %> inline-flex items-center gap-2"><i class="fa-solid <%= icon %> text-xs" aria-hidden="true"></i><%= bakT(value) %></span>
+                                                </label>
+                                            <% }) %>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label for="backupKeep" class="<%= fieldLabel %>"><%= bakT('keep') %></label>
+                                        <div class="flex items-center gap-2">
+                                            <button type="button" class="w-11 h-11 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 font-black text-lg" data-step="-1" aria-label="-">−</button>
+                                            <input type="number" id="backupKeep" name="keep" min="1" max="90" value="<%= bak.keep %>"
+                                                class="w-20 text-center bg-black/5 dark:bg-white/5 border border-transparent rounded-xl p-2.5 text-base font-bold outline-none focus:ring-2 focus:ring-primary-theme/40">
+                                            <button type="button" class="w-11 h-11 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 font-black text-lg" data-step="1" aria-label="+">+</button>
+                                        </div>
+                                        <p class="text-sm opacity-60 mt-2"><%= bakT('keep_hint') %></p>
+                                    </div>
+                                </div>
 
-                            <div>
-                                <label for="backupFolder" class="block text-xs font-bold opacity-60 mb-2"><%= bakT('folder') %></label>
-                                <input type="text" id="backupFolder" name="folder" spellcheck="false" autocapitalize="none" autocorrect="off"
-                                    value="<%= bak.folderLocked ? bak.folder : bak.chosenFolder %>" placeholder="<%= bak.defaultFolder %>" <%= bak.folderLocked ? 'disabled' : '' %>
-                                    class="w-full font-mono bg-black/5 dark:bg-white/5 border border-transparent rounded-xl p-3 text-xs outline-none focus:ring-2 focus:ring-primary-theme/40 disabled:opacity-60 disabled:cursor-not-allowed">
-                                <p class="text-xs opacity-60 mt-2 leading-relaxed max-w-2xl"><%= bakT(bak.folderLocked ? 'folder_locked' : 'folder_hint') %></p>
-                                <% if (!bak.folderPersists) { %>
-                                    <p class="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-start gap-2 mt-2 max-w-2xl">
-                                        <i class="fa-solid fa-triangle-exclamation mt-0.5" aria-hidden="true"></i><%= bakT('folder_not_mounted') %>
-                                    </p>
-                                <% } %>
-                                <p class="text-xs opacity-60 mt-2 leading-relaxed max-w-2xl"><%= bakT('folder_private') %></p>
-                            </div>
+                                <div>
+                                    <span class="<%= fieldLabel %>"><%= bakT('format') %></span>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <% [['zip', 'fa-file-zipper'], ['json', 'fa-file-code']].forEach(([value, icon]) => { %>
+                                            <label class="relative cursor-pointer">
+                                                <input type="radio" name="format" value="<%= value %>" class="sr-only peer" <%= bak.format === value ? 'checked' : '' %>>
+                                                <span class="flex items-start gap-3 h-full p-4 rounded-2xl border-2 border-black/5 dark:border-white/10 peer-checked:border-primary-theme peer-checked:bg-primary-theme/5 peer-focus-visible:ring-2 peer-focus-visible:ring-primary-theme/50 transition-colors">
+                                                    <i class="fa-solid <%= icon %> text-xl text-primary-theme mt-0.5" aria-hidden="true"></i>
+                                                    <span>
+                                                        <span class="block text-sm font-bold"><%= bakT(value + '_title') %></span>
+                                                        <span class="block text-sm opacity-60 mt-0.5"><%= bakT(value + '_desc') %></span>
+                                                    </span>
+                                                </span>
+                                            </label>
+                                        <% }) %>
+                                    </div>
+                                </div>
 
-                            <div class="flex justify-end">
-                                <button type="submit"
-                                    class="flex items-center gap-2 bg-primary-theme hover:brightness-110 text-white px-5 py-3 rounded-2xl shadow-lg shadow-primary-theme/20 transition-all active:scale-95">
-                                    <i class="fa-solid fa-floppy-disk text-sm"></i>
-                                    <span class="text-xs font-black"><%= t('common.save') %></span>
-                                </button>
+                                <div>
+                                    <label for="backupFolder" class="<%= fieldLabel %>"><%= bakT('folder') %></label>
+                                    <div class="relative">
+                                        <i class="fa-solid fa-folder-open absolute left-4 top-1/2 -translate-y-1/2 text-sm opacity-40" aria-hidden="true"></i>
+                                        <input type="text" id="backupFolder" name="folder" spellcheck="false" autocapitalize="none" autocorrect="off"
+                                            value="<%= bak.folderLocked ? bak.folder : bak.chosenFolder %>" placeholder="<%= bak.defaultFolder %>" <%= bak.folderLocked ? 'disabled' : '' %>
+                                            class="w-full font-mono bg-black/5 dark:bg-white/5 border border-transparent rounded-xl py-3 pl-11 pr-4 text-sm outline-none focus:ring-2 focus:ring-primary-theme/40 disabled:opacity-60 disabled:cursor-not-allowed">
+                                    </div>
+                                    <p class="text-sm opacity-60 mt-2 leading-relaxed max-w-3xl"><%= bakT(bak.folderLocked ? 'folder_locked' : 'folder_hint') %></p>
+                                    <% if (!bak.folderPersists) { %>
+                                        <p class="text-sm font-bold text-amber-600 dark:text-amber-400 flex items-start gap-2 mt-3 p-3 rounded-xl bg-amber-500/10">
+                                            <i class="fa-solid fa-triangle-exclamation mt-0.5" aria-hidden="true"></i><%= bakT('folder_not_mounted') %>
+                                        </p>
+                                    <% } %>
+                                </div>
+
+                                <p class="text-sm flex items-start gap-3 p-4 rounded-2xl bg-black/5 dark:bg-white/5">
+                                    <i class="fa-solid fa-lock text-primary-theme mt-0.5" aria-hidden="true"></i>
+                                    <span class="opacity-80"><%= bakT('folder_private') %></span>
+                                </p>
                             </div>
                         </form>
 
-                        <div class="border-t border-black/5 dark:border-white/5 pt-6 space-y-4">
+                        <div class="border-t border-black/5 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] p-6 md:p-8 space-y-5">
                             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                <div class="text-xs leading-relaxed min-w-0">
+                                <div class="flex items-start gap-3 min-w-0">
                                     <% if (bak.running) { %>
-                                        <p class="font-bold text-primary-theme"><%= bakT('running') %></p>
+                                        <i class="fa-solid fa-circle-notch fa-spin text-primary-theme text-lg mt-0.5" aria-hidden="true"></i>
+                                        <p class="text-sm font-bold text-primary-theme"><%= bakT('running') %></p>
+                                    <% } else if (bak.lastError) { %>
+                                        <i class="fa-solid fa-circle-xmark text-red-500 text-lg mt-0.5" aria-hidden="true"></i>
+                                        <div class="min-w-0">
+                                            <p class="text-sm font-bold text-red-600 dark:text-red-400 break-words"><%= bakT('last_error', { date: bakDate(bak.lastAttemptAt), error: bak.lastError }) %></p>
+                                            <% if (bak.lastSuccessAt) { %><p class="text-sm opacity-60 mt-1"><%= bakT('last_success', { date: bakDate(bak.lastSuccessAt), size: bakSize(bak.lastSize) }) %></p><% } %>
+                                        </div>
                                     <% } else if (bak.lastSuccessAt) { %>
-                                        <p class="opacity-60"><%= bakT('last_success', { date: bakDate(bak.lastSuccessAt), size: bakSize(bak.lastSize) }) %></p>
+                                        <i class="fa-solid fa-circle-check text-green-500 text-lg mt-0.5" aria-hidden="true"></i>
+                                        <p class="text-sm font-semibold"><%= bakT('last_success', { date: bakDate(bak.lastSuccessAt), size: bakSize(bak.lastSize) }) %></p>
                                     <% } else { %>
-                                        <p class="opacity-60"><%= bakT('never') %></p>
-                                    <% } %>
-                                    <% if (bak.lastError && !bak.running) { %>
-                                        <p class="font-bold text-red-600 dark:text-red-400 mt-1 break-words"><%= bakT('last_error', { date: bakDate(bak.lastAttemptAt), error: bak.lastError }) %></p>
+                                        <i class="fa-regular fa-circle text-lg opacity-40 mt-0.5" aria-hidden="true"></i>
+                                        <p class="text-sm opacity-70"><%= bakT('never') %></p>
                                     <% } %>
                                 </div>
                                 <form action="<%= baseUrl %>/admin/instance/backups/run" method="POST" class="shrink-0">
                                     <button type="submit" <%= bak.running ? 'disabled' : '' %>
-                                        class="flex items-center gap-2 bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white disabled:opacity-50 px-5 py-3 rounded-xl text-xs font-black transition-all">
+                                        class="w-full sm:w-auto flex items-center justify-center gap-2 bg-primary-theme text-white hover:brightness-110 disabled:opacity-50 px-5 py-3 rounded-xl text-sm font-bold shadow-lg shadow-primary-theme/20 transition-all active:scale-95">
                                         <i class="fa-solid fa-play" aria-hidden="true"></i><%= bakT('run_now') %>
                                     </button>
                                 </form>
@@ -664,15 +693,17 @@
 
                             <% if (bak.files.length > 0) { %>
                                 <div>
-                                    <p class="text-xs font-bold opacity-60 mb-2"><%= bakT('files') %></p>
-                                    <ul class="divide-y divide-black/5 dark:divide-white/5">
+                                    <p class="text-sm font-bold mb-2"><%= bakT('files') %></p>
+                                    <ul class="rounded-2xl bg-black/5 dark:bg-white/5 divide-y divide-black/5 dark:divide-white/5 overflow-hidden">
                                         <% bak.files.forEach(file => { %>
-                                            <li class="flex items-center justify-between gap-4 py-2 text-xs">
-                                                <span class="font-mono truncate min-w-0"><%= file.name %></span>
-                                                <span class="flex items-center gap-4 shrink-0">
-                                                    <span class="opacity-60"><%= bakSize(file.size) %></span>
-                                                    <a href="<%= baseUrl %>/admin/instance/backups/<%= file.name %>" class="font-bold text-primary-theme hover:underline"><%= bakT('download') %></a>
-                                                </span>
+                                            <li class="flex items-center gap-3 px-4 py-3">
+                                                <i class="fa-solid <%= /\.zip$/i.test(file.name) ? 'fa-file-zipper' : 'fa-file-code' %> opacity-50" aria-hidden="true"></i>
+                                                <span class="font-mono text-sm truncate min-w-0 flex-1"><%= file.name %></span>
+                                                <span class="text-sm opacity-60 shrink-0"><%= bakSize(file.size) %></span>
+                                                <a href="<%= baseUrl %>/admin/instance/backups/<%= file.name %>" title="<%= bakT('download') %>" aria-label="<%= bakT('download') %>"
+                                                    class="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center text-primary-theme hover:bg-primary-theme hover:text-white transition-colors">
+                                                    <i class="fa-solid fa-download" aria-hidden="true"></i>
+                                                </a>
                                             </li>
                                         <% }) %>
                                     </ul>
@@ -684,33 +715,46 @@
                     <%# Copies of the images items link to (#136): what makes a backup carry
                         every picture, not only the uploaded ones. %>
                     <% const imgDl = locals.imageDownload || { enabled: false }; %>
-                    <div class="card-theme rounded-3xl p-6 md:p-8 shadow-sm transition-colors mt-6 space-y-6">
-                        <form action="<%= baseUrl %>/admin/instance/images" method="POST" data-save-bar class="space-y-6">
-                            <label class="flex items-start justify-between gap-6 cursor-pointer">
-                                <div>
-                                    <p class="text-sm font-black flex items-center gap-2"><i class="fa-solid fa-images text-primary-theme"></i><%= t('image_download.toggle') %></p>
-                                    <p class="text-xs opacity-60 mt-1 leading-relaxed max-w-2xl"><%= t('image_download.toggle_desc') %></p>
-                                </div>
-                                <div class="relative inline-flex items-center shrink-0 mt-1">
-                                    <input type="checkbox" name="enabled" <%= imgDl.enabled ? 'checked' : '' %> class="sr-only peer">
-                                    <div class="w-11 h-6 bg-black/10 dark:bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500">
-                                    </div>
-                                </div>
+                    <div class="card-theme rounded-3xl shadow-sm transition-colors mt-6 overflow-hidden">
+                        <form action="<%= baseUrl %>/admin/instance/images" method="POST" data-save-bar>
+                            <label class="flex items-start gap-4 p-6 md:p-8 cursor-pointer">
+                                <span class="w-12 h-12 rounded-2xl bg-primary-theme/10 text-primary-theme hidden sm:flex items-center justify-center shrink-0">
+                                    <i class="fa-solid fa-images text-lg" aria-hidden="true"></i>
+                                </span>
+                                <span class="flex-1 min-w-0">
+                                    <span class="block text-lg font-bold"><%= t('image_download.toggle') %></span>
+                                    <span class="block text-sm opacity-70 mt-1 leading-relaxed max-w-2xl"><%= t('image_download.toggle_desc') %></span>
+                                </span>
+                                <span class="relative inline-flex items-center shrink-0 mt-1">
+                                    <input type="checkbox" name="enabled" <%= imgDl.enabled ? 'checked' : '' %> class="sr-only peer" aria-label="<%= t('image_download.toggle') %>">
+                                    <span class="<%= switchTrack %>"></span>
+                                </span>
                             </label>
-                            <div class="flex justify-end">
-                                <button type="submit"
-                                    class="flex items-center gap-2 bg-primary-theme hover:brightness-110 text-white px-5 py-3 rounded-2xl shadow-lg shadow-primary-theme/20 transition-all active:scale-95">
-                                    <i class="fa-solid fa-floppy-disk text-sm"></i>
-                                    <span class="text-xs font-black"><%= t('common.save') %></span>
-                                </button>
-                            </div>
                         </form>
-                        <div class="border-t border-black/5 dark:border-white/5 pt-6">
-                            <p class="text-sm font-black mb-1"><%= t('image_download.existing_title') %></p>
-                            <p class="text-xs opacity-60 mb-3 max-w-2xl"><%= t('image_download.existing_desc') %></p>
+                        <div class="border-t border-black/5 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] p-6 md:p-8">
+                            <p class="text-sm font-bold"><%= t('image_download.existing_title') %></p>
+                            <p class="text-sm opacity-60 mt-1 mb-4 max-w-2xl"><%= t('image_download.existing_desc') %></p>
                             <%- include('partials/image-download-run', { statusUrl: '/admin/instance/images', runUrl: '/admin/instance/images/run' }) %>
                         </div>
                     </div>
+
+                    <script>
+                        (function () {
+                            // A card's settings show once its switch is on; they are still
+                            // posted while hidden, so turning it off keeps them for later.
+                            document.querySelectorAll('[data-toggle-card]').forEach(form => {
+                                const toggle = form.querySelector('[data-toggle-card-switch]');
+                                const body = form.querySelector('[data-toggle-card-body]');
+                                if (toggle && body) toggle.addEventListener('change', () => body.classList.toggle('hidden', !toggle.checked));
+                                form.querySelectorAll('[data-step]').forEach(button => button.addEventListener('click', () => {
+                                    const input = form.querySelector('input[name="keep"]');
+                                    const next = Math.min(Number(input.max) || 90, Math.max(Number(input.min) || 1, (Number(input.value) || 0) + Number(button.dataset.step)));
+                                    input.value = String(next);
+                                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                                }));
+                            });
+                        })();
+                    </script>
                 </section>
 
                 <!-- ============ UPDATES ============ -->

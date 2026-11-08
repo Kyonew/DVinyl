@@ -320,7 +320,11 @@
         "never": "Noch keine Sicherung.",
         "last_error": "Der letzte Versuch ist am {{date}} fehlgeschlagen: {{error}}",
         "files": "Sicherungen im Ordner",
-        "download": "Herunterladen"
+        "download": "Herunterladen",
+        "zip_title": "ZIP, mit Bildern",
+        "zip_desc": "Alles kommt so zurück, wie es war, Bilder inklusive.",
+        "json_title": "JSON, nur Daten",
+        "json_desc": "Viel leichter, aber ohne hochgeladene Bilder."
       },
       "updates": {
         "title": "Updates",

@@ -320,7 +320,11 @@
         "never": "Ancora nessun backup.",
         "last_error": "L'ultimo tentativo non è riuscito il {{date}}: {{error}}",
         "files": "Backup nella cartella",
-        "download": "Scarica"
+        "download": "Scarica",
+        "zip_title": "ZIP, con le immagini",
+        "zip_desc": "Tutto torna com'era, immagini comprese.",
+        "json_title": "JSON, solo dati",
+        "json_desc": "Molto più leggero, ma senza le immagini caricate."
       },
       "updates": {
         "title": "Aggiornamenti",
