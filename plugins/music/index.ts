@@ -123,7 +123,7 @@ export const musicPlugin: PluginDefinition = {
   defaultCardFields: ['artist', 'format_type', 'variant_color'],
   // Size, speed and release type are how a record collection is browsed ("the 7\"
   // singles"), so they are in the filter bar from the start.
-  defaultFilters: ['disc_size', 'speed', 'release_type', 'pressing_plant', 'mastering_studio', 'cutting_method'],
+  defaultFilters: ['disc_size', 'speed', 'release_type', 'label', 'country', 'pressing_plant', 'mastering_studio', 'cutting_method'],
   cardFieldStyles: { format_type: 'pill', variant_color: 'dot' },
 
   // format_type comes from Discogs as a full descriptor ("Vinyl, LP, Album, Reissue").

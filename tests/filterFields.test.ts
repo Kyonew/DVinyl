@@ -131,3 +131,22 @@ test('the search box looks into the words of user-defined fields', () => {
   // A select whose labels do not match adds nothing, rather than an empty list
   assert.deepEqual(extraSearchConditions(settings, [dvds], '1:85').length, 2);
 });
+
+test('a plugin text field is a filter over the values held, off unless the plugin lists it', () => {
+  const music: any = {
+    id: 'music', kind: 'Music', creatorField: 'artist', externalIdField: 'discogs_id', defaultFilters: ['country'],
+    storedFields: { artist: { type: 'text' }, label: { type: 'text' }, country: { type: 'text' } },
+    formFields: [
+      { name: 'artist', label: 'Artist', type: 'text', showIn: ['edit'] },
+      { name: 'label', label: 'Label', type: 'text', showIn: ['edit'] },
+      { name: 'country', label: 'Country', type: 'text', showIn: ['edit'] },
+      { name: 'notes', label: 'Notes', type: 'textarea', showIn: ['edit'] }
+    ]
+  };
+  const candidates = filterCandidates(music, []);
+  const native = candidates.filter(c => c.source === 'native');
+  assert.deepEqual(native.map(c => [c.id, c.defaultOn]), [['label', false], ['country', true]]);
+  assert.equal(filterParam(native[0].field!), 'nf_label');
+  const [condition] = buildExtraFieldConditions([native[1].field!], { nf_country: 'Germany' });
+  assert.equal(JSON.stringify(condition).includes('"country"'), true);
+});
