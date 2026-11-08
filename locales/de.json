@@ -1694,7 +1694,13 @@
     "ai_generating": "Wird erstellt…",
     "type_rows": "Wiederholbare Zeilen",
     "field_columns_ph": "Spalten, durch Kommas getrennt (z. B. Seite, Gravur, Notizen)",
-    "err_rows_needs_columns": "Ein wiederholbares Feld braucht mindestens eine Spalte."
+    "err_rows_needs_columns": "Ein wiederholbares Feld braucht mindestens eine Spalte.",
+    "lookalike_use": "Eingebautes Feld verwenden",
+    "lookalike_keep": "Beide behalten",
+    "lookalike_plan": "__ALL__ Objekte haben hier einen Wert. __MOVE__ werden nach „__NATIVE__“ verschoben, __SAME__ haben dort schon denselben und verlieren nur das Duplikat, __LEFT__ haben dort etwas anderes und bleiben unberührt. Fortfahren?",
+    "lookalike_done": "__MOVED__ Werte verschoben. Dieses Feld ist entfernt, alles steht im eingebauten.",
+    "lookalike_done_left": "__MOVED__ Werte verschoben. __LEFT__ Objekte haben noch einen anderen Wert: dieses Feld bleibt für sie.",
+    "field_delete_confirm": "__COUNT__ Objekte haben einen Wert in diesem Feld. Nach dem Speichern wird es bei ihnen nicht mehr angezeigt. Entfernen?"
   },
   "add_lego": {
     "title": "LEGO-Set hinzufügen",

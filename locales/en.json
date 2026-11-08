@@ -1642,7 +1642,13 @@
     "ai_generating": "Generating…",
     "type_rows": "Repeating rows",
     "field_columns_ph": "Columns, comma-separated (e.g. Side, Inscription, Notes)",
-    "err_rows_needs_columns": "A repeating field needs at least one column."
+    "err_rows_needs_columns": "A repeating field needs at least one column.",
+    "lookalike_use": "Use the built-in field",
+    "lookalike_keep": "Keep both",
+    "lookalike_plan": "__ALL__ items hold a value here. __MOVE__ will move into \"__NATIVE__\", __SAME__ already say the same there and only lose the duplicate, __LEFT__ hold something else there and are left untouched. Go on?",
+    "lookalike_done": "__MOVED__ values moved. This field is gone, everything is in the built-in one.",
+    "lookalike_done_left": "__MOVED__ values moved. __LEFT__ items still hold a different value: this field stays for them.",
+    "field_delete_confirm": "__COUNT__ items hold a value in this field. Once saved, it no longer shows on them. Remove it?"
   },
   "add_lego": {
     "title": "Add a LEGO set",

@@ -524,6 +524,12 @@
         pvTitleField: t('confirm_vinyl.field_title'),
         coverTooBig: t('create_plugin.default_cover_too_big'),
         lookalike: t('create_plugin.field_lookalike', { native: '__NATIVE__' }),
+        lookalikeUse: t('create_plugin.lookalike_use'),
+        lookalikeKeep: t('create_plugin.lookalike_keep'),
+        lookalikePlan: t('create_plugin.lookalike_plan', { withValue: '__ALL__', move: '__MOVE__', same: '__SAME__', left: '__LEFT__', native: '__NATIVE__' }),
+        lookalikeDone: t('create_plugin.lookalike_done', { moved: '__MOVED__' }),
+        lookalikeDoneLeft: t('create_plugin.lookalike_done_left', { moved: '__MOVED__', left: '__LEFT__' }),
+        fieldDeleteConfirm: t('create_plugin.field_delete_confirm', { count: '__COUNT__' }),
         noFormat: t('common.no_format')
     };
     %>
@@ -1070,6 +1076,8 @@
         // Existing fields keep their stored name so renaming a label never orphans
         // the values already saved under the old key.
         row.dataset.name = data.name || '';
+        // Kept beside the plugin's own lookalike on purpose: travels back with the save.
+        row.dataset.keepBeside = data.keepBeside || '';
 
         const top = document.createElement('div');
         top.className = 'flex items-center gap-2';
@@ -1094,7 +1102,18 @@
         del.type = 'button';
         del.className = 'w-9 h-9 rounded-lg flex items-center justify-center opacity-40 hover:opacity-100 hover:text-red-500 transition-all shrink-0';
         del.innerHTML = '<i class="fa-solid fa-xmark"></i>';
-        del.addEventListener('click', () => row.remove());
+        // A field already saved may hold values: say how many before it goes. The values
+        // themselves stay in the items until a later save confirms the removal.
+        del.addEventListener('click', async () => {
+            if (row.dataset.name && czPluginId) {
+                try {
+                    const res = await fetch(baseUrl + '/create-plugin/customize/' + czPluginId + '/fields/' + encodeURIComponent(row.dataset.name), { headers: { 'Accept': 'application/json' } });
+                    const usage = await res.json();
+                    if (usage.withValue > 0 && !confirm(i18n.fieldDeleteConfirm.replace('__COUNT__', usage.withValue))) return;
+                } catch (e) { /* no count to show: removed as before */ }
+            }
+            row.remove();
+        });
 
         top.append(label, type, del);
 
@@ -1145,6 +1164,57 @@
             icon.className = 'fa-solid fa-triangle-exclamation mr-1';
             note.append(icon, document.createTextNode(i18n.lookalike.replace('__NATIVE__', data.lookalike)));
             row.appendChild(note);
+
+            // The two ways out (#151): move the values into the plugin's field, never over
+            // a different one, or keep both on purpose so the field stops being reported.
+            const actions = document.createElement('div');
+            actions.className = 'flex flex-wrap gap-2';
+            const actionClass = 'text-xs font-bold px-3 py-1.5 rounded-lg transition-all hover:brightness-110';
+            const use = document.createElement('button');
+            use.type = 'button';
+            use.className = actionClass + ' bg-yellow-600 text-white';
+            use.textContent = i18n.lookalikeUse;
+            const keep = document.createElement('button');
+            keep.type = 'button';
+            keep.className = actionClass + ' bg-black/5 dark:bg-white/10';
+            keep.textContent = i18n.lookalikeKeep;
+            actions.append(use, keep);
+            row.appendChild(actions);
+
+            const fieldUrl = () => baseUrl + '/create-plugin/customize/' + czPluginId + '/fields/' + encodeURIComponent(row.dataset.name);
+            const postJson = async (url) => {
+                const res = await fetch(url, { method: 'POST', headers: { 'Accept': 'application/json' } });
+                const out = await res.json().catch(() => ({}));
+                if (!res.ok || !out.success) throw new Error(out.error || 'error');
+                return out;
+            };
+
+            use.addEventListener('click', async () => {
+                try {
+                    const plan = await (await fetch(fieldUrl(), { headers: { 'Accept': 'application/json' } })).json();
+                    if (!plan.success || !plan.native) return;
+                    const left = (plan.conflict || 0) + (plan.incompatible || 0);
+                    const text = i18n.lookalikePlan
+                        .replace('__ALL__', plan.withValue).replace('__MOVE__', plan.move)
+                        .replace('__SAME__', plan.same).replace('__LEFT__', left)
+                        .replace('__NATIVE__', plan.native.label);
+                    if (!confirm(text)) return;
+                    const done = await postJson(fieldUrl() + '/transfer');
+                    alert(done.removed
+                        ? i18n.lookalikeDone.replace('__MOVED__', done.moved)
+                        : i18n.lookalikeDoneLeft.replace('__MOVED__', done.moved).replace('__LEFT__', done.left));
+                    window.location.reload();
+                } catch (e) { alert(e.message); }
+            });
+
+            keep.addEventListener('click', async () => {
+                try {
+                    await postJson(fieldUrl() + '/keep');
+                    row.dataset.keepBeside = data.lookalikeName || '';
+                    note.remove();
+                    actions.remove();
+                } catch (e) { alert(e.message); }
+            });
         }
 
         $('czFields').appendChild(row);
@@ -1303,7 +1373,11 @@
         czSyncIcons();
 
         $('czFields').innerHTML = '';
-        (data.extraFields || []).forEach(f => czAddFieldRow({ ...f, lookalike: (data.lookalikes || {})[f.name] }));
+        (data.extraFields || []).forEach(f => czAddFieldRow({
+            ...f,
+            lookalike: (data.lookalikes || {})[f.name],
+            lookalikeName: (data.lookalikeNames || {})[f.name]
+        }));
 
         czRenderCardFields(data);
         czRenderCornerField(data);
@@ -1379,6 +1453,7 @@
                 .filter(b => b.checked).map(b => b.value);
             body.extraFields = Array.from(document.querySelectorAll('.cz-field-row')).map(r => ({
                 name: r.dataset.name || undefined,
+                keepBeside: r.dataset.keepBeside || undefined,
                 label: r.querySelector('.czf-label').value.trim(),
                 type: r.querySelector('.czf-type').value,
                 group: r.querySelector('.czf-group').value,

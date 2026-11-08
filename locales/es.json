@@ -1694,7 +1694,13 @@
     "ai_generating": "Generando…",
     "type_rows": "Filas repetibles",
     "field_columns_ph": "Columnas, separadas por comas (p. ej. Cara, Inscripción, Notas)",
-    "err_rows_needs_columns": "Un campo repetible necesita al menos una columna."
+    "err_rows_needs_columns": "Un campo repetible necesita al menos una columna.",
+    "lookalike_use": "Usar el campo integrado",
+    "lookalike_keep": "Conservar ambos",
+    "lookalike_plan": "__ALL__ objetos tienen un valor aquí. __MOVE__ pasarán a «__NATIVE__», __SAME__ ya dicen lo mismo allí y solo pierden el duplicado, __LEFT__ tienen otra cosa allí y no se tocan. ¿Continuar?",
+    "lookalike_done": "__MOVED__ valores movidos. Este campo se ha eliminado, todo está en el integrado.",
+    "lookalike_done_left": "__MOVED__ valores movidos. __LEFT__ objetos aún tienen un valor distinto: este campo se queda para ellos.",
+    "field_delete_confirm": "__COUNT__ objetos tienen un valor en este campo. Al guardar, dejará de mostrarse en ellos. ¿Quitarlo?"
   },
   "add_lego": {
     "title": "Añadir un set LEGO",

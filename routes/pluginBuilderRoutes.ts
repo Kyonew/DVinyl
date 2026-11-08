@@ -12,7 +12,9 @@ import {
   CUSTOM_PLUGIN_PALETTE,
   CUSTOM_PLUGIN_ICONS
 } from '../core/customPluginStore';
-import { sanitizeExtraFields, getExtraFields, nativeLookalikesByPlugin } from '../core/pluginExtraFields';
+import { sanitizeExtraFields, getExtraFields, nativeLookalikesByPlugin, findNativeLookalikes } from '../core/pluginExtraFields';
+import { planTransfer, runTransfer } from '../core/extraFieldTransfer';
+import { and, filled } from '../core/db/filter';
 import { SUPPORTED_LANGUAGES } from '../config/constants';
 import { placeholderUrl } from '../core/placeholderImage';
 import { cardFieldCandidates, isTranslationKey, getCardLines, MAX_CARD_LINES, CORNER_POSITIONS, DEFAULT_CORNER_POSITION, defaultTableColumnNames, sanitizeTableColumns, tableColumnNames } from '../core/cardFields';
@@ -93,6 +95,8 @@ router.get('/', async (req: any, res: any) => {
       extraFields: getExtraFields(settings, p.id),
       // User-defined field key -> label of the plugin's own field it looks like
       lookalikes: Object.fromEntries((lookalikes[p.id] || []).map(l => [l.name, req.t(l.nativeLabel)])),
+      // ...and the key of that field, which "keep both" records.
+      lookalikeNames: Object.fromEntries((lookalikes[p.id] || []).map(l => [l.name, l.nativeName])),
       cardFieldChoices: cardFieldCandidates(p).map(f => ({
         name: f.name,
         label: req.t(f.label, { defaultValue: f.label })
@@ -237,6 +241,75 @@ router.post('/customize/:pluginId', async (req: any, res: any) => {
     res.json({ success: true });
   } catch (err: any) {
     console.error('[PluginBuilder] customize error:', err);
+    res.status(500).json({ success: false, error: req.t('errors.generic_server_error') });
+  }
+});
+
+// A field of the active collection, and the plugin's own field it looks like if any.
+// Read on the bare plugin, like the lookalikes of the page itself.
+function fieldAndLookalike(req: any, res: any) {
+  const plugin = registry.get(req.params.pluginId);
+  if (!plugin) return null;
+  const def = getExtraFields(res.locals.settings, plugin.id).find(f => f.name === req.params.name);
+  if (!def) return null;
+  const labelsFor = (key: string) => SUPPORTED_LANGUAGES.map(lng => req.t(key, { lng }));
+  const look = findNativeLookalikes(plugin, [{ ...def, keepBeside: undefined } as any], labelsFor)[0];
+  const native = look ? (plugin.formFields || []).find(f => f.name === look.nativeName) || null : null;
+  return { plugin, def, native };
+}
+
+// GET /create-plugin/customize/:pluginId/fields/:name -> how many items hold a value in a
+// collection's field, and what moving it into the plugin's own lookalike would do.
+router.get('/customize/:pluginId/fields/:name', async (req: any, res: any) => {
+  try {
+    const found = fieldAndLookalike(req, res);
+    if (!found) return res.status(404).json({ success: false, error: req.t('errors.not_found') });
+    const { plugin, def, native } = found;
+    const collectionId = res.locals.activeCollectionId;
+    const withValue = await db.items.count(and(eq('collection', idOf(collectionId)), eq('kind', plugin.kind), filled(`extra.${def.name}`)));
+    if (!native) return res.json({ success: true, withValue, native: null });
+    const plan = await planTransfer(collectionId, plugin, def, native, (k: string) => req.t(k));
+    res.json({
+      success: true,
+      withValue,
+      native: { name: native.name, label: req.t(native.label, { defaultValue: native.label }) },
+      move: plan.move.length,
+      same: plan.same.length,
+      conflict: plan.conflict,
+      incompatible: plan.incompatible
+    });
+  } catch (err: any) {
+    console.error('[PluginBuilder] field usage error:', err);
+    res.status(500).json({ success: false, error: req.t('errors.generic_server_error') });
+  }
+});
+
+// POST /create-plugin/customize/:pluginId/fields/:name/transfer -> moves the values into
+// the plugin's own field, never over a different one (core/extraFieldTransfer.ts).
+router.post('/customize/:pluginId/fields/:name/transfer', async (req: any, res: any) => {
+  try {
+    const found = fieldAndLookalike(req, res);
+    if (!found || !found.native) return res.status(404).json({ success: false, error: req.t('errors.not_found') });
+    const result = await runTransfer(res.locals.activeCollectionId, found.plugin, found.def, found.native, (k: string) => req.t(k));
+    res.json({ success: true, ...result });
+  } catch (err: any) {
+    console.error('[PluginBuilder] field transfer error:', err);
+    res.status(500).json({ success: false, error: req.t('errors.generic_server_error') });
+  }
+});
+
+// POST /create-plugin/customize/:pluginId/fields/:name/keep -> keeps a field beside the
+// plugin's own lookalike on purpose, so it is no longer reported.
+router.post('/customize/:pluginId/fields/:name/keep', async (req: any, res: any) => {
+  try {
+    const found = fieldAndLookalike(req, res);
+    if (!found || !found.native) return res.status(404).json({ success: false, error: req.t('errors.not_found') });
+    const fields = getExtraFields(res.locals.settings, found.plugin.id)
+      .map(f => (f.name === found.def.name ? { ...f, keepBeside: found.native!.name } : f));
+    await db.settings.updateOne(eq('collection', idOf(res.locals.activeCollectionId)), { set: { [`pluginExtraFields.${found.plugin.id}`]: fields } });
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('[PluginBuilder] field keep error:', err);
     res.status(500).json({ success: false, error: req.t('errors.generic_server_error') });
   }
 });

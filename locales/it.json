@@ -1694,7 +1694,13 @@
     "ai_generating": "Generazione…",
     "type_rows": "Righe ripetibili",
     "field_columns_ph": "Colonne, separate da virgole (es. Lato, Iscrizione, Note)",
-    "err_rows_needs_columns": "Un campo ripetibile richiede almeno una colonna."
+    "err_rows_needs_columns": "Un campo ripetibile richiede almeno una colonna.",
+    "lookalike_use": "Usa il campo integrato",
+    "lookalike_keep": "Tienili entrambi",
+    "lookalike_plan": "__ALL__ oggetti hanno un valore qui. __MOVE__ verranno spostati in «__NATIVE__», __SAME__ dicono già lo stesso lì e perdono solo il doppione, __LEFT__ hanno altro lì e restano intatti. Continuare?",
+    "lookalike_done": "__MOVED__ valori spostati. Questo campo è stato rimosso, tutto è in quello integrato.",
+    "lookalike_done_left": "__MOVED__ valori spostati. __LEFT__ oggetti hanno ancora un valore diverso: questo campo resta per loro.",
+    "field_delete_confirm": "__COUNT__ oggetti hanno un valore in questo campo. Dopo il salvataggio non sarà più mostrato. Rimuoverlo?"
   },
   "add_lego": {
     "title": "Aggiungi un set LEGO",

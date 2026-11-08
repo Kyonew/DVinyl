@@ -27,6 +27,8 @@ import {
 export type ExtraFieldConfig = CustomFieldConfig & {
   /** Versioned marker distinguishing generated identities from legacy label slugs. */
   keyVersion?: number;
+  /** The plugin's own field this one looks like, which the admin chose to keep it beside. */
+  keepBeside?: string;
 };
 
 export const MAX_EXTRA_FIELDS_PER_PLUGIN = 15;
@@ -96,6 +98,9 @@ export function findNativeLookalikes(
       comparableName(f.name) === wanted ||
       labelsFor(f.label).some(l => comparableName(l) === wanted)
     );
+    // Kept beside that very field on purpose: not reported again, unless the plugin
+    // later ships another field it looks like.
+    if (match && def.keepBeside === match.name) continue;
     if (match) found.push({ name: def.name, label: def.label, nativeName: match.name, nativeLabel: match.label });
   }
   return found;
@@ -409,6 +414,10 @@ export function sanitizeExtraFields(
 
     const placeholder = cleanText(item?.placeholder, 60);
     if (placeholder) field.placeholder = placeholder;
+
+    // Only ever one of the plugin's own fields: what the admin agreed to keep it beside.
+    const keepBeside = cleanText(item?.keepBeside, 60);
+    if (keepBeside && (plugin.formFields || []).some(f => f.name === keepBeside && !f.extraField)) field.keepBeside = keepBeside;
 
     if (type === 'select' || type === 'rows') {
       const options = (Array.isArray(item?.options) ? item.options.slice(0, type === 'rows' ? MAX_COLUMNS : 20) : [])

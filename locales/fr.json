@@ -1642,7 +1642,13 @@
     "ai_generating": "Génération…",
     "type_rows": "Lignes répétables",
     "field_columns_ph": "Colonnes, séparées par des virgules (ex. : Face, Inscription, Notes)",
-    "err_rows_needs_columns": "Un champ répétable a besoin d'au moins une colonne."
+    "err_rows_needs_columns": "Un champ répétable a besoin d'au moins une colonne.",
+    "lookalike_use": "Utiliser le champ intégré",
+    "lookalike_keep": "Garder les deux",
+    "lookalike_plan": "__ALL__ items ont une valeur ici. __MOVE__ seront déplacées vers « __NATIVE__ », __SAME__ y disent déjà la même chose et perdent seulement le doublon, __LEFT__ y ont autre chose et ne sont pas touchés. Continuer ?",
+    "lookalike_done": "__MOVED__ valeurs déplacées. Ce champ est supprimé, tout est dans le champ intégré.",
+    "lookalike_done_left": "__MOVED__ valeurs déplacées. __LEFT__ items ont encore une valeur différente : ce champ reste pour eux.",
+    "field_delete_confirm": "__COUNT__ items ont une valeur dans ce champ. Une fois enregistré, il ne s'affichera plus sur eux. Le retirer ?"
   },
   "add_lego": {
     "title": "Ajouter un set LEGO",
