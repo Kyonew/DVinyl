@@ -91,6 +91,16 @@
             { id: 'logs', icon: 'satellite-dish', label: t('admin.instance.tabs.logs') }
         ] }) %>
 
+                <%# The settings cards of this page share one layout: what it is and its switch on
+                    top, its settings only once it is on, then where things stand in a band of its
+                    own. Choices are buttons rather than menus where there are only a few, so every
+                    option reads at a glance, and saving goes through the floating save bar. %>
+                <% const switchTrack = "w-12 h-7 bg-black/10 dark:bg-white/10 rounded-full peer peer-focus-visible:ring-2 peer-focus-visible:ring-primary-theme/50 peer-checked:after:translate-x-5 after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-5 after:w-5 after:shadow after:transition-all peer-checked:bg-green-500 transition-colors";
+                   const pill = 'cursor-pointer select-none px-4 py-2.5 rounded-xl text-sm font-bold bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 peer-checked:bg-primary-theme peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-primary-theme/50 transition-colors';
+                   const fieldLabel = 'block text-sm font-bold mb-2';
+                   const cardIcon = 'w-12 h-12 rounded-2xl bg-primary-theme/10 text-primary-theme hidden sm:flex items-center justify-center shrink-0';
+                   const textInput = 'w-full bg-black/5 dark:bg-white/5 border border-transparent rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-primary-theme/40 transition-colors'; %>
+
                 <!-- ============ COLLECTIONS ============ -->
                 <section data-tab-panel="collections">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between py-6 gap-4 mb-2">
@@ -189,45 +199,31 @@
                         </h2>
                     </div>
 
-                    <form action="<%= baseUrl %>/admin/instance/settings" method="POST" data-save-bar
-                        class="card-theme rounded-3xl p-6 md:p-8 shadow-sm transition-colors space-y-6">
-
-                        <label class="flex items-start justify-between gap-6 cursor-pointer">
-                            <div>
-                                <p class="text-sm font-black"><%= t('admin.instance.allow_member_creation') %></p>
-                                <p class="text-xs opacity-60 mt-1 leading-relaxed max-w-2xl">
-                                    <%= t('admin.instance.allow_member_creation_desc') %>
-                                </p>
-                            </div>
-                            <div class="relative inline-flex items-center shrink-0 mt-1">
-                                <input type="checkbox" id="allowMemberCollectionCreation"
-                                    name="allowMemberCollectionCreation"
-                                    <%= locals.instanceSettings && instanceSettings.allowMemberCollectionCreation ? 'checked' : '' %>
-                                    class="sr-only peer">
-                                <div class="w-11 h-6 bg-black/10 dark:bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500">
-                                </div>
-                            </div>
+                    <% const memberOn = !!(locals.instanceSettings && instanceSettings.allowMemberCollectionCreation); %>
+                    <form action="<%= baseUrl %>/admin/instance/settings" method="POST" data-save-bar data-toggle-card
+                        class="card-theme rounded-3xl shadow-sm transition-colors overflow-hidden">
+                        <label class="flex items-start gap-4 p-6 md:p-8 cursor-pointer">
+                            <span class="<%= cardIcon %>"><i class="fa-solid fa-user-plus text-lg" aria-hidden="true"></i></span>
+                            <span class="flex-1 min-w-0">
+                                <span class="block text-lg font-bold"><%= t('admin.instance.allow_member_creation') %></span>
+                                <span class="block text-sm opacity-70 mt-1 leading-relaxed max-w-2xl"><%= t('admin.instance.allow_member_creation_desc') %></span>
+                            </span>
+                            <span class="relative inline-flex items-center shrink-0 mt-1">
+                                <input type="checkbox" id="allowMemberCollectionCreation" name="allowMemberCollectionCreation" <%= memberOn ? 'checked' : '' %>
+                                    class="sr-only peer" aria-label="<%= t('admin.instance.allow_member_creation') %>" data-toggle-card-switch>
+                                <span class="<%= switchTrack %>"></span>
+                            </span>
                         </label>
-
-                        <div id="quotaRow"
-                            class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-black/5 dark:border-white/5 pt-6 transition-opacity">
-                            <div>
-                                <p class="text-sm font-black"><%= t('admin.instance.max_collections') %></p>
-                                <p class="text-xs opacity-60 mt-1 leading-relaxed max-w-2xl">
-                                    <%= t('admin.instance.max_collections_desc') %>
-                                </p>
+                        <div class="px-6 md:px-8 pb-6 md:pb-8 <%= memberOn ? '' : 'hidden' %>" data-toggle-card-body>
+                            <label for="maxCollectionsPerUser" class="<%= fieldLabel %>"><%= t('admin.instance.max_collections') %></label>
+                            <div class="flex items-center gap-2" data-stepper>
+                                <button type="button" class="w-11 h-11 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 font-black text-lg" data-step="-1" aria-label="-">−</button>
+                                <input type="number" id="maxCollectionsPerUser" name="maxCollectionsPerUser" min="1" max="100"
+                                    value="<%= locals.instanceSettings ? instanceSettings.maxCollectionsPerUser : 1 %>"
+                                    class="w-20 text-center bg-black/5 dark:bg-white/5 border border-transparent rounded-xl p-2.5 text-base font-bold outline-none focus:ring-2 focus:ring-primary-theme/40">
+                                <button type="button" class="w-11 h-11 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 font-black text-lg" data-step="1" aria-label="+">+</button>
                             </div>
-                            <input type="number" name="maxCollectionsPerUser" min="1" max="100"
-                                value="<%= locals.instanceSettings ? instanceSettings.maxCollectionsPerUser : 1 %>"
-                                class="w-24 shrink-0 p-3 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 text-center font-black focus:outline-none focus:border-primary-theme transition-colors">
-                        </div>
-
-                        <div class="flex justify-end border-t border-black/5 dark:border-white/5 pt-6">
-                            <button type="submit"
-                                class="flex items-center gap-2 bg-primary-theme hover:brightness-110 text-white px-5 py-3 rounded-2xl shadow-lg shadow-primary-theme/20 transition-all active:scale-95">
-                                <i class="fa-solid fa-floppy-disk text-sm"></i>
-                                <span class="text-xs font-black"><%= t('common.save') %></span>
-                            </button>
+                            <p class="text-sm opacity-60 mt-2 max-w-2xl"><%= t('admin.instance.max_collections_desc') %></p>
                         </div>
                     </form>
                 </section>
@@ -241,85 +237,81 @@
                         </h2>
                     </div>
 
-                    <div id="aiPanel"
-                        class="card-theme rounded-3xl p-6 md:p-8 shadow-sm transition-colors space-y-6">
-
-                        <p class="text-xs opacity-60 leading-relaxed max-w-2xl -mt-2">
-                            <%= t('ai.subtitle') %>
-                        </p>
-
-                        <div id="aiFromEnvNotice"
-                            class="hidden text-xs font-bold px-4 py-3 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                            <%= t('ai.from_env') %>
-                        </div>
-
-                        <label class="flex items-start justify-between gap-6 cursor-pointer">
-                            <p class="text-sm font-black"><%= t('ai.enable') %></p>
-                            <div class="relative inline-flex items-center shrink-0 mt-1">
-                                <input type="checkbox" id="aiEnabled" class="sr-only peer">
-                                <div class="w-11 h-6 bg-black/10 dark:bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500">
-                                </div>
-                            </div>
+                    <%# Driven by the script at the bottom of the page (ids kept): the fields stay
+                        visible while it is off, since a key is entered before switching it on. %>
+                    <div id="aiPanel" class="card-theme rounded-3xl shadow-sm transition-colors overflow-hidden">
+                        <label class="flex items-start gap-4 p-6 md:p-8 cursor-pointer">
+                            <span class="<%= cardIcon %>"><i class="fa-solid fa-wand-magic-sparkles text-lg" aria-hidden="true"></i></span>
+                            <span class="flex-1 min-w-0">
+                                <span class="block text-lg font-bold"><%= t('ai.enable') %></span>
+                                <span class="block text-sm opacity-70 mt-1 leading-relaxed max-w-2xl"><%= t('ai.subtitle') %></span>
+                            </span>
+                            <span class="relative inline-flex items-center shrink-0 mt-1">
+                                <input type="checkbox" id="aiEnabled" class="sr-only peer" aria-label="<%= t('ai.enable') %>">
+                                <span class="<%= switchTrack %>"></span>
+                            </span>
                         </label>
 
-                        <div class="grid sm:grid-cols-2 gap-6 border-t border-black/5 dark:border-white/5 pt-6">
-                            <div class="space-y-2">
-                                <p class="text-sm font-black"><%= t('ai.provider') %></p>
-                                <select id="aiProvider"
-                                    class="w-full p-3 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 focus:outline-none focus:border-primary-theme transition-colors"></select>
-                                <a id="aiGetKeyLink" href="#" target="_blank" rel="noopener"
-                                    class="hidden text-xs font-bold text-primary-theme hover:underline">
-                                    <%= t('ai.get_key') %> <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
-                                </a>
+                        <div class="px-6 md:px-8 pb-6 md:pb-8 space-y-6">
+                            <div id="aiFromEnvNotice"
+                                class="hidden text-sm font-bold flex items-start gap-2 px-4 py-3 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                                <%= t('ai.from_env') %>
                             </div>
 
-                            <div id="aiBaseUrlRow" class="space-y-2 hidden">
-                                <p class="text-sm font-black"><%= t('ai.base_url') %></p>
-                                <input type="text" id="aiBaseUrl" placeholder="http://localhost:11434/v1"
-                                    class="w-full p-3 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 focus:outline-none focus:border-primary-theme transition-colors">
-                                <p class="text-xs opacity-60"><%= t('ai.base_url_hint') %></p>
-                            </div>
+                            <div class="grid sm:grid-cols-2 gap-6">
+                                <div>
+                                    <label for="aiProvider" class="<%= fieldLabel %>"><%= t('ai.provider') %></label>
+                                    <select id="aiProvider" class="<%= textInput %> cursor-pointer"></select>
+                                    <a id="aiGetKeyLink" href="#" target="_blank" rel="noopener"
+                                        class="hidden mt-2 text-sm font-bold text-primary-theme hover:underline">
+                                        <%= t('ai.get_key') %> <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
+                                    </a>
+                                </div>
 
-                            <div class="space-y-2">
-                                <p class="text-sm font-black"><%= t('ai.model') %></p>
-                                <input type="text" id="aiModel"
-                                    class="w-full p-3 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 focus:outline-none focus:border-primary-theme transition-colors">
-                            </div>
+                                <div id="aiBaseUrlRow" class="hidden">
+                                    <label for="aiBaseUrl" class="<%= fieldLabel %>"><%= t('ai.base_url') %></label>
+                                    <input type="text" id="aiBaseUrl" placeholder="http://localhost:11434/v1" class="<%= textInput %> font-mono">
+                                    <p class="text-sm opacity-60 mt-2"><%= t('ai.base_url_hint') %></p>
+                                </div>
 
-                            <div class="space-y-2">
-                                <p class="text-sm font-black"><%= t('ai.vision_model') %></p>
-                                <input type="text" id="aiVisionModel"
-                                    class="w-full p-3 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 focus:outline-none focus:border-primary-theme transition-colors">
-                                <p class="text-xs opacity-60"><%= t('ai.vision_model_hint') %></p>
-                            </div>
+                                <div>
+                                    <label for="aiModel" class="<%= fieldLabel %>"><%= t('ai.model') %></label>
+                                    <input type="text" id="aiModel" class="<%= textInput %>">
+                                </div>
 
-                            <div class="space-y-2 sm:col-span-2">
-                                <p class="text-sm font-black"><%= t('ai.api_key') %></p>
-                                <input type="password" id="aiApiKey" autocomplete="new-password"
-                                    placeholder="<%= t('ai.api_key_hint') %>"
-                                    class="w-full p-3 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 focus:outline-none focus:border-primary-theme transition-colors">
-                                <div id="aiKeySetLine" class="hidden flex items-center gap-3 text-xs">
-                                    <span class="opacity-70 font-bold" id="aiKeyHintText"></span>
-                                    <button type="button" id="aiClearKeyBtn"
-                                        class="text-red-600 hover:underline font-bold"><%= t('ai.clear_key') %></button>
+                                <div>
+                                    <label for="aiVisionModel" class="<%= fieldLabel %>"><%= t('ai.vision_model') %></label>
+                                    <input type="text" id="aiVisionModel" class="<%= textInput %>">
+                                    <p class="text-sm opacity-60 mt-2"><%= t('ai.vision_model_hint') %></p>
+                                </div>
+
+                                <div class="sm:col-span-2">
+                                    <label for="aiApiKey" class="<%= fieldLabel %>"><%= t('ai.api_key') %></label>
+                                    <div class="relative">
+                                        <i class="fa-solid fa-key absolute left-4 top-1/2 -translate-y-1/2 text-sm opacity-40" aria-hidden="true"></i>
+                                        <input type="password" id="aiApiKey" autocomplete="new-password" placeholder="<%= t('ai.api_key_hint') %>" class="<%= textInput %> pl-11">
+                                    </div>
+                                    <div id="aiKeySetLine" class="hidden flex items-center gap-3 text-sm mt-2">
+                                        <i class="fa-solid fa-circle-check text-green-500" aria-hidden="true"></i>
+                                        <span class="opacity-80 font-bold" id="aiKeyHintText"></span>
+                                        <button type="button" id="aiClearKeyBtn" class="text-red-600 hover:underline font-bold"><%= t('ai.clear_key') %></button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div id="aiTestResult" class="hidden text-xs font-bold px-4 py-3 rounded-xl"></div>
-
-                        <div
-                            class="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 border-t border-black/5 dark:border-white/5 pt-6">
-                            <button type="button" id="aiTestBtn"
-                                class="flex items-center justify-center gap-2 bg-black/5 dark:bg-white/5 hover:brightness-110 px-5 py-3 rounded-2xl transition-all active:scale-95">
-                                <i id="aiTestBtnIcon" class="fa-solid fa-bolt text-sm"></i>
-                                <span class="text-xs font-black"><%= t('ai.test') %></span>
-                            </button>
-                            <button type="button" id="aiSaveBtn"
-                                class="flex items-center justify-center gap-2 bg-primary-theme hover:brightness-110 text-white px-5 py-3 rounded-2xl shadow-lg shadow-primary-theme/20 transition-all active:scale-95">
-                                <i class="fa-solid fa-floppy-disk text-sm"></i>
-                                <span class="text-xs font-black"><%= t('ai.save') %></span>
-                            </button>
+                        <div class="border-t border-black/5 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] p-6 md:p-8 flex flex-col gap-4">
+                            <div id="aiTestResult" class="hidden text-sm font-bold px-4 py-3 rounded-xl"></div>
+                            <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+                                <button type="button" id="aiTestBtn"
+                                    class="flex items-center justify-center gap-2 bg-black/5 dark:bg-white/10 hover:brightness-110 px-5 py-3 rounded-xl text-sm font-bold transition-all active:scale-95">
+                                    <i id="aiTestBtnIcon" class="fa-solid fa-bolt"></i><%= t('ai.test') %>
+                                </button>
+                                <button type="button" id="aiSaveBtn"
+                                    class="flex items-center justify-center gap-2 bg-primary-theme hover:brightness-110 text-white px-5 py-3 rounded-xl text-sm font-bold shadow-lg shadow-primary-theme/20 transition-all active:scale-95">
+                                    <i class="fa-solid fa-floppy-disk"></i><%= t('ai.save') %>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -575,12 +567,6 @@
                        const bakT = (key, params) => t('admin.instance.scheduled_backups.' + key, { ...params, interpolation: { escapeValue: false } });
                        const bakDate = (date) => new Date(date).toLocaleString(dateLocaleFor(currentLng), { dateStyle: 'medium', timeStyle: 'short' });
                        const bakSize = (bytes) => bytes >= 1048576 ? (bytes / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(bytes / 1024)) + ' KB'; %>
-                    <%# The two cards share one layout: what it is and its switch on top, its
-                        settings only once it is on, then where things stand. Choices are
-                        buttons rather than menus, so every option can be read at a glance. %>
-                    <% const switchTrack = "w-12 h-7 bg-black/10 dark:bg-white/10 rounded-full peer peer-focus-visible:ring-2 peer-focus-visible:ring-primary-theme/50 peer-checked:after:translate-x-5 after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-5 after:w-5 after:shadow after:transition-all peer-checked:bg-green-500 transition-colors";
-                       const pill = 'cursor-pointer select-none px-4 py-2.5 rounded-xl text-sm font-bold bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 peer-checked:bg-primary-theme peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-primary-theme/50 transition-colors';
-                       const fieldLabel = 'block text-sm font-bold mb-2'; %>
                     <div class="card-theme rounded-3xl shadow-sm transition-colors mt-6 overflow-hidden">
                         <form action="<%= baseUrl %>/admin/instance/backups" method="POST" data-save-bar data-toggle-card>
                             <label class="flex items-start gap-4 p-6 md:p-8 cursor-pointer">
@@ -612,7 +598,7 @@
                                     </div>
                                     <div>
                                         <label for="backupKeep" class="<%= fieldLabel %>"><%= bakT('keep') %></label>
-                                        <div class="flex items-center gap-2">
+                                        <div class="flex items-center gap-2" data-stepper>
                                             <button type="button" class="w-11 h-11 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 font-black text-lg" data-step="-1" aria-label="-">−</button>
                                             <input type="number" id="backupKeep" name="keep" min="1" max="90" value="<%= bak.keep %>"
                                                 class="w-20 text-center bg-black/5 dark:bg-white/5 border border-transparent rounded-xl p-2.5 text-base font-bold outline-none focus:ring-2 focus:ring-primary-theme/40">
@@ -738,23 +724,6 @@
                         </div>
                     </div>
 
-                    <script>
-                        (function () {
-                            // A card's settings show once its switch is on; they are still
-                            // posted while hidden, so turning it off keeps them for later.
-                            document.querySelectorAll('[data-toggle-card]').forEach(form => {
-                                const toggle = form.querySelector('[data-toggle-card-switch]');
-                                const body = form.querySelector('[data-toggle-card-body]');
-                                if (toggle && body) toggle.addEventListener('change', () => body.classList.toggle('hidden', !toggle.checked));
-                                form.querySelectorAll('[data-step]').forEach(button => button.addEventListener('click', () => {
-                                    const input = form.querySelector('input[name="keep"]');
-                                    const next = Math.min(Number(input.max) || 90, Math.max(Number(input.min) || 1, (Number(input.value) || 0) + Number(button.dataset.step)));
-                                    input.value = String(next);
-                                    input.dispatchEvent(new Event('input', { bubbles: true }));
-                                }));
-                            });
-                        })();
-                    </script>
                 </section>
 
                 <!-- ============ UPDATES ============ -->
@@ -768,45 +737,45 @@
                         <div class="flex-grow border-t border-black/10 dark:border-white/10 transition-colors"></div>
                     </div>
 
-                    <div class="card-theme rounded-3xl p-6 md:p-8 shadow-sm transition-colors space-y-6">
-                        <% if (upd.available) { %>
-                            <div class="p-4 rounded-2xl bg-primary-theme/10 border border-primary-theme/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                                <p class="text-sm font-bold"><%= t('admin.instance.updates.available', { version: upd.latest, current: upd.current }) %></p>
-                                <a href="<%= upd.url %>" target="_blank" rel="noopener noreferrer"
-                                    class="shrink-0 bg-primary-theme hover:brightness-110 text-white px-4 py-2 rounded-xl text-xs font-black flex items-center gap-2">
-                                    <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i><%= t('admin.instance.updates.release_notes') %>
-                                </a>
-                            </div>
-                        <% } %>
-
-                        <form action="<%= baseUrl %>/admin/instance/updates" method="POST" data-save-bar class="space-y-6">
-                            <label class="flex items-start justify-between gap-6 cursor-pointer">
-                                <div>
-                                    <p class="text-sm font-black"><%= t('admin.instance.updates.toggle') %></p>
-                                    <p class="text-xs opacity-60 mt-1 leading-relaxed max-w-2xl"><%= t('admin.instance.updates.toggle_desc') %></p>
-                                </div>
-                                <div class="relative inline-flex items-center shrink-0 mt-1">
-                                    <input type="checkbox" name="enabled" <%= upd.enabled ? 'checked' : '' %> class="sr-only peer">
-                                    <div class="w-11 h-6 bg-black/10 dark:bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500">
-                                    </div>
-                                </div>
+                    <div class="card-theme rounded-3xl shadow-sm transition-colors overflow-hidden">
+                        <form action="<%= baseUrl %>/admin/instance/updates" method="POST" data-save-bar>
+                            <label class="flex items-start gap-4 p-6 md:p-8 cursor-pointer">
+                                <span class="<%= cardIcon %>"><i class="fa-solid fa-rocket text-lg" aria-hidden="true"></i></span>
+                                <span class="flex-1 min-w-0">
+                                    <span class="block text-lg font-bold"><%= t('admin.instance.updates.toggle') %></span>
+                                    <span class="block text-sm opacity-70 mt-1 leading-relaxed max-w-2xl"><%= t('admin.instance.updates.toggle_desc') %></span>
+                                </span>
+                                <span class="relative inline-flex items-center shrink-0 mt-1">
+                                    <input type="checkbox" name="enabled" <%= upd.enabled ? 'checked' : '' %> class="sr-only peer" aria-label="<%= t('admin.instance.updates.toggle') %>">
+                                    <span class="<%= switchTrack %>"></span>
+                                </span>
                             </label>
-
-                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-black/5 dark:border-white/5 pt-6">
-                                <p class="text-xs opacity-60">
-                                    <%= t('admin.instance.updates.running', { version: upd.current }) %>
-                                    <% if (upd.enabled && upd.checkedAt) { %>
-                                        <% const checked = new Date(upd.checkedAt).toLocaleString(dateLocaleFor(currentLng), { dateStyle: 'medium', timeStyle: 'short' }); %>
-                                        · <%= t(upd.available ? 'admin.instance.updates.checked_at' : 'admin.instance.updates.checked_up_to_date', { date: checked }) %>
-                                    <% } %>
-                                </p>
-                                <button type="submit"
-                                    class="self-end flex items-center gap-2 bg-primary-theme hover:brightness-110 text-white px-5 py-3 rounded-2xl shadow-lg shadow-primary-theme/20 transition-all active:scale-95">
-                                    <i class="fa-solid fa-floppy-disk text-sm"></i>
-                                    <span class="text-xs font-black"><%= t('common.save') %></span>
-                                </button>
-                            </div>
                         </form>
+                        <div class="border-t border-black/5 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] p-6 md:p-8">
+                            <% if (upd.available) { %>
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                    <div class="flex items-start gap-3">
+                                        <i class="fa-solid fa-circle-up text-primary-theme text-lg mt-0.5" aria-hidden="true"></i>
+                                        <p class="text-sm font-bold"><%= t('admin.instance.updates.available', { version: upd.latest, current: upd.current }) %></p>
+                                    </div>
+                                    <a href="<%= upd.url %>" target="_blank" rel="noopener noreferrer"
+                                        class="shrink-0 flex items-center justify-center gap-2 bg-primary-theme hover:brightness-110 text-white px-5 py-3 rounded-xl text-sm font-bold shadow-lg shadow-primary-theme/20">
+                                        <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i><%= t('admin.instance.updates.release_notes') %>
+                                    </a>
+                                </div>
+                            <% } else { %>
+                                <div class="flex items-start gap-3">
+                                    <i class="fa-solid <%= upd.enabled && upd.checkedAt ? 'fa-circle-check text-green-500' : 'fa-circle-info opacity-40' %> text-lg mt-0.5" aria-hidden="true"></i>
+                                    <p class="text-sm">
+                                        <span class="font-semibold"><%= t('admin.instance.updates.running', { version: upd.current }) %></span>
+                                        <% if (upd.enabled && upd.checkedAt) { %>
+                                            <% const checked = new Date(upd.checkedAt).toLocaleString(dateLocaleFor(currentLng), { dateStyle: 'medium', timeStyle: 'short' }); %>
+                                            <span class="block opacity-60 mt-0.5"><%= t('admin.instance.updates.checked_up_to_date', { date: checked }) %></span>
+                                        <% } %>
+                                    </p>
+                                </div>
+                            <% } %>
+                        </div>
                     </div>
                 </section>
 
@@ -1175,16 +1144,22 @@
                 }
             }
 
-            // Dim the per-user quota while self-service creation is off (the value is
-            // still submitted and stored, so toggling back keeps the admin's number).
-            (function () {
-                const toggle = document.getElementById('allowMemberCollectionCreation');
-                const quotaRow = document.getElementById('quotaRow');
-                if (!toggle || !quotaRow) return;
-                const sync = () => quotaRow.classList.toggle('opacity-40', !toggle.checked);
-                toggle.addEventListener('change', sync);
-                sync();
-            })();
+            // A settings card shows its settings once its switch is on; they are still posted
+            // while hidden, so turning it off keeps them for later. A stepper moves its number
+            // within the input's bounds.
+            document.querySelectorAll('[data-toggle-card]').forEach(card => {
+                const toggle = card.querySelector('[data-toggle-card-switch]');
+                const body = card.querySelector('[data-toggle-card-body]');
+                if (toggle && body) toggle.addEventListener('change', () => body.classList.toggle('hidden', !toggle.checked));
+            });
+            document.querySelectorAll('[data-stepper]').forEach(stepper => {
+                const input = stepper.querySelector('input[type="number"]');
+                stepper.querySelectorAll('[data-step]').forEach(button => button.addEventListener('click', () => {
+                    const next = Math.min(Number(input.max) || 100, Math.max(Number(input.min) || 1, (Number(input.value) || 0) + Number(button.dataset.step)));
+                    input.value = String(next);
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                }));
+            });
 
             // ---- AI assist panel ----
             (function () {
