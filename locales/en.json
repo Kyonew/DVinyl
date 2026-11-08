@@ -977,10 +977,16 @@
     "field_mastering_studio": "Mastering studio",
     "field_mastering_engineer": "Mastering engineer",
     "field_rights_society": "Rights society",
+    "field_cutting_method": "Cutting method",
     "field_runouts": "Runout / matrix",
     "runout_side": "Side",
     "runout_inscription": "Inscription",
-    "runout_notes": "Notes"
+    "runout_matrix": "Matrix / master no.",
+    "runout_cut_by": "Cutter initials",
+    "runout_plant_code": "Plant mark",
+    "runout_stamper": "Stamper / mother",
+    "runout_notes": "Notes",
+    "field_pressing_notes": "Pressing notes"
   },
   "edit_vinyl": {
     "title": "Edit Album",

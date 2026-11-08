@@ -30,7 +30,18 @@ test('reads runouts per side, companies by role, engineers and the rights societ
     { side: 'B', inscription: 'STA 876 427 DMM', notes: '' },
     { side: '', inscription: 'Sterling', notes: '' }
   ]);
+  assert.deepEqual(details.cutting_method, ['DMM', 'Lacquer']);
   assert.deepEqual(pressingFromDiscogs({}).runouts, []);
+  assert.deepEqual(pressingFromDiscogs({}).cutting_method, []);
+});
+
+test('the cutting method is read from roles, format words and notes', () => {
+  assert.deepEqual(pressingFromDiscogs({ companies: [{ entity_type_name: 'DMM Cut At', name: 'Teldec' }] }).cutting_method, ['DMM']);
+  assert.deepEqual(pressingFromDiscogs({ formats: [{ name: 'Vinyl', text: 'DMM' }] }).cutting_method, ['DMM']);
+  assert.deepEqual(pressingFromDiscogs({ notes: 'Cut using Direct Metal Mastering.' }).cutting_method, ['DMM']);
+  assert.deepEqual(pressingFromDiscogs({ extraartists: [{ role: 'Lacquer Cut By', name: 'SP' }] }).cutting_method, ['Lacquer']);
+  // A word that only contains the letters is not the method.
+  assert.deepEqual(pressingFromDiscogs({ notes: 'Recorded at DMMX studio' }).cutting_method, []);
 });
 
 test('a repeating field keeps its declared columns only, as text, and drops empty rows', () => {

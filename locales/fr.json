@@ -977,10 +977,16 @@
     "field_mastering_studio": "Studio de mastering",
     "field_mastering_engineer": "Ingénieur mastering",
     "field_rights_society": "Société de droits",
+    "field_cutting_method": "Procédé de gravure",
     "field_runouts": "Runout / matrice",
     "runout_side": "Face",
     "runout_inscription": "Inscription",
-    "runout_notes": "Notes"
+    "runout_matrix": "Matrice / n° de master",
+    "runout_cut_by": "Initiales du graveur",
+    "runout_plant_code": "Marque de l'usine",
+    "runout_stamper": "Stamper / mère",
+    "runout_notes": "Notes",
+    "field_pressing_notes": "Notes de fabrication"
   },
   "edit_vinyl": {
     "title": "Modifier l'album",

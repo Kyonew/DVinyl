@@ -7,16 +7,41 @@
 
 // The roles Discogs gives a company, gathered under the fields they feed.
 const PRESSING_ROLES = ['pressed by', 'made by', 'manufactured by'];
-const MASTERING_ROLES = ['mastered at', 'lacquer cut at', 'remastered at', 'engineered at'];
+const MASTERING_ROLES = ['mastered at', 'lacquer cut at', 'dmm cut at', 'remastered at', 'engineered at'];
 // Credits on people, matched on a word of the role ("Mastered By", "Lacquer Cut By").
-const ENGINEER_ROLES = /\b(mastered by|lacquer cut by|remastered by)\b/i;
+const ENGINEER_ROLES = /\b(mastered by|lacquer cut by|dmm cut by|remastered by)\b/i;
 
 export interface PressingDetails {
   pressing_plant: string[];
   mastering_studio: string[];
   mastering_engineer: string[];
   rights_society: string[];
+  cutting_method: string[];
   runouts: { side: string; inscription: string; notes: string }[];
+}
+
+// Direct Metal Mastering is named outright or etched as "DMM" in the dead wax; a lacquer
+// cut only shows in a role ("Lacquer Cut At", "Lacquer Cut By").
+const DMM = /\bDMM\b|direct metal master/i;
+const LACQUER = /\blacquer cut\b/i;
+
+/**
+ * How the master was cut, from whatever on the release says it: the roles of companies
+ * and people, the format words, the notes and the runout inscriptions themselves.
+ */
+function cuttingMethodOf(release: any, companies: any[], credits: any[], identifiers: any[]): string[] {
+  const roles = [...companies, ...credits].map(c => String(c?.entity_type_name || c?.role || ''));
+  const formats: any[] = Array.isArray(release?.formats) ? release.formats : [];
+  const texts = [
+    ...roles,
+    ...formats.flatMap(f => [...(f?.descriptions || []), String(f?.text || '')]),
+    String(release?.notes || ''),
+    ...identifiers.map(i => `${i?.value || ''} ${i?.description || ''}`)
+  ];
+  const out: string[] = [];
+  if (texts.some(text => DMM.test(text))) out.push('DMM');
+  if (roles.some(role => LACQUER.test(role))) out.push('Lacquer');
+  return out;
 }
 
 const unique = (values: string[]) => [...new Set(values.map(v => v.trim()).filter(Boolean))];
@@ -53,6 +78,7 @@ export function pressingFromDiscogs(release: any): PressingDetails {
     rights_society: unique(identifiers
       .filter(i => /rights society/i.test(String(i?.type || '')))
       .map(i => String(i.value || ''))),
+    cutting_method: cuttingMethodOf(release, companies, credits, identifiers),
     runouts
   };
 }

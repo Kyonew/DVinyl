@@ -60,7 +60,7 @@ export const musicPlugin: PluginDefinition = {
   routePrefix: '/album',
   collectionType: 'music',
   creatorField: 'artist',
-  extraSearchFields: ['tracklist.title', 'tracklist.tags', 'runouts.inscription', 'runouts.notes', 'pressing_plant', 'mastering_studio', 'mastering_engineer', 'catalog_number'],
+  extraSearchFields: ['tracklist.title', 'tracklist.tags', 'runouts.inscription', 'runouts.matrix', 'runouts.stamper', 'runouts.notes', 'pressing_plant', 'mastering_studio', 'mastering_engineer', 'cutting_method', 'pressing_notes', 'catalog_number'],
   supportsBarcodeSearch: false,
   aspectRatioClass: 'aspect-square',
   imageLabels: { main: 'detail.official_cover' },
@@ -123,7 +123,7 @@ export const musicPlugin: PluginDefinition = {
   defaultCardFields: ['artist', 'format_type', 'variant_color'],
   // Size, speed and release type are how a record collection is browsed ("the 7\"
   // singles"), so they are in the filter bar from the start.
-  defaultFilters: ['disc_size', 'speed', 'release_type', 'pressing_plant', 'mastering_studio'],
+  defaultFilters: ['disc_size', 'speed', 'release_type', 'pressing_plant', 'mastering_studio', 'cutting_method'],
   cardFieldStyles: { format_type: 'pill', variant_color: 'dot' },
 
   // format_type comes from Discogs as a full descriptor ("Vinyl, LP, Album, Reissue").
@@ -162,8 +162,15 @@ export const musicPlugin: PluginDefinition = {
     rights_society: { type: 'texts', default: [] },
     runouts: {
       type: 'records',
-      fields: { side: { type: 'text' }, inscription: { type: 'text' }, notes: { type: 'text' } }
+      fields: {
+        side: { type: 'text' }, inscription: { type: 'text' }, matrix: { type: 'text' }, cut_by: { type: 'text' },
+        plant_code: { type: 'text' }, stamper: { type: 'text' }, notes: { type: 'text' }
+      }
     },
+    // DMM or lacquer, from the roles, notes and inscriptions that say so.
+    cutting_method: { type: 'texts', default: [] },
+    // What is known about how this pressing was made, apart from the owner's own notes.
+    pressing_notes: { type: 'text', default: '' },
     sleeve_condition: { type: 'text', default: '' },
     discogs_id: { type: 'number' },
     country: { type: 'text', default: '' },
@@ -300,6 +307,7 @@ export const musicPlugin: PluginDefinition = {
     { name: 'mastering_studio', label: 'confirm_vinyl.field_mastering_studio', type: 'tags', showIn: ['edit', 'confirm', 'detail', 'manual'], group: 'metadata' },
     { name: 'mastering_engineer', label: 'confirm_vinyl.field_mastering_engineer', type: 'tags', showIn: ['edit', 'confirm', 'detail', 'manual'], group: 'metadata' },
     { name: 'rights_society', label: 'confirm_vinyl.field_rights_society', type: 'tags', showIn: ['edit', 'confirm', 'detail', 'manual'], group: 'metadata' },
+    { name: 'cutting_method', label: 'confirm_vinyl.field_cutting_method', type: 'tags', showIn: ['edit', 'confirm', 'detail', 'manual'], group: 'metadata', placeholder: 'DMM, Lacquer' },
     {
       name: 'runouts',
       label: 'confirm_vinyl.field_runouts',
@@ -307,11 +315,16 @@ export const musicPlugin: PluginDefinition = {
       columns: [
         { name: 'side', label: 'confirm_vinyl.runout_side' },
         { name: 'inscription', label: 'confirm_vinyl.runout_inscription' },
+        { name: 'matrix', label: 'confirm_vinyl.runout_matrix' },
+        { name: 'cut_by', label: 'confirm_vinyl.runout_cut_by' },
+        { name: 'plant_code', label: 'confirm_vinyl.runout_plant_code' },
+        { name: 'stamper', label: 'confirm_vinyl.runout_stamper' },
         { name: 'notes', label: 'confirm_vinyl.runout_notes' }
       ],
       showIn: ['edit', 'confirm', 'detail', 'manual'],
       group: 'metadata'
     },
+    { name: 'pressing_notes', label: 'confirm_vinyl.field_pressing_notes', type: 'textarea', showIn: ['edit', 'confirm', 'detail', 'manual'], group: 'metadata' },
     {
       name: 'barcode',
       label: 'confirm_vinyl.barcode_label',

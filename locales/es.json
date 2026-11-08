@@ -860,10 +860,16 @@
     "field_mastering_studio": "Estudio de masterización",
     "field_mastering_engineer": "Ingeniero de masterización",
     "field_rights_society": "Sociedad de derechos",
+    "field_cutting_method": "Método de corte",
     "field_runouts": "Runout / matriz",
     "runout_side": "Cara",
     "runout_inscription": "Inscripción",
-    "runout_notes": "Notas"
+    "runout_matrix": "Matriz / n.º de máster",
+    "runout_cut_by": "Iniciales del cortador",
+    "runout_plant_code": "Marca de la planta",
+    "runout_stamper": "Stamper / madre",
+    "runout_notes": "Notas",
+    "field_pressing_notes": "Notas de prensado"
   },
   "detail": {
     "label_no_barcode": "Este objeto no tiene código de barras: añade uno al editarlo.",

@@ -860,10 +860,16 @@
     "field_mastering_studio": "Studio di mastering",
     "field_mastering_engineer": "Ingegnere del mastering",
     "field_rights_society": "Società dei diritti",
+    "field_cutting_method": "Metodo di incisione",
     "field_runouts": "Runout / matrice",
     "runout_side": "Lato",
     "runout_inscription": "Iscrizione",
-    "runout_notes": "Note"
+    "runout_matrix": "Matrice / n. master",
+    "runout_cut_by": "Iniziali dell'incisore",
+    "runout_plant_code": "Marchio della stamperia",
+    "runout_stamper": "Stamper / madre",
+    "runout_notes": "Note",
+    "field_pressing_notes": "Note di stampa"
   },
   "detail": {
     "label_no_barcode": "Questo oggetto non ha un codice a barre: aggiungine uno modificandolo.",

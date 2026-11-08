@@ -41,21 +41,38 @@
                     list.innerHTML = '';
                     rows.forEach((row, index) => {
                         const line = document.createElement('div');
-                        line.className = 'flex flex-wrap md:flex-nowrap items-center gap-2 bg-black/5 dark:bg-white/5 rounded-lg p-2';
+                        // Up to four columns fit on one line; more wrap onto a grid, so no
+                        // input shrinks below what an inscription needs.
+                        line.className = columns.length > 4
+                            ? 'grid grid-cols-2 md:grid-cols-4 items-center gap-2 bg-black/5 dark:bg-white/5 rounded-lg p-2'
+                            : 'flex flex-wrap md:flex-nowrap items-center gap-2 bg-black/5 dark:bg-white/5 rounded-lg p-2';
                         columns.forEach(column => {
                             const input = document.createElement('input');
                             input.type = 'text';
                             input.placeholder = column.label;
                             input.setAttribute('aria-label', column.label);
                             input.value = row[column.name] || '';
-                            input.className = 'flex-1 min-w-[6rem] bg-transparent border border-black/10 dark:border-white/10 rounded-md text-sm p-2 outline-none focus:ring-1 focus:ring-primary-theme';
+                            input.className = 'flex-1 min-w-[6rem] w-full bg-transparent border border-black/10 dark:border-white/10 rounded-md text-sm p-2 outline-none focus:ring-1 focus:ring-primary-theme';
                             input.addEventListener('input', () => { row[column.name] = input.value; sync(); });
-                            line.appendChild(input);
+                            if (columns.length > 4) {
+                                // On the grid a filled box no longer shows its placeholder,
+                                // so each one keeps its column's name above it.
+                                const cell = document.createElement('label');
+                                cell.className = 'flex flex-col gap-1 min-w-0';
+                                const caption = document.createElement('span');
+                                caption.className = 'text-[10px] font-bold uppercase tracking-wider opacity-50 truncate';
+                                caption.textContent = column.label;
+                                cell.appendChild(caption);
+                                cell.appendChild(input);
+                                line.appendChild(cell);
+                            } else {
+                                line.appendChild(input);
+                            }
                         });
                         const remove = document.createElement('button');
                         remove.type = 'button';
                         remove.title = removeLabel;
-                        remove.className = 'w-8 h-8 flex-none flex items-center justify-center rounded-md text-red-500 hover:bg-red-500/10';
+                        remove.className = 'w-8 h-8 flex-none flex items-center justify-center rounded-md text-red-500 hover:bg-red-500/10' + (columns.length > 4 ? ' justify-self-end' : '');
                         remove.innerHTML = '<i class="fa-solid fa-xmark text-xs"></i>';
                         remove.addEventListener('click', () => { rows.splice(index, 1); sync(); render(); });
                         line.appendChild(remove);

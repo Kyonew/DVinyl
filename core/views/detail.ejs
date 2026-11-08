@@ -75,9 +75,12 @@
         // A rows field (core/rowsField.ts) as a small table: its columns, then one line per
         // entry. Escaped here, since the caller prints it raw.
         const rowsTable = (field, rows) => {
-            const columns = (Array.isArray(field.columns) && field.columns.length > 0)
+            const declared = (Array.isArray(field.columns) && field.columns.length > 0)
                 ? field.columns
                 : (field.options || []).filter(o => o.value !== '').map(o => ({ name: o.value, label: o.label }));
+            // A column no entry fills says nothing, and would only crowd the others.
+            const filled = declared.filter(c => rows.some(row => row && String(row[c.name] ?? '').trim()));
+            const columns = filled.length > 0 ? filled : declared;
             const esc = v => String(v ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
             const head = columns.map(c => '<th class="text-left font-semibold opacity-60 pr-4 pb-1">' + esc(t(c.label, { defaultValue: c.label })) + '</th>').join('');
             const body = rows.map(row => '<tr class="border-t border-black/5 dark:border-white/5">'

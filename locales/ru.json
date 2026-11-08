@@ -997,10 +997,16 @@
     "field_mastering_studio": "Студия мастеринга",
     "field_mastering_engineer": "Инженер мастеринга",
     "field_rights_society": "Общество по правам",
+    "field_cutting_method": "Способ нарезки",
     "field_runouts": "Матрица / ранаут",
     "runout_side": "Сторона",
     "runout_inscription": "Надпись",
-    "runout_notes": "Заметки"
+    "runout_matrix": "Матрица / № мастера",
+    "runout_cut_by": "Инициалы нарезчика",
+    "runout_plant_code": "Метка завода",
+    "runout_stamper": "Стампер / мать",
+    "runout_notes": "Заметки",
+    "field_pressing_notes": "Заметки о прессинге"
   },
   "edit_vinyl": {
     "title": "Редактировать альбом",
