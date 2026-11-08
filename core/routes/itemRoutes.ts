@@ -33,6 +33,8 @@ import { offeredSourceValues, trackOwnerEdits } from '../keptFields';
 import { memberWishesFor } from '../memberWishes';
 import { parseRows, rowColumns } from '../rowsField';
 import { EXTRA_FORMATS_FIELD, parseExtraFormats } from '../extraFormats';
+import { contentsOf, itemHref } from '../insideItems';
+import { registry } from '../registry';
 
 /**
  * Names what was just saved in the path an add comes back to, so the add page can say so.
@@ -1126,6 +1128,29 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       // holder takes them along.
       const contained = await db.items.find(and(eq('parent', idOf(item._id)), visible));
 
+      // The box this item is kept in and what it keeps itself (core/insideItems.ts), of
+      // whatever type, each with its own page.
+      const insideBox: any = item.inside
+        ? await db.items.findOne(and(eq('_id', idOf(item.inside)), visible), { fields: ['title', 'kind'] })
+        : null;
+      const boxContents = await contentsOf(item._id, visible);
+      const asLink = (entry: any) => {
+        const kindPlugin = registry.getByKind(entry.kind);
+        const href = itemHref(entry);
+        if (!kindPlugin || !href) return null;
+        const shown = kindPlugin.formatForView(entry);
+        return {
+          _id: String(entry._id),
+          title: entry.title || '',
+          creator: shown?.[kindPlugin.creatorField] || '',
+          year: entry.year || '',
+          image: Array.isArray(entry.images) && entry.images[0] ? entry.images[0] : null,
+          cover: entry.cover_image || '',
+          type: req.t(kindPlugin.label, { defaultValue: kindPlugin.label }),
+          href
+        };
+      };
+
       // Where this page was opened from, so leaving it, editing or deleting comes back to
       // the very page someone was on rather than the first one. The explicit parameter
       // wins: after saving an edit the header points at the form, while the parameter
@@ -1171,6 +1196,8 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         modifiedBy: toProfile(modifiedBy),
         contains: contained.map(c => plugin.formatForView(c)),
         holder: holder ? { _id: holder._id, title: holder.title } : null,
+        insideBox: insideBox ? asLink(insideBox) : null,
+        boxContents: boxContents.map(asLink).filter(Boolean),
         backUrl,
         containsLabel: plugin.cardContains ? plugin.cardContains(item, contained) : null,
         user: res.locals.user

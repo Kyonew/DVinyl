@@ -2695,5 +2695,20 @@
     "lp": "LP",
     "album": "Album",
     "compilation": "Compilation"
+  },
+  "inside": {
+    "in_box": "Enthalten in",
+    "take_out": "Herausnehmen",
+    "contents_title": "Inhalt ({{count}})",
+    "put_inside_btn": "In ein anderes Objekt legen…",
+    "put_inside_hint": "Für eine Box: eine Karte in der Sammlung, und alles darin behält seine eigene Seite.",
+    "picker_title": "In welches Objekt legen?",
+    "picker_placeholder": "Titel der Box…",
+    "picker_empty": "Kein Objekt gefunden.",
+    "error_not_found": "Dieses Objekt ist nicht in der Sammlung.",
+    "error_same_item": "Ein Objekt kann nicht in sich selbst liegen.",
+    "error_box_inside": "Dieses Objekt liegt selbst in einem anderen oder ist eine Staffel.",
+    "error_holds_items": "Dieses Objekt enthält andere: nimm sie zuerst heraus.",
+    "error_wishlist": "Objekte der Wunschliste kommen in keine Box."
   }
 }

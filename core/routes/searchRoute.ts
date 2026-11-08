@@ -69,7 +69,7 @@ router.get('/search', requireAuth, async (req: any, res: any) => {
       // Same shelf every other listing shows: what is owned, holders only. A wishlist
       // entry is not in the collection yet, and a season belongs to its show.
       return and(
-        shelfFilter({ collectionId: id, inWishlist: false, isAdmin: roleById.get(idStr) === 'admin', settings }),
+        shelfFilter({ collectionId: id, inWishlist: false, isAdmin: roleById.get(idStr) === 'admin', settings, keepInside: true }),
         or(contains('title', rawQuery), ...Array.from(creatorFields).map(f => contains(f, rawQuery)))
       );
     });

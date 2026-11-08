@@ -15,8 +15,10 @@ import { idOf } from '../core/db/ids';
  * Counting follows the same rule as showing, so the totals always match what is on screen:
  * a show with five seasons is one line and counts as one.
  */
-export function notContainedFilter(): Filter {
-    return missing('parent');
+export function notContainedFilter(options: { keepInside?: boolean } = {}): Filter {
+    // An item kept inside a box (core/insideItems.ts) is one object with its box, so it
+    // leaves the shelf the same way. A search brings it back: it is what was asked for.
+    return options.keepInside ? missing('parent') : and(missing('parent'), missing('inside'));
 }
 
 /**
@@ -180,13 +182,15 @@ export function shelfFilter(options: {
     isAdmin: boolean;
     settings: any;
     shareScope?: ShareScopeEntry[] | null;
+    // A search: items inside a box are found too.
+    keepInside?: boolean;
 }): Filter {
     return and(
         eq('collection', idOf(options.collectionId)),
         eq('in_wishlist', options.inWishlist),
         visibilityFilter(options.isAdmin, options.settings),
         enabledModulesFilter(options.settings),
-        notContainedFilter(),
+        notContainedFilter({ keepInside: options.keepInside === true }),
         options.shareScope ? shareScopeFilter(options.shareScope) : all()
     );
 }

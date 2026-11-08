@@ -6,6 +6,7 @@ import { visibilityFilter } from './visibilityHelper';
 import { deleteUnusedManagedItemImages, managedItemImagesFrom } from '../core/itemImageStorage';
 import { pullItemsFromLists } from '../core/listStore';
 import { closeRequestsOnItems } from '../core/requests';
+import { releaseBoxes } from '../core/insideItems';
 
 /**
  * Resolves, for a page of items, what each one should actually show on the shelf.
@@ -58,6 +59,9 @@ export async function resolveShelfItems(items: any[], res: any): Promise<any[]> 
  * actually added.
  */
 export async function moveContentsToWishlist(holderId: any, inWishlist: boolean, stamp: Record<string, any>): Promise<void> {
+    // A box going back to the wishlist is not owned any more, what it held still is: that
+    // goes back on the shelf, and so does the item itself if it sat in a box.
+    if (inWishlist) await releaseBoxes([holderId]);
     await db.items.updateMany(isIn('parent', [idOf(holderId)]), { set: { in_wishlist: inWishlist, ...stamp } });
 }
 
@@ -81,6 +85,8 @@ export async function deleteItemsAndContents(ids: any[]): Promise<number> {
     );
     const all = doomed.map((item: any) => item._id);
     const images = doomed.flatMap(managedItemImagesFrom);
+    // What a deleted box held is still owned: it goes back on the shelf.
+    await releaseBoxes(all);
 
     const deleted = await db.items.deleteMany(isIn('_id', all.map(idOf)));
     await pullItemsFromLists(all);

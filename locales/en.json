@@ -2695,5 +2695,20 @@
     "lp": "LP",
     "album": "Album",
     "compilation": "Compilation"
+  },
+  "inside": {
+    "in_box": "Kept in",
+    "take_out": "Take out",
+    "contents_title": "Contents ({{count}})",
+    "put_inside_btn": "Put inside another item…",
+    "put_inside_hint": "For a boxset: one card on the shelf, and each thing it holds keeps its own page.",
+    "picker_title": "Put it inside which item?",
+    "picker_placeholder": "Title of the box…",
+    "picker_empty": "No item found.",
+    "error_not_found": "This item is not in the collection.",
+    "error_same_item": "An item cannot be put inside itself.",
+    "error_box_inside": "That item is itself inside another one, or is a season.",
+    "error_holds_items": "This item holds other items: take them out first.",
+    "error_wishlist": "Wishlist items cannot be put in a box."
   }
 }

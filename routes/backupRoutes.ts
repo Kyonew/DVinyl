@@ -275,6 +275,7 @@ const importInstanceBackup = async (req: any, res: any) => {
                 // Ids are preserved on a whole-instance restore, so a containment link only
                 // needs its BSON type back.
                 if (fixed.parent) fixed.parent = toId(fixed.parent);
+                if (fixed.inside) fixed.inside = toId(fixed.inside);
                 if (fixed.collection) fixed.collection = toId(fixed.collection);
                 if (fixed.added_at) fixed.added_at = new Date(fixed.added_at);
                 if (fixed.updated_at) fixed.updated_at = new Date(fixed.updated_at);
@@ -783,6 +784,9 @@ const importCollectionBackup = async (req: any, res: any) => {
             // so it becomes standalone rather than invisible.
             fixed.parent = rest.parent ? idMap.get(String(rest.parent)) : undefined;
             if (!fixed.parent) delete fixed.parent;
+            // Same for a box: an item whose box is not in the dump goes back on the shelf.
+            fixed.inside = rest.inside ? idMap.get(String(rest.inside)) : undefined;
+            if (!fixed.inside) delete fixed.inside;
             if (fixed.extra) fixed.extra = { ...fixed.extra };
             reviveExtraDates(fixed, extraDateFields);
             return fixed;

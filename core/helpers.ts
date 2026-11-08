@@ -16,7 +16,7 @@ import { DEFAULT_SORT_ARTICLES } from './sortArticles';
 export function buildCopySeed(formatted: any, plugin: PluginDefinition): any {
   const seed: any = formatted;
   for (const key of ['_id', 'mongo_id', '__v', 'added_at', 'modified_at', 'synced_at',
-    'owner', 'modified_by', 'parent', 'in_wishlist', 'quantity', 'barcode', 'barcode_locked',
+    'owner', 'modified_by', 'parent', 'inside', 'in_wishlist', 'quantity', 'barcode', 'barcode_locked',
     'purchase_price', 'purchase_currency', 'kept_fields', 'source_values']) {
     delete seed[key];
   }

@@ -2695,5 +2695,20 @@
     "lp": "LP",
     "album": "Álbum",
     "compilation": "Recopilatorio"
+  },
+  "inside": {
+    "in_box": "Guardado en",
+    "take_out": "Sacar",
+    "contents_title": "Contenido ({{count}})",
+    "put_inside_btn": "Guardar en otro objeto…",
+    "put_inside_hint": "Para una caja: una sola tarjeta en la colección, y cada cosa que contiene conserva su ficha.",
+    "picker_title": "¿En qué objeto guardarlo?",
+    "picker_placeholder": "Título de la caja…",
+    "picker_empty": "No se encontró ningún objeto.",
+    "error_not_found": "Este objeto no está en la colección.",
+    "error_same_item": "Un objeto no puede guardarse en sí mismo.",
+    "error_box_inside": "Ese objeto ya está dentro de otro, o es una temporada.",
+    "error_holds_items": "Este objeto contiene otros: sácalos primero.",
+    "error_wishlist": "Los objetos de la lista de deseos no se guardan en una caja."
   }
 }

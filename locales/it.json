@@ -2695,5 +2695,20 @@
     "lp": "LP",
     "album": "Album",
     "compilation": "Compilation"
+  },
+  "inside": {
+    "in_box": "Contenuto in",
+    "take_out": "Estrai",
+    "contents_title": "Contenuto ({{count}})",
+    "put_inside_btn": "Metti in un altro oggetto…",
+    "put_inside_hint": "Per un cofanetto: una sola scheda nella collezione, e ogni cosa al suo interno mantiene la sua pagina.",
+    "picker_title": "In quale oggetto metterlo?",
+    "picker_placeholder": "Titolo del cofanetto…",
+    "picker_empty": "Nessun oggetto trovato.",
+    "error_not_found": "Questo oggetto non è nella collezione.",
+    "error_same_item": "Un oggetto non può stare dentro se stesso.",
+    "error_box_inside": "Quell'oggetto è già dentro un altro, o è una stagione.",
+    "error_holds_items": "Questo oggetto ne contiene altri: estraili prima.",
+    "error_wishlist": "Gli oggetti della wishlist non vanno in un cofanetto."
   }
 }

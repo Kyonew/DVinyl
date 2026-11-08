@@ -30,6 +30,8 @@ const itemSchema = new mongoose.Schema({
   // metadata; it is simply reached from its holder instead of from the grid. Absent on
   // everything else, which is what makes the filter a plain $exists.
   parent: { type: mongoose.Schema.Types.ObjectId, ref: 'Item' },
+  // The box this item is kept in, if any (core/insideItems.ts): a film of a boxset.
+  inside: { type: mongoose.Schema.Types.ObjectId, ref: 'Item' },
   // Which collection (shared library) this item belongs to. Not required: the
   // boot-time migration backfills all pre-existing items before the server serves
   // traffic, so requiring it would only turn a missed write-path stamp into a hard 500.

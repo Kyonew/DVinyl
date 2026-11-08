@@ -636,6 +636,11 @@
                 </div>
             <% } %>
 
+            <%# The box this item is kept in, or what it keeps (core/insideItems.ts). %>
+            <div class="max-md:order-7">
+                <%- include('partials/inside-items') %>
+            </div>
+
             <!-- Admin Actions Block -->
             <% if (user && locals.canEditCollection) { %>
                 <%

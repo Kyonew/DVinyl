@@ -2695,5 +2695,20 @@
     "lp": "LP",
     "album": "Album",
     "compilation": "Compilation"
+  },
+  "inside": {
+    "in_box": "Rangé dans",
+    "take_out": "Sortir",
+    "contents_title": "Contenu ({{count}})",
+    "put_inside_btn": "Ranger dans un autre item…",
+    "put_inside_hint": "Pour un coffret : une seule carte dans la collection, et chaque chose rangée dedans garde sa fiche.",
+    "picker_title": "Ranger dans quel item ?",
+    "picker_placeholder": "Titre du coffret…",
+    "picker_empty": "Aucun item trouvé.",
+    "error_not_found": "Cet item n'est pas dans la collection.",
+    "error_same_item": "Un item ne peut pas être rangé dans lui-même.",
+    "error_box_inside": "Cet item est lui-même rangé dans un autre, ou c'est une saison.",
+    "error_holds_items": "Cet item contient d'autres items : sortez-les d'abord.",
+    "error_wishlist": "Les items de la wishlist ne se rangent pas dans un coffret."
   }
 }

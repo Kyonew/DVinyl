@@ -294,7 +294,8 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
       inWishlist,
       isAdmin: res.locals.isCollectionAdmin,
       settings,
-      shareScope: res.locals.isShareView ? shareScope : null
+      shareScope: res.locals.isShareView ? shareScope : null,
+      keepInside: !!trimmedSearch
     });
     const query = and(unfilteredQuery, typeFilter, criteria);
     const isNarrowed = conditions.length > 0 || typeFilter.op !== 'all';
