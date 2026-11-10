@@ -361,118 +361,224 @@
 </div>
 
 <!-- Per-collection cosmetic customization modal (icon + badge colors) -->
-<div id="customizeModal" class="dv-overlay hidden fixed inset-0 z-50 bg-black/60 items-center justify-center p-4">
-    <div class="dv-pop card-theme rounded-3xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto space-y-5">
-        <div class="flex items-center justify-between">
-            <h3 class="font-bold text-lg flex items-center gap-2">
-                <i class="fa-solid fa-palette text-primary-theme"></i>
-                <span id="czTitle"></span>
-            </h3>
-            <button type="button" onclick="closeCustomize()"
-                class="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/10 transition-colors">
+<%# The plugin workshop: one subject at a time instead of everything in one long scroll.
+    Wide screens keep the menu, the open subject and a live preview side by side. On a
+    phone it fills the screen and works like a settings app: the menu first (data-view
+    "home"), a subject replacing it once tapped (data-view "section"). %>
+<style>
+    @media (max-width: 767.98px) {
+        #czShell[data-view="home"] #czStage,
+        #czShell[data-view="home"] #czBack,
+        #czShell[data-view="section"] #czNav,
+        #czShell[data-view="section"] #czHeadIcon { display: none; }
+    }
+    @media (min-width: 768px) {
+        .cz-nav-btn[aria-current="true"] { background: color-mix(in srgb, var(--highlight) 16%, transparent); }
+        .cz-nav-btn[aria-current="true"] .cz-nav-tile { background: var(--highlight); color: #fff; }
+    }
+    .cz-toggle:has(input:checked) { background: color-mix(in srgb, var(--highlight) 16%, transparent); }
+    .cz-dot[aria-pressed="true"] { box-shadow: 0 0 0 2px rgb(var(--card-rgb)), 0 0 0 4px var(--highlight); }
+</style>
+<%
+    const czSections = [
+        { id: 'look', icon: 'fa-palette', title: 'create_plugin.cz_nav_look', desc: 'create_plugin.cz_desc_look' },
+        { id: 'card', icon: 'fa-id-card', title: 'create_plugin.cz_nav_card', desc: 'create_plugin.cz_desc_card' },
+        { id: 'table', icon: 'fa-table-list', title: 'create_plugin.cz_nav_table', desc: 'create_plugin.cz_desc_table' },
+        { id: 'filters', icon: 'fa-filter', title: 'create_plugin.cz_nav_filters', desc: 'create_plugin.cz_desc_filters' },
+        { id: 'fields', icon: 'fa-pen-ruler', title: 'create_plugin.cz_nav_fields', desc: 'create_plugin.cz_desc_fields' }
+    ];
+    const czLabelClass = 'block mb-2 text-xs font-bold uppercase tracking-widest opacity-60';
+    const czHeadClass = 'hidden md:block font-bold text-lg';
+%>
+<div id="customizeModal" class="dv-overlay hidden fixed inset-0 z-[60] bg-black/60 md:items-center md:justify-center md:p-6">
+    <div id="czShell" data-view="home" class="dv-pop card-theme w-full h-full md:h-[min(48rem,92vh)] md:max-w-5xl max-md:rounded-none max-md:border-0 md:rounded-3xl flex flex-col overflow-hidden">
+
+        <header class="shrink-0 flex items-center gap-3 px-4 md:px-6 pb-3 border-b border-black/5 dark:border-white/10" style="padding-top: max(0.75rem, env(safe-area-inset-top))">
+            <button type="button" id="czBack" class="md:hidden w-10 h-10 -ml-2 rounded-lg flex items-center justify-center shrink-0" aria-label="<%= t('create_plugin.cz_back') %>">
+                <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <span id="czHeadIcon" class="w-10 h-10 rounded-xl bg-primary-theme/10 text-primary-theme flex items-center justify-center shrink-0">
+                <i id="czHeadIconGlyph" class="fa-solid"></i>
+            </span>
+            <div class="min-w-0 flex-1">
+                <h3 id="czTitle" class="font-bold text-base md:text-lg truncate"></h3>
+                <p id="czSubtitle" class="text-xs opacity-50 truncate"></p>
+            </div>
+            <button type="button" onclick="closeCustomize()" class="w-10 h-10 -mr-2 md:mr-0 rounded-lg flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/10 transition-colors shrink-0" aria-label="<%= t('create_plugin.cz_close') %>">
                 <i class="fa-solid fa-xmark"></i>
             </button>
-        </div>
-        <p class="text-xs opacity-50"><%= t('create_plugin.customize_hint') %></p>
+        </header>
 
-        <div>
-            <label class="block mb-2 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('create_plugin.icon_label') %></label>
-            <div id="czIconGrid" class="flex flex-wrap gap-2">
-                <% iconChoices.forEach(ic => { %>
-                    <button type="button" data-icon="<%= ic %>"
-                        class="cz-icon w-10 h-10 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-primary-theme/20 flex items-center justify-center transition-all">
-                        <i class="fa-solid <%= ic %>"></i>
-                    </button>
-                <% }) %>
-            </div>
-        </div>
-
-        <div id="czFormatsWrap">
-            <label class="block mb-2 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('create_plugin.format_colors') %></label>
-            <div id="czFormats" class="space-y-2"></div>
-            <label class="flex items-center gap-2 mt-3 text-xs opacity-70 cursor-pointer">
-                <input type="checkbox" id="czSortFormats" class="rounded border-black/20 dark:border-white/20">
-                <%= t('create_plugin.sort_formats') %>
-            </label>
-        </div>
-
-        <div id="czCardFieldsWrap">
-            <label class="block mb-1 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('create_plugin.card_fields') %></label>
-            <p class="text-xs opacity-50 mb-2">
-                <%= t('create_plugin.card_fields_hint', { count: maxCardLines }) %>
-            </p>
-            <div id="czCardFields" class="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-52 overflow-y-auto custom-scrollbar pr-1"></div>
-        </div>
-
-        <div id="czCornerFieldWrap">
-            <label class="block mb-1 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('create_plugin.corner_field') %></label>
-            <p class="text-xs opacity-50 mb-2"><%= t('create_plugin.corner_field_hint') %></p>
-            <select id="czCornerField"
-                class="w-full bg-black/5 dark:bg-white/5 border border-transparent rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-primary-theme outline-none transition-all cursor-pointer"></select>
-
-            <%# Which corner, shown rather than named: a square standing for the cover, its
-                four quadrants clickable except the top-right one, where the format badge
-                already sits. Hidden until a field is chosen, since it decides nothing on
-                its own. %>
-            <div id="czCornerPosWrap" class="hidden mt-4">
-                <label class="block mb-2 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('create_plugin.corner_position') %></label>
-                <div class="w-32 h-32 rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 grid grid-cols-2 grid-rows-2 gap-1 p-1">
-                    <% [
-                        { pos: 'top-left', label: 'create_plugin.corner_top_left' },
-                        { pos: '', label: '' },
-                        { pos: 'bottom-left', label: 'create_plugin.corner_bottom_left' },
-                        { pos: 'bottom-right', label: 'create_plugin.corner_bottom_right' }
-                    ].forEach(cell => { %>
-                        <% if (cell.pos) { %>
-                            <button type="button" class="cz-corner-pos rounded-lg border-2 border-transparent hover:border-primary-theme/50 flex items-center justify-center transition-all"
-                                data-pos="<%= cell.pos %>" title="<%= t(cell.label) %>">
-                                <span class="w-6 h-2.5 rounded-sm bg-black/25 dark:bg-white/25"></span>
-                            </button>
-                        <% } else { %>
-                            <div class="rounded-lg flex items-center justify-center opacity-60 cursor-not-allowed" title="<%= t('create_plugin.corner_taken') %>">
-                                <span class="w-6 h-2.5 rounded-sm bg-primary-theme"></span>
-                            </div>
-                        <% } %>
+        <div class="flex-1 min-h-0 flex flex-col md:flex-row">
+            <nav id="czNav" class="md:w-56 shrink-0 max-md:flex-1 overflow-y-auto p-3 md:border-r border-black/5 dark:border-white/10">
+                <div class="space-y-1 max-md:space-y-0 max-md:bg-black/5 max-md:dark:bg-white/5 max-md:rounded-2xl max-md:divide-y max-md:divide-black/5 max-md:dark:divide-white/5 max-md:overflow-hidden">
+                    <% czSections.forEach(s => { %>
+                        <button type="button" data-cz-nav="<%= s.id %>" data-cz-title="<%= t(s.title) %>"
+                            class="cz-nav-btn w-full flex items-center gap-3 md:rounded-xl px-3 py-3 md:py-2.5 text-left hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+                            <span class="cz-nav-tile w-9 h-9 md:w-8 md:h-8 rounded-lg bg-primary-theme/10 text-primary-theme flex items-center justify-center shrink-0 transition-colors">
+                                <i class="fa-solid <%= s.icon %> text-sm"></i>
+                            </span>
+                            <span class="min-w-0 flex-1">
+                                <span class="block font-bold text-sm truncate"><%= t(s.title) %></span>
+                                <span class="md:hidden block text-xs opacity-50 truncate"><%= t(s.desc) %></span>
+                            </span>
+                            <i data-cz-warn class="hidden fa-solid fa-triangle-exclamation text-yellow-600 text-xs"></i>
+                            <span data-cz-count class="text-xs font-bold opacity-50 tabular-nums"></span>
+                            <i class="md:hidden fa-solid fa-chevron-right text-xs opacity-30"></i>
+                        </button>
                     <% }) %>
                 </div>
-                <p class="text-xs opacity-50 mt-2"><%= t('create_plugin.corner_taken') %></p>
+            </nav>
+
+            <div id="czStage" class="flex-1 min-w-0 min-h-0 flex flex-col lg:flex-row">
+                <div id="czPanels" class="flex-1 min-w-0 min-h-0 overflow-y-auto custom-scrollbar p-4 md:p-6">
+
+                    <section data-cz-panel="look" class="hidden space-y-6">
+                        <div>
+                            <h4 class="<%= czHeadClass %>"><%= t('create_plugin.cz_nav_look') %></h4>
+                            <p class="text-xs opacity-50 md:mt-1"><%= t('create_plugin.customize_hint') %></p>
+                        </div>
+                        <div>
+                            <label class="<%= czLabelClass %>"><%= t('create_plugin.icon_label') %></label>
+                            <div id="czIconGrid" class="grid grid-cols-[repeat(auto-fill,minmax(2.75rem,1fr))] gap-2">
+                                <button type="button" data-icon="" title="<%= t('create_plugin.cz_icon_own') %>" aria-label="<%= t('create_plugin.cz_icon_own') %>"
+                                    class="cz-icon h-11 rounded-xl border border-dashed border-black/20 dark:border-white/20 flex items-center justify-center transition-all">
+                                    <i id="czOwnIcon" class="fa-solid"></i>
+                                </button>
+                                <% iconChoices.forEach(ic => { %>
+                                    <button type="button" data-icon="<%= ic %>"
+                                        class="cz-icon h-11 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-primary-theme/20 flex items-center justify-center transition-all">
+                                        <i class="fa-solid <%= ic %>"></i>
+                                    </button>
+                                <% }) %>
+                            </div>
+                        </div>
+                        <div id="czFormatsWrap">
+                            <label class="<%= czLabelClass %>"><%= t('create_plugin.format_colors') %></label>
+                            <div id="czFormats" class="space-y-4"></div>
+                            <label class="flex items-center gap-3 mt-4 text-sm min-h-11 cursor-pointer">
+                                <input type="checkbox" id="czSortFormats" class="accent-primary-theme w-4 h-4 shrink-0">
+                                <%= t('create_plugin.sort_formats') %>
+                            </label>
+                        </div>
+                    </section>
+
+                    <section data-cz-panel="card" class="hidden space-y-6">
+                        <div>
+                            <h4 class="<%= czHeadClass %>"><%= t('create_plugin.cz_nav_card') %></h4>
+                            <p class="text-xs opacity-50 md:mt-1"><%= t('create_plugin.cz_desc_card') %></p>
+                        </div>
+                        <div id="czCardFieldsWrap">
+                            <div class="flex items-baseline justify-between gap-3 mb-1">
+                                <label class="text-xs font-bold uppercase tracking-widest opacity-60"><%= t('create_plugin.card_fields') %></label>
+                                <span id="czCardCount" class="text-xs font-bold opacity-60 tabular-nums"></span>
+                            </div>
+                            <p class="text-xs opacity-50 mb-3"><%= t('create_plugin.card_fields_hint', { count: maxCardLines }) %></p>
+                            <div id="czCardFields" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+                        </div>
+                        <div id="czCornerFieldWrap">
+                            <label class="block mb-1 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('create_plugin.corner_field') %></label>
+                            <p class="text-xs opacity-50 mb-3"><%= t('create_plugin.corner_field_hint') %></p>
+                            <select id="czCornerField"
+                                class="w-full bg-black/5 dark:bg-white/5 border border-transparent rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-primary-theme outline-none transition-all cursor-pointer"></select>
+
+                            <%# Which corner, shown rather than named: a square standing for the cover, its
+                                four quadrants clickable except the top-right one, where the format badge
+                                already sits. Hidden until a field is chosen, since it decides nothing on
+                                its own. %>
+                            <div id="czCornerPosWrap" class="hidden mt-4">
+                                <label class="<%= czLabelClass %>"><%= t('create_plugin.corner_position') %></label>
+                                <div class="w-32 h-32 rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 grid grid-cols-2 grid-rows-2 gap-1 p-1">
+                                    <% [
+                                        { pos: 'top-left', label: 'create_plugin.corner_top_left' },
+                                        { pos: '', label: '' },
+                                        { pos: 'bottom-left', label: 'create_plugin.corner_bottom_left' },
+                                        { pos: 'bottom-right', label: 'create_plugin.corner_bottom_right' }
+                                    ].forEach(cell => { %>
+                                        <% if (cell.pos) { %>
+                                            <button type="button" class="cz-corner-pos rounded-lg border-2 border-transparent hover:border-primary-theme/50 flex items-center justify-center transition-all"
+                                                data-pos="<%= cell.pos %>" title="<%= t(cell.label) %>">
+                                                <span class="w-6 h-2.5 rounded-sm bg-black/25 dark:bg-white/25"></span>
+                                            </button>
+                                        <% } else { %>
+                                            <div class="rounded-lg flex items-center justify-center opacity-60 cursor-not-allowed" title="<%= t('create_plugin.corner_taken') %>">
+                                                <span class="w-6 h-2.5 rounded-sm bg-primary-theme"></span>
+                                            </div>
+                                        <% } %>
+                                    <% }) %>
+                                </div>
+                                <p class="text-xs opacity-50 mt-2"><%= t('create_plugin.corner_taken') %></p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section data-cz-panel="table" class="hidden space-y-5">
+                        <div>
+                            <h4 class="<%= czHeadClass %>"><%= t('create_plugin.cz_nav_table') %></h4>
+                            <p class="text-xs opacity-50 md:mt-1"><%= t('create_plugin.table_columns_hint') %></p>
+                        </div>
+                        <div id="czTablePreview" class="flex gap-px overflow-x-auto rounded-xl bg-black/10 dark:bg-white/10 p-px text-xs font-bold"></div>
+                        <div id="czTableColumnsWrap">
+                            <div id="czTableColumns" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2"></div>
+                        </div>
+                    </section>
+
+                    <section data-cz-panel="filters" class="hidden space-y-5">
+                        <div>
+                            <h4 class="<%= czHeadClass %>"><%= t('create_plugin.cz_nav_filters') %></h4>
+                            <p class="text-xs opacity-50 md:mt-1"><%= t('create_plugin.filters_hint') %></p>
+                        </div>
+                        <div id="czFiltersWrap">
+                            <div id="czFilters" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2"></div>
+                        </div>
+                    </section>
+
+                    <section data-cz-panel="fields" class="hidden space-y-5">
+                        <div>
+                            <h4 class="<%= czHeadClass %>"><%= t('create_plugin.cz_nav_fields') %></h4>
+                            <p class="text-xs opacity-50 md:mt-1"><%= t('create_plugin.extra_fields_hint') %></p>
+                        </div>
+                        <div id="czFields" class="space-y-2"></div>
+                        <button type="button" id="czAddFieldBtn"
+                            class="w-full border-2 border-dashed border-black/10 dark:border-white/10 rounded-xl py-3 text-sm font-bold opacity-70 hover:opacity-100 hover:border-primary-theme transition-all">
+                            <i class="fa-solid fa-plus"></i> <%= t('create_plugin.add_field') %>
+                        </button>
+                    </section>
+                </div>
+
+                <%# Comes first on narrow screens, above the scrolling subject, so what is being
+                    changed and its effect stay on screen together. %>
+                <aside id="czPreviewCol" class="order-first lg:order-last shrink-0 lg:w-72 p-3 lg:p-6 border-b lg:border-b-0 lg:border-l border-black/5 dark:border-white/10">
+                    <p class="hidden lg:block mb-3 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('create_plugin.preview_card') %></p>
+                    <div class="flex lg:block items-center gap-3">
+                        <div class="relative w-20 lg:w-full aspect-square rounded-xl bg-black/10 dark:bg-white/10 flex items-center justify-center overflow-hidden shrink-0">
+                            <i id="czPvIcon" class="fa-solid text-2xl lg:text-6xl opacity-30"></i>
+                            <span id="czPvBadge" class="hidden absolute top-1 right-1 lg:top-2 lg:right-2 text-[9px] lg:text-[11px] font-bold text-white px-1.5 py-0.5 rounded max-w-[90%] truncate"></span>
+                            <span id="czPvCorner" class="hidden absolute text-[9px] lg:text-[11px] font-bold text-white bg-black/60 px-1.5 py-0.5 rounded max-w-[60%] truncate"></span>
+                        </div>
+                        <div class="min-w-0 flex-1 lg:mt-3">
+                            <p class="font-bold text-sm truncate"><%= t('create_plugin.preview_sample_title') %></p>
+                            <div id="czPvLines" class="text-xs opacity-60 space-y-0.5 mt-0.5"></div>
+                        </div>
+                    </div>
+                </aside>
             </div>
         </div>
 
-        <div id="czTableColumnsWrap">
-            <label class="block mb-1 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('create_plugin.table_columns') %></label>
-            <p class="text-xs opacity-50 mb-2"><%= t('create_plugin.table_columns_hint') %></p>
-            <div id="czTableColumns" class="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-52 overflow-y-auto custom-scrollbar pr-1"></div>
-        </div>
-
-        <div id="czFiltersWrap">
-            <label class="block mb-1 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('create_plugin.filters') %></label>
-            <p class="text-xs opacity-50 mb-2"><%= t('create_plugin.filters_hint') %></p>
-            <div id="czFilters" class="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-52 overflow-y-auto custom-scrollbar pr-1"></div>
-        </div>
-
-        <div>
-            <label class="block mb-1 text-xs font-bold uppercase tracking-widest opacity-60"><%= t('create_plugin.extra_fields') %></label>
-            <p class="text-xs opacity-50 mb-2"><%= t('create_plugin.extra_fields_hint') %></p>
-            <div id="czFields" class="space-y-3"></div>
-            <button type="button" id="czAddFieldBtn"
-                class="mt-3 w-full border-2 border-dashed border-black/10 dark:border-white/10 rounded-xl py-2.5 text-xs font-bold opacity-60 hover:opacity-100 hover:border-primary-theme transition-all">
-                <i class="fa-solid fa-plus"></i> <%= t('create_plugin.add_field') %>
-            </button>
-        </div>
-
-        <div id="czError" class="hidden text-red-500 text-sm font-bold"></div>
-
-        <div class="flex items-center gap-3 pt-2">
-            <button type="button" onclick="saveCustomize(false)"
-                class="flex-1 text-white bg-primary-theme hover:brightness-110 font-bold rounded-xl px-5 py-3 transition-all">
-                <%= t('common.save') %>
-            </button>
+        <footer class="shrink-0 border-t border-black/5 dark:border-white/10 px-4 md:px-6 pt-3 flex flex-wrap items-center gap-3" style="padding-bottom: max(0.75rem, env(safe-area-inset-bottom))">
+            <div id="czError" class="hidden w-full text-red-500 text-sm font-bold"></div>
             <button type="button" onclick="saveCustomize(true)"
-                class="px-5 py-3 rounded-xl font-bold text-sm bg-black/5 dark:bg-white/5 hover:bg-red-500 hover:text-white transition-colors">
+                class="px-3 py-3 rounded-xl font-bold text-sm opacity-60 hover:opacity-100 hover:text-red-500 transition-all">
                 <%= t('create_plugin.reset') %>
             </button>
-        </div>
+            <span id="czDirty" class="hidden md:inline-flex invisible ml-auto items-center gap-2 text-xs font-bold opacity-70">
+                <i class="fa-solid fa-circle-exclamation text-primary-theme"></i><%= t('common.unsaved_changes') %>
+            </span>
+            <button type="button" onclick="saveCustomize(false)"
+                class="max-md:flex-1 md:min-w-44 text-white bg-primary-theme hover:brightness-110 font-bold rounded-xl px-6 py-3 transition-all">
+                <%= t('common.save') %>
+            </button>
+        </footer>
     </div>
 </div>
 
@@ -510,6 +616,13 @@
         defaultPh: t('create_plugin.field_default_ph'),
         defaultNone: t('create_plugin.field_default_none'),
         defaultChecked: t('create_plugin.field_default_checked'),
+        czSubtitle: t('create_plugin.customize'),
+        czNewField: t('create_plugin.cz_new_field'),
+        czRequired: t('create_plugin.field_required'),
+        czDeleteField: t('create_plugin.cz_delete_field'),
+        czDiscard: t('create_plugin.cz_discard_confirm'),
+        czReset: t('create_plugin.cz_reset_confirm'),
+        czTableTitle: t('create_plugin.cz_table_title'),
         deleteConfirm: t('create_plugin.delete_confirm'),
         saving: t('create_plugin.saving'),
         aiGenerating: t('create_plugin.ai_generating'),
@@ -1136,15 +1249,22 @@
             b.classList.toggle('bg-primary-theme', on);
             b.classList.toggle('text-white', on);
         });
+        czRefresh();
     }
 
     document.querySelectorAll('.cz-icon').forEach(btn => {
-        // Clicking the selected icon again clears the override (back to the plugin default)
+        // The first tile is the plugin's own icon, and clicking the selected one again
+        // comes back to it as well.
         btn.addEventListener('click', () => {
             czIcon = (czIcon === btn.dataset.icon) ? '' : btn.dataset.icon;
             czSyncIcons();
         });
     });
+
+    const CZ_TYPE_ICONS = {
+        text: 'fa-font', number: 'fa-hashtag', textarea: 'fa-align-left', select: 'fa-list',
+        boolean: 'fa-square-check', tags: 'fa-tags', date: 'fa-calendar', rows: 'fa-table-list'
+    };
 
     // Row builder for the modal's user-defined fields. Deliberately uses its own class
     // names: the plugin builder's collect() harvests '.field-row' document-wide and
@@ -1152,7 +1272,7 @@
     function czAddFieldRow(data) {
         data = data || {};
         const row = document.createElement('div');
-        row.className = 'cz-field-row bg-black/5 dark:bg-white/5 rounded-xl p-3 space-y-2';
+        row.className = 'cz-field-row bg-black/5 dark:bg-white/5 rounded-xl';
         // Existing fields keep their stored name so renaming a label never orphans
         // the values already saved under the old key.
         row.dataset.name = data.name || '';
@@ -1160,16 +1280,16 @@
         row.dataset.keepBeside = data.keepBeside || '';
 
         const top = document.createElement('div');
-        top.className = 'flex items-center gap-2';
+        top.className = 'flex flex-wrap items-center gap-2';
 
         const label = document.createElement('input');
         label.type = 'text'; label.maxLength = 40;
         label.placeholder = i18n.fieldLabelPh;
         label.value = data.label || '';
-        label.className = 'czf-label flex-1 bg-black/5 dark:bg-white/5 rounded-lg text-sm p-2.5 outline-none focus:ring-1 focus:ring-primary-theme';
+        label.className = 'czf-label w-full sm:w-auto sm:flex-1 bg-black/5 dark:bg-white/5 rounded-lg text-sm p-2.5 outline-none focus:ring-1 focus:ring-primary-theme';
 
         const type = document.createElement('select');
-        type.className = 'czf-type ' + SELECT_CLASSES;
+        type.className = 'czf-type max-sm:flex-1 ' + SELECT_CLASSES;
         Object.keys(i18n.fieldTypes).forEach(tp => {
             const o = document.createElement('option');
             o.value = tp; o.textContent = i18n.fieldTypes[tp];
@@ -1180,8 +1300,10 @@
 
         const del = document.createElement('button');
         del.type = 'button';
-        del.className = 'w-9 h-9 rounded-lg flex items-center justify-center opacity-40 hover:opacity-100 hover:text-red-500 transition-all shrink-0';
-        del.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+        del.className = 'w-11 h-11 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center opacity-50 hover:opacity-100 hover:text-red-500 transition-all shrink-0';
+        del.innerHTML = '<i class="fa-solid fa-trash text-sm"></i>';
+        del.title = i18n.czDeleteField;
+        del.setAttribute('aria-label', i18n.czDeleteField);
         // A field already saved may hold values: say how many before it goes. The values
         // themselves stay in the items until a later save confirms the removal.
         del.addEventListener('click', async () => {
@@ -1228,7 +1350,56 @@
         row._readDefault = fieldDefault.read;
 
         bottom.append(group, reqLabel, options, fieldDefault.el);
-        row.append(top, bottom);
+
+        // Folded to one line, so a long list of fields reads at a glance. A new field and
+        // one that needs a decision open on their own.
+        const head = document.createElement('button');
+        head.type = 'button';
+        head.className = 'w-full flex items-center gap-3 p-3 min-h-14 text-left';
+        const glyph = document.createElement('i');
+        glyph.className = 'w-5 text-center text-primary-theme shrink-0';
+        const names = document.createElement('span');
+        names.className = 'min-w-0 flex-1';
+        const headTitle = document.createElement('span');
+        headTitle.className = 'block font-bold text-sm truncate';
+        const headSub = document.createElement('span');
+        headSub.className = 'block text-xs opacity-50 truncate';
+        names.append(headTitle, headSub);
+        const chevron = document.createElement('i');
+        chevron.className = 'fa-solid fa-chevron-down text-xs opacity-40 transition-transform';
+        head.appendChild(glyph);
+        head.appendChild(names);
+        if (data.lookalike) {
+            const warn = document.createElement('i');
+            warn.className = 'fa-solid fa-triangle-exclamation text-yellow-600 text-xs';
+            head.appendChild(warn);
+        }
+        head.appendChild(chevron);
+
+        const body = document.createElement('div');
+        body.className = 'px-3 pb-3 space-y-2';
+        body.append(top, bottom);
+        row.append(head, body);
+
+        function setOpen(open) {
+            body.classList.toggle('hidden', !open);
+            chevron.classList.toggle('rotate-180', open);
+            head.setAttribute('aria-expanded', String(open));
+        }
+        head.addEventListener('click', () => setOpen(body.classList.contains('hidden')));
+        function syncHead() {
+            glyph.className = 'fa-solid ' + (CZ_TYPE_ICONS[type.value] || 'fa-font') + ' w-5 text-center text-primary-theme shrink-0';
+            headTitle.textContent = label.value.trim() || i18n.czNewField;
+            const fallback = fieldDefault.read();
+            const parts = [i18n.fieldTypes[type.value]];
+            if (req.checked) parts.push(i18n.czRequired);
+            if (fallback && fallback !== true) parts.push(fallback);
+            headSub.textContent = parts.join(' · ');
+        }
+        row.addEventListener('input', syncHead);
+        row.addEventListener('change', syncHead);
+        syncHead();
+        setOpen(!data.name || !!data.lookalike);
 
         function syncOptionsVisibility() {
             // A list takes its options, a repeating field its columns, in the same box.
@@ -1246,7 +1417,7 @@
             const icon = document.createElement('i');
             icon.className = 'fa-solid fa-triangle-exclamation mr-1';
             note.append(icon, document.createTextNode(i18n.lookalike.replace('__NATIVE__', data.lookalike)));
-            row.appendChild(note);
+            body.appendChild(note);
 
             // The two ways out (#151): move the values into the plugin's field, never over
             // a different one, or keep both on purpose so the field stops being reported.
@@ -1262,7 +1433,7 @@
             keep.className = actionClass + ' bg-black/5 dark:bg-white/10';
             keep.textContent = i18n.lookalikeKeep;
             actions.append(use, keep);
-            row.appendChild(actions);
+            body.appendChild(actions);
 
             const fieldUrl = () => baseUrl + '/create-plugin/customize/' + czPluginId + '/fields/' + encodeURIComponent(row.dataset.name);
             const postJson = async (url) => {
@@ -1301,9 +1472,16 @@
         }
 
         $('czFields').appendChild(row);
+        return row;
     }
 
-    $('czAddFieldBtn').addEventListener('click', () => czAddFieldRow());
+    $('czAddFieldBtn').addEventListener('click', () => {
+        const row = czAddFieldRow();
+        row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        row.querySelector('.czf-label').focus();
+    });
+
+    const CZ_TOGGLE_CLASSES = 'cz-toggle flex items-center gap-3 text-sm px-3 min-h-11 rounded-xl bg-black/5 dark:bg-white/5 cursor-pointer transition-colors';
 
     // ---- Card fields (selection only: the order is the plugin's own) -------------------
     const MAX_CARD_LINES = <%= maxCardLines %>;
@@ -1364,6 +1542,7 @@
         if (!cell) return;
         czCornerPos = cell.dataset.pos;
         czPaintCornerPos();
+        czRefresh();
     });
 
     function czRenderCardFields(data) {
@@ -1375,7 +1554,7 @@
         const selected = new Set(data.current.cardFields || data.cardFields || []);
         choices.forEach(choice => {
             const label = document.createElement('label');
-            label.className = 'flex items-center gap-2 text-sm px-2 py-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer transition-colors';
+            label.className = CZ_TOGGLE_CLASSES;
 
             const box = document.createElement('input');
             box.type = 'checkbox';
@@ -1403,7 +1582,7 @@
         const selected = new Set(data.tableColumns || []);
         choices.forEach(choice => {
             const label = document.createElement('label');
-            label.className = 'flex items-center gap-2 text-sm px-2 py-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer transition-colors';
+            label.className = CZ_TOGGLE_CLASSES;
 
             const box = document.createElement('input');
             box.type = 'checkbox';
@@ -1429,7 +1608,7 @@
 
         choices.forEach(choice => {
             const label = document.createElement('label');
-            label.className = 'flex items-center gap-2 text-sm px-2 py-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer transition-colors';
+            label.className = CZ_TOGGLE_CLASSES;
 
             const box = document.createElement('input');
             box.type = 'checkbox';
@@ -1471,80 +1650,260 @@
         wrap.innerHTML = '';
         $('czFormatsWrap').classList.toggle('hidden', data.formats.length === 0);
         $('czSortFormats').checked = !!(data.current && data.current.sortFormats);
-        data.formats.forEach(f => {
-            const row = document.createElement('div');
-            row.className = 'flex items-center gap-3';
+        czPreviewFormat = data.formats[0] ? data.formats[0].value : '';
+        data.formats.forEach(f => wrap.appendChild(czColorRow(f, (data.current.formatColors || {})[f.value] || '')));
 
-            const lab = document.createElement('span');
-            lab.className = 'flex-1 text-sm font-medium truncate';
-            lab.textContent = f.label;
-
-            const swatch = document.createElement('span');
-
-            const sel = document.createElement('select');
-            sel.className = 'cz-color ' + SELECT_CLASSES;
-            sel.dataset.format = f.value;
-            const none = document.createElement('option');
-            none.value = ''; none.textContent = czDefaultColor;
-            none.className = OPTION_CLASSES;
-            sel.appendChild(none);
-            palette.forEach(c => {
-                const o = document.createElement('option');
-                o.value = c; o.textContent = c;
-                o.className = OPTION_CLASSES;
-                if ((data.current.formatColors || {})[f.value] === c) o.selected = true;
-                sel.appendChild(o);
-            });
-            // Empty value means "keep the plugin's own color", shown as a neutral swatch
-            paintSwatch(swatch, sel.value);
-            sel.addEventListener('change', () => paintSwatch(swatch, sel.value));
-
-            row.append(lab, swatch, sel);
-            wrap.appendChild(row);
+        // A subject with nothing to set for this plugin is not offered.
+        const offered = {
+            look: true,
+            card: (data.cardFieldChoices || []).length > 0,
+            table: (data.cardFieldChoices || []).length > 0,
+            filters: (data.filterChoices || []).length > 0,
+            fields: true
+        };
+        document.querySelectorAll('[data-cz-nav]').forEach(btn => {
+            btn.classList.toggle('hidden', !offered[btn.dataset.czNav]);
         });
+
+        czSnapshot = JSON.stringify(czCollect());
+        czRefresh();
 
         const modal = $('customizeModal');
         modal.classList.remove('hidden');
         modal.classList.add('flex');
+        document.documentElement.classList.add('overflow-hidden');
+        history.pushState({ cz: 'home' }, '');
+        czDepth = 1;
+        czShow(czIsPhone() ? null : 'look');
     };
 
-    window.closeCustomize = function () {
+    // One format: its name and the palette as dots, the first standing for the plugin's
+    // own color. The chosen color travels in a hidden input read at save time.
+    function czColorRow(format, current) {
+        const row = document.createElement('div');
+        const name = document.createElement('p');
+        name.className = 'text-sm font-medium truncate mb-2';
+        name.textContent = format.label;
+        const dots = document.createElement('div');
+        dots.className = 'flex flex-wrap gap-2.5';
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.className = 'cz-color';
+        input.dataset.format = format.value;
+        input.value = current;
+
+        ['', ...palette].forEach(color => {
+            const dot = document.createElement('button');
+            dot.type = 'button';
+            dot.className = 'cz-dot w-8 h-8 rounded-full transition-shadow flex items-center justify-center '
+                + (color ? 'bg-' + color + '-500' : 'border border-dashed border-black/30 dark:border-white/30');
+            dot.title = color || czDefaultColor;
+            dot.setAttribute('aria-label', color || czDefaultColor);
+            dot.dataset.color = color;
+            if (!color) dot.innerHTML = '<i class="fa-solid fa-rotate-left text-[10px] opacity-60"></i>';
+            dot.setAttribute('aria-pressed', String(color === current));
+            dot.addEventListener('click', () => {
+                input.value = color;
+                dots.querySelectorAll('.cz-dot').forEach(d => d.setAttribute('aria-pressed', String(d === dot)));
+                czPreviewFormat = format.value;
+                czRefresh();
+            });
+            dots.appendChild(dot);
+        });
+        row.append(name, dots, input);
+        return row;
+    }
+
+    // ---- Moving around: the subject shown, and the phone's own back gesture ------------
+    const czPhoneQuery = window.matchMedia('(max-width: 767.98px)');
+    const czIsPhone = () => czPhoneQuery.matches;
+    let czSnapshot = '';
+    let czDepth = 0;
+    let czPreviewFormat = '';
+
+    // `section` empty is the phone's menu; a wide screen always has a subject open.
+    function czShow(section) {
+        const data = customizable.find(p => p.id === czPluginId);
+        if (!data) return;
+        $('czShell').dataset.view = section ? 'section' : 'home';
+        const open = section || 'look';
+        document.querySelectorAll('[data-cz-panel]').forEach(panel => {
+            panel.classList.toggle('hidden', panel.dataset.czPanel !== open);
+        });
+        let title = data.label;
+        document.querySelectorAll('[data-cz-nav]').forEach(btn => {
+            const active = btn.dataset.czNav === open;
+            btn.setAttribute('aria-current', String(active));
+            if (active && section && czIsPhone()) title = btn.dataset.czTitle;
+        });
+        $('czTitle').textContent = title;
+        $('czSubtitle').textContent = title === data.label ? i18n.czSubtitle : data.label;
+        // The card preview only answers the subjects that change the card.
+        $('czPreviewCol').classList.toggle('hidden', open !== 'look' && open !== 'card');
+        $('czPanels').scrollTop = 0;
+    }
+
+    document.querySelectorAll('[data-cz-nav]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            // On a phone a subject is a screen, so Back has to come out of it.
+            if (czIsPhone()) {
+                history.pushState({ cz: btn.dataset.czNav }, '');
+                czDepth = 2;
+            }
+            czShow(btn.dataset.czNav);
+        });
+    });
+    $('czBack').addEventListener('click', () => history.back());
+
+    function czDirty() {
+        return !!czPluginId && JSON.stringify(czCollect()) !== czSnapshot;
+    }
+
+    function czHide() {
         const modal = $('customizeModal');
         modal.classList.add('hidden');
         modal.classList.remove('flex');
+        document.documentElement.classList.remove('overflow-hidden');
         czPluginId = null;
+    }
+
+    window.closeCustomize = function () {
+        if (!czPluginId) return;
+        if (czDirty() && !confirm(i18n.czDiscard)) return;
+        czHide();
+        if (czDepth > 0) history.go(-czDepth);
+        czDepth = 0;
     };
+
+    window.addEventListener('popstate', event => {
+        if (!czPluginId) return;
+        const where = event.state && event.state.cz;
+        if (!where) {
+            // Back from the menu leaves the workshop, unless that would lose changes.
+            if (czDirty() && !confirm(i18n.czDiscard)) {
+                history.pushState({ cz: 'home' }, '');
+                czDepth = 1;
+                return;
+            }
+            czDepth = 0;
+            czHide();
+            return;
+        }
+        czDepth = where === 'home' ? 1 : 2;
+        czShow(where === 'home' ? (czIsPhone() ? null : 'look') : where);
+    });
+
+    // A reload after saving lands on the entries the workshop added: step back off them.
+    if (history.state && history.state.cz) history.go(history.state.cz === 'home' ? -1 : -2);
+
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && czPluginId) closeCustomize();
+    });
+
+    // Everything that follows from the current choices: menu counts, preview, unsaved note.
+    function czRefresh() {
+        const data = customizable.find(p => p.id === czPluginId);
+        if (!data) return;
+        const checked = selector => Array.from(document.querySelectorAll(selector)).filter(b => b.checked);
+        const cardBoxes = checked('.cz-card-field');
+        const columns = checked('.cz-table-column');
+        const rows = Array.from(document.querySelectorAll('.cz-field-row'));
+        const counts = {
+            card: cardBoxes.length + '/' + MAX_CARD_LINES,
+            table: String(columns.length),
+            filters: String(checked('.cz-filter').length),
+            fields: String(rows.length)
+        };
+        document.querySelectorAll('[data-cz-nav]').forEach(btn => {
+            btn.querySelector('[data-cz-count]').textContent = counts[btn.dataset.czNav] || '';
+        });
+        const warn = document.querySelector('[data-cz-nav="fields"] [data-cz-warn]');
+        warn.classList.toggle('hidden', Object.keys(data.lookalikes || {}).length === 0);
+        $('czCardCount').textContent = counts.card;
+
+        const labelOf = name => ((data.cardFieldChoices || []).find(c => c.name === name) || {}).label || name;
+        const icon = czIcon || ('fa-' + data.icon);
+        $('czHeadIconGlyph').className = 'fa-solid ' + icon;
+        $('czPvIcon').className = 'fa-solid ' + icon + ' text-2xl lg:text-6xl opacity-30';
+        $('czOwnIcon').className = 'fa-solid fa-' + data.icon;
+
+        const format = data.formats.find(f => f.value === czPreviewFormat);
+        const badge = $('czPvBadge');
+        badge.classList.toggle('hidden', !format);
+        if (format) {
+            const input = document.querySelector('.cz-color[data-format="' + CSS.escape(format.value) + '"]');
+            const color = input ? input.value : '';
+            badge.textContent = format.label;
+            badge.className = badge.className.replace(/\bbg-\S+/g, '').trim() + ' ' + (color ? 'bg-' + color + '-600' : 'bg-primary-theme');
+        }
+
+        const corner = $('czPvCorner');
+        const cornerField = $('czCornerField').value;
+        corner.classList.toggle('hidden', !cornerField);
+        corner.textContent = cornerField ? labelOf(cornerField) : '';
+        corner.style.top = czCornerPos === 'top-left' ? '0.25rem' : '';
+        corner.style.bottom = czCornerPos === 'top-left' ? '' : '0.25rem';
+        corner.style.left = czCornerPos === 'bottom-right' ? '' : '0.25rem';
+        corner.style.right = czCornerPos === 'bottom-right' ? '0.25rem' : '';
+
+        const lines = $('czPvLines');
+        lines.innerHTML = '';
+        cardBoxes.forEach(box => {
+            const line = document.createElement('p');
+            line.className = 'truncate';
+            line.textContent = labelOf(box.value);
+            lines.appendChild(line);
+        });
+
+        const table = $('czTablePreview');
+        table.innerHTML = '';
+        [i18n.czTableTitle, ...columns.map(box => labelOf(box.value))].forEach(text => {
+            const cell = document.createElement('span');
+            cell.className = 'card-theme px-3 py-2 whitespace-nowrap first:rounded-l-xl last:rounded-r-xl flex-1';
+            cell.textContent = text;
+            table.appendChild(cell);
+        });
+
+        $('czDirty').classList.toggle('invisible', !czDirty());
+    }
+
+    $('customizeModal').addEventListener('input', czRefresh);
+    $('customizeModal').addEventListener('change', czRefresh);
+    new MutationObserver(czRefresh).observe($('czFields'), { childList: true });
+
+    // What the workshop currently says, as the save route takes it.
+    function czCollect() {
+        const body = { icon: czIcon, formatColors: {}, sortFormats: $('czSortFormats').checked, cornerField: $('czCornerField').value, cornerPosition: czCornerPos };
+        document.querySelectorAll('.cz-color').forEach(input => {
+            if (input.value) body.formatColors[input.dataset.format] = input.value;
+        });
+        // Always sent, so unchecking everything is honoured as "title only" instead
+        // of falling back to the plugin's own fields
+        body.cardFields = Array.from(document.querySelectorAll('.cz-card-field'))
+            .filter(b => b.checked).map(b => b.value);
+        body.tableColumns = Array.from(document.querySelectorAll('.cz-table-column'))
+            .filter(b => b.checked).map(b => b.value);
+        body.filters = Array.from(document.querySelectorAll('.cz-filter'))
+            .filter(b => b.checked).map(b => b.value);
+        body.extraFields = Array.from(document.querySelectorAll('.cz-field-row')).map(r => ({
+            name: r.dataset.name || undefined,
+            keepBeside: r.dataset.keepBeside || undefined,
+            label: r.querySelector('.czf-label').value.trim(),
+            type: r.querySelector('.czf-type').value,
+            group: r.querySelector('.czf-group').value,
+            required: r.querySelector('.czf-required').checked,
+            options: r.querySelector('.czf-options').value.split(',').map(s => s.trim()).filter(Boolean),
+            default: r._readDefault ? r._readDefault() : undefined
+        })).filter(f => f.label);
+        return body;
+    }
 
     window.saveCustomize = async function (reset) {
         if (!czPluginId) return;
-        const body = { icon: '', formatColors: {}, sortFormats: false, cornerField: '', cornerPosition: '' };
-        if (!reset) {
-            body.icon = czIcon;
-            document.querySelectorAll('.cz-color').forEach(sel => {
-                if (sel.value) body.formatColors[sel.dataset.format] = sel.value;
-            });
-            body.sortFormats = $('czSortFormats').checked;
-            body.cornerField = $('czCornerField').value;
-            body.cornerPosition = czCornerPos;
-            // Always sent, so unchecking everything is honoured as "title only" instead
-            // of falling back to the plugin's own fields
-            body.cardFields = Array.from(document.querySelectorAll('.cz-card-field'))
-                .filter(b => b.checked).map(b => b.value);
-            body.tableColumns = Array.from(document.querySelectorAll('.cz-table-column'))
-                .filter(b => b.checked).map(b => b.value);
-            body.filters = Array.from(document.querySelectorAll('.cz-filter'))
-                .filter(b => b.checked).map(b => b.value);
-            body.extraFields = Array.from(document.querySelectorAll('.cz-field-row')).map(r => ({
-                name: r.dataset.name || undefined,
-                keepBeside: r.dataset.keepBeside || undefined,
-                label: r.querySelector('.czf-label').value.trim(),
-                type: r.querySelector('.czf-type').value,
-                group: r.querySelector('.czf-group').value,
-                required: r.querySelector('.czf-required').checked,
-                options: r.querySelector('.czf-options').value.split(',').map(s => s.trim()).filter(Boolean),
-                default: r._readDefault ? r._readDefault() : undefined
-            })).filter(f => f.label);
-        }
+        if (reset && !confirm(i18n.czReset)) return;
+        const body = reset
+            ? { icon: '', formatColors: {}, sortFormats: false, cornerField: '', cornerPosition: '' }
+            : czCollect();
         // "Reset" only clears the cosmetics: omitting extraFields leaves the declared
         // fields alone, so a misclick cannot make saved values unreachable.
         try {
