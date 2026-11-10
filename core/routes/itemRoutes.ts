@@ -494,6 +494,18 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
     pluginKindFilter(plugin)
   );
 
+  // Edit form of another item of the active collection, by its id, or '' when there is
+  // no such item or no plugin left to edit it with.
+  const nextEditPath = async (id: any, res: any): Promise<string> => {
+    if (typeof id !== 'string' || !isId(id)) return '';
+    const next = await db.items.findOne(and(eq('_id', id), eq('collection', idOf(res.locals.activeCollectionId))));
+    // An item from before kinds existed belongs to the plugin that claims those.
+    const nextPlugin = next
+      ? registry.getAll().find(p => (next.kind ? p.kind === next.kind : p.matchesLegacyItems))
+      : undefined;
+    return next && nextPlugin ? `${nextPlugin.routePrefix}/edit/${next._id}` : '';
+  };
+
   // Genres already used in the collection, offered by the item forms.
   const genresInUse = (collectionId: any) => db.items.distinct('genre', and(
     eq('collection', idOf(collectionId)),
@@ -973,7 +985,10 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       const returnTo = safeReturnPath(req.body.return_to, req.get('host'));
       if (isEdit && existingItem) {
         const origin = returnTo ? `?from=${encodeURIComponent(returnTo)}` : '';
-        res.redirect(`${plugin.routePrefix}/${existingItem._id}${origin}`);
+        // "Save and next": on to the edit form of the item after this one in the list it
+        // was opened from, whatever its type. Only an item of the same collection.
+        const nextPath = await nextEditPath(req.body.next_id, res);
+        res.redirect(`${nextPath || `${plugin.routePrefix}/${existingItem._id}`}${origin}`);
       } else if (isWishlist) {
         res.redirect('/wishlist');
       } else if (afterAdd) {

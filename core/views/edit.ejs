@@ -153,10 +153,18 @@
 
                     <input type="hidden" name="in_wishlist" value="<%= item.in_wishlist %>">
                     <input type="hidden" name="mongo_id" value="<%= item._id %>">
+                    <input type="hidden" name="next_id" id="saveNextId" value="">
 
-                    <button type="submit" class="w-full text-white bg-primary-theme hover:brightness-110 font-bold rounded-xl text-lg px-5 py-4 transition-transform hover:scale-[1.01] flex items-center justify-center gap-2 shadow-lg shadow-primary-theme/20">
-                        <i class="fa-solid fa-save"></i> <%= t('common.save_changes') %>
-                    </button>
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <button type="submit" class="flex-1 text-white bg-primary-theme hover:brightness-110 font-bold rounded-xl text-lg px-5 py-4 transition-transform hover:scale-[1.01] flex items-center justify-center gap-2 shadow-lg shadow-primary-theme/20">
+                            <i class="fa-solid fa-save"></i> <%= t('common.save_changes') %>
+                        </button>
+                        <%# Shown by the script below when the item was opened from a list
+                            that has another item after it. %>
+                        <button type="button" id="saveNextBtn" class="hidden sm:w-auto font-bold rounded-xl text-lg px-5 py-4 bg-black/5 dark:bg-white/10 hover:bg-primary-theme hover:text-white transition-all flex items-center justify-center gap-2">
+                            <%= t('common.save_and_next') %> <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                    </div>
                 </form>
             </div>
         </div>
@@ -164,5 +172,59 @@
 </div>
 
 <%- include('partials/item-images-js', { plugin }) %>
+
+<%- include('../../views/partials/browse-order') %>
+<script>
+    // "Save and next": goes on to the edit form of the item after this one in the list it
+    // was opened from (remembered by views/partials/shelf-scroll-restore.ejs), reading
+    // the list's next page when this item was the last of its page.
+    (function () {
+        var btn = document.getElementById('saveNextBtn');
+        var form = btn && btn.closest('form');
+        if (!form) return;
+        var currentId = <%- JSON.stringify(String(item._id)) %>;
+        var order;
+        try { order = JSON.parse(sessionStorage.getItem('browseOrder') || 'null'); } catch (e) { order = null; }
+        if (!order || !Array.isArray(order.items)) return;
+        var index = order.items.findIndex(function (i) { return i.id === currentId; });
+        if (index < 0) return;
+        var next = order.items[index + 1] || null;
+        if (!next && !(order.page < order.pages)) return;
+        btn.classList.remove('hidden');
+
+        async function nextPageFirst() {
+            var url = new URL(order.url, location.origin);
+            url.searchParams.set('page', String(order.page + 1));
+            var path = url.pathname + url.search;
+            var res = await fetch(path, { headers: { 'X-Requested-With': 'fetch', 'Accept': 'application/json' } });
+            var data = await res.json();
+            if (!data || !data.success) return null;
+            // Parsed inert: only the item links are wanted, not the page's images.
+            var holder = new DOMParser().parseFromString(data.html, 'text/html');
+            var items = window.browseOrderItems(holder);
+            if (!items.length) return null;
+            // The next item's back arrow then returns to the page it is on.
+            var returnTo = form.querySelector('input[name="return_to"]');
+            if (returnTo && returnTo.value) returnTo.value = path;
+            try {
+                sessionStorage.setItem('browseOrder', JSON.stringify({
+                    url: path, page: order.page + 1, pages: order.pages, items: items
+                }));
+            } catch (e) {}
+            return items[0];
+        }
+
+        btn.addEventListener('click', async function () {
+            if (!form.reportValidity()) return;
+            btn.disabled = true;
+            try {
+                if (!next) next = await nextPageFirst();
+            } catch (e) { next = null; }
+            document.getElementById('saveNextId').value = next ? next.id : '';
+            form.requestSubmit();
+            btn.disabled = false;
+        });
+    })();
+</script>
 
 <%- include('../../views/partials/footer') %>

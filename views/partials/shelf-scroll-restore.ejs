@@ -7,6 +7,7 @@
     the item, the item is centered instead.
     Generic over the active view: anything under #shelfResults that carries a
     data-item-id (grid card, table row, shelf spine) and leads to the item counts. %>
+<%- include('browse-order') %>
 <script>
 (function () {
     var KEY = 'shelfReturn';
@@ -31,7 +32,23 @@
                 id: item.getAttribute('data-item-id') || ''
             }));
         } catch (err) {}
+        rememberOrder();
     });
+
+    // The items of the list in the order it shows them, kept for the item's edit page to
+    // go on to the next one (core/views/edit.ejs). Kept apart from the scroll record,
+    // which is read once: this one has to last while the user edits item after item.
+    function rememberOrder() {
+        var pager = shelfResults.querySelector('[data-browse-pages]');
+        try {
+            sessionStorage.setItem('browseOrder', JSON.stringify({
+                url: currentListUrl(),
+                page: pager ? parseInt(pager.getAttribute('data-browse-page'), 10) || 1 : 1,
+                pages: pager ? parseInt(pager.getAttribute('data-browse-pages'), 10) || 1 : 1,
+                items: window.browseOrderItems(shelfResults)
+            }));
+        } catch (err) {}
+    }
 
     function restore() {
         var saved;
