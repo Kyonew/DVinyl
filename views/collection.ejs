@@ -440,6 +440,7 @@
     <% } %>
 
     <script src="<%= baseUrl %>/socket.io/socket.io.js"></script>
+    <%- include('partials/import-follow') %>
     <script>
     <% if (locals.canEditCollection) { %>
         // Bulk label printing: select mode toggles a checkbox overlay on every card
@@ -747,22 +748,27 @@
             if (icon) icon.classList.add('fa-spin');
             if (btn) btn.disabled = true;
 
-            socket.once('import_finished', () => window.location.reload());
-            socket.once('import_error', (data) => {
-                alert("Erreur : " + data.message);
+            const fail = (message) => {
+                alert(<%- JSON.stringify(t('admin.modal.import_error')) %> + '\n' + message);
                 if (icon) icon.classList.remove('fa-spin');
                 if (btn) btn.disabled = false;
-            });
+            };
 
             const isWishlist = window.location.pathname.includes('wishlist');
             fetch(`${jsBaseUrl}/import/${action.importerId}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ full: false, type: isWishlist ? 'wishlist' : 'collection' })
-            }).catch(() => {
-                if (icon) icon.classList.remove('fa-spin');
-                if (btn) btn.disabled = false;
-            });
+            }).then(async res => {
+                const d = await res.json().catch(() => ({}));
+                if (!res.ok) return fail(d.error || res.statusText);
+                window.followImport({
+                    jobId: d.jobId,
+                    socket,
+                    onFinished: () => window.location.reload(),
+                    onError: fail
+                });
+            }).catch(err => fail(err.message));
         }
     <% } %>
 

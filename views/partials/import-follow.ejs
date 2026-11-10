@@ -1,0 +1,91 @@
+<script>
+    /**
+     * Follows one bulk import to its end, for every screen that starts one.
+     *
+     * The socket events are the quick path, but a page cannot count on receiving them:
+     * one missed while the socket reconnects and the import would look stuck forever.
+     * So the server keeps the state of the import, and this asks for it on a timer, when
+     * the socket comes back and when the tab is shown again. Whichever answers first wins,
+     * and the end is reported once.
+     *
+     * followImport({ jobId, socket, onProgress(current, total), onFinished(result), onError(message) })
+     * returns a function that stops following.
+     */
+    if (!window.followImport) {
+        window.followImport = (function () {
+            const statusUrl = '<%= baseUrl %>/import/status';
+            const interrupted = <%- JSON.stringify(t('admin.modal.import_interrupted')) %>;
+            const POLL_MS = 4000;
+
+            return function followImport(options) {
+                const jobId = options.jobId || null;
+                const socket = options.socket || null;
+                let done = false;
+                let timer = null;
+
+                const mine = (data) => !jobId || !data || !data.jobId || data.jobId === jobId;
+
+                function stop() {
+                    done = true;
+                    if (timer) clearInterval(timer);
+                    document.removeEventListener('visibilitychange', onVisible);
+                    if (socket) {
+                        socket.off('import_progress', onProgress);
+                        socket.off('import_finished', onFinished);
+                        socket.off('import_error', onError);
+                        socket.off('connect', poll);
+                    }
+                }
+
+                function onProgress(data) {
+                    if (done || !mine(data)) return;
+                    if (options.onProgress) options.onProgress(data.current || 0, data.total || 0);
+                }
+                function onFinished(data) {
+                    if (done || !mine(data)) return;
+                    stop();
+                    if (options.onFinished) options.onFinished(data || {});
+                }
+                function onError(data) {
+                    if (done || !mine(data)) return;
+                    stop();
+                    if (options.onError) options.onError((data && data.message) || interrupted);
+                }
+
+                async function poll() {
+                    if (done) return;
+                    try {
+                        const res = await fetch(statusUrl, { cache: 'no-store', credentials: 'same-origin' });
+                        if (!res.ok || done) return;
+                        const { job } = await res.json();
+                        // Nothing on record for an import the server accepted: the server
+                        // restarted under it, and it will never finish.
+                        if (!job || (jobId && job.id !== jobId)) {
+                            if (jobId) onError({ message: interrupted });
+                            return;
+                        }
+                        if (job.status === 'running') onProgress({ current: job.current, total: job.total });
+                        else if (job.status === 'finished') onFinished(job.result || {});
+                        else onError({ message: job.error || interrupted });
+                    } catch (e) { /* offline for a moment: the next tick asks again */ }
+                }
+
+                function onVisible() {
+                    if (document.visibilityState === 'visible') poll();
+                }
+
+                if (socket) {
+                    socket.on('import_progress', onProgress);
+                    socket.on('import_finished', onFinished);
+                    socket.on('import_error', onError);
+                    socket.on('connect', poll);
+                }
+                document.addEventListener('visibilitychange', onVisible);
+                timer = setInterval(poll, POLL_MS);
+                poll();
+
+                return stop;
+            };
+        })();
+    }
+</script>

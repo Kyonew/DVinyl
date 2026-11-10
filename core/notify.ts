@@ -48,7 +48,8 @@ export const NOTIFICATIONS_PAGE_SIZE = 100;
 
 let sockets: any = null;
 
-const roomOf = (userId: any) => `user:${idOf(userId)}`;
+/** The socket room every signed-in page of an account joins, see attachNotificationSockets(). */
+export const roomOf = (userId: any) => `user:${idOf(userId)}`;
 
 function cookieValue(header: string | undefined, name: string): string | null {
   for (const part of String(header || '').split(';')) {

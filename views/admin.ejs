@@ -3,6 +3,7 @@
     <!-- Loaded up here, not at the bottom of the page: the partials included below open
          their own socket as they are parsed, so `io` has to exist before they run. -->
     <script src="<%= baseUrl %>/socket.io/socket.io.js"></script>
+    <%- include('partials/import-follow') %>
 
     <div class="max-w-screen-xl mx-auto px-4 max-sm:px-0 pb-20 space-y-10">
 

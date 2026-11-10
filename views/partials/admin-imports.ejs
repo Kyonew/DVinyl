@@ -132,43 +132,11 @@
         let activeImport = null; // { id, btn, original }
         let importSocket = null;
 
-        /**
-         * Opens the progress socket on first use. Lazy on purpose: this partial can be
-         * included anywhere in a page, and without the events the import silently runs
-         * to completion with the button stuck on "started" forever.
-         */
+        /** The progress socket, opened on first use. followImport() also asks the server, so it is only the quick path. */
         function ensureImportSocket() {
             if (importSocket) return importSocket;
-            if (typeof io === 'undefined') {
-                console.error('[import] socket.io client missing: no progress will be reported.');
-                return null;
-            }
+            if (typeof io === 'undefined') return null;
             importSocket = io({ path: '<%= baseUrl %>/socket.io' });
-
-            importSocket.on('import_progress', (data) => {
-                if (!activeImport) return;
-                const suffix = data.total ? (data.current + ' / ' + data.total) : ('' + data.current);
-                activeImport.btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> ' + suffix;
-            });
-            importSocket.on('import_finished', (data) => {
-                if (!activeImport) return;
-                // An enriched re-run of an already imported file adds nothing but completes
-                // what is there, so that count has to be reported too.
-                let message = data.count + ' ' + importTranslations.done;
-                if (data.updated) message += '\n' + data.updated + ' ' + importTranslations.updated;
-                if (data.failed) message += '\n' + data.failed + ' ' + importTranslations.failed;
-                alert(message);
-                window.location.reload();
-            });
-            importSocket.on('import_error', (data) => {
-                if (!activeImport) return;
-                const errBox = document.getElementById('importErr_' + activeImport.id);
-                if (errBox) { errBox.querySelector('[data-err-text]').innerText = data.message; errBox.classList.remove('hidden'); }
-                activeImport.btn.disabled = false;
-                activeImport.btn.innerHTML = activeImport.original;
-                activeImport = null;
-            });
-
             return importSocket;
         }
 
@@ -209,24 +177,38 @@
             btn.innerHTML = importTranslations.loading;
             activeImport = { id: importerId, btn, original };
 
-            // Wait for the socket to be up before starting: a short import can finish
-            // before a connection opened at click time is ready to receive its events.
-            const socket = ensureImportSocket();
-            if (socket && !socket.connected) {
-                await new Promise(resolve => {
-                    socket.once('connect', resolve);
-                    setTimeout(resolve, 3000);
-                });
-            }
-
             try {
                 const res = await fetch('<%= baseUrl %>/import/' + importerId, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(body)
                 });
-                if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Error'); }
+                const d = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(d.error || 'Error');
                 btn.innerHTML = importTranslations.started;
+                window.followImport({
+                    jobId: d.jobId,
+                    socket: ensureImportSocket(),
+                    onProgress(current, total) {
+                        btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> ' + (total ? current + ' / ' + total : current);
+                    },
+                    onFinished(data) {
+                        // An enriched re-run of an already imported file adds nothing but completes
+                        // what is there, so that count has to be reported too.
+                        let message = data.count + ' ' + importTranslations.done;
+                        if (data.updated) message += '\n' + data.updated + ' ' + importTranslations.updated;
+                        if (data.failed) message += '\n' + data.failed + ' ' + importTranslations.failed;
+                        alert(message);
+                        window.location.reload();
+                    },
+                    onError(message) {
+                        errBox.querySelector('[data-err-text]').innerText = message;
+                        errBox.classList.remove('hidden');
+                        btn.disabled = false;
+                        btn.innerHTML = original;
+                        activeImport = null;
+                    }
+                });
             } catch (err) {
                 errBox.querySelector('[data-err-text]').innerText = err.message;
                 errBox.classList.remove('hidden');

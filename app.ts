@@ -73,6 +73,7 @@ import accountRoute from './core/routes/accountRoute.js';
 import manualAddRoute from './core/routes/manualAddRoute.js';
 import csvImportRoute from './core/routes/csvImportRoute.js';
 import aiImportRoute from './core/routes/aiImportRoute.js';
+import importStatusRoute from './core/routes/importStatusRoute.js';
 import { METADATA_LANGUAGES } from './core/metadataLanguage';
 import { articlesFromSetting } from './core/sortArticles';
 
@@ -402,6 +403,7 @@ app.use(BASE_URL, manualAddRoute);
 // Before the plugin dispatcher, which also serves /import/:id routes
 app.use(BASE_URL, csvImportRoute);
 app.use(BASE_URL, aiImportRoute);
+app.use(BASE_URL, importStatusRoute);
 
 // Plugin routers live behind a runtime dispatcher (not mounted directly on `app`)
 // so custom plugins created via /create-plugin are reachable without a restart.

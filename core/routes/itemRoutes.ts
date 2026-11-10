@@ -36,6 +36,7 @@ import { EXTRA_FORMATS_FIELD, parseExtraFormats } from '../extraFormats';
 import { contentsOf, itemHref } from '../insideItems';
 import { copyItemImagesSoon } from '../imageDownload';
 import { registry } from '../registry';
+import { trackImport } from '../importJobs';
 
 /**
  * Names what was just saved in the path an add comes back to, so the add page can say so.
@@ -476,7 +477,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
     const middlewares = importer.requireAdmin
       ? [requireAuth, requireCollectionRole('admin')]
       : [requireAuth, requireCollectionRole('editor')];
-    router.post(`/import/${importer.id}`, ...middlewares, (req: any, res: any) => importer.handler(req, res));
+    router.post(`/import/${importer.id}`, ...middlewares, trackImport, (req: any, res: any) => importer.handler(req, res));
   }
 
   /**

@@ -77,5 +77,11 @@ export async function extractRows(
     maxTokens: 8192,
     ...options
   });
-  return validateRows(extractJsonArray(result.text), fields);
+  const rows = validateRows(extractJsonArray(result.text), fields);
+  // An empty answer is worth seeing in the logs: it is either a model that found nothing,
+  // or one that replied in a shape no parser could read (prose, a cut-off array).
+  if (rows.length === 0) {
+    console.warn('[AI] Extraction gave no usable row. Reply began with:', JSON.stringify(String(result.text || '').slice(0, 300)));
+  }
+  return rows;
 }

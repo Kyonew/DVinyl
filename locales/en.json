@@ -406,6 +406,8 @@
       "import_full": "Complete Import",
       "import_warning": "The complete import retrieves tracks but takes longer (API limits).",
       "import_started": "Import started...",
+      "import_already_running": "An import is already running in this collection. Wait for it to finish before starting another one.",
+      "import_interrupted": "The import stopped before it finished, maybe because the server restarted. Check your collection before trying again.",
       "batch_barcode": {
         "title": "Batch Barcode Import",
         "subtitle": "Update barcodes in batch. Format: ID_DISCOGS:BARCODE (one per line). Items will be automatically locked.",
@@ -798,6 +800,7 @@
     "err_no_input": "Enter something to import first.",
     "err_input_too_long": "That is too long. Import at most {{max}} characters at a time.",
     "err_no_rows": "No rows to import.",
+    "err_nothing_found": "The AI found nothing to import in that. Try again, or put one title per line.",
     "err_extract_failed": "The AI could not read that: {{error}}",
     "err_card_not_recognized": "Couldn't recognise that card. Try a clearer, well-lit photo, or search by name instead.",
     "import_title": "Import with AI",

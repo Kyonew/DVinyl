@@ -391,6 +391,8 @@
       "import_full": "Importation Complète",
       "import_warning": "L'import complet récupère les pistes mais prend plus de temps (limites API).",
       "import_started": "Démarrage...",
+      "import_already_running": "Un import est déjà en cours dans cette collection. Attendez qu'il se termine avant d'en lancer un autre.",
+      "import_interrupted": "L'import s'est arrêté avant la fin, peut-être parce que le serveur a redémarré. Vérifiez votre collection avant de réessayer.",
       "batch_barcode": {
         "title": "Importation de codes-barres",
         "subtitle": "Mettez à jour les codes-barres en lot. Format : ID_DISCOGS:CODE_BARRES (un par ligne). Les items seront automatiquement verrouillés.",
@@ -798,6 +800,7 @@
     "err_no_input": "Saisissez d'abord quelque chose à importer.",
     "err_input_too_long": "C'est trop long. Importez au maximum {{max}} caractères à la fois.",
     "err_no_rows": "Aucune ligne à importer.",
+    "err_nothing_found": "L'IA n'a rien trouvé à importer. Réessayez, ou mettez un titre par ligne.",
     "err_extract_failed": "L'IA n'a pas pu lire cela : {{error}}",
     "err_card_not_recognized": "Cette carte n'a pas pu être reconnue. Essayez une photo plus nette et mieux éclairée, ou cherchez par nom.",
     "import_title": "Importer avec l'IA",

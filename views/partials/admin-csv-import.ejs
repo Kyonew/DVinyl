@@ -443,46 +443,26 @@
             return mapping;
         }
 
-        /**
-         * Opens the progress socket on first use. The events are broadcast to every
-         * connected client, so the handlers stay silent unless this modal is the one
-         * that started an import.
-         */
+        /** The progress socket, opened once. followImport() also asks the server, so it is only the quick path. */
         function ensureSocket() {
             if (socket) return socket;
-            if (typeof io === 'undefined') {
-                console.error('[csv-import] socket.io client missing: no progress will be reported.');
-                return null;
-            }
+            if (typeof io === 'undefined') return null;
             socket = io({ path: '<%= baseUrl %>/socket.io' });
-
-            socket.on('import_progress', (data) => {
-                if (!running) return;
-                const suffix = data.total ? (data.current + ' / ' + data.total) : ('' + data.current);
-                el('csvImportBtn').innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> ' + suffix;
-            });
-            socket.on('import_finished', (data) => {
-                if (!running) return;
-                let message = data.count + ' ' + T.done;
-                if (data.updated) message += '\n' + data.updated + ' ' + T.updated;
-                if (data.failed) message += '\n' + data.failed + ' ' + T.failed;
-                // Said out loud: these look imported but have no cover and no metadata,
-                // and the refresh tools cannot fill them in afterwards.
-                if (data.unenriched) message += '\n' + data.unenriched + ' ' + T.unenriched;
-                // Reload once the toast is actually dismissed (click, or its own 5s
-                // timeout) rather than the instant it appears - same order the old
-                // blocking alert() gave for free by pausing until "OK" was clicked.
-                if (window.showToast) window.showToast(message, { onDismiss: () => window.location.reload() });
-                else { alert(message); window.location.reload(); }
-            });
-            socket.on('import_error', (data) => {
-                if (!running) return;
-                showError(data.message);
-                running = false;
-                resetImportButton();
-            });
-
             return socket;
+        }
+
+        function reportFinished(data) {
+            let message = data.count + ' ' + T.done;
+            if (data.updated) message += '\n' + data.updated + ' ' + T.updated;
+            if (data.failed) message += '\n' + data.failed + ' ' + T.failed;
+            // Said out loud: these look imported but have no cover and no metadata,
+            // and the refresh tools cannot fill them in afterwards.
+            if (data.unenriched) message += '\n' + data.unenriched + ' ' + T.unenriched;
+            // Reload once the toast is actually dismissed (click, or its own 5s
+            // timeout) rather than the instant it appears - same order the old
+            // blocking alert() gave for free by pausing until "OK" was clicked.
+            if (window.showToast) window.showToast(message, { onDismiss: () => window.location.reload() });
+            else { alert(message); window.location.reload(); }
         }
 
         function resetImportButton() {
@@ -506,16 +486,6 @@
             btn.innerHTML = T.loading;
             running = true;
 
-            // Wait for the socket to be up before starting: a short import can finish
-            // before a connection opened at click time is ready to receive its events.
-            const sock = ensureSocket();
-            if (sock && !sock.connected) {
-                await new Promise(resolve => {
-                    sock.once('connect', resolve);
-                    setTimeout(resolve, 3000);
-                });
-            }
-
             try {
                 const res = await fetch('<%= baseUrl %>/import/csv', {
                     method: 'POST',
@@ -530,8 +500,22 @@
                         mapping
                     })
                 });
-                if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Error'); }
+                const d = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(d.error || 'Error');
                 btn.innerHTML = T.started;
+                window.followImport({
+                    jobId: d.jobId,
+                    socket: ensureSocket(),
+                    onProgress(current, total) {
+                        btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> ' + (total ? current + ' / ' + total : current);
+                    },
+                    onFinished: reportFinished,
+                    onError(message) {
+                        showError(message);
+                        running = false;
+                        resetImportButton();
+                    }
+                });
             } catch (err) {
                 showError(err.message);
                 running = false;
