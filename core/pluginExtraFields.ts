@@ -2,6 +2,7 @@ import { PluginDefinition, FieldDefinition } from './types';
 import { blank, contains, eq, filled, Filter, isIn, ne, range, Sort } from './db/filter';
 import { CustomFieldConfig } from './customPlugin';
 import { MAX_COLUMNS } from './rowsField';
+import { sanitizeFieldDefault } from './fieldDefaults';
 import { RESERVED_FIELD_NAMES, FIELD_NAME_RE, FIELD_TYPES, cleanText, slugify } from './customPluginStore';
 import {
   createExtraFieldKey,
@@ -133,6 +134,7 @@ export function toFieldDefinitions(defs: ExtraFieldConfig[]): FieldDefinition[] 
       extraField: true
     };
     if (f.placeholder) field.placeholder = f.placeholder;
+    if (f.default !== undefined) field.default = f.default;
     if (f.type === 'rows') field.columns = (f.options || []).map(o => ({ name: o.value, label: o.label }));
     if (f.type === 'select') {
       // An optional dropdown leads with a blank entry, otherwise a <select> selects its
@@ -430,6 +432,9 @@ export function sanitizeExtraFields(
       if (options.length === 0) { errors.push(type === 'rows' ? 'create_plugin.err_rows_needs_columns' : 'create_plugin.err_select_needs_options'); continue; }
       field.options = options.filter((o, i) => options.findIndex(x => x.value === o.value) === i);
     }
+
+    const fieldDefault = sanitizeFieldDefault(type, item?.default, field.options);
+    if (fieldDefault !== undefined) field.default = fieldDefault;
 
     fields.push(field);
   }

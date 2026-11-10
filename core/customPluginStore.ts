@@ -1,4 +1,5 @@
 import { MAX_COLUMNS } from './rowsField';
+import { sanitizeFieldDefault } from './fieldDefaults';
 import fs from 'fs';
 import path from 'path';
 import { PLUGINS_DIR } from './loadPlugins';
@@ -201,6 +202,8 @@ export function buildConfigFromSubmission(body: any, existing?: CustomPluginConf
       // Two columns named alike would share one key and overwrite each other.
       field.options = options.filter((o, i) => options.findIndex(x => x.value === o.value) === i);
     }
+    const fieldDefault = sanitizeFieldDefault(type, raw?.default, field.options);
+    if (fieldDefault !== undefined) field.default = fieldDefault;
     fields.push(field);
   }
 

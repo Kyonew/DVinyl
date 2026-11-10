@@ -132,7 +132,9 @@ export function createCustomPlugin(config: CustomPluginConfig): PluginDefinition
   for (const f of customFields) {
     storedFields[f.name] =
       f.type === 'number' ? { type: 'number' }
-        : f.type === 'boolean' ? { type: 'boolean', default: !!f.default }
+        // A field's default is what a new item's form starts on, never what an item saved
+        // before it was set reads as: those were saved unticked.
+        : f.type === 'boolean' ? { type: 'boolean', default: false }
           : f.type === 'tags' ? { type: 'texts', default: [] }
             : f.type === 'date' ? { type: 'date' }
               : f.type === 'rows' ? {

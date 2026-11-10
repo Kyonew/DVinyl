@@ -507,6 +507,9 @@
         formatPh: t('create_plugin.format_name_ph'),
         optionsPh: t('create_plugin.field_options_ph'),
         columnsPh: t('create_plugin.field_columns_ph'),
+        defaultPh: t('create_plugin.field_default_ph'),
+        defaultNone: t('create_plugin.field_default_none'),
+        defaultChecked: t('create_plugin.field_default_checked'),
         deleteConfirm: t('create_plugin.delete_confirm'),
         saving: t('create_plugin.saving'),
         aiGenerating: t('create_plugin.ai_generating'),
@@ -773,6 +776,79 @@
         $('formatRows').appendChild(row);
     }
 
+    // ---- Default value of a field, shared by both field editors -------------------
+    // One control per kind of field: a box for what is typed, a choice among the field's
+    // own options for a list, a tick for a checkbox, nothing for repeating rows. Follows
+    // the type and the options as the admin changes them. read() gives what to send.
+    function buildDefaultControl(data, type, options) {
+        const wrap = document.createElement('div');
+        wrap.className = 'flex items-center gap-2 w-full';
+        const inputClass = 'flex-1 min-w-[180px] bg-black/5 dark:bg-white/5 rounded-lg text-xs p-2 outline-none focus:ring-1 focus:ring-primary-theme';
+
+        const text = document.createElement('input');
+        text.className = inputClass;
+        text.placeholder = i18n.defaultPh;
+        const choice = document.createElement('select');
+        choice.className = SELECT_CLASSES.replace('text-sm p-2.5', 'text-xs p-2') + ' flex-1';
+        const tickLabel = document.createElement('label');
+        tickLabel.className = 'flex items-center gap-2 text-xs cursor-pointer opacity-70';
+        const tick = document.createElement('input');
+        tick.type = 'checkbox';
+        tick.className = 'w-3.5 h-3.5';
+        tickLabel.append(tick, document.createTextNode(i18n.defaultChecked));
+        wrap.append(text, choice, tickLabel);
+
+        // A list's default is stored as its option key, shown here by its label.
+        const initial = data.default;
+        if (data.type === 'boolean') tick.checked = initial === true;
+        else if (data.type === 'select') {
+            const opt = (data.options || []).find(o => o.value === initial);
+            choice.dataset.wanted = opt ? opt.label : '';
+        } else if (Array.isArray(initial)) text.value = initial.join(', ');
+        else if (initial !== undefined && initial !== null) text.value = String(initial);
+
+        function optionLabels() {
+            return options.value.split(',').map(s => s.trim()).filter(Boolean);
+        }
+        function fillChoice() {
+            const wanted = choice.value || choice.dataset.wanted || '';
+            choice.innerHTML = '';
+            [''].concat(optionLabels()).forEach(label => {
+                const o = document.createElement('option');
+                o.value = label;
+                o.textContent = label || i18n.defaultNone;
+                o.className = OPTION_CLASSES;
+                if (label === wanted) o.selected = true;
+                choice.appendChild(o);
+            });
+            choice.dataset.wanted = '';
+        }
+        function sync() {
+            const tp = type.value;
+            text.classList.toggle('hidden', tp === 'select' || tp === 'boolean' || tp === 'rows');
+            choice.classList.toggle('hidden', tp !== 'select');
+            tickLabel.classList.toggle('hidden', tp !== 'boolean');
+            wrap.classList.toggle('hidden', tp === 'rows');
+            text.type = tp === 'number' ? 'number' : tp === 'date' ? 'date' : 'text';
+            if (tp === 'number') text.step = 'any';
+            if (tp === 'select') fillChoice();
+        }
+        type.addEventListener('change', sync);
+        options.addEventListener('input', () => { if (type.value === 'select') fillChoice(); });
+        sync();
+
+        return {
+            el: wrap,
+            read() {
+                const tp = type.value;
+                if (tp === 'boolean') return tick.checked;
+                if (tp === 'select') return choice.value;
+                if (tp === 'rows') return '';
+                return text.value.trim();
+            }
+        };
+    }
+
     // ---- Dynamic rows: custom fields --------------------------------------------
     function addFieldRow(data) {
         data = data || {};
@@ -838,7 +914,10 @@
         options.className = 'fld-options flex-1 min-w-[180px] bg-black/5 dark:bg-white/5 rounded-lg text-xs p-2 outline-none focus:ring-1 focus:ring-primary-theme';
         options.addEventListener('input', renderPreview);
 
-        bottom.append(group, reqLabel, options);
+        const fieldDefault = buildDefaultControl(data, type, options);
+        row._readDefault = fieldDefault.read;
+
+        bottom.append(group, reqLabel, options, fieldDefault.el);
         row.append(top, bottom);
 
         function syncOptionsVisibility() {
@@ -873,6 +952,7 @@
             group: r.querySelector('.fld-group').value,
             required: r.querySelector('.fld-required').checked,
             options: r.querySelector('.fld-options').value.split(',').map(s => s.trim()).filter(Boolean),
+            default: r._readDefault ? r._readDefault() : undefined,
         })).filter(f => f.label);
 
         const payload = {
@@ -1144,7 +1224,10 @@
         options.value = Array.isArray(data.options) ? data.options.map(o => o.label).join(', ') : '';
         options.className = 'czf-options flex-1 min-w-[180px] bg-black/5 dark:bg-white/5 rounded-lg text-xs p-2 outline-none focus:ring-1 focus:ring-primary-theme';
 
-        bottom.append(group, reqLabel, options);
+        const fieldDefault = buildDefaultControl(data, type, options);
+        row._readDefault = fieldDefault.read;
+
+        bottom.append(group, reqLabel, options, fieldDefault.el);
         row.append(top, bottom);
 
         function syncOptionsVisibility() {
@@ -1458,7 +1541,8 @@
                 type: r.querySelector('.czf-type').value,
                 group: r.querySelector('.czf-group').value,
                 required: r.querySelector('.czf-required').checked,
-                options: r.querySelector('.czf-options').value.split(',').map(s => s.trim()).filter(Boolean)
+                options: r.querySelector('.czf-options').value.split(',').map(s => s.trim()).filter(Boolean),
+                default: r._readDefault ? r._readDefault() : undefined
             })).filter(f => f.label);
         }
         // "Reset" only clears the cosmetics: omitting extraFields leaves the declared

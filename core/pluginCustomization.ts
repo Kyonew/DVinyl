@@ -1,6 +1,7 @@
 import { registry } from './registry';
 import { PluginDefinition } from './types';
 import { getExtraFields, toFieldDefinitions } from './pluginExtraFields';
+import { withFieldDefaults } from './fieldDefaults';
 
 /**
  * Per-collection overrides for plugins (native and custom alike):
@@ -120,6 +121,11 @@ export function applyPluginCustomization(res: any): void {
     if (locals && typeof locals === 'object') {
       for (const key of ['plugin', 'selectedPlugin'] as const) {
         if (locals[key]) locals[key] = decorate(locals[key]);
+      }
+      // Both forms only ever add a new item: the fields added to the plugin start on their
+      // default, read from the decorated plugin since that is where they are declared.
+      if ((view === 'confirm' || view === 'manual-add') && locals.item && locals.plugin) {
+        locals.item = withFieldDefaults(locals.plugin.formFields || [], locals.item);
       }
       if (Array.isArray(locals.enabledPlugins)) {
         locals.enabledPlugins = locals.enabledPlugins.map((p: PluginDefinition) => decorate(p));
