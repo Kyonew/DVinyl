@@ -30,6 +30,8 @@ export type ExtraFieldConfig = CustomFieldConfig & {
   keyVersion?: number;
   /** The plugin's own field this one looks like, which the admin chose to keep it beside. */
   keepBeside?: string;
+  /** Which field of an outside source this one was created from, so an import finds it again whatever it was renamed to. */
+  importKey?: string;
 };
 
 export const MAX_EXTRA_FIELDS_PER_PLUGIN = 15;
@@ -416,6 +418,9 @@ export function sanitizeExtraFields(
 
     const placeholder = cleanText(item?.placeholder, 60);
     if (placeholder) field.placeholder = placeholder;
+
+    // Set by the import that created the field, never by what a form submits.
+    if (previous?.importKey) field.importKey = previous.importKey;
 
     // Only ever one of the plugin's own fields: what the admin agreed to keep it beside.
     const keepBeside = cleanText(item?.keepBeside, 60);

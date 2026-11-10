@@ -56,6 +56,8 @@
     "manual_entry": "No aparece en Discogs? Agregar manualmente"
   },
   "admin": {
+    "discogs_fields_unreadable": "No se pudieron leer tus campos personalizados de Discogs, así que no se importaron. Vuelve a lanzar la importación.",
+    "discogs_fields_left_out": "Estos campos de Discogs se omitieron, ya que un tipo admite como máximo 15 campos añadidos: {{fields}}",
     "add_user_btn": "Agregar usuario",
     "advanced_cd": "Habilitar formatos específicos (SACD, CDr)",
     "advanced_cd_description": "Busque y muestre formatos SACD y CDr específicos en Discogs",
@@ -846,6 +848,7 @@
     "edition_placeholder": "Ej: salpicadura azul",
     "field_artist": "Artista",
     "field_comments": "Notas / Comentarios",
+    "field_rating": "Valoración personal (sobre 5)",
     "field_edition": "Color / Edición",
     "field_format": "Formato",
     "field_genres": "Géneros",

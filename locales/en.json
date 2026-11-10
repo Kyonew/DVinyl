@@ -333,6 +333,8 @@
     "filter_format_hint": "Any Discogs format name. It replaces the format picked above."
   },
   "admin": {
+    "discogs_fields_unreadable": "Your Discogs custom fields could not be read, so they were not imported. Run the import again to retry.",
+    "discogs_fields_left_out": "These Discogs fields were left out, as a type can have 15 added fields at most: {{fields}}",
     "title": "Administration",
     "visibility": {
       "title": "Visibility Settings",
@@ -966,6 +968,7 @@
     "search_hint": "Click the magnifying glass to search.",
     "add_secondary_visual": "Add secondary visual (Disc/Mockup)",
     "field_comments": "Notes / Comments",
+    "field_rating": "Personal rating (out of 5)",
     "comments_hint": "(Visible on album details page)",
     "comments_placeholder": "Ex: Original 1986 pressing, bought at flea market...",
     "btn_wishlist": "Wishlist",

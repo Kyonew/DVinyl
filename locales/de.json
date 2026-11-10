@@ -56,6 +56,8 @@
     "manual_entry": "Nicht auf Discogs? Manuell hinzufügen"
   },
   "admin": {
+    "discogs_fields_unreadable": "Deine benutzerdefinierten Discogs-Felder konnten nicht gelesen werden und wurden daher nicht importiert. Starte den Import erneut.",
+    "discogs_fields_left_out": "Diese Discogs-Felder wurden ausgelassen, da ein Typ höchstens 15 zusätzliche Felder haben kann: {{fields}}",
     "add_user_btn": "Benutzer hinzufügen",
     "advanced_cd": "Aktivieren Sie bestimmte Formate (SACD, CDr)",
     "advanced_cd_description": "Suchen und zeigen Sie bestimmte SACD- und CDr-Formate auf Discogs an",
@@ -846,6 +848,7 @@
     "edition_placeholder": "Beispiel: Blue Splatter",
     "field_artist": "Künstler",
     "field_comments": "Notizen / Kommentare",
+    "field_rating": "Persönliche Bewertung (von 5)",
     "field_edition": "Farbe / Auflage",
     "field_format": "Format",
     "field_genres": "Genres",

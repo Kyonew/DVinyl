@@ -13,7 +13,7 @@
 const NEVER_KEPT = new Set([
   '_id', '__v', 'kind', 'owner', 'collection', 'parent', 'inside', 'image_origins', 'image_download_failed', 'quantity', 'added_at', 'created_at', 'updated_at',
   'modified_at', 'modified_by', 'synced_at', 'in_wishlist', 'comments', 'location', 'barcode_locked',
-  'sort_title', 'source', 'source_id', 'kept_fields', 'source_values', 'images', 'user_image', 'extra',
+  'sort_title', 'source', 'source_id', 'kept_fields', 'import_filled', 'source_values', 'images', 'user_image', 'extra',
   'purchase_price', 'purchase_currency'
 ]);
 

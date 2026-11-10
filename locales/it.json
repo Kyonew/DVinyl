@@ -56,6 +56,8 @@
     "manual_entry": "Non su Discogs? Aggiungi manualmente"
   },
   "admin": {
+    "discogs_fields_unreadable": "Non è stato possibile leggere i tuoi campi personalizzati Discogs, quindi non sono stati importati. Riavvia l'importazione.",
+    "discogs_fields_left_out": "Questi campi Discogs sono stati esclusi, perché un tipo può avere al massimo 15 campi aggiunti: {{fields}}",
     "add_user_btn": "Aggiungi utente",
     "advanced_cd": "Abilita formati specifici (SACD, CDr)",
     "advanced_cd_description": "Cerca e visualizza formati SACD e CDr specifici su Discogs",
@@ -846,6 +848,7 @@
     "edition_placeholder": "Esempio: Splatter blu",
     "field_artist": "Artista",
     "field_comments": "Note/Commenti",
+    "field_rating": "Voto personale (su 5)",
     "field_edition": "Colore/Edizione",
     "field_format": "Formato",
     "field_genres": "Generi",

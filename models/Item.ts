@@ -84,6 +84,8 @@ const itemSchema = new mongoose.Schema({
   // the source said about them on the last refresh, offered back by the edit form. See
   // core/keptFields.ts.
   kept_fields: { type: [String], default: undefined },
+  // Paths an import already filled in, so a value emptied since is not brought back.
+  import_filled: { type: [String], default: undefined },
   source_values: { type: mongoose.Schema.Types.Mixed, default: undefined },
   added_at: { type: Date, default: Date.now },
 

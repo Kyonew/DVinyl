@@ -12,6 +12,8 @@ import { and, ci, eq, idOf, ne } from '../../core/db/query';
 import { physicalFromDiscogs } from './formatDetails';
 import { STANDARD_FORMAT_TERMS } from './constants';
 import { cleanName } from './pressing';
+import { getExtraFields } from '../../core/pluginExtraFields';
+import { DiscogsFieldMapper, addedDate, asNewItemFields, missingValues, ratingValues } from './discogsFields';
 
 // DISCOGS COLLECTION/WISHLIST IMPORT ROUTE
 async function importDiscogs(req: any, res: any) {
@@ -47,6 +49,26 @@ async function importDiscogs(req: any, res: any) {
     const apiUrl = isWishlist ? `https://api.discogs.com/users/${username}/wants` : `https://api.discogs.com/users/${username}/collection/folders/0/releases`;
     const listKey = isWishlist ? 'wants' : 'releases';
 
+    // The fields filled in on each record. A wantlist has none. Not being able to read
+    // them costs the extra values and is said at the end, but not the import itself.
+    let fieldMapper: DiscogsFieldMapper | null = null;
+    let fieldsUnreadable = false;
+    let totalUpdated = 0;
+    const musicPlugin = registry.get('music');
+    const settingsFilter = eq('collection', idOf(activeCollectionId));
+    if (!isWishlist && musicPlugin) {
+      try {
+        const definitions = await fetchJson(`https://api.discogs.com/users/${username}/collection/fields`, {
+          headers: { 'Authorization': `Discogs token=${token}`, 'User-Agent': 'DVinylApp/1.0' }
+        });
+        const settings = await db.settings.findOne(settingsFilter);
+        fieldMapper = new DiscogsFieldMapper(musicPlugin, getExtraFields(settings, 'music'), definitions.fields || []);
+      } catch (e: any) {
+        console.warn(`[music] Discogs custom fields not read: ${e.message}`);
+        fieldsUnreadable = true;
+      }
+    }
+
     while (hasMore) {
       const params = new URLSearchParams({ page: page.toString(), per_page: '50' });
       const data = await fetchJson(`${apiUrl}?${params}`, {
@@ -62,6 +84,10 @@ async function importDiscogs(req: any, res: any) {
 
       for (const item of listItems) {
         const info = item.basic_information;
+        const customValues = isWishlist ? {} : {
+          ...(fieldMapper ? fieldMapper.valuesFor(item.notes) : {}),
+          ...ratingValues(item.rating)
+        };
         // Scoped to the list being imported: a release owned in the collection must not
         // cancel its wantlist entry, exactly as Discogs keeps the two lists apart.
         // Items predating the in_wishlist field count as owned.
@@ -72,6 +98,12 @@ async function importDiscogs(req: any, res: any) {
         ), { defaults: true });
 
         if (existing) {
+          const toFill = missingValues(existing, customValues);
+          if (Object.keys(toFill).length > 0) {
+            await db.items.updateOne(eq('_id', idOf(existing._id)), { set: { ...toFill, ...syncStamp() } }, { allowUndeclared: true });
+            totalUpdated++;
+          }
+
           if (full === true && (!existing.tracklist || existing.tracklist.length === 0)) {
             try {
               console.log(`🔄 Updating tracklist for existing album ID ${info.id}`);
@@ -151,17 +183,25 @@ async function importDiscogs(req: any, res: any) {
           discogs_id: info.id,
           owner: userId,
           collection: activeCollectionId,
-          added_at: new Date(),
+          // Only ever on a new item: an album already here keeps the date it has.
+          added_at: isWishlist ? new Date() : addedDate(item.date_added),
           location: '',
           genre: info.genres?.[0] || '',
           genres: info.genres || [],
           styles: info.styles || [],
           in_wishlist: isWishlist,
-          kind: 'Music'
+          kind: 'Music',
+          ...asNewItemFields(customValues)
         });
 
         totalProcessed++;
         req.io.emit('import_progress', { current: totalProcessed, total: pagination.items });
+      }
+
+      // Declared before the items that use them are written.
+      if (fieldMapper?.changed) {
+        await db.settings.updateOne(settingsFilter, { set: { 'pluginExtraFields.music': fieldMapper.defs } });
+        fieldMapper.changed = false;
       }
 
       if (albumsToInsert.length > 0) {
@@ -173,7 +213,11 @@ async function importDiscogs(req: any, res: any) {
       else page++;
     }
 
-    req.io.emit('import_finished', { count: totalImported });
+    const leftOut = fieldMapper ? [...fieldMapper.leftOut] : [];
+    const notice = fieldsUnreadable
+      ? req.t('admin.discogs_fields_unreadable')
+      : leftOut.length > 0 ? req.t('admin.discogs_fields_left_out', { fields: leftOut.join(', ') }) : '';
+    req.io.emit('import_finished', { count: totalImported, updated: totalUpdated, ...(notice ? { notice } : {}) });
   } catch (err: any) {
     req.io.emit('import_error', { message: err.message });
   }

@@ -172,6 +172,8 @@ export const musicPlugin: PluginDefinition = {
     // What is known about how this pressing was made, apart from the owner's own notes.
     pressing_notes: { type: 'text', default: '' },
     sleeve_condition: { type: 'text', default: '' },
+    // Out of 5. No default: an album nobody rated has no rating, rather than a 0.
+    user_rating: { type: 'number', min: 0, max: 5 },
     discogs_id: { type: 'number' },
     country: { type: 'text', default: '' },
     // Base Item fields, redeclared like the other native plugins do: the collection page
@@ -402,6 +404,14 @@ export const musicPlugin: PluginDefinition = {
       ],
       showIn: ['edit', 'confirm', 'manual'],
       group: 'metadata'
+    },
+    {
+      name: 'user_rating',
+      label: 'confirm_vinyl.field_rating',
+      type: 'number',
+      showIn: ['edit', 'confirm', 'detail', 'manual'],
+      group: 'metadata',
+      placeholder: '0 - 5'
     },
     {
       name: 'genres',

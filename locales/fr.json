@@ -333,6 +333,8 @@
     "filter_format_hint": "N'importe quel nom de format Discogs. Il remplace le format choisi au-dessus."
   },
   "admin": {
+    "discogs_fields_unreadable": "Vos champs personnalisés Discogs n'ont pas pu être lus et n'ont donc pas été importés. Relancez l'import pour réessayer.",
+    "discogs_fields_left_out": "Ces champs Discogs n'ont pas été repris, car un type peut avoir au plus 15 champs ajoutés : {{fields}}",
     "title": "Administration",
     "modules": "Modules",
     "add_user_btn": "Ajouter un utilisateur",
@@ -966,6 +968,7 @@
     "search_hint": "Clique sur la loupe pour chercher.",
     "add_secondary_visual": "Ajouter un visuel secondaire (Disque/Mockup)",
     "field_comments": "Notes / Commentaires",
+    "field_rating": "Note personnelle (sur 5)",
     "comments_hint": "(Visible sur la fiche de l'album)",
     "comments_placeholder": "Ex: Pressage original de 1986, acheté aux Puces...",
     "btn_wishlist": "Wishlist",

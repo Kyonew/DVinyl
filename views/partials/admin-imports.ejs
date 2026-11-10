@@ -198,6 +198,7 @@
                         let message = data.count + ' ' + importTranslations.done;
                         if (data.updated) message += '\n' + data.updated + ' ' + importTranslations.updated;
                         if (data.failed) message += '\n' + data.failed + ' ' + importTranslations.failed;
+                        if (data.notice) message += '\n\n' + data.notice;
                         alert(message);
                         window.location.reload();
                     },
