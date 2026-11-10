@@ -34,6 +34,8 @@
   <Config Name="JWT Password" Target="PASSJWT" Default="" Mode="" Description="Secret used to sign session tokens. Required: DVinyl refuses to start while this is empty or left at a published placeholder. Generate one with: openssl rand -hex 32" Type="Variable" Display="always" Required="true" Mask="true"></Config>
   <Config Name="Session Secret" Target="SESSION_SECRET" Default="" Mode="" Description="Secret used to encrypt sessions. Must differ from the JWT password. Required: DVinyl refuses to start while this is empty or left at a published placeholder. Generate one with: openssl rand -hex 32" Type="Variable" Display="always" Required="true" Mask="true"></Config>
   
+  <Config Name="Setup Token" Target="SETUP_TOKEN" Default="" Mode="" Description="Optional. Asked on the first-run setup page, to create the admin account or restore a backup, so nobody else can claim a fresh instance before you. Generate one with: openssl rand -hex 16" Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+  
   <Config Name="HTTPS Production Mode" Target="PROD" Default="false" Mode="" Description="Change to true ONLY if you use HTTPS via a reverse proxy." Type="Variable" Display="advanced" Required="false" Mask="false">false</Config>
   <Config Name="Vinyl Port Variable" Target="VINYL_PORT" Default="3099" Mode="" Description="Internal port variable required by the app." Type="Variable" Display="always" Required="true" Mask="false">3099</Config>
   <Config Name="Base URL" Target="BASE_URL" Default="" Mode="" Description="Base URL for serving on a sub-path, leave empty to serve from root." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>

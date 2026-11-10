@@ -5,6 +5,7 @@ import { generateUniqueSlug } from '../utils/collectionHelpers';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { normalizeLanguage } from '../config/constants';
+import { setupTokenAccepted, setupTokenRequired } from '../core/setupToken';
 
 const router = express.Router();
 
@@ -25,7 +26,7 @@ const createToken = (id: any) => {
 router.get('/', async (req, res) => {
     const count = await db.users.count(all());
     if (count > 0) return res.redirect('/login'); // safety: only allow setup when DB empty
-    res.render('setup', { error: null });
+    res.render('setup', { error: null, setupTokenRequired: setupTokenRequired() });
 });
 
 // POST /setup - create initial admin user and issue a JWT
@@ -36,8 +37,13 @@ router.post('/', async (req, res) => {
     try {
         const { username, email, password, language } = req.body;
 
+        if (!setupTokenAccepted(req.body.setup_token)) {
+            console.warn(`[SECURITY] setup refused, wrong setup token: ${req.ip}`);
+            return res.status(403).render('setup', { error: req.t('setup.err_bad_token'), setupTokenRequired: true });
+        }
+
         if (!username || !email || !password) {
-            return res.render('setup', { error: req.t('errors.setup_error') });
+            return res.render('setup', { error: req.t('errors.setup_error'), setupTokenRequired: setupTokenRequired() });
         }
 
         // Backdate lastChange so the freshly issued JWT's second-granularity iat
@@ -85,7 +91,7 @@ router.post('/', async (req, res) => {
         res.redirect('/');
     } catch (err) {
         console.error(err);
-        res.render('setup', { error: req.t('errors.setup_error') });
+        res.render('setup', { error: req.t('errors.setup_error'), setupTokenRequired: setupTokenRequired() });
     }
 });
 

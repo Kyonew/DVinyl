@@ -31,6 +31,7 @@ import { jsonStream, StreamedDocument } from '../core/jsonStream';
 import { buildInstanceBackup } from '../core/instanceBackup';
 import { BASE_URL } from '../config/constants';
 import { ambienceImages } from '../core/ambience';
+import { setupTokenAccepted } from '../core/setupToken';
 
 const router = express.Router();
 const backupArchiveUpload = multer({
@@ -41,7 +42,14 @@ const backupArchiveUpload = multer({
 const requireInstanceImportAccess = async (req: any, res: any, next: any) => {
     try {
         const userCount = await db.users.count(all());
-        if (userCount === 0 || res.locals.user?.isAdmin) return next();
+        if (res.locals.user?.isAdmin) return next();
+        if (userCount === 0) {
+            // A restore on an empty instance creates its accounts, so it is held to the
+            // same token as the setup form. Sent as a header: the body is the backup.
+            if (setupTokenAccepted(req.get('x-setup-token'))) return next();
+            console.warn(`[SECURITY] restore refused, wrong setup token: ${req.ip}`);
+            return res.status(403).json({ error: 'Wrong setup token.', userMessage: req.t('setup.err_bad_token') });
+        }
         console.warn(`[SECURITY] import unauthorized : ${req.ip}`);
         return res.status(403).json({ error: 'Import unauthorized.' });
     } catch (err) {

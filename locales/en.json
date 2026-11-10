@@ -1130,7 +1130,11 @@
     "confirm_placeholder": "Repeat password",
     "submit_btn": "Complete Installation",
     "restore_backup": "Restore from backup",
-    "error_save_file": "Error: Backup file corrupted or invalid."
+    "error_save_file": "Error: Backup file corrupted or invalid.",
+    "token_label": "Setup token",
+    "token_hint": "This instance asks for the SETUP_TOKEN set by whoever installed it, to create the admin account or restore a backup.",
+    "err_bad_token": "Wrong setup token. Use the SETUP_TOKEN value set for this instance.",
+    "restoring": "Restoring..."
   },
   "auth": {
     "username_required": "Please enter a username",

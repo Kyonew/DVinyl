@@ -1420,7 +1420,11 @@
     "title": "DVinyl-Setup",
     "username_label": "Benutzername",
     "username_placeholder": "Beispiel: Darki",
-    "welcome_to": "Willkommen bei"
+    "welcome_to": "Willkommen bei",
+    "token_label": "Einrichtungstoken",
+    "token_hint": "Diese Instanz verlangt das SETUP_TOKEN, das bei der Installation festgelegt wurde, um das Admin-Konto anzulegen oder ein Backup wiederherzustellen.",
+    "err_bad_token": "Falsches Einrichtungstoken. Verwenden Sie den für diese Instanz festgelegten SETUP_TOKEN-Wert.",
+    "restoring": "Wird wiederhergestellt..."
   },
   "stats": {
     "albums_unit": "Alben",

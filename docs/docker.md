@@ -43,6 +43,8 @@ services:
       - PROD=false
       - PASSJWT=<openssl rand -hex 32>
       - SESSION_SECRET=<a different openssl rand -hex 32>
+      # Optional: asked on the first-run setup page, see .env.example
+      # - SETUP_TOKEN=<openssl rand -hex 16>
       - DISCOGS_TOKEN=<something>
     ports:
       - '<external_port>:80'

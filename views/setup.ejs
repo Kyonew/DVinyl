@@ -129,6 +129,21 @@
 
             <form action="<%= baseUrl %>/setup" method="POST" class="space-y-5 relative z-10" id="setupForm">
                 <input type="hidden" name="language" value="<%= currentLng %>">
+
+                <% if (locals.setupTokenRequired) { %>
+                <div class="group/field">
+                    <label class="block text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2 ml-1"><%= t('setup.token_label') %></label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-neutral-500 group-focus-within/field:text-green-500 transition-colors">
+                            <i class="fa-solid fa-key"></i>
+                        </div>
+                        <input type="password" name="setup_token" id="setupToken" required autocomplete="off"
+                            class="w-full pl-11 pr-4 py-3.5 bg-neutral-950/50 border border-neutral-700 rounded-xl focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none text-white placeholder-neutral-600 transition-all hover:bg-neutral-950/80"
+                            placeholder="SETUP_TOKEN">
+                    </div>
+                    <p class="text-xs text-neutral-500 mt-2 ml-1"><%= t('setup.token_hint') %></p>
+                </div>
+                <% } %>
                 
                 <div class="group/field">
                     <label class="block text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2 ml-1"><%= t('setup.username_label') %></label>
@@ -321,19 +336,23 @@
                     errorBox.classList.add('hidden');
                     const btn = document.querySelector('button[type="submit"]');
                     btn.disabled = true;
-                    btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> Restauration...';
+                    btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> ' + <%- JSON.stringify(t('setup.restoring')) %>;
+
+                    // The restore creates the accounts, so it carries the same token as the form.
+                    const tokenInput = document.getElementById('setupToken');
+                    const tokenHeaders = tokenInput ? { 'X-Setup-Token': tokenInput.value } : {};
 
                     const isArchive = file.name.toLowerCase().endsWith('.zip');
                     let response;
                     if (isArchive) {
                         const formData = new FormData();
                         formData.append('backup', file);
-                        response = await fetch('<%= baseUrl %>/backup/import-archive', { method: 'POST', body: formData });
+                        response = await fetch('<%= baseUrl %>/backup/import-archive', { method: 'POST', headers: tokenHeaders, body: formData });
                     } else {
                         const backupData = JSON.parse(await file.text());
                         response = await fetch('<%= baseUrl %>/backup/import', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: { 'Content-Type': 'application/json', ...tokenHeaders },
                             body: JSON.stringify(backupData)
                         });
                     }
@@ -349,6 +368,8 @@
                 } catch (err) {
                     errorText.innerText = (err && err.userMessage) || <%- JSON.stringify(t('setup.error_save_file')) %>;
                     errorBox.classList.remove('hidden');
+                    // Lets the same file be picked again once the token is corrected.
+                    backupInput.value = '';
                     const btn = document.querySelector('button[type="submit"]');
                     btn.disabled = false;
                     btn.innerHTML = '<span class="relative z-10 flex items-center justify-center gap-2"><%= t("setup.submit_btn") %><i class="fa-solid fa-rocket"></i></span>';

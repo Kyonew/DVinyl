@@ -1420,7 +1420,11 @@
     "title": "Configuración de vinilo",
     "username_label": "Nombre de usuario",
     "username_placeholder": "Ej: Darki",
-    "welcome_to": "Bienvenido a"
+    "welcome_to": "Bienvenido a",
+    "token_label": "Token de instalación",
+    "token_hint": "Esta instancia pide el SETUP_TOKEN definido por quien la instaló, para crear la cuenta de administrador o restaurar una copia de seguridad.",
+    "err_bad_token": "Token de instalación incorrecto. Use el valor SETUP_TOKEN definido para esta instancia.",
+    "restoring": "Restaurando..."
   },
   "stats": {
     "albums_unit": "álbumes",

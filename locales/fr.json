@@ -1130,7 +1130,11 @@
     "confirm_placeholder": "Répétez le mot de passe",
     "submit_btn": "Terminer l'installation",
     "restore_backup": "Restaurer depuis une sauvegarde",
-    "error_save_file": "Erreur : Fichier de sauvegarde corrompu ou invalide."
+    "error_save_file": "Erreur : Fichier de sauvegarde corrompu ou invalide.",
+    "token_label": "Jeton d'installation",
+    "token_hint": "Cette instance demande le SETUP_TOKEN défini par la personne qui l'a installée, pour créer le compte admin ou restaurer une sauvegarde.",
+    "err_bad_token": "Jeton d'installation incorrect. Utilisez la valeur SETUP_TOKEN définie pour cette instance.",
+    "restoring": "Restauration..."
   },
   "auth": {
     "username_required": "Veuillez entrer un nom d'utilisateur",

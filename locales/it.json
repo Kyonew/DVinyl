@@ -1420,7 +1420,11 @@
     "title": "Configurazione DVinile",
     "username_label": "Nome utente",
     "username_placeholder": "Esempio: Darki",
-    "welcome_to": "Benvenuto a"
+    "welcome_to": "Benvenuto a",
+    "token_label": "Token di installazione",
+    "token_hint": "Questa istanza richiede il SETUP_TOKEN impostato da chi l'ha installata, per creare l'account amministratore o ripristinare un backup.",
+    "err_bad_token": "Token di installazione errato. Usa il valore SETUP_TOKEN impostato per questa istanza.",
+    "restoring": "Ripristino..."
   },
   "stats": {
     "albums_unit": "album",
