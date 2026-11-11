@@ -497,6 +497,19 @@
       "hint": "Spesso è un campo che il plugin ha ricevuto con un aggiornamento. Se contengono la stessa cosa, conviene tenere quello integrato; puoi anche tenerli entrambi.",
       "review": "Controlla",
       "later": "Più tardi"
+    },
+    "invites": {
+      "title": "Link di invito",
+      "hint": "Un link permette a qualcuno di creare il proprio account e unirsi a questa collezione con il ruolo scelto. Funziona una sola volta, fino alla scadenza.",
+      "validity": "Valido",
+      "days_one": "Valido {{count}} giorno",
+      "days_other": "Valido {{count}} giorni",
+      "create_btn": "Crea un link",
+      "empty": "Nessun link di invito in attesa.",
+      "expires": "Scade il {{date}}",
+      "copy_btn": "Copia il link",
+      "delete_btn": "Elimina il link",
+      "confirm_delete": "Eliminare questo link di invito? Chi lo ha non potrà più unirsi."
     }
   },
   "ai": {
@@ -1240,7 +1253,10 @@
     "error_email_taken": "Esiste già un account con questa e-mail.",
     "error_username_taken": "Esiste già un account con questo nome utente.",
     "error_user_invalid": "Controlla nome utente ed e-mail, l'account non è stato creato.",
-    "error_user_create": "Impossibile creare l'account."
+    "error_user_create": "Impossibile creare l'account.",
+    "invite_link_created": "Link di invito creato. Copialo e invialo alla persona.",
+    "invite_link_deleted": "Link di invito eliminato.",
+    "error_invite_link": "Impossibile modificare il link di invito."
   },
   "modal": {
     "add_hub_subtitle": "Seleziona il tipo di media da aggiungere alla tua raccolta",
@@ -2788,5 +2804,25 @@
     "pending_with_failed": "__IMAGES__ immagini collegate possono essere copiate, e __FAILED__ non hanno risposto l'ultima volta.",
     "only_failed": "Tutto è copiato, tranne __FAILED__ immagini il cui indirizzo non risponde più (eliminate o spostate dall'altro sito).",
     "retry": "Riprova le __FAILED__"
+  },
+  "join": {
+    "page_title": "Invito",
+    "title": "Unisciti a {{name}}",
+    "subtitle": "Sei invitato come {{role}}. Questo link funziona una sola volta, fino al {{date}}.",
+    "signed_in_as": "Connesso come {{name}}.",
+    "join_btn": "Unisciti alla collezione",
+    "open_btn": "Apri la collezione",
+    "sso_only": "Accedi con il tuo account, poi riapri questo link per unirti.",
+    "username": "Nome utente",
+    "email": "Email",
+    "password": "Password",
+    "password_confirm": "Conferma la password",
+    "create_btn": "Crea il mio account",
+    "have_account": "Hai già un account?",
+    "sign_in_link": "Accedi, poi riapri questo link.",
+    "invalid_title": "Invito non disponibile",
+    "invalid_message": "Questo link di invito non è valido, è già stato usato o è scaduto. Chiedine uno nuovo all'amministratore della collezione.",
+    "err_missing": "Compila tutti i campi.",
+    "err_mismatch": "Le due password non coincidono."
   }
 }

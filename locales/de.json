@@ -497,6 +497,19 @@
       "hint": "Oft ein Feld, das das Plugin mit einem Update erhalten hat. Enthalten beide dasselbe, ist das integrierte Feld das, das bleiben sollte; beide zu behalten ist ebenfalls möglich.",
       "review": "Prüfen",
       "later": "Später"
+    },
+    "invites": {
+      "title": "Einladungslinks",
+      "hint": "Mit einem Link kann jemand ein eigenes Konto erstellen und dieser Sammlung mit der gewählten Rolle beitreten. Er funktioniert einmal, bis er abläuft.",
+      "validity": "Gültig",
+      "days_one": "{{count}} Tag gültig",
+      "days_other": "{{count}} Tage gültig",
+      "create_btn": "Link erstellen",
+      "empty": "Kein offener Einladungslink.",
+      "expires": "Läuft ab am {{date}}",
+      "copy_btn": "Link kopieren",
+      "delete_btn": "Link löschen",
+      "confirm_delete": "Diesen Einladungslink löschen? Wer ihn hat, kann dann nicht mehr beitreten."
     }
   },
   "ai": {
@@ -1240,7 +1253,10 @@
     "error_email_taken": "Ein Konto verwendet diese E-Mail-Adresse bereits.",
     "error_username_taken": "Ein Konto verwendet diesen Benutzernamen bereits.",
     "error_user_invalid": "Benutzername und E-Mail prüfen, das Konto wurde nicht erstellt.",
-    "error_user_create": "Das Konto konnte nicht erstellt werden."
+    "error_user_create": "Das Konto konnte nicht erstellt werden.",
+    "invite_link_created": "Einladungslink erstellt. Kopiere ihn und schicke ihn der Person.",
+    "invite_link_deleted": "Einladungslink gelöscht.",
+    "error_invite_link": "Der Einladungslink konnte nicht geändert werden."
   },
   "modal": {
     "add_hub_subtitle": "Wählen Sie den Medientyp aus, den Sie Ihrer Sammlung hinzufügen möchten",
@@ -2788,5 +2804,25 @@
     "pending_with_failed": "__IMAGES__ verlinkte Bilder können kopiert werden, __FAILED__ haben beim letzten Mal nicht geantwortet.",
     "only_failed": "Alles ist kopiert, außer __FAILED__ Bildern, deren Adresse nicht mehr antwortet (von der anderen Seite gelöscht oder verschoben).",
     "retry": "Die __FAILED__ erneut versuchen"
+  },
+  "join": {
+    "page_title": "Einladung",
+    "title": "{{name}} beitreten",
+    "subtitle": "Du bist als {{role}} eingeladen. Dieser Link funktioniert einmal, bis zum {{date}}.",
+    "signed_in_as": "Angemeldet als {{name}}.",
+    "join_btn": "Der Sammlung beitreten",
+    "open_btn": "Sammlung öffnen",
+    "sso_only": "Melde dich mit deinem Konto an und öffne diesen Link dann erneut, um beizutreten.",
+    "username": "Benutzername",
+    "email": "E-Mail",
+    "password": "Passwort",
+    "password_confirm": "Passwort bestätigen",
+    "create_btn": "Mein Konto erstellen",
+    "have_account": "Du hast schon ein Konto?",
+    "sign_in_link": "Melde dich an und öffne diesen Link dann erneut.",
+    "invalid_title": "Einladung nicht verfügbar",
+    "invalid_message": "Dieser Einladungslink ist ungültig, wurde schon benutzt oder ist abgelaufen. Bitte den Admin der Sammlung um einen neuen.",
+    "err_missing": "Fülle alle Felder aus.",
+    "err_mismatch": "Die beiden Passwörter stimmen nicht überein."
   }
 }

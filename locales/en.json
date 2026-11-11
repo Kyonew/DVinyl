@@ -170,7 +170,10 @@
     "error_email_taken": "An account already uses this email.",
     "error_username_taken": "An account already uses this username.",
     "error_user_invalid": "Check the username and email, the account was not created.",
-    "error_user_create": "The account could not be created."
+    "error_user_create": "The account could not be created.",
+    "invite_link_created": "Invite link created. Copy it and send it to the person.",
+    "invite_link_deleted": "Invite link deleted.",
+    "error_invite_link": "The invite link could not be changed."
   },
   "media": {
     "vinyl": "Vinyl",
@@ -774,6 +777,19 @@
       "hint": "Often a field the plugin gained in an update. If both hold the same thing, the built-in one is the one to keep; keeping both is fine too.",
       "review": "Review",
       "later": "Later"
+    },
+    "invites": {
+      "title": "Invite links",
+      "hint": "A link lets someone create their own account and join this collection with the chosen role. It works once, until it expires.",
+      "validity": "Valid for",
+      "days_one": "Valid {{count}} day",
+      "days_other": "Valid {{count}} days",
+      "create_btn": "Create a link",
+      "empty": "No invite link waiting.",
+      "expires": "Expires {{date}}",
+      "copy_btn": "Copy the link",
+      "delete_btn": "Delete the link",
+      "confirm_delete": "Delete this invite link? Whoever has it will no longer be able to join."
     }
   },
   "ai": {
@@ -2788,5 +2804,25 @@
     "pending_with_failed": "__IMAGES__ linked images can be copied, and __FAILED__ did not answer last time.",
     "only_failed": "Everything is copied, except __FAILED__ images whose address no longer answers (deleted or moved by the other site).",
     "retry": "Try the __FAILED__ again"
+  },
+  "join": {
+    "page_title": "Invitation",
+    "title": "Join {{name}}",
+    "subtitle": "You are invited as {{role}}. This link works once, until {{date}}.",
+    "signed_in_as": "Signed in as {{name}}.",
+    "join_btn": "Join the collection",
+    "open_btn": "Open the collection",
+    "sso_only": "Sign in with your account, then open this link again to join.",
+    "username": "Username",
+    "email": "Email",
+    "password": "Password",
+    "password_confirm": "Confirm the password",
+    "create_btn": "Create my account",
+    "have_account": "Already have an account?",
+    "sign_in_link": "Sign in, then open this link again.",
+    "invalid_title": "Invitation unavailable",
+    "invalid_message": "This invite link is invalid, has already been used or has expired. Ask the collection admin for a new one.",
+    "err_missing": "Fill in every field.",
+    "err_mismatch": "The two passwords do not match."
   }
 }

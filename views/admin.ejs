@@ -500,6 +500,89 @@
                             </table>
                         </div>
                     </div>
+
+                    <%# Single-use links that let someone create their own account and join. %>
+                    <% const invites = (locals.collectionDoc?.inviteLinks || [])
+                        .filter(l => new Date(l.expiresAt).getTime() > Date.now())
+                        .sort((a, b) => new Date(a.expiresAt) - new Date(b.expiresAt)); %>
+                    <div id="invite-links" class="card-theme rounded-2xl shadow-lg p-6 mt-8 transition-colors">
+                        <h2 class="text-lg font-bold flex items-center gap-2 mb-1">
+                            <i class="fa-solid fa-link text-neutral-400 dark:text-neutral-500"></i>
+                            <%= t('admin.invites.title') %>
+                        </h2>
+                        <p class="text-xs opacity-60 mb-5"><%= t('admin.invites.hint') %></p>
+
+                        <form action="<%= baseUrl %>/admin/members/invite-links/create" method="POST"
+                            class="flex flex-col sm:flex-row items-stretch gap-2 mb-5">
+                            <select name="role" aria-label="<%= t('admin.members.col_role') %>"
+                                class="flex-1 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl px-4 py-3 text-sm outline-none cursor-pointer">
+                                <option class="bg-white dark:bg-[#1a1a1a]" value="viewer"><%= t('admin.members.role_viewer') %></option>
+                                <option class="bg-white dark:bg-[#1a1a1a]" value="editor"><%= t('admin.members.role_editor') %></option>
+                                <option class="bg-white dark:bg-[#1a1a1a]" value="admin"><%= t('admin.members.role_admin') %></option>
+                            </select>
+                            <select name="days" aria-label="<%= t('admin.invites.validity') %>"
+                                class="flex-1 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl px-4 py-3 text-sm outline-none cursor-pointer">
+                                <option class="bg-white dark:bg-[#1a1a1a]" value="1"><%= t('admin.invites.days', { count: 1 }) %></option>
+                                <option class="bg-white dark:bg-[#1a1a1a]" value="7" selected><%= t('admin.invites.days', { count: 7 }) %></option>
+                                <option class="bg-white dark:bg-[#1a1a1a]" value="30"><%= t('admin.invites.days', { count: 30 }) %></option>
+                            </select>
+                            <button type="submit"
+                                class="flex items-center justify-center gap-2 bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-5 py-3 rounded-2xl text-xs font-black transition-all">
+                                <i class="fa-solid fa-plus"></i>
+                                <%= t('admin.invites.create_btn') %>
+                            </button>
+                        </form>
+
+                        <% if (invites.length === 0) { %>
+                            <p class="text-sm opacity-50"><%= t('admin.invites.empty') %></p>
+                        <% } else { %>
+                            <ul class="space-y-3">
+                                <% invites.forEach(inv => { const inviteUrl = (locals.siteOrigin || '') + baseUrl + '/join/' + inv.token; %>
+                                    <li class="bg-black/5 dark:bg-white/5 rounded-2xl p-3 flex flex-col gap-2">
+                                        <div class="flex flex-wrap items-center gap-2 text-xs">
+                                            <span class="font-bold px-2 py-0.5 rounded-full bg-primary-theme/10 text-primary-theme">
+                                                <%= t('admin.members.role_' + inv.role) %>
+                                            </span>
+                                            <span class="opacity-60">
+                                                <%= t('admin.invites.expires', { date: new Date(inv.expiresAt).toLocaleString(currentLng, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }), interpolation: { escapeValue: false } }) %>
+                                            </span>
+                                        </div>
+                                        <div class="flex items-stretch gap-2">
+                                            <input type="text" readonly value="<%= inviteUrl %>"
+                                                class="flex-1 min-w-0 bg-white dark:bg-black/30 border border-black/10 dark:border-white/10 rounded-xl px-3 py-2 text-xs font-mono outline-none"
+                                                onfocus="this.select()">
+                                            <button type="button" data-copy-invite="<%= inviteUrl %>"
+                                                class="shrink-0 bg-primary-theme text-white px-3 rounded-xl text-xs font-bold hover:brightness-110 transition-all"
+                                                title="<%= t('admin.invites.copy_btn') %>" aria-label="<%= t('admin.invites.copy_btn') %>">
+                                                <i class="fa-solid fa-copy"></i>
+                                            </button>
+                                            <form action="<%= baseUrl %>/admin/members/invite-links/<%= inv.token %>/delete" method="POST"
+                                                onsubmit="return confirm(<%= JSON.stringify(t('admin.invites.confirm_delete')) %>)">
+                                                <button type="submit"
+                                                    class="h-full text-red-600 bg-red-100 dark:bg-red-500/10 px-3 rounded-xl transition-colors hover:brightness-110"
+                                                    title="<%= t('admin.invites.delete_btn') %>" aria-label="<%= t('admin.invites.delete_btn') %>">
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </li>
+                                <% }) %>
+                            </ul>
+                        <% } %>
+                    </div>
+                    <script>
+                        document.querySelectorAll('[data-copy-invite]').forEach(btn => btn.addEventListener('click', async () => {
+                            const icon = btn.querySelector('i');
+                            try {
+                                await navigator.clipboard.writeText(btn.dataset.copyInvite);
+                            } catch (e) {
+                                btn.previousElementSibling.select();
+                                document.execCommand('copy');
+                            }
+                            icon.className = 'fa-solid fa-check';
+                            setTimeout(() => { icon.className = 'fa-solid fa-copy'; }, 1500);
+                        }));
+                    </script>
                 </section>
 
                 <section data-tab-panel="collection">

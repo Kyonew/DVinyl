@@ -170,7 +170,10 @@
     "error_email_taken": "Un compte utilise déjà cet email.",
     "error_username_taken": "Un compte utilise déjà ce nom d'utilisateur.",
     "error_user_invalid": "Vérifiez le nom d'utilisateur et l'email, le compte n'a pas été créé.",
-    "error_user_create": "Le compte n'a pas pu être créé."
+    "error_user_create": "Le compte n'a pas pu être créé.",
+    "invite_link_created": "Lien d'invitation créé. Copie-le et envoie-le à la personne.",
+    "invite_link_deleted": "Lien d'invitation supprimé.",
+    "error_invite_link": "Le lien d'invitation n'a pas pu être modifié."
   },
   "media": {
     "vinyl": "Vinyle",
@@ -774,6 +777,19 @@
       "hint": "Souvent un champ que le plugin a gagné dans une mise à jour. S'ils contiennent la même chose, c'est le champ intégré qu'il faut garder ; garder les deux est aussi possible.",
       "review": "Vérifier",
       "later": "Plus tard"
+    },
+    "invites": {
+      "title": "Liens d'invitation",
+      "hint": "Un lien permet à quelqu'un de créer son propre compte et de rejoindre cette collection avec le rôle choisi. Il ne sert qu'une fois, jusqu'à son expiration.",
+      "validity": "Valable",
+      "days_one": "Valable {{count}} jour",
+      "days_other": "Valable {{count}} jours",
+      "create_btn": "Créer un lien",
+      "empty": "Aucun lien d'invitation en attente.",
+      "expires": "Expire le {{date}}",
+      "copy_btn": "Copier le lien",
+      "delete_btn": "Supprimer le lien",
+      "confirm_delete": "Supprimer ce lien d'invitation ? Celui qui l'a ne pourra plus rejoindre la collection."
     }
   },
   "ai": {
@@ -2788,5 +2804,25 @@
     "pending_with_failed": "__IMAGES__ images liées peuvent être copiées, et __FAILED__ n'ont pas répondu la dernière fois.",
     "only_failed": "Tout est copié, sauf __FAILED__ images dont l'adresse ne répond plus (supprimées ou déplacées par l'autre site).",
     "retry": "Réessayer les __FAILED__"
+  },
+  "join": {
+    "page_title": "Invitation",
+    "title": "Rejoindre {{name}}",
+    "subtitle": "Tu es invité·e en tant que {{role}}. Ce lien ne sert qu'une fois, jusqu'au {{date}}.",
+    "signed_in_as": "Connecté·e en tant que {{name}}.",
+    "join_btn": "Rejoindre la collection",
+    "open_btn": "Ouvrir la collection",
+    "sso_only": "Connecte-toi avec ton compte, puis rouvre ce lien pour rejoindre la collection.",
+    "username": "Nom d'utilisateur",
+    "email": "E-mail",
+    "password": "Mot de passe",
+    "password_confirm": "Confirme le mot de passe",
+    "create_btn": "Créer mon compte",
+    "have_account": "Tu as déjà un compte ?",
+    "sign_in_link": "Connecte-toi, puis rouvre ce lien.",
+    "invalid_title": "Invitation indisponible",
+    "invalid_message": "Ce lien d'invitation est invalide, a déjà servi ou a expiré. Demande-en un nouveau à l'admin de la collection.",
+    "err_missing": "Remplis tous les champs.",
+    "err_mismatch": "Les deux mots de passe ne correspondent pas."
   }
 }

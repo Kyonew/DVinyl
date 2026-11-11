@@ -6,6 +6,7 @@ import {
 import { isDuplicateError, isValidationError } from "../core/db/errors";
 import { withMemberAccounts } from "../core/collectionMembers";
 import { findByLoginIdentifier, usernameTaken } from "../core/accounts";
+import { createInvite, deleteInvite } from "../core/inviteLinks";
 import { pluginKindFilter } from "../utils/visibilityHelper";
 import bcrypt from "bcrypt";
 import QRCode from "qrcode";
@@ -701,6 +702,7 @@ router.post("/members/create", requireAuth, requireCollectionRole("admin"), asyn
       user: res.locals.user,
       successMessage: req.t("messages.user_created_success", { name: username }),
       newPassword: password,
+      siteOrigin: `${getPublicProtocol(req)}://${req.get("host")}`,
     });
   } catch (err) {
     console.error("Member creation error:", err);
@@ -727,6 +729,28 @@ router.post("/members/invite", requireAuth, requireCollectionRole("admin"), asyn
   } catch (err) {
     console.error("Member invite error:", err);
     res.redirect("/admin?msg=error_member");
+  }
+});
+
+// Invite links: a single-use link that lets someone create their own account (or bring
+// the one they have) and join the active collection with the chosen role.
+router.post("/members/invite-links/create", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
+  try {
+    await createInvite(activeCollection(res), { role: req.body.role, days: req.body.days, createdBy: req.user._id });
+    res.redirect("/admin?msg=invite_link_created#members");
+  } catch (err) {
+    console.error("Invite link create error:", err);
+    res.redirect("/admin?msg=error_invite_link#members");
+  }
+});
+
+router.post("/members/invite-links/:token/delete", requireAuth, requireCollectionRole("admin"), async (req: any, res: any) => {
+  try {
+    const removed = await deleteInvite(activeCollection(res), String(req.params.token));
+    res.redirect(removed ? "/admin?msg=invite_link_deleted#members" : "/admin?msg=error_invite_link#members");
+  } catch (err) {
+    console.error("Invite link delete error:", err);
+    res.redirect("/admin?msg=error_invite_link#members");
   }
 });
 
@@ -820,6 +844,7 @@ router.post("/members/reset-password", requireAuth, requireCollectionRole("admin
         interpolation: { escapeValue: false },
       }),
       newPassword: password,
+      siteOrigin: `${getPublicProtocol(req)}://${req.get("host")}`,
     });
   } catch (err) {
     console.error("Member reset error:", err);

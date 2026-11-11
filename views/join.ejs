@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="<%= currentLng %>">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <title><%= t('join.page_title') %></title>
+
+  <%# Same shell as login.ejs: someone opening an invite has no account yet. %>
+  <link rel="stylesheet" href="<%= baseUrl %>/vendor/fonts/poppins.css">
+  <link rel="icon" type="image/png" href="<%= baseUrl %>/ressources/logo.png">
+  <script src="<%= baseUrl %>/vendor/tailwind-3.4.17.min.js"></script>
+  <link rel="stylesheet" href="<%= baseUrl %>/vendor/font-awesome-6.7.2/css/all.min.css" />
+  <link rel="stylesheet" href="<%= baseUrl %>/styles/style.css">
+
+  <style>
+    body { background: #0f0f0f; color: #fff; font-family: 'Poppins', sans-serif; overflow-x: hidden; }
+    .form-bg { background: #18181b; border: 1px solid #23232b; }
+    input, input::placeholder { background: #23232b !important; color: #fff !important; }
+    input:focus { outline: none; box-shadow: 0 0 0 2px #2563eb; border-color: #2563eb; }
+    .error { color: #f87171; }
+  </style>
+</head>
+<body class="flex flex-col min-h-screen">
+  <div class="absolute top-4 right-4 z-10">
+    <%- include('partials/lang-picker', { langPickerClass: 'bg-white/10 text-neutral-300 hover:text-white' }) %>
+  </div>
+  <div class="flex-grow flex items-center justify-center p-4 bg-[#0f0f0f]">
+    <section class="w-full max-w-md">
+      <div class="text-center mb-8">
+        <img src="<%= baseUrl %>/ressources/logo.png" alt="Logo" class="mx-auto h-20 w-20">
+        <h2 class="text-2xl font-bold text-white mt-4">DVinyl</h2>
+      </div>
+
+      <div class="form-bg rounded-2xl shadow-xl p-8">
+        <h1 class="text-2xl font-bold text-white mb-3 text-center break-words">
+          <%= t('join.title', { name: collectionName, interpolation: { escapeValue: false } }) %>
+        </h1>
+        <p class="text-sm text-gray-400 text-center mb-8">
+          <%= t('join.subtitle', {
+            role: t('admin.members.role_' + role),
+            date: new Date(expiresAt).toLocaleDateString(currentLng, { day: 'numeric', month: 'long', year: 'numeric' }),
+            interpolation: { escapeValue: false }
+          }) %>
+        </p>
+
+        <% if (error) { %>
+          <div class="error text-sm text-center mb-6"><%= error %></div>
+        <% } %>
+
+        <% if (locals.user) { %>
+          <p class="text-sm text-gray-300 text-center mb-6">
+            <%= t('join.signed_in_as', { name: user.username, interpolation: { escapeValue: false } }) %>
+          </p>
+          <form action="<%= baseUrl %>/join/<%= token %>" method="POST">
+            <button type="submit"
+              class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-all">
+              <%= alreadyMember ? t('join.open_btn') : t('join.join_btn') %>
+            </button>
+          </form>
+        <% } else if (locals.localLoginDisabled) { %>
+          <p class="text-sm text-gray-300 text-center mb-6"><%= t('join.sso_only') %></p>
+          <% if (oidcEnabled) { %>
+            <a href="<%= baseUrl %>/login/oidc"
+              class="w-full flex items-center justify-center gap-2 bg-transparent border border-gray-700 hover:bg-gray-800 text-white font-semibold py-3 px-6 rounded-lg transition-all">
+              <i class="fas fa-shield-halved"></i>
+              <%= oidcButtonLabel || t('login.sso_button') %>
+            </a>
+          <% } %>
+        <% } else { %>
+          <form action="<%= baseUrl %>/join/<%= token %>" method="POST" class="space-y-4">
+            <div>
+              <label for="username" class="block text-sm font-medium text-gray-300 mb-2"><%= t('join.username') %></label>
+              <input type="text" id="username" name="username" required autocomplete="username"
+                autocapitalize="none" autocorrect="off" spellcheck="false"
+                value="<%= values.username || '' %>"
+                class="w-full px-4 py-3 rounded-lg border border-gray-700">
+            </div>
+            <div>
+              <label for="email" class="block text-sm font-medium text-gray-300 mb-2"><%= t('join.email') %></label>
+              <input type="email" id="email" name="email" required autocomplete="email"
+                value="<%= values.email || '' %>"
+                class="w-full px-4 py-3 rounded-lg border border-gray-700">
+            </div>
+            <div>
+              <label for="password" class="block text-sm font-medium text-gray-300 mb-2"><%= t('join.password') %></label>
+              <input type="password" id="password" name="password" required minlength="6" autocomplete="new-password"
+                class="w-full px-4 py-3 rounded-lg border border-gray-700">
+            </div>
+            <div>
+              <label for="password_confirm" class="block text-sm font-medium text-gray-300 mb-2"><%= t('join.password_confirm') %></label>
+              <input type="password" id="password_confirm" name="password_confirm" required minlength="6" autocomplete="new-password"
+                class="w-full px-4 py-3 rounded-lg border border-gray-700">
+            </div>
+            <button type="submit"
+              class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-all !mt-6">
+              <%= t('join.create_btn') %>
+            </button>
+          </form>
+
+          <div class="flex items-center gap-3 my-6">
+            <div class="flex-grow border-t border-gray-700"></div>
+            <span class="text-xs text-gray-400 uppercase"><%= t('login.or_divider') %></span>
+            <div class="flex-grow border-t border-gray-700"></div>
+          </div>
+          <p class="text-sm text-gray-400 text-center">
+            <%= t('join.have_account') %>
+            <a href="<%= baseUrl %>/login" class="text-blue-400 hover:underline"><%= t('join.sign_in_link') %></a>
+          </p>
+        <% } %>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

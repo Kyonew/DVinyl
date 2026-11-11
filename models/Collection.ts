@@ -96,12 +96,26 @@ const collectionSchema = new mongoose.Schema({
             }
         }],
         default: []
+    },
+    // Single-use links that let someone create their own account, or bring an existing
+    // one, straight into this collection with the role chosen here (see core/inviteLinks.ts
+    // and routes/joinRoutes.ts). A link goes away once used or once past its expiry.
+    inviteLinks: {
+        type: [{
+            token: { type: String, required: true },
+            role: { type: String, enum: ['admin', 'editor', 'viewer'], default: 'viewer' },
+            expiresAt: { type: Date, required: true },
+            createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'user', default: null },
+            createdAt: { type: Date, default: () => new Date() }
+        }],
+        default: []
     }
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
 
 // Multikey unique index: no two links, even across different collections, can ever
 // share a token. Sparse so a collection with zero links (empty array) is unaffected.
 collectionSchema.index({ 'shareLinks.token': 1 }, { unique: true, sparse: true });
+collectionSchema.index({ 'inviteLinks.token': 1 }, { unique: true, sparse: true });
 
 const Collection = mongoose.model('Collection', collectionSchema);
 
