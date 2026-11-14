@@ -71,9 +71,9 @@ describe('browsing a collection', { skip: !backend }, () => {
       ['Kind of Blue', 'Abbey Road', 'Abbey Road', 'The Wall', 'Wall', 'Écoute']);
   });
 
-  it('sorts on the creator by raw code point, accented initials last', async () => {
+  it('sorts on the normalized creator, articles skipped and accents folded, then the title', async () => {
     assert.deepEqual(await shown({ sort: 'artist_asc' }),
-      ['Wall', 'Kind of Blue', 'The Wall', 'Abbey Road', 'Abbey Road', 'Écoute']);
+      ['Abbey Road', 'Abbey Road', 'Écoute', 'Wall', 'Kind of Blue', 'The Wall']);
   });
 
   it('remembers the last sort and page size of the browser', async () => {

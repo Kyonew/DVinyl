@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { reconcileSortTitles } from './sortTitles';
 import { registry } from './registry';
 import { createItemRoutes } from './routes/itemRoutes';
 import { loadPluginFromDir } from './loadPlugins';
@@ -68,6 +69,9 @@ export function registerPluginDirAtRuntime(dir: string, replacesId?: string): { 
 
   registry.register(plugin);
   mountPluginRoutes(plugin);
+  // Its items may predate it (a rebuilt container) or name their creator in another field
+  // since the edit, so their creator sort key is brought in line with the new type.
+  reconcileSortTitles(undefined, plugin.matchesLegacyItems ? undefined : plugin.kind).catch(err => console.warn(`[PluginRuntime] Sort keys of "${plugin.id}" not refreshed:`, err?.message || err));
   console.log(`[PluginRuntime] Hot-registered plugin "${plugin.id}" from plugins/${dir}`);
   return { plugin, errors: [] };
 }

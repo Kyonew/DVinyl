@@ -200,3 +200,18 @@ test('buildSortTitle drops the articles it is given, elided ones included', () =
   assert.deepEqual(articlesFromSetting(undefined), ['the', 'a', 'an']);
   assert.deepEqual(articlesFromSetting([]), []);
 });
+
+test('the creator sort key reads the field of the item\'s type, legacy items and dotted paths included', async () => {
+  const { rememberCreatorField, forgetCreatorField, sortCreatorOf, buildSortCreator } = await import('../core/sortCreators');
+  rememberCreatorField('TestMusic', 'artist', true);
+  rememberCreatorField('TestOther', 'artist');
+  rememberCreatorField('TestCustom', 'extra.maker');
+  assert.equal(sortCreatorOf({ kind: 'TestMusic', artist: 'The Beatles' }, ['the']), 'beatles');
+  assert.equal(sortCreatorOf({ artist: 'The Cure' }, ['the']), 'cure');
+  assert.equal(sortCreatorOf({ kind: 'TestCustom', extra: { maker: 'Élan' } }, []), 'elan');
+  assert.equal(buildSortCreator(['The Who', 'Queen'], ['the']), 'who, queen');
+  // Dropping a type that shares the legacy type's field name keeps the legacy mapping.
+  forgetCreatorField('TestOther');
+  assert.equal(sortCreatorOf({ artist: 'The Cure' }, ['the']), 'cure');
+  for (const kind of ['TestMusic', 'TestCustom']) forgetCreatorField(kind);
+});

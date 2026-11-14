@@ -6,6 +6,7 @@
 import Item from '../../../models/Item';
 import { buildSortTitle, CreatorFieldSource } from '../../helpers';
 import { sortArticlesFor } from '../../sortArticles';
+import { creatorFieldOf, sortCreatorOf } from '../../sortCreators';
 import type { Filter, Scalar, Sort } from '../filter';
 import * as F from '../filter';
 import type { Patch } from '../patch';
@@ -34,14 +35,26 @@ type WriteResult = { matched: number; modified: number };
 export const table = new Table('items', 'collection');
 const base = () => Item as any;
 
-// The title an item sorts on follows its title, whatever writes it, with the articles
-// its own collection ignores.
+// The keys an item sorts on follow its title and its creator, whatever writes them, with
+// the articles its own collection ignores.
 function deriveSortTitle(record: any): void {
   if (typeof record.title === 'string') record.sort_title = buildSortTitle(record.title, sortArticlesFor(record.collection));
 }
+function deriveSortCreator(record: any): void {
+  record.sort_creator = sortCreatorOf(record, sortArticlesFor(record.collection));
+}
+function deriveSortKeys(record: any): void {
+  deriveSortTitle(record);
+  deriveSortCreator(record);
+}
 const deriveOnTitleChange = (record: any, patch: Patch) => {
   // An item moved to another collection is sorted with that collection's articles.
-  if (typeof patch.set?.title === 'string' || patch.set?.collection !== undefined) deriveSortTitle(record);
+  const moved = patch.set?.collection !== undefined;
+  if (typeof patch.set?.title === 'string' || moved) deriveSortTitle(record);
+  const creator = creatorFieldOf(record.kind);
+  const writes = (part?: Record<string, any>) => Boolean(part && Object.keys(part).some(key => key === creator || key.startsWith(`${creator}.`) || creator!.startsWith(`${key}.`)));
+  if (creator && (moved || writes(patch.set) || writes(patch.push) || writes(patch.addToSet) || writes(patch.pull)
+    || patch.unset?.some(key => key === creator || creator.startsWith(`${key}.`)))) deriveSortCreator(record);
 };
 
 // An item type's own model only ever writes items of that type.
@@ -106,14 +119,14 @@ export async function countDistinctWorks(
 
 export async function create(record: Record<string, any>): Promise<any> {
   const input = { ...record };
-  deriveSortTitle(input);
+  deriveSortKeys(input);
   return engine.create(table, modelFor(input.kind), input);
 }
 
 export async function insertMany(records: Record<string, any>[], options: { asStored?: boolean } = {}): Promise<void> {
   const inputs = options.asStored ? records : records.map(record => {
     const input = { ...record };
-    deriveSortTitle(input);
+    deriveSortKeys(input);
     return input;
   });
   engine.insertMany(table, input => modelFor(input.kind), inputs, options);

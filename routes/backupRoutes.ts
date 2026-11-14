@@ -12,6 +12,8 @@ import { invalidateVapidCache } from '../core/push';
 import { requireAuth, requireAdmin, requireCollectionRole } from '../middleware/authMiddleware';
 import { registry } from '../core/registry';
 import { buildSortTitle, csvLine, getPublicProtocol } from '../core/helpers';
+import { sortCreatorOf } from '../core/sortCreators';
+import { DEFAULT_SORT_ARTICLES } from '../core/sortArticles';
 import { reconcileSortTitles } from '../core/sortTitles';
 import { importableFields, fieldValue, ImportTargetField } from '../core/csvMapping';
 
@@ -296,6 +298,7 @@ const importInstanceBackup = async (req: any, res: any) => {
                 // The insert as stored below skips what normally derives this on a write,
                 // and a dump older than the field carries none at all.
                 fixed.sort_title = buildSortTitle(fixed.title);
+                fixed.sort_creator = sortCreatorOf(fixed, DEFAULT_SORT_ARTICLES);
                 return fixed;
             });
             // Inserted as stored, without the type rules. A backup is authoritative:

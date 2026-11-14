@@ -258,8 +258,8 @@
     "metadata_language": "Lingua delle informazioni recuperate",
     "metadata_language_desc": "Titoli, trame e generi arrivano da fonti come TMDB in questa lingua, qualunque sia la lingua in cui ogni membro legge l'app. Gli elementi già aggiunti cambiano al prossimo aggiornamento. Le fonti senza traduzioni la ignorano.",
     "metadata_language_same": "Lingua di ogni membro",
-    "sort_articles": "Articoli ignorati nell'ordinamento per titolo",
-    "sort_articles_desc": "Parole con cui può iniziare un titolo e che l'ordinamento salta, separate da virgole. «La Dolce Vita» va allora sotto la D. Terminane una con un apostrofo, come l', per gli articoli uniti alla parola seguente. Lascia vuoto per non ignorarne nessuno.",
+    "sort_articles": "Articoli ignorati nell'ordinamento per titolo o per artista",
+    "sort_articles_desc": "Parole con cui può iniziare un titolo o il nome di un autore e che l'ordinamento salta, separate da virgole. «La Dolce Vita» va allora sotto la D e «The Beatles» sotto la B. Terminane una con un apostrofo, come l', per gli articoli uniti alla parola seguente. Lascia vuoto per non ignorarne nessuno.",
     "sort_articles_placeholder": "il, lo, la, i, gli, le, l', un, una, the",
     "collections": {
       "title": "Collezioni ({{count}})",

@@ -5,6 +5,7 @@ import { imagesForItem } from './itemImages';
 import { pluginSources, isSourceConfigured, isSearchable, requiredEnvKeysFor } from './sources';
 import { INHERIT_PRESET } from './theme';
 import { addExtraFormatsField } from './extraFormats';
+import { rememberCreatorField, forgetCreatorField } from './sortCreators';
 
 const FLATTENS_EXTRA = Symbol('flattensExtra');
 const RESOLVES_PLACEHOLDER = Symbol('resolvesPlaceholder');
@@ -104,6 +105,7 @@ class PluginRegistry {
 
     try {
       db.items.registerType(plugin.kind, plugin.storedFields || {});
+      rememberCreatorField(plugin.kind, plugin.creatorField, plugin.matchesLegacyItems);
       console.log(`[PluginRegistry] Registered item type ${plugin.kind}`);
     } catch (err: any) {
       console.warn(`[PluginRegistry] Item type ${plugin.kind} registry warning: ${err.message}`);
@@ -120,6 +122,7 @@ class PluginRegistry {
     this.plugins.delete(id);
     try {
       db.items.unregisterType(plugin.kind);
+      forgetCreatorField(plugin.kind);
       console.log(`[PluginRegistry] Unregistered plugin ${id} (${plugin.kind})`);
     } catch (err: any) {
       console.warn(`[PluginRegistry] Unregister ${id} warning: ${err.message}`);

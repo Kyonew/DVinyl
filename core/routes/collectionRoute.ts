@@ -370,12 +370,10 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
 
       if (sort && sort.startsWith('artist')) {
         const dir: SortDirection = sort === 'artist_asc' ? 'asc' : 'desc';
-        // No single creator field spans every type, so "all" falls back to the title, and
-        // it sorts on the same normalized key as the title options above.
-        if (!type || type === 'all') return [{ field: 'sort_title', dir }, { field: 'title', dir }];
-
-        const plugin = enabledPlugins.find(p => p.id === type);
-        return [{ field: plugin ? plugin.creatorField : 'title', dir }];
+        // Every item carries its creator's sort key whatever field its type names it in
+        // (core/sortCreators.ts), so this holds across types too. Built like the title's,
+        // "The Beatles" files under B; the title then orders one creator's items.
+        return [{ field: 'sort_creator', dir }, { field: 'sort_title', dir }, { field: 'title', dir }];
       }
 
       return sortMap[sort || ''] || [desc('added_at')];
