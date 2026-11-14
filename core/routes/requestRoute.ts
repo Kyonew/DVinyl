@@ -8,6 +8,7 @@ import {
   OPEN_STATUSES, ownRequest, readableBy, requestableItem, requestsEnabled, sendRequest
 } from '../requests';
 import { typeBySlug } from '../requestTypes';
+import { safeReturnPath } from '../helpers';
 import { clearRead, describeNotification, eventsFor, markRead, notificationsOf, ownNotification, NOTIFICATIONS_PAGE_SIZE } from '../notify';
 import { prefKey, subscriptionsOf, wantsPush } from '../push';
 
@@ -22,10 +23,9 @@ const BOXES = ['inbox', 'sent', 'ongoing', 'history'] as const;
 // How many closed requests the history box lists.
 const HISTORY_SIZE = 50;
 
-/** A same-site path to come back to, or the fallback. */
+/** A same-site path to come back to, or the fallback. See safeReturnPath: `/\host` leaves the site too. */
 function safeBack(value: unknown, fallback: string): string {
-  const path = String(value || '');
-  return path.startsWith('/') && !path.startsWith('//') ? path : fallback;
+  return safeReturnPath(value) || fallback;
 }
 
 /** `path` with a message for the page it leads to. */

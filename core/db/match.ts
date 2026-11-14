@@ -265,8 +265,12 @@ function distinctKey(value: any): string {
   return `${typeof value}${String(value)}`;
 }
 
+// Path segments that would reach the prototype of every object rather than a field.
+const UNSAFE_SEGMENTS = new Set(['__proto__', 'constructor', 'prototype']);
+
 function setPath(doc: Doc, path: string, value: any): void {
   const parts = path.split('.');
+  if (parts.some(part => UNSAFE_SEGMENTS.has(part))) return;
   let target: any = doc;
   for (const key of parts.slice(0, -1)) {
     if (!isPlainObject(target[key]) && !Array.isArray(target[key])) target[key] = {};
@@ -277,6 +281,7 @@ function setPath(doc: Doc, path: string, value: any): void {
 
 function unsetPath(doc: Doc, path: string): void {
   const parts = path.split('.');
+  if (parts.some(part => UNSAFE_SEGMENTS.has(part))) return;
   let target: any = doc;
   for (const key of parts.slice(0, -1)) {
     target = target?.[key];

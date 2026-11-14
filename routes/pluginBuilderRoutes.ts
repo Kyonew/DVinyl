@@ -306,7 +306,7 @@ router.post('/customize/:pluginId/fields/:name/transfer', async (req: any, res: 
   try {
     const found = fieldAndLookalike(req, res);
     if (!found || !found.native) return res.status(404).json({ success: false, error: req.t('errors.not_found') });
-    const result = await runTransfer(res.locals.activeCollectionId, found.plugin, found.def, found.native, (k: string) => req.t(k));
+    const result = await runTransfer(res.locals.activeCollectionId, found.plugin, found.def, found.native, (k: string) => req.t(k), req.user?.currency || 'USD');
     res.json({ success: true, ...result });
   } catch (err: any) {
     console.error('[PluginBuilder] field transfer error:', err);

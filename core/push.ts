@@ -67,14 +67,16 @@ export async function vapidKeys(): Promise<{ publicKey: string; privateKey: stri
 /**
  * Keeps the HTTPS address the instance is reached at as the contact its pushes are
  * signed with. Called from the push routes, which a member only reaches through the
- * address they use; a plain HTTP or local address is never kept.
+ * address they use; a plain HTTP or local address is never kept. The Origin header is
+ * the browser's word, so once an address is kept only an instance admin replaces it: a
+ * member's request cannot sign the instance's pushes with an address of their choosing.
  */
-export async function rememberPushOrigin(origin: string): Promise<void> {
+export async function rememberPushOrigin(origin: string, replace = true): Promise<void> {
   let url: URL;
   try { url = new URL(origin); } catch { return; }
   if (url.protocol !== 'https:' || !url.hostname.includes('.') || net.isIP(url.hostname.replace(/^\[|\]$/g, ''))) return;
   const keys = await vapidKeys();
-  if (keys.subject === url.origin) return;
+  if (keys.subject === url.origin || (keys.subject && !replace)) return;
   await db.instanceSettings.updateOne(eq('key', 'instance'), { set: { 'push.subject': url.origin } });
   vapid = { ...keys, subject: url.origin };
 }

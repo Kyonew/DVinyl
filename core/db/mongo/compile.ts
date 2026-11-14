@@ -32,7 +32,9 @@ export function toMongoFilter(filter: Filter): Record<string, any> {
     case 'and': return { $and: filter.filters.map(toMongoFilter) };
     case 'or': return { $or: filter.filters.map(toMongoFilter) };
     case 'not': return { $nor: [toMongoFilter(filter.filter)] };
-    case 'eq': return { [filter.field]: idValue(filter.field, filter.value) };
+    // Through $eq, so a value that came in as an object ({ $ne: null } from a JSON body)
+    // is compared as it is rather than read as an operator.
+    case 'eq': return { [filter.field]: { $eq: idValue(filter.field, filter.value) } };
     case 'in': return { [filter.field]: { $in: filter.values.map(value => idValue(filter.field, value)) } };
     case 'ci': return { [filter.field]: new RegExp(`^${escapeRegExp(filter.value)}$`, 'i') };
     case 'contains': return { [filter.field]: new RegExp(escapeRegExp(filter.value), 'i') };

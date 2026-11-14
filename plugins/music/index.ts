@@ -700,10 +700,11 @@ export const musicPlugin: PluginDefinition = {
   // format and edition lines they already store. Only fields never set are filled, so a
   // value the owner cleared stays cleared; a word that is not there is not guessed (an
   // LP is not assumed to be 12"). A label still carrying the number Discogs gives
-  // homonyms ("ADA (6)") loses it, as new ones do.
+  // homonyms ("ADA (6)") loses it, as new ones do. A field the owner rewrote by hand
+  // (core/keptFields.ts) is left exactly as they wrote it.
   async migrateItems(): Promise<number> {
     const items = await db.items.find(eq('kind', 'Music'), {
-      fields: ['format_type', 'variant_color', 'disc_size', 'speed', 'release_type', 'disc_count', 'label']
+      fields: ['format_type', 'variant_color', 'disc_size', 'speed', 'release_type', 'disc_count', 'label', 'kept_fields']
     });
     const changes: { id: any; patch: any }[] = [];
     for (const item of items as any[]) {
@@ -721,6 +722,12 @@ export const musicPlugin: PluginDefinition = {
         const format = wordsOf(item.format_type);
         set.format_type = [...format, ...edition.filter(w => STANDARD_FORMAT_TERMS.includes(w) && !format.includes(w))].join(', ');
       }
+      const handWritten = new Set(Array.isArray(item.kept_fields) ? item.kept_fields : []);
+      if (handWritten.has('variant_color') || handWritten.has('format_type')) {
+        delete set.variant_color;
+        delete set.format_type;
+      }
+      for (const field of handWritten) delete set[field as string];
       if (Object.keys(set).length > 0) changes.push({ id: item._id, patch: { set } });
     }
     if (changes.length > 0) await db.items.updateEach(changes);

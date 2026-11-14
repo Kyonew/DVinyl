@@ -135,6 +135,9 @@ const touches = (update: any, field: string) =>
   valueIn(update, field) !== undefined || Boolean(update.$unset && field in update.$unset);
 const writesSortSource = (update: any) =>
   touches(update, 'title') || allCreatorFields().some(field => touches(update, field));
+// Items moved to another collection (the boot migration filing legacy items into the
+// default one) sort with that collection's articles.
+const movesCollection = (update: any) => valueIn(update, 'collection') !== undefined;
 const isId = (value: any) => value != null && (typeof value !== 'object' || Boolean(value._bsontype));
 
 /** updateOne and findOneAndUpdate: one item, whose keys go into the same write. */
@@ -177,7 +180,7 @@ async function stampSortKeysOnUpdate(this: any): Promise<void> {
  */
 async function noteItemsToResort(this: any): Promise<void> {
   const update = this.getUpdate();
-  if (!update || Array.isArray(update) || !writesSortSource(update)) return;
+  if (!update || Array.isArray(update) || !(writesSortSource(update) || movesCollection(update))) return;
   const ids = await this.model.find(this.getFilter()).distinct('_id');
   if (ids.length > 0) this._resortIds = ids;
 }

@@ -7,7 +7,7 @@ import { CollectionViewContext } from '../types';
 import { BASE_URL } from '../../config/constants';
 import { requireAuth, requireAuthOrShareView, requireCollectionRole } from '../../middleware/authMiddleware';
 import { pluginKindFilter, shareScopeFilter, shelfFilter } from '../../utils/visibilityHelper';
-import { getPublicProtocol, generateBarcodeDataUrl } from '../helpers';
+import { getPublicProtocol, generateBarcodeDataUrl, safeReturnPath } from '../helpers';
 import { db } from '../db';
 import {
   all, and, asc, ci, contains, desc, eq, Filter, isIn, not, notIn, or, Sort, SortDirection
@@ -847,11 +847,9 @@ router.post('/collection/switch', requireAuth, async (req: any, res: any) => {
 
     console.log(`[COLLECTION] ${req.user.email} switched to "${target.name}" (${target._id})`);
 
-    // Only follow redirectTo if it's a same-site relative path: a leading "/" but not
-    // "//" (browsers treat "//host" as protocol-relative, i.e. an external redirect).
-    const redirectTo = req.body.redirectTo;
-    const isSafeRelativePath = typeof redirectTo === 'string' && redirectTo.startsWith('/') && !redirectTo.startsWith('//');
-    res.redirect(isSafeRelativePath ? redirectTo : back);
+    // Only follow redirectTo if it's a same-site path (see safeReturnPath: "//host" and
+    // "/\host" both leave the site).
+    res.redirect(safeReturnPath(req.body.redirectTo) || back);
   } catch (err: any) {
     console.error("Collection switch error:", err.message);
     res.redirect(back);

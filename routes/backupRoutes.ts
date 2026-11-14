@@ -335,6 +335,7 @@ const importInstanceBackup = async (req: any, res: any) => {
             const extraDateFields = collectExtraDateFields(
                 Array.isArray(data.settings) ? data.settings : (data.settings ? [data.settings] : [])
             );
+            const albumIds = new Set(data.albums.map((album: any) => String(album?._id ?? '')));
             const cleanAlbums = data.albums.map((album: any) => {
                 const fixed: any = album.kind ? { ...album } : { ...album, kind: legacyKind };
                 // Without the collections themselves, stale collection ids would orphan items
@@ -344,9 +345,16 @@ const importInstanceBackup = async (req: any, res: any) => {
                 if (fixed.owner) fixed.owner = toId(fixed.owner);
                 if (fixed.modified_by) fixed.modified_by = toId(fixed.modified_by);
                 // Ids are preserved on a whole-instance restore, so a containment link only
-                // needs its BSON type back.
-                if (fixed.parent) fixed.parent = toId(fixed.parent);
-                if (fixed.inside) fixed.inside = toId(fixed.inside);
+                // needs its BSON type back. One naming an item the dump does not hold would
+                // keep the item out of every listing, so it goes back on the shelf instead.
+                // A value that is no id at all is left for the rename of the plugin field
+                // that wrote it (utils/migrateReservedFieldNames.ts).
+                for (const link of ['parent', 'inside']) {
+                    if (!fixed[link]) continue;
+                    if (!isDumpId(fixed[link])) continue;
+                    if (albumIds.has(String(fixed[link]))) fixed[link] = toId(fixed[link]);
+                    else delete fixed[link];
+                }
                 if (fixed.collection) fixed.collection = toId(fixed.collection);
                 if (fixed.added_at) fixed.added_at = new Date(fixed.added_at);
                 if (fixed.updated_at) fixed.updated_at = new Date(fixed.updated_at);
@@ -987,6 +995,9 @@ const importCollectionBackup = async (req: any, res: any) => {
             delete clean._id;
             delete clean.__v;
             clean.collection = activeCollectionId;
+            // An older dump can hold a preset in a shape the record refuses, as on the
+            // instance restore: normalized before the old settings go.
+            normalizeThemePresets(clean.theme);
             await db.settings.deleteMany(eq('collection', idOf(activeCollectionId)));
             await db.settings.create(clean);
         }

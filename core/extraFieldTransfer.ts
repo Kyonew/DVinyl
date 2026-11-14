@@ -132,7 +132,8 @@ export async function runTransfer(
   plugin: PluginDefinition,
   def: ExtraFieldConfig,
   native: FieldDefinition,
-  t?: (key: string) => string
+  t?: (key: string) => string,
+  currency = 'USD'
 ): Promise<{ moved: number; cleared: number; left: number; removed: boolean }> {
   const plan = await planTransfer(collectionId, plugin, def, native, t);
   const path = `extra.${def.name}`;
@@ -141,7 +142,11 @@ export async function runTransfer(
   // only taken off an item once its value is safely where it belongs.
   let moved = 0;
   for (const entry of plan.move) {
-    await db.items.updateOne(eq('_id', idOf(entry.id)), { set: { [native.name]: entry.value } }, { kind: plugin.kind });
+    // A price says what it is counted in, as one typed on the item page does: the
+    // currency of the member who moves it.
+    const set: Record<string, any> = { [native.name]: entry.value };
+    if (native.name === 'purchase_price') set.purchase_currency = currency;
+    await db.items.updateOne(eq('_id', idOf(entry.id)), { set }, { kind: plugin.kind });
     await db.items.updateOne(eq('_id', idOf(entry.id)), { unset: [path] }, { kind: plugin.kind });
     moved++;
   }

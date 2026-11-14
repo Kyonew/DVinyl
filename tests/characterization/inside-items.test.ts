@@ -48,6 +48,20 @@ describe('an item kept inside another one', { skip: !backend }, () => {
     assert.match(film, new RegExp(`href="/dvd/${ids['The Entire Mystery']}"[^>]*>The Entire Mystery`));
   });
 
+  it('shows through a scoped share link only the box links the link covers', async () => {
+    await enableModules(admin, ['dvd', 'music']);
+    await saveItem(admin, 'music', { title: 'Soundtrack', artist: 'Badalamenti' });
+    const music = String(itemByTitle(await exportInstance(admin), 'Soundtrack')._id);
+    assert.equal((await admin.postJson(`/api/inside/${music}`, { box: ids['The Entire Mystery'] })).status, 200);
+    await admin.postForm('/admin/share/create', { label: 'Music only', scopeTypes: 'music' });
+    const links = (await exportInstance(admin)).collections[0].shareLinks;
+    const visitor = app.client();
+    await visitor.get(`/share/${links[links.length - 1].token}`);
+    const page = (await visitor.get(`/album/${music}`)).text;
+    assert.doesNotMatch(page, /The Entire Mystery/, 'the box is a film, which the link does not show');
+    assert.equal((await admin.postJson(`/api/inside/${music}/out`, {})).status, 200);
+  });
+
   it('refuses a box inside a box and an item holding others', async () => {
     assert.equal((await admin.postJson(`/api/inside/${ids['Heat']}`, { box: ids['Fire Walk with Me'] })).status, 400);
     assert.equal((await admin.postJson(`/api/inside/${ids['The Entire Mystery']}`, { box: ids['Heat'] })).status, 400);

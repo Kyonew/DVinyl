@@ -88,7 +88,8 @@ router.post('/join/:token', async (req: any, res: any) => {
     const newUser = await db.users.create({
       username,
       email,
-      password,
+      // Hashed before it is stored, never written in clear even for a moment.
+      password: await bcrypt.hash(password, 10),
       language: normalizeLanguage(req.language),
       lastChange: new Date(Date.now() - 60_000),
     });
@@ -102,7 +103,7 @@ router.post('/join/:token', async (req: any, res: any) => {
     }
 
     await db.users.updateOne(eq('_id', newId), {
-      set: { password: await bcrypt.hash(password, 10), lastActiveCollectionId: found.collection._id },
+      set: { lastActiveCollectionId: found.collection._id },
     });
     await db.collections.updateOne(eq('_id', collectionId), { addToSet: { members: { user: newUser._id, role } } });
     console.log(`[ADMIN] User created through an invite link: ${username} <${email}> in ${found.collection.name}`);

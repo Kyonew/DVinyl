@@ -330,7 +330,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       // POST /add-{id}/card-scan -> AI-identify a photographed card, return a search query
       // for this plugin's own source. Companion to the barcode-scan branch above: a single
       // trading card has no scannable retail barcode, so a photo of the card is the input
-      // instead. Never saves anything itself — the client fills the query box with the
+      // instead. Never saves anything itself: the client fills the query box with the
       // result and submits the normal search-{id} form, so what the user eventually picks
       // always comes from the plugin's real source.
       router.post(`/add-${plugin.id}/card-scan`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
@@ -1150,11 +1150,13 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       const contained = await db.items.find(and(eq('parent', idOf(item._id)), visible));
 
       // The box this item is kept in and what it keeps itself (core/insideItems.ts), of
-      // whatever type, each with its own page.
+      // whatever type, each with its own page. Through a scoped share link, only those the
+      // link covers: a box may hold items of a type it does not.
+      const linked = res.locals.isShareView ? and(visible, shareScopeFilter(res.locals.shareScope)) : visible;
       const insideBox: any = item.inside
-        ? await db.items.findOne(and(eq('_id', idOf(item.inside)), visible), { fields: ['title', 'kind'] })
+        ? await db.items.findOne(and(eq('_id', idOf(item.inside)), linked), { fields: ['title', 'kind'] })
         : null;
-      const boxContents = await contentsOf(item._id, visible);
+      const boxContents = await contentsOf(item._id, linked);
       const asLink = (entry: any) => {
         const kindPlugin = registry.getByKind(entry.kind);
         const href = itemHref(entry);

@@ -21,7 +21,7 @@ const wantsJson = (req: any) => (req.headers.accept || '').includes('json');
  */
 const rememberOrigin = (req: any) => {
   const proto = String(req.get('x-forwarded-proto') || '').split(',')[0]!.trim() || getPublicProtocol(req);
-  return rememberPushOrigin(req.get('origin') || `${proto}://${req.get('host')}`).catch(() => {});
+  return rememberPushOrigin(req.get('origin') || `${proto}://${req.get('host')}`, req.user?.isAdmin === true).catch(() => {});
 };
 
 // GET /push/key -> the public key a browser subscribes with

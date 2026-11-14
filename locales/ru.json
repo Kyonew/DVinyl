@@ -851,6 +851,7 @@
     "share_active_count_one": "{{count}} активная ссылка",
     "share_active_count_few": "{{count}} активные ссылки",
     "share_active_count_many": "{{count}} активных ссылок",
+    "share_active_count_other": "{{count}} активной ссылки",
     "share_disabled_hint": "Ссылка выключена и не открывается. Если включить снова, адрес останется прежним.",
     "share_name": "Название",
     "share_scope_all": "Вся коллекция",
@@ -2203,6 +2204,7 @@
     "card_history_one": "{{count}} прошлый запрос",
     "card_history_few": "{{count}} прошлых запроса",
     "card_history_many": "{{count}} прошлых запросов",
+    "card_history_other": "{{count}} прошлого запроса",
     "new_btn": "Запросить",
     "new_title": "Новый запрос",
     "close": "Закрыть",
@@ -2374,6 +2376,7 @@
     "unread_count_one": "{{count}} непрочитанное уведомление",
     "unread_count_few": "{{count}} непрочитанных уведомления",
     "unread_count_many": "{{count}} непрочитанных уведомлений",
+    "unread_count_other": "{{count}} непрочитанного уведомления",
     "someone": "Кто-то",
     "events": {
       "request_received": "{{- actor}} отправил запрос: {{- kind}} · {{- item}}",

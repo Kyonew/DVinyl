@@ -67,7 +67,7 @@
             (function () {
                 if (window.__savedViewsWired) return;
                 window.__savedViewsWired = true;
-                const text = <%- JSON.stringify({ prompt: t('collection.save_view_prompt'), confirmDelete: t('collection.delete_view_confirm'), fail: t('errors.generic_server_error') }).replace(/</g, '\u003c') %>;
+                const text = <%- JSON.stringify({ prompt: t('collection.save_view_prompt'), confirmDelete: t('collection.delete_view_confirm'), fail: t('errors.generic_server_error') }).replace(/</g, '\\u003c') %>;
                 const post = async (url, body) => {
                     const res = await fetch('<%= baseUrl %>' + url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
                     const data = await res.json().catch(() => ({}));

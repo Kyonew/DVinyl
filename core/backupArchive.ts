@@ -108,6 +108,11 @@ function rewriteBackupImages(data: any, replacements: Map<string, string>): void
     album.cover_image = replace(album.cover_image);
     album.user_image = replace(album.user_image);
     if (Array.isArray(album.images)) album.images = album.images.map(replace);
+    // Which copy came from which address, by file: it follows the file to its new name.
+    if (Array.isArray(album.image_origins)) {
+      album.image_origins = album.image_origins.map((origin: any) =>
+        origin && typeof origin === 'object' ? { ...origin, file: replace(origin.file) } : origin);
+    }
   }
 
   for (const page of backupInfoPages(data)) {

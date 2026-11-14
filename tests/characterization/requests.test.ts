@@ -79,6 +79,8 @@ describe('requests', { skip: !backend }, () => {
     assert.equal(reply.location, `/album/${id}?request_msg=msg_sent`);
     reply = await bob.postForm('/requests', { type: 'borrow', itemId: id, recipient: bobId, back: '/requests' });
     assert.equal(reply.location, '/requests?request_msg=err_recipient', 'not to oneself');
+    reply = await bob.postForm('/requests', { type: 'borrow', itemId: id, recipient: bobId, back: '/\\evil.example/x' });
+    assert.equal(reply.location, '/requests?box=sent&request_msg=err_recipient', 'a back slash leaves the site like a second slash');
 
     let [request] = await requestsOn('Kind of Blue');
     assert.equal(request.status, 'pending');
