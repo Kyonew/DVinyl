@@ -78,6 +78,7 @@
       "json_error": "Archivo JSON no válido.",
       "file_error": "El archivo de copia de seguridad está dañado o no es válido.",
       "error_collection_dump": "Este archivo es una copia de una colección: no contiene cuentas de usuario, así que no puede restaurar una instancia completa. No se ha cambiado nada. Para restaurarla, inicia sesión (o crea la primera cuenta) e impórtala en «Copia de la colección», en la página de administración de la colección.",
+      "error_invalid_dump": "Este archivo no se puede restaurar tal cual ({{- detail}}), probablemente porque se editó a mano. No se ha cambiado nada.",
       "section_subtitle": "Exporta o restaura toda tu colección.",
       "section_title": "Copia de seguridad de la base de datos",
       "subtitle": "Haga una copia de seguridad de su colección o restaure una base de datos existente.",

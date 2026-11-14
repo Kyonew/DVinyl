@@ -6,7 +6,7 @@ import { backendFor } from './backend';
 import { App, startApp } from './sandbox';
 import { Client } from './client';
 import {
-  addMusic, enableModules, exportInstance, InstanceDump, itemByTitle, listedTitles, saveItem, setupAdmin
+  ADMIN, addMusic, enableModules, exportInstance, InstanceDump, itemByTitle, listedTitles, login, saveItem, setupAdmin
 } from './fixtures';
 
 const backend = backendFor('plugins');
@@ -251,5 +251,36 @@ describe('custom plugins', { skip: !backend }, () => {
       listedTitles((await admin.get('/collection?type=comics&limit=200')).text, dump),
       ['Watchmen']
     );
+  });
+
+  it('refuses a new field named after a path of the core', async () => {
+    const reply = await admin.postJson('/create-plugin/save', {
+      label: 'Boxes', creatorLabel: 'Maker', fields: [{ label: 'Inside', type: 'text' }]
+    });
+    assert.notEqual(reply.json().success, true, reply.text);
+  });
+
+  it('renames a field of an older plugin that a core path took, values and settings along', async () => {
+    const dump: any = await exportInstance(admin);
+    const comics = dump.customPlugins.find((p: any) => p.id === 'comics');
+    comics.config.fields.push({ name: 'inside', label: 'Inside', type: 'text', group: 'metadata' });
+    const item = itemByTitle(dump, 'Watchmen');
+    item.inside = 'Top shelf';
+    dump.settings[0].pluginCustomization = { comics: { cardFields: ['inside', 'issue'], detailFields: { inside: 'more' } } };
+    const reply = await admin.postJson('/backup/import', dump);
+    assert.equal(reply.status, 200, reply.text);
+    admin = await login(app, ADMIN.email, ADMIN.password);
+
+    const after = await exportInstance(admin);
+    const restored = itemByTitle(after, 'Watchmen');
+    assert.equal(restored.inside, undefined, 'the core path is free again');
+    assert.equal(restored.inside_field, 'Top shelf');
+    const fields = after.customPlugins.find((p: any) => p.id === 'comics').config.fields.map((f: any) => f.name);
+    assert.deepEqual(fields, ['issue', 'publisher', 'inside_field']);
+    const cosmetics = after.settings[0].pluginCustomization.comics;
+    assert.deepEqual(cosmetics.cardFields, ['inside_field', 'issue']);
+    assert.deepEqual(cosmetics.detailFields, { inside_field: 'more' });
+    assert.deepEqual(listedTitles((await admin.get('/collection?type=comics&limit=200')).text, after), ['Watchmen'],
+      'the item is no longer taken as stored in a box');
   });
 });

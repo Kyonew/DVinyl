@@ -21,6 +21,9 @@ describe('push', () => {
     assert.equal(await isAllowedEndpoint('https://localhost/x'), false);
     assert.equal(await isAllowedEndpoint('https://192.168.1.2/x'), false);
     assert.equal(await isAllowedEndpoint('https://[::1]/x'), false);
+    for (const host of ['[::ffff:127.0.0.1]', '[::ffff:a9fe:a9fe]', '[64:ff9b::7f00:1]', '[::7f00:1]', '[2002:a00:1::1]', '[::ffff:0:a00:1]', '[2001::1]']) {
+      assert.equal(await isAllowedEndpoint(`https://${host}/x`), false, host);
+    }
     assert.equal(await isAllowedEndpoint('https://fcm.googleapis.com:8443/x'), false);
     assert.equal(await isAllowedEndpoint('https://user:pw@fcm.googleapis.com/x'), false);
     assert.equal(await isAllowedEndpoint('not a url'), false);

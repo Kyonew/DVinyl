@@ -91,6 +91,24 @@ describe('instance backup', { skip: !source || !target }, () => {
     assert.deepEqual(normalizeDump(await exportInstance(restoredAdmin)), before);
   });
 
+  it('refuses a dump edited by hand before wiping anything', async () => {
+    const restoredAdmin = await login(restored, ADMIN.email, ADMIN.password);
+    const before = normalizeDump(await exportInstance(restoredAdmin));
+    const edits: [string, (copy: any) => void][] = [
+      ['an item twice', copy => copy.albums.push({ ...copy.albums[0] })],
+      ['a username twice', copy => copy.users.push({ ...copy.users[0], _id: '64d0000000000000000000ff', email: 'other@example.test' })],
+      ['an account without its email', copy => { delete copy.users[0].email; }]
+    ];
+    for (const [what, edit] of edits) {
+      const copy = structuredClone(dump);
+      edit(copy);
+      const reply = await restoredAdmin.postJson('/backup/import', copy);
+      assert.equal(reply.status, 400, `${what}: ${reply.text}`);
+      assert.match(reply.json().userMessage, /Nothing was changed/, what);
+      assert.deepEqual(normalizeDump(await exportInstance(restoredAdmin)), before, what);
+    }
+  });
+
   it('refuses an instance restore from a non-admin once accounts exist', async () => {
     const reply = await restored.client().postJson('/backup/import', dump);
     assert.notEqual(reply.status, 200);

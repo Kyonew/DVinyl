@@ -52,7 +52,11 @@ export const RESERVED_FIELD_NAMES = new Set([
   // Where the item's metadata came from. "Source" is a name a collector reaches for
   // (where a copy was bought), and a builder field carrying it would write over the
   // reference the core keeps there.
-  'source', 'source_id'
+  'source', 'source_id',
+  // Paths the core added later: what holds an item, the price paid, the fields a refresh
+  // leaves alone, and the bookkeeping of imports and image copies.
+  'parent', 'inside', 'purchase_price', 'purchase_currency', 'kept_fields', 'source_values',
+  'import_filled', 'extra_formats', 'image_origins', 'image_download_failed', 'sort_creator'
 ]);
 
 // Upper bounds on what a builder form may declare. Every field becomes a real Mongoose

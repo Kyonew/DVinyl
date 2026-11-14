@@ -428,6 +428,7 @@
       "json_error": "Fichier JSON invalide.",
       "file_error": "Le fichier de sauvegarde est corrompu ou invalide.",
       "error_collection_dump": "Ce fichier est une sauvegarde de collection : il ne contient aucun compte utilisateur et ne peut donc pas restaurer une instance entière. Rien n'a été modifié. Pour la restaurer, connectez-vous (ou créez le premier compte), puis importez-la dans « Sauvegarde de la collection » sur la page d'administration de la collection.",
+      "error_invalid_dump": "Ce fichier ne peut pas être restauré tel quel ({{- detail}}), sans doute parce qu'il a été modifié à la main. Rien n'a été modifié.",
       "confirm_import": "ATTENTION : Cela va supprimer toutes vos données actuelles (albums, utilisateurs, logs) pour les remplacer par le contenu du fichier. Vous serez déconnecté. Continuer ?",
       "subtitle": "Sauvegardez votre collection ou restaurez une base de données existante.",
       "title": "Maintenance du système",

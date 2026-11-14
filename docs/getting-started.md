@@ -189,6 +189,7 @@ These are the core variables. See [API keys](./api-keys.md) for the metadata ser
 | :------- | :---------- |
 | `SQLITE_PATH` | Where the SQLite file lives (default `data/dvinyl.sqlite`) |
 | `MONGODB_URL` | Only to upgrade from 3.x: the MongoDB to import from on the first start |
+| `DB_DRIVER` | `sqlite` or `mongodb` to force the store, chosen on its own when unset |
 | `VINYL_PORT` | Port DVinyl listens on (default `3099`) |
 | `PASSJWT` | Secret used to sign session tokens |
 | `SESSION_SECRET` | Secret used to encrypt sessions |

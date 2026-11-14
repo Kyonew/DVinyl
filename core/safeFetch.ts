@@ -26,25 +26,46 @@ for (const [range, bits] of [
   ['198.18.0.0', 15], ['198.51.100.0', 24], ['203.0.113.0', 24], ['224.0.0.0', 4], ['240.0.0.0', 4]
 ] as const) blocked.addSubnet(range, bits, 'ipv4');
 for (const [range, bits] of [
-  ['::', 128], ['::1', 128], ['100::', 64], ['2001:db8::', 32], ['fc00::', 7], ['fe80::', 10], ['ff00::', 8]
+  ['::', 128], ['::1', 128], ['64:ff9b:1::', 48], ['100::', 64], ['2001::', 32], ['2001:db8::', 32], ['fc00::', 7], ['fe80::', 10], ['ff00::', 8]
 ] as const) blocked.addSubnet(range, bits, 'ipv6');
+
+/** The eight 16-bit groups of an IPv6 address, an IPv4 tail included, or null. */
+function ipv6Groups(address: string): number[] | null {
+  let text = address.toLowerCase().replace(/%.*$/, '');
+  const tail = /(\d+\.\d+\.\d+\.\d+)$/.exec(text);
+  if (tail) {
+    if (!net.isIPv4(tail[1]!)) return null;
+    const [a, b, c, d] = tail[1]!.split('.').map(Number) as [number, number, number, number];
+    text = text.slice(0, -tail[1]!.length) + ((a << 8) | b).toString(16) + ':' + ((c << 8) | d).toString(16);
+  }
+  const halves = text.split('::');
+  if (halves.length > 2) return null;
+  const parse = (part: string) => (part ? part.split(':').map(group => parseInt(group, 16)) : []);
+  const head = parse(halves[0]!);
+  const rest = halves.length === 2 ? parse(halves[1]!) : [];
+  const fill = 8 - head.length - rest.length;
+  if (halves.length === 2 ? fill < 0 : fill !== 0) return null;
+  const groups = [...head, ...new Array(halves.length === 2 ? fill : 0).fill(0), ...rest];
+  return groups.length === 8 && groups.every(group => Number.isInteger(group) && group >= 0 && group <= 0xffff) ? groups : null;
+}
+
+const ipv4Of = (high: number, low: number) => `${high >> 8}.${high & 255}.${low >> 8}.${low & 255}`;
 
 /** Whether an address may be fetched from: a public one, never one of the machine's networks. */
 export function isPublicAddress(address: string): boolean {
   const family = net.isIP(address);
   if (family === 4) return !blocked.check(address, 'ipv4');
   if (family !== 6) return false;
-  const lower = address.toLowerCase();
-  // An IPv4 address written as IPv6 (::ffff:10.0.0.1, or NAT64 64:ff9b::) is judged as
-  // the IPv4 one it carries.
-  const embedded = /^(?:::ffff:|64:ff9b::)(?:0:)?(\d+\.\d+\.\d+\.\d+)$/.exec(lower);
-  if (embedded) return isPublicAddress(embedded[1]!);
-  const hexMapped = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(lower);
-  if (hexMapped) {
-    const high = parseInt(hexMapped[1]!, 16);
-    const low = parseInt(hexMapped[2]!, 16);
-    return isPublicAddress(`${high >> 8}.${high & 255}.${low >> 8}.${low & 255}`);
-  }
+  const g = ipv6Groups(address);
+  if (!g) return false;
+  const zeros = (from: number, to: number) => g.slice(from, to).every(group => group === 0);
+  // An IPv4 address carried inside an IPv6 one is judged as that IPv4 address, in every
+  // way of writing it: mapped (::ffff:a.b.c.d, also in hex), compatible (::a.b.c.d),
+  // translated (::ffff:0:a.b.c.d), NAT64 (64:ff9b::) and 6to4 (2002:wwxx:yyzz::).
+  if (zeros(0, 5) && (g[5] === 0 || g[5] === 0xffff)) return isPublicAddress(ipv4Of(g[6]!, g[7]!));
+  if (zeros(0, 4) && g[4] === 0xffff && g[5] === 0) return isPublicAddress(ipv4Of(g[6]!, g[7]!));
+  if (g[0] === 0x64 && g[1] === 0xff9b && zeros(2, 6)) return isPublicAddress(ipv4Of(g[6]!, g[7]!));
+  if (g[0] === 0x2002) return isPublicAddress(ipv4Of(g[1]!, g[2]!));
   return !blocked.check(address, 'ipv6');
 }
 

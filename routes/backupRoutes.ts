@@ -25,7 +25,7 @@ import { migrateExtraFieldIdentities } from '../utils/migrateExtraFieldIdentitie
 import { seedFurnitureFromLocations } from '../core/shelfStore';
 import { findDuplicateCellKey } from '../utils/shelfHelpers';
 import { collectionInfoFromBackup, collectionInfoOf } from '../core/collectionInfo';
-import { applyCustomPluginsFromDB } from '../core/customPluginSync';
+import { applyCustomPluginsFromDB, renameCollidingFields } from '../core/customPluginSync';
 import { collectExtraDateFields, reviveExtraDates } from '../core/pluginExtraFields';
 import { deleteUnusedManagedItemImages, managedItemImageFile, managedItemImagesForQuery } from '../core/itemImageStorage';
 import { MAX_BACKUP_UPLOAD_BYTES, readBackupArchive, sendBackupArchive } from '../core/backupArchive';
@@ -135,6 +135,58 @@ router.get('/export-archive', requireAuth, requireAdmin, async (req, res) => {
 });
 
 /**
+ * What would make a whole-instance restore fail once the instance is wiped, or null. A
+ * dump the instance wrote itself never has any of it; a file edited by hand may. Every
+ * record kept under its id, and every value the store holds unique, must appear once.
+ */
+function instanceDumpConflict(data: any, users: any[]): string | null {
+    const twice = (label: string, records: unknown, keyOf: (record: any) => unknown): string | null => {
+        if (!Array.isArray(records)) return null;
+        const seen = new Set<string>();
+        for (const record of records) {
+            const key = record && typeof record === 'object' ? keyOf(record) : undefined;
+            if (key === undefined || key === null || key === '') continue;
+            const text = String(key);
+            if (seen.has(text)) return `${label} "${text.slice(0, 80)}" appears twice`;
+            seen.add(text);
+        }
+        return null;
+    };
+    const byId = (record: any) => record._id;
+    const checks: (string | null)[] = [
+        twice('collection _id', data.collections, byId),
+        twice('collection slug', data.collections, c => c.slug),
+        twice('item _id', data.albums, byId),
+        twice('user _id', users, byId),
+        twice('username', users, u => (typeof u.username === 'string' ? u.username.trim() : u.username)),
+        twice('email', users, u => (typeof u.email === 'string' ? u.email.toLowerCase() : u.email)),
+        twice('furniture _id', data.furniture, byId),
+        twice('list _id', data.lists, byId),
+        twice('request _id', data.requests, byId),
+        twice('request type _id', data.requestTypes, byId),
+        twice('request type slug', data.requestTypes, t => (t.slug ? `${t.collection}/${t.slug}` : undefined)),
+        twice('settings of collection', Array.isArray(data.settings) ? data.settings : [], st => st.collection),
+        twice('custom plugin', data.customPlugins, p => p.id),
+        twice('price snapshot _id', data.priceHistory, byId),
+        twice('login log _id', data.logs, byId),
+        twice('link token', (Array.isArray(data.collections) ? data.collections : [])
+            .flatMap((c: any) => [...(Array.isArray(c?.shareLinks) ? c.shareLinks : []), ...(Array.isArray(c?.inviteLinks) ? c.inviteLinks : [])]),
+            link => link.token)
+    ];
+    const conflict = checks.find(Boolean);
+    if (conflict) return conflict;
+    for (const user of users) {
+        const invalid = db.users.validate(user);
+        if (invalid) return `user "${String(user?.username ?? '?').slice(0, 80)}": ${invalid.field}`;
+    }
+    for (const collection of Array.isArray(data.collections) ? data.collections : []) {
+        const invalid = db.collections.validate(collection);
+        if (invalid) return `collection "${String(collection?.name ?? '?').slice(0, 80)}": ${invalid.field}`;
+    }
+    return null;
+}
+
+/**
  * POST /import - whole-instance restore (wipe & replace).
  * Supports three dump generations:
  *  - v3.1 (has `collections` + `settings` as array): restored verbatim.
@@ -175,6 +227,23 @@ const importInstanceBackup = async (req: any, res: any) => {
         }
 
         const hasCollections = Array.isArray(data.collections) && data.collections.length > 0;
+        const cleanUsers = data.users.map((u: any) => {
+            const lifted = liftLegacyAccountFields(u);
+            if (hasCollections) return lifted;
+            const { lastActiveCollectionId, homeCollectionId, ...rest } = lifted;
+            return rest;
+        });
+        // The wipe below cannot be taken back, so whatever the inserts after it would
+        // refuse is refused here, while the instance is still whole.
+        const conflict = instanceDumpConflict(data, cleanUsers);
+        if (conflict) {
+            await cleanupImportedImages(req);
+            console.warn(`[BACKUP] Instance import refused before anything was touched: ${conflict}.`);
+            return res.status(400).json({
+                error: conflict,
+                userMessage: req.t('admin.backup.error_invalid_dump', { detail: conflict })
+            });
+        }
         // Lists name items by id, and a whole-instance restore keeps every id as it was, so
         // they go back untouched. Settled here, before the wipe.
         const listsToRestore = hasCollections ? restorableLists(data.lists, list => list) : [];
@@ -257,15 +326,7 @@ const importInstanceBackup = async (req: any, res: any) => {
         if (requestTypesToRestore.length > 0) await db.requestTypes.insertMany(requestTypesToRestore);
         if (requestsToRestore.length > 0) await db.requests.insertMany(requestsToRestore);
 
-        if (data.users && data.users.length > 0) {
-            const cleanUsers = data.users.map((u: any) => {
-                const lifted = liftLegacyAccountFields(u);
-                if (hasCollections) return lifted;
-                const { lastActiveCollectionId, homeCollectionId, ...rest } = lifted;
-                return rest;
-            });
-            await db.users.insertMany(cleanUsers);
-        }
+        if (cleanUsers.length > 0) await db.users.insertMany(cleanUsers);
 
         if (data.albums && data.albums.length > 0) {
             // Legacy backups may hold items without a `kind`; assign the plugin that claims legacy items
@@ -365,6 +426,7 @@ const importInstanceBackup = async (req: any, res: any) => {
 
         // Reconcile no-code plugins with the freshly imported DB: re-materialize the
         // plugins/<id>/ folders and hot-register them, pruning any from the old instance.
+        await renameCollidingFields();
         await applyCustomPluginsFromDB();
         await upgradeRestoredExtraFields();
 

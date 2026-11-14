@@ -9,7 +9,7 @@
   <Support>https://github.com/Kyonew/DVinyl/issues</Support>
   <Project>https://github.com/Kyonew/DVinyl</Project>
   <Overview>A self-hosted, plugin based collection manager for your Vinyls, CDs, Books, Movies, Games and LEGO sets.</Overview>
-  <Description>DVinyl is a self-hosted collection manager for physical media. Catalog, value and organize your music, books, movies, video games and LEGO sets from one customizable interface. Every media type is a plugin, so you enable only what you need. Note: Requires a separate MongoDB instance.</Description>
+  <Description>DVinyl is a self-hosted collection manager for physical media. Catalog, value and organize your music, books, movies, video games and LEGO sets from one customizable interface. Every media type is a plugin, so you enable only what you need. Keeps everything in one SQLite file in the Data volume: no database container needed.</Description>
   <Category>MediaApp:Books MediaApp:Video MediaApp:Other</Category>
   <WebUI>http://[IP]:[PORT:3099]</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/Kyonew/DVinyl/main/unraid-template/dvinyl.xml</TemplateURL>
@@ -30,7 +30,7 @@
   
   <Config Name="Uploads Volume" Target="/app/public/uploads" Default="/mnt/user/appdata/dvinyl/uploads" Mode="rw" Description="Directory to store uploaded files like covers." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/dvinyl/uploads</Config>
   
-  <Config Name="MongoDB URL (upgrade from 3.x only)" Target="MONGODB_URL" Default="" Mode="" Description="Only to upgrade from DVinyl 3.x: the MongoDB your data is on, for example mongodb://[IP_OF_MONGODB]:27017/dvinyl. The first start of 4.0 copies everything into SQLite, then this is ignored. Leave empty on a new install." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="MongoDB URL (upgrade from 3.x only)" Target="MONGODB_URL" Default="" Mode="" Description="Only to upgrade from DVinyl 3.x: the MongoDB your data is on, for example mongodb://[IP_OF_MONGODB]:27017/dvinyl. DVinyl keeps running on it until the Data volume is set; the next start then copies everything into SQLite, after which this is no longer read and can be cleared. Leave empty on a new install." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
   <Config Name="JWT Password" Target="PASSJWT" Default="" Mode="" Description="Secret used to sign session tokens. Required: DVinyl refuses to start while this is empty or left at a published placeholder. Generate one with: openssl rand -hex 32" Type="Variable" Display="always" Required="true" Mask="true"></Config>
   <Config Name="Session Secret" Target="SESSION_SECRET" Default="" Mode="" Description="Secret used to encrypt sessions. Must differ from the JWT password. Required: DVinyl refuses to start while this is empty or left at a published placeholder. Generate one with: openssl rand -hex 32" Type="Variable" Display="always" Required="true" Mask="true"></Config>
   

@@ -4,6 +4,7 @@ import webpush from 'web-push';
 import { db } from './db';
 import { all, and, eq, idOf, isId, isIn } from './db/query';
 import { decryptSecret, encryptSecret } from './ai/secret';
+import { isPublicAddress } from './safeFetch';
 
 /**
  * Web Push: notifications that reach a member's devices while DVinyl is closed. Each
@@ -96,27 +97,9 @@ function isKnownPushHost(host: string): boolean {
   return KNOWN_PUSH_HOSTS.some(known => host === known || host.endsWith('.' + known));
 }
 
-/** Whether an address is one of the public internet's, not this machine's or a local network's. */
-export function isPublicAddress(address: string): boolean {
-  if (net.isIPv4(address)) {
-    const [a, b] = address.split('.').map(Number) as [number, number];
-    if (a === 0 || a === 10 || a === 127 || a >= 224) return false;
-    if (a === 169 && b === 254) return false;
-    if (a === 172 && b >= 16 && b <= 31) return false;
-    if (a === 192 && b === 168) return false;
-    if (a === 100 && b >= 64 && b <= 127) return false;
-    return true;
-  }
-  if (net.isIPv6(address)) {
-    const lower = address.toLowerCase();
-    if (lower === '::' || lower === '::1') return false;
-    const mapped = lower.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-    if (mapped) return isPublicAddress(mapped[1]!);
-    if (/^f[cd]/.test(lower) || /^fe[89ab]/.test(lower) || lower.startsWith('ff')) return false;
-    return true;
-  }
-  return false;
-}
+// Judged as the image downloads judge them, every way of writing an IPv4 address inside
+// an IPv6 one included.
+export { isPublicAddress };
 
 /**
  * Whether the instance may send to this endpoint: HTTPS, and a host on the public

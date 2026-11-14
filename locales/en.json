@@ -443,6 +443,7 @@
       "json_error": "Invalid JSON file.",
       "file_error": "The backup file is corrupted or invalid.",
       "error_collection_dump": "This file is a collection backup: it holds no user accounts, so it cannot restore a whole instance. Nothing was changed. To restore it, sign in (or create the first account), then import it under \"Collection backup\" on the collection's admin page.",
+      "error_invalid_dump": "This file cannot be restored as it is ({{- detail}}), probably because it was edited by hand. Nothing was changed.",
       "confirm_import": "WARNING: This will delete all your current data (albums, users, logs) and replace it with the content of the file. You will be logged out. Continue?",
       "subtitle": "Backup your collection or restore an existing database.",
       "title": "System Maintenance",

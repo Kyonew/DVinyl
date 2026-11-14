@@ -8,10 +8,11 @@ import { alignImagesAfterRefresh } from '../core/itemImages';
 
 test('only public addresses may be fetched from', () => {
   for (const address of ['127.0.0.1', '10.1.2.3', '172.20.0.5', '192.168.1.10', '169.254.169.254', '100.64.0.1',
-    '0.0.0.0', '224.0.0.1', '::1', '::', 'fe80::1', 'fd12:3456::1', '::ffff:127.0.0.1', '::ffff:7f00:1', '64:ff9b::10.0.0.1']) {
+    '0.0.0.0', '224.0.0.1', '::1', '::', 'fe80::1', 'fd12:3456::1', '::ffff:127.0.0.1', '::ffff:7f00:1', '64:ff9b::10.0.0.1',
+    '::ffff:a9fe:a9fe', '64:ff9b::7f00:1', '::7f00:1', '::127.0.0.1', '::ffff:0:a00:1', '2002:c0a8:101::1', '2001:0:4136::1', '64:ff9b:1::1', '0:0:0:0:0:ffff:7f00:1', 'fe80::1%eth0']) {
     assert.equal(isPublicAddress(address), false, address);
   }
-  for (const address of ['93.184.216.34', '8.8.8.8', '2606:4700:4700::1111', '::ffff:8.8.8.8']) {
+  for (const address of ['93.184.216.34', '8.8.8.8', '2606:4700:4700::1111', '::ffff:8.8.8.8', '::ffff:808:808', '64:ff9b::808:808', '2002:808:808::1', '2a00:1450:4007:80e::200e']) {
     assert.equal(isPublicAddress(address), true, address);
   }
   assert.equal(isPublicAddress('not an ip'), false);

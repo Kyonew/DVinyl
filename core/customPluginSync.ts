@@ -5,6 +5,7 @@ import { PLUGINS_DIR } from './loadPlugins';
 import { registry } from './registry';
 import { CustomPluginConfig } from './customPlugin';
 import { writeCustomPluginDir, deleteCustomPluginDir, getCustomConfig } from './customPluginStore';
+import { migrateReservedFieldNames } from '../utils/migrateReservedFieldNames';
 import { registerPluginDirAtRuntime, unregisterPluginAtRuntime } from './pluginRuntime';
 
 /**
@@ -95,5 +96,15 @@ export async function applyCustomPluginsFromDB(): Promise<void> {
 export async function syncCustomPluginsOnBoot(): Promise<void> {
   if (!fs.existsSync(PLUGINS_DIR)) return;
   await backfillCustomPluginsToDB();
+  await renameCollidingFields();
   await applyCustomPluginsFromDB();
+}
+
+/** See utils/migrateReservedFieldNames.ts. Never fatal: the next boot tries again. */
+export async function renameCollidingFields(): Promise<void> {
+  try {
+    await migrateReservedFieldNames();
+  } catch (err: any) {
+    console.error(`[CustomPluginSync] Renaming fields that collide with the core failed: ${err.message}`);
+  }
 }
