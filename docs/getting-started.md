@@ -13,6 +13,7 @@ database server to install.
 | 🐳 Docker | Most people, quickest path | [Docker deployment](./docker.md) (recommended) |
 | 🧊 ZimaOS | ZimaOS / CasaOS users (1-click app store) | [Section below](#-zimaos) |
 | 🧡 Unraid | Unraid server users | [Section below](#-unraid) |
+| 🐧 Proxmox LXC | A small Linux container instead of Docker | [Section below](#-proxmox-lxc) |
 | 🛠️ Manual (Node.js) | Developers and custom setups | [Section below](#-manual-nodejs) |
 
 Before you start, grab the [API keys](./api-keys.md) for the media types you want to use. You can
@@ -72,9 +73,11 @@ Best if you want to run from source or customize the code.
 
 ### Prerequisites
 
-- **Node.js** 22 or higher
-- **npm**, and on platforms without prebuilt SQLite binaries, the usual build tools
-  (Python 3, make and a C++ compiler)
+- **Node.js** 22 or higher, with **npm**
+- **Build tools** for the SQLite module, which `npm install` compiles: Python 3, make and a C++
+  compiler. On Debian or Ubuntu: `sudo apt install build-essential python3`. On macOS:
+  `xcode-select --install`.
+- **git**, to get the code
 
 ### Steps
 
@@ -104,6 +107,78 @@ DVinyl is then available at `http://localhost:3099`.
 > [!TIP]
 > Run `make help` to see every available command. To keep DVinyl running in the background you can
 > use pm2: `pm2 start app.ts --interpreter tsx --name dvinyl`.
+
+## 🐧 Proxmox LXC
+
+From 4.0, DVinyl is one Node.js app and one data folder, so it runs well in a small LXC without
+Docker. There is no official LXC image: these steps install it from source in a Debian 12 (or
+newer) container, as a service that starts with the container. Run them as root inside it.
+
+1. **Create the container** in Proxmox from a Debian 12 template. 1 CPU, 1 GB of RAM and 8 GB of
+   disk are plenty for a personal collection.
+2. **Install Node.js, the build tools and git:**
+   ```bash
+   apt update && apt install -y curl ca-certificates git build-essential python3
+   curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+   apt install -y nodejs
+   ```
+3. **Get DVinyl and its dependencies:**
+   ```bash
+   git clone https://github.com/Kyonew/DVinyl.git /opt/DVinyl
+   cd /opt/DVinyl
+   npm install
+   cp .env.example .env
+   ```
+4. **Fill in `.env`**: at least `PASSJWT` and `SESSION_SECRET`, two different values from
+   `openssl rand -hex 32`. See [environment variables](#-environment-variables) and
+   [API keys](./api-keys.md) for the rest.
+5. **Give it a user of its own** rather than running it as root:
+   ```bash
+   useradd --system --home /opt/DVinyl --shell /usr/sbin/nologin dvinyl
+   chown -R dvinyl:dvinyl /opt/DVinyl
+   ```
+6. **Make it a service.** Create `/etc/systemd/system/dvinyl.service`:
+   ```ini
+   [Unit]
+   Description=DVinyl
+   After=network-online.target
+   Wants=network-online.target
+
+   [Service]
+   User=dvinyl
+   WorkingDirectory=/opt/DVinyl
+   ExecStart=/usr/bin/node --env-file=.env --import tsx app.ts
+   Restart=on-failure
+   TimeoutStopSec=20
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+   Then start it, now and at every boot:
+   ```bash
+   systemctl daemon-reload
+   systemctl enable --now dvinyl
+   journalctl -u dvinyl -f    # the log; Ctrl+C to leave it
+   ```
+7. Open `http://<container-ip>:3099` and create your admin account.
+
+Your whole collection is in `/opt/DVinyl/data` and your images in `/opt/DVinyl/public/uploads`:
+those two folders are what to back up, along with the automatic backups you can turn on from the
+**Instance** admin page. Proxmox snapshots and backups of the container cover them too.
+
+**Updating:**
+```bash
+cd /opt/DVinyl
+systemctl stop dvinyl
+git pull
+npm install
+chown -R dvinyl:dvinyl /opt/DVinyl
+systemctl start dvinyl
+```
+
+> [!NOTE]
+> Stop the service before starting DVinyl by hand in the same folder: only one DVinyl at a time can
+> use a data folder, and a second one stops with `[DATA] Another DVinyl is already running`.
 
 ## 🔐 Environment variables
 
