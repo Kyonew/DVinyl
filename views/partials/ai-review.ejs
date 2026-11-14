@@ -141,8 +141,12 @@
             confirm: <%- JSON.stringify(t('ai.import_confirm')) %>,
             noInput: <%- JSON.stringify(t('ai.err_no_input')) %>,
             imageRejected: <%- JSON.stringify(t('ai.err_image_rejected')) %>,
-            removePhoto: <%- JSON.stringify(t('ai.import_photos_remove')) %>
+            removePhoto: <%- JSON.stringify(t('ai.import_photos_remove')) %>,
+            noAnswer: <%- JSON.stringify(t('ai.err_no_answer', { status: '{{status}}' })).replace(/</g, '\\u003c') %>
         };
+        // A reply DVinyl did not write (a reverse proxy that cut a slow request answers
+        // with a page of its own), said as such rather than as a bare "Error".
+        const noAnswer = status => T.noAnswer.replace('{{status}}', String(status));
 
         // Same cap as the server (see aiImportRoute.ts): four photos is a shelf, not a library.
         const MAX_PHOTOS = 4;
@@ -279,7 +283,7 @@
                     body: JSON.stringify({ plugin: el('aiModule').value, text, images: photos })
                 });
                 const data = await res.json().catch(() => ({}));
-                if (!res.ok) throw new Error(data.error || 'Error');
+                if (!res.ok) throw new Error(data.error || noAnswer(res.status));
 
                 preview = { module: currentModule(), ...data };
                 renderReview();
@@ -422,7 +426,7 @@
                     })
                 });
                 const d = await res.json().catch(() => ({}));
-                if (!res.ok) throw new Error(d.error || 'Error');
+                if (!res.ok) throw new Error(d.error || noAnswer(res.status));
                 btn.innerHTML = T.started;
                 window.followImport({
                     jobId: d.jobId,

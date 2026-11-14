@@ -83,6 +83,18 @@ test('other number fields keep a literal 0 - only quantity is special-cased', ()
   assert.equal(rows[0]?.values.pages, '0');
 });
 
+test('drops a blank template whose only values are habits: a quantity, a choice, a yes/no', () => {
+  const more: ImportTargetField[] = [
+    ...fields,
+    { name: 'quantity', label: 'Quantity', type: 'number', required: false, group: 'base' },
+    { name: 'media_type', label: 'Format', type: 'select', required: false, group: 'plugin', options: [{ value: 'vinyl', label: 'Vinyl' }] },
+    { name: 'in_wishlist', label: 'Wishlist', type: 'boolean', required: false, group: 'base' }
+  ];
+  assert.deepEqual(validateRows([{ title: '', author: '', quantity: 0, media_type: 'vinyl', in_wishlist: 'false', pages: '' }], more), []);
+  // Any word from the input is enough to keep the row for the review table.
+  assert.equal(validateRows([{ title: '', author: 'Daft Punk', quantity: 0 }], more).length, 1);
+});
+
 describe('extractRows', () => {
   const config: AiConfig = {
     enabled: true, provider: 'openai', baseUrl: 'https://api.test/v1',

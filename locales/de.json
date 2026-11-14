@@ -543,6 +543,7 @@
     "err_input_too_long": "Das ist zu lang. Importiere höchstens {{max}} Zeichen auf einmal.",
     "err_no_rows": "Keine Zeilen zum Importieren.",
     "err_nothing_found": "Die KI hat nichts zum Importieren gefunden. Versuchen Sie es erneut oder schreiben Sie einen Titel pro Zeile.",
+    "err_no_answer": "Der Server hat nicht wie erwartet geantwortet (HTTP {{status}}). Läuft DVinyl hinter einem Reverse Proxy, hat dieser die Anfrage vielleicht abgebrochen, während die KI noch antwortete: Versuche eine kürzere Liste oder erhöhe das Timeout des Proxys.",
     "err_extract_failed": "Die KI konnte das nicht lesen: {{error}}",
     "err_card_not_recognized": "Diese Karte wurde nicht erkannt. Versuch es mit einem schärferen, gut beleuchteten Foto oder suche nach dem Namen.",
     "import_title": "Mit KI importieren",

@@ -823,6 +823,7 @@
     "err_input_too_long": "That is too long. Import at most {{max}} characters at a time.",
     "err_no_rows": "No rows to import.",
     "err_nothing_found": "The AI found nothing to import in that. Try again, or put one title per line.",
+    "err_no_answer": "The server did not answer as expected (HTTP {{status}}). If DVinyl sits behind a reverse proxy, it may have cut the request while the AI was still answering: try a shorter list, or raise the proxy's timeout.",
     "err_extract_failed": "The AI could not read that: {{error}}",
     "err_card_not_recognized": "Couldn't recognise that card. Try a clearer, well-lit photo, or search by name instead.",
     "import_title": "Import with AI",

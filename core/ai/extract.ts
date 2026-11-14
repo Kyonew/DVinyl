@@ -10,6 +10,11 @@ export interface ValidatedRow {
   missingRequired: string[];
 }
 
+/** Free text, where a value comes from the input rather than from a default or a list. */
+function isWords(field: ImportTargetField): boolean {
+  return ['text', 'textarea', 'tags'].includes(field.type) && !(field.options && field.options.length > 0);
+}
+
 /** A model may answer with a number, an array of genres, or a null. All become strings. */
 function toStringValue(value: any): string {
   if (value === null || value === undefined) return '';
@@ -26,7 +31,11 @@ function toStringValue(value: any): string {
  *    schema path (and an inherited key like __proto__ cannot reach anything at all);
  *  - every value is a trimmed string, which is what coerceValue() expects;
  *  - a row missing a required field is kept and flagged rather than dropped, because the
- *    review table can fix it and a silent disappearance cannot be noticed.
+ *    review table can fix it and a silent disappearance cannot be noticed;
+ *  - but a row has to say something in words: a model handed a list it could not read
+ *    sometimes answers with a blank template, whose only values are what it fills in by
+ *    habit (a quantity, a format picked from the list, "false"). Such a row names nothing,
+ *    and drawn in the table it reads as one empty line instead of "nothing found".
  */
 export function validateRows(raw: Record<string, any>[], fields: ImportTargetField[]): ValidatedRow[] {
   const byName = new Map(fields.map(field => [field.name, field]));
@@ -34,7 +43,7 @@ export function validateRows(raw: Record<string, any>[], fields: ImportTargetFie
 
   for (const entry of raw) {
     const values: AiExtractedRow = Object.create(null) as AiExtractedRow;
-    let hasAnyValue = false;
+    let saysSomething = false;
 
     // Iterating the declared fields, not the model's keys, is what keeps an unexpected
     // key out, including the ones that are dangerous to copy onto a plain object.
@@ -50,10 +59,10 @@ export function validateRows(raw: Record<string, any>[], fields: ImportTargetFie
       // pages...) genuinely permits 0, so this is not generalised to numbers at large.
       if (name === 'quantity' && value === '0') value = '1';
       if (field.required || value) values[name] = value;
-      if (value) hasAnyValue = true;
+      if (value && isWords(field)) saysSomething = true;
     }
 
-    if (!hasAnyValue) continue;
+    if (!saysSomething) continue;
 
     const missingRequired = fields
       .filter(field => field.required && !values[field.name])

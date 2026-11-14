@@ -543,6 +543,7 @@
     "err_input_too_long": "È troppo lungo. Importa al massimo {{max}} caratteri alla volta.",
     "err_no_rows": "Nessuna riga da importare.",
     "err_nothing_found": "L'IA non ha trovato nulla da importare. Riprova, oppure metti un titolo per riga.",
+    "err_no_answer": "Il server non ha risposto come previsto (HTTP {{status}}). Se DVinyl è dietro un reverse proxy, potrebbe aver interrotto la richiesta mentre l'IA stava ancora rispondendo: prova con un elenco più corto o aumenta il timeout del proxy.",
     "err_extract_failed": "L'IA non è riuscita a leggerlo: {{error}}",
     "err_card_not_recognized": "Carta non riconosciuta. Prova con una foto più nitida e ben illuminata, oppure cerca per nome.",
     "import_title": "Importa con l'IA",
