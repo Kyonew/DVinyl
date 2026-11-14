@@ -56,6 +56,12 @@ export interface PluginDefinition {
   // The plugin's own fixed-list fields shown in the collection's filter bar until the
   // collection says otherwise. The others stay off by default (see core/filterFields.ts).
   defaultFilters?: string[];
+  // Fields of interest to few, folded into the "More details" block of the item page
+  // until the collection says otherwise (see core/detailPlacement.ts).
+  detailFolded?: string[];
+  // Where this collection put each field it moved on the item page, set on the decorated
+  // plugin from the customization; never declared by a plugin.
+  detailPlacement?: Record<string, 'shown' | 'more' | 'hidden'>;
   // Brings the items already stored up to date with what the plugin now keeps, run at
   // boot and after a restore. Must be idempotent and must not reach the network. Returns
   // how many items it changed.

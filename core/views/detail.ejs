@@ -56,7 +56,7 @@
         // draws the plugin's own fields and would have printed it again right under.
         // Same list the cards go through, so a field is kept from a visitor
         // everywhere or nowhere.
-        const detailFields = plugin.formFields.filter(f =>
+        const pageFields = plugin.formFields.filter(f =>
             f.showIn.includes('detail') &&
             fieldShownFor(f, item) &&
             !['title', plugin.creatorField].includes(f.name) &&
@@ -64,6 +64,10 @@
             !(locals.isShareView && SHARE_HIDDEN_FIELDS.has(f.name)) &&
             f.type !== 'custom'
         );
+        // Where the collection put each field (core/detailPlacement.ts): in the page, in
+        // the folded "More details" block under it, or nowhere.
+        const detailFields = pageFields.filter(f => detailPlacementOf(plugin, f.name) === 'shown');
+        const moreFields = pageFields.filter(f => detailPlacementOf(plugin, f.name) === 'more');
         // An amount in the currency it carries, written the way the interface language
         // writes money.
         const formatMoney = (value, currency) => {
@@ -576,6 +580,34 @@
                 <% } %>
 
             </div>
+
+            <%# The fields the collection folded away: one block for both layouts, closed
+                until asked, so a long page stays short without anything being lost. %>
+            <% const moreShown = moreFields.filter(f => !isEmptyValue(item[f.name]) || f.type === 'boolean'); %>
+            <% if (moreShown.length > 0) { %>
+                <details class="max-md:order-5 card-theme rounded-xl max-md:rounded-2xl shadow-sm transition-colors group">
+                    <summary class="cursor-pointer select-none list-none px-6 py-4 max-md:px-4 flex items-center justify-between gap-3 text-sm font-bold">
+                        <span><%= t('detail.more_details') %> <span class="opacity-50 font-medium">(<%= moreShown.length %>)</span></span>
+                        <i class="fa-solid fa-chevron-down text-xs opacity-50 transition-transform group-open:rotate-180" aria-hidden="true"></i>
+                    </summary>
+                    <div class="px-6 pb-6 max-md:px-4 max-md:pb-4 grid grid-cols-1 md:grid-cols-2 gap-y-5 gap-x-4">
+                        <% moreShown.forEach(field => { const val = item[field.name]; %>
+                            <div class="<%= field.type === 'textarea' || field.type === 'rows' ? 'md:col-span-2' : '' %>">
+                                <span class="block text-xs opacity-50 uppercase font-bold mb-1"><%= t(field.label, { defaultValue: field.label }) %></span>
+                                <% if (field.type === 'tags' && Array.isArray(val)) { %>
+                                    <div class="flex flex-wrap gap-1.5"><% val.forEach(tag => { %><span class="bg-black/5 dark:bg-white/10 text-xs font-medium px-2.5 py-1 rounded-full"><%= tag %></span><% }) %></div>
+                                <% } else if (field.type === 'rows' && Array.isArray(val)) { %>
+                                    <%- rowsTable(field, val) %>
+                                <% } else if (field.type === 'textarea') { %>
+                                    <p class="text-sm font-medium whitespace-pre-line"><%= val %></p>
+                                <% } else { %>
+                                    <span class="text-sm font-medium"><%= fieldText(field, val) %></span>
+                                <% } %>
+                            </div>
+                        <% }) %>
+                    </div>
+                </details>
+            <% } %>
 
             <%# The requests about this item: who has it, what was asked. On a phone it
                 follows the copy section. %>

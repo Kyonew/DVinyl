@@ -912,6 +912,7 @@
     "field_pressing_notes": "Note di stampa"
   },
   "detail": {
+    "more_details": "Altri dettagli",
     "refresh_no_source": "Questo elemento è stato aggiunto a mano e non è collegato a nessuna fonte, quindi non c'è nulla da cui aggiornarlo. Compila il campo «{{field}}» nel modulo di modifica, poi aggiornalo.",
     "rows_show_all": "Mostra tutti ({{count}})",
     "rows_show_less": "Mostra meno",
@@ -1631,6 +1632,13 @@
     "message": "Questo link di condivisione non è valido o non è più disponibile. Chiedine uno nuovo a chi possiede la collezione."
   },
   "create_plugin": {
+    "cz_detail_title": "Nella scheda",
+    "cz_detail_hint": "Dove compare ogni campo nella scheda di un elemento: nella pagina, ripiegato nel blocco «Altri dettagli» sotto, oppure nascosto. Non viene cancellato nulla.",
+    "cz_own_fields_title": "I tuoi campi",
+    "cz_detail_shown": "Visibile",
+    "cz_detail_more": "Altri dettagli",
+    "cz_detail_hidden": "Nascosto",
+    "cz_detail_default": "Predefinito",
     "title": "Editor di plugin",
     "subtitle": "Crea il tuo tipo di collezione (statuine, carte, fumetti...) senza scrivere codice. Il plugin viene generato nella cartella plugins/ e diventa subito utilizzabile, come i moduli nativi. I plugin creati qui funzionano solo con inserimento manuale (nessuna API esterna).",
     "existing_title": "I miei plugin personalizzati",
@@ -1752,7 +1760,7 @@
     "cz_desc_card": "Cosa mostrano le schede",
     "cz_desc_table": "Colonne della vista tabella",
     "cz_desc_filters": "Filtri della pagina collezione",
-    "cz_desc_fields": "Aggiungi i tuoi campi",
+    "cz_desc_fields": "Scheda dell'elemento e i tuoi campi",
     "cz_icon_own": "L'icona originale del plugin",
     "cz_new_field": "Nuovo campo",
     "cz_delete_field": "Elimina questo campo",

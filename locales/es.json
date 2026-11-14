@@ -912,6 +912,7 @@
     "field_pressing_notes": "Notas de prensado"
   },
   "detail": {
+    "more_details": "Más detalles",
     "refresh_no_source": "Este elemento se añadió a mano y no está vinculado a ninguna fuente, así que no hay de dónde actualizarlo. Rellena su campo «{{field}}» en el formulario de edición y luego actualízalo.",
     "rows_show_all": "Mostrar los {{count}}",
     "rows_show_less": "Mostrar menos",
@@ -1631,6 +1632,13 @@
     "message": "Este enlace para compartir no es válido o ya no está disponible. Pide uno nuevo a quien sea propietario de la colección."
   },
   "create_plugin": {
+    "cz_detail_title": "En la ficha",
+    "cz_detail_hint": "Dónde aparece cada campo en la ficha de un elemento: en la página, plegado en el bloque «Más detalles» de debajo, u oculto. No se borra nada.",
+    "cz_own_fields_title": "Tus propios campos",
+    "cz_detail_shown": "Visible",
+    "cz_detail_more": "Más detalles",
+    "cz_detail_hidden": "Oculto",
+    "cz_detail_default": "Por defecto",
     "title": "Editor de plugins",
     "subtitle": "Crea tu propio tipo de colección (figuras, cartas, cómics...) sin escribir código. El plugin se genera en la carpeta plugins/ y se puede usar de inmediato, como los módulos nativos. Los plugins creados aquí funcionan solo con entrada manual (sin API externa).",
     "existing_title": "Mis plugins personalizados",
@@ -1752,7 +1760,7 @@
     "cz_desc_card": "Lo que muestran las tarjetas",
     "cz_desc_table": "Columnas de la vista de tabla",
     "cz_desc_filters": "Filtros de la página de colección",
-    "cz_desc_fields": "Añade tus propios campos",
+    "cz_desc_fields": "Ficha del elemento y tus propios campos",
     "cz_icon_own": "El icono original del plugin",
     "cz_new_field": "Nuevo campo",
     "cz_delete_field": "Eliminar este campo",

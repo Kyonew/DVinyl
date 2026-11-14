@@ -536,7 +536,17 @@
                     <section data-cz-panel="fields" class="hidden space-y-5">
                         <div>
                             <h4 class="<%= czHeadClass %>"><%= t('create_plugin.cz_nav_fields') %></h4>
-                            <p class="text-xs opacity-50 md:mt-1"><%= t('create_plugin.extra_fields_hint') %></p>
+                        </div>
+                        <%# Every field of the item page, built-in and own alike: shown in the
+                            page, folded into its "More details" block, or hidden. %>
+                        <div id="czDetailWrap">
+                            <span class="<%= czLabelClass %>"><%= t('create_plugin.cz_detail_title') %></span>
+                            <p class="text-xs opacity-50 -mt-1 mb-3"><%= t('create_plugin.cz_detail_hint') %></p>
+                            <div id="czDetailFields" class="space-y-2"></div>
+                        </div>
+                        <div>
+                            <span class="<%= czLabelClass %>"><%= t('create_plugin.cz_own_fields_title') %></span>
+                            <p class="text-xs opacity-50 -mt-1"><%= t('create_plugin.extra_fields_hint') %></p>
                         </div>
                         <div id="czFields" class="space-y-2"></div>
                         <button type="button" id="czAddFieldBtn"
@@ -623,6 +633,10 @@
         czDiscard: t('create_plugin.cz_discard_confirm'),
         czReset: t('create_plugin.cz_reset_confirm'),
         czTableTitle: t('create_plugin.cz_table_title'),
+        czDetailShown: t('create_plugin.cz_detail_shown'),
+        czDetailMore: t('create_plugin.cz_detail_more'),
+        czDetailHidden: t('create_plugin.cz_detail_hidden'),
+        czDetailDefault: t('create_plugin.cz_detail_default'),
         deleteConfirm: t('create_plugin.delete_confirm'),
         saving: t('create_plugin.saving'),
         aiGenerating: t('create_plugin.ai_generating'),
@@ -1599,6 +1613,53 @@
         });
     }
 
+    // ---- Item page (each field shown, folded into "More details", or hidden) ----------
+    function czRenderDetailFields(data) {
+        const wrap = $('czDetailFields');
+        wrap.innerHTML = '';
+        const choices = data.detailChoices || [];
+        $('czDetailWrap').classList.toggle('hidden', choices.length === 0);
+        const places = [['shown', i18n.czDetailShown], ['more', i18n.czDetailMore], ['hidden', i18n.czDetailHidden]];
+
+        choices.forEach(choice => {
+            const row = document.createElement('div');
+            row.className = 'flex max-sm:flex-col sm:items-center justify-between gap-2 px-3 py-2 rounded-xl bg-black/5 dark:bg-white/5';
+
+            const name = document.createElement('span');
+            name.className = 'text-sm min-w-0 truncate';
+            name.textContent = choice.label;
+
+            // Three exclusive places as a radio group, so the keyboard and screen readers
+            // treat it as one choice.
+            const group = document.createElement('div');
+            group.setAttribute('role', 'radiogroup');
+            group.setAttribute('aria-label', choice.label);
+            group.className = 'flex shrink-0 rounded-lg bg-black/5 dark:bg-white/5 p-0.5 text-xs font-bold';
+            places.forEach(([value, label]) => {
+                const option = document.createElement('label');
+                // Relative, so the visually hidden radio sits inside its label: placed
+                // against the dialog instead, focusing it scrolled the whole dialog away.
+                option.className = 'relative cursor-pointer';
+                const input = document.createElement('input');
+                input.type = 'radio';
+                input.className = 'cz-detail sr-only peer';
+                input.name = 'czd-' + choice.name;
+                input.value = value;
+                input.dataset.field = choice.name;
+                input.checked = choice.placement === value;
+                const text = document.createElement('span');
+                text.className = 'block px-2.5 py-1.5 rounded-md opacity-60 peer-checked:opacity-100 peer-checked:bg-primary-theme peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-primary-theme';
+                text.textContent = label;
+                if (choice.byDefault === value) text.title = i18n.czDetailDefault;
+                option.append(input, text);
+                group.appendChild(option);
+            });
+
+            row.append(name, group);
+            wrap.appendChild(row);
+        });
+    }
+
     // ---- Filters (on/off per filter, in the order the collection page lays them out) --
     function czRenderFilters(data) {
         const wrap = $('czFilters');
@@ -1645,6 +1706,7 @@
         czRenderCornerField(data);
         czRenderTableColumns(data);
         czRenderFilters(data);
+        czRenderDetailFields(data);
 
         const wrap = $('czFormats');
         wrap.innerHTML = '';
@@ -1885,6 +1947,8 @@
             .filter(b => b.checked).map(b => b.value);
         body.filters = Array.from(document.querySelectorAll('.cz-filter'))
             .filter(b => b.checked).map(b => b.value);
+        body.detailFields = {};
+        document.querySelectorAll('.cz-detail:checked').forEach(input => { body.detailFields[input.dataset.field] = input.value; });
         body.extraFields = Array.from(document.querySelectorAll('.cz-field-row')).map(r => ({
             name: r.dataset.name || undefined,
             keepBeside: r.dataset.keepBeside || undefined,

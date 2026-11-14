@@ -1039,6 +1039,7 @@
     "edit_secondary_visual": "Edit secondary visual (Disc)"
   },
   "detail": {
+    "more_details": "More details",
     "refresh_no_source": "This item was added by hand and is not linked to a source, so there is nothing to refresh it from. Fill in its {{field}} in the edit form, then refresh it.",
     "rows_show_all": "Show all {{count}}",
     "rows_show_less": "Show less",
@@ -1579,6 +1580,13 @@
     "message": "This share link is invalid or is no longer available. Ask the collection owner for a new one."
   },
   "create_plugin": {
+    "cz_detail_title": "On the item page",
+    "cz_detail_hint": "Where each field sits on an item's page: in the page, folded into the More details block under it, or hidden. Nothing is deleted.",
+    "cz_own_fields_title": "Your own fields",
+    "cz_detail_shown": "Shown",
+    "cz_detail_more": "More details",
+    "cz_detail_hidden": "Hidden",
+    "cz_detail_default": "Default",
     "title": "Plugin editor",
     "subtitle": "Create your own collection type (figures, cards, comics...) without writing code. The plugin is generated in the plugins/ folder and becomes usable immediately, just like the built-in modules. Plugins created here are manual-entry only (no external API).",
     "existing_title": "My custom plugins",
@@ -1700,7 +1708,7 @@
     "cz_desc_card": "What the cards show",
     "cz_desc_table": "Columns of the table view",
     "cz_desc_filters": "Filters on the collection page",
-    "cz_desc_fields": "Add your own fields",
+    "cz_desc_fields": "Item page and your own fields",
     "cz_icon_own": "The plugin's own icon",
     "cz_new_field": "New field",
     "cz_delete_field": "Delete this field",

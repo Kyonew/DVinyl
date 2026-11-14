@@ -45,6 +45,8 @@ export const musicPlugin: PluginDefinition = {
   order: 10,
   enabledByDefault: true,
   externalIdField: 'discogs_id',
+  // Pressing details matter to a few collectors and fill a long page for everyone else.
+  detailFolded: ['pressing_plant', 'mastering_studio', 'mastering_engineer', 'rights_society', 'cutting_method', 'runouts', 'pressing_notes'],
   externalIdLabel: 'edit_vinyl.discogs_id_label',
   externalIdHint: 'edit_vinyl.discogs_id_hint',
   matchesLegacyItems: true,

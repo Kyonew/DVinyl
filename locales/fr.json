@@ -1039,6 +1039,7 @@
     "edit_secondary_visual": "Modifier le visuel secondaire (Disque)"
   },
   "detail": {
+    "more_details": "Plus d'infos",
     "refresh_no_source": "Cet objet a été ajouté à la main et n'est lié à aucune source : il n'y a rien d'où le mettre à jour. Renseignez son champ « {{field}} » dans le formulaire de modification, puis mettez-le à jour.",
     "rows_show_all": "Tout afficher ({{count}})",
     "rows_show_less": "Afficher moins",
@@ -1579,6 +1580,13 @@
     "message": "Ce lien de partage est invalide ou n'est plus disponible. Demandez un nouveau lien au propriétaire de la collection."
   },
   "create_plugin": {
+    "cz_detail_title": "Sur la fiche",
+    "cz_detail_hint": "Où chaque champ apparaît sur la fiche d'un objet : dans la page, replié dans le bloc « Plus d'infos » en dessous, ou masqué. Rien n'est supprimé.",
+    "cz_own_fields_title": "Vos propres champs",
+    "cz_detail_shown": "Affiché",
+    "cz_detail_more": "Plus d'infos",
+    "cz_detail_hidden": "Masqué",
+    "cz_detail_default": "Par défaut",
     "title": "Éditeur de plugins",
     "subtitle": "Créez votre propre type de collection (figurines, cartes, BD...) sans écrire de code. Le plugin est généré dans le dossier plugins/ et devient utilisable immédiatement, comme les modules natifs. Les plugins créés ici fonctionnent en saisie manuelle (pas d'API externe).",
     "existing_title": "Mes plugins custom",
@@ -1700,7 +1708,7 @@
     "cz_desc_card": "Ce que les cartes affichent",
     "cz_desc_table": "Colonnes de la vue tableau",
     "cz_desc_filters": "Filtres de la page collection",
-    "cz_desc_fields": "Ajouter vos propres champs",
+    "cz_desc_fields": "Fiche de l'objet et vos propres champs",
     "cz_icon_own": "L'icône d'origine du plugin",
     "cz_new_field": "Nouveau champ",
     "cz_delete_field": "Supprimer ce champ",

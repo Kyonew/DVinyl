@@ -17,6 +17,7 @@ import { planTransfer, runTransfer } from '../core/extraFieldTransfer';
 import { and, filled } from '../core/db/filter';
 import { SUPPORTED_LANGUAGES } from '../config/constants';
 import { placeholderUrl } from '../core/placeholderImage';
+import { defaultPlacement, detailCandidates, placementOf, sanitizeDetailPlacement } from '../core/detailPlacement';
 import { cardFieldCandidates, isTranslationKey, getCardLines, MAX_CARD_LINES, CORNER_POSITIONS, DEFAULT_CORNER_POSITION, defaultTableColumnNames, sanitizeTableColumns, tableColumnNames } from '../core/cardFields';
 import { filterCandidates, filterOverrides, activeFilters, sanitizeFilterSelection } from '../core/filterFields';
 import { registerPluginDirAtRuntime, unregisterPluginAtRuntime } from '../core/pluginRuntime';
@@ -104,6 +105,13 @@ router.get('/', async (req: any, res: any) => {
       // What the cards show today, so an untouched plugin opens on its real state
       cardFields: p.defaultCardFields || [p.creatorField],
       tableColumns: tableColumnNames(p),
+      // Every field of the item page with where it sits now, and where it would by default
+      detailChoices: detailCandidates(p).map(f => ({
+        name: f.name,
+        label: req.t(f.label, { defaultValue: f.label }),
+        placement: placementOf(p, f.name),
+        byDefault: defaultPlacement(p, f.name)
+      })),
       // Read on the bare plugin for the same reason as the lookalikes above
       filterChoices: (() => {
         const bare = registry.get(p.id);
@@ -205,6 +213,14 @@ router.post('/customize/:pluginId', async (req: any, res: any) => {
       if (tableColumns) cosmetics.tableColumns = tableColumns;
     }
 
+    // Where fields sit on the item page. Only moves away from the type's default are
+    // kept, and only for fields the page lays out.
+    if (req.body.detailFields !== undefined) {
+      const decorated = res.locals.registry.get(plugin.id) || plugin;
+      const detailFields = sanitizeDetailPlacement(decorated, req.body.detailFields);
+      if (detailFields) cosmetics.detailFields = detailFields;
+    }
+
     // Filters shown on the collection page once this type is selected. Only what differs
     // from the default is kept (see core/filterFields.ts), so leaving every box as it
     // came stores nothing. Read against the fields declared before this save: one added
@@ -231,7 +247,7 @@ router.post('/customize/:pluginId', async (req: any, res: any) => {
     const cosmeticsPath = `pluginCustomization.${plugin.id}`;
     const set: Record<string, any> = {};
     const unset: string[] = [];
-    if (cosmetics.icon || cosmetics.formatColors || cosmetics.cardFields || cosmetics.sortFormats || cosmetics.cornerField || cosmetics.filters || cosmetics.tableColumns) set[cosmeticsPath] = cosmetics;
+    if (cosmetics.icon || cosmetics.formatColors || cosmetics.cardFields || cosmetics.sortFormats || cosmetics.cornerField || cosmetics.filters || cosmetics.tableColumns || cosmetics.detailFields) set[cosmeticsPath] = cosmetics;
     else unset.push(cosmeticsPath);
     if (extraUpdate?.set) Object.assign(set, extraUpdate.set);
     if (extraUpdate?.unset) unset.push(extraUpdate.unset);

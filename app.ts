@@ -41,6 +41,7 @@ import { resolveLayout, layoutRootFontSize, LAYOUT_OPTIONS, SIDEBAR_COOKIE } fro
 import { resolveTheme, themeChoiceFor, normalizePalettes, PALETTE_PREFIX, INHERIT_PRESET, MAX_PALETTES, THEME_TOKENS } from './core/theme';
 import { cardClasses, normalizeCardLook, CARD_FRAMES, CARD_HOVERS, CARD_TEXTS } from './core/cardStyle';
 import { resolveAmbience, normalizeAmbience, AMBIENCE_OPTIONS } from './core/ambience';
+import { placementOf } from './core/detailPlacement';
 import { externalLinkFor, hasSearch, hasBarcodeScan, requiredEnvKeysFor, canRefresh, sourceStatusFor, searchableSources } from './core/sources';
 
 // Routes imports
@@ -173,6 +174,7 @@ app.locals.hasSearch = hasSearch;
 app.locals.hasBarcodeScan = hasBarcodeScan;
 app.locals.requiredEnvKeysFor = requiredEnvKeysFor;
 app.locals.canRefresh = canRefresh;
+app.locals.detailPlacementOf = placementOf;
 app.locals.sourceStatusFor = sourceStatusFor;
 app.locals.searchableSources = searchableSources;
 app.set('io', io); // Expose io to routes
