@@ -5,6 +5,7 @@ import { fetchPublic, isFetchableUrl, isPublicAddress, UnsafeAddressError } from
 import { imageExtensionOf, managedItemImageFile } from '../core/itemImageStorage';
 import { externalImagesOf, keepsCopies } from '../core/imageDownload';
 import { alignImagesAfterRefresh } from '../core/itemImages';
+import { yugiohImagePath } from '../plugins/yugioh/imageCache';
 
 test('only public addresses may be fetched from', () => {
   for (const address of ['127.0.0.1', '10.1.2.3', '172.20.0.5', '192.168.1.10', '169.254.169.254', '100.64.0.1',
@@ -72,4 +73,12 @@ test('a refresh bringing back the address of a kept copy leaves the copy', () =>
   const other: any = { cover_image: 'https://i.discogs.com/b.jpg' };
   assert.equal(alignImagesAfterRefresh(item, other), local);
   assert.deepEqual(other.images, ['https://i.discogs.com/b.jpg']);
+});
+
+test('a Yu-Gi-Oh card image is copied under one name per address', () => {
+  const url = 'https://images.ygoprodeck.com/images/cards/46986414.jpg';
+  const stored = yugiohImagePath(url);
+  assert.equal(stored, yugiohImagePath(url));
+  assert.notEqual(stored, yugiohImagePath('https://images.ygoprodeck.com/images/cards/89631139.jpg'));
+  assert.ok(managedItemImageFile(stored), 'a managed upload, released and backed up like the others');
 });

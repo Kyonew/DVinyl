@@ -862,12 +862,20 @@ const importCollectionBackup = async (req: any, res: any) => {
                 usedIds.add(String(newId));
             }
             // A holder left outside the dump would strand the item in no listing at all,
-            // so it becomes standalone rather than invisible.
-            fixed.parent = rest.parent ? idMap.get(String(rest.parent)) : undefined;
-            if (!fixed.parent) delete fixed.parent;
-            // Same for a box: an item whose box is not in the dump goes back on the shelf.
-            fixed.inside = rest.inside ? idMap.get(String(rest.inside)) : undefined;
-            if (!fixed.inside) delete fixed.inside;
+            // so it becomes standalone rather than invisible. Same for a box: an item whose
+            // box is not in the dump goes back on the shelf. A value that is no id at all
+            // was typed into a plugin field of that name, renamed here since
+            // (utils/migrateReservedFieldNames.ts), and goes to it.
+            for (const link of ['parent', 'inside']) {
+                const value = rest[link];
+                fixed[link] = value ? idMap.get(String(value)) : undefined;
+                if (!fixed[link]) delete fixed[link];
+                const renamed = `${link}_field`;
+                if (value && !isDumpId(value) && fixed[renamed] === undefined
+                    && registry.getByKind(fixed.kind)?.formFields?.some(field => field.name === renamed)) {
+                    fixed[renamed] = value;
+                }
+            }
             if (fixed.extra) fixed.extra = { ...fixed.extra };
             reviveExtraDates(fixed, extraDateFields);
             return fixed;

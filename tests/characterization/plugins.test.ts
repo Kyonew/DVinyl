@@ -283,4 +283,16 @@ describe('custom plugins', { skip: !backend }, () => {
     assert.deepEqual(listedTitles((await admin.get('/collection?type=comics&limit=200')).text, after), ['Watchmen'],
       'the item is no longer taken as stored in a box');
   });
+
+  it('puts the value of an older collection dump in the renamed field', async () => {
+    const backup = (await admin.get('/backup/collection/export')).json();
+    const item = backup.albums.find((a: any) => a.title === 'Watchmen');
+    item.inside = item.inside_field;
+    delete item.inside_field;
+    const reply = await admin.postJson('/backup/collection/import', backup);
+    assert.equal(reply.status, 200, reply.text);
+    const restored = itemByTitle(await exportInstance(admin), 'Watchmen');
+    assert.equal(restored.inside, undefined);
+    assert.equal(restored.inside_field, 'Top shelf');
+  });
 });
