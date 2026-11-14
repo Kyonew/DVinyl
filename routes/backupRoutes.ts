@@ -836,13 +836,25 @@ const importCollectionBackup = async (req: any, res: any) => {
             };
         });
 
+        // A whole-instance dump mixes the request types of every collection, and two of
+        // them may share a slug, so it leaves this collection's types in place, as it does
+        // for the furniture. A type is unique by slug within a collection: a second one
+        // with the same slug (a file edited by hand) would fail its insert after the wipe.
+        const fromInstance = Array.isArray(data.collections);
+        const restoresTypes = !fromInstance && Array.isArray(data.requestTypes);
+        const typeSlugs = new Set<string>();
+        const requestTypesToRestore = restoresTypes
+            ? restorableRecords(db.requestTypes, data.requestTypes, 'request type', (type: any) => {
+                const { _id, __v, collection: _owner, createdBy: _by, ...rest } = type;
+                const slug = String(rest.slug ?? '');
+                if (typeSlugs.has(slug)) return null;
+                typeSlugs.add(slug);
+                return { ...rest, collection: activeCollectionId, createdBy: req.user._id };
+            })
+            : [];
         // A request follows its item to the new id, between members of this collection only.
         const memberIds = new Set((res.locals.activeCollection?.members || []).map((m: any) => idOf(m.user)));
-        const requestTypesToRestore = restorableRecords(db.requestTypes, data.requestTypes, 'request type', (type: any) => {
-            const { _id, __v, collection: _owner, createdBy: _by, ...rest } = type;
-            return { ...rest, collection: activeCollectionId, createdBy: req.user._id };
-        });
-        const requestsToRestore = restorableRecords(db.requests, data.requests, 'request', (request: any) => {
+        const requestsToRestore = fromInstance ? [] : restorableRecords(db.requests, data.requests, 'request', (request: any) => {
             const { _id, __v, collection: _owner, ...rest } = request;
             const item = idMap.get(String(rest.item));
             if (!item || !memberIds.has(idOf(rest.sender)) || !memberIds.has(idOf(rest.recipient))) return null;
@@ -859,16 +871,16 @@ const importCollectionBackup = async (req: any, res: any) => {
         await db.lists.deleteMany(ofCollection);
         await db.lists.insertMany(listsToRestore);
 
-        // And for the requests and their types. A dump older than them carries none and
-        // leaves the collection's own in place.
-        if (Array.isArray(data.requestTypes)) {
+        // And for the request types. A dump older than them carries none and leaves the
+        // collection's own in place.
+        if (restoresTypes) {
             await db.requestTypes.deleteMany(ofCollection);
             if (requestTypesToRestore.length > 0) await db.requestTypes.insertMany(requestTypesToRestore);
         }
-        if (Array.isArray(data.requests)) {
-            await db.requests.deleteMany(ofCollection);
-            if (requestsToRestore.length > 0) await db.requests.insertMany(requestsToRestore);
-        }
+        // The requests always go: every one of them is about an item that was just
+        // replaced, so none would point at anything left.
+        await db.requests.deleteMany(ofCollection);
+        if (requestsToRestore.length > 0) await db.requests.insertMany(requestsToRestore);
 
         // Replacement semantics again: the collection's own furniture goes with its items.
         await db.furniture.deleteMany(ofCollection);

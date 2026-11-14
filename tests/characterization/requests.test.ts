@@ -166,4 +166,34 @@ describe('requests', { skip: !backend }, () => {
     const [away] = dump.requests.filter((r: any) => r.status === 'accepted');
     assert.equal(String(away.item), String(itemByTitle(dump, 'Abbey Road')._id), 'follows its item to its new id');
   });
+
+  it('keeps one type per slug from a collection dump edited by hand', async () => {
+    const backup = (await admin.get('/backup/collection/export')).json();
+    backup.requestTypes.push({ ...backup.requestTypes[0], name: 'Copy' });
+    const reply = await admin.postJson('/backup/collection/import', backup);
+    assert.equal(reply.status, 200, reply.text);
+    assert.deepEqual((await exportInstance(admin)).requestTypes.map((t: any) => t.slug), ['borrow', 'gift']);
+  });
+
+  it('leaves the types in place and no request behind when an instance dump goes into a collection', async () => {
+    const instance = await exportInstance(admin);
+    const reply = await admin.postJson('/backup/collection/import', instance);
+    assert.equal(reply.status, 200, reply.text);
+    const dump = await exportInstance(admin);
+    assert.deepEqual(dump.requestTypes.map((t: any) => t.slug), ['borrow', 'gift']);
+    const itemIds = new Set(dump.albums.map((a: any) => String(a._id)));
+    assert.equal(dump.requests.filter((r: any) => !itemIds.has(String(r.item))).length, 0, 'no request about an item that is gone');
+  });
+
+  it('drops the requests of the replaced items when a dump carries none', async () => {
+    await bob.postForm('/requests', { type: 'gift', itemId: await idOf('Kind of Blue'), recipient: eveId });
+    const backup = (await admin.get('/backup/collection/export')).json();
+    delete backup.requests;
+    delete backup.requestTypes;
+    const reply = await admin.postJson('/backup/collection/import', backup);
+    assert.equal(reply.status, 200, reply.text);
+    const dump = await exportInstance(admin);
+    assert.deepEqual(dump.requestTypes.map((t: any) => t.slug), ['borrow', 'gift'], 'an older dump leaves the types in place');
+    assert.equal(dump.requests.length, 0);
+  });
 });
