@@ -65,7 +65,14 @@ export function validateRows(raw: Record<string, any>[], fields: ImportTargetFie
   return rows;
 }
 
-/** One extraction round-trip: prompt, call, parse, validate. */
+/**
+ * A reply that ran into the token cap is cut the same way when asked again, so it is not
+ * worth a second request. Any other empty reply (a blank answer, a refusal, prose with no
+ * array) is often a one-off and the same request then comes back fine.
+ */
+const MAX_ATTEMPTS = 2;
+
+/** One extraction: prompt, call, parse, validate, with one more try when nothing usable came back. */
 export async function extractRows(
   config: AiConfig,
   fields: ImportTargetField[],
@@ -73,15 +80,21 @@ export async function extractRows(
   parts: AiContentPart[],
   options: AiChatOptions = {}
 ): Promise<ValidatedRow[]> {
-  const result = await aiChat(config, buildExtractionMessages(fields, instruction, parts), {
-    maxTokens: 8192,
-    ...options
-  });
-  const rows = validateRows(extractJsonArray(result.text), fields);
-  // An empty answer is worth seeing in the logs: it is either a model that found nothing,
-  // or one that replied in a shape no parser could read (prose, a cut-off array).
-  if (rows.length === 0) {
-    console.warn('[AI] Extraction gave no usable row. Reply began with:', JSON.stringify(String(result.text || '').slice(0, 300)));
+  const messages = buildExtractionMessages(fields, instruction, parts);
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const result = await aiChat(config, messages, { maxTokens: 8192, ...options });
+    const rows = validateRows(extractJsonArray(result.text), fields);
+    if (rows.length > 0) return rows;
+
+    // Worth seeing in the logs: the stop reason tells a cut reply ('length'), a filtered
+    // one or a refusal apart from a model that genuinely found nothing.
+    console.warn(
+      `[AI] Extraction gave no usable row (attempt ${attempt}/${MAX_ATTEMPTS}, model ${result.model},`,
+      `finish reason ${result.finishReason || 'none'}${result.refusal ? `, refusal ${JSON.stringify(result.refusal.slice(0, 200))}` : ''}).`,
+      'Reply began with:', JSON.stringify(String(result.text || '').slice(0, 300))
+    );
+    if (result.finishReason === 'length') break;
   }
-  return rows;
+  return [];
 }

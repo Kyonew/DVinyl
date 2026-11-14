@@ -1,6 +1,8 @@
-import { test } from 'node:test';
+import { test, describe, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { validateRows } from '../core/ai/extract';
+import { validateRows, extractRows } from '../core/ai/extract';
+import { textPart } from '../core/ai/client';
+import { AiConfig } from '../core/ai/types';
 import { ImportTargetField } from '../core/csvMapping';
 
 const fields: ImportTargetField[] = [
@@ -79,4 +81,53 @@ test('a genuine quantity is kept as-is', () => {
 test('other number fields keep a literal 0 - only quantity is special-cased', () => {
   const rows = validateRows([{ title: 'Dune', author: 'H', pages: 0 }], fields);
   assert.equal(rows[0]?.values.pages, '0');
+});
+
+describe('extractRows', () => {
+  const config: AiConfig = {
+    enabled: true, provider: 'openai', baseUrl: 'https://api.test/v1',
+    model: 'test-model', visionModel: 'test-vision', apiKey: 'sk-test', fromEnv: false
+  };
+  const realFetch = globalThis.fetch;
+  const realWarn = console.warn;
+  afterEach(() => { globalThis.fetch = realFetch; console.warn = realWarn; });
+
+  /** Answers each call with the next reply in the list and counts the calls. */
+  function stubReplies(replies: { content: any; finish_reason?: string }[]) {
+    const seen = { calls: 0 };
+    console.warn = () => {};
+    globalThis.fetch = (async () => {
+      const reply = replies[Math.min(seen.calls++, replies.length - 1)]!;
+      const body = { model: 'test-model', choices: [{ message: { content: reply.content }, finish_reason: reply.finish_reason ?? 'stop' }] };
+      return { ok: true, status: 200, json: async () => body } as any;
+    }) as any;
+    return seen;
+  }
+
+  test('asks once more when the first reply has nothing usable', async () => {
+    const seen = stubReplies([{ content: '' }, { content: '[{"title":"Alien"}]' }]);
+    const rows = await extractRows(config, fields, 'list', [textPart('Alien')]);
+    assert.equal(seen.calls, 2);
+    assert.equal(rows[0]?.values.title, 'Alien');
+  });
+
+  test('a first reply with rows is not asked twice', async () => {
+    const seen = stubReplies([{ content: '[{"title":"Alien"}]' }]);
+    await extractRows(config, fields, 'list', [textPart('Alien')]);
+    assert.equal(seen.calls, 1);
+  });
+
+  test('gives up after the second empty reply', async () => {
+    const seen = stubReplies([{ content: 'Sorry.' }]);
+    const rows = await extractRows(config, fields, 'list', [textPart('Alien')]);
+    assert.equal(seen.calls, 2);
+    assert.deepEqual(rows, []);
+  });
+
+  test('a reply cut by the token cap is not asked again', async () => {
+    const seen = stubReplies([{ content: '[{"title":"Ali', finish_reason: 'length' }]);
+    const rows = await extractRows(config, fields, 'list', [textPart('Alien')]);
+    assert.equal(seen.calls, 1);
+    assert.deepEqual(rows, []);
+  });
 });

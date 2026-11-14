@@ -106,9 +106,13 @@ export async function aiChat(
     throw new AiError(providerMessage(payload, response.status), response.status);
   }
 
-  const content = payload?.choices?.[0]?.message?.content;
+  const choice = payload?.choices?.[0];
+  const content = choice?.message?.content;
+  const refusal = choice?.message?.refusal;
   return {
     text: typeof content === 'string' ? content : '',
-    model: typeof payload?.model === 'string' ? payload.model : body.model
+    model: typeof payload?.model === 'string' ? payload.model : body.model,
+    finishReason: typeof choice?.finish_reason === 'string' ? choice.finish_reason : '',
+    refusal: typeof refusal === 'string' ? refusal : ''
   };
 }
