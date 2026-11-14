@@ -1039,6 +1039,9 @@
     "edit_secondary_visual": "Modifier le visuel secondaire (Disque)"
   },
   "detail": {
+    "refresh_no_source": "Cet objet a été ajouté à la main et n'est lié à aucune source : il n'y a rien d'où le mettre à jour. Renseignez son champ « {{field}} » dans le formulaire de modification, puis mettez-le à jour.",
+    "rows_show_all": "Tout afficher ({{count}})",
+    "rows_show_less": "Afficher moins",
     "label_no_barcode": "Pas de code-barres sur cet objet : ajoutez-en un en le modifiant.",
     "label_save": "Enregistrer l'image",
     "in_collection": "Dans la collection",

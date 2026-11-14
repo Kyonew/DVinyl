@@ -912,6 +912,9 @@
     "field_pressing_notes": "Notas de prensado"
   },
   "detail": {
+    "refresh_no_source": "Este elemento se añadió a mano y no está vinculado a ninguna fuente, así que no hay de dónde actualizarlo. Rellena su campo «{{field}}» en el formulario de edición y luego actualízalo.",
+    "rows_show_all": "Mostrar los {{count}}",
+    "rows_show_less": "Mostrar menos",
     "label_no_barcode": "Este objeto no tiene código de barras: añade uno al editarlo.",
     "label_save": "Guardar imagen",
     "in_collection": "En la colección",

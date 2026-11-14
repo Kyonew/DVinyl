@@ -912,6 +912,9 @@
     "field_pressing_notes": "Note di stampa"
   },
   "detail": {
+    "refresh_no_source": "Questo elemento è stato aggiunto a mano e non è collegato a nessuna fonte, quindi non c'è nulla da cui aggiornarlo. Compila il campo «{{field}}» nel modulo di modifica, poi aggiornalo.",
+    "rows_show_all": "Mostra tutti ({{count}})",
+    "rows_show_less": "Mostra meno",
     "label_no_barcode": "Questo oggetto non ha un codice a barre: aggiungine uno modificandolo.",
     "label_save": "Salva immagine",
     "in_collection": "Nella collezione",

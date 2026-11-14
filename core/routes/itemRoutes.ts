@@ -19,7 +19,7 @@ import { db } from '../db';
 import { and, eq, Filter, isIn, missing, ne, or } from '../db/filter';
 import { idOf, isId } from '../db/ids';
 import { isValidationError, validationMessages } from '../db/errors';
-import { hasSearch, searchableSources, resolveSource, canRefresh, refreshPatchFor, sourceForItem, legacySource } from '../sources';
+import { hasSearch, searchableSources, resolveSource, canRefresh, refreshPatchFor, sourceForItem, legacySource, isLinkedToSource } from '../sources';
 import { resolveBarcodeWithAi } from '../ai/barcode';
 import { resolveCardScanWithAi } from '../ai/cardScan';
 import { identifyFromPhoto } from '../ai/photo';
@@ -1309,6 +1309,14 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         const item = isId(req.params.id) ? await db.items.findOne(ownItem(req.params.id, res), { defaults: true }) : null;
         if (!item) {
           return res.status(404).json({ success: false, error: "Item not found" });
+        }
+        // Said plainly rather than failing: an item typed in by hand has nothing to be
+        // refreshed from until its id is filled in.
+        if (!isLinkedToSource(plugin, item)) {
+          return res.status(422).json({
+            success: false,
+            error: req.t('detail.refresh_no_source', { field: req.t(plugin.externalIdLabel || 'common.external_id_label') })
+          });
         }
 
         // Through the item's own source where the plugin can merge one, so an item that

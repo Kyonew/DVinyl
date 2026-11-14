@@ -912,6 +912,9 @@
     "field_pressing_notes": "Notizen zur Pressung"
   },
   "detail": {
+    "refresh_no_source": "Dieses Objekt wurde von Hand angelegt und ist mit keiner Quelle verknüpft, daher gibt es nichts, woraus es aktualisiert werden kann. Trage im Bearbeitungsformular „{{field}}“ ein und aktualisiere es dann.",
+    "rows_show_all": "Alle {{count}} anzeigen",
+    "rows_show_less": "Weniger anzeigen",
     "label_no_barcode": "Dieses Objekt hat keinen Barcode: Füge beim Bearbeiten einen hinzu.",
     "label_save": "Bild speichern",
     "in_collection": "In der Sammlung",

@@ -264,6 +264,17 @@ export function canRefresh(plugin: PluginDefinition): boolean {
 }
 
 /**
+ * Whether the item points at a record of a source that a refresh can read: the stored
+ * source pair, or the plugin's own id field. An item typed in by hand carries neither, and
+ * every refresh path needs one of them.
+ */
+export function isLinkedToSource(plugin: PluginDefinition, item: any): boolean {
+  if (item?.source && item?.source_id) return true;
+  const field = plugin.externalIdField;
+  return Boolean(field && item?.[field] !== undefined && item[field] !== null && String(item[field]).trim() !== '');
+}
+
+/**
  * Fresh metadata for one item, as a patch for the caller to write.
  *
  * The item's own source answers first, when the plugin can merge what a source returns.

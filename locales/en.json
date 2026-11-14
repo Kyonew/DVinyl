@@ -1039,6 +1039,9 @@
     "edit_secondary_visual": "Edit secondary visual (Disc)"
   },
   "detail": {
+    "refresh_no_source": "This item was added by hand and is not linked to a source, so there is nothing to refresh it from. Fill in its {{field}} in the edit form, then refresh it.",
+    "rows_show_all": "Show all {{count}}",
+    "rows_show_less": "Show less",
     "label_no_barcode": "No barcode on this item: add one when editing it.",
     "label_save": "Save image",
     "in_collection": "In the collection",

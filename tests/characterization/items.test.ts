@@ -215,4 +215,12 @@ describe('item lifecycle', { skip: !backend }, () => {
       'The Dark Side of the Moon'
     ]);
   });
+
+  it('says why a record typed in by hand cannot be refreshed, instead of failing', async () => {
+    await addMusic(admin, { title: 'Typed by hand', artist: 'Nobody' });
+    const item = itemByTitle(await exportInstance(admin), 'Typed by hand');
+    const reply = await admin.postJson(`/api/album/${item._id}/refresh-info`, {});
+    assert.equal(reply.status, 422);
+    assert.match(reply.json().error, /added by hand.*Discogs ID/);
+  });
 });

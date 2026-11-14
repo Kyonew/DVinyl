@@ -84,11 +84,19 @@
             const columns = filled.length > 0 ? filled : declared;
             const esc = v => String(v ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
             const head = columns.map(c => '<th class="text-left font-semibold opacity-60 pr-4 pb-1">' + esc(t(c.label, { defaultValue: c.label })) + '</th>').join('');
-            const body = rows.map(row => '<tr class="border-t border-black/5 dark:border-white/5">'
+            // A long list (a record pressed in many variants lists dozens of runouts) shows
+            // its first entries and folds the rest behind a button, so it does not push the
+            // rest of the page down; nothing is dropped, one click shows it all.
+            const folded = rows.length > ROWS_SHOWN + 1;
+            const body = rows.map((row, index) => '<tr class="border-t border-black/5 dark:border-white/5' + (folded && index >= ROWS_SHOWN ? ' hidden" data-rows-more' : '"') + '>'
                 + columns.map(c => '<td class="pr-4 py-1 align-top font-mono whitespace-pre-line break-words">' + esc(row && row[c.name]) + '</td>').join('')
                 + '</tr>').join('');
-            return '<div class="overflow-x-auto"><table class="w-full text-xs"><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table></div>';
+            const toggle = !folded ? '' : '<button type="button" aria-expanded="false" onclick="toggleRowsField(this)"'
+                + ' data-more="' + esc(t('detail.rows_show_all', { count: rows.length })) + '" data-less="' + esc(t('detail.rows_show_less')) + '"'
+                + ' class="mt-2 text-xs font-bold text-primary-theme hover:underline">' + esc(t('detail.rows_show_all', { count: rows.length })) + '</button>';
+            return '<div class="overflow-x-auto"><table class="w-full text-xs"><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table></div>' + toggle;
         };
+        const ROWS_SHOWN = 2;
         const isEmptyValue = val => val === undefined || val === null || val === ''
             || val === 0 || (Array.isArray(val) && val.length === 0);
         // A field's value as text, for every type but tags and textarea, which are laid
@@ -837,6 +845,14 @@
         </div>
     </div>
     <script>
+        // Unfolds or folds back the entries of a long rows field (see rowsTable above).
+        function toggleRowsField(button) {
+            const open = button.getAttribute('aria-expanded') !== 'true';
+            const wrap = button.previousElementSibling;
+            if (wrap) wrap.querySelectorAll('[data-rows-more]').forEach(row => row.classList.toggle('hidden', !open));
+            button.setAttribute('aria-expanded', String(open));
+            button.textContent = open ? button.dataset.less : button.dataset.more;
+        }
         (function () {
             // '<' is escaped so a stored title containing a closing script tag cannot break out of this inline script.
             const labelUrl = <%- JSON.stringify(baseUrl + plugin.routePrefix + '/' + item._id + '/label').replace(/</g, '\\u003c') %>;
@@ -1350,7 +1366,8 @@
             if (response.ok && data.success) {
                 window.location.reload();
             } else {
-                alert(<%- JSON.stringify(t('detail.refresh_info_error')).replace(/</g, '\\u003c') %>);
+                // A 422 carries a sentence meant for the reader (an item with no source).
+                alert(response.status === 422 && data.error ? data.error : <%- JSON.stringify(t('detail.refresh_info_error')).replace(/</g, '\\u003c') %>);
                 btn.disabled = false;
                 icon.classList.remove('fa-spin');
             }
