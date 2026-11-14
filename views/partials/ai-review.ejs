@@ -323,12 +323,21 @@
             return preview.fields.filter(f => used.has(f.name));
         }
 
+        /**
+         * The title is what tells whether the AI understood the right item, so it gets the
+         * room to be read whole; the other columns keep enough to stay legible and the
+         * table scrolls sideways rather than squeezing every column to a few letters.
+         */
+        function columnMinWidth(field) {
+            return field.name === 'title' ? '18rem' : '8rem';
+        }
+
         function renderReview() {
             const columns = columnsInUse();
 
             el('aiReviewHead').innerHTML = '<tr>'
                 + '<th class="p-2 text-left w-8"></th>'
-                + columns.map(f => '<th class="p-2 text-left font-black uppercase tracking-widest opacity-50" style="font-size:10px">'
+                + columns.map(f => '<th class="p-2 text-left font-black uppercase tracking-widest opacity-50" style="font-size:10px;min-width:' + columnMinWidth(f) + '">'
                     + escapeHtml(f.label) + (f.required ? ' <span class="text-red-500">*</span>' : '') + '</th>').join('')
                 + '<th class="p-2"></th>'
                 + '</tr>';

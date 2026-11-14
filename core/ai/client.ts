@@ -18,7 +18,7 @@ export class AiError extends Error {
 }
 
 /** A model that reasons over a shelf photo needs longer than a metadata lookup. */
-const DEFAULT_TIMEOUT_MS = 30000;
+export const DEFAULT_TIMEOUT_MS = 30000;
 /** Low but not zero: identification benefits from a little flexibility, invention does not. */
 const DEFAULT_TEMPERATURE = 0.2;
 

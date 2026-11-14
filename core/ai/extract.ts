@@ -2,7 +2,7 @@ import { ImportTargetField } from '../csvMapping';
 import { AiConfig, AiContentPart, AiExtractedRow } from './types';
 import { extractJsonArray } from './jsonExtract';
 import { buildExtractionMessages } from './prompt';
-import { aiChat, AiChatOptions } from './client';
+import { aiChat, AiChatOptions, DEFAULT_TIMEOUT_MS } from './client';
 
 export interface ValidatedRow {
   values: AiExtractedRow;
@@ -72,6 +72,13 @@ export function validateRows(raw: Record<string, any>[], fields: ImportTargetFie
  */
 const MAX_ATTEMPTS = 2;
 
+/**
+ * The caller's timeout covers the whole extraction, retry included: a reverse proxy in
+ * front of DVinyl cuts the request on its own clock, so a second attempt must fit in what
+ * the first one left. Below this much time left, a retry would only be cut off.
+ */
+const MIN_RETRY_MS = 15000;
+
 /** One extraction: prompt, call, parse, validate, with one more try when nothing usable came back. */
 export async function extractRows(
   config: AiConfig,
@@ -81,9 +88,10 @@ export async function extractRows(
   options: AiChatOptions = {}
 ): Promise<ValidatedRow[]> {
   const messages = buildExtractionMessages(fields, instruction, parts);
+  const deadline = Date.now() + (options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    const result = await aiChat(config, messages, { maxTokens: 8192, ...options });
+    const result = await aiChat(config, messages, { maxTokens: 8192, ...options, timeoutMs: Math.max(1, deadline - Date.now()) });
     const rows = validateRows(extractJsonArray(result.text), fields);
     if (rows.length > 0) return rows;
 
@@ -94,7 +102,7 @@ export async function extractRows(
       `finish reason ${result.finishReason || 'none'}${result.refusal ? `, refusal ${JSON.stringify(result.refusal.slice(0, 200))}` : ''}).`,
       'Reply began with:', JSON.stringify(String(result.text || '').slice(0, 300))
     );
-    if (result.finishReason === 'length') break;
+    if (result.finishReason === 'length' || deadline - Date.now() < MIN_RETRY_MS) break;
   }
   return [];
 }

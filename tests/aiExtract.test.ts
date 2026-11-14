@@ -130,4 +130,11 @@ describe('extractRows', () => {
     assert.equal(seen.calls, 1);
     assert.deepEqual(rows, []);
   });
+
+  test('no retry when too little of the timeout is left for one', async () => {
+    const seen = stubReplies([{ content: '' }, { content: '[{"title":"Alien"}]' }]);
+    const rows = await extractRows(config, fields, 'list', [textPart('Alien')], { timeoutMs: 5000 });
+    assert.equal(seen.calls, 1);
+    assert.deepEqual(rows, []);
+  });
 });
