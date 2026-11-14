@@ -20,7 +20,8 @@ import { migrateDatabase } from './utils/migrate.js';
 import { migrateExtraFieldIdentities } from './utils/migrateExtraFieldIdentities.js';
 
 // Models
-import { db } from './core/db/index.js';
+import { db, DRIVER_REASON } from './core/db/index.js';
+import { MOVE_GUIDE } from './config/dataVolume.js';
 import { all, eq } from './core/db/query.js';
 
 // Core & Registry
@@ -120,6 +121,8 @@ app.locals.getTableColumns = getTableColumns;
 app.locals.getTableCell = getTableCell;
 app.locals.getCornerBadge = getCornerBadge;
 app.locals.isTranslationKey = isTranslationKey;
+// An install upgraded from 3.x still on MongoDB for want of a data folder (core/db/driver.ts).
+app.locals.storageMoveGuide = DRIVER_REASON === 'fallback' ? MOVE_GUIDE : '';
 app.locals.fieldShownFor = fieldShownFor;
 // Lights up the searched text on the cards and table rows it brought back
 app.locals.highlightMatches = highlightMatches;

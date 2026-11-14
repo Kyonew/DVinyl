@@ -89,50 +89,113 @@ Best for: Developers or those who want to customize the code.
 docker compose up --build -d
 ```
 
-## 🚚 Upgrading from 3.x to 4.0
+## 🚚 Moving to SQLite
 
-Versions before 4.0 kept their data in a MongoDB container. 4.0 moves it into SQLite on its first
-start, by itself: it reads everything from the old database once, ids included, so your links,
-lists and share links keep working. **The old database is only read, never changed.**
+From 4.0, DVinyl keeps its whole collection in one SQLite file, in its `data` folder. Versions
+before 4.0 kept it in a MongoDB container. This section is for installs coming from 3.x.
 
-1. **Back up.** In 3.x, open the **Instance** admin page (`/admin/instance`) and use
-   **Backup → Export**. Keep that file.
-2. **Keep the old database for the first start.** Add `MONGODB_URL` to your `.env`, pointing at
-   your MongoDB container (`mongodb://mongodb:27017/dvinyl` with the files of this repository),
-   and add a `./data:/app/data` volume to the app. The `docker-compose.yml` of this repository
-   already carries the old `mongodb` service, behind a profile:
+**You do not have to do anything right away.** Update DVinyl as usual: as long as no `data` folder
+is mounted, it keeps running on your MongoDB exactly as before, and the **Instance** admin page
+shows a notice pointing here. Move when it suits you. It takes a few minutes, and these are the
+same steps whether you move on the day you update or months later.
 
-   ```bash
-   docker compose --profile upgrade up -d
+What you get: a collection that is one file to back up, no database container to keep running,
+and the store every new feature is built and tested on first.
+
+### What protects your data
+
+- **MongoDB is only read.** The move copies everything, ids included, so your links, lists and
+  share links keep working. The only thing it writes to MongoDB is a small marker saying the data
+  has moved.
+- **All or nothing.** The copy lands whole or not at all. If MongoDB cannot be reached, DVinyl
+  stops with a message instead of starting empty.
+- **No mix-ups later.** Once moved, if the `data` folder ever goes missing from your
+  configuration, DVinyl stops and asks for it instead of quietly running on the old MongoDB data.
+  It also refuses to copy the same MongoDB a second time into a new, empty `data` folder. This
+  relies on the marker, so it needs a MongoDB account that can write (the usual setup); the log
+  says so at the end of the move when it could not be written.
+
+### Before you start
+
+Open the **Instance** admin page (`/admin/instance`) and use **Backup → Export**. Keep that file:
+it is your way back whatever happens.
+
+### With Docker Compose
+
+1. In your compose file, add the `data` folder to the volumes of the DVinyl service, and change
+   nothing else. Keep `MONGODB_URL` in your `.env` and keep the `mongodb` service.
+
+   ```yaml
+   services:
+     dvinyl-app:
+       volumes:
+         - ./data:/app/data            # add this line
+         - ./public/uploads:/app/public/uploads
    ```
 
-   With a compose file of your own, leave your `mongodb` service in it for now.
-
-   > [!WARNING]
-   > **Do not skip the `./data:/app/data` volume.** Without it, DVinyl 4.0 refuses to start and
-   > its log begins with `[DATA] Please mount DVinyl's data folder (/app/data) from the host`.
-   > Nothing is lost when that happens: add the volume and start again. It stops on purpose,
-   > because a folder that is not mounted lives inside the container and would be wiped by the
-   > next update, along with everything you changed since the upgrade.
-3. **Check the logs**: `docker compose logs dvinyl-app` shows `[IMPORT] Done.` with what was
-   copied. If MongoDB cannot be reached, the app stops with a message saying so instead of starting
-   empty: fix the URL and start again.
-4. **Look around.** Your collection, your accounts and your settings should all be there.
-5. **Retire MongoDB.** Remove `MONGODB_URL` from `.env`, then stop and remove the old container:
+2. Start again:
 
    ```bash
-   docker compose rm -sf mongodb
+   docker compose up -d
    ```
 
-   With the `docker-compose.yml` of this repository, a plain `docker compose up -d` will not start
-   it again. With a compose file of your own, delete the `mongodb` service from it. Keep
-   `./mongo_data` until you are sure, then delete it.
+3. Check the logs with `docker compose logs dvinyl-app`. They show `[IMPORT] Done.` and how many
+   records were copied.
+4. Open DVinyl and look around: your collection, your accounts and your settings are all there,
+   and the notice on the **Instance** admin page is gone.
+5. Retire MongoDB, when you are ready:
+   - remove `MONGODB_URL` from `.env`;
+   - remove the `mongodb` service from the compose file, and the `depends_on: - mongodb` lines
+     of the DVinyl service if it has them;
+   - apply it:
 
-Prefer a clean start? Run 4.0 without `MONGODB_URL`, create your admin account, and restore the
-backup from step 1 from the **Instance** admin page. Both ways give the same result.
+     ```bash
+     docker compose up -d --remove-orphans
+     ```
 
-> [!NOTE]
-> The import only runs while the SQLite store is empty. Once it has data, `MONGODB_URL` is ignored.
+   Keep the `./mongo_data` folder for a while, then delete it once you are sure.
+
+> [!TIP]
+> The `docker-compose.yml` of this repository already mounts `./data` and keeps the old `mongodb`
+> service behind an `upgrade` profile. With it, start the move with
+> `docker compose --profile upgrade up -d`, and retire MongoDB with `docker compose rm -sf mongodb`.
+
+### On Unraid
+
+1. Edit the DVinyl container and add a **Path**: container path `/app/data`, host path
+   `/mnt/user/appdata/dvinyl/data`. Leave the **MongoDB URL** setting as it is. Apply.
+2. Open the container's log: it shows `[IMPORT] Done.`
+3. Open DVinyl and look around.
+4. Retire MongoDB, when you are ready: clear the **MongoDB URL** setting of DVinyl and apply, then
+   stop and remove the MongoDB container from the Docker tab. Keep its appdata folder for a while.
+
+### With `docker run`
+
+Add `-v /a/folder/on/the/host:/app/data` to your command, keep `-e MONGODB_URL=...`, and start the
+container again. Check the log for `[IMPORT] Done.`, then drop `MONGODB_URL` and stop your MongoDB
+container when you are ready.
+
+### Without Docker
+
+Run from source, DVinyl writes its file to `./data` next to the app. Keep `MONGODB_URL` in `.env`
+for the first start of 4.0: it moves the data on its own. Then remove the line and stop your
+MongoDB service when you are ready.
+
+### If something looks wrong
+
+- **The log says `[IMPORT] ... could not be imported`.** MongoDB could not be reached: check
+  that its container runs and that `MONGODB_URL` points at it, then start again. Nothing was
+  written.
+- **The log says `[DATA] Your collection moved from MongoDB to SQLite`.** The `data` folder of the
+  move is no longer mounted. Mount it again (the folder holding `dvinyl.sqlite`).
+- **The log says `[IMPORT] ... was already moved to SQLite`.** You started on an empty `data`
+  folder while your collection is in the one from the move. Point DVinyl at that folder. To copy
+  the old MongoDB data again anyway, losing what changed since, start once with
+  `MONGODB_REIMPORT=true`.
+- **You would rather start clean.** Run 4.0 without `MONGODB_URL`, create your admin account and
+  restore the backup from [Before you start](#before-you-start) on the **Instance** admin page.
+- **You want to stay on MongoDB on purpose.** Set `DB_DRIVER=mongodb`. It keeps working
+  throughout 4.x, without the notice.
 
 ## 🔄 Updating
 
@@ -178,8 +241,11 @@ docker compose up --build -d
 If an update misbehaves, roll the app image back to the previous tag (pin a specific version
 instead of `latest`, e.g. `image: ghcr.io/kyonew/dvinyl:4.0.0`) and restore the instance backup
 you exported above. Going back to 3.x after the move to SQLite means going back to your MongoDB
-container and its `./mongo_data`, which 4.0 left as they were: you find your collection as it was
-on the day of the upgrade, without what you changed in 4.0 since.
+container and its `./mongo_data`, whose data 4.0 left as it was (it only added the small "moved"
+marker, which 3.x ignores): you find your collection as it was on the day of the move, without what
+you changed in 4.0 since. If you then keep working on 3.x and come back to 4.0 later, your 4.0
+`data` folder does not have those changes: either restore a backup exported from 3.x, or start 4.0
+once on an empty `data` folder with `MONGODB_REIMPORT=true` to copy MongoDB again.
 
 ## 💾 Persistence
 

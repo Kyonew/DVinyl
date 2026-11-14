@@ -10,12 +10,19 @@ import { ADMIN, addMusic, exportInstance, InstanceDump, login, normalizeDump, se
 const source = mongoBackend('import_source');
 const target = sqliteBackend('import_target');
 
-/** What each MongoDB collection of the source holds, to tell it was left untouched. */
+/**
+ * What each MongoDB collection of the source holds, to tell its data was left untouched.
+ * The marker the move leaves is read apart (`moved`).
+ */
 async function snapshot(url: string): Promise<Record<string, string>> {
   const connection = await mongoose.createConnection(url).asPromise();
   try {
     const out: Record<string, string> = {};
     for (const { name } of await connection.db!.listCollections().toArray()) {
+      if (name === 'dvinyl_moved_to_sqlite') {
+        out.moved = String((await connection.db!.collection(name).countDocuments({ _id: 'moved' as any })) === 1);
+        continue;
+      }
       const docs = await connection.db!.collection(name).find({}).sort({ _id: 1 }).toArray();
       out[name] = JSON.stringify(docs);
     }
@@ -68,8 +75,8 @@ describe('first boot of 4.0 on an install kept on MongoDB', { skip: !source }, (
     assert.equal((await visitor.get(`/share/${token}`)).location, '/collection');
   });
 
-  it('leaves the MongoDB server exactly as it was', async () => {
-    assert.deepEqual(await snapshot(source!.url), sourceState);
+  it('leaves the data of the MongoDB server as it was, and only marks it as moved', async () => {
+    assert.deepEqual(await snapshot(source!.url), { ...sourceState, moved: 'true' });
   });
 
   it('imports once: later boots keep what was changed on SQLite', async () => {
@@ -80,7 +87,7 @@ describe('first boot of 4.0 on an install kept on MongoDB', { skip: !source }, (
     assert.doesNotMatch(app.logs(), /\[IMPORT\]/);
     const dump = await exportInstance(await login(app, ADMIN.email, ADMIN.password));
     assert.ok(titles(dump).includes('Added on SQLite'));
-    assert.deepEqual(await snapshot(source!.url), sourceState);
+    assert.deepEqual(await snapshot(source!.url), { ...sourceState, moved: 'true' });
   });
 
   it('refuses to start empty when the server to import from cannot be reached', async () => {
@@ -89,8 +96,13 @@ describe('first boot of 4.0 on an install kept on MongoDB', { skip: !source }, (
       startApp(target, { MONGODB_URL: 'mongodb://127.0.0.1:9/dvinyl_unreachable_test' }),
       (err: Error) => /could not be imported/.test(err.message) && /Nothing was written/.test(err.message)
     );
-    // The store stayed empty, so a later boot with the server back still imports.
-    app = await startApp({ ...target, reset: async () => {} }, { MONGODB_URL: source!.url });
+    // The store stayed empty. The server it was moved from is not copied a second time
+    // by mistake, only when asked.
+    await assert.rejects(
+      startApp({ ...target, reset: async () => {} }, { MONGODB_URL: source!.url }),
+      (err: Error) => /already moved to SQLite/.test(err.message) && /MONGODB_REIMPORT=true/.test(err.message)
+    );
+    app = await startApp({ ...target, reset: async () => {} }, { MONGODB_URL: source!.url, MONGODB_REIMPORT: 'true' });
     assert.match(app.logs(), /\[IMPORT\] Done/);
   });
 });

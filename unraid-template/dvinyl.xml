@@ -20,11 +20,11 @@
   <DateInstalled></DateInstalled>
   <DonateText/>
   <DonateLink/>
-  <Requires>Nothing else: DVinyl keeps its whole collection in one SQLite file, in the Data volume. Upgrading from 3.x, which used MongoDB: keep your MongoDB container running for the first start of 4.0 and leave the MongoDB URL setting pointing at it. The data is copied into SQLite once and MongoDB is only read; then clear the setting and remove the MongoDB container.</Requires>
+  <Requires>Nothing else: DVinyl keeps its whole collection in one SQLite file, in the Data volume. Upgrading from 3.x, which used MongoDB: nothing to change, DVinyl keeps running on it until the Data volume is set. Then the next start copies everything into SQLite (MongoDB is only read), after which you can clear the MongoDB URL setting and remove the MongoDB container. Guide: https://github.com/Kyonew/DVinyl/blob/main/docs/docker.md#-moving-to-sqlite</Requires>
   
   <Config Name="WebUI Port" Target="3099" Default="3099" Mode="tcp" Description="The port DVinyl will be accessible on." Type="Port" Display="always" Required="true" Mask="false">3099</Config>
   
-  <Config Name="Data Volume" Target="/app/data" Default="/mnt/user/appdata/dvinyl/data" Mode="rw" Description="Where DVinyl keeps your collection: one SQLite file. Required: the container refuses to start while it is not set. Back this folder up." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/dvinyl/data</Config>
+  <Config Name="Data Volume" Target="/app/data" Default="/mnt/user/appdata/dvinyl/data" Mode="rw" Description="Where DVinyl keeps your collection: one SQLite file. Required on a new install: the container refuses to start while it is not set. Back this folder up." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/dvinyl/data</Config>
   
   <Config Name="Backups Folder" Target="BACKUP_DIR" Default="" Mode="" Description="Optional. Fixes the folder of automatic backups, a path inside the container, and locks that field on the Instance admin page (Backup tab). Leave empty to choose it on that page." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
   

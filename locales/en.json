@@ -557,6 +557,9 @@
     "instance": {
       "title": "Instance",
       "subtitle": "Global management: users, collections, security and full backup.",
+      "storage_fallback_title": "DVinyl is running on MongoDB, as before 4.0",
+      "storage_fallback_desc": "Everything works as it is. From 4.0, DVinyl keeps its data in a single SQLite file, simpler to back up and with no database container to run. This install stays on MongoDB because no data folder is mounted for that file. Moving takes a few minutes, whenever you like.",
+      "storage_fallback_link": "How to move to SQLite",
       "admin_badge": "Instance",
       "manage": "Manage",
       "add_member": "Add an instance user",

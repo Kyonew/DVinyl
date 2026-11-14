@@ -7,10 +7,11 @@
  */
 
 import path from 'path';
-import { db, DRIVER } from '../core/db';
-import { importFromMongo, wantsImport } from '../core/db/importFromMongo';
+import mongoose from 'mongoose';
+import { db, DRIVER, DRIVER_REASON } from '../core/db';
+import { AlreadyMovedError, importFromMongo, movedToSqliteAt, wantsImport } from '../core/db/importFromMongo';
 import { DatabaseInUseError } from '../core/db/sqlite/database';
-import { assertDataPersisted } from './dataVolume';
+import { assertDataPersisted, MOVE_GUIDE, movedAwayMessage } from './dataVolume';
 import { StartupError } from './startupError';
 import { SQLITE_PATH } from './constants';
 
@@ -33,6 +34,19 @@ export const connectDB = async () => {
     if (!MONGODB_URL) throw new Error('DB_DRIVER=mongodb needs MONGODB_URL.');
     console.log('[DB] Connecting to MongoDB...');
     console.log(`[DB] MongoDB connected (${await db.connect(MONGODB_URL)})`);
+    if (DRIVER_REASON === 'fallback') {
+      // Kept on MongoDB because no data folder is mounted. A server already moved holds
+      // stale data: running on it would hide the real collection and split it in two.
+      const movedAt = await movedToSqliteAt(mongoose.connection);
+      if (movedAt) {
+        await db.close();
+        throw new StartupError(movedAwayMessage(movedAt, path.dirname(path.resolve(SQLITE_PATH))));
+      }
+      console.warn(
+        '[DB] Running on MongoDB, as before 4.0, because no data folder is mounted for SQLite. '
+        + `Everything works as it is. To move to SQLite, see ${MOVE_GUIDE}`
+      );
+    }
     return;
   }
 
@@ -49,6 +63,7 @@ export const connectDB = async () => {
     try {
       await importFromMongo(MONGODB_URL!);
     } catch (err: any) {
+      if (err instanceof AlreadyMovedError) throw new StartupError(err.message);
       throw new StartupError(
         `[IMPORT] The data of the MongoDB server MONGODB_URL names could not be imported (${err.message}). `
         + 'Nothing was written. Make that server reachable and start again, or remove MONGODB_URL '

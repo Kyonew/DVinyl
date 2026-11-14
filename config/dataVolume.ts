@@ -12,7 +12,8 @@ import fs from 'fs';
 import path from 'path';
 import { StartupError } from './startupError';
 
-const UPGRADE_GUIDE = 'https://github.com/Kyonew/DVinyl/blob/main/docs/docker.md#-upgrading-from-3x-to-40';
+/** The guide to moving a 3.x install from MongoDB to SQLite. */
+export const MOVE_GUIDE = 'https://github.com/Kyonew/DVinyl/blob/main/docs/docker.md#-moving-to-sqlite';
 
 /** Docker and Podman both leave a marker file at the root of their containers. */
 export function inContainer(): boolean {
@@ -52,10 +53,24 @@ export function unmountedMessage(dir: string): string {
     `  - docker run: add  -v /a/folder/on/the/host:${dir}`,
     `  - Unraid: edit the container and add a Path whose Container Path is ${dir}`,
     '',
-    'Upgrading from 3.x? Leave MONGODB_URL and your MongoDB container as they are: your data is',
-    `imported on the first start once the folder is mounted. Guide: ${UPGRADE_GUIDE}`,
+    'Upgrading from 3.x? Keep MONGODB_URL and your MongoDB container: without DB_DRIVER=sqlite,',
+    'DVinyl then keeps running on MongoDB until the folder is mounted, and moves your data into',
+    `it on the first start after. Guide: ${MOVE_GUIDE}`,
     '',
     'To run on purpose with data that is thrown away (a demo), set EPHEMERAL_DATA=true.'
+  ].join('\n');
+}
+
+/** The message an install whose data was moved to SQLite stops with when that folder is gone. */
+export function movedAwayMessage(at: Date, dir: string): string {
+  return [
+    `[DATA] Your collection moved from MongoDB to SQLite on ${at.toISOString().slice(0, 10)}, but its data folder (${dir}) is not mounted.`,
+    '',
+    'Mount that folder again (the one holding dvinyl.sqlite), then start the container again.',
+    'DVinyl stopped instead of running on the old MongoDB data, which no longer has your recent',
+    'changes. Nothing was written.',
+    '',
+    `Guide: ${MOVE_GUIDE}`
   ].join('\n');
 }
 
@@ -69,9 +84,13 @@ export function persistsWithContainer(dir: string): boolean {
   }
 }
 
+/** Whether the SQLite file `file` would outlive the container (an in-memory one never asks). */
+export function sqliteFilePersists(file: string): boolean {
+  if (file === ':memory:' || process.env.EPHEMERAL_DATA === 'true') return true;
+  return persistsWithContainer(path.dirname(path.resolve(file)));
+}
+
 /** Throws when the SQLite file `file` would be lost with the container. */
 export function assertDataPersisted(file: string): void {
-  if (file === ':memory:' || process.env.EPHEMERAL_DATA === 'true') return;
-  const dir = path.dirname(path.resolve(file));
-  if (!persistsWithContainer(dir)) throw new StartupError(unmountedMessage(dir));
+  if (!sqliteFilePersists(file)) throw new StartupError(unmountedMessage(path.dirname(path.resolve(file))));
 }

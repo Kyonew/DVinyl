@@ -4,7 +4,8 @@
  *
  * Everything is kept in one SQLite file (SQLITE_PATH). DB_DRIVER=mongodb runs on the
  * MongoDB server MONGODB_URL names instead, as versions before 4.0 did; it is what the
- * import from such an install reads with, and is kept as a way back during the move.
+ * import from such an install reads with, and what an upgraded install with no data
+ * folder mounted keeps running on until it moves (see ./driver.ts).
  */
 
 import mongoose, { Types } from 'mongoose';
@@ -14,8 +15,14 @@ import { mongoRecordStore } from './mongo/recordStore';
 import { sqliteRecordStore } from './sqlite/recordStore';
 import { closeDatabase, openDatabase, Table } from './sqlite/database';
 import type { RecordStore } from './records';
+import { chooseDriver, Driver, DriverReason } from './driver';
+import { sqliteFilePersists } from '../../config/dataVolume';
+import { SQLITE_PATH } from '../../config/constants';
 
-export const DRIVER: 'sqlite' | 'mongodb' = process.env.DB_DRIVER === 'mongodb' ? 'mongodb' : 'sqlite';
+const chosen = chooseDriver(process.env, () => sqliteFilePersists(SQLITE_PATH));
+export const DRIVER: Driver = chosen.driver;
+/** Why DRIVER is what it is; 'fallback' is a 3.x install still on MongoDB for want of a data folder. */
+export const DRIVER_REASON: DriverReason = chosen.reason;
 
 // Required at call time: the models load the plugin registry, which loads this module, so
 // an import made here could still be the empty module of that cycle.

@@ -277,6 +277,9 @@
     "instance": {
       "title": "Instanz",
       "subtitle": "Globale Verwaltung: Benutzer, Sammlungen, Sicherheit und vollständiges Backup.",
+      "storage_fallback_title": "DVinyl läuft auf MongoDB, wie vor 4.0",
+      "storage_fallback_desc": "Alles funktioniert wie bisher. Ab 4.0 speichert DVinyl seine Daten in einer einzigen SQLite-Datei, einfacher zu sichern und ohne Datenbank-Container. Diese Installation bleibt auf MongoDB, weil für diese Datei kein Datenordner eingebunden ist. Der Umzug dauert ein paar Minuten, wann immer du willst.",
+      "storage_fallback_link": "So wechselst du zu SQLite",
       "admin_badge": "Instanz",
       "manage": "Verwalten",
       "add_member": "Instanzbenutzer hinzufügen",

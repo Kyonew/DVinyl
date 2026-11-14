@@ -5,8 +5,8 @@ app. Your whole collection lives in one SQLite file in DVinyl's `data` folder: t
 database server to install.
 
 > [!NOTE]
-> Upgrading from 3.x, which used MongoDB? The first start of 4.0 moves your data over by itself.
-> See [Upgrading from 3.x to 4.0](./docker.md#-upgrading-from-3x-to-40).
+> Upgrading from 3.x, which used MongoDB? Nothing to change: 4.0 keeps running on it until you
+> move to SQLite, whenever you like. See [Moving to SQLite](./docker.md#-moving-to-sqlite).
 
 | Method | Best for | Guide |
 | :----- | :------- | :---- |
@@ -62,10 +62,9 @@ DVinyl ships with an Unraid Community App template.
 4. Start the container and open `http://<server-ip>:3099`.
 
 > [!NOTE]
-> **Upgrading from 3.x?** Keep your MongoDB container running for the first start of 4.0 and set
-> the `MONGODB_URL` setting to it, as before: DVinyl copies everything into SQLite once. Then
-> clear the setting and remove the MongoDB container. The new **Data volume** must be set: without
-> it, the container refuses to start and its log says `Please mount DVinyl's data folder`.
+> **Upgrading from 3.x?** Your container keeps running on MongoDB as before. To move to SQLite,
+> add the **Data volume** and leave the **MongoDB URL** setting as it is: the next start copies
+> everything over. See [Moving to SQLite](./docker.md#on-unraid).
 
 ## 🛠️ Manual (Node.js)
 

@@ -2,6 +2,19 @@
 
     <div class="max-w-screen-xl mx-auto px-4 max-sm:px-0 pb-20 space-y-10">
 
+        <% if (locals.storageMoveGuide) { %>
+            <div role="status" class="md:mt-6 rounded-2xl p-4 md:p-5 flex items-start gap-3 bg-amber-500/10 border border-amber-500/30">
+                <i class="fa-solid fa-database text-amber-600 dark:text-amber-400 mt-0.5" aria-hidden="true"></i>
+                <div class="text-sm">
+                    <p class="font-bold"><%= t('admin.instance.storage_fallback_title') %></p>
+                    <p class="opacity-80 mt-1"><%= t('admin.instance.storage_fallback_desc') %></p>
+                    <a href="<%= storageMoveGuide %>" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 mt-2 font-bold text-primary-theme hover:underline">
+                        <%= t('admin.instance.storage_fallback_link') %> <i class="fa-solid fa-arrow-up-right-from-square text-[11px]" aria-hidden="true"></i>
+                    </a>
+                </div>
+            </div>
+        <% } %>
+
         <!-- Distinct "console" banner: theme-aware (light/dark) but visually set apart
              from collection pages by its strong contrast block + server iconography -->
         <div data-settings-head class="md:mt-6 rounded-3xl md:rounded-[2rem] bg-neutral-100 text-neutral-900 dark:bg-neutral-900 dark:text-white border border-black/10 dark:border-white/10 shadow-xl overflow-hidden relative transition-colors">
