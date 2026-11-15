@@ -4,6 +4,13 @@ export const BASE_URL: string = process.env.BASE_URL
   ? (process.env.BASE_URL.startsWith('/') ? process.env.BASE_URL : `/${process.env.BASE_URL}`)
   : ''
 
+/**
+ * The shortest password a local account accepts. Checked by the record rules, and by
+ * every route that hashes a chosen password before storing it, since a hash says nothing
+ * about the length of what it was made from.
+ */
+export const MIN_PASSWORD_LENGTH = 6;
+
 export const SQLITE_PATH: string = process.env.SQLITE_PATH || path.join(__dirname, '..', 'data', 'dvinyl.sqlite');
 
 /**

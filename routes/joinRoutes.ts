@@ -7,7 +7,7 @@ import { usernameTaken } from '../core/accounts';
 import { consumeInvite, findInvite } from '../core/inviteLinks';
 import { issueSession } from '../controllers/authController';
 import { isLocalLoginDisabled } from '../config/oidc';
-import { normalizeLanguage } from '../config/constants';
+import { MIN_PASSWORD_LENGTH, normalizeLanguage } from '../config/constants';
 
 /**
  * Public entry point of an invite link (see core/inviteLinks.ts). A visitor without an
@@ -16,7 +16,6 @@ import { normalizeLanguage } from '../config/constants';
  */
 const router = Router();
 
-const MIN_PASSWORD = 6;
 
 function renderJoin(req: any, res: any, found: { collection: any; invite: any }, extra: Record<string, any> = {}) {
   res.render('join', {
@@ -79,7 +78,7 @@ router.post('/join/:token', async (req: any, res: any) => {
     const refuse = (key: string) => renderJoin(req, res.status(400), found!, { error: req.t(key), values });
 
     if (!username || !email || !password) return refuse('join.err_missing');
-    if (password.length < MIN_PASSWORD) return refuse('auth.password_too_short');
+    if (password.length < MIN_PASSWORD_LENGTH) return refuse('auth.password_too_short');
     if (password !== confirm) return refuse('join.err_mismatch');
     if (await usernameTaken(username)) return refuse('messages.error_username_taken');
 

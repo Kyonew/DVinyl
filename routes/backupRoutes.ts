@@ -138,9 +138,10 @@ router.get('/export-archive', requireAuth, requireAdmin, async (req, res) => {
 /**
  * What would make a whole-instance restore fail once the instance is wiped, or null. A
  * dump the instance wrote itself never has any of it; a file edited by hand may. Every
- * record kept under its id, and every value the store holds unique, must appear once.
+ * record kept under its id, and every value the store holds unique, must appear once,
+ * and every record inserted after the wipe with the record rules must pass them.
  */
-function instanceDumpConflict(data: any, users: any[]): string | null {
+function instanceDumpConflict(data: any, users: any[], settings: any[]): string | null {
     const twice = (label: string, records: unknown, keyOf: (record: any) => unknown): string | null => {
         if (!Array.isArray(records)) return null;
         const seen = new Set<string>();
@@ -161,6 +162,7 @@ function instanceDumpConflict(data: any, users: any[]): string | null {
         twice('user _id', users, byId),
         twice('username', users, u => (typeof u.username === 'string' ? u.username.trim() : u.username)),
         twice('email', users, u => (typeof u.email === 'string' ? u.email.toLowerCase() : u.email)),
+        twice('SSO identity', users, u => u.oidc?.sub),
         twice('furniture _id', data.furniture, byId),
         twice('list _id', data.lists, byId),
         twice('request _id', data.requests, byId),
@@ -184,7 +186,33 @@ function instanceDumpConflict(data: any, users: any[]): string | null {
         const invalid = db.collections.validate(collection);
         if (invalid) return `collection "${String(collection?.name ?? '?').slice(0, 80)}": ${invalid.field}`;
     }
+    for (const doc of settings) {
+        const invalid = db.settings.validate(doc);
+        if (invalid) return `settings of collection "${String(doc?.collection ?? '?').slice(0, 80)}": ${invalid.field}`;
+    }
+    for (const plugin of Array.isArray(data.customPlugins) ? data.customPlugins : []) {
+        if (!plugin || typeof plugin !== 'object') return 'a custom plugin that is no record';
+        const invalid = db.customPlugins.validate(plugin);
+        if (invalid) return `custom plugin "${String(plugin?.id ?? '?').slice(0, 80)}": ${invalid.field}`;
+    }
     return null;
+}
+
+/**
+ * The settings records a dump holds, in the shape they are stored in: v3.1 and later
+ * export one per collection, older dumps a single object for the whole instance.
+ */
+function restorableSettings(data: any, keepCollection: boolean): any[] {
+    const docs = Array.isArray(data.settings) ? data.settings : (data.settings ? [data.settings] : []);
+    return docs.filter((s: any) => s && typeof s === 'object').map((s: any) => {
+        const clean = { ...s };
+        if (!keepCollection) delete clean.collection;
+        // A legacy Settings doc can hold theme.<key>.preset as an object (e.g. the games
+        // plugin's { default: 'default' }), which the record rules refuse. Normalized up
+        // front, like the boot migration does, so it is not taken for a broken file.
+        normalizeThemePresets(clean.theme);
+        return clean;
+    });
 }
 
 /**
@@ -236,7 +264,8 @@ const importInstanceBackup = async (req: any, res: any) => {
         });
         // The wipe below cannot be taken back, so whatever the inserts after it would
         // refuse is refused here, while the instance is still whole.
-        const conflict = instanceDumpConflict(data, cleanUsers);
+        const settingsToRestore = restorableSettings(data, hasCollections);
+        const conflict = instanceDumpConflict(data, cleanUsers, settingsToRestore);
         if (conflict) {
             await cleanupImportedImages(req);
             console.warn(`[BACKUP] Instance import refused before anything was touched: ${conflict}.`);
@@ -383,8 +412,11 @@ const importInstanceBackup = async (req: any, res: any) => {
             await db.items.insertMany(cleanAlbums, { asStored: true });
         }
 
-        if (data.logs && data.logs.length > 0) {
-            await db.loginLogs.insertMany(data.logs);
+        // Login history is the one thing a restore can do without: a line the rules refuse
+        // is left out (restorableRecords says so in the log) rather than refuse the file.
+        const logsToRestore = restorableRecords(db.loginLogs, data.logs, 'login log');
+        if (logsToRestore.length > 0) {
+            await db.loginLogs.insertMany(logsToRestore);
         }
 
         // Value snapshots are collection-scoped, so a dump restored without its collections
@@ -402,19 +434,8 @@ const importInstanceBackup = async (req: any, res: any) => {
             await db.priceHistory.insertMany(cleanHistory, { asStored: true });
         }
 
-        // v3.1 exports settings as an array (one per collection); older dumps as one object
-        const settingsDocs = Array.isArray(data.settings)
-            ? data.settings
-            : (data.settings ? [data.settings] : []);
-        for (const s of settingsDocs) {
-            const clean = { ...s };
-            if (!hasCollections) delete clean.collection;
-            // A legacy Settings doc can hold theme.<key>.preset as an object (e.g. the games
-            // plugin's { default: 'default' }). Creating the record checks its type and would
-            // refuse it here, after the wipe already ran, before migrateDatabase() gets to
-            // normalize it, leaving the instance half-restored. Normalize up front, like the
-            // boot migration does.
-            normalizeThemePresets(clean.theme);
+        // Put in shape and checked before the wipe (restorableSettings, instanceDumpConflict).
+        for (const clean of settingsToRestore) {
             await db.settings.create(clean);
         }
 
@@ -905,6 +926,23 @@ const importCollectionBackup = async (req: any, res: any) => {
             }
         }
 
+        // The collection's settings, when the dump carries them, are replaced after the
+        // wipe too: put in shape and checked now, so a record the rules refuse leaves the
+        // collection as it was instead of without settings.
+        const settingsToRestore = restorableSettings(
+            { settings: Array.isArray(data.settings) ? data.settings[0] : data.settings }, true
+        ).map(({ _id, __v, ...clean }: any) => ({ ...clean, collection: activeCollectionId }))[0] || null;
+        const invalidSettings = settingsToRestore ? db.settings.validate(settingsToRestore) : null;
+        if (invalidSettings) {
+            await cleanupImportedImages(req);
+            const detail = `settings: ${invalidSettings.field}`;
+            console.warn(`[BACKUP] Collection import refused before anything was touched: ${detail}.`);
+            return res.status(400).json({
+                error: invalidSettings.message,
+                userMessage: req.t('admin.backup.error_invalid_dump', { detail })
+            });
+        }
+
         // A line whose item did not come back with the dump has nothing to point at and is
         // left out; tracks keep their own ids through the restore, so only the item half of
         // a playlist line is rewritten.
@@ -1000,20 +1038,12 @@ const importCollectionBackup = async (req: any, res: any) => {
         }
 
         // Restore the collection's settings container when the dump carries one
-        const settingsDoc = Array.isArray(data.settings) ? data.settings[0] : data.settings;
-        if (settingsDoc) {
+        if (settingsToRestore) {
             // Its ambience pictures go the way of the info page's above.
             const previousSettings = await db.settings.findOne(eq('collection', idOf(activeCollectionId)));
             replacedImagePaths.push(...ambienceImages(previousSettings));
-            const clean = { ...settingsDoc };
-            delete clean._id;
-            delete clean.__v;
-            clean.collection = activeCollectionId;
-            // An older dump can hold a preset in a shape the record refuses, as on the
-            // instance restore: normalized before the old settings go.
-            normalizeThemePresets(clean.theme);
             await db.settings.deleteMany(eq('collection', idOf(activeCollectionId)));
-            await db.settings.create(clean);
+            await db.settings.create(settingsToRestore);
         }
 
         // Collection restores do not run the whole boot migration. Apply the same

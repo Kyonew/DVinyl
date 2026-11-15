@@ -1,4 +1,5 @@
 import express from "express";
+import { randomInt } from "crypto";
 import { db } from "../core/db";
 import {
   all, and, contains, desc, emptyList, eq, exists, Filter, idOf, isId, isIn, missing, ne, notIn, or, some
@@ -67,7 +68,8 @@ const createPassword = (length = 12): string => {
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+";
   let password = "";
   for (let i = 0; i < length; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
+    // Drawn from the system's secure source: this is a password someone will sign in with.
+    password += chars.charAt(randomInt(chars.length));
   }
   return password;
 };
@@ -258,19 +260,16 @@ router.post("/add-user", requireAuth, requireAdmin, async (req: any, res: any) =
     const { username, email } = req.body;
     if (await usernameTaken(username)) return res.redirect("/admin/instance?msg=error_username_taken");
     const password = createPassword();
-    const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user then force-update the stored password hash. The account starts in the
-    // language of the admin creating it, the best guess there is until it signs in.
-    const newUser = await db.users.create({
+    // Stored hashed from the start, never in clear even for a moment. The account starts in
+    // the language of the admin creating it, the best guess there is until it signs in.
+    await db.users.create({
       username,
       email,
-      password: password,
+      password: await bcrypt.hash(password, 10),
       language: normalizeLanguage(res.locals.user?.language),
       lastChange: new Date(),
     });
-
-    await db.users.updateOne(eq("_id", idOf(newUser._id)), { set: { password: hashedPassword } });
 
     console.log(`[ADMIN] User created: ${username} <${email}> by ${res.locals.user?.email}`);
 
@@ -680,17 +679,16 @@ router.post("/members/create", requireAuth, requireCollectionRole("admin"), asyn
     const role = MEMBER_ROLES.includes(req.body.role) ? req.body.role : "viewer";
     if (await usernameTaken(username)) return res.redirect("/admin?msg=error_username_taken");
     const password = createPassword();
-    const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Same language as the admin creating it, as on the instance page.
+    // Same language as the admin creating it, as on the instance page. Hashed before it is
+    // stored, as on the instance page.
     const newUser = await db.users.create({
       username,
       email,
-      password: password,
+      password: await bcrypt.hash(password, 10),
       language: normalizeLanguage(res.locals.user?.language),
       lastChange: new Date(),
     });
-    await db.users.updateOne(eq("_id", idOf(newUser._id)), { set: { password: hashedPassword } });
 
     await db.collections.updateOne(activeCollection(res), { addToSet: { members: { user: newUser._id, role } } });
     await db.users.updateOne(eq("_id", idOf(newUser._id)), { set: { lastActiveCollectionId: res.locals.activeCollectionId } });

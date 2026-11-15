@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { SUPPORTED_CURRENCIES } from '../config/constants';
+import { MIN_PASSWORD_LENGTH, SUPPORTED_CURRENCIES } from '../config/constants';
 
 const isEmail = (val: string): boolean => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
@@ -25,7 +25,7 @@ const userSchema = new mongoose.Schema({
     password: {
         type: String,
         required: [function (this: any) { return !this.oidc?.sub; }, "auth.password_required"],
-        minlength: [6, "auth.password_too_short"]
+        minlength: [MIN_PASSWORD_LENGTH, "auth.password_too_short"]
     },
     img: {
         type: String,

@@ -4,7 +4,7 @@ import { all, eq, idOf } from '../core/db/query';
 import { generateUniqueSlug } from '../utils/collectionHelpers';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { normalizeLanguage } from '../config/constants';
+import { MIN_PASSWORD_LENGTH, normalizeLanguage } from '../config/constants';
 import { setupTokenAccepted, setupTokenRequired } from '../core/setupToken';
 
 const router = express.Router();
@@ -50,13 +50,17 @@ router.post('/', async (req, res) => {
         // is not rejected by authMiddleware's staleness check
         const lastChange = new Date(Date.now() - 60_000);
 
-        // Create the initial admin user (isAdmin: true)
-        const hashedPassword = await bcrypt.hash(password, 10);
+        // Checked here rather than by the record rules, which only ever see the hash.
+        if (typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH) {
+            return res.render('setup', { error: req.t('auth.password_too_short'), setupTokenRequired: setupTokenRequired() });
+        }
 
+        // Create the initial admin user (isAdmin: true). The password is hashed before it is
+        // stored, never written in clear even for a moment: the SQLite journal would keep it.
         const newAdmin = await db.users.create({
             username,
             email,
-            password: password,
+            password: await bcrypt.hash(password, 10),
             isAdmin: true,
             // The form posts whatever the page was rendered in, and the field is client
             // side: normalized rather than trusted, or the enum rejects the whole document
@@ -64,9 +68,6 @@ router.post('/', async (req, res) => {
             language: normalizeLanguage(language || req.language),
             lastChange
         });
-
-        // Force-update the stored password hash
-        await db.users.updateOne(eq('_id', idOf(newAdmin._id)), { set: { password: hashedPassword } });
 
         // Create the default collection for the first admin (migrate.ts can't have done this
         // at boot: there were zero users then). The admin becomes its first member/owner.

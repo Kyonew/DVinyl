@@ -97,7 +97,12 @@ describe('instance backup', { skip: !source || !target }, () => {
     const edits: [string, (copy: any) => void][] = [
       ['an item twice', copy => copy.albums.push({ ...copy.albums[0] })],
       ['a username twice', copy => copy.users.push({ ...copy.users[0], _id: '64d0000000000000000000ff', email: 'other@example.test' })],
-      ['an account without its email', copy => { delete copy.users[0].email; }]
+      ['an account without its email', copy => { delete copy.users[0].email; }],
+      ['one SSO identity on two accounts', copy => {
+        copy.users[0].oidc = { sub: 'same-subject' };
+        copy.users.push({ ...copy.users[0], _id: '64d0000000000000000000fe', username: 'second', email: 'second@example.test' });
+      }],
+      ['settings the record rules refuse', copy => { copy.settings[0].modules = 'not a map'; }]
     ];
     for (const [what, edit] of edits) {
       const copy = structuredClone(dump);
@@ -156,6 +161,16 @@ describe('collection backup', { skip: !source }, () => {
         assert.ok(after.albums.some(a => String(a._id) === String(entry.item)), 'list entries point at restored items');
       }
     }
+  });
+
+  it('refuses settings the record rules refuse before replacing anything', async () => {
+    const backup = (await admin.get('/backup/collection/export')).json();
+    backup.settings.modules = 'not a map';
+    const before = normalizeDump(await exportInstance(admin));
+    const reply = await admin.postJson('/backup/collection/import', backup);
+    assert.equal(reply.status, 400, reply.text);
+    assert.match(reply.json().userMessage, /Nothing was changed/);
+    assert.deepEqual(normalizeDump(await exportInstance(admin)), before);
   });
 
   it('exports a CSV of the active collection', async () => {

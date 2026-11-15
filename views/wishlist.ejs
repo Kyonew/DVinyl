@@ -174,7 +174,7 @@
             if (btn) btn.disabled = true;
 
             const fail = (message) => {
-                alert(<%- JSON.stringify(t('admin.modal.import_error')).replace(/</g, '\\u003c') %> + '\n' + message);
+                alert(<%- JSON.stringify(t('admin.backup.import_error')).replace(/</g, '\\u003c') %> + '\n' + message);
                 if (icon) icon.classList.remove('fa-spin');
                 if (btn) btn.disabled = false;
             };

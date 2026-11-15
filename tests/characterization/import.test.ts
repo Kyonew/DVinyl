@@ -9,6 +9,8 @@ import { ADMIN, addMusic, exportInstance, InstanceDump, login, normalizeDump, se
 // its first boot on SQLite moves it over. Needs that server (TEST_MONGODB_URL).
 const source = mongoBackend('import_source');
 const target = sqliteBackend('import_target');
+const emptySource = mongoBackend('import_empty');
+const emptyTarget = sqliteBackend('import_empty_target');
 
 /**
  * What each MongoDB collection of the source holds, to tell its data was left untouched.
@@ -104,5 +106,22 @@ describe('first boot of 4.0 on an install kept on MongoDB', { skip: !source }, (
     );
     app = await startApp({ ...target, reset: async () => {} }, { MONGODB_URL: source!.url, MONGODB_REIMPORT: 'true' });
     assert.match(app.logs(), /\[IMPORT\] Done/);
+  });
+});
+
+describe('first boot of 4.0 with MONGODB_URL naming a database that holds nothing', { skip: !emptySource }, () => {
+  let app: App;
+  after(async () => { await app?.stop(); });
+
+  it('imports nothing, says so, and leaves the server unmarked so later boots still start', async () => {
+    await emptySource!.reset();
+    app = await startApp(emptyTarget, { MONGODB_URL: emptySource!.url });
+    assert.match(app.logs(), /holds no DVinyl data/);
+    assert.doesNotMatch(app.logs(), /\[IMPORT\] Done/);
+    assert.deepEqual(await snapshot(emptySource!.url), {});
+    await app.stop();
+    // The next boot, on the same still empty store, neither refuses nor claims a move.
+    app = await startApp({ ...emptyTarget, reset: async () => {} }, { MONGODB_URL: emptySource!.url });
+    assert.equal((await app.client().get('/setup')).status, 200);
   });
 });

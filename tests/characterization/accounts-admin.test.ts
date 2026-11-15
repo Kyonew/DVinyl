@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
-import { backendFor } from './backend';
+import fs from 'node:fs';
+import { backendFor, sqliteBackend } from './backend';
 import { App, startApp } from './sandbox';
 import { Client } from './client';
 import { ADMIN, addMusic, exportInstance, InstanceDump, itemByTitle, login, saveItem, setupAdmin, titles } from './fixtures';
@@ -322,5 +323,40 @@ describe('accounts and administration', { skip: !backend }, () => {
     assert.deepEqual(reply.json(), { deleted: 1 });
     assert.ok(!titles(await refresh()).includes('Newest'));
     assert.equal((await admin.postJson('/admin/delete-last-items', { count: 1, kind: 'Nope' })).status, 400);
+  });
+});
+
+// The SQLite journal keeps every version of a row until it is checkpointed, and the data
+// folder it sits in is what people back up. A password written in clear and hashed right
+// after would stay readable there.
+describe('passwords on disk', () => {
+  const store = sqliteBackend('accounts_disk');
+  let app: App;
+  after(async () => { await app?.stop(); });
+
+  it('never writes a password in clear, not even in the journal', async () => {
+    app = await startApp(store);
+    const admin = await setupAdmin(app);
+    const passwords = [
+      ADMIN.password,
+      shownPassword((await admin.postForm('/admin/add-user', { username: 'diskone', email: 'diskone@example.test' })).text),
+      shownPassword((await admin.postForm('/admin/members/create', { username: 'disktwo', email: 'disktwo@example.test', role: 'viewer' })).text)
+    ];
+    const file = store.env.SQLITE_PATH!;
+    for (const suffix of ['', '-wal']) {
+      const bytes = fs.existsSync(file + suffix) ? fs.readFileSync(file + suffix) : Buffer.alloc(0);
+      for (const password of passwords) assert.equal(bytes.indexOf(password), -1, `a password in clear in dvinyl.sqlite${suffix}`);
+    }
+    // And the hash stored from the start is the one the account signs in with.
+    await login(app, 'diskone@example.test', passwords[1]!);
+  });
+
+  it('refuses a first-install password shorter than the minimum, and stays installable', async () => {
+    await app.stop();
+    app = await startApp(store);
+    const reply = await app.client().postForm('/setup', { ...ADMIN, password: 'abc', language: 'en' });
+    assert.equal(reply.status, 200);
+    assert.match(reply.text, /at least 6/i);
+    assert.equal((await app.client().get('/setup')).status, 200, 'no account was created');
   });
 });

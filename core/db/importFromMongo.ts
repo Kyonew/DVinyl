@@ -94,6 +94,20 @@ export async function importFromMongo(mongoUrl: string): Promise<Record<string, 
       loaded.push({ table, docs, from: name });
     }
 
+    // A server holding no DVinyl data is most likely not the one meant (a database name
+    // mistyped in MONGODB_URL). Marking it as moved would have the next boot refuse to
+    // start on a store that never received anything, and say a collection is where none
+    // is. So nothing is marked: the boot goes on to an empty store, and a corrected
+    // MONGODB_URL still imports on a later start, as long as nothing was set up meanwhile.
+    if (loaded.every(({ docs }) => docs.length === 0)) {
+      console.warn(
+        '[IMPORT] The MongoDB database MONGODB_URL names holds no DVinyl data, so nothing was imported. '
+        + 'If your collection is on that server, check the database name at the end of MONGODB_URL '
+        + '(the 3.x .env.example names "dvinyl") and restart before setting up this install.'
+      );
+      return {};
+    }
+
     writeAtOnce(() => {
       for (const { table, docs } of loaded) table.load(docs);
     });
