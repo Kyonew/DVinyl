@@ -1,6 +1,6 @@
 import express from 'express';
 import { db } from '../core/db';
-import { all, eq, idOf, isId } from '../core/db/query';
+import { all, eq, idOf, isId, isIn } from '../core/db/query';
 import multer from 'multer';
 import os from 'os';
 import { promises as fs } from 'fs';
@@ -31,7 +31,7 @@ import { restoredTypeSlug } from '../core/requestTypes';
 import { deleteUnusedManagedItemImages, managedItemImageFile, managedItemImagesForQuery } from '../core/itemImageStorage';
 import { MAX_BACKUP_UPLOAD_BYTES, readBackupArchive, sendBackupArchive } from '../core/backupArchive';
 import { jsonStream, StreamedDocument } from '../core/jsonStream';
-import { buildInstanceBackup } from '../core/instanceBackup';
+import { backupFolderIssue, buildInstanceBackup } from '../core/instanceBackup';
 import { BASE_URL } from '../config/constants';
 import { ambienceImages } from '../core/ambience';
 import { setupTokenAccepted } from '../core/setupToken';
@@ -448,6 +448,14 @@ const importInstanceBackup = async (req: any, res: any) => {
         // schema defaults (self-service off) apply on the next read.
         if (data.instanceSettings) {
             const { _id, created_at, updated_at, __v, ...values } = data.instanceSettings;
+            // The backup folder names a place on the machine the dump was made on. Kept
+            // when this one can write there as the Backup tab would accept it; otherwise
+            // the schedule stays and the backups go to the default folder.
+            const backupFolder = values.backups?.folder;
+            if (typeof backupFolder === 'string' && backupFolder && await backupFolderIssue(backupFolder)) {
+                console.warn(`[BACKUP] The backup folder of the dump (${backupFolder}) cannot be used here; the default folder takes over.`);
+                values.backups = { ...values.backups, folder: '' };
+            }
             await db.instanceSettings.updateOne(eq('key', 'instance'), { set: { ...values, key: 'instance' } }, { upsert: true });
             invalidateInstanceSettingsCache();
             invalidateAiConfigCache();
@@ -875,6 +883,10 @@ const importCollectionBackup = async (req: any, res: any) => {
         // A file edited by hand can name one id twice. The second copy gets an id of its
         // own, since sharing one would fail the insert after the wipe.
         const usedIds = new Set<string>();
+        // Before 4.0 only a plugin field of that name wrote `purchase_currency`; since,
+        // the core writes it beside the purchase price, and the field was renamed.
+        const dumpMajor = Number.parseInt(String(data.metadata?.version || '0'), 10);
+        const currencyWasAField = !(dumpMajor >= 4);
         const cleanAlbums = data.albums.map((album: any) => {
             const { _id, __v, ...rest } = album || {};
             const fixed: any = {
@@ -902,6 +914,11 @@ const importCollectionBackup = async (req: any, res: any) => {
                     && registry.getByKind(fixed.kind)?.formFields?.some(field => field.name === renamed)) {
                     fixed[renamed] = value;
                 }
+            }
+            if (currencyWasAField && fixed.purchase_currency !== undefined && fixed.purchase_currency_field === undefined
+                && registry.getByKind(fixed.kind)?.formFields?.some(field => field.name === 'purchase_currency_field')) {
+                fixed.purchase_currency_field = fixed.purchase_currency;
+                delete fixed.purchase_currency;
             }
             if (fixed.extra) fixed.extra = { ...fixed.extra };
             reviveExtraDates(fixed, extraDateFields);
@@ -1000,7 +1017,12 @@ const importCollectionBackup = async (req: any, res: any) => {
             if (requestTypesToRestore.length > 0) await db.requestTypes.insertMany(requestTypesToRestore);
         }
         // The requests always go: every one of them is about an item that was just
-        // replaced, so none would point at anything left.
+        // replaced, so none would point at anything left. Nor would the notifications
+        // that open them, which go too.
+        const replacedRequests = await db.requests.find(ofCollection, { fields: ['_id'] });
+        if (replacedRequests.length > 0) {
+            await db.notifications.deleteMany(isIn('link', replacedRequests.map((r: any) => `/requests/${idOf(r._id)}`)));
+        }
         await db.requests.deleteMany(ofCollection);
         if (requestsToRestore.length > 0) await db.requests.insertMany(requestsToRestore);
 

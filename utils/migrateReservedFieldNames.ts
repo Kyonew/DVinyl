@@ -9,12 +9,16 @@ import type { CustomPluginConfig } from '../core/customPlugin';
 // a plugin declaring one keeps it as the price of the copy (see core/registry.ts).
 export const LATER_CORE_PATHS = new Set([
   'parent', 'inside', 'kept_fields', 'source_values', 'import_filled', 'extra_formats',
-  'image_origins', 'image_download_failed', 'sort_creator'
+  'image_origins', 'image_download_failed', 'sort_creator', 'purchase_currency'
 ]);
 
 // Paths that point at another item. A value there that is not an item id was typed into
 // a builder field of the same name, and the core would read it as a link.
 const LINK_PATHS = new Set(['inside', 'parent']);
+// Paths only the field itself wrote to before 4.0, whose values therefore move with it.
+// The core writes the currency of a purchase price on save from then on, so a field of
+// that name would otherwise see its values replaced by the editor's currency.
+const FIELD_ONLY_PATHS = new Set(['purchase_currency']);
 
 /** A free name for `name` once it is taken by the core: `<name>_field`, then numbered. */
 export function freeFieldName(name: string, taken: Set<string>): string {
@@ -94,7 +98,7 @@ export async function migrateReservedFieldNames(): Promise<number> {
       // Only a link can be told apart from what a builder field put there. The other
       // paths have long held the core's own bookkeeping on every item, so the field is
       // renamed and starts empty rather than taking those values with it.
-      if (!LINK_PATHS.has(from)) {
+      if (!LINK_PATHS.has(from) && !FIELD_ONLY_PATHS.has(from)) {
         console.log(`[RESERVED FIELDS] "${config.id}": field "${from}" renamed to "${to}".`);
         continue;
       }

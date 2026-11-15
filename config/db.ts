@@ -59,6 +59,15 @@ export const connectDB = async () => {
     throw err;
   }
 
+  if (MONGODB_URL && !wantsImport(MONGODB_URL)) {
+    // Only ever read from once, into an empty store. Said at each start, so someone who
+    // added MONGODB_URL to an install already set up knows why nothing came across.
+    console.log(
+      '[DB] MONGODB_URL is set, but the SQLite store already holds data, so nothing is imported '
+      + `from MongoDB. Once this install looks right, MONGODB_URL can be removed (see ${MOVE_GUIDE}).`
+    );
+  }
+
   if (wantsImport(MONGODB_URL)) {
     try {
       await importFromMongo(MONGODB_URL!);

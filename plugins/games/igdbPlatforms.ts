@@ -53,7 +53,7 @@ export class IGDBPlatformsProvider implements SearchProvider {
   name = 'IGDB Consoles';
 
   async search(query: string, _options: SearchOptions): Promise<SearchResult[]> {
-    const results = await igdbRequest('platforms', `search "${query.replace(/"/g, '\\"')}"; ${FIELDS} limit 12;`);
+    const results = await igdbRequest('platforms', `search "${query.replace(/[\\"]/g, '\\$&')}"; ${FIELDS} limit 12;`);
     return (results || []).flatMap((p: any) => consolesFromPlatform(p)).slice(0, 30);
   }
 

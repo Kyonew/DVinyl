@@ -23,7 +23,7 @@ const igdb = sourceFromProvider(igdbProvider, {
   // Covers, artworks and screenshots: what IGDB holds of a game beyond its box.
   async searchImages(query: string): Promise<string[]> {
     const results = await igdbRequest('games',
-      `search "${query.replace(/"/g, '\\"')}";
+      `search "${query.replace(/[\\"]/g, '\\$&')}";
       fields cover.url, artworks.url, screenshots.url;
       limit 5;`
     );

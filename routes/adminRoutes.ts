@@ -50,7 +50,7 @@ import { alignImagesAfterRefresh } from "../core/itemImages";
 import { layoutFromForm } from "../core/layout";
 import { palettesFromForm, isThemeName, isThemeChoice } from "../core/theme";
 import { cardLookFromForm } from "../core/cardStyle";
-import { ambienceFromForm } from "../core/ambience";
+import { ambienceFromForm, ambienceImages } from "../core/ambience";
 import { clearDraft, getDraft, setDraft, withUpdate } from "../core/lookDraft";
 import { dashboardWidgets, resolveWidgets } from "../core/dashboard";
 import "../core/dashboardWidgets";
@@ -533,7 +533,14 @@ router.post("/collections/:id/delete", requireAuth, requireAdmin, async (req: an
       return res.redirect("/admin/instance?msg=error_delete_default_collection");
     }
 
-    const itemImages = await managedItemImagesForQuery(eq('collection', idOf(target._id)));
+    // Every upload the collection holds goes with it: its items' pictures, its info page's,
+    // and the background and logo of its ambience. The release below keeps any of them
+    // still pointed at from elsewhere.
+    const itemImages = [
+      ...await managedItemImagesForQuery(eq('collection', idOf(target._id))),
+      ...collectionInfoOf(target).images,
+      ...ambienceImages(await db.settings.findOne(eq('collection', idOf(target._id))))
+    ];
     const ofTarget = eq("collection", idOf(target._id));
     await db.items.deleteMany(ofTarget);
     await db.settings.deleteMany(ofTarget);

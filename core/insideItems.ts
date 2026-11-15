@@ -13,7 +13,7 @@
  */
 import { registry } from './registry';
 import { db } from './db';
-import { and, contains, eq, isIn, missing, ne, Filter } from './db/filter';
+import { all, and, contains, eq, isIn, missing, ne, Filter } from './db/filter';
 import { idOf, isId } from './db/ids';
 
 export const INSIDE_FIELD = 'inside';
@@ -31,13 +31,14 @@ export async function holdsItems(itemId: any): Promise<boolean> {
 }
 
 /**
- * Puts `itemId` inside `boxId`, both in `collectionId`. Returns why it cannot be done,
- * or null once done.
+ * Puts `itemId` inside `boxId`, both in `collectionId` and both among what `visible`
+ * lets this reader see (the collection's visibility rules), as the picker offers them.
+ * Returns why it cannot be done, or null once done.
  */
-export async function putInside(collectionId: any, itemId: any, boxId: any): Promise<InsideError | null> {
+export async function putInside(collectionId: any, itemId: any, boxId: any, visible: Filter = all()): Promise<InsideError | null> {
   if (!isId(itemId) || !isId(boxId)) return 'not_found';
   if (String(itemId) === String(boxId)) return 'same_item';
-  const inCollection = (id: any) => and(eq('_id', idOf(id)), eq('collection', idOf(collectionId)));
+  const inCollection = (id: any) => and(eq('_id', idOf(id)), eq('collection', idOf(collectionId)), visible);
   const [item, box] = await Promise.all([
     db.items.findOne(inCollection(itemId)),
     db.items.findOne(inCollection(boxId))
@@ -51,11 +52,11 @@ export async function putInside(collectionId: any, itemId: any, boxId: any): Pro
   return null;
 }
 
-/** Takes an item out of its box, back onto the shelf. */
-export async function takeOut(collectionId: any, itemId: any): Promise<boolean> {
+/** Takes an item out of its box, back onto the shelf, if this reader can see it. */
+export async function takeOut(collectionId: any, itemId: any, visible: Filter = all()): Promise<boolean> {
   if (!isId(itemId)) return false;
   const result: any = await db.items.updateOne(
-    and(eq('_id', idOf(itemId)), eq('collection', idOf(collectionId))),
+    and(eq('_id', idOf(itemId)), eq('collection', idOf(collectionId)), visible),
     { unset: [INSIDE_FIELD] }
   );
   return !!result;

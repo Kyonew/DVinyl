@@ -1,9 +1,10 @@
 import { db } from './db';
-import { and, eq, idOf, isIn } from './db/query';
+import { and, eq, idOf, isIn, or } from './db/query';
 import { buildSortTitle } from './helpers';
 import { legacySource, legacyIdFieldFor } from './sources';
 import { PluginDefinition } from './types';
-import { pluginKindFilter } from '../utils/visibilityHelper';
+import { registry } from './registry';
+import { pluginKindFilter, shelfFilter } from '../utils/visibilityHelper';
 
 /** Someone who wishes for a record found in a search, and in which collection. */
 export interface MemberWish {
@@ -22,8 +23,9 @@ const foldCreator = (value: unknown): string => buildSortTitle(Array.isArray(val
  * For each candidate (a search result, the release on a confirm page), the wishes for it
  * held in the wishlists of every collection the reader belongs to.
  *
- * Only those collections: a wishlist is visible to the members of its collection and to
- * nobody else, so a search shows nothing it would not show on the wishlist page itself.
+ * Only those collections, and in each only what its wishlist page shows this reader (its
+ * visibility rules for their role, its types switched on): a search shows nothing the
+ * wishlist page itself would not.
  * A wish that names a release (it came from a source, so it carries that source's id)
  * matches that release only: whoever picked one pressing wants that one, and marking
  * every other pressing of the album would bury it. A wish entered by hand, which names
@@ -37,15 +39,30 @@ export async function memberWishesFor(
   const empty = candidates.map(() => [] as MemberWish[]);
   if (!userId || candidates.length === 0) return empty;
 
-  const collections = await db.collections.find(eq('members.user', idOf(userId)), { fields: ['name'] });
+  const collections = await db.collections.find(eq('members.user', idOf(userId)), { fields: ['name', 'members'] });
   if (collections.length === 0) return empty;
   const collectionName = new Map(collections.map((c: any) => [String(c._id), String(c.name || '')]));
+  const reader: any = await db.users.findById(idOf(userId), { fields: ['isAdmin'] });
+  const settingsDocs = await db.settings.find(isIn('collection', collections.map((c: any) => idOf(c._id))));
+  const settingsOf = new Map(settingsDocs.map((s: any) => [String(s.collection), s]));
+  // Each collection's wishlist as its page shows it to this reader. A collection nobody
+  // has opened yet has no settings record; the defaults apply, as on the search page.
+  const visibleWishlists = collections.map((c: any) => {
+    const role = (c.members || []).find((m: any) => String(m.user) === String(userId))?.role;
+    return shelfFilter({
+      collectionId: c._id,
+      inWishlist: true,
+      isAdmin: !!reader?.isAdmin || role === 'admin',
+      settings: settingsOf.get(String(c._id)) || { modules: registry.getDefaultModules() },
+      // A wish kept in a box is still wished for, as the search finds it too.
+      keepInside: true
+    });
+  });
 
   const fallback = legacySource(plugin);
   const legacyField = legacyIdFieldFor(plugin, fallback);
   const wishes = await db.items.find(and(
-    isIn('collection', collections.map((c: any) => idOf(c._id))),
-    eq('in_wishlist', true),
+    or(...visibleWishlists),
     pluginKindFilter(plugin)
   ), { fields: ['title', 'sort_title', plugin.creatorField, 'source', 'source_id', 'owner', 'collection', ...(legacyField ? [legacyField] : [])] });
   if (wishes.length === 0) return empty;

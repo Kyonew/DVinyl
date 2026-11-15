@@ -335,32 +335,39 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       // result and submits the normal search-{id} form, so what the user eventually picks
       // always comes from the plugin's real source.
       router.post(`/add-${plugin.id}/card-scan`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
-        const config = await getAiConfig();
-        if (!isAiConfigured(config)) {
-          return res.status(400).json({ error: req.t('ai.err_not_configured') });
-        }
-        if (!isAcceptedImage(req.body?.image)) {
-          return res.status(400).json({ error: req.t('ai.err_image_rejected') });
-        }
+        try {
+          const config = await getAiConfig();
+          if (!isAiConfigured(config)) {
+            return res.status(400).json({ error: req.t('ai.err_not_configured') });
+          }
+          if (!isAcceptedImage(req.body?.image)) {
+            return res.status(400).json({ error: req.t('ai.err_image_rejected') });
+          }
 
-        const guess = await resolveCardScanWithAi(req.body.image, plugin.id);
-        if (!guess) {
-          return res.status(422).json({ error: req.t('ai.err_card_not_recognized') });
-        }
+          const guess = await resolveCardScanWithAi(req.body.image, plugin.id);
+          if (!guess) {
+            return res.status(422).json({ error: req.t('ai.err_card_not_recognized') });
+          }
 
-        // The set name is the part a vision model most often misreads (a small symbol,
-        // easy to guess wrong), and a wrong set name appended to the title actively hurts
-        // the search rather than narrowing it. So a guess that includes one is verified
-        // against this plugin's real source first, falling back to the bare title -
-        // still handed to the same source on submit either way - if that combined guess
-        // finds nothing.
-        let query = [guess.title, guess.setName].filter(Boolean).join(' ');
-        const source = resolveSource(plugin, null, res.locals.settings);
-        if (guess.setName && source) {
-          const results = await source.search(query, { type: plugin.id });
-          if (results.length === 0) query = guess.title;
+          // The set name is the part a vision model most often misreads (a small symbol,
+          // easy to guess wrong), and a wrong set name appended to the title actively hurts
+          // the search rather than narrowing it. So a guess that includes one is verified
+          // against this plugin's real source first, falling back to the bare title -
+          // still handed to the same source on submit either way - if that combined guess
+          // finds nothing.
+          let query = [guess.title, guess.setName].filter(Boolean).join(' ');
+          const source = resolveSource(plugin, null, res.locals.settings);
+          if (guess.setName && source) {
+            // A source that fails here only costs the check: the bare title is the safe query.
+            const results = await source.search(query, { type: plugin.id }).catch(() => []);
+            if (results.length === 0) query = guess.title;
+          }
+          res.json({ query });
+        } catch (err: any) {
+          // The page reads a JSON error; Express's own 500 page would leave it saying nothing.
+          console.error(`[AI] Card scan failed (${plugin.id}):`, err.message);
+          res.status(502).json({ error: req.t('errors.api_error') });
         }
-        res.json({ query });
       });
     }
 

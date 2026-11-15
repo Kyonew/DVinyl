@@ -230,8 +230,14 @@ export const migrateDatabase = async () => {
         //
         // The same pass keeps every key in line with its collection's articles (see
         // core/sortArticles.ts), which a restore can change under items already stored.
-        const resorted = await reconcileSortTitles();
-        if (resorted > 0) console.log(`[MIGRATION] sort_title computed for ${resorted} item(s).`);
+        // Best effort like the advancedCD backfill: a failure only leaves keys to the next
+        // boot, and must not skip the migrations below, which the data needs.
+        try {
+            const resorted = await reconcileSortTitles();
+            if (resorted > 0) console.log(`[MIGRATION] sort_title computed for ${resorted} item(s).`);
+        } catch (sortError) {
+            console.error('[MIGRATION] Sort keys left for the next boot (non-fatal):', sortError);
+        }
 
         await migratePluginItems();
 

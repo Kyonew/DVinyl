@@ -264,8 +264,10 @@ describe('custom plugins', { skip: !backend }, () => {
     const dump: any = await exportInstance(admin);
     const comics = dump.customPlugins.find((p: any) => p.id === 'comics');
     comics.config.fields.push({ name: 'inside', label: 'Inside', type: 'text', group: 'metadata' });
+    comics.config.fields.push({ name: 'purchase_currency', label: 'Paid in', type: 'text', group: 'metadata' });
     const item = itemByTitle(dump, 'Watchmen');
     item.inside = 'Top shelf';
+    item.purchase_currency = 'Shells';
     dump.settings[0].pluginCustomization = { comics: { cardFields: ['inside', 'issue'], detailFields: { inside: 'more' } } };
     const reply = await admin.postJson('/backup/import', dump);
     assert.equal(reply.status, 200, reply.text);
@@ -275,8 +277,10 @@ describe('custom plugins', { skip: !backend }, () => {
     const restored = itemByTitle(after, 'Watchmen');
     assert.equal(restored.inside, undefined, 'the core path is free again');
     assert.equal(restored.inside_field, 'Top shelf');
+    assert.equal(restored.purchase_currency, undefined, 'the core currency path is free again');
+    assert.equal(restored.purchase_currency_field, 'Shells', 'and the value the field held went with it');
     const fields = after.customPlugins.find((p: any) => p.id === 'comics').config.fields.map((f: any) => f.name);
-    assert.deepEqual(fields, ['issue', 'publisher', 'inside_field']);
+    assert.deepEqual(fields, ['issue', 'publisher', 'inside_field', 'purchase_currency_field']);
     const cosmetics = after.settings[0].pluginCustomization.comics;
     assert.deepEqual(cosmetics.cardFields, ['inside_field', 'issue']);
     assert.deepEqual(cosmetics.detailFields, { inside_field: 'more' });
@@ -289,10 +293,15 @@ describe('custom plugins', { skip: !backend }, () => {
     const item = backup.albums.find((a: any) => a.title === 'Watchmen');
     item.inside = item.inside_field;
     delete item.inside_field;
+    item.purchase_currency = item.purchase_currency_field;
+    delete item.purchase_currency_field;
+    backup.metadata.version = '3.3.0';
     const reply = await admin.postJson('/backup/collection/import', backup);
     assert.equal(reply.status, 200, reply.text);
     const restored = itemByTitle(await exportInstance(admin), 'Watchmen');
     assert.equal(restored.inside, undefined);
     assert.equal(restored.inside_field, 'Top shelf');
+    assert.equal(restored.purchase_currency, undefined);
+    assert.equal(restored.purchase_currency_field, 'Shells');
   });
 });

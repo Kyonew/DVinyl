@@ -33,7 +33,12 @@ async function importDiscogs(req: any, res: any) {
     const u = await db.users.findById(idOf(userId), { fields: ['pluginData'] });
     username = u?.pluginData?.music?.discogsUsername;
   }
-  if (!username) return res.status(400).json({ error: "Invalid Discogs URL" });
+  // It goes into the path of a request sent with the instance's token, so only a name
+  // Discogs could have given (letters, digits, '.', '_', '-') is taken, and never one
+  // made of dots alone, which would climb out of /users/.
+  if (!username || !/^[A-Za-z0-9._-]{1,64}$/.test(username) || /^\.+$/.test(username)) {
+    return res.status(400).json({ error: "Invalid Discogs URL" });
+  }
 
   await db.users.updateOne(eq('_id', idOf(userId)), { set: { 'pluginData.music.discogsUsername': username } });
 
@@ -46,7 +51,7 @@ async function importDiscogs(req: any, res: any) {
     let hasMore = true;
 
     const isWishlist = (type === 'wishlist');
-    const apiUrl = isWishlist ? `https://api.discogs.com/users/${username}/wants` : `https://api.discogs.com/users/${username}/collection/folders/0/releases`;
+    const apiUrl = isWishlist ? `https://api.discogs.com/users/${encodeURIComponent(username)}/wants` : `https://api.discogs.com/users/${encodeURIComponent(username)}/collection/folders/0/releases`;
     const listKey = isWishlist ? 'wants' : 'releases';
 
     // The fields filled in on each record. A wantlist has none. Not being able to read
@@ -58,7 +63,7 @@ async function importDiscogs(req: any, res: any) {
     const settingsFilter = eq('collection', idOf(activeCollectionId));
     if (!isWishlist && musicPlugin) {
       try {
-        const definitions = await fetchJson(`https://api.discogs.com/users/${username}/collection/fields`, {
+        const definitions = await fetchJson(`https://api.discogs.com/users/${encodeURIComponent(username)}/collection/fields`, {
           headers: { 'Authorization': `Discogs token=${token}`, 'User-Agent': 'DVinylApp/1.0' }
         });
         const settings = await db.settings.findOne(settingsFilter);

@@ -87,6 +87,7 @@ describe('first boot of 4.0 on an install kept on MongoDB', { skip: !source }, (
     await app.stop();
     app = await startApp({ ...target, reset: async () => {} }, { MONGODB_URL: source!.url });
     assert.doesNotMatch(app.logs(), /\[IMPORT\]/);
+    assert.match(app.logs(), /already holds data, so nothing is imported/, 'and says why');
     const dump = await exportInstance(await login(app, ADMIN.email, ADMIN.password));
     assert.ok(titles(dump).includes('Added on SQLite'));
     assert.deepEqual(await snapshot(source!.url), { ...sourceState, moved: 'true' });

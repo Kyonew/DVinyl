@@ -40,7 +40,8 @@ router.get('/api/inside/candidates', ...editor, async (req: any, res: any) => {
 
 router.post('/api/inside/:id', ...editor, async (req: any, res: any) => {
   try {
-    const refused = await putInside(res.locals.activeCollectionId, req.params.id, req.body?.box);
+    const visible = visibilityFilter(res.locals.isCollectionAdmin, res.locals.settings);
+    const refused = await putInside(res.locals.activeCollectionId, req.params.id, req.body?.box, visible);
     if (refused) return res.status(refused === 'not_found' ? 404 : 400).json({ success: false, error: req.t(`inside.error_${refused}`) });
     res.json({ success: true });
   } catch (err: any) {
@@ -51,7 +52,7 @@ router.post('/api/inside/:id', ...editor, async (req: any, res: any) => {
 
 router.post('/api/inside/:id/out', ...editor, async (req: any, res: any) => {
   try {
-    await takeOut(res.locals.activeCollectionId, req.params.id);
+    await takeOut(res.locals.activeCollectionId, req.params.id, visibilityFilter(res.locals.isCollectionAdmin, res.locals.settings));
     res.json({ success: true });
   } catch (err: any) {
     console.error('[INSIDE] Take out failed:', err.message);

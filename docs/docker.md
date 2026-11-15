@@ -188,6 +188,14 @@ MongoDB service when you are ready.
   written.
 - **The log says `[DATA] Your collection moved from MongoDB to SQLite`.** The `data` folder of the
   move is no longer mounted. Mount it again (the folder holding `dvinyl.sqlite`).
+- **The log says `[IMPORT] The MongoDB database MONGODB_URL names holds no DVinyl data`.** The
+  database name at the end of `MONGODB_URL` is probably not the one 3.x used (`dvinyl` by
+  default). Fix it and start again before creating an account: nothing was written, and the
+  import runs as long as the new install is still empty.
+- **The log says `[DB] MONGODB_URL is set, but the SQLite store already holds data`.** The move
+  already happened, or the install was set up before `MONGODB_URL` was added. Nothing more is
+  imported. To bring the 3.x data over anyway, start on an empty `data` folder, adding
+  `MONGODB_REIMPORT=true` for that one start if the log then says it was already moved.
 - **The log says `[IMPORT] ... was already moved to SQLite`.** You started on an empty `data`
   folder while your collection is in the one from the move. Point DVinyl at that folder. To copy
   the old MongoDB data again anyway, losing what changed since, start once with

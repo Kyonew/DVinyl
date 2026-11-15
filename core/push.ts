@@ -68,15 +68,17 @@ export async function vapidKeys(): Promise<{ publicKey: string; privateKey: stri
  * Keeps the HTTPS address the instance is reached at as the contact its pushes are
  * signed with. Called from the push routes, which a member only reaches through the
  * address they use; a plain HTTP or local address is never kept. The Origin header is
- * the browser's word, so once an address is kept only an instance admin replaces it: a
- * member's request cannot sign the instance's pushes with an address of their choosing.
+ * the browser's word, so only an instance admin's request keeps one: a member's cannot
+ * sign the instance's pushes with an address of their choosing, not even the first time.
+ * Until an admin comes by, vapidSubject() falls back on PUSH_CONTACT or PUBLIC_URL.
  */
-export async function rememberPushOrigin(origin: string, replace = true): Promise<void> {
+export async function rememberPushOrigin(origin: string, byAdmin = true): Promise<void> {
+  if (!byAdmin) return;
   let url: URL;
   try { url = new URL(origin); } catch { return; }
   if (url.protocol !== 'https:' || !url.hostname.includes('.') || net.isIP(url.hostname.replace(/^\[|\]$/g, ''))) return;
   const keys = await vapidKeys();
-  if (keys.subject === url.origin || (keys.subject && !replace)) return;
+  if (keys.subject === url.origin) return;
   await db.instanceSettings.updateOne(eq('key', 'instance'), { set: { 'push.subject': url.origin } });
   vapid = { ...keys, subject: url.origin };
 }
@@ -173,10 +175,13 @@ export async function saveSubscription(userId: any, raw: any, userAgent: string)
   if (!(await isAllowedEndpoint(subscription.endpoint))) return { ok: false, error: 'notifications.push.err_endpoint' };
 
   const me = idOf(userId);
-  // One row per device: whoever subscribed it before on this browser lets it go.
+  // One row per device: whoever subscribed it before on this browser lets it go. Another
+  // account's row is only taken over when it carries the same keys, which only that very
+  // browser holds: knowing someone's endpoint is not enough to cut their device off.
   await db.pushSubscriptions.deleteMany(and(eq('endpoint', subscription.endpoint), eq('user', me)));
-  const others = await db.pushSubscriptions.find(eq('endpoint', subscription.endpoint), { fields: ['_id'] });
-  if (others.length) await db.pushSubscriptions.deleteMany(isIn('_id', others.map((s: any) => idOf(s._id))));
+  const others = await db.pushSubscriptions.find(eq('endpoint', subscription.endpoint), { fields: ['_id', 'keys'] });
+  const sameBrowser = others.filter((s: any) => s.keys?.p256dh === subscription.keys.p256dh && s.keys?.auth === subscription.keys.auth);
+  if (sameBrowser.length) await db.pushSubscriptions.deleteMany(isIn('_id', sameBrowser.map((s: any) => idOf(s._id))));
 
   if ((await db.pushSubscriptions.count(eq('user', me))) >= MAX_SUBSCRIPTIONS_PER_USER) {
     return { ok: false, error: 'notifications.push.err_too_many' };

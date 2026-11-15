@@ -3,11 +3,16 @@ import { afterEach, test } from 'node:test';
 import { db } from '../core/db';
 import { memberWishesFor } from '../core/memberWishes';
 
-const original = { collections: db.collections.find, items: db.items.find, users: db.users.find };
+const original = {
+  collections: db.collections.find, items: db.items.find, users: db.users.find,
+  userById: db.users.findById, settings: db.settings.find
+};
 afterEach(() => {
   (db.collections as any).find = original.collections;
   (db.items as any).find = original.items;
   (db.users as any).find = original.users;
+  (db.users as any).findById = original.userById;
+  (db.settings as any).find = original.settings;
 });
 
 const plugin: any = {
@@ -16,11 +21,13 @@ const plugin: any = {
 };
 const ME = 'a'.repeat(24), ALEX = 'b'.repeat(24), VINYL = 'c'.repeat(24), SALON = 'd'.repeat(24);
 
-function stub(wishes: any[], memberOf = [{ _id: VINYL, name: 'Vinyl' }, { _id: SALON, name: 'Salon' }]) {
+function stub(wishes: any[], memberOf = [{ _id: VINYL, name: 'Vinyl' }, { _id: SALON, name: 'Salon' }], settings: any[] = []) {
   const asked: any[] = [];
   (db.collections as any).find = async (filter: any) => { asked.push(filter); return memberOf; };
-  (db.items as any).find = async () => wishes;
+  (db.items as any).find = async (filter: any) => { asked.push(filter); return wishes; };
   (db.users as any).find = async () => [{ _id: ALEX, username: 'alex' }];
+  (db.users as any).findById = async () => ({ _id: ME, isAdmin: false });
+  (db.settings as any).find = async () => settings;
   return asked;
 }
 
@@ -62,4 +69,13 @@ test('nothing is looked up for a reader in no collection', async () => {
   stub([{ title: 'X', owner: ALEX, collection: VINYL }], []);
   assert.deepEqual(await memberWishesFor(plugin, ME, [{ id: 1, title: 'X' }]), [[]]);
   assert.deepEqual(await memberWishesFor(plugin, null, [{ id: 1, title: 'X' }]), [[]]);
+});
+
+test('the wishes are read with the visibility rules of each collection for this reader', async () => {
+  const settings = [{ collection: VINYL, modules: { music: true }, visibility: { applyToAdmin: false, hiddenItems: [ALEX], hiddenGenres: [], hiddenTypes: [] } }];
+  const asked = stub([], [{ _id: VINYL, name: 'Vinyl', members: [{ user: ME, role: 'viewer' }] } as any], settings);
+  await memberWishesFor(plugin, ME, [{ id: 1, source: 'discogs', title: 'X', artist: 'Y' }]);
+  const itemsQuery = JSON.stringify(asked[asked.length - 1]);
+  assert.match(itemsQuery, new RegExp(ALEX), 'an item the rules hide from a viewer is kept out of the read');
+  assert.doesNotMatch(itemsQuery, /"field":"inside"/, 'a wish kept in a box is still read');
 });
