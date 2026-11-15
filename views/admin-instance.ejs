@@ -2,6 +2,19 @@
 
     <div class="max-w-screen-xl mx-auto px-4 max-sm:px-0 pb-20 space-y-10">
 
+        <% if (locals.storageMoveGuide) { %>
+            <div role="status" class="md:mt-6 rounded-2xl p-4 md:p-5 flex items-start gap-3 bg-amber-500/10 border border-amber-500/30">
+                <i class="fa-solid fa-database text-amber-600 dark:text-amber-400 mt-0.5" aria-hidden="true"></i>
+                <div class="text-sm">
+                    <p class="font-bold"><%= t('admin.instance.storage_fallback_title') %></p>
+                    <p class="opacity-80 mt-1"><%= t('admin.instance.storage_fallback_desc') %></p>
+                    <a href="<%= storageMoveGuide %>" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 mt-2 font-bold text-primary-theme hover:underline">
+                        <%= t('admin.instance.storage_fallback_link') %> <i class="fa-solid fa-arrow-up-right-from-square text-[11px]" aria-hidden="true"></i>
+                    </a>
+                </div>
+            </div>
+        <% } %>
+
         <!-- Distinct "console" banner: theme-aware (light/dark) but visually set apart
              from collection pages by its strong contrast block + server iconography -->
         <div data-settings-head class="md:mt-6 rounded-3xl md:rounded-[2rem] bg-neutral-100 text-neutral-900 dark:bg-neutral-900 dark:text-white border border-black/10 dark:border-white/10 shadow-xl overflow-hidden relative transition-colors">
@@ -85,10 +98,21 @@
             { id: 'collections', icon: 'layer-group', label: t('admin.instance.tabs.collections'), count: (locals.collections || []).length },
             { id: 'users', icon: 'users', label: t('admin.instance.tabs.users'), count: users.length },
             { id: 'backup', icon: 'database', label: t('admin.instance.tabs.backup') },
+            { id: 'updates', icon: 'rocket', label: t('admin.instance.tabs.updates'), count: locals.updates && updates.available ? 1 : undefined },
             { id: 'security', icon: 'ban', label: t('admin.instance.tabs.security'), count: blockedIps.length },
             { id: 'ai', icon: 'wand-magic-sparkles', label: t('ai.title') },
             { id: 'logs', icon: 'satellite-dish', label: t('admin.instance.tabs.logs') }
         ] }) %>
+
+                <%# The settings cards of this page share one layout: what it is and its switch on
+                    top, its settings only once it is on, then where things stand in a band of its
+                    own. Choices are buttons rather than menus where there are only a few, so every
+                    option reads at a glance, and saving goes through the floating save bar. %>
+                <% const switchTrack = "w-12 h-7 bg-black/10 dark:bg-white/10 rounded-full peer peer-focus-visible:ring-2 peer-focus-visible:ring-primary-theme/50 peer-checked:after:translate-x-5 after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-5 after:w-5 after:shadow after:transition-all peer-checked:bg-green-500 transition-colors";
+                   const pill = 'cursor-pointer select-none px-4 py-2.5 rounded-xl text-sm font-bold bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 peer-checked:bg-primary-theme peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-primary-theme/50 transition-colors';
+                   const fieldLabel = 'block text-sm font-bold mb-2';
+                   const cardIcon = 'w-12 h-12 rounded-2xl bg-primary-theme/10 text-primary-theme hidden sm:flex items-center justify-center shrink-0';
+                   const textInput = 'w-full bg-black/5 dark:bg-white/5 border border-transparent rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-primary-theme/40 transition-colors'; %>
 
                 <!-- ============ COLLECTIONS ============ -->
                 <section data-tab-panel="collections">
@@ -114,7 +138,8 @@
                                         <h3 class="text-lg font-black truncate flex items-center gap-2">
                                             <%= c.name %>
                                             <% if (c.isDefault) { %>
-                                                <span class="text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-primary-theme/10 text-primary-theme whitespace-nowrap">
+                                                <span title="<%= t('admin.collections.default_badge_hint') %>"
+                                                    class="text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-primary-theme/10 text-primary-theme whitespace-nowrap cursor-help">
                                                     <%= t('admin.collections.default_badge') %>
                                                 </span>
                                             <% } %>
@@ -128,6 +153,13 @@
                                             <%= t('admin.instance.manage') %>
                                         </button>
                                         <% if (!c.isDefault) { %>
+                                            <form action="<%= baseUrl %>/admin/collections/<%= c._id %>/make-default" method="POST">
+                                                <button type="submit"
+                                                    class="bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white p-2 rounded-xl transition-colors"
+                                                    title="<%= t('admin.collections.make_default') %>" aria-label="<%= t('admin.collections.make_default') %>">
+                                                    <i class="fa-solid fa-house-flag"></i>
+                                                </button>
+                                            </form>
                                             <form action="<%= baseUrl %>/admin/collections/<%= c._id %>/delete" method="POST"
                                                 onsubmit="return confirm(<%= JSON.stringify(t('admin.collections.confirm_delete', { name: c.name })) %>)">
                                                 <button type="submit"
@@ -150,7 +182,7 @@
                                     </span>
                                     <span class="flex items-center gap-2 ml-auto">
                                         <i class="fa-regular fa-calendar opacity-50"></i>
-                                        <%= c.created_at ? new Date(c.created_at).toLocaleDateString(currentLng==='fr' ? 'fr-FR' : 'en-US') : '-' %>
+                                        <%= c.created_at ? new Date(c.created_at).toLocaleDateString(dateLocaleFor(currentLng)) : '-' %>
                                     </span>
                                 </div>
                                 <!-- Member avatars preview -->
@@ -180,45 +212,31 @@
                         </h2>
                     </div>
 
-                    <form action="<%= baseUrl %>/admin/instance/settings" method="POST" data-save-bar
-                        class="card-theme rounded-3xl p-6 md:p-8 shadow-sm transition-colors space-y-6">
-
-                        <label class="flex items-start justify-between gap-6 cursor-pointer">
-                            <div>
-                                <p class="text-sm font-black"><%= t('admin.instance.allow_member_creation') %></p>
-                                <p class="text-xs opacity-60 mt-1 leading-relaxed max-w-2xl">
-                                    <%= t('admin.instance.allow_member_creation_desc') %>
-                                </p>
-                            </div>
-                            <div class="relative inline-flex items-center shrink-0 mt-1">
-                                <input type="checkbox" id="allowMemberCollectionCreation"
-                                    name="allowMemberCollectionCreation"
-                                    <%= locals.instanceSettings && instanceSettings.allowMemberCollectionCreation ? 'checked' : '' %>
-                                    class="sr-only peer">
-                                <div class="w-11 h-6 bg-black/10 dark:bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500">
-                                </div>
-                            </div>
+                    <% const memberOn = !!(locals.instanceSettings && instanceSettings.allowMemberCollectionCreation); %>
+                    <form action="<%= baseUrl %>/admin/instance/settings" method="POST" data-save-bar data-toggle-card
+                        class="card-theme rounded-3xl shadow-sm transition-colors overflow-hidden">
+                        <label class="flex items-start gap-4 p-6 md:p-8 cursor-pointer">
+                            <span class="<%= cardIcon %>"><i class="fa-solid fa-user-plus text-lg" aria-hidden="true"></i></span>
+                            <span class="flex-1 min-w-0">
+                                <span class="block text-lg font-bold"><%= t('admin.instance.allow_member_creation') %></span>
+                                <span class="block text-sm opacity-70 mt-1 leading-relaxed max-w-2xl"><%= t('admin.instance.allow_member_creation_desc') %></span>
+                            </span>
+                            <span class="relative inline-flex items-center shrink-0 mt-1">
+                                <input type="checkbox" id="allowMemberCollectionCreation" name="allowMemberCollectionCreation" <%= memberOn ? 'checked' : '' %>
+                                    class="sr-only peer" aria-label="<%= t('admin.instance.allow_member_creation') %>" data-toggle-card-switch>
+                                <span class="<%= switchTrack %>"></span>
+                            </span>
                         </label>
-
-                        <div id="quotaRow"
-                            class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-black/5 dark:border-white/5 pt-6 transition-opacity">
-                            <div>
-                                <p class="text-sm font-black"><%= t('admin.instance.max_collections') %></p>
-                                <p class="text-xs opacity-60 mt-1 leading-relaxed max-w-2xl">
-                                    <%= t('admin.instance.max_collections_desc') %>
-                                </p>
+                        <div class="px-6 md:px-8 pb-6 md:pb-8 <%= memberOn ? '' : 'hidden' %>" data-toggle-card-body>
+                            <label for="maxCollectionsPerUser" class="<%= fieldLabel %>"><%= t('admin.instance.max_collections') %></label>
+                            <div class="flex items-center gap-2" data-stepper>
+                                <button type="button" class="w-11 h-11 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 font-black text-lg" data-step="-1" aria-label="-">−</button>
+                                <input type="number" id="maxCollectionsPerUser" name="maxCollectionsPerUser" min="1" max="100"
+                                    value="<%= locals.instanceSettings ? instanceSettings.maxCollectionsPerUser : 1 %>"
+                                    class="w-20 text-center bg-black/5 dark:bg-white/5 border border-transparent rounded-xl p-2.5 text-base font-bold outline-none focus:ring-2 focus:ring-primary-theme/40">
+                                <button type="button" class="w-11 h-11 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 font-black text-lg" data-step="1" aria-label="+">+</button>
                             </div>
-                            <input type="number" name="maxCollectionsPerUser" min="1" max="100"
-                                value="<%= locals.instanceSettings ? instanceSettings.maxCollectionsPerUser : 1 %>"
-                                class="w-24 shrink-0 p-3 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 text-center font-black focus:outline-none focus:border-primary-theme transition-colors">
-                        </div>
-
-                        <div class="flex justify-end border-t border-black/5 dark:border-white/5 pt-6">
-                            <button type="submit"
-                                class="flex items-center gap-2 bg-primary-theme hover:brightness-110 text-white px-5 py-3 rounded-2xl shadow-lg shadow-primary-theme/20 transition-all active:scale-95">
-                                <i class="fa-solid fa-floppy-disk text-sm"></i>
-                                <span class="text-xs font-black"><%= t('common.save') %></span>
-                            </button>
+                            <p class="text-sm opacity-60 mt-2 max-w-2xl"><%= t('admin.instance.max_collections_desc') %></p>
                         </div>
                     </form>
                 </section>
@@ -232,85 +250,81 @@
                         </h2>
                     </div>
 
-                    <div id="aiPanel"
-                        class="card-theme rounded-3xl p-6 md:p-8 shadow-sm transition-colors space-y-6">
-
-                        <p class="text-xs opacity-60 leading-relaxed max-w-2xl -mt-2">
-                            <%= t('ai.subtitle') %>
-                        </p>
-
-                        <div id="aiFromEnvNotice"
-                            class="hidden text-xs font-bold px-4 py-3 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                            <%= t('ai.from_env') %>
-                        </div>
-
-                        <label class="flex items-start justify-between gap-6 cursor-pointer">
-                            <p class="text-sm font-black"><%= t('ai.enable') %></p>
-                            <div class="relative inline-flex items-center shrink-0 mt-1">
-                                <input type="checkbox" id="aiEnabled" class="sr-only peer">
-                                <div class="w-11 h-6 bg-black/10 dark:bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500">
-                                </div>
-                            </div>
+                    <%# Driven by the script at the bottom of the page (ids kept): the fields stay
+                        visible while it is off, since a key is entered before switching it on. %>
+                    <div id="aiPanel" class="card-theme rounded-3xl shadow-sm transition-colors overflow-hidden">
+                        <label class="flex items-start gap-4 p-6 md:p-8 cursor-pointer">
+                            <span class="<%= cardIcon %>"><i class="fa-solid fa-wand-magic-sparkles text-lg" aria-hidden="true"></i></span>
+                            <span class="flex-1 min-w-0">
+                                <span class="block text-lg font-bold"><%= t('ai.enable') %></span>
+                                <span class="block text-sm opacity-70 mt-1 leading-relaxed max-w-2xl"><%= t('ai.subtitle') %></span>
+                            </span>
+                            <span class="relative inline-flex items-center shrink-0 mt-1">
+                                <input type="checkbox" id="aiEnabled" class="sr-only peer" aria-label="<%= t('ai.enable') %>">
+                                <span class="<%= switchTrack %>"></span>
+                            </span>
                         </label>
 
-                        <div class="grid sm:grid-cols-2 gap-6 border-t border-black/5 dark:border-white/5 pt-6">
-                            <div class="space-y-2">
-                                <p class="text-sm font-black"><%= t('ai.provider') %></p>
-                                <select id="aiProvider"
-                                    class="w-full p-3 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 focus:outline-none focus:border-primary-theme transition-colors"></select>
-                                <a id="aiGetKeyLink" href="#" target="_blank" rel="noopener"
-                                    class="hidden text-xs font-bold text-primary-theme hover:underline">
-                                    <%= t('ai.get_key') %> <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
-                                </a>
+                        <div class="px-6 md:px-8 pb-6 md:pb-8 space-y-6">
+                            <div id="aiFromEnvNotice"
+                                class="hidden text-sm font-bold flex items-start gap-2 px-4 py-3 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                                <%= t('ai.from_env') %>
                             </div>
 
-                            <div id="aiBaseUrlRow" class="space-y-2 hidden">
-                                <p class="text-sm font-black"><%= t('ai.base_url') %></p>
-                                <input type="text" id="aiBaseUrl" placeholder="http://localhost:11434/v1"
-                                    class="w-full p-3 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 focus:outline-none focus:border-primary-theme transition-colors">
-                                <p class="text-xs opacity-60"><%= t('ai.base_url_hint') %></p>
-                            </div>
+                            <div class="grid sm:grid-cols-2 gap-6">
+                                <div>
+                                    <label for="aiProvider" class="<%= fieldLabel %>"><%= t('ai.provider') %></label>
+                                    <select id="aiProvider" class="<%= textInput %> cursor-pointer"></select>
+                                    <a id="aiGetKeyLink" href="#" target="_blank" rel="noopener"
+                                        class="hidden mt-2 text-sm font-bold text-primary-theme hover:underline">
+                                        <%= t('ai.get_key') %> <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
+                                    </a>
+                                </div>
 
-                            <div class="space-y-2">
-                                <p class="text-sm font-black"><%= t('ai.model') %></p>
-                                <input type="text" id="aiModel"
-                                    class="w-full p-3 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 focus:outline-none focus:border-primary-theme transition-colors">
-                            </div>
+                                <div id="aiBaseUrlRow" class="hidden">
+                                    <label for="aiBaseUrl" class="<%= fieldLabel %>"><%= t('ai.base_url') %></label>
+                                    <input type="text" id="aiBaseUrl" placeholder="http://localhost:11434/v1" class="<%= textInput %> font-mono">
+                                    <p class="text-sm opacity-60 mt-2"><%= t('ai.base_url_hint') %></p>
+                                </div>
 
-                            <div class="space-y-2">
-                                <p class="text-sm font-black"><%= t('ai.vision_model') %></p>
-                                <input type="text" id="aiVisionModel"
-                                    class="w-full p-3 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 focus:outline-none focus:border-primary-theme transition-colors">
-                                <p class="text-xs opacity-60"><%= t('ai.vision_model_hint') %></p>
-                            </div>
+                                <div>
+                                    <label for="aiModel" class="<%= fieldLabel %>"><%= t('ai.model') %></label>
+                                    <input type="text" id="aiModel" class="<%= textInput %>">
+                                </div>
 
-                            <div class="space-y-2 sm:col-span-2">
-                                <p class="text-sm font-black"><%= t('ai.api_key') %></p>
-                                <input type="password" id="aiApiKey" autocomplete="new-password"
-                                    placeholder="<%= t('ai.api_key_hint') %>"
-                                    class="w-full p-3 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 focus:outline-none focus:border-primary-theme transition-colors">
-                                <div id="aiKeySetLine" class="hidden flex items-center gap-3 text-xs">
-                                    <span class="opacity-70 font-bold" id="aiKeyHintText"></span>
-                                    <button type="button" id="aiClearKeyBtn"
-                                        class="text-red-600 hover:underline font-bold"><%= t('ai.clear_key') %></button>
+                                <div>
+                                    <label for="aiVisionModel" class="<%= fieldLabel %>"><%= t('ai.vision_model') %></label>
+                                    <input type="text" id="aiVisionModel" class="<%= textInput %>">
+                                    <p class="text-sm opacity-60 mt-2"><%= t('ai.vision_model_hint') %></p>
+                                </div>
+
+                                <div class="sm:col-span-2">
+                                    <label for="aiApiKey" class="<%= fieldLabel %>"><%= t('ai.api_key') %></label>
+                                    <div class="relative">
+                                        <i class="fa-solid fa-key absolute left-4 top-1/2 -translate-y-1/2 text-sm opacity-40" aria-hidden="true"></i>
+                                        <input type="password" id="aiApiKey" autocomplete="new-password" placeholder="<%= t('ai.api_key_hint') %>" class="<%= textInput %> pl-11">
+                                    </div>
+                                    <div id="aiKeySetLine" class="hidden flex items-center gap-3 text-sm mt-2">
+                                        <i class="fa-solid fa-circle-check text-green-500" aria-hidden="true"></i>
+                                        <span class="opacity-80 font-bold" id="aiKeyHintText"></span>
+                                        <button type="button" id="aiClearKeyBtn" class="text-red-600 hover:underline font-bold"><%= t('ai.clear_key') %></button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div id="aiTestResult" class="hidden text-xs font-bold px-4 py-3 rounded-xl"></div>
-
-                        <div
-                            class="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 border-t border-black/5 dark:border-white/5 pt-6">
-                            <button type="button" id="aiTestBtn"
-                                class="flex items-center justify-center gap-2 bg-black/5 dark:bg-white/5 hover:brightness-110 px-5 py-3 rounded-2xl transition-all active:scale-95">
-                                <i id="aiTestBtnIcon" class="fa-solid fa-bolt text-sm"></i>
-                                <span class="text-xs font-black"><%= t('ai.test') %></span>
-                            </button>
-                            <button type="button" id="aiSaveBtn"
-                                class="flex items-center justify-center gap-2 bg-primary-theme hover:brightness-110 text-white px-5 py-3 rounded-2xl shadow-lg shadow-primary-theme/20 transition-all active:scale-95">
-                                <i class="fa-solid fa-floppy-disk text-sm"></i>
-                                <span class="text-xs font-black"><%= t('ai.save') %></span>
-                            </button>
+                        <div class="border-t border-black/5 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] p-6 md:p-8 flex flex-col gap-4">
+                            <div id="aiTestResult" class="hidden text-sm font-bold px-4 py-3 rounded-xl"></div>
+                            <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+                                <button type="button" id="aiTestBtn"
+                                    class="flex items-center justify-center gap-2 bg-black/5 dark:bg-white/10 hover:brightness-110 px-5 py-3 rounded-xl text-sm font-bold transition-all active:scale-95">
+                                    <i id="aiTestBtnIcon" class="fa-solid fa-bolt"></i><%= t('ai.test') %>
+                                </button>
+                                <button type="button" id="aiSaveBtn"
+                                    class="flex items-center justify-center gap-2 bg-primary-theme hover:brightness-110 text-white px-5 py-3 rounded-xl text-sm font-bold shadow-lg shadow-primary-theme/20 transition-all active:scale-95">
+                                    <i class="fa-solid fa-floppy-disk"></i><%= t('ai.save') %>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -407,8 +421,7 @@
                                             <% } %>
                                         </td>
                                         <td class="px-6 py-4 text-xs opacity-70">
-                                            <%= new Date(u.lastChange).toLocaleDateString(currentLng==='fr' ? 'fr-FR'
-                                                : 'en-US' ) %>
+                                            <%= new Date(u.lastChange).toLocaleDateString(dateLocaleFor(currentLng)) %>
                                         </td>
                                         <td class="px-6 py-4 text-right flex justify-end gap-2">
                                             <% if (!isOtherAdmin) { %>
@@ -486,8 +499,7 @@
                                             <%= t('admin.table.last_change') %>
                                         </span>
                                         <span class="text-xs opacity-70">
-                                            <%= new Date(u.lastChange).toLocaleDateString(currentLng==='fr' ? 'fr-FR'
-                                                : 'en-US' ) %>
+                                            <%= new Date(u.lastChange).toLocaleDateString(dateLocaleFor(currentLng)) %>
                                         </span>
                                     </div>
                                     <div class="flex gap-2">
@@ -563,6 +575,221 @@
                             </div>
                         </div>
                     </div>
+
+                    <% const bak = locals.backups || { enabled: false, frequency: 'daily', format: 'zip', keep: 7, files: [], folder: '', chosenFolder: '', defaultFolder: '', folderLocked: false, folderPersists: true };
+                       const bakT = (key, params) => t('admin.instance.scheduled_backups.' + key, { ...params, interpolation: { escapeValue: false } });
+                       const bakDate = (date) => new Date(date).toLocaleString(dateLocaleFor(currentLng), { dateStyle: 'medium', timeStyle: 'short' });
+                       const bakSize = (bytes) => bytes >= 1048576 ? (bytes / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(bytes / 1024)) + ' KB'; %>
+                    <div class="card-theme rounded-3xl shadow-sm transition-colors mt-6 overflow-hidden">
+                        <form action="<%= baseUrl %>/admin/instance/backups" method="POST" data-save-bar data-toggle-card>
+                            <label class="flex items-start gap-4 p-6 md:p-8 cursor-pointer">
+                                <span class="w-12 h-12 rounded-2xl bg-primary-theme/10 text-primary-theme hidden sm:flex items-center justify-center shrink-0">
+                                    <i class="fa-solid fa-clock-rotate-left text-lg" aria-hidden="true"></i>
+                                </span>
+                                <span class="flex-1 min-w-0">
+                                    <span class="block text-lg font-bold"><%= bakT('title') %></span>
+                                    <span class="block text-sm opacity-70 mt-1 leading-relaxed max-w-2xl"><%= bakT('toggle_desc') %></span>
+                                </span>
+                                <span class="relative inline-flex items-center shrink-0 mt-1" title="<%= bakT('toggle') %>">
+                                    <input type="checkbox" name="enabled" <%= bak.enabled ? 'checked' : '' %> class="sr-only peer" aria-label="<%= bakT('toggle') %>" data-toggle-card-switch>
+                                    <span class="<%= switchTrack %>"></span>
+                                </span>
+                            </label>
+
+                            <div class="px-6 md:px-8 pb-6 md:pb-8 space-y-6 <%= bak.enabled ? '' : 'hidden' %>" data-toggle-card-body>
+                                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                    <div>
+                                        <span class="<%= fieldLabel %>"><%= bakT('frequency') %></span>
+                                        <div class="flex flex-wrap gap-2">
+                                            <% [['daily', 'fa-sun'], ['weekly', 'fa-calendar-week']].forEach(([value, icon]) => { %>
+                                                <label class="relative">
+                                                    <input type="radio" name="frequency" value="<%= value %>" class="sr-only peer" <%= bak.frequency === value ? 'checked' : '' %>>
+                                                    <span class="<%= pill %> inline-flex items-center gap-2"><i class="fa-solid <%= icon %> text-xs" aria-hidden="true"></i><%= bakT(value) %></span>
+                                                </label>
+                                            <% }) %>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label for="backupKeep" class="<%= fieldLabel %>"><%= bakT('keep') %></label>
+                                        <div class="flex items-center gap-2" data-stepper>
+                                            <button type="button" class="w-11 h-11 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 font-black text-lg" data-step="-1" aria-label="-">−</button>
+                                            <input type="number" id="backupKeep" name="keep" min="1" max="90" value="<%= bak.keep %>"
+                                                class="w-20 text-center bg-black/5 dark:bg-white/5 border border-transparent rounded-xl p-2.5 text-base font-bold outline-none focus:ring-2 focus:ring-primary-theme/40">
+                                            <button type="button" class="w-11 h-11 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 font-black text-lg" data-step="1" aria-label="+">+</button>
+                                        </div>
+                                        <p class="text-sm opacity-60 mt-2"><%= bakT('keep_hint') %></p>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <span class="<%= fieldLabel %>"><%= bakT('format') %></span>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <% [['zip', 'fa-file-zipper'], ['json', 'fa-file-code']].forEach(([value, icon]) => { %>
+                                            <label class="relative cursor-pointer">
+                                                <input type="radio" name="format" value="<%= value %>" class="sr-only peer" <%= bak.format === value ? 'checked' : '' %>>
+                                                <span class="flex items-start gap-3 h-full p-4 rounded-2xl border-2 border-black/5 dark:border-white/10 peer-checked:border-primary-theme peer-checked:bg-primary-theme/5 peer-focus-visible:ring-2 peer-focus-visible:ring-primary-theme/50 transition-colors">
+                                                    <i class="fa-solid <%= icon %> text-xl text-primary-theme mt-0.5" aria-hidden="true"></i>
+                                                    <span>
+                                                        <span class="block text-sm font-bold"><%= bakT(value + '_title') %></span>
+                                                        <span class="block text-sm opacity-60 mt-0.5"><%= bakT(value + '_desc') %></span>
+                                                    </span>
+                                                </span>
+                                            </label>
+                                        <% }) %>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label for="backupFolder" class="<%= fieldLabel %>"><%= bakT('folder') %></label>
+                                    <div class="relative">
+                                        <i class="fa-solid fa-folder-open absolute left-4 top-1/2 -translate-y-1/2 text-sm opacity-40" aria-hidden="true"></i>
+                                        <input type="text" id="backupFolder" name="folder" spellcheck="false" autocapitalize="none" autocorrect="off"
+                                            value="<%= bak.folderLocked ? bak.folder : bak.chosenFolder %>" placeholder="<%= bak.defaultFolder %>" <%= bak.folderLocked ? 'disabled' : '' %>
+                                            class="w-full font-mono bg-black/5 dark:bg-white/5 border border-transparent rounded-xl py-3 pl-11 pr-4 text-sm outline-none focus:ring-2 focus:ring-primary-theme/40 disabled:opacity-60 disabled:cursor-not-allowed">
+                                    </div>
+                                    <p class="text-sm opacity-60 mt-2 leading-relaxed max-w-3xl"><%= bakT(bak.folderLocked ? 'folder_locked' : 'folder_hint') %></p>
+                                    <% if (!bak.folderPersists) { %>
+                                        <p class="text-sm font-bold text-amber-600 dark:text-amber-400 flex items-start gap-2 mt-3 p-3 rounded-xl bg-amber-500/10">
+                                            <i class="fa-solid fa-triangle-exclamation mt-0.5" aria-hidden="true"></i><%= bakT('folder_not_mounted') %>
+                                        </p>
+                                    <% } %>
+                                </div>
+
+                                <p class="text-sm flex items-start gap-3 p-4 rounded-2xl bg-black/5 dark:bg-white/5">
+                                    <i class="fa-solid fa-lock text-primary-theme mt-0.5" aria-hidden="true"></i>
+                                    <span class="opacity-80"><%= bakT('folder_private') %></span>
+                                </p>
+                            </div>
+                        </form>
+
+                        <div class="border-t border-black/5 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] p-6 md:p-8 space-y-5">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div class="flex items-start gap-3 min-w-0">
+                                    <% if (bak.running) { %>
+                                        <i class="fa-solid fa-circle-notch fa-spin text-primary-theme text-lg mt-0.5" aria-hidden="true"></i>
+                                        <p class="text-sm font-bold text-primary-theme"><%= bakT('running') %></p>
+                                    <% } else if (bak.lastError) { %>
+                                        <i class="fa-solid fa-circle-xmark text-red-500 text-lg mt-0.5" aria-hidden="true"></i>
+                                        <div class="min-w-0">
+                                            <p class="text-sm font-bold text-red-600 dark:text-red-400 break-words"><%= bakT('last_error', { date: bakDate(bak.lastAttemptAt), error: bak.lastError }) %></p>
+                                            <% if (bak.lastSuccessAt) { %><p class="text-sm opacity-60 mt-1"><%= bakT('last_success', { date: bakDate(bak.lastSuccessAt), size: bakSize(bak.lastSize) }) %></p><% } %>
+                                        </div>
+                                    <% } else if (bak.lastSuccessAt) { %>
+                                        <i class="fa-solid fa-circle-check text-green-500 text-lg mt-0.5" aria-hidden="true"></i>
+                                        <p class="text-sm font-semibold"><%= bakT('last_success', { date: bakDate(bak.lastSuccessAt), size: bakSize(bak.lastSize) }) %></p>
+                                    <% } else { %>
+                                        <i class="fa-regular fa-circle text-lg opacity-40 mt-0.5" aria-hidden="true"></i>
+                                        <p class="text-sm opacity-70"><%= bakT('never') %></p>
+                                    <% } %>
+                                </div>
+                                <form action="<%= baseUrl %>/admin/instance/backups/run" method="POST" class="shrink-0">
+                                    <button type="submit" <%= bak.running ? 'disabled' : '' %>
+                                        class="w-full sm:w-auto flex items-center justify-center gap-2 bg-primary-theme text-white hover:brightness-110 disabled:opacity-50 px-5 py-3 rounded-xl text-sm font-bold shadow-lg shadow-primary-theme/20 transition-all active:scale-95">
+                                        <i class="fa-solid fa-play" aria-hidden="true"></i><%= bakT('run_now') %>
+                                    </button>
+                                </form>
+                            </div>
+
+                            <% if (bak.files.length > 0) { %>
+                                <div>
+                                    <p class="text-sm font-bold mb-2"><%= bakT('files') %></p>
+                                    <ul class="rounded-2xl bg-black/5 dark:bg-white/5 divide-y divide-black/5 dark:divide-white/5 overflow-hidden">
+                                        <% bak.files.forEach(file => { %>
+                                            <li class="flex items-center gap-3 px-4 py-3">
+                                                <i class="fa-solid <%= /\.zip$/i.test(file.name) ? 'fa-file-zipper' : 'fa-file-code' %> opacity-50" aria-hidden="true"></i>
+                                                <span class="font-mono text-sm truncate min-w-0 flex-1"><%= file.name %></span>
+                                                <span class="text-sm opacity-60 shrink-0"><%= bakSize(file.size) %></span>
+                                                <a href="<%= baseUrl %>/admin/instance/backups/<%= file.name %>" title="<%= bakT('download') %>" aria-label="<%= bakT('download') %>"
+                                                    class="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center text-primary-theme hover:bg-primary-theme hover:text-white transition-colors">
+                                                    <i class="fa-solid fa-download" aria-hidden="true"></i>
+                                                </a>
+                                            </li>
+                                        <% }) %>
+                                    </ul>
+                                </div>
+                            <% } %>
+                        </div>
+                    </div>
+
+                    <%# Copies of the images items link to (#136): what makes a backup carry
+                        every picture, not only the uploaded ones. %>
+                    <% const imgDl = locals.imageDownload || { enabled: false }; %>
+                    <div class="card-theme rounded-3xl shadow-sm transition-colors mt-6 overflow-hidden">
+                        <form action="<%= baseUrl %>/admin/instance/images" method="POST" data-save-bar>
+                            <label class="flex items-start gap-4 p-6 md:p-8 cursor-pointer">
+                                <span class="w-12 h-12 rounded-2xl bg-primary-theme/10 text-primary-theme hidden sm:flex items-center justify-center shrink-0">
+                                    <i class="fa-solid fa-images text-lg" aria-hidden="true"></i>
+                                </span>
+                                <span class="flex-1 min-w-0">
+                                    <span class="block text-lg font-bold"><%= t('image_download.toggle') %></span>
+                                    <span class="block text-sm opacity-70 mt-1 leading-relaxed max-w-2xl"><%= t('image_download.toggle_desc') %></span>
+                                </span>
+                                <span class="relative inline-flex items-center shrink-0 mt-1">
+                                    <input type="checkbox" name="enabled" <%= imgDl.enabled ? 'checked' : '' %> class="sr-only peer" aria-label="<%= t('image_download.toggle') %>">
+                                    <span class="<%= switchTrack %>"></span>
+                                </span>
+                            </label>
+                        </form>
+                        <div class="border-t border-black/5 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] p-6 md:p-8">
+                            <p class="text-sm font-bold"><%= t('image_download.existing_title') %></p>
+                            <p class="text-sm opacity-60 mt-1 mb-4 max-w-2xl"><%= t('image_download.existing_desc') %></p>
+                            <%- include('partials/image-download-run', { statusUrl: '/admin/instance/images', runUrl: '/admin/instance/images/run' }) %>
+                        </div>
+                    </div>
+
+                </section>
+
+                <!-- ============ UPDATES ============ -->
+                <section data-tab-panel="updates">
+                    <% const upd = locals.updates || { enabled: false, current: appVersion, available: false }; %>
+                    <div class="flex items-center gap-4 mb-6">
+                        <h2 class="text-xl font-bold flex items-center gap-2 transition-colors whitespace-nowrap">
+                            <i class="fa-solid fa-rocket text-primary-theme"></i>
+                            <%= t('admin.instance.updates.title') %>
+                        </h2>
+                        <div class="flex-grow border-t border-black/10 dark:border-white/10 transition-colors"></div>
+                    </div>
+
+                    <div class="card-theme rounded-3xl shadow-sm transition-colors overflow-hidden">
+                        <form action="<%= baseUrl %>/admin/instance/updates" method="POST" data-save-bar>
+                            <label class="flex items-start gap-4 p-6 md:p-8 cursor-pointer">
+                                <span class="<%= cardIcon %>"><i class="fa-solid fa-rocket text-lg" aria-hidden="true"></i></span>
+                                <span class="flex-1 min-w-0">
+                                    <span class="block text-lg font-bold"><%= t('admin.instance.updates.toggle') %></span>
+                                    <span class="block text-sm opacity-70 mt-1 leading-relaxed max-w-2xl"><%= t('admin.instance.updates.toggle_desc') %></span>
+                                </span>
+                                <span class="relative inline-flex items-center shrink-0 mt-1">
+                                    <input type="checkbox" name="enabled" <%= upd.enabled ? 'checked' : '' %> class="sr-only peer" aria-label="<%= t('admin.instance.updates.toggle') %>">
+                                    <span class="<%= switchTrack %>"></span>
+                                </span>
+                            </label>
+                        </form>
+                        <div class="border-t border-black/5 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] p-6 md:p-8">
+                            <% if (upd.available) { %>
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                    <div class="flex items-start gap-3">
+                                        <i class="fa-solid fa-circle-up text-primary-theme text-lg mt-0.5" aria-hidden="true"></i>
+                                        <p class="text-sm font-bold"><%= t('admin.instance.updates.available', { version: upd.latest, current: upd.current }) %></p>
+                                    </div>
+                                    <a href="<%= upd.url %>" target="_blank" rel="noopener noreferrer"
+                                        class="shrink-0 flex items-center justify-center gap-2 bg-primary-theme hover:brightness-110 text-white px-5 py-3 rounded-xl text-sm font-bold shadow-lg shadow-primary-theme/20">
+                                        <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i><%= t('admin.instance.updates.release_notes') %>
+                                    </a>
+                                </div>
+                            <% } else { %>
+                                <div class="flex items-start gap-3">
+                                    <i class="fa-solid <%= upd.enabled && upd.checkedAt ? 'fa-circle-check text-green-500' : 'fa-circle-info opacity-40' %> text-lg mt-0.5" aria-hidden="true"></i>
+                                    <p class="text-sm">
+                                        <span class="font-semibold"><%= t('admin.instance.updates.running', { version: upd.current }) %></span>
+                                        <% if (upd.enabled && upd.checkedAt) { %>
+                                            <% const checked = new Date(upd.checkedAt).toLocaleString(dateLocaleFor(currentLng), { dateStyle: 'medium', timeStyle: 'short' }); %>
+                                            <span class="block opacity-60 mt-0.5"><%= t('admin.instance.updates.checked_up_to_date', { date: checked }) %></span>
+                                        <% } %>
+                                    </p>
+                                </div>
+                            <% } %>
+                        </div>
+                    </div>
                 </section>
 
                 <!-- ============ BLOCKED IPS ============ -->
@@ -581,8 +808,7 @@
                                             <%= ip.ip %>
                                         </span>
                                         <span class="text-[10px] opacity-50 uppercase tracking-tighter">
-                                            <%= new Date(ip.createdAt).toLocaleDateString(currentLng==='fr' ? 'fr-FR'
-                                                : 'en-US' ) %>
+                                            <%= new Date(ip.createdAt).toLocaleDateString(dateLocaleFor(currentLng)) %>
                                         </span>
                                     </div>
                                     <form action="<%= baseUrl %>/admin/unblock-ip" method="POST">
@@ -695,8 +921,7 @@
                                                 <% const diff=Math.floor((new Date() - new Date(log.timestamp)) /
                                                     60000); let timeText=diff < 60 ? t('admin.time_ago_min', { count:
                                                     diff }) : new
-                                                    Date(log.timestamp).toLocaleDateString(currentLng==='fr' ? 'fr-FR'
-                                                    : 'en-US' ); %>
+                                                    Date(log.timestamp).toLocaleDateString(dateLocaleFor(currentLng)); %>
                                                     <%= timeText %>
                                             </td>
                                             <td class="px-6 py-4 text-right">
@@ -915,7 +1140,7 @@
                 const count = parseInt(document.getElementById('deleteLogsCount')?.value);
                 if (!count || count < 1) return;
 
-                const message = <%- JSON.stringify(t('admin.logs_delete_last.confirm')) %>.replace('{{count}}', count);
+                const message = <%- JSON.stringify(t('admin.logs_delete_last.confirm')).replace(/</g, '\\u003c') %>.replace('{{count}}', count);
                 if (!confirm(message)) return;
 
                 try {
@@ -932,16 +1157,22 @@
                 }
             }
 
-            // Dim the per-user quota while self-service creation is off (the value is
-            // still submitted and stored, so toggling back keeps the admin's number).
-            (function () {
-                const toggle = document.getElementById('allowMemberCollectionCreation');
-                const quotaRow = document.getElementById('quotaRow');
-                if (!toggle || !quotaRow) return;
-                const sync = () => quotaRow.classList.toggle('opacity-40', !toggle.checked);
-                toggle.addEventListener('change', sync);
-                sync();
-            })();
+            // A settings card shows its settings once its switch is on; they are still posted
+            // while hidden, so turning it off keeps them for later. A stepper moves its number
+            // within the input's bounds.
+            document.querySelectorAll('[data-toggle-card]').forEach(card => {
+                const toggle = card.querySelector('[data-toggle-card-switch]');
+                const body = card.querySelector('[data-toggle-card-body]');
+                if (toggle && body) toggle.addEventListener('change', () => body.classList.toggle('hidden', !toggle.checked));
+            });
+            document.querySelectorAll('[data-stepper]').forEach(stepper => {
+                const input = stepper.querySelector('input[type="number"]');
+                stepper.querySelectorAll('[data-step]').forEach(button => button.addEventListener('click', () => {
+                    const next = Math.min(Number(input.max) || 100, Math.max(Number(input.min) || 1, (Number(input.value) || 0) + Number(button.dataset.step)));
+                    input.value = String(next);
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                }));
+            });
 
             // ---- AI assist panel ----
             (function () {
@@ -1012,7 +1243,7 @@
                     apiKeyEl.value = '';
 
                     if (data.hasKey) {
-                        keyHintText.textContent = <%- JSON.stringify(t('ai.api_key_set', { hint: '__HINT__' })) %>.replace('__HINT__', data.keyHint);
+                        keyHintText.textContent = <%- JSON.stringify(t('ai.api_key_set', { hint: '__HINT__' })).replace(/</g, '\\u003c') %>.replace('__HINT__', data.keyHint);
                         keySetLine.classList.remove('hidden');
                     } else {
                         keySetLine.classList.add('hidden');
@@ -1065,7 +1296,7 @@
                         const data = await response.json();
                         if (!response.ok || !data.success) throw new Error(data.error || 'Error');
                         pendingClear = false;
-                        showResult(testResult, true, <%- JSON.stringify(t('ai.saved')) %>);
+                        showResult(testResult, true, <%- JSON.stringify(t('ai.saved')).replace(/</g, '\\u003c') %>);
                         await loadAiSettings();
                     } catch (err) {
                         showResult(testResult, false, err.message);
@@ -1100,9 +1331,9 @@
                         });
                         const data = await response.json();
                         if (!response.ok || !data.success) throw new Error(data.error || 'Error');
-                        showResult(testResult, true, <%- JSON.stringify(t('ai.test_ok', { model: '__MODEL__' })) %>.replace('__MODEL__', data.model));
+                        showResult(testResult, true, <%- JSON.stringify(t('ai.test_ok', { model: '__MODEL__' })).replace(/</g, '\\u003c') %>.replace('__MODEL__', data.model));
                     } catch (err) {
-                        showResult(testResult, false, <%- JSON.stringify(t('ai.test_failed', { error: '__ERROR__' })) %>.replace('__ERROR__', err.message));
+                        showResult(testResult, false, <%- JSON.stringify(t('ai.test_failed', { error: '__ERROR__' })).replace(/</g, '\\u003c') %>.replace('__ERROR__', err.message));
                     } finally {
                         testBtn.disabled = false;
                         testBtn.classList.remove('opacity-50', 'cursor-not-allowed');
@@ -1116,7 +1347,7 @@
             document.getElementById('backupInput').onchange = function (e) {
                 const file = e.target.files[0];
                 if (!file) return;
-                if (confirm(<%- JSON.stringify(t('admin.instance.backup_confirm_import')) %>)) {
+                if (confirm(<%- JSON.stringify(t('admin.instance.backup_confirm_import')).replace(/</g, '\\u003c') %>)) {
                     (async () => {
                         try {
                             const isArchive = file.name.toLowerCase().endsWith('.zip');
@@ -1135,16 +1366,16 @@
                             }
                             if (response.ok) {
                                 const result = await response.json();
-                                alert(result.warning || <%- JSON.stringify(t('admin.backup.import_success')) %>);
+                                alert(result.warning || <%- JSON.stringify(t('admin.backup.import_success')).replace(/</g, '\\u003c') %>);
                                 window.location.href = '<%= baseUrl %>/login';
                             } else {
                                 // A refusal worded for the reader (a collection backup
                                 // posted here) says what to do instead.
                                 const failure = await response.json().catch(() => ({}));
-                                alert(failure.userMessage || <%- JSON.stringify(t('admin.backup.import_error')) %>);
+                                alert(failure.userMessage || <%- JSON.stringify(t('admin.backup.import_error')).replace(/</g, '\\u003c') %>);
                             }
                         } catch (err) {
-                            alert(<%- JSON.stringify(t('admin.backup.file_error')) %>);
+                            alert(<%- JSON.stringify(t('admin.backup.file_error')).replace(/</g, '\\u003c') %>);
                         }
                     })();
                 }

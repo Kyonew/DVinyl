@@ -1,7 +1,8 @@
 import { PluginDefinition, FieldDefinition, FormatOption, StatWidget, NavbarShortcut } from './types';
-import { escapeRegExp } from './helpers';
+import type { StoredFields } from './db/storedFields';
 import { DEFAULT_PLACEHOLDER_IMAGE, placeholderUrl } from './placeholderImage';
-import Item from '../models/Item';
+import { db } from './db';
+import { and, ci, eq, idOf, ne, Filter } from './db/query';
 
 /**
  * Config of a user-created ("custom") plugin, persisted as plugins/<id>/plugin.json
@@ -50,7 +51,7 @@ export interface CustomPluginConfig {
 export interface CustomFieldConfig {
   name: string; // slug, becomes the Mongo path
   label: string; // plain text
-  type: 'text' | 'number' | 'textarea' | 'select' | 'boolean' | 'tags' | 'date';
+  type: 'text' | 'number' | 'textarea' | 'select' | 'boolean' | 'tags' | 'date' | 'rows';
   required?: boolean;
   group?: 'main' | 'metadata';
   placeholder?: string;
@@ -101,37 +102,46 @@ export function createCustomPlugin(config: CustomPluginConfig): PluginDefinition
     color: `bg-${f.color || color}-600/90`
   }));
 
-  // ---- Schema -------------------------------------------------------------
-  // Base Item paths (title, year, barcode, comments, location, genre...) already
-  // exist on the parent schema; only plugin-specific paths are declared here.
-  const schemaDefinition: Record<string, any> = {
-    creator: { type: String, required: true }
+  // ---- Stored fields --------------------------------------------------------
+  // Fields every item has (title, year, barcode, comments, location, genre...) are not
+  // redeclared; only what this type adds is.
+  const storedFields: StoredFields = {
+    creator: { type: 'text', required: true }
   };
   // Only a declared format value counts; anything else (including a format later removed
   // from the config) falls back to "no format".
   const defaultFormat = formats.some(f => f.value === config.defaultFormat) ? config.defaultFormat! : '';
 
   if (formats.length > 0) {
-    schemaDefinition.format = {
-      type: String,
+    storedFields.format = {
+      type: 'text',
       // '' is a legitimate stored value: an item can be owned without its edition known
-      enum: ['', ...formats.map(f => f.value)],
+      values: ['', ...formats.map(f => f.value)],
       default: defaultFormat
     };
   }
   if (features.rating) {
-    schemaDefinition.user_rating = { type: Number, min: 0, max: 5, default: 0 };
+    storedFields.user_rating = { type: 'number', min: 0, max: 5, default: 0 };
   }
   if (features.tracklist) {
-    schemaDefinition.tracklist = [{ position: String, title: String, duration: String }];
+    storedFields.tracklist = {
+      type: 'records',
+      fields: { position: { type: 'text' }, title: { type: 'text' }, duration: { type: 'text' } }
+    };
   }
   for (const f of customFields) {
-    schemaDefinition[f.name] =
-      f.type === 'number' ? Number
-        : f.type === 'boolean' ? { type: Boolean, default: !!f.default }
-          : f.type === 'tags' ? { type: [String], default: [] }
-            : f.type === 'date' ? Date
-              : String;
+    storedFields[f.name] =
+      f.type === 'number' ? { type: 'number' }
+        // A field's default is what a new item's form starts on, never what an item saved
+        // before it was set reads as: those were saved unticked.
+        : f.type === 'boolean' ? { type: 'boolean', default: false }
+          : f.type === 'tags' ? { type: 'texts', default: [] }
+            : f.type === 'date' ? { type: 'date' }
+              : f.type === 'rows' ? {
+                type: 'records',
+                fields: Object.fromEntries((f.options || []).map(o => [o.value, { type: 'text' as const }]))
+              }
+                : { type: 'text' };
   }
 
   // ---- Form fields ----------------------------------------------------------
@@ -245,24 +255,21 @@ export function createCustomPlugin(config: CustomPluginConfig): PluginDefinition
   for (const f of customFields) {
     manualDefaults[f.name] = f.default !== undefined ? f.default
       : f.type === 'boolean' ? false
-        : f.type === 'tags' ? []
+        : f.type === 'tags' || f.type === 'rows' ? []
           : f.type === 'select' ? (f.options?.[0]?.value ?? '')
             : ''; // 'date' included: the date input reads an empty string as "no value"
   }
 
   // Exact duplicate: same title + creator (case-insensitive), same format if declared
-  function duplicateQuery(collectionId: any, data: Record<string, any>, withFormat: boolean) {
-    const query: any = {
-      collection: collectionId,
-      in_wishlist: false,
-      kind: config.kind,
-      title: { $regex: new RegExp(`^${escapeRegExp((data.title || '').trim())}$`, 'i') },
-      creator: { $regex: new RegExp(`^${escapeRegExp((data.creator || '').trim())}$`, 'i') }
-    };
-    if (withFormat && formats.length > 0 && data.format) {
-      query.format = data.format;
-    }
-    return query;
+  function duplicateQuery(collectionId: any, data: Record<string, any>, withFormat: boolean): Filter {
+    return and(
+      eq('collection', idOf(collectionId)),
+      eq('in_wishlist', false),
+      eq('kind', config.kind),
+      ci('title', (data.title || '').trim()),
+      ci('creator', (data.creator || '').trim()),
+      withFormat && formats.length > 0 && data.format ? eq('format', data.format) : null
+    );
   }
 
   const plugin: PluginDefinition = {
@@ -279,7 +286,7 @@ export function createCustomPlugin(config: CustomPluginConfig): PluginDefinition
     defaultCardFields: ['creator'],
     partialsPath: CUSTOM_PARTIALS_PATH,
     aspectRatioClass: resolveAspectRatioClass(config),
-    schemaDefinition,
+    storedFields,
     formFields,
     formats,
     statsWidgets,
@@ -331,24 +338,24 @@ export function createCustomPlugin(config: CustomPluginConfig): PluginDefinition
 
     async findDuplicate(collectionId: any, data: Record<string, any>): Promise<any | null> {
       if (!(data.title || '').trim() || !(data.creator || '').trim()) return null;
-      return Item.findOne(duplicateQuery(collectionId, data, true));
+      return db.items.findOne(duplicateQuery(collectionId, data, true), { defaults: true });
     },
 
     async findPotentialDuplicates(collectionId: any, data: Record<string, any>): Promise<any[]> {
       if (!(data.title || '').trim() || !(data.creator || '').trim()) return [];
-      return Item.find(duplicateQuery(collectionId, data, false)).lean();
+      return db.items.find(duplicateQuery(collectionId, data, false));
     },
 
     async getVariants(item: any): Promise<any[]> {
       if (!item) return [];
-      return Item.find({
-        collection: item.collection,
-        in_wishlist: false,
-        kind: config.kind,
-        _id: { $ne: item._id },
-        title: { $regex: new RegExp(`^${escapeRegExp(item.title || '')}$`, 'i') },
-        creator: { $regex: new RegExp(`^${escapeRegExp(item.creator || '')}$`, 'i') }
-      }).lean();
+      return db.items.find(and(
+        eq('collection', idOf(item.collection)),
+        eq('in_wishlist', false),
+        eq('kind', config.kind),
+        ne('_id', idOf(item._id)),
+        ci('title', item.title || ''),
+        ci('creator', item.creator || '')
+      ));
     },
 
     getManualDefaults(): Record<string, any> {
@@ -356,7 +363,7 @@ export function createCustomPlugin(config: CustomPluginConfig): PluginDefinition
     },
 
     // The generic save handler forwards tags inputs as a raw comma-separated
-    // string; split it here so the [String] schema paths store real arrays.
+    // string; split it here so the list fields store real arrays.
     normalizeForSave(data: Record<string, any>): void {
       for (const f of customFields) {
         if (f.type === 'tags' && typeof data[f.name] === 'string') {
@@ -389,6 +396,7 @@ function toFieldDefinition(f: CustomFieldConfig, group: 'main' | 'metadata'): Fi
   };
   if (f.placeholder) field.placeholder = f.placeholder;
   if (f.type === 'select') field.options = f.options || [];
+  if (f.type === 'rows') field.columns = (f.options || []).map(o => ({ name: o.value, label: o.label }));
   if (f.default !== undefined) field.default = f.default;
   return field;
 }

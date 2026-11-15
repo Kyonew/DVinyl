@@ -24,6 +24,25 @@
         <i class="fa-solid fa-chevron-right text-xs opacity-40" aria-hidden="true"></i>
     </a>
 
+    <section>
+        <div class="<%= group %>">
+            <a href="<%= baseUrl %>/notifications" class="<%= row %>">
+                <i class="fa-solid fa-bell w-5 text-center text-primary-theme" aria-hidden="true"></i>
+                <span class="flex-1"><%= t('notifications.title') %></span>
+                <span data-notif-count class="min-w-[1.5rem] px-2 rounded-full bg-red-500 text-white text-xs font-bold leading-6 text-center <%= locals.unreadNotifications ? '' : 'hidden' %>"><%= (locals.unreadNotifications || 0) > 99 ? '99+' : (locals.unreadNotifications || 0) %></span>
+                <i class="fa-solid fa-chevron-right text-xs opacity-40" aria-hidden="true"></i>
+            </a>
+            <% if (locals.requestsOn && locals.activeCollectionId) { %>
+                <a href="<%= baseUrl %>/requests" class="<%= row %>">
+                    <i class="fa-solid fa-inbox w-5 text-center text-primary-theme" aria-hidden="true"></i>
+                    <span class="flex-1"><%= t('requests.title') %></span>
+                    <% if (locals.requestsTodo) { %><span class="min-w-[1.5rem] px-2 rounded-full bg-amber-500 text-white text-xs font-bold leading-6 text-center"><%= requestsTodo %></span><% } %>
+                    <i class="fa-solid fa-chevron-right text-xs opacity-40" aria-hidden="true"></i>
+                </a>
+            <% } %>
+        </div>
+    </section>
+
     <% if (showCollections) { %>
     <section>
         <h2 class="<%= groupTitle %>"><%= t('nav.collections') %></h2>
@@ -65,9 +84,9 @@
                     <span class="flex-1"><%= t('nav.admin') %></span>
                     <i class="fa-solid fa-chevron-right text-xs opacity-40" aria-hidden="true"></i>
                 </a>
-                <a href="<%= baseUrl %>/admin/personnalisation" class="<%= row %>">
-                    <i class="fa-solid fa-wand-magic-sparkles w-5 text-center text-primary-theme" aria-hidden="true"></i>
-                    <span class="flex-1"><%= t('perso.title') %></span>
+                <a href="<%= baseUrl %>/create-plugin" class="<%= row %>">
+                    <i class="fa-solid fa-puzzle-piece w-5 text-center text-primary-theme" aria-hidden="true"></i>
+                    <span class="flex-1"><%= t('create_plugin.title') %></span>
                     <i class="fa-solid fa-chevron-right text-xs opacity-40" aria-hidden="true"></i>
                 </a>
             <% } %>
@@ -104,6 +123,8 @@
     <a href="<%= baseUrl %>/logout" class="card-theme rounded-2xl min-h-[52px] flex items-center justify-center font-bold text-red-600 dark:text-red-500 hover:bg-red-500/10 transition-colors">
         <%= t('nav.logout') %>
     </a>
+
+    <p class="text-center text-[10px] opacity-40 tracking-widest">DVinyl - v<%= appVersion %></p>
 </div>
 
 <script>

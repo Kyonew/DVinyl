@@ -2,6 +2,8 @@
     something of its own (a piece of furniture, say) draws its own navigation, so
     nothing is rendered here. %>
 <% if (!locals.activeView || activeView.paginates === 'items') { %>
+<%# Read by shelf-scroll-restore: an item's edit page goes on to the next page of the list. %>
+<div hidden data-browse-page="<%= currentPage %>" data-browse-pages="<%= totalPages %>"></div>
 <div
     class="mt-12 flex flex-col md:flex-row items-center justify-between gap-6 border-t border-black/5 dark:border-white/10 pt-8">
 

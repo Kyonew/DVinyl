@@ -1,8 +1,12 @@
-import mongoose from 'mongoose';
 import { PluginDefinition, SearchResult } from './types';
 import { resolveSource, SearchableSource } from './sources';
-import { escapeRegExp, parseCsvRecords, syncStamp } from './helpers';
+import { parseCsvRecords, syncStamp } from './helpers';
+import { db } from './db';
+import { and, ci, eq, idOf } from './db/query';
 import { createShelfLocationResolver } from './shelfStore';
+import { findWishlistDuplicate } from './wishlistDuplicate';
+import { metadataLanguage } from './metadataLanguage';
+import { allowsExtraFormats, parseExtraFormats } from './extraFormats';
 
 /**
  * Generic engine behind the CSV importers declared by plugins (Libib & co.).
@@ -84,21 +88,16 @@ const isEmptyValue = (value: any): boolean =>
  * of the same file see a different item and import everything a second time.
  */
 function enrichableFields(plugin: PluginDefinition): Set<string> {
-  const fields = new Set([...Object.keys(plugin.schemaDefinition || {}), ...ENRICHABLE_BASE_FIELDS]);
+  const fields = new Set([...Object.keys(plugin.storedFields || {}), ...ENRICHABLE_BASE_FIELDS]);
   for (const field of plugin.duplicateCheckFields || []) fields.delete(field);
   return fields;
 }
 
-/**
- * Value each path of the plugin falls back to when the import fed it nothing. Computed
- * defaults (Date.now and friends) are left out: they are stamps, never a stale choice.
- */
+/** Value each field of the plugin falls back to when the import fed it nothing. */
 function schemaDefaults(plugin: PluginDefinition): Map<string, any> {
   const defaults = new Map<string, any>();
-  const schema = mongoose.model(plugin.kind).schema;
-  for (const name of Object.keys(plugin.schemaDefinition || {})) {
-    const value = (schema.path(name) as any)?.options?.default;
-    if (value !== undefined && typeof value !== 'function' && !isEmptyValue(value)) defaults.set(name, value);
+  for (const [name, field] of Object.entries(plugin.storedFields || {})) {
+    if (field.default !== undefined && !isEmptyValue(field.default)) defaults.set(name, field.default);
   }
   return defaults;
 }
@@ -128,35 +127,6 @@ function fillEmptyFields(
     filled[key] = value;
   }
   return filled;
-}
-
-/**
- * Duplicate check for an import targeting the wishlist.
- *
- * The plugins' own findDuplicate answers "do I already own this?": it looks at owned
- * items only. Reusing it here would let a copy sitting in the collection cancel its
- * wishlist entry, when the two are deliberately separate lists. The generic rule below
- * mirrors what the plugin declares: same title, same creator, same distinguishing
- * fields, among wishlist items.
- */
-async function findWishlistDuplicate(plugin: PluginDefinition, collectionId: any, data: Record<string, any>): Promise<any | null> {
-  const exact = (value: string) => ({ $regex: new RegExp(`^${escapeRegExp(value)}$`, 'i') });
-
-  const query: Record<string, any> = {
-    collection: collectionId,
-    in_wishlist: true,
-    title: exact(String(data.title || '').trim())
-  };
-
-  const creator = String(data[plugin.creatorField] || '').trim();
-  if (creator) query[plugin.creatorField] = exact(creator);
-
-  for (const field of plugin.duplicateCheckFields || []) {
-    const value = data[field];
-    if (typeof value === 'string' && value.trim()) query[field] = exact(value.trim());
-  }
-
-  return mongoose.model(plugin.kind).findOne(query);
 }
 
 /** Rejects instead of hanging forever: providers have no timeout of their own. */
@@ -429,7 +399,6 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
       return;
     }
 
-    const Model = mongoose.model(plugin.kind);
     // One source answers for the whole file: a per-row choice would mean asking several
     // databases the same question, and the quota of the smallest one is what gives out.
     // Whichever the import screen picked, or the collection's first working choice, which
@@ -460,7 +429,7 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
       const exactCode = canEnrich ? exactLookupFor(plugin, enrichSource, data) : '';
       const query = exactCode || (spec.searchQuery ? spec.searchQuery(row, data) : data.title);
       const searchOptions = {
-        language: req.language,
+        language: metadataLanguage(req),
         ...(plugin.enrichSearchOptions ? plugin.enrichSearchOptions(data) : {}),
         ...(spec.searchOptions ? spec.searchOptions(row, data) : {})
       };
@@ -509,7 +478,7 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
 
         // A sync, not an edit: this branch only ever writes what the provider returned,
         // never what the row said. The importer's own rows land through create() below.
-        await Model.updateOne({ _id: existing._id }, { $set: { ...patch, ...syncStamp() } });
+        await db.items.updateOne(eq('_id', idOf(existing._id)), { set: { ...patch, ...syncStamp() } }, { kind: plugin.kind });
         return 'updated';
       }
 
@@ -540,7 +509,26 @@ export async function runCsvImport(req: any, res: any, spec: CsvImportSpec): Pro
       // distinct value in the file, the rest served from the resolver's memory.
       if (data.location !== undefined) data.location = await resolveLocation(data.location);
 
-      await Model.create({
+      // The other formats of the edition, held to the type's own list as on the form.
+      if (data.extra_formats !== undefined) {
+        const extras = allowsExtraFormats(plugin) ? parseExtraFormats(data.extra_formats, plugin, data.format ?? data.media_type) : [];
+        if (extras.length > 0) data.extra_formats = extras; else delete data.extra_formats;
+      }
+
+      // A price paid is an amount in a currency, the importer's, as when it is typed in.
+      if (data.purchase_price !== undefined && data.purchase_price !== null && data.purchase_price !== '') {
+        const amount = Number(String(data.purchase_price).replace(/\s/g, '').replace(',', '.'));
+        if (Number.isFinite(amount) && amount >= 0) {
+          data.purchase_price = Math.round(amount * 100) / 100;
+          data.purchase_currency = ctx.req.user?.currency || 'USD';
+        } else {
+          delete data.purchase_price;
+        }
+      } else {
+        delete data.purchase_price;
+      }
+
+      await db.items.create({
         ...data,
         kind: plugin.kind,
         owner: ctx.userId,

@@ -300,12 +300,14 @@
         <% } %>
     </div>
 
+    <%- include('shelf-strays') %>
+
     <% if (locals.canEditCollection) { %>
         <%# The editor panel needs a piece of furniture to edit, so with none built yet
             only its "create" step is reachable, on its own. %>
         <script>
             async function shelfCreateFurniture() {
-                const name = prompt(<%- JSON.stringify(t('collection.shelf_new_furniture_prompt')) %>);
+                const name = prompt(<%- JSON.stringify(t('collection.shelf_new_furniture_prompt')).replace(/</g, '\\u003c') %>);
                 if (!name || !name.trim()) return;
                 const res = await fetch('<%= baseUrl %>/shelf/furniture', {
                     method: 'POST',
@@ -314,7 +316,7 @@
                 });
                 const data = await res.json().catch(() => ({}));
                 if (data.success) window.location.href = '<%= baseUrl %>/collection?view=shelf&furniture=' + data.id;
-                else alert(<%- JSON.stringify(t('errors.generic_server_error')) %>);
+                else alert(<%- JSON.stringify(t('errors.generic_server_error')).replace(/</g, '\\u003c') %>);
             }
         </script>
     <% } %>
@@ -509,6 +511,8 @@
             </div>
         </div>
     <% } %>
+
+    <%- include('shelf-strays') %>
 
     <%# Shown next to a spine under the pointer: the cover and the creator the spine has
         no room for. Moved by script; one for the whole page. %>
@@ -807,7 +811,7 @@
                     plank.insertBefore(spine, plank.querySelector(':scope > .shelf-pile'));
                 }
                 spine.dataset.where = zone.dataset.shelf === ''
-                    ? <%- JSON.stringify(t('collection.shelf_unsorted')) %>
+                    ? <%- JSON.stringify(t('collection.shelf_unsorted')).replace(/</g, '\\u003c') %>
                     : zone.dataset.shelf;
             }
 

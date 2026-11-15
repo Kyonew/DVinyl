@@ -35,11 +35,18 @@
         [data-settings-tabs-wrap] { margin-top: 1.5rem !important; }
         [data-settings-tabs-wrap] ~ [data-tab-panel] { margin-top: 1.5rem !important; }
     }
+    /* At rest the bar lets the page's backdrop show; once stuck, content scrolls under
+       it, so it frosts over instead of painting a solid band across a gradient or picture. */
+    [data-settings-tabs-wrap][data-stuck] {
+        background-color: color-mix(in srgb, var(--bg-page) 72%, transparent);
+        -webkit-backdrop-filter: blur(18px) saturate(1.4);
+        backdrop-filter: blur(18px) saturate(1.4);
+    }
 <% } %>
 </style>
 <%# Sticky so a long panel (members, logs) can switch tab without scrolling back up.
     It bleeds over the page gutter so content scrolling under it does not show on the sides. %>
-<div class="<%= phoneOnly ? 'md:hidden' : 'md:sticky md:top-0 z-30 md:-mx-4 md:px-4 md:py-3 bg-[var(--bg-page)] transition-colors' %>" data-settings-tabs-wrap>
+<div class="<%= phoneOnly ? 'md:hidden' : 'md:sticky md:top-0 z-30 md:-mx-4 md:px-4 md:py-3 transition-colors' %>" data-settings-tabs-wrap>
     <nav class="<%= phoneOnly ? 'hidden' : 'max-md:hidden flex' %> gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         role="tablist" data-settings-tabs>
         <% tabs.forEach(tab => { %>
@@ -100,6 +107,10 @@
         };
         bar.addEventListener('scroll', updateFade, { passive: true });
         window.addEventListener('resize', updateFade);
+
+        const updateStuck = () => wrap.toggleAttribute('data-stuck', !phone.matches && wrap.getBoundingClientRect().top <= 0.5);
+        window.addEventListener('scroll', updateStuck, { passive: true });
+        window.addEventListener('resize', updateStuck);
 
         const show = (id) => {
             if (!ids.includes(id)) return false;
@@ -187,6 +198,7 @@
         // The panels come after this bar in the page, so wait for them to be parsed.
         // A page script may already have picked a tab by then.
         document.addEventListener('DOMContentLoaded', () => {
+            updateStuck();
             if (current) return;
             show(hashId) || show(stored) || show(ids[0]);
             if (phoneStart) show(phoneStart);

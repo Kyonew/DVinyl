@@ -4,6 +4,7 @@ import { requireAuth, requireCollectionRole } from '../../middleware/authMiddlew
 import { CSV_DELIMITERS, detectCsvDelimiter, parseCsv, parseCsvRecords } from '../helpers';
 import { runCsvImport } from '../csvImport';
 import { buildMapRow, importableFields, sanitizeMapping } from '../csvMapping';
+import { trackImport } from '../importJobs';
 
 /**
  * Generic CSV import: any file, into any enabled module, with the user mapping the
@@ -58,7 +59,7 @@ router.post('/import/csv/preview', ...guards, (req: any, res: any) => {
 });
 
 // POST /import/csv -> runs the import with a user-defined mapping
-router.post('/import/csv', ...guards, (req: any, res: any) => {
+router.post('/import/csv', ...guards, trackImport, (req: any, res: any) => {
   const csv = req.body?.csv;
   if (typeof csv !== 'string' || !csv.trim()) {
     return res.status(400).json({ error: req.t('admin.csv_import.err_no_file') });

@@ -1,8 +1,10 @@
 <%- include('../../views/partials/header', { shellBack: false }) %>
 
-<%# Desktop only: on a phone a blurred cover behind the whole page reads as a music player. %>
+<%# Desktop only: on a phone a blurred cover behind the whole page reads as a music player.
+    It is also where the shell reads the cover's accent from, when the collection asks for
+    it (partials/shell/cover-accent). %>
 <div class="max-md:hidden fixed inset-0 -z-10 opacity-10 dark:opacity-20 blur-3xl pointer-events-none transition-opacity duration-1000">
-    <img src="<%= itemImageUrl(item.cover_image) %>" class="w-full h-full object-cover">
+    <img src="<%= itemImageUrl(item.cover_image) %>" data-dv-accent-source class="w-full h-full object-cover">
 </div>
 
 <div class="max-w-screen-xl mx-auto px-4 max-sm:px-0 pb-20">
@@ -54,18 +56,57 @@
         // draws the plugin's own fields and would have printed it again right under.
         // Same list the cards go through, so a field is kept from a visitor
         // everywhere or nowhere.
-        const detailFields = plugin.formFields.filter(f =>
+        const pageFields = plugin.formFields.filter(f =>
             f.showIn.includes('detail') &&
+            fieldShownFor(f, item) &&
             !['title', plugin.creatorField].includes(f.name) &&
             !renderedElsewhere.includes(f.name) &&
             !(locals.isShareView && SHARE_HIDDEN_FIELDS.has(f.name)) &&
             f.type !== 'custom'
         );
+        // Where the collection put each field (core/detailPlacement.ts): in the page, in
+        // the folded "More details" block under it, or nowhere.
+        const detailFields = pageFields.filter(f => detailPlacementOf(plugin, f.name) === 'shown');
+        const moreFields = pageFields.filter(f => detailPlacementOf(plugin, f.name) === 'more');
+        // An amount in the currency it carries, written the way the interface language
+        // writes money.
+        const formatMoney = (value, currency) => {
+            try {
+                return new Intl.NumberFormat(dateLocaleFor(currentLng), { style: 'currency', currency: currency || 'USD' }).format(Number(value));
+            } catch (e) {
+                return Number(value).toFixed(2) + ' ' + (currency || '');
+            }
+        };
+        // A rows field (core/rowsField.ts) as a small table: its columns, then one line per
+        // entry. Escaped here, since the caller prints it raw.
+        const rowsTable = (field, rows) => {
+            const declared = (Array.isArray(field.columns) && field.columns.length > 0)
+                ? field.columns
+                : (field.options || []).filter(o => o.value !== '').map(o => ({ name: o.value, label: o.label }));
+            // A column no entry fills says nothing, and would only crowd the others.
+            const filled = declared.filter(c => rows.some(row => row && String(row[c.name] ?? '').trim()));
+            const columns = filled.length > 0 ? filled : declared;
+            const esc = v => String(v ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+            const head = columns.map(c => '<th class="text-left font-semibold opacity-60 pr-4 pb-1">' + esc(t(c.label, { defaultValue: c.label })) + '</th>').join('');
+            // A long list (a record pressed in many variants lists dozens of runouts) shows
+            // its first entries and folds the rest behind a button, so it does not push the
+            // rest of the page down; nothing is dropped, one click shows it all.
+            const folded = rows.length > ROWS_SHOWN + 1;
+            const body = rows.map((row, index) => '<tr class="border-t border-black/5 dark:border-white/5' + (folded && index >= ROWS_SHOWN ? ' hidden" data-rows-more' : '"') + '>'
+                + columns.map(c => '<td class="pr-4 py-1 align-top font-mono whitespace-pre-line break-words">' + esc(row && row[c.name]) + '</td>').join('')
+                + '</tr>').join('');
+            const toggle = !folded ? '' : '<button type="button" aria-expanded="false" onclick="toggleRowsField(this)"'
+                + ' data-more="' + esc(t('detail.rows_show_all', { count: rows.length })) + '" data-less="' + esc(t('detail.rows_show_less')) + '"'
+                + ' class="mt-2 text-xs font-bold text-primary-theme hover:underline">' + esc(t('detail.rows_show_all', { count: rows.length })) + '</button>';
+            return '<div class="overflow-x-auto"><table class="w-full text-xs"><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table></div>' + toggle;
+        };
+        const ROWS_SHOWN = 2;
         const isEmptyValue = val => val === undefined || val === null || val === ''
             || val === 0 || (Array.isArray(val) && val.length === 0);
         // A field's value as text, for every type but tags and textarea, which are laid
         // out by the caller.
         const fieldText = (field, val) => {
+            if (field.name === 'purchase_price') return formatMoney(val, item.purchase_currency);
             if (field.type === 'boolean') return val ? t('common.yes') : t('common.no');
             if (field.type === 'date') return formatDay(val);
             if (field.options) {
@@ -82,7 +123,7 @@
         // is, its condition, its notes), the edition it belongs to next. These are the
         // fields that describe the copy rather than the release; location has a row of
         // its own at the top of that section.
-        const copyFieldNames = ['quantity', 'sleeve_condition', 'variant_color', 'user_rating', 'rating'];
+        const copyFieldNames = ['quantity', 'sleeve_condition', 'variant_color', 'user_rating', 'rating', 'purchase_price'];
         const shownFields = detailFields.filter(f => !isEmptyValue(item[f.name]) || f.type === 'boolean');
         const copyFields = shownFields.filter(f => copyFieldNames.includes(f.name));
         const editionFields = shownFields.filter(f => !copyFieldNames.includes(f.name) && f.name !== 'location');
@@ -102,6 +143,13 @@
         const baseFmtLabel = (baseFmt || item.format_type)
             ? (baseFmtOpt ? t(baseFmtOpt.label, { defaultValue: baseFmtOpt.label }) : t('media.' + baseFmt, { defaultValue: baseFmt || item.format_type }))
             : '';
+        // The other formats the edition holds, after its own (core/extraFormats.ts).
+        const extraFmtLabels = (plugin.multipleFormats && Array.isArray(item.extra_formats))
+            ? [...new Set(item.extra_formats.map(v => String(v).toLowerCase()))]
+                .filter(v => v && v !== String(baseFmt).toLowerCase())
+                .map(v => { const o = (plugin.formats || []).find(f => String(f.value) === v); return o ? t(o.label, { defaultValue: o.label }) : v; })
+            : [];
+        const fmtLabel = baseFmtLabel ? [baseFmtLabel, ...extraFmtLabels].join(' + ') : '';
         const mobileRow = 'flex items-center justify-between gap-4 px-4 min-h-[48px] py-2 border-b border-black/5 dark:border-white/5 last:border-b-0';
         const mobileSectionTitle = 'mb-2 ml-1 text-xs font-bold uppercase tracking-widest opacity-60';
     %>
@@ -135,8 +183,8 @@
         <% } %>
         <% } %>
         <div class="min-w-0 flex flex-col gap-1 mt-4">
-            <% if (baseFmtLabel) { %>
-                <span class="self-start px-2 py-0.5 rounded-md bg-black/5 dark:bg-white/10 text-[11px] font-bold uppercase tracking-wider opacity-80"><%= baseFmtLabel %></span>
+            <% if (fmtLabel) { %>
+                <span class="self-start px-2 py-0.5 rounded-md bg-black/5 dark:bg-white/10 text-[11px] font-bold uppercase tracking-wider opacity-80"><%= fmtLabel %></span>
             <% } %>
             <h1 class="text-2xl font-extrabold leading-tight tracking-tight break-words"><%= item.title %></h1>
             <span class="text-base opacity-80 truncate"><%= item[plugin.creatorField] || 'Unknown' %></span>
@@ -225,9 +273,9 @@
                         <%= item.in_wishlist ? t('nav.wishlist') : t('detail.in_collection') %>
                     </span>
                     <!-- Base Format Badge: physical format lives in `format`; music keeps it in media_type -->
-                    <% if (baseFmtLabel) { %>
+                    <% if (fmtLabel) { %>
                     <span class="max-md:hidden px-3 py-1 rounded-full text-xs font-bold tracking-wider bg-primary-theme text-white shadow-sm">
-                        <%= baseFmtLabel %>
+                        <%= fmtLabel %>
                     </span>
                     <% } %>
 
@@ -335,6 +383,11 @@
                             <div class="px-4 py-3 flex flex-col gap-2 border-b border-black/5 dark:border-white/5 last:border-b-0">
                                 <span class="opacity-70 text-sm"><%= t(field.label) %></span>
                                 <div class="flex flex-wrap gap-1.5"><% val.forEach(tag => { %><span class="bg-black/5 dark:bg-white/10 text-xs font-medium px-2.5 py-1 rounded-full"><%= tag %></span><% }) %></div>
+                            </div>
+                        <% } else if (field.type === 'rows' && Array.isArray(val)) { %>
+                            <div class="px-4 py-3 flex flex-col gap-2 border-b border-black/5 dark:border-white/5 last:border-b-0">
+                                <span class="opacity-70 text-sm"><%= t(field.label, { defaultValue: field.label }) %></span>
+                                <%- rowsTable(field, val) %>
                             </div>
                         <% } else if (field.type === 'textarea') { %>
                             <div class="px-4 py-3 flex flex-col gap-1 border-b border-black/5 dark:border-white/5 last:border-b-0">
@@ -445,7 +498,7 @@
                     // A boolean field is meaningful even when false, unlike an empty string
                     if (!isEmptyValue(val) || field.type === 'boolean') {
                 %>
-                    <div class="<%= field.type === 'textarea' ? 'col-span-2' : '' %>">
+                    <div class="<%= field.type === 'textarea' || field.type === 'rows' ? 'col-span-2' : '' %>">
                         <span class="block text-xs opacity-50 uppercase font-bold mb-1">
                             <%= t(field.label) %>
                         </span>
@@ -455,6 +508,8 @@
                                     <span class="bg-black/5 dark:bg-white/10 text-xs font-medium px-2.5 py-1 rounded-full transition-colors"><%= tag %></span>
                                 <% }) %>
                             </div>
+                        <% } else if (field.type === 'rows' && Array.isArray(val)) { %>
+                            <%- rowsTable(field, val) %>
                         <% } else if (field.type === 'textarea') { %>
                             <p class="font-medium whitespace-pre-line transition-colors"><%= val %></p>
                         <% } else { %>
@@ -526,6 +581,40 @@
 
             </div>
 
+            <%# The fields the collection folded away: one block for both layouts, closed
+                until asked, so a long page stays short without anything being lost. %>
+            <% const moreShown = moreFields.filter(f => !isEmptyValue(item[f.name]) || f.type === 'boolean'); %>
+            <% if (moreShown.length > 0) { %>
+                <details class="max-md:order-5 card-theme rounded-xl max-md:rounded-2xl shadow-sm transition-colors group">
+                    <summary class="cursor-pointer select-none list-none px-6 py-4 max-md:px-4 flex items-center justify-between gap-3 text-sm font-bold">
+                        <span><%= t('detail.more_details') %> <span class="opacity-50 font-medium">(<%= moreShown.length %>)</span></span>
+                        <i class="fa-solid fa-chevron-down text-xs opacity-50 transition-transform group-open:rotate-180" aria-hidden="true"></i>
+                    </summary>
+                    <div class="px-6 pb-6 max-md:px-4 max-md:pb-4 grid grid-cols-1 md:grid-cols-2 gap-y-5 gap-x-4">
+                        <% moreShown.forEach(field => { const val = item[field.name]; %>
+                            <div class="<%= field.type === 'textarea' || field.type === 'rows' ? 'md:col-span-2' : '' %>">
+                                <span class="block text-xs opacity-50 uppercase font-bold mb-1"><%= t(field.label, { defaultValue: field.label }) %></span>
+                                <% if (field.type === 'tags' && Array.isArray(val)) { %>
+                                    <div class="flex flex-wrap gap-1.5"><% val.forEach(tag => { %><span class="bg-black/5 dark:bg-white/10 text-xs font-medium px-2.5 py-1 rounded-full"><%= tag %></span><% }) %></div>
+                                <% } else if (field.type === 'rows' && Array.isArray(val)) { %>
+                                    <%- rowsTable(field, val) %>
+                                <% } else if (field.type === 'textarea') { %>
+                                    <p class="text-sm font-medium whitespace-pre-line"><%= val %></p>
+                                <% } else { %>
+                                    <span class="text-sm font-medium"><%= fieldText(field, val) %></span>
+                                <% } %>
+                            </div>
+                        <% }) %>
+                    </div>
+                </details>
+            <% } %>
+
+            <%# The requests about this item: who has it, what was asked. On a phone it
+                follows the copy section. %>
+            <% if (locals.requestCard) { %>
+                <%- include('partials/request-card', { item, plugin, requestCard }) %>
+            <% } %>
+
             <!-- Price estimation panel (plugins that declare supportsPriceEstimate, e.g. music) -->
             <% const estimateId = plugin.externalIdField ? item[plugin.externalIdField] : null; %>
             <% if (plugin.supportsPriceEstimate && estimateId) { %>
@@ -587,51 +676,30 @@
                 </div>
             <% } %>
 
+            <%# The box this item is kept in, or what it keeps (core/insideItems.ts). %>
+            <div class="max-md:order-7">
+                <%- include('partials/inside-items') %>
+            </div>
+
             <!-- Admin Actions Block -->
             <% if (user && locals.canEditCollection) { %>
                 <%
-                    // Buttons aligned by their top edge, not centered: the refresh date sits
-                    // under its own button, and centering would push that whole column up,
-                    // leaving the refresh button floating above the row it belongs to.
+                    // Desktop only: the phone has its own action sheet further down.
+                    // Two rows rather than one right-aligned wrap, which left a ragged
+                    // staircase of buttons once the labels of a longer language stopped
+                    // fitting. The tools come first, aligned on the left edge; the last row
+                    // keeps the refresh button with its date caption on the left and the
+                    // two actions on the item itself, edit and delete, together on the right.
                 %>
-                <%
-                    // Stacked on a phone, one row from md up. The row used to be a single
-                    // flex line with justify-end and no wrapping: once the labels of a
-                    // longer language stopped fitting (French, German), the overflow went
-                    // off the *left* edge, where nothing scrolls, and the first two actions
-                    // simply could not be reached.
-                %>
-                <div class="max-md:hidden pt-6 border-t border-black/10 dark:border-white/10 flex flex-col gap-4 md:flex-row md:flex-wrap md:items-start md:justify-between transition-colors">
-                    <%
-                        // The refresh date belongs to the button, not to the metadata grid:
-                        // stacked under it, it reads as a caption of the action rather than
-                        // as one more thing to know about the item.
-                    %>
-                    <div class="flex flex-col items-start gap-1 md:flex-none">
-                        <% if (canRefresh(plugin)) { %>
-                            <button id="refreshInfoBtn" onclick="refreshMetadata('<%= item._id %>')" class="w-full md:w-auto md:whitespace-nowrap opacity-60 hover:opacity-100 px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center md:justify-start gap-2">
-                                <i class="fa-solid fa-arrows-rotate" id="refreshInfoIcon"></i>
-                                <%= t('collection.refresh_metadata_btn') %>
-                            </button>
-                            <% if (item.synced_at) { %>
-                                <span class="text-xs opacity-50 pl-1 transition-colors">
-                                    <%= t('detail.last_refresh') %> <%= new Date(item.synced_at).toLocaleDateString(dateLocale) %>
-                                </span>
-                            <% } %>
-                        <% } %>
-                    </div>
-
-                    <%# Two columns on a phone, the natural row from md up. Every action keeps
-                        its label rather than shrinking to a bare icon: "refresh" and "back to
-                        wishlist" are not guessable from a pictogram alone. %>
-                    <div class="grid grid-cols-2 gap-2 md:flex md:flex-wrap md:justify-end md:gap-3 md:flex-1">
-                    <button type="button" onclick="openListPicker({ kind: 'items', item: '<%= item._id %>', label: <%= JSON.stringify(item.title || '') %> })" class="w-full md:w-auto md:whitespace-nowrap text-center md:text-left opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
-                        <i class="fa-solid fa-list-check mr-2"></i>
+                <div class="max-md:hidden pt-6 border-t border-black/10 dark:border-white/10 flex flex-col gap-4 transition-colors">
+                    <div class="flex flex-wrap gap-2">
+                    <button type="button" onclick="openListPicker({ kind: 'items', item: '<%= item._id %>', label: <%= JSON.stringify(item.title || '') %> })" class="md:whitespace-nowrap opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 inline-flex items-center gap-2">
+                        <i class="fa-solid fa-list-check" aria-hidden="true"></i>
                         <%= t('lists.add_to_list') %>
                     </button>
                     <% if (!item.in_wishlist) { %>
-                        <button onclick="moveToWishlist('<%= item._id %>')" class="w-full md:w-auto md:whitespace-nowrap text-center md:text-left opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
-                            <i class="fa-solid fa-heart-circle-minus mr-2"></i>
+                        <button onclick="moveToWishlist('<%= item._id %>')" class="md:whitespace-nowrap opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 inline-flex items-center gap-2">
+                            <i class="fa-solid fa-heart-circle-minus" aria-hidden="true"></i>
                             <%= t('detail.move_to_wishlist_btn') %>
                         </button>
                     <% } %>
@@ -640,8 +708,8 @@
                             instead of two separate buttons crowding this row. Only offered when
                             the item actually has a barcode - otherwise a "Barcode" option would
                             just be a dead end that server-side falls back to QR anyway. %>
-                        <div class="relative group w-full md:w-auto" id="labelDropdown">
-                            <button type="button" onclick="toggleLabelDropdown(event)" class="w-full md:w-auto md:whitespace-nowrap opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center md:justify-start gap-2">
+                        <div class="relative group" id="labelDropdown">
+                            <button type="button" onclick="toggleLabelDropdown(event)" class="md:whitespace-nowrap opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 inline-flex items-center gap-2">
                                 <i class="fa-solid fa-qrcode"></i>
                                 <%= t('detail.print_label_btn') %>
                                 <i class="fa-solid fa-chevron-down text-[10px] opacity-50"></i>
@@ -663,8 +731,8 @@
                             </div>
                         </div>
                     <% } else { %>
-                        <a href="<%= baseUrl %><%= plugin.routePrefix %>/<%= item._id %>/label" target="_blank" rel="noopener" class="w-full md:w-auto md:whitespace-nowrap text-center md:text-left opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
-                            <i class="fa-solid fa-qrcode mr-2"></i>
+                        <a href="<%= baseUrl %><%= plugin.routePrefix %>/<%= item._id %>/label" target="_blank" rel="noopener" class="md:whitespace-nowrap opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 inline-flex items-center gap-2">
+                            <i class="fa-solid fa-qrcode" aria-hidden="true"></i>
                             <%= t('detail.print_label_btn') %>
                         </a>
                     <% } %>
@@ -673,21 +741,40 @@
                         item (a TV season) or a holder (a show): those are added through
                         their own flow, not duplicated. %>
                     <% if (canCopyItem) { %>
-                        <a href="<%= baseUrl %><%= plugin.routePrefix %>/copy/<%= item._id %>" class="w-full md:w-auto md:whitespace-nowrap text-center md:text-left opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
-                            <i class="fa-solid fa-copy mr-2"></i>
+                        <a href="<%= baseUrl %><%= plugin.routePrefix %>/copy/<%= item._id %>" class="md:whitespace-nowrap opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 inline-flex items-center gap-2">
+                            <i class="fa-solid fa-copy" aria-hidden="true"></i>
                             <%= t('detail.copy_to_new_btn') %>
                         </a>
                     <% } %>
-                    <%# The origin travels on the link, since the Referer of the edit page
-                        is this page and not the listing anyone wants to come back to. %>
-                    <a href="<%= editHref %>" class="w-full md:w-auto md:whitespace-nowrap text-center md:text-left opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
-                        <i class="fa-solid fa-pen-to-square mr-2"></i>
-                        <%= t('common.edit') %>
-                    </a>
-                    <button onclick="confirmDelete('<%= item._id %>')" class="w-full md:w-auto md:whitespace-nowrap text-center md:text-left text-red-600 dark:text-red-500 hover:text-red-700 dark:hover:text-red-400 bg-red-100 dark:bg-red-500/10 hover:bg-red-200 dark:hover:bg-red-500/20 px-4 py-2 rounded-lg text-sm transition-colors">
-                        <i class="fa-solid fa-trash mr-2"></i>
-                        <%= t('admin.tooltips.delete') %>
-                    </button>
+                    </div>
+
+                    <div class="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+                        <%# The refresh date is a caption of the button, stacked under it. %>
+                        <div class="flex flex-col items-start gap-1">
+                            <% if (canRefresh(plugin)) { %>
+                                <button id="refreshInfoBtn" onclick="refreshMetadata('<%= item._id %>')" class="md:whitespace-nowrap opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 inline-flex items-center gap-2">
+                                    <i class="fa-solid fa-arrows-rotate" id="refreshInfoIcon" aria-hidden="true"></i>
+                                    <%= t('collection.refresh_metadata_btn') %>
+                                </button>
+                                <% if (item.synced_at) { %>
+                                    <span class="text-xs opacity-50 pl-1 transition-colors">
+                                        <%= t('detail.last_refresh') %> <%= new Date(item.synced_at).toLocaleDateString(dateLocale) %>
+                                    </span>
+                                <% } %>
+                            <% } %>
+                        </div>
+                        <div class="flex gap-2 ml-auto">
+                            <%# The origin travels on the link, since the Referer of the edit page
+                                is this page and not the listing anyone wants to come back to. %>
+                            <a href="<%= editHref %>" class="md:whitespace-nowrap opacity-70 hover:opacity-100 hover:text-primary-theme px-4 py-2 text-sm transition-colors border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 inline-flex items-center gap-2">
+                                <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
+                                <%= t('common.edit') %>
+                            </a>
+                            <button onclick="confirmDelete('<%= item._id %>')" class="md:whitespace-nowrap text-red-600 dark:text-red-500 hover:text-red-700 dark:hover:text-red-400 bg-red-100 dark:bg-red-500/10 hover:bg-red-200 dark:hover:bg-red-500/20 px-4 py-2 rounded-lg text-sm transition-colors inline-flex items-center gap-2">
+                                <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                                <%= t('admin.tooltips.delete') %>
+                            </button>
+                        </div>
                     </div>
                 </div>
             <% } %>
@@ -783,6 +870,14 @@
         </div>
     </div>
     <script>
+        // Unfolds or folds back the entries of a long rows field (see rowsTable above).
+        function toggleRowsField(button) {
+            const open = button.getAttribute('aria-expanded') !== 'true';
+            const wrap = button.previousElementSibling;
+            if (wrap) wrap.querySelectorAll('[data-rows-more]').forEach(row => row.classList.toggle('hidden', !open));
+            button.setAttribute('aria-expanded', String(open));
+            button.textContent = open ? button.dataset.less : button.dataset.more;
+        }
         (function () {
             // '<' is escaped so a stored title containing a closing script tag cannot break out of this inline script.
             const labelUrl = <%- JSON.stringify(baseUrl + plugin.routePrefix + '/' + item._id + '/label').replace(/</g, '\\u003c') %>;
@@ -868,7 +963,7 @@
             const canShareFiles = Boolean(navigator.canShare) && (function () {
                 try { return navigator.canShare({ files: [new File([''], 'x.png', { type: 'image/png' })] }); } catch (e) { return false; }
             })();
-            if (!canShareFiles) document.getElementById('labelShareText').textContent = <%- JSON.stringify(t('detail.label_save')) %>;
+            if (!canShareFiles) document.getElementById('labelShareText').textContent = <%- JSON.stringify(t('detail.label_save')).replace(/</g, '\\u003c') %>;
 
             document.getElementById('labelShareBtn').addEventListener('click', async function () {
                 if (!codes[labelType]) return;
@@ -945,11 +1040,12 @@
         market_price: t('detail.market_price'),
         historical_estimate: t('detail.historical_estimate'),
         shipping_hint: t('detail.shipping_hint'),
+        paid_vs_estimate: t('detail.paid_vs_estimate'),
         view_discogs: t('detail.view_discogs'),
         unavailable_data: t('detail.unavailable_data'),
         analyzing: t('detail.market_analysis'),
         error_server: t('messages.generic_error')
-    }) %>;
+    }).replace(/</g, '\\u003c') %>;
 
     // Click-to-toggle fallback for the QR/barcode label dropdown, alongside the
     // CSS-only group-hover: touchpads/touchscreens don't reliably fire :hover.
@@ -968,7 +1064,7 @@
         menu.classList.remove('!block');
     });
 
-    const currentLocale = '<%= currentLng === "fr" ? "fr-FR" : "en-US" %>';
+    const currentLocale = <%- JSON.stringify(dateLocaleFor(currentLng)).replace(/</g, '\\u003c') %>;
     let switchImageTimer;
 
     function switchImage(url, text) {
@@ -1186,6 +1282,8 @@
         }
     }
 
+    const purchase = <%- JSON.stringify({ price: Number(item.purchase_price) || 0, currency: item.purchase_currency || '' }).replace(/</g, '\\u003c') %>;
+
     async function fetchEstimation(id, quantity, condition) {
         const btn = document.getElementById('btnEstimate');
         const resultDiv = document.getElementById('priceResult');
@@ -1230,6 +1328,18 @@
                     `;
                 }
 
+                // Set against what was paid for one copy, only when both amounts are in the
+                // same currency: they are never converted.
+                let paidMarkup = '';
+                if (purchase.price > 0 && purchase.currency === currency) {
+                    const fmt = value => new Intl.NumberFormat(currentLocale, { style: 'currency', currency }).format(value);
+                    const diff = individualPrice - purchase.price;
+                    const percent = Math.round((diff / purchase.price) * 100);
+                    const signed = (diff >= 0 ? '+' : '\u2212') + fmt(Math.abs(diff)) + ' (' + (percent >= 0 ? '+' : '\u2212') + Math.abs(percent) + '%)';
+                    const tone = diff >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500';
+                    paidMarkup = `<span class="text-xs mb-1 mt-1">${translations.paid_vs_estimate.replace('{{paid}}', fmt(purchase.price))} <span class="font-bold ${tone}">${signed}</span></span>`;
+                }
+
                 resultDiv.innerHTML = `
                     <div class="flex flex-col items-center justify-center py-4 bg-black/5 dark:bg-white/5 rounded-lg border border-transparent mt-2 transition-colors">
                         <span class="text-[10px] opacity-60 uppercase font-bold mb-1 flex items-center">
@@ -1237,6 +1347,7 @@
                         </span>
                         <span class="text-3xl font-black ${colorClass} mb-0 transition-colors">${finalDisplayPrice}*</span>
                         ${quantityMarkup}
+                        ${paidMarkup}
                         <span class="text-xs opacity-60 mb-1 mt-1 transition-colors">${data.details}</span>
                         <span class="text-[9px] opacity-50 mb-2 transition-colors">
                             ${translations.shipping_hint}
@@ -1280,13 +1391,14 @@
             if (response.ok && data.success) {
                 window.location.reload();
             } else {
-                alert(<%- JSON.stringify(t('detail.refresh_info_error')).replace(/</g, '\\u003c') %>);
+                // A 422 carries a sentence meant for the reader (an item with no source).
+                alert(response.status === 422 && data.error ? data.error : <%- JSON.stringify(t('detail.refresh_info_error')).replace(/</g, '\\u003c') %>);
                 btn.disabled = false;
                 icon.classList.remove('fa-spin');
             }
         } catch (err) {
             console.error(err);
-            alert(<%- JSON.stringify(t('detail.refresh_info_error')) %>);
+            alert(<%- JSON.stringify(t('detail.refresh_info_error')).replace(/</g, '\\u003c') %>);
             btn.disabled = false;
             icon.classList.remove('fa-spin');
         }

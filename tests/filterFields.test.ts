@@ -14,9 +14,9 @@ const books: any = {
   kind: 'Book',
   creatorField: 'author',
   externalIdField: 'isbn',
-  schemaDefinition: {
-    author: String,
-    readingStatus: { type: String, enum: ['to_read', 'reading', 'read'], default: 'to_read' }
+  storedFields: {
+    author: { type: 'text' },
+    readingStatus: { type: 'text', values: ['to_read', 'reading', 'read'], default: 'to_read' }
   },
   formFields: [
     { name: 'author', label: 'confirm_book.field_author', type: 'text', showIn: ['edit'] },
@@ -88,13 +88,13 @@ test('a plugin field filters on its own path, and its default also matches unset
 
   assert.deepEqual(
     buildExtraFieldConditions([status], { nf_readingStatus: 'to_read' }),
-    [{ readingStatus: { $in: ['to_read', null, ''] } }]
+    [{ op: 'in', field: 'readingStatus', values: ['to_read', null, ''] }]
   );
   assert.deepEqual(
     buildExtraFieldConditions([status], { nf_readingStatus: 'read' }),
-    [{ readingStatus: 'read' }]
+    [{ op: 'eq', field: 'readingStatus', value: 'read' }]
   );
-  // A repeated param arrives as an array and is ignored rather than passed to Mongo
+  // A repeated param arrives as an array and is ignored rather than passed to the store
   assert.deepEqual(buildExtraFieldConditions([status], { nf_readingStatus: ['read', 'reading'] }), []);
 });
 
@@ -103,7 +103,7 @@ test('a user-defined field keeps its extra path and param', () => {
   assert.equal(filterParam(field), 'xf_custom_0123456789ab');
   assert.deepEqual(
     buildExtraFieldConditions([field], { xf_custom_0123456789ab: 'Alex' }),
-    [{ 'extra.custom_0123456789ab': 'Alex' }]
+    [{ op: 'eq', field: 'extra.custom_0123456789ab', value: 'Alex' }]
   );
 });
 
@@ -123,12 +123,30 @@ test('the search box looks into the words of user-defined fields', () => {
       ]
     }
   };
-  const regex = /6:9/i;
-  assert.deepEqual(extraSearchConditions(settings, [books, dvds], regex), [
-    { 'extra.audio': regex },
-    { 'extra.notes': regex },
-    { 'extra.ratio': { $in: ['16_9'] } }
+  assert.deepEqual(extraSearchConditions(settings, [books, dvds], '6:9'), [
+    { op: 'contains', field: 'extra.audio', value: '6:9' },
+    { op: 'contains', field: 'extra.notes', value: '6:9' },
+    { op: 'in', field: 'extra.ratio', values: ['16_9'] }
   ]);
-  // A select whose labels do not match adds nothing, rather than an empty $in
-  assert.deepEqual(extraSearchConditions(settings, [dvds], /1:85/i).length, 2);
+  // A select whose labels do not match adds nothing, rather than an empty list
+  assert.deepEqual(extraSearchConditions(settings, [dvds], '1:85').length, 2);
+});
+
+test('a plugin text field is a filter over the values held, off unless the plugin lists it', () => {
+  const music: any = {
+    id: 'music', kind: 'Music', creatorField: 'artist', externalIdField: 'discogs_id', defaultFilters: ['country'],
+    storedFields: { artist: { type: 'text' }, label: { type: 'text' }, country: { type: 'text' } },
+    formFields: [
+      { name: 'artist', label: 'Artist', type: 'text', showIn: ['edit'] },
+      { name: 'label', label: 'Label', type: 'text', showIn: ['edit'] },
+      { name: 'country', label: 'Country', type: 'text', showIn: ['edit'] },
+      { name: 'notes', label: 'Notes', type: 'textarea', showIn: ['edit'] }
+    ]
+  };
+  const candidates = filterCandidates(music, []);
+  const native = candidates.filter(c => c.source === 'native');
+  assert.deepEqual(native.map(c => [c.id, c.defaultOn]), [['label', false], ['country', true]]);
+  assert.equal(filterParam(native[0]!.field!), 'nf_label');
+  const [condition] = buildExtraFieldConditions([native[1]!.field!], { nf_country: 'Germany' });
+  assert.equal(JSON.stringify(condition).includes('"country"'), true);
 });

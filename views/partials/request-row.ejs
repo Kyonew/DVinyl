@@ -1,0 +1,127 @@
+<%# One request, as core/requests.ts describeRequests() reads it, with what the reader
+    can do with it. Params: r, back (the page the buttons come back to), and optionally
+    onItemPage, which leaves out the item the page already shows. %>
+<%
+    const dayText = d => d ? new Date(d).toLocaleDateString(dateLocaleFor(currentLng)) : '';
+    // A date answer is a day: read at noon UTC so it is the same day everywhere.
+    const answerDay = v => /^\d{4}-\d{2}-\d{2}$/.test(v) ? new Date(v + 'T12:00:00Z').toLocaleDateString(dateLocaleFor(currentLng), { timeZone: 'UTC' }) : v;
+    const statusText = r.status === 'accepted' ? (r.stepLabel || t('requests.status.accepted'))
+        : r.status === 'done' ? (r.stepLabel || t('requests.status.done'))
+        : t('requests.status.' + r.status);
+    const statusClass = {
+        pending: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+        accepted: 'bg-primary-theme/15 text-primary-theme',
+        done: 'bg-green-500/15 text-green-600 dark:text-green-400',
+        declined: 'bg-red-500/15 text-red-600 dark:text-red-400',
+        cancelled: 'bg-black/5 dark:bg-white/10 opacity-70'
+    }[r.status];
+    const smallButton = 'px-3 py-1.5 rounded-lg text-xs font-bold transition-colors';
+%>
+<li class="p-4 flex gap-4" data-request-id="<%= r.id %>">
+    <% if (r.item && !locals.onItemPage) { %>
+        <a href="<%= baseUrl + r.item.href %>" class="flex-none">
+            <img src="<%= itemImageUrl(r.item.cover) %>" alt="" loading="lazy" class="w-14 h-14 rounded-lg object-cover bg-black/5 dark:bg-white/5">
+        </a>
+    <% } %>
+    <div class="min-w-0 flex-1 space-y-1.5">
+        <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <a href="<%= baseUrl %>/requests/<%= r.id %>" class="font-bold hover:text-primary-theme transition-colors">
+                <i class="fa-solid fa-<%= r.icon %> text-primary-theme mr-1 text-sm" aria-hidden="true"></i><%= r.name %>
+            </a>
+            <span class="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full <%= statusClass %>"><%= statusText %></span>
+            <% if (r.overdue) { %><span class="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-red-500 text-white"><%= t('requests.overdue') %></span><% } %>
+            <% if (r.private) { %><i class="fa-solid fa-lock text-xs opacity-50" title="<%= t('requests.private_hint') %>" aria-label="<%= t('requests.private_hint') %>"></i><% } %>
+        </div>
+
+        <p class="text-sm flex flex-wrap items-center gap-x-1.5">
+            <% if (r.item && !locals.onItemPage) { %>
+                <a href="<%= baseUrl + r.item.href %>" class="font-semibold hover:text-primary-theme transition-colors"><%= r.item.title %></a>
+                <span class="opacity-40">&middot;</span>
+            <% } else if (!r.item) { %>
+                <span class="opacity-60 italic"><%= t('requests.item_gone') %></span>
+                <span class="opacity-40">&middot;</span>
+            <% } %>
+            <span class="inline-flex items-center gap-1.5">
+                <img src="<%= baseUrl + r.senderImg %>" alt="" class="w-5 h-5 rounded-full object-cover" onerror="this.src='<%= baseUrl %>/ressources/no-pp.jpg'">
+                <span class="<%= r.fromMe ? 'font-semibold' : '' %>"><%= r.fromMe ? t('requests.me') : r.sender %></span>
+                <i class="fa-solid fa-arrow-right text-[10px] opacity-50" aria-label="<%= t('requests.to') %>"></i>
+                <img src="<%= baseUrl + r.recipientImg %>" alt="" class="w-5 h-5 rounded-full object-cover" onerror="this.src='<%= baseUrl %>/ressources/no-pp.jpg'">
+                <span class="<%= r.toMe ? 'font-semibold' : '' %>"><%= r.toMe ? t('requests.me') : r.recipient %></span>
+            </span>
+            <span class="opacity-50">&middot; <%= dayText(r.createdAt) %></span>
+        </p>
+
+        <% if (r.out) { %>
+            <p class="text-sm font-semibold <%= r.overdue ? 'text-red-500' : 'text-primary-theme' %>">
+                <i class="fa-solid fa-location-dot mr-1" aria-hidden="true"></i><%= r.holderIsMe ? t('requests.away_with_me') : t('requests.away_with', { name: r.holder }) %>
+                <% if (r.due) { %><span class="font-normal opacity-80">&middot; <%= t('requests.due', { date: answerDay(r.due) }) %></span><% } %>
+            </p>
+        <% } %>
+
+        <% if (r.steps.length && r.status !== 'declined') { %>
+            <ol class="flex flex-wrap items-center gap-1 text-[11px]" aria-label="<%= t('requests.steps') %>">
+                <% r.steps.forEach((s, i) => { %>
+                    <% if (i > 0) { %><li aria-hidden="true" class="opacity-30"><i class="fa-solid fa-chevron-right text-[8px]"></i></li><% } %>
+                    <li class="px-2 py-0.5 rounded-full <%= s.reached ? 'bg-primary-theme/15 text-primary-theme font-bold' : 'bg-black/5 dark:bg-white/5 opacity-60' %>">
+                        <% if (s.out) { %><i class="fa-solid fa-location-dot mr-1" aria-hidden="true"></i><% } %><%= s.label %>
+                    </li>
+                <% }) %>
+            </ol>
+        <% } %>
+
+        <% if (r.fields.length) { %>
+            <dl class="text-sm grid grid-cols-[auto,1fr] gap-x-3 gap-y-0.5">
+                <% r.fields.forEach(f => { %>
+                    <dt class="opacity-60"><%= f.label %></dt>
+                    <dd class="break-words"><%= f.type === 'date' ? answerDay(f.value) : f.value %></dd>
+                <% }) %>
+            </dl>
+        <% } %>
+        <% if (r.message) { %>
+            <p class="text-sm italic opacity-80 whitespace-pre-line break-words">&ldquo;<%= r.message %>&rdquo;</p>
+        <% } %>
+        <% if (r.response) { %>
+            <p class="text-sm whitespace-pre-line break-words"><span class="opacity-60"><%= r.recipient %> :</span> <span class="italic">&ldquo;<%= r.response %>&rdquo;</span></p>
+        <% } %>
+
+        <% if (r.can.answer || r.can.advance || r.can.cancel) { %>
+            <div class="flex flex-wrap items-start gap-2 pt-1">
+                <% if (r.can.answer) { %>
+                    <form action="<%= baseUrl %>/requests/<%= r.id %>/accept" method="POST">
+                        <input type="hidden" name="back" value="<%= back %>">
+                        <button type="submit" class="<%= smallButton %> bg-green-500 text-white hover:bg-green-600">
+                            <i class="fa-solid fa-check mr-1" aria-hidden="true"></i><%= t('requests.accept_btn') %>
+                        </button>
+                    </form>
+                    <details>
+                        <summary class="list-none cursor-pointer <%= smallButton %> bg-black/5 dark:bg-white/10 hover:bg-red-500 hover:text-white">
+                            <i class="fa-solid fa-xmark mr-1" aria-hidden="true"></i><%= t('requests.decline_btn') %>
+                        </summary>
+                        <form action="<%= baseUrl %>/requests/<%= r.id %>/decline" method="POST" class="mt-2 flex flex-col gap-2 w-[min(20rem,70vw)]">
+                            <input type="hidden" name="back" value="<%= back %>">
+                            <textarea name="response" rows="2" maxlength="500" placeholder="<%= t('requests.response_placeholder') %>"
+                                class="w-full rounded-xl bg-black/5 dark:bg-white/5 border border-[var(--border-color)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-theme"></textarea>
+                            <button type="submit" class="self-start <%= smallButton %> bg-red-500 text-white hover:bg-red-600"><%= t('requests.decline_confirm') %></button>
+                        </form>
+                    </details>
+                <% } %>
+                <% if (r.can.advance) { %>
+                    <form action="<%= baseUrl %>/requests/<%= r.id %>/advance" method="POST">
+                        <input type="hidden" name="back" value="<%= back %>">
+                        <button type="submit" class="<%= smallButton %> bg-primary-theme text-white hover:opacity-90">
+                            <i class="fa-solid fa-forward-step mr-1" aria-hidden="true"></i><%= t('requests.advance_btn', { step: r.can.advance }) %>
+                        </button>
+                    </form>
+                <% } %>
+                <% if (r.can.cancel) { %>
+                    <form action="<%= baseUrl %>/requests/<%= r.id %>/cancel" method="POST" onsubmit="return confirm(<%= JSON.stringify(t('requests.cancel_confirm')) %>)">
+                        <input type="hidden" name="back" value="<%= back %>">
+                        <button type="submit" class="<%= smallButton %> bg-black/5 dark:bg-white/10 hover:bg-red-500 hover:text-white">
+                            <%= t(r.status === 'pending' ? 'requests.withdraw_btn' : 'requests.cancel_btn') %>
+                        </button>
+                    </form>
+                <% } %>
+            </div>
+        <% } %>
+    </div>
+</li>

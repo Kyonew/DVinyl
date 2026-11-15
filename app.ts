@@ -3,7 +3,6 @@ import session from 'express-session';
 import path from 'path';
 import { checkUser } from './middleware/authMiddleware.js';
 import cookieParser from 'cookie-parser';
-import mongoose from 'mongoose';
 import http from 'http';
 import { Server } from "socket.io";
 
@@ -13,15 +12,17 @@ import i18nMiddleware from 'i18next-http-middleware';
 import settingsMiddleware from './middleware/settingsMiddleware.js';
 import collectionMiddleware from './middleware/collectionMiddleware.js';
 import themesConfig from './config/themes.js';
-import { BASE_URL, SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE, normalizeLanguage, dateLocaleFor } from './config/constants.js';
+import { BASE_URL, SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE, LANGUAGE_NAMES, normalizeLanguage, dateLocaleFor } from './config/constants.js';
 import { isOidcEnabled, getOidcButtonLabel, isLocalLoginDisabled } from './config/oidc.js';
 import { connectDB } from './config/db.js';
+import { StartupError } from './config/startupError.js';
 import { migrateDatabase } from './utils/migrate.js';
 import { migrateExtraFieldIdentities } from './utils/migrateExtraFieldIdentities.js';
 
 // Models
-import User from './models/User.js';
-import BlockedIP from './models/blockedIP.js';
+import { db, DRIVER_REASON } from './core/db/index.js';
+import { MOVE_GUIDE } from './config/dataVolume.js';
+import { all, eq } from './core/db/query.js';
 
 // Core & Registry
 import { registry } from './core/registry.js';
@@ -29,12 +30,18 @@ import { loadPlugins } from './core/loadPlugins.js';
 import { syncCustomPluginsOnBoot } from './core/customPluginSync.js';
 import { mountPluginRoutes, pluginDispatcher } from './core/pluginRuntime.js';
 import { applyPluginCustomization } from './core/pluginCustomization.js';
-import { getCardLines, getCornerBadge, isTranslationKey, CORNER_POSITIONS, DEFAULT_CORNER_POSITION, SHARE_HIDDEN_FIELDS } from './core/cardFields.js';
+import { getCardLines, getCornerBadge, isTranslationKey, CORNER_POSITIONS, DEFAULT_CORNER_POSITION, SHARE_HIDDEN_FIELDS, getTableCell, getTableColumns } from './core/cardFields.js';
+import { fieldShownFor } from './core/fieldConditions.js';
 import { highlightMatches } from './core/searchHighlight.js';
 import { importableFields } from './core/csvMapping.js';
 import { MAX_ITEM_IMAGES, MAX_ITEM_IMAGE_BYTES } from './core/itemImages.js';
 import { cleanupStaleItemImageUploads, ITEM_IMAGE_SWEEP_INTERVAL_MS, itemImageUrl } from './core/itemImageStorage.js';
 import { isCollectionInfoVisible } from './core/collectionInfo.js';
+import { resolveLayout, layoutRootFontSize, LAYOUT_OPTIONS, SIDEBAR_COOKIE } from './core/layout';
+import { resolveTheme, themeChoiceFor, normalizePalettes, PALETTE_PREFIX, INHERIT_PRESET, MAX_PALETTES, THEME_TOKENS } from './core/theme';
+import { cardClasses, normalizeCardLook, CARD_FRAMES, CARD_HOVERS, CARD_TEXTS } from './core/cardStyle';
+import { resolveAmbience, normalizeAmbience, AMBIENCE_OPTIONS } from './core/ambience';
+import { placementOf } from './core/detailPlacement';
 import { externalLinkFor, hasSearch, hasBarcodeScan, requiredEnvKeysFor, canRefresh, sourceStatusFor, searchableSources } from './core/sources';
 
 // Routes imports
@@ -43,6 +50,7 @@ import pluginBuilderRoutes from './routes/pluginBuilderRoutes.js';
 import pluginAssetRoutes from './routes/pluginAssetRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import shareRoutes from './routes/shareRoutes.js';
+import joinRoutes from './routes/joinRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
 import backupRoutes from './routes/backupRoutes.js';
@@ -53,12 +61,25 @@ import dashboardRoute from './core/routes/dashboardRoute.js';
 import collectionRoute from './core/routes/collectionRoute.js';
 import collectionInfoRoute from './core/routes/collectionInfoRoute.js';
 import shelfRoute from './core/routes/shelfRoute.js';
+import insideRoute from './core/routes/insideRoute.js';
+import bulkEditRoute from './core/routes/bulkEditRoute.js';
 import listRoute from './core/routes/listRoute.js';
+import requestRoute from './core/routes/requestRoute.js';
+import requestAdminRoute from './core/routes/requestAdminRoute.js';
+import pushRoute from './core/routes/pushRoute.js';
+import { attachNotificationSockets, purgeOldNotifications, unreadCount } from './core/notify';
+import { inboxCount, notifyOverdueRequests, requestsEnabled } from './core/requests';
+import { checkForUpdate, UPDATE_CHECK_INTERVAL_MS } from './core/updateCheck';
+import { BACKUP_CHECK_INTERVAL_MS, runBackupIfDue } from './core/instanceBackup';
+import { scheduleImageDownloads } from './core/imageDownload';
 import searchRoute from './core/routes/searchRoute.js';
 import accountRoute from './core/routes/accountRoute.js';
 import manualAddRoute from './core/routes/manualAddRoute.js';
 import csvImportRoute from './core/routes/csvImportRoute.js';
 import aiImportRoute from './core/routes/aiImportRoute.js';
+import importStatusRoute from './core/routes/importStatusRoute.js';
+import { METADATA_LANGUAGES } from './core/metadataLanguage';
+import { articlesFromSetting } from './core/sortArticles';
 
 const app = express();
 const server = http.createServer(app);
@@ -82,7 +103,8 @@ i18next
       fr: { translation: require('./locales/fr.json') },
       es: { translation: require('./locales/es.json') },
       it: { translation: require('./locales/it.json') },
-      de: { translation: require('./locales/de.json') }
+      de: { translation: require('./locales/de.json') },
+      ru: { translation: require('./locales/ru.json') }
     },
     detection: {
       order: ['querystring', 'cookie', 'header'], // detection order
@@ -96,8 +118,13 @@ app.set('view engine', 'ejs');
 app.set('views', [path.join(__dirname, 'views'), path.join(__dirname, 'core/views')]);
 // Card bodies are resolved from the plugin declarations, not inlined per grid
 app.locals.getCardLines = getCardLines;
+app.locals.getTableColumns = getTableColumns;
+app.locals.getTableCell = getTableCell;
 app.locals.getCornerBadge = getCornerBadge;
 app.locals.isTranslationKey = isTranslationKey;
+// An install upgraded from 3.x still on MongoDB for want of a data folder (core/db/driver.ts).
+app.locals.storageMoveGuide = DRIVER_REASON === 'fallback' ? MOVE_GUIDE : '';
+app.locals.fieldShownFor = fieldShownFor;
 // Lights up the searched text on the cards and table rows it brought back
 app.locals.highlightMatches = highlightMatches;
 app.locals.CORNER_POSITIONS = CORNER_POSITIONS;
@@ -107,6 +134,11 @@ app.locals.DEFAULT_CORNER_POSITION = DEFAULT_CORNER_POSITION;
 app.locals.SHARE_HIDDEN_FIELDS = SHARE_HIDDEN_FIELDS;
 // The CSV mapping screen lists the destinations of every enabled module
 app.locals.importableFields = importableFields;
+// The language picker of visitors without an account (partials/lang-picker)
+app.locals.LANGUAGE_NAMES = LANGUAGE_NAMES;
+// The languages a collection may ask its sources in (admin page)
+app.locals.METADATA_LANGUAGES = METADATA_LANGUAGES;
+app.locals.articlesFromSetting = articlesFromSetting;
 // Shared by the image-manager partial so its client-side guard matches the save route.
 app.locals.MAX_ITEM_IMAGES = MAX_ITEM_IMAGES;
 app.locals.MAX_ITEM_IMAGE_BYTES = MAX_ITEM_IMAGE_BYTES;
@@ -118,6 +150,23 @@ app.locals.dateLocaleFor = dateLocaleFor;
 // Every entry point to the collection info page asks the same question before it links
 // to it, share visitors included (core/collectionInfo.ts).
 app.locals.isCollectionInfoVisible = isCollectionInfoVisible;
+app.locals.resolveLayout = resolveLayout;
+app.locals.layoutRootFontSize = layoutRootFontSize;
+app.locals.LAYOUT_OPTIONS = LAYOUT_OPTIONS;
+app.locals.SIDEBAR_COOKIE = SIDEBAR_COOKIE;
+// The colour theme a page is drawn with, and the collection's own palettes (core/theme.ts).
+app.locals.resolveTheme = resolveTheme;
+app.locals.themeChoiceFor = themeChoiceFor;
+app.locals.normalizePalettes = normalizePalettes;
+app.locals.THEME_OPTIONS = { palettePrefix: PALETTE_PREFIX, inherit: INHERIT_PRESET, maxPalettes: MAX_PALETTES, tokens: THEME_TOKENS };
+// The item cards' frame, hover, text placement and badge (core/cardStyle.ts).
+app.locals.cardClasses = cardClasses;
+app.locals.normalizeCardLook = normalizeCardLook;
+app.locals.CARD_OPTIONS = { frame: CARD_FRAMES, hover: CARD_HOVERS, text: CARD_TEXTS };
+// Background, glass, cover accent and logo (core/ambience.ts).
+app.locals.resolveAmbience = resolveAmbience;
+app.locals.normalizeAmbience = normalizeAmbience;
+app.locals.AMBIENCE_OPTIONS = AMBIENCE_OPTIONS;
 // Where an item came from, and whether a plugin can be searched at all: both are now
 // answers about its sources rather than about a single provider hanging off it.
 app.locals.externalLinkFor = externalLinkFor;
@@ -125,9 +174,12 @@ app.locals.hasSearch = hasSearch;
 app.locals.hasBarcodeScan = hasBarcodeScan;
 app.locals.requiredEnvKeysFor = requiredEnvKeysFor;
 app.locals.canRefresh = canRefresh;
+app.locals.detailPlacementOf = placementOf;
 app.locals.sourceStatusFor = sourceStatusFor;
 app.locals.searchableSources = searchableSources;
 app.set('io', io); // Expose io to routes
+// A signed-in page joins its account's room, where its unread count is sent.
+attachNotificationSockets(io);
 
 // Global middlewares
 // nosniff on the whole static tree, because part of it is now supplied by users: an
@@ -249,7 +301,7 @@ app.use((req: any, res, next) => {
 app.use(async (req: any, res, next) => {
   const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress;
   try {
-    const blocked = await BlockedIP.findOne({ ip: clientIP });
+    const blocked = await db.blockedIps.findOne(eq('ip', String(clientIP)));
     if (blocked) return res.status(403).send(req.t('common.forbidden'));
     next();
   } catch (err) {
@@ -265,6 +317,22 @@ app.use(collectionMiddleware);
 // Load the active collection's settings (per-collection container)
 app.use(settingsMiddleware);
 
+// What the shell shows next to the account: unread notifications, and the requests
+// waiting for the member's answer in the active collection. Pages only, never the assets.
+app.use(async (req: any, res, next) => {
+  res.locals.unreadNotifications = 0;
+  res.locals.requestsTodo = 0;
+  res.locals.requestsOn = requestsEnabled(res.locals.settings);
+  if (!req.user || res.locals.isShareView || req.method !== 'GET') return next();
+  try {
+    res.locals.unreadNotifications = await unreadCount(req.user._id);
+    res.locals.requestsTodo = await inboxCount(res.locals.activeCollectionId, req.user._id, res.locals.settings);
+  } catch (err: any) {
+    console.error('[ERR] Shell counters:', err.message);
+  }
+  next();
+});
+
 // Installation gatekeeper middleware
 app.use(async (req, res, next) => {
   // Ignore paths that should not be redirected during setup
@@ -277,7 +345,7 @@ app.use(async (req, res, next) => {
   }
 
   try {
-    const count = await User.countDocuments();
+    const count = await db.users.count(all());
     if (count === 0) {
       return res.redirect(BASE_URL + '/setup');
     }
@@ -318,6 +386,8 @@ loadPlugins();
 app.use(BASE_URL + '/setup', setupRoutes);
 app.use(BASE_URL, authRoutes);
 app.use(BASE_URL, shareRoutes);
+app.use(BASE_URL, joinRoutes);
+app.use(BASE_URL + '/admin', requestAdminRoute);
 app.use(BASE_URL + '/admin', adminRoutes);
 app.use(BASE_URL + '/settings', settingsRoutes);
 app.use(BASE_URL + '/create-plugin', pluginBuilderRoutes);
@@ -331,13 +401,18 @@ app.use(BASE_URL, dashboardRoute);
 app.use(BASE_URL, collectionRoute);
 app.use(BASE_URL, collectionInfoRoute);
 app.use(BASE_URL, shelfRoute);
+app.use(BASE_URL, insideRoute);
+app.use(BASE_URL, bulkEditRoute);
 app.use(BASE_URL, listRoute);
+app.use(BASE_URL, requestRoute);
+app.use(BASE_URL, pushRoute);
 app.use(BASE_URL, searchRoute);
 app.use(BASE_URL, accountRoute);
 app.use(BASE_URL, manualAddRoute);
 // Before the plugin dispatcher, which also serves /import/:id routes
 app.use(BASE_URL, csvImportRoute);
 app.use(BASE_URL, aiImportRoute);
+app.use(BASE_URL, importStatusRoute);
 
 // Plugin routers live behind a runtime dispatcher (not mounted directly on `app`)
 // so custom plugins created via /create-plugin are reachable without a restart.
@@ -380,12 +455,47 @@ connectDB()
     // boot-only pass leaves an instance that stays up for months collecting them. Repeat
     // it on a timer, unref'd so it never holds the process open on its own.
     setInterval(() => { void sweepAbandonedItemImages('CLEANUP'); }, ITEM_IMAGE_SWEEP_INTERVAL_MS).unref();
+    const purgeNotifications = () => purgeOldNotifications().catch((err: any) => console.warn('[CLEANUP] Notification purge failed:', err));
+    void purgeNotifications();
+    setInterval(() => { void purgeNotifications(); }, 24 * 3600 * 1000).unref();
+    // Requests past their due date, told once to both members. Hourly, so a day's change
+    // is caught within the hour whatever time the instance started.
+    const remindOverdue = () => notifyOverdueRequests().catch((err: any) => console.warn('[REQUESTS] Overdue pass failed:', err));
+    void remindOverdue();
+    setInterval(() => { void remindOverdue(); }, 3600 * 1000).unref();
+    // A newer release, for the admins of an instance that asked to be told.
+    void checkForUpdate();
+    setInterval(() => { void checkForUpdate(); }, UPDATE_CHECK_INTERVAL_MS).unref();
+    // The automatic backup, for an instance that turned it on.
+    void runBackupIfDue();
+    setInterval(() => { void runBackupIfDue(); }, BACKUP_CHECK_INTERVAL_MS).unref();
+    // Copies of linked images, for what came in by imports since copies were turned on.
+    scheduleImageDownloads();
     const port = process.env.VINYL_PORT || 3099;
     server.listen(port, () => {
       console.log(`[BOOT] Server started on port ${port} (BASE_URL="${BASE_URL || '/'}", env=${process.env.PROD === 'true' ? 'production' : 'development'})`);
     });
   })
-  .catch((err: any) => console.error('[BOOT] DB Error:', err));
+  .catch((err: any) => {
+    // Nothing can be served without the store: stop, so a supervisor (Docker) restarts
+    // the app instead of leaving it up without a server.
+    if (err instanceof StartupError) console.error(err.message);
+    else console.error('[BOOT] DB Error:', err);
+    process.exit(1);
+  });
+
+// Docker stops a container with SIGTERM, and the app runs as its first process, which
+// Node leaves alive on that signal unless asked: without this, every stop waits for the
+// kill that follows ten seconds later. Writes are synchronous, so none is ever half done
+// between two events and the store can be closed right away.
+for (const signal of ['SIGTERM', 'SIGINT'] as const) {
+  process.once(signal, () => {
+    console.log(`[SHUTDOWN] ${signal} received, closing the database.`);
+    db.close()
+      .catch((err: any) => console.error('[SHUTDOWN] Closing the database failed:', err))
+      .finally(() => process.exit(0));
+  });
+}
 
 
 // Socket event

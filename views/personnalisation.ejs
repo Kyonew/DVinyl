@@ -1,405 +1,1212 @@
-<%- include('partials/header') %>
+<%- include('partials/header', { shellBack: false }) %>
+<%# Every font the studio offers, so each choice is written in its own face. A browser
+    only downloads the files of the faces a page actually draws. %>
+<% [...new Set(Object.values(LAYOUT_OPTIONS.fontSheets))].forEach(sheet => { %>
+<link rel="stylesheet" href="<%= baseUrl %>/vendor/fonts/<%= sheet %>">
+<% }) %>
 
-    <div class="max-w-5xl mx-auto px-4 max-sm:px-0 pt-2 pb-12 md:py-10">
+<%#
+    The Personnalisation studio: everything about the collection's look in one place,
+    the real app on the left as a live preview, the choices on the right in five tabs
+    (partials/studio/tab-*): Style first, the rest to fine-tune.
 
-        <%# On phones the shell's back button stands in for the link home, and the cards
-            tighten up: same settings, less chrome around them. %>
-        <div data-settings-head class="flex flex-col md:flex-row md:items-center justify-between mb-6 md:mb-8 gap-4">
-            <div>
-                <h1 class="text-[2rem] leading-tight font-extrabold tracking-tight md:text-3xl md:font-black md:tracking-normal transition-colors">
-                    <%= t('perso.title') %>
-                </h1>
-                <p class="text-sm md:text-base opacity-60 mt-1 transition-colors">
-                    <%= t('perso.subtitle', { siteName: settings.siteName }) %>
-                </p>
-            </div>
-            <a href="<%= baseUrl || '/' %>"
-                class="max-md:hidden w-fit px-4 py-2 bg-black/5 dark:bg-white/10 rounded-lg text-sm font-bold hover:bg-black/10 dark:hover:bg-white/20 transition-all flex items-center">
-                <i class="fa-solid fa-arrow-left mr-2"></i>
-                <%= t('perso.backHome') %>
-            </a>
+    Changes are a draft (core/lookDraft.ts) until they are saved: the preview frame loads
+    pages with ?studio=1, which shows the draft over the saved settings, so members see
+    nothing change before "Save". What only restyles (density, corners, size, width,
+    fonts) is applied in the frame at once, and so are the collection's own colours while
+    they are being picked; what changes the markup (navigation, colours, cards,
+    shortcuts) reloads it, keeping its scroll. The page counts what
+    differs from the saved look, and marks the tabs holding those changes.
+
+    The home page's widgets are arranged in the preview itself, with the page's own
+    editor (partials/dashboard/editor), which saves as it goes.
+%>
+<%
+    // The saved look, field by field as the form posts it, to tell what the draft changes.
+    const savedLayout = resolveLayout(savedSettings);
+    const savedValues = {
+        layout_nav: savedLayout.nav,
+        layout_topStyle: savedLayout.topStyle === 'floating' ? 'floating' : '',
+        layout_sticky: savedLayout.sticky ? 'on' : '',
+        layout_sidebar: savedLayout.sidebar,
+        layout_railLabels: savedLayout.railLabels ? 'on' : '',
+        layout_dockLabels: savedLayout.dockLabels ? 'on' : '',
+        layout_density: savedLayout.density,
+        layout_radius: savedLayout.radius,
+        layout_scale: savedLayout.scale,
+        layout_width: savedLayout.width,
+        layout_font: savedLayout.font,
+        layout_headingFont: savedLayout.headingFont,
+        layout_headingCase: savedLayout.headingCase === 'upper' ? 'upper' : '',
+        homePreset: themeChoiceFor(savedSettings, 'home'),
+        aspectRatioClass: savedSettings.aspectRatioClass || 'aspect-square',
+        navbarShortcuts: (savedSettings.navbarShortcuts || []).map(String),
+        fastAdd: savedSettings.fastAdd || '',
+        instantAdd: savedSettings.instantAdd === true ? 'on' : ''
+    };
+    const savedCards = normalizeCardLook(savedSettings.cards);
+    ['frame', 'hover', 'text'].forEach(key => { savedValues['card_' + key] = savedCards[key]; });
+    savedValues.card_badges = savedCards.badges ? 'on' : '';
+    const savedAmbience = normalizeAmbience(savedSettings.ambience);
+    ['background', 'gradient', 'texture', 'intensity', 'image', 'imageBlur', 'imageVeil', 'logo'].forEach(key => {
+        savedValues['ambience_' + key] = savedAmbience[key];
+    });
+    savedValues.ambience_glass = savedAmbience.glass ? 'on' : '';
+    savedValues.ambience_coverAccent = savedAmbience.coverAccent ? 'on' : '';
+    savedValues.customThemes = JSON.stringify(normalizePalettes(savedSettings));
+    registry.getEnabled(savedSettings).forEach(p => {
+        savedValues[p.collectionType + 'Preset'] = themeChoiceFor(savedSettings, p.collectionType);
+    });
+    const studioTabs = [
+        { id: 'style', icon: 'palette', label: t('studio.tab_style') },
+        { id: 'nav', icon: 'table-columns', label: t('studio.tab_nav') },
+        { id: 'cards', icon: 'clone', label: t('studio.tab_cards') },
+        { id: 'text', icon: 'font', label: t('studio.tab_text') },
+        { id: 'ambience', icon: 'image', label: t('studio.tab_ambience') },
+        { id: 'details', icon: 'sliders', label: t('studio.tab_details') },
+        { id: 'home', icon: 'table-cells-large', label: t('studio.tab_home') },
+        { id: 'more', icon: 'ellipsis', label: t('studio.tab_more') }
+    ];
+    const toolButton = 'h-9 min-w-[2.25rem] px-2 flex items-center justify-center gap-1.5 rounded-lg text-sm hover:bg-black/5 dark:hover:bg-white/10 transition-colors';
+%>
+
+<style>
+    .dv-stop { display: block; width: 10px; height: 10px; border-radius: 9999px; background: rgb(127 127 127 / 0.45); transition: all 0.15s ease; }
+    .dv-stop-passed { background: var(--highlight); }
+    input:checked + .dv-stop { width: 20px; height: 20px; background: var(--highlight); box-shadow: 0 0 0 4px rgb(var(--highlight-rgb) / 0.25); cursor: grab; }
+    [data-stepper-track].is-dragging, [data-stepper-track].is-dragging * { cursor: grabbing; }
+    [data-stepper-track].is-dragging input:checked + .dv-stop { transform: scale(1.15); }
+    input:focus-visible + .dv-stop { outline: 2px solid var(--highlight); outline-offset: 3px; }
+    [data-studio-pane]:not(.is-active) { display: none; }
+    html.dark #studio { color-scheme: dark; }
+    /* The tick on the picked thumbnail: a preset button (aria-pressed) or a radio card. */
+    .dv-picked { display: none; }
+    [aria-pressed="true"] > .dv-picked, label:has(input:checked) > .dv-picked { display: flex; }
+    /* A ready-made style's sample screen, in the studio's own mode. */
+    .dv-look { --bg: var(--l-bg); --card: var(--l-card); --text: var(--l-text); --sub: var(--l-sub); --acc: var(--l-acc); background-color: var(--bg); }
+    html.dark .dv-look { --bg: var(--d-bg); --card: var(--d-card); --text: var(--d-text); --sub: var(--d-sub); --acc: var(--d-acc); }
+    /* Below lg the settings are a sheet over the preview, at one of three heights
+       (data-sheet on #studio): peek (the tabs only, the preview nearly full screen),
+       half, and full. The preview shrinks to what the sheet leaves, so the page it shows
+       is never hidden behind it; --sheet is set inline while the sheet is dragged. */
+    @media (max-width: 1023px) {
+        #studio { --sheet: 55%; }
+        #studio[data-sheet="peek"] { --sheet: calc(var(--sheet-peek, 7.5rem) + env(safe-area-inset-bottom)); }
+        #studio[data-sheet="full"] { --sheet: 100%; }
+        #studio[data-sheet="full"]:not(.is-dragging) [data-studio-stage] { visibility: hidden; }
+        [data-studio-preview] { width: 100%; height: calc(100% - var(--sheet) + 1.5rem); transition: height 0.32s var(--dv-ease); }
+        [data-studio-panel] { position: absolute; left: 0; right: 0; bottom: 0; height: var(--sheet); transition: height 0.32s var(--dv-ease); }
+        #studio.is-dragging [data-studio-preview], #studio.is-dragging [data-studio-panel] { transition: none; }
+        #studioForm { padding-bottom: env(safe-area-inset-bottom); }
+    }
+    @media (prefers-reduced-motion: reduce) { .dv-stop, [data-studio-preview], [data-studio-panel] { transition: none; } }
+</style>
+
+<div id="studio" class="fixed inset-0 z-[55] flex flex-col bg-[var(--bg-page)] text-[var(--text-main)]">
+    <%# The status bar of an installed app sits over the top of the screen: its height
+        comes on top of the bar's 60px rather than out of them, or the buttons end up
+        squeezed under the clock. %>
+    <header class="flex-none flex items-center gap-2 md:gap-3 px-2 md:px-4 border-b border-[var(--border-color)]" style="background-color: var(--bg-nav); height: calc(60px + env(safe-area-inset-top)); padding-top: env(safe-area-inset-top); padding-left: max(0.5rem, env(safe-area-inset-left)); padding-right: max(0.5rem, env(safe-area-inset-right));">
+        <a href="<%= baseUrl %>/dashboard" aria-label="<%= t('nav.back') %>" title="<%= t('nav.back') %>" class="<%= toolButton %> !w-10 !h-10">
+            <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+        </a>
+        <div class="min-w-0 flex flex-col">
+            <h1 class="font-extrabold text-base leading-tight truncate"><%= t('perso.title') %></h1>
+            <span data-studio-state-small class="md:hidden text-[11px] truncate opacity-70"></span>
+            <span class="max-md:hidden text-xs opacity-60 truncate"><%= t('studio.subtitle', { name: (locals.activeCollection && activeCollection.name) || settings.siteName }) %></span>
         </div>
+        <span class="flex-1"></span>
+        <span data-studio-state role="status" aria-live="polite" class="max-md:hidden flex items-center gap-2 h-8 px-3 rounded-full text-xs font-bold bg-black/5 dark:bg-white/10">
+            <span data-studio-state-dot class="w-[7px] h-[7px] rounded-full bg-current opacity-50"></span>
+            <span data-studio-state-text><%= t('studio.up_to_date') %></span>
+        </span>
+        <button type="button" data-studio-discard disabled
+            class="h-10 px-3 md:px-3.5 rounded-xl text-sm font-bold bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition disabled:opacity-40 disabled:pointer-events-none">
+            <i class="fa-solid fa-rotate-left md:hidden" aria-hidden="true"></i><span class="max-md:sr-only"><%= t('studio.discard') %></span>
+        </button>
+        <button type="submit" form="studioForm"
+            class="h-10 px-4 md:px-5 rounded-xl text-sm font-extrabold bg-primary-theme hover:brightness-110 shadow-lg shadow-primary-theme/20 transition active:scale-95 flex items-center gap-2">
+            <i class="fa-solid fa-check" aria-hidden="true"></i><%= t('studio.publish') %>
+        </button>
+    </header>
 
-        <form action="<%= baseUrl %>/admin/personnalisation/save" method="POST" data-save-bar class="space-y-5 md:space-y-8">
-
-            <%- include('partials/settings-tabs', { phoneOnly: true, tabs: [
-                { id: 'themes', icon: 'palette', label: t('perso.themes.title') },
-                { id: 'cards', icon: 'percent', label: t('perso.card_aspect_ratio') },
-                { id: 'navigation', icon: 'list-check', label: t('perso.nav_title') },
-                { id: 'quick-add', icon: 'bolt', label: t('perso.fastAdd_title') },
-                { id: 'widgets', icon: 'chart-simple', label: t('perso.widgets_title') }
-            ] }) %>
-
-            <div data-tab-panel="themes" class="md:!mt-0 card-theme rounded-2xl md:rounded-3xl p-4 md:p-6 shadow-sm md:shadow-xl transition-colors">
-                <h2 class="text-lg md:text-xl font-bold mb-4 md:mb-6 flex items-center gap-3">
-                    <div
-                        class="w-8 h-8 md:w-10 md:h-10 shrink-0 rounded-full bg-primary-theme/10 text-primary-theme flex items-center justify-center text-sm md:text-base">
-                        <i class="fa-solid fa-palette"></i>
-                    </div>
-                    <%= t('perso.themes.title') %>
-                </h2>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
-
-                    <div class="space-y-2">
-                        <label class="block text-xs font-bold uppercase tracking-widest opacity-60">
-                            <i class="fa-solid fa-house mr-1"></i>
-                            <%= t('perso.themes.home') %>
-                        </label>
-                        <select name="homePreset"
-                            class="w-full bg-black/5 dark:bg-black/20 border border-transparent focus:border-primary-theme rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-theme/20 outline-none transition-all">
-                            <% for (const [key, val] of Object.entries(presets)) { %>
-                                <option value="<%= key %>" <%=(settings.theme.home.preset===key) ? 'selected' : '' %>
-                                    class="dark:bg-neutral-900">
-                                    <%= val.label %>
-                                </option>
-                                <% } %>
-                        </select>
-                    </div>
-
-                    <% const themeCats = registry.getEnabled(settings).map(p => ({ key: p.collectionType, label: t(p.label), icon: 'fa-' + p.icon })); %>
-
-                        <% themeCats.forEach((tTheme)=> { %>
-                            <div class="space-y-2">
-                                <label class="block text-xs font-bold uppercase tracking-widest opacity-60">
-                                    <i class="fa-solid <%= tTheme.icon %> mr-1"></i>
-                                    <%= tTheme.label %>
-                                </label>
-                                <select name="<%= tTheme.key %>Preset"
-                                    class="w-full bg-black/5 dark:bg-black/20 border border-transparent focus:border-primary-theme rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-theme/20 outline-none transition-all">
-                                    <% for (const [key, val] of Object.entries(presets)) { %>
-                                        <option value="<%= key %>" <%=(settings.theme[tTheme.key] &&
-                                            settings.theme[tTheme.key].preset===key) ? 'selected' : '' %>
-                                            class="dark:bg-neutral-900">
-                                            <%= val.label %>
-                                        </option>
-                                        <% } %>
-                                </select>
-                            </div>
-                            <% }) %>
-
-                </div>
+    <div data-studio-body class="flex-1 min-h-0 flex max-lg:relative">
+        <%# The preview: the real app in a frame, the page, device and mode it is shown in
+            in a small bar floating under it on a large screen, in the sheet's own bar on
+            a small one (the script moves it). A device wider than the room left is drawn
+            at its own width and scaled down to fit. %>
+        <section data-studio-preview aria-label="<%= t('studio.preview') %>"
+            class="min-w-0 flex flex-col items-center gap-3 px-3 pt-3 pb-7 lg:flex-1 lg:px-6 lg:pt-5 lg:pb-4 bg-black/[0.04] dark:bg-black/30">
+            <div data-studio-stage class="relative flex-1 min-h-0 w-full flex justify-center">
+                <iframe data-studio-frame title="<%= t('studio.preview') %>"
+                    class="h-full w-full flex-none rounded-2xl border border-[var(--border-color)] shadow-2xl bg-[var(--bg-page)] transition-[width] duration-300"></iframe>
             </div>
-
-            <div data-tab-panel="cards" class="card-theme rounded-2xl md:rounded-3xl p-4 md:p-6 shadow-sm md:shadow-xl transition-colors md:mt-8">
-                <h2 class="text-lg md:text-xl font-bold mb-2 flex items-center gap-3">
-                    <div
-                        class="w-8 h-8 md:w-10 md:h-10 shrink-0 rounded-full bg-primary-theme/10 text-primary-theme flex items-center justify-center text-sm md:text-base">
-                        <i class="fa-solid fa-percent"></i>
-                    </div>
-                    <%= t('perso.card_aspect_ratio') %>
-                </h2>
-                <p class="text-sm opacity-60 mb-4"><%= t('perso.card_aspect_ratio_desc') %></p>
-                <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    <%
-                    // Values must stay in sync with CARD_ASPECT_RATIOS (core/customPlugin.ts),
-                    // which is what the save route accepts.
-                    const aspectRatioOptions = [
-                        { value: 'aspect-[2/3]', label: t('create_plugin.shape_poster'), icon: 'fa-file' },
-                        { value: 'aspect-square', label: t('create_plugin.shape_square'), icon: 'fa-square' },
-                        { value: 'aspect-[16/9]', label: t('create_plugin.shape_screen'), icon: 'fa-desktop' }
-                    ];
-                    const currentAspect = settings.aspectRatioClass || 'aspect-square';
-                    %>
-                    <% aspectRatioOptions.forEach(opt=> { %>
-                        <label class="cursor-pointer relative group">
-                            <input type="radio" name="aspectRatioClass" value="<%= opt.value %>" class="peer sr-only"
-                                <%= currentAspect === opt.value ? 'checked' : '' %>>
-                            <div
-                                class="flex items-center gap-3 p-3 rounded-xl border border-black/5 dark:border-white/5 bg-black/5 dark:bg-white/5 transition-all peer-checked:text-white opacity-60 peer-checked:opacity-100 peer-checked:shadow-md peer-checked:bg-primary-theme">
-                                <i class="fa-solid <%= opt.icon %> text-base w-4 text-center"></i>
-                                <span class="text-sm font-medium">
-                                    <%= opt.label %>
-                                </span>
-                            </div>
-                        </label>
+            <div data-studio-tools class="flex-none flex items-center gap-1 max-w-full min-w-0 lg:p-1.5 lg:rounded-2xl lg:border lg:border-[var(--border-color)] lg:shadow-xl" style="background-color: var(--bg-card);">
+                <label class="flex items-center gap-2 pl-2 text-sm opacity-90">
+                    <span class="max-sm:hidden opacity-70"><%= t('studio.page') %></span>
+                    <select data-studio-page aria-label="<%= t('studio.page') %>" class="h-9 max-w-[10rem] rounded-lg border-0 bg-black/5 dark:bg-white/10 px-2 text-sm focus:ring-2 focus:ring-primary-theme/40">
+                        <% [
+                            ['/dashboard', t('nav.home')],
+                            ['/collection', t('nav.collection')],
+                            ['/wishlist', t('nav.wishlist')],
+                            ['/lists', t('lists.title')],
+                            ['/search', t('nav.search')],
+                            ['/account', t('nav.account')]
+                        ].forEach(([path, label]) => { %>
+                            <option value="<%= path %>"><%= label %></option>
                         <% }) %>
+                    </select>
+                </label>
+                <span class="w-px h-6 mx-1 bg-[var(--border-color)]" aria-hidden="true"></span>
+                <div class="flex items-center gap-0.5" role="group" aria-label="<%= t('studio.device') %>">
+                    <% [['desktop', 'fa-desktop'], ['tablet', 'fa-tablet-screen-button'], ['phone', 'fa-mobile-screen']].forEach(([id, icon]) => { %>
+                        <button type="button" data-studio-device="<%= id %>" aria-pressed="<%= id === 'desktop' %>" title="<%= t('studio.device_' + id) %>" aria-label="<%= t('studio.device_' + id) %>"
+                            class="<%= id === 'tablet' ? 'max-lg:hidden' : '' %> w-9 h-9 rounded-lg flex items-center justify-center opacity-60 hover:opacity-100 aria-pressed:opacity-100 aria-pressed:bg-primary-theme/15 aria-pressed:text-primary-theme transition">
+                            <i class="fa-solid <%= icon %> text-sm" aria-hidden="true"></i>
+                        </button>
+                    <% }) %>
                 </div>
-            </div>
-
-            <div data-tab-panel="navigation" class="card-theme rounded-2xl md:rounded-3xl p-4 md:p-6 shadow-sm md:shadow-xl transition-colors md:mt-8">
-                <h2 class="text-lg md:text-xl font-bold mb-2 flex items-center gap-3">
-                    <div
-                        class="w-8 h-8 md:w-10 md:h-10 shrink-0 rounded-full bg-primary-theme/10 text-primary-theme flex items-center justify-center text-sm md:text-base">
-                        <i class="fa-solid fa-list-check"></i>
-                    </div>
-                    <%= t('perso.nav_title') %>
-                </h2>
-                <p class="text-sm opacity-60 mb-4 md:mb-6">
-                    <%= t('perso.nav_desc') %>
-                </p>
-
-                <div class="md:space-y-6">
-                    <%
-                    // Global group plus one group per plugin (navbarShortcuts declared by the plugin)
-                    const shortcutGroups = [
-                        { label: t('perso.modules.global'), active: true, options: [
-                            { id: 'global_home', label: t('nav.home') },
-                            { id: 'global_collection', label: t('nav.collection') },
-                            { id: 'global_wishlist', label: t('nav.wishlist') },
-                            { id: 'global_info', label: t('collection_info.title') },
-                            { id: 'global_lists', label: t('lists.title') }
-                        ] }
-                    ];
-                    registry.getAll().forEach(p => {
-                        shortcutGroups.push({
-                            label: t(p.label),
-                            active: !!(settings.modules && settings.modules[p.collectionType]),
-                            options: (p.navbarShortcuts || []).map(sc => ({ id: sc.id, label: t(sc.label) }))
-                        });
-                    });
-                    %>
-
-                        <div class="max-md:hidden flex gap-2 overflow-x-auto pb-2 scrollbar-hide flex-nowrap">
-                            <% shortcutGroups.forEach((group, idx)=> { %>
-                                <% if (group.active) { %>
-                                    <button type="button" onclick="switchTab('shortcuts', <%= idx %>)"
-                                        id="tab-shortcuts-<%= idx %>"
-                                        class="tab-btn-shortcuts shrink-0 px-5 py-2.5 rounded-xl font-bold text-sm whitespace-nowrap transition-all border-2 border-transparent text-black/50 dark:text-white/50 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10">
-                                        <%= group.label %>
-                                    </button>
-                                    <% } %>
-                                        <% }) %>
-                        </div>
-
-                        <div class="md:mt-4 max-md:space-y-3">
-                            <% shortcutGroups.forEach((group, idx)=> { %>
-                                <% if (group.active) { %>
-                                    <div id="content-shortcuts-<%= idx %>"
-                                        class="tab-content-shortcuts hidden max-md:!block bg-black/5 dark:bg-white/5 rounded-2xl p-3 md:p-5">
-                                        <p class="md:hidden mb-2 text-xs font-bold uppercase tracking-widest opacity-60"><%= group.label %></p>
-                                        <div class="flex flex-wrap gap-2 md:gap-3">
-                                            <% group.options.forEach(opt=> { %>
-                                                <label class="shortcut-option cursor-pointer group relative">
-                                                    <input type="checkbox" name="navbarShortcuts" value="<%= opt.id %>"
-                                                        <%=(settings.navbarShortcuts &&
-                                                        settings.navbarShortcuts.includes(opt.id)) ? 'checked' : '' %>
-                                                    class="sr-only">
-                                                    <div
-                                                        class="flex items-center gap-2 px-3 py-2 md:px-4 md:py-2.5 rounded-xl border-2 border-transparent bg-black/5 dark:bg-white/5 text-black/50 dark:text-white/50 opacity-80 transition-all duration-300 font-bold group-hover:bg-black/10 dark:group-hover:bg-white/10 group-has-[:checked]:bg-primary-theme group-has-[:checked]:border-primary-theme group-has-[:checked]:text-white group-has-[:checked]:opacity-100 group-has-[:checked]:shadow-lg group-has-[:checked]:-translate-y-0.5">
-                                                        <i
-                                                            class="fa-solid fa-plus text-[10px] opacity-40 block group-has-[:checked]:hidden transition-transform"></i>
-                                                        <i
-                                                            class="fa-solid fa-check text-[10px] hidden group-has-[:checked]:block transition-transform"></i>
-                                                        <span class="text-sm">
-                                                            <%= opt.label %>
-                                                        </span>
-                                                    </div>
-                                                </label>
-                                                <% }) %>
-                                        </div>
-                                    </div>
-                                    <% } %>
-                                        <% }) %>
-                        </div>
-                </div>
-            </div>
-
-
-            <div data-tab-panel="quick-add" class="card-theme rounded-2xl md:rounded-3xl p-4 md:p-6 shadow-sm md:shadow-xl transition-colors md:mt-8">
-                <h2 class="text-lg md:text-xl font-bold mb-2 flex items-center gap-3">
-                    <div
-                        class="w-8 h-8 md:w-10 md:h-10 shrink-0 rounded-full bg-primary-theme/10 text-primary-theme flex items-center justify-center text-sm md:text-base">
-                        <i class="fa-solid fa-bolt"></i>
-                    </div>
-                    <%= t('perso.fastAdd_title') %>
-                </h2>
-                <p class="text-sm opacity-60 mb-4 md:mb-6">
-                    <%= t('perso.fastAdd_desc') %>
-                </p>
-
-                <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    <%
-                    const fastAddOptions = [
-                        { value: '', label: t('perso.fastAdd_disabled'), icon: 'fa-xmark', color: 'peer-checked:bg-gray-500' }
-                    ];
-                    registry.getAll().forEach(p => {
-                        if (settings.modules && settings.modules[p.collectionType]) {
-                            (p.fastAddOptions || []).forEach(o => {
-                                fastAddOptions.push({ value: o.value, label: t(o.label), icon: o.icon, color: o.color });
-                            });
-                        }
-                    });
-                    %>
-                        <% fastAddOptions.forEach(opt=> { %>
-                            <label class="cursor-pointer relative group">
-                                <input type="radio" name="fastAdd" value="<%= opt.value %>" class="peer sr-only"
-                                    <%=(settings.fastAdd===opt.value || (!settings.fastAdd && opt.value==='' ))
-                                    ? 'checked' : '' %>>
-                                <div
-                                    class="flex items-center gap-3 p-3 rounded-xl border border-black/5 dark:border-white/5 bg-black/5 dark:bg-white/5 transition-all peer-checked:text-white opacity-60 peer-checked:opacity-100 peer-checked:shadow-md <%= opt.color %>">
-                                    <i class="fa-solid <%= opt.icon %> text-base w-4 text-center"></i>
-                                    <span class="text-sm font-medium">
-                                        <%= opt.label %>
-                                    </span>
-                                </div>
-                            </label>
-                            <% }) %>
-                </div>
-
-                <%# Offered only where something can actually be scanned into one exact
-                    item: with no such module active the toggle would promise a behaviour
-                    no search on this instance can trigger. %>
-                <% if (locals.scanModeAvailable) { %>
-                    <label
-                        class="flex items-start justify-between gap-4 p-4 mt-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 cursor-pointer">
-                        <div class="flex items-start gap-3">
-                            <div
-                                class="w-10 h-10 rounded-xl flex items-center justify-center bg-white dark:bg-black/20 shadow-sm shrink-0">
-                                <i class="fa-solid fa-barcode text-sm"></i>
-                            </div>
-                            <div>
-                                <span class="text-sm font-bold opacity-80">
-                                    <%= t('perso.instantAdd_title') %>
-                                </span>
-                                <p class="text-xs opacity-50 mt-0.5">
-                                    <%= t('perso.instantAdd_desc') %>
-                                </p>
-                            </div>
-                        </div>
-                        <div class="relative inline-flex items-center shrink-0 mt-2">
-                            <input type="checkbox" name="instantAdd" <%= settings.instantAdd === true ? 'checked' : ''
-                                %> class="sr-only peer">
-                            <div
-                                class="w-11 h-6 bg-black/10 dark:bg-white/10 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500">
-                            </div>
-                        </div>
-                    </label>
-                <% } %>
-            </div>
-
-            <div data-tab-panel="widgets" class="card-theme rounded-2xl md:rounded-3xl p-4 md:p-6 shadow-sm md:shadow-xl transition-colors md:mt-8">
-                <h2 class="text-lg md:text-xl font-bold mb-2 flex items-center gap-3">
-                    <div
-                        class="w-8 h-8 md:w-10 md:h-10 shrink-0 rounded-full bg-primary-theme/10 text-primary-theme flex items-center justify-center text-sm md:text-base">
-                        <i class="fa-solid fa-chart-simple"></i>
-                    </div>
-                    <%= t('perso.widgets_title') %>
-                </h2>
-                <p class="text-sm opacity-60 mb-4 md:mb-6">
-                    <%= t('perso.widgets_desc') %>
-                </p>
-
-                <div class="md:space-y-6">
-                    <%
-                    // Global widget plus widgets declared by each plugin (statsWidgets)
-                    const statOptions = [
-                        { group: t('perso.modules.global'), active: true, options: [
-                            { id: 'total', label: t('stats.total_label') }
-                        ] }
-                    ];
-                    registry.getAll().forEach(p => {
-                        statOptions.push({
-                            group: t(p.label),
-                            active: !!(settings.modules && settings.modules[p.collectionType]),
-                            options: (p.statsWidgets || []).map(w => ({ id: w.id, label: t(w.label) }))
-                        });
-                    });
-                    %>
-
-                        <div class="max-md:hidden flex gap-2 overflow-x-auto pb-2 scrollbar-hide flex-nowrap">
-                            <% statOptions.forEach((group, idx)=> { %>
-                                <% if (group.active) { %>
-                                    <button type="button" onclick="switchTab('stats', <%= idx %>)"
-                                        id="tab-stats-<%= idx %>"
-                                        class="tab-btn-stats shrink-0 px-5 py-2.5 rounded-xl font-bold text-sm whitespace-nowrap transition-all border-2 border-transparent text-black/50 dark:text-white/50 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10">
-                                        <%= group.group %>
-                                    </button>
-                                    <% } %>
-                                        <% }) %>
-                        </div>
-
-                        <div class="md:mt-4 max-md:space-y-3">
-                            <% statOptions.forEach((group, idx)=> { %>
-                                <% if (group.active) { %>
-                                    <div id="content-stats-<%= idx %>"
-                                        class="tab-content-stats hidden max-md:!block bg-black/5 dark:bg-white/5 rounded-2xl p-3 md:p-5">
-                                        <p class="md:hidden mb-2 text-xs font-bold uppercase tracking-widest opacity-60"><%= group.group %></p>
-                                        <div class="flex flex-wrap gap-2 md:gap-3">
-                                            <% group.options.forEach(opt=> { %>
-                                                <label class="cursor-pointer group relative">
-                                                    <input type="checkbox" name="statsWidgets" value="<%= opt.id %>"
-                                                        <%=(settings.statsWidgets &&
-                                                        settings.statsWidgets.includes(opt.id)) ? 'checked' : '' %>
-                                                    class="sr-only">
-                                                    <div
-                                                        class="flex items-center gap-2 px-3 py-2 md:px-4 md:py-2.5 rounded-xl border-2 border-transparent bg-black/5 dark:bg-white/5 text-black/50 dark:text-white/50 opacity-80 transition-all duration-300 font-bold group-hover:bg-black/10 dark:group-hover:bg-white/10 group-has-[:checked]:bg-primary-theme group-has-[:checked]:border-primary-theme group-has-[:checked]:text-white group-has-[:checked]:opacity-100 group-has-[:checked]:shadow-lg group-has-[:checked]:-translate-y-0.5">
-                                                        <i
-                                                            class="fa-solid fa-plus text-[10px] opacity-40 block group-has-[:checked]:hidden transition-transform"></i>
-                                                        <i
-                                                            class="fa-solid fa-check text-[10px] hidden group-has-[:checked]:block transition-transform"></i>
-                                                        <span class="text-sm">
-                                                            <%= opt.label %>
-                                                        </span>
-                                                    </div>
-                                                </label>
-                                                <% }) %>
-                                        </div>
-                                    </div>
-                                    <% } %>
-                                        <% }) %>
-                        </div>
-                </div>
-            </div>
-
-
-            <div data-settings-panel-only class="flex justify-end pt-4">
-                <button type="submit"
-                    class="w-full md:w-auto px-10 py-4 bg-primary-theme text-white font-black rounded-2xl hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-primary-theme/20 flex items-center justify-center gap-3">
-                    <i class="fa-solid fa-save"></i>
-                    <%= t('perso.save') %>
+                <span class="w-px h-6 mx-1 bg-[var(--border-color)]" aria-hidden="true"></span>
+                <button type="button" data-studio-dark title="<%= t('studio.toggle_dark') %>" class="<%= toolButton %> px-2.5">
+                    <i class="fa-solid fa-circle-half-stroke" aria-hidden="true"></i><span data-studio-dark-label class="max-sm:hidden"></span>
+                </button>
+                <button type="button" data-studio-reload title="<%= t('studio.reload') %>" aria-label="<%= t('studio.reload') %>" class="<%= toolButton %>">
+                    <i class="fa-solid fa-rotate" aria-hidden="true"></i>
                 </button>
             </div>
-        </form>
+        </section>
+
+        <aside data-studio-panel aria-label="<%= t('perso.title') %>"
+            class="flex-none flex lg:w-[420px] lg:border-l border-[var(--border-color)] max-lg:flex-col max-lg:overflow-hidden max-lg:rounded-t-3xl max-lg:shadow-[0_-12px_30px_rgba(0,0,0,0.35)]"
+            style="background-color: var(--bg-card);">
+            <%# The sheet's bar, small screens only: dragged, or tapped, to move the sheet
+                between its heights, and home to the preview's controls. %>
+            <div data-sheet-bar class="lg:hidden flex-none relative flex items-center gap-1 pt-4 pb-1.5 px-2 touch-none select-none cursor-grab">
+                <span class="absolute top-1.5 left-1/2 -translate-x-1/2 w-10 h-1.5 rounded-full bg-current opacity-25" aria-hidden="true"></span>
+                <div data-sheet-tools class="flex-1 min-w-0 flex"></div>
+                <button type="button" data-sheet-toggle aria-label="<%= t('studio.sheet_expand') %>" title="<%= t('studio.sheet_expand') %>" class="<%= toolButton %> !w-10 !h-10 flex-none">
+                    <i class="fa-solid fa-chevron-up transition-transform" aria-hidden="true"></i>
+                </button>
+            </div>
+            <nav aria-label="<%= t('studio.sections') %>" role="tablist"
+                class="flex-none flex gap-1 p-2 overflow-x-auto [scrollbar-width:none] lg:w-[76px] lg:flex-col lg:py-3.5 lg:overflow-visible border-[var(--border-color)] max-lg:border-b lg:border-r"
+                style="background-color: rgb(0 0 0 / 0.08);">
+                <% studioTabs.forEach((tab, i) => { %>
+                    <button type="button" role="tab" data-studio-tab="<%= tab.id %>" aria-selected="<%= i === 0 %>" aria-controls="studio-pane-<%= tab.id %>"
+                        class="relative flex-none flex items-center gap-2 lg:flex-col lg:gap-1.5 px-3.5 h-10 lg:h-auto lg:px-1 lg:py-2.5 rounded-full lg:rounded-xl text-sm lg:text-[11px] font-bold opacity-70 hover:opacity-100 aria-selected:opacity-100 aria-selected:bg-primary-theme/15 aria-selected:text-primary-theme transition">
+                        <span class="relative flex">
+                            <i class="fa-solid fa-<%= tab.icon %> lg:text-lg" aria-hidden="true"></i>
+                            <span data-tab-dot class="hidden absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-primary-theme ring-2 ring-[var(--bg-card)]"></span>
+                        </span>
+                        <span class="whitespace-nowrap"><%= tab.label %></span>
+                    </button>
+                <% }) %>
+            </nav>
+
+            <form id="studioForm" action="<%= baseUrl %>/admin/personnalisation/save" method="POST" class="flex-1 min-w-0 min-h-0 overflow-y-auto overscroll-contain">
+                <% studioTabs.forEach((tab, i) => { %>
+                    <div id="studio-pane-<%= tab.id %>" data-studio-pane="<%= tab.id %>" role="tabpanel" class="<%= i === 0 ? 'is-active' : '' %> px-5 pt-4 lg:pt-5 pb-8 flex flex-col gap-6">
+                        <%- include('partials/studio/tab-' + tab.id) %>
+                    </div>
+                <% }) %>
+            </form>
+        </aside>
     </div>
+</div>
 
-    <script>
-        function switchTab(groupName, index) {
-            const allContents = document.querySelectorAll('.tab-content-' + groupName);
-            allContents.forEach(el => el.classList.add('hidden'));
+<script>
+(() => {
+    const base = '<%= baseUrl %>';
+    const studio = document.getElementById('studio');
+    const form = document.getElementById('studioForm');
+    const frame = studio.querySelector('[data-studio-frame]');
+    const pageSelect = studio.querySelector('[data-studio-page]');
+    const layoutOptions = <%- JSON.stringify({
+        densityFactor: LAYOUT_OPTIONS.densityFactor,
+        radiusFactor: LAYOUT_OPTIONS.radiusFactor,
+        scalePercent: LAYOUT_OPTIONS.scalePercent,
+        contentMax: LAYOUT_OPTIONS.contentMax,
+        fontStacks: LAYOUT_OPTIONS.fontStacks
+    }).replace(/</g, '\\u003c') %>;
+    const fontSheets = <%- JSON.stringify(LAYOUT_OPTIONS.fontSheets).replace(/</g, '\\u003c') %>;
+    const themePresets = <%- JSON.stringify(Object.fromEntries(Object.entries(presets).map(([k, v]) => [k, { light: v.light, dark: v.dark }]))).replace(/</g, '\\u003c') %>;
+    const PALETTE = <%- JSON.stringify(THEME_OPTIONS.palettePrefix).replace(/</g, '\\u003c') %>;
+    const INHERIT = <%- JSON.stringify(THEME_OPTIONS.inherit).replace(/</g, '\\u003c') %>;
+    const MAX_PALETTES = <%- JSON.stringify(THEME_OPTIONS.maxPalettes).replace(/</g, '\\u003c') %>;
+    const TOKENS = <%- JSON.stringify(THEME_OPTIONS.tokens).replace(/</g, '\\u003c') %>;
+    const savedValues = <%- JSON.stringify(savedValues).replace(/</g, '\\u003c') %>;
+    const widgetTypes = <%- JSON.stringify(widgetTypes).replace(/</g, '\\u003c') %>;
+    const sizeShort = <%- JSON.stringify({ s: t('dashboard.size_s_short'), m: t('dashboard.size_m_short'), l: t('dashboard.size_l_short'), full: t('dashboard.size_full_short') }).replace(/</g, '\\u003c') %>;
+    const i18n = <%- JSON.stringify({
+        upToDate: t('studio.up_to_date'),
+        saved: t('studio.published'),
+        changesOne: t('studio.changes_one', { count: '{{count}}' }),
+        changesOther: t('studio.changes_other', { count: '{{count}}' }),
+        discardConfirm: t('studio.discard_confirm'),
+        maxShortcuts: t('perso.nav_max'),
+        lookCurrent: t('studio.preset_current', { name: '{{name}}' }),
+        lookCustom: t('studio.preset_custom'),
+        dark: t('studio.mode_dark'),
+        light: t('studio.mode_light'),
+        sheetExpand: t('studio.sheet_expand'),
+        sheetCollapse: t('studio.sheet_collapse'),
+        paletteDefault: t('studio.palette_default_name', { n: '{{n}}' }),
+        paletteCopy: t('studio.palette_copy_name', { name: '{{name}}' }),
+        paletteDeleteConfirm: t('studio.palette_delete_confirm'),
+        lowContrastLight: t('studio.custom_low_contrast_light', { ratio: '{{ratio}}' }),
+        lowContrastDark: t('studio.custom_low_contrast_dark', { ratio: '{{ratio}}' }),
+        uploading: t('studio.ambience_uploading'),
+        uploadFailed: t('image_manager.upload_failed')
+    }).replace(/</g, '\\u003c') %>;
+    // The width each device is drawn at. A large screen shows the desktop at the room it
+    // has, as long as that is a desktop's (the wide sidebar only exists from 1024px); a
+    // small one shows the phone that way, and everything else scaled down.
+    const DEVICE_WIDTH = { desktop: 1280, tablet: 834, phone: 390 };
+    const DESKTOP_MIN = 1100;
+    const smallScreen = window.matchMedia('(max-width: 1023px)');
+    const TAB_OF = (name) => {
+        if (/^layout_(nav|topStyle|sticky|sidebar|railLabels|dockLabels)$/.test(name) || name === 'navbarShortcuts') return 'nav';
+        if (/^layout_(font|headingFont|headingCase)$/.test(name)) return 'text';
+        if (/^card_/.test(name) || name === 'aspectRatioClass') return 'cards';
+        if (/^ambience_/.test(name)) return 'ambience';
+        if (/^layout_/.test(name)) return 'details';
+        if (/Preset$/.test(name) || name === 'customThemes') return 'style';
+        return 'more';
+    };
 
-            const allBtns = document.querySelectorAll('.tab-btn-' + groupName);
-            allBtns.forEach(btn => {
-                btn.classList.remove('bg-primary-theme', 'text-white', 'border-primary-theme', 'opacity-100', 'shadow-md');
-                btn.classList.add('bg-black/5', 'dark:bg-white/5', 'text-black/50', 'dark:text-white/50');
-            });
+    document.body.style.overflow = 'hidden';
+    const value = (name) => form.querySelector(`[name="${name}"]:checked`)?.value;
 
-            const targetContent = document.getElementById('content-' + groupName + '-' + index);
-            if (targetContent) targetContent.classList.remove('hidden');
+    // ---- Tabs ---------------------------------------------------------------------
+    const tabs = [...studio.querySelectorAll('[data-studio-tab]')];
+    function showTab(id) {
+        tabs.forEach(tab => tab.setAttribute('aria-selected', String(tab.dataset.studioTab === id)));
+        form.querySelectorAll('[data-studio-pane]').forEach(pane => pane.classList.toggle('is-active', pane.dataset.studioPane === id));
+        form.scrollTop = 0;
+        try { sessionStorage.setItem('studioTab', id); } catch (e) { /* private mode */ }
+    }
+    tabs.forEach(tab => tab.addEventListener('click', () => {
+        showTab(tab.dataset.studioTab);
+        // A tab picked with the sheet folded down: its settings come up.
+        if (smallScreen.matches && studio.dataset.sheet === 'peek') setSheet('half');
+    }));
 
-            const targetBtn = document.getElementById('tab-' + groupName + '-' + index);
-            if (targetBtn) {
-                targetBtn.classList.remove('bg-black/5', 'dark:bg-white/5', 'text-black/50', 'dark:text-white/50');
-                targetBtn.classList.add('bg-primary-theme', 'text-white', 'border-primary-theme', 'opacity-100', 'shadow-md');
+    // ---- The frame ----------------------------------------------------------------
+    const inStudio = (path) => {
+        let url = new URL(base + path, window.location.origin);
+        // The preview only ever shows this instance's pages.
+        if (url.origin !== window.location.origin) url = new URL(base + '/dashboard', window.location.origin);
+        url.searchParams.set('studio', '1');
+        return url;
+    };
+    let keepScroll = null;
+    let darkOverride = null;
+
+    function frameWindow() {
+        try { return frame.contentWindow && frame.contentWindow.document ? frame.contentWindow : null; } catch (e) { return null; }
+    }
+    function reloadFrame() {
+        const win = frameWindow();
+        keepScroll = win ? win.scrollY : null;
+        if (win) win.location.reload();
+    }
+
+    // What only restyles is applied in the frame straight away, through the variables
+    // the shell itself reads.
+    function applyLook() {
+        const win = frameWindow();
+        if (!win) return;
+        const doc = win.document;
+        const style = doc.documentElement.style;
+        const density = value('layout_density'), radius = value('layout_radius'), scale = value('layout_scale');
+        const width = value('layout_width'), font = value('layout_font');
+        if (density) style.setProperty('--dv-space', String(layoutOptions.densityFactor[density]));
+        if (radius) style.setProperty('--dv-radius', String(layoutOptions.radiusFactor[radius]));
+        if (width) style.setProperty('--dv-content-max', layoutOptions.contentMax[width]);
+        if (scale) style.fontSize = layoutOptions.scalePercent[scale];
+        const loadFont = (key) => {
+            const sheet = fontSheets[key];
+            if (sheet && !doc.querySelector(`link[data-studio-font="${key}"]`)) {
+                const link = doc.createElement('link');
+                Object.assign(link, { rel: 'stylesheet', href: base + '/vendor/fonts/' + sheet });
+                link.dataset.studioFont = key;
+                doc.head.appendChild(link);
             }
+        };
+        if (font) {
+            style.setProperty('--dv-font', layoutOptions.fontStacks[font]);
+            loadFont(font);
         }
+        const headingFont = value('layout_headingFont');
+        if (headingFont) {
+            const own = headingFont !== 'same';
+            doc.documentElement.dataset.headingFont = own ? 'own' : 'same';
+            style.setProperty('--dv-font-heading', layoutOptions.fontStacks[own ? headingFont : font]);
+            if (own) loadFont(headingFont);
+        }
+        doc.documentElement.dataset.headingCase = value('layout_headingCase') === 'upper' ? 'upper' : 'normal';
+        applyCustomColors();
+    }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            const firstShortcutTab = document.querySelector('.tab-btn-shortcuts');
-            if (firstShortcutTab) {
-                const idx = firstShortcutTab.id.split('-').pop();
-                switchTab('shortcuts', idx);
-            }
+    function isDarkFrame() {
+        const win = frameWindow();
+        return win ? win.document.documentElement.classList.contains('dark') : document.documentElement.classList.contains('dark');
+    }
+    function syncDarkLabel() {
+        studio.querySelector('[data-studio-dark-label]').textContent = isDarkFrame() ? i18n.dark : i18n.light;
+    }
+    function applyDark() {
+        const win = frameWindow();
+        if (win && darkOverride !== null) win.document.documentElement.classList.toggle('dark', darkOverride);
+        syncDarkLabel();
+        applyCustomColors();
+    }
 
-            const firstStatsTab = document.querySelector('.tab-btn-stats');
-            if (firstStatsTab) {
-                const idx = firstStatsTab.id.split('-').pop();
-                switchTab('stats', idx);
+    // The home tab lists the widgets as the preview shows them.
+    function syncHomeList() {
+        const win = frameWindow();
+        if (!win) return;
+        const frames = [...win.document.querySelectorAll('[data-dashboard-grid] > [data-widget]')];
+        if (frames.length === 0) return;
+        const list = form.querySelector('[data-home-widgets]');
+        const template = list.firstElementChild;
+        if (!template) return;
+        list.replaceChildren(...frames.map((el, i) => {
+            const type = widgetTypes[el.dataset.widgetType] || { label: el.dataset.widgetType, icon: 'fa-puzzle-piece' };
+            const row = template.cloneNode(true);
+            const [number, icon, label, size] = row.children;
+            number.textContent = String(i + 1);
+            icon.className = 'fa-solid ' + type.icon + ' w-4 text-center opacity-60';
+            label.textContent = type.label;
+            size.textContent = sizeShort[el.dataset.widgetSize] || '';
+            return row;
+        }));
+    }
+
+    frame.addEventListener('load', () => {
+        const win = frameWindow();
+        if (!win) return;
+        const url = new URL(win.location.href);
+        // A page reached by a script rather than a link lost the preview flag.
+        if (url.searchParams.get('studio') !== '1') {
+            url.searchParams.set('studio', '1');
+            win.location.replace(url.toString());
+            return;
+        }
+        const path = url.pathname.slice(base.length) || '/';
+        if ([...pageSelect.options].some(o => o.value === path)) pageSelect.value = path;
+        else {
+            let custom = pageSelect.querySelector('[data-custom]');
+            if (!custom) {
+                custom = document.createElement('option');
+                custom.dataset.custom = '1';
+                pageSelect.appendChild(custom);
             }
+            custom.value = path;
+            custom.textContent = path;
+            pageSelect.value = path;
+        }
+        applyLook();
+        applyDark();
+        syncHomeList();
+        if (keepScroll !== null) { win.scrollTo(0, keepScroll); keepScroll = null; }
+        // Arranging the home page saves widget by widget: the list follows.
+        win.addEventListener('click', () => setTimeout(syncHomeList, 600));
+    });
+
+    pageSelect.addEventListener('change', () => { frame.src = inStudio(pageSelect.value).toString(); });
+    studio.querySelector('[data-studio-reload]').addEventListener('click', reloadFrame);
+    // ---- Device and size of the preview -------------------------------------------------
+    const stage = studio.querySelector('[data-studio-stage]');
+    let device = smallScreen.matches ? 'phone' : 'desktop';
+    function layoutFrame() {
+        const box = stage.getBoundingClientRect();
+        const fills = smallScreen.matches ? device === 'phone' : device === 'desktop' && box.width >= DESKTOP_MIN;
+        // A phone gets a bezel on a large screen, so it reads as one.
+        const bezel = device === 'phone' && !smallScreen.matches;
+        frame.classList.toggle('!rounded-[2.5rem]', bezel);
+        frame.classList.toggle('!border-[10px]', bezel);
+        frame.classList.toggle('!border-black', bezel);
+        stage.classList.toggle('overflow-hidden', !fills);
+        if (fills) {
+            Object.assign(frame.style, { position: '', top: '', left: '', width: '', height: '', transform: '' });
+            return;
+        }
+        const width = device === 'desktop' && !smallScreen.matches ? DESKTOP_MIN : DEVICE_WIDTH[device];
+        const scale = Math.min(1, box.width / width);
+        Object.assign(frame.style, {
+            position: 'absolute', top: '0', left: '50%', width: width + 'px', height: (box.height / scale) + 'px',
+            transform: `translateX(-50%) scale(${scale})`, transformOrigin: 'top center'
         });
+    }
+    function setDevice(next) {
+        device = next;
+        studio.querySelectorAll('[data-studio-device]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.studioDevice === device)));
+        layoutFrame();
+    }
+    studio.querySelectorAll('[data-studio-device]').forEach(button => button.addEventListener('click', () => setDevice(button.dataset.studioDevice)));
+    new ResizeObserver(layoutFrame).observe(stage);
 
-        const checkboxes = document.querySelectorAll('input[name="navbarShortcuts"]');
-        const maxAllowed = 6;
+    // ---- The sheet (small screens) ----------------------------------------------------------
+    const body = studio.querySelector('[data-studio-body]');
+    const panel = studio.querySelector('[data-studio-panel]');
+    const sheetBar = studio.querySelector('[data-sheet-bar]');
+    const sheetToggle = studio.querySelector('[data-sheet-toggle]');
+    const tools = studio.querySelector('[data-studio-tools]');
+    const toolsHome = tools.parentElement;
+    function setSheet(state) {
+        studio.dataset.sheet = state;
+        const full = state === 'full';
+        sheetToggle.querySelector('i').classList.toggle('rotate-180', full);
+        const label = full ? i18n.sheetCollapse : i18n.sheetExpand;
+        sheetToggle.setAttribute('aria-label', label);
+        sheetToggle.title = label;
+        try { sessionStorage.setItem('studioSheet', state); } catch (e) { /* private mode */ }
+    }
+    // Peek shows the bar and the tabs, whatever their height in this language and size.
+    function measurePeek() {
+        const tabs = panel.querySelector('[role="tablist"]');
+        studio.style.setProperty('--sheet-peek', (sheetBar.offsetHeight + tabs.offsetHeight) + 'px');
+    }
+    function placeTools() {
+        (smallScreen.matches ? sheetBar.querySelector('[data-sheet-tools]') : toolsHome).appendChild(tools);
+        setDevice(smallScreen.matches ? 'phone' : 'desktop');
+        measurePeek();
+    }
+    smallScreen.addEventListener('change', placeTools);
+    sheetToggle.addEventListener('click', () => setSheet(studio.dataset.sheet === 'full' ? 'half' : 'full'));
 
-        checkboxes.forEach(cb => {
-            cb.addEventListener('change', () => {
-                const checkedCount = document.querySelectorAll('input[name="navbarShortcuts"]:checked').length;
-                if (checkedCount > maxAllowed) {
-                    cb.checked = false;
-                    alert(<%- JSON.stringify(t('perso.nav_max')) %>);
-                }
+    // Dragged by its bar, it settles at the nearest height; a tap on the bar folds it
+    // down to the tabs, or brings it back up halfway.
+    sheetBar.addEventListener('pointerdown', (event) => {
+        if (!smallScreen.matches || event.button > 0 || event.target.closest('button, select, a, input, label')) return;
+        const startY = event.clientY;
+        const startHeight = panel.getBoundingClientRect().height;
+        const room = body.getBoundingClientRect().height;
+        const peek = sheetBar.offsetHeight + panel.querySelector('[role="tablist"]').offsetHeight;
+        let height = startHeight;
+        let moved = false;
+        studio.classList.add('is-dragging');
+        frame.style.pointerEvents = 'none';
+        const move = (ev) => {
+            const dy = ev.clientY - startY;
+            if (Math.abs(dy) > 6) moved = true;
+            height = Math.min(room, Math.max(peek, startHeight - dy));
+            studio.style.setProperty('--sheet', height + 'px');
+        };
+        const end = () => {
+            window.removeEventListener('pointermove', move);
+            window.removeEventListener('pointerup', end);
+            window.removeEventListener('pointercancel', end);
+            studio.classList.remove('is-dragging');
+            frame.style.pointerEvents = '';
+            studio.style.removeProperty('--sheet');
+            if (!moved) return setSheet(studio.dataset.sheet === 'peek' ? 'half' : 'peek');
+            const snaps = { peek, half: room * 0.55, full: room };
+            setSheet(Object.keys(snaps).reduce((a, b) => (Math.abs(snaps[b] - height) < Math.abs(snaps[a] - height) ? b : a)));
+        };
+        window.addEventListener('pointermove', move);
+        window.addEventListener('pointerup', end);
+        window.addEventListener('pointercancel', end);
+    });
+
+    studio.querySelector('[data-studio-dark]').addEventListener('click', () => {
+        darkOverride = !isDarkFrame();
+        applyDark();
+    });
+
+    // ---- What changed since the saved look ------------------------------------------
+    const stateEl = studio.querySelector('[data-studio-state]');
+    const stateText = studio.querySelector('[data-studio-state-text]');
+    const stateSmall = studio.querySelector('[data-studio-state-small]');
+    const discardButtons = [...studio.querySelectorAll('[data-studio-discard]')];
+    let justSaved = false;
+
+    function currentValues() {
+        const data = new FormData(form);
+        const values = {};
+        Object.keys(savedValues).forEach(name => {
+            if (name === 'navbarShortcuts') values[name] = data.getAll(name).map(String);
+            else values[name] = data.has(name) ? String(data.get(name)) : '';
+        });
+        return values;
+    }
+    function changedFields() {
+        const now = currentValues();
+        const offered = new Set([...form.querySelectorAll('[name="navbarShortcuts"]')].map(input => input.value));
+        return Object.keys(savedValues).filter(name => {
+            if (name === 'navbarShortcuts') {
+                const saved = savedValues[name].filter(id => offered.has(id)).sort().join();
+                return saved !== now[name].slice().sort().join();
+            }
+            // A field the form does not show (a module switched off) is not a change.
+            if (!form.querySelector(`[name="${name}"]`)) return false;
+            return now[name] !== savedValues[name];
+        });
+    }
+    function markChanges() {
+        const changed = changedFields();
+        const count = changed.length;
+        const text = count === 0
+            ? (justSaved ? i18n.saved : i18n.upToDate)
+            : (count === 1 ? i18n.changesOne : i18n.changesOther).replace('{{count}}', count);
+        stateText.textContent = text;
+        stateSmall.textContent = text;
+        stateEl.classList.toggle('text-primary-theme', count > 0);
+        stateEl.classList.toggle('bg-primary-theme/15', count > 0);
+        stateEl.classList.toggle('bg-black/5', count === 0);
+        discardButtons.forEach(button => { button.disabled = count === 0; });
+        const dirtyTabs = new Set(changed.map(TAB_OF));
+        tabs.forEach(tab => tab.querySelector('[data-tab-dot]').classList.toggle('hidden', !dirtyTabs.has(tab.dataset.studioTab)));
+    }
+
+    // ---- The draft ------------------------------------------------------------------
+    let draftTimer = null;
+    let reloadAfterDraft = false;
+    function pushDraft(reload) {
+        reloadAfterDraft = reloadAfterDraft || reload;
+        clearTimeout(draftTimer);
+        draftTimer = setTimeout(async () => {
+            const reloadNow = reloadAfterDraft;
+            reloadAfterDraft = false;
+            try {
+                await fetch(base + '/admin/personnalisation/draft', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams(new FormData(form))
+                });
+                if (reloadNow) reloadFrame();
+            } catch (e) { /* the next change sends the whole form again */ }
+        }, reload ? 120 : 400);
+    }
+
+    // ---- The controls -----------------------------------------------------------------
+    // Only the options of the navigation picked are shown.
+    function syncNavOptions() {
+        const nav = value('layout_nav');
+        form.querySelectorAll('[data-layout-for]').forEach(el => {
+            el.classList.toggle('hidden', !el.dataset.layoutFor.split(' ').includes(nav));
+        });
+    }
+
+    // Stepped sliders: the fill reaches the chosen stop, the stops before it are lit.
+    function syncSteppers() {
+        form.querySelectorAll('[data-stepper]').forEach(stepper => {
+            const inputs = [...stepper.querySelectorAll('input')];
+            const index = Math.max(0, inputs.findIndex(input => input.checked));
+            inputs.forEach((input, i) => input.nextElementSibling.classList.toggle('dv-stop-passed', i < index));
+            stepper.querySelector('[data-stepper-fill]').style.width = `calc((100% - 1.5rem) * ${inputs.length > 1 ? index / (inputs.length - 1) : 0})`;
+            stepper.querySelector('[data-stepper-value]').textContent = inputs[index].dataset.label;
+        });
+    }
+
+    // ...and they slide: pressing anywhere on the track, then dragging, picks the stop
+    // nearest the pointer as it moves (the stops sit on the track, 0.75rem in from each
+    // side, see partials/studio/stepper).
+    form.querySelectorAll('[data-stepper-track]').forEach(track => {
+        const inputs = [...track.querySelectorAll('input')];
+        const inset = parseFloat(getComputedStyle(document.documentElement).fontSize) * 0.75;
+        const pickAt = (clientX) => {
+            const box = track.getBoundingClientRect();
+            const ratio = Math.min(1, Math.max(0, (clientX - box.left - inset) / (box.width - 2 * inset)));
+            const input = inputs[Math.round(ratio * (inputs.length - 1))];
+            if (input.checked) return;
+            input.checked = true;
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+        };
+        track.addEventListener('pointerdown', (event) => {
+            if (event.button > 0) return;
+            event.preventDefault();
+            track.classList.add('is-dragging');
+            pickAt(event.clientX);
+            track.querySelector('input:checked')?.focus({ preventScroll: true });
+            const move = (ev) => pickAt(ev.clientX);
+            const end = () => {
+                track.classList.remove('is-dragging');
+                window.removeEventListener('pointermove', move);
+                window.removeEventListener('pointerup', end);
+                window.removeEventListener('pointercancel', end);
+            };
+            window.addEventListener('pointermove', move);
+            window.addEventListener('pointerup', end);
+            window.addEventListener('pointercancel', end);
+        });
+        // The press is handled above; the label's own click would pick its stop a second time.
+        track.addEventListener('click', (event) => event.preventDefault());
+    });
+
+    // ---- Ready-made styles ---------------------------------------------------------------
+    // A style is a set of field values (core/lookStyles.ts): applying one fills them in,
+    // and the style every one of them still matches is marked.
+    function fieldValue(name) {
+        const data = new FormData(form);
+        return data.has(name) ? String(data.get(name)) : '';
+    }
+    function setField(name, val) {
+        form.querySelectorAll(`[name="${name}"]`).forEach(input => {
+            if (input.type === 'radio') input.checked = input.value === val;
+            else if (input.type === 'checkbox') input.checked = val !== '' && input.value === val;
+        });
+    }
+    function setLayout(values) {
+        Object.entries(values).forEach(([key, val]) => {
+            if (key === 'headingCase') setField('layout_headingCase', val === 'upper' ? 'upper' : '');
+            else setField('layout_' + key, String(val));
+        });
+    }
+    const lookButtons = [...form.querySelectorAll('[data-look-style]')];
+    function markLook() {
+        let current = null;
+        lookButtons.forEach(button => {
+            const matches = Object.entries(JSON.parse(button.dataset.lookStyle)).every(([name, val]) => fieldValue(name) === val);
+            button.setAttribute('aria-pressed', String(matches));
+            if (matches) current = button.dataset.lookName;
+        });
+        const hint = form.querySelector('[data-look-hint]');
+        hint.textContent = current ? i18n.lookCurrent.replace('{{name}}', current) : i18n.lookCustom;
+        hint.classList.toggle('text-primary-theme', !current);
+        hint.classList.toggle('opacity-80', Boolean(current));
+    }
+    lookButtons.forEach(button => button.addEventListener('click', () => {
+        Object.entries(JSON.parse(button.dataset.lookStyle)).forEach(([name, val]) => setField(name, val));
+        mood = null;
+        justSaved = false;
+        syncAll();
+        applyLook();
+        pushDraft(true);
+    }));
+
+    // ---- Colour helpers ----------------------------------------------------------------
+    // Contrast as WCAG 2 counts it, and the text that reads on the accent, as the
+    // server picks it (core/theme.ts).
+    const channel = (hex) => {
+        const n = parseInt(hex.slice(1), 16);
+        return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    };
+    const luminance = (hex) => {
+        const [r, g, b] = channel(hex).map(c => {
+            const v = c / 255;
+            return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+        });
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const contrast = (a, b) => {
+        const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+        return (hi + 0.05) / (lo + 0.05);
+    };
+    const textOn = (accent) => {
+        const white = contrast(accent, '#ffffff');
+        return white >= 3 || white >= contrast(accent, '#111111') ? '#ffffff' : '#111111';
+    };
+
+    // A whole palette from one colour, worked out in OKLCH so that every surface keeps
+    // the colour's hue at an even lightness. The accent stays the colour picked as long
+    // as it stands out from the page (3:1), and is darkened or lightened until it does.
+    const toLinear = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+    const fromLinear = (c) => (c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055);
+    function hexToOklch(hex) {
+        const [r, g, b] = channel(hex).map(v => toLinear(v / 255));
+        const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+        const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+        const q = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+        const A = 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * q;
+        const B = 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * q;
+        return { L: 0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * q, C: Math.hypot(A, B), H: Math.atan2(B, A) };
+    }
+    function oklchToHex(L, C, H) {
+        let chroma = C;
+        let rgb = [0, 0, 0];
+        // Out of the screen's range, the colour loses saturation until it fits.
+        for (let i = 0; i < 40; i++) {
+            const A = chroma * Math.cos(H), B = chroma * Math.sin(H);
+            const l = (L + 0.3963377774 * A + 0.2158037573 * B) ** 3;
+            const m = (L - 0.1055613458 * A - 0.0638541728 * B) ** 3;
+            const q = (L - 0.0894841775 * A - 1.2914855480 * B) ** 3;
+            rgb = [
+                4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * q,
+                -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * q,
+                -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * q
+            ];
+            if (rgb.every(v => v >= -0.001 && v <= 1.001)) break;
+            chroma *= 0.9;
+        }
+        return '#' + rgb.map(v => Math.round(fromLinear(Math.min(1, Math.max(0, v))) * 255).toString(16).padStart(2, '0')).join('');
+    }
+    // How much of the colour the surfaces take.
+    const MOODS = { neutral: 0.006, tinted: 0.022, vivid: 0.05 };
+    function paletteFrom(seed, mood) {
+        const { L, C, H } = hexToOklch(seed);
+        const tint = Math.min(MOODS[mood] || MOODS.tinted, C);
+        const accentOn = (page, step) => {
+            let lightness = L;
+            let hex = seed;
+            for (let i = 0; i < 40 && contrast(hex, page) < 3; i++) {
+                lightness = Math.min(0.98, Math.max(0.05, lightness + step));
+                hex = oklchToHex(lightness, C, H);
+            }
+            return hex;
+        };
+        const light = {
+            bg: oklchToHex(0.975, tint, H),
+            card: oklchToHex(0.997, tint * 0.3, H),
+            navbar: oklchToHex(0.94, tint * 1.5, H),
+            text: oklchToHex(0.24, Math.min(0.05, C * 0.3), H),
+            subtext: oklchToHex(0.47, Math.min(0.06, C * 0.35), H)
+        };
+        light.highlight = accentOn(light.bg, -0.02);
+        const dark = {
+            bg: oklchToHex(0.19, tint, H),
+            card: oklchToHex(0.25, tint * 1.1, H),
+            navbar: oklchToHex(0.15, tint, H),
+            text: oklchToHex(0.97, Math.min(0.012, C * 0.1), H),
+            subtext: oklchToHex(0.78, Math.min(0.03, C * 0.2), H)
+        };
+        dark.highlight = accentOn(dark.bg, 0.02);
+        return { light, dark };
+    }
+
+    // ---- The collection's own palettes ------------------------------------------------
+    // The list lives in the hidden field customThemes, as the JSON the server reads and
+    // writes back (core/theme.ts), so an untouched list reads as no change. Each palette
+    // is picked like a theme, as PALETTE + its id; the one picked for the collection is
+    // the one the editor shows.
+    const palettesField = form.querySelector('[name="customThemes"]');
+    const paletteGrid = form.querySelector('[data-palette-grid]');
+    const swatchTemplate = form.querySelector('template[data-palette-swatch]');
+    const newPaletteButton = form.querySelector('[data-palette-new]');
+    const paletteEditor = form.querySelector('[data-palette-editor]');
+    const nameInput = form.querySelector('[data-palette-name]');
+    const seedInput = form.querySelector('[data-palette-seed]');
+    let palettes = JSON.parse(palettesField.value || '[]');
+    // The surfaces' share of colour last asked for, while the same palette is edited.
+    let mood = null;
+
+    const paletteLabel = (palette) => palette.name || i18n.paletteDefault.replace('{{n}}', palettes.indexOf(palette) + 1);
+    const cleanName = (name) => name.replace(/\s+/g, ' ').trim().slice(0, 40);
+    const colorsOf = (palette) => Object.fromEntries(['light', 'dark'].map(mode => [mode, Object.fromEntries(TOKENS.map(token => [token, palette[mode][token]]))]));
+    const pickedPalette = () => {
+        const picked = value('homePreset') || '';
+        return picked.startsWith(PALETTE) ? palettes.find(p => PALETTE + p.id === picked) : undefined;
+    };
+    function newPaletteId() {
+        let id = '';
+        while (!id || palettes.some(p => p.id === id)) id = Math.random().toString(36).slice(2, 10);
+        return id;
+    }
+    function writePalettes() {
+        palettesField.value = JSON.stringify(palettes.map(p => ({ id: p.id, name: cleanName(p.name || ''), ...colorsOf(p) })));
+    }
+
+    // The swatches, and the palettes the item types can pick, follow the list.
+    function drawPalettes() {
+        const picked = value('homePreset');
+        paletteGrid.querySelectorAll('label').forEach(label => label.remove());
+        palettes.forEach(palette => {
+            const label = swatchTemplate.content.firstElementChild.cloneNode(true);
+            const input = label.querySelector('input');
+            const dark = palette.dark;
+            input.value = PALETTE + palette.id;
+            input.checked = input.value === picked;
+            Object.assign(input.dataset, { label: paletteLabel(palette), bg: dark.bg, card: dark.card, nav: dark.navbar, accent: dark.highlight });
+            label.title = paletteLabel(palette);
+            label.querySelector('span').style.backgroundColor = dark.bg;
+            const dot = label.querySelector('span > span');
+            dot.style.backgroundColor = dark.highlight;
+            dot.style.boxShadow = `0 0 0 4px ${dark.card}`;
+            label.querySelector(':scope > span:last-child').textContent = paletteLabel(palette);
+            paletteGrid.insertBefore(label, newPaletteButton);
+        });
+        // A palette gone takes the collection back to the default theme.
+        if (!form.querySelector('[name="homePreset"]:checked')) setField('homePreset', 'default');
+        newPaletteButton.classList.toggle('hidden', palettes.length >= MAX_PALETTES);
+        form.querySelector('[data-palette-empty]').classList.toggle('hidden', palettes.length > 0);
+        form.querySelectorAll('select[data-type-colors]').forEach(select => {
+            const chosen = select.value;
+            const group = select.querySelector('[data-palette-options]');
+            group.replaceChildren(...palettes.map(palette => new Option(paletteLabel(palette), PALETTE + palette.id)));
+            select.value = chosen;
+            if (select.value !== chosen) select.value = INHERIT;
+        });
+    }
+
+    // The pairs of colours that have to read on each other, and how much they need. A
+    // pair that falls short is flagged on what is drawn on top (the text, the accent),
+    // with the worst of its ratios.
+    const CONTRAST_RULES = [
+        { token: 'text', against: 'bg', min: 4.5 },
+        { token: 'text', against: 'card', min: 4.5 },
+        { token: 'text', against: 'navbar', min: 4.5 },
+        { token: 'subtext', against: 'card', min: 3 },
+        { token: 'highlight', against: 'bg', min: 3 }
+    ];
+    function syncPaletteEditor() {
+        const palette = pickedPalette();
+        paletteEditor.classList.toggle('hidden', !palette);
+        if (!palette) return;
+        if (document.activeElement !== nameInput) {
+            nameInput.value = palette.name || '';
+            nameInput.placeholder = paletteLabel(palette);
+        }
+        if (document.activeElement !== seedInput) seedInput.value = palette.light.highlight;
+        paletteEditor.querySelectorAll('[data-palette-color]').forEach(input => {
+            if (document.activeElement !== input) input.value = palette[input.dataset.mode][input.dataset.token];
+        });
+        // The samples, light and dark.
+        ['light', 'dark'].forEach(mode => {
+            const pal = palette[mode];
+            const sample = paletteEditor.querySelector(`[data-palette-sample="${mode}"]`);
+            sample.style.backgroundColor = pal.bg;
+            sample.querySelector('[data-sample-icon]').style.color = pal.subtext;
+            sample.querySelector('[data-sample-nav]').style.backgroundColor = pal.navbar;
+            sample.querySelector('[data-sample-card]').style.backgroundColor = pal.card;
+            sample.querySelector('[data-sample-text]').style.color = pal.text;
+            sample.querySelector('[data-sample-subtext]').style.color = pal.subtext;
+            const button = sample.querySelector('[data-sample-button]');
+            button.style.backgroundColor = pal.highlight;
+            button.style.color = textOn(pal.highlight);
+        });
+        // Each share of colour, drawn from the colour picked, in the studio's own mode.
+        const mode = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+        paletteEditor.querySelectorAll('[data-palette-mood]').forEach(button => {
+            const pal = paletteFrom(seedInput.value, button.dataset.paletteMood)[mode];
+            button.querySelector('[data-mood-sample]').style.backgroundColor = pal.bg;
+            button.querySelector('[data-mood-card]').style.backgroundColor = pal.card;
+            button.querySelector('[data-mood-accent]').style.backgroundColor = pal.highlight;
+            button.setAttribute('aria-pressed', String(button.dataset.paletteMood === mood));
+        });
+        // Colours that do not read on each other, in either mode.
+        let warnings = 0;
+        TOKENS.forEach(token => paletteEditor.querySelector(`[data-palette-warn="${token}"]`).classList.add('hidden'));
+        const notes = {};
+        ['light', 'dark'].forEach(m => {
+            const pal = palette[m];
+            const worst = {};
+            CONTRAST_RULES.forEach(rule => {
+                const ratio = contrast(pal[rule.token], pal[rule.against]);
+                if (ratio < rule.min) worst[rule.token] = Math.min(worst[rule.token] ?? Infinity, ratio);
+            });
+            Object.entries(worst).forEach(([token, ratio]) => {
+                warnings++;
+                const text = (m === 'light' ? i18n.lowContrastLight : i18n.lowContrastDark).replace('{{ratio}}', ratio.toFixed(1));
+                notes[token] = notes[token] ? notes[token] + ' · ' + text : text;
             });
         });
-    </script>
+        Object.entries(notes).forEach(([token, text]) => {
+            const warn = paletteEditor.querySelector(`[data-palette-warn="${token}"]`);
+            warn.textContent = text;
+            warn.classList.remove('hidden');
+        });
+        const count = paletteEditor.querySelector('[data-palette-warn-count]');
+        count.textContent = warnings ? '⚠ ' + warnings : '';
+        count.classList.toggle('hidden', warnings === 0);
+    }
 
-    <%- include('partials/footer') %>
+    // While a colour is being picked, the preview takes it at once when the page it
+    // shows wears that palette; letting go saves the draft and reloads.
+    function applyCustomColors() {
+        const win = frameWindow();
+        if (!win) return;
+        const root = win.document.documentElement;
+        const palette = palettes.find(p => PALETTE + p.id === root.dataset.theme);
+        if (!palette) return;
+        const pal = palette[root.classList.contains('dark') ? 'dark' : 'light'];
+        const vars = {
+            '--bg-page': pal.bg, '--bg-card': pal.card, '--bg-nav': pal.navbar, '--text-main': pal.text,
+            '--text-sub': pal.subtext, '--highlight': pal.highlight,
+            '--highlight-rgb': channel(pal.highlight).join(' '), '--on-highlight': textOn(pal.highlight)
+        };
+        Object.entries(vars).forEach(([key, val]) => root.style.setProperty(key, val));
+    }
+
+    // Something about the palettes changed: the list is written, everything follows,
+    // and the draft goes (the preview reloads unless only a name changed).
+    function palettesChanged(reload) {
+        writePalettes();
+        drawPalettes();
+        justSaved = false;
+        syncAll();
+        pushDraft(reload);
+    }
+    // While a colour moves, only what shows it follows; the draft waits for the release.
+    function palettesMoving() {
+        writePalettes();
+        drawPalettes();
+        syncPaletteEditor();
+        syncColors();
+        applyCustomColors();
+    }
+    function addPalette(colors, name) {
+        const palette = { id: newPaletteId(), name, ...colors };
+        palettes.push(palette);
+        writePalettes();
+        drawPalettes();
+        setField('homePreset', PALETTE + palette.id);
+        mood = null;
+        palettesChanged(true);
+    }
+
+    // A new palette starts from the colours picked, whichever they are.
+    newPaletteButton.addEventListener('click', () => {
+        if (palettes.length >= MAX_PALETTES) return;
+        const picked = value('homePreset') || 'default';
+        const from = pickedPalette() || themePresets[picked] || themePresets.default;
+        addPalette(JSON.parse(JSON.stringify(colorsOf(from))), i18n.paletteDefault.replace('{{n}}', palettes.length + 1));
+        nameInput.focus();
+        nameInput.select();
+    });
+    form.querySelector('[data-palette-duplicate]').addEventListener('click', () => {
+        const palette = pickedPalette();
+        if (!palette || palettes.length >= MAX_PALETTES) return;
+        addPalette(JSON.parse(JSON.stringify(colorsOf(palette))), cleanName(i18n.paletteCopy.replace('{{name}}', paletteLabel(palette))));
+    });
+    form.querySelector('[data-palette-delete]').addEventListener('click', () => {
+        const palette = pickedPalette();
+        if (!palette || !confirm(i18n.paletteDeleteConfirm)) return;
+        palettes = palettes.filter(p => p !== palette);
+        setField('homePreset', 'default');
+        palettesChanged(true);
+    });
+    nameInput.addEventListener('input', () => {
+        const palette = pickedPalette();
+        if (!palette) return;
+        palette.name = nameInput.value;
+        palettesChanged(false);
+    });
+    nameInput.addEventListener('blur', () => syncPaletteEditor());
+
+    // The colour picked, and how much of it the surfaces take, make the whole palette.
+    function regenerate() {
+        const palette = pickedPalette();
+        if (!palette) return;
+        Object.assign(palette, paletteFrom(seedInput.value, mood || 'tinted'));
+    }
+    seedInput.addEventListener('input', () => { regenerate(); palettesMoving(); });
+    seedInput.addEventListener('change', () => palettesChanged(true));
+    form.querySelectorAll('[data-palette-quick]').forEach(button => button.addEventListener('click', () => {
+        seedInput.value = button.dataset.paletteQuick;
+        regenerate();
+        palettesChanged(true);
+    }));
+    form.querySelectorAll('[data-palette-mood]').forEach(button => button.addEventListener('click', () => {
+        mood = button.dataset.paletteMood;
+        regenerate();
+        palettesChanged(true);
+    }));
+    form.querySelectorAll('[data-palette-color]').forEach(input => {
+        input.addEventListener('input', () => {
+            const palette = pickedPalette();
+            if (!palette) return;
+            palette[input.dataset.mode][input.dataset.token] = input.value;
+            palettesMoving();
+        });
+        input.addEventListener('change', () => palettesChanged(true));
+    });
+
+    // The colours picked paint the thumbnails, and their name shows above them.
+    function syncColors() {
+        const picked = form.querySelector('[name="homePreset"]:checked');
+        if (!picked) return;
+        const panel = studio.querySelector('[data-studio-panel]');
+        panel.style.setProperty('--thumb-bg', picked.dataset.bg);
+        panel.style.setProperty('--thumb-card', picked.dataset.card);
+        panel.style.setProperty('--thumb-nav', picked.dataset.nav);
+        panel.style.setProperty('--thumb-accent', picked.dataset.accent);
+        form.querySelector('[data-theme-name]').textContent = picked.dataset.label;
+    }
+
+    // ---- Ambience ------------------------------------------------------------------------
+    // Only the options of the background picked are shown.
+    function syncAmbience() {
+        const background = value('ambience_background');
+        form.querySelectorAll('[data-ambience-for]').forEach(el => {
+            el.classList.toggle('hidden', !el.dataset.ambienceFor.split(' ').includes(background));
+        });
+    }
+
+    // The logo and the picture are uploaded as soon as they are chosen, scaled down and
+    // made JPEG first (the upload pool only takes that), and their path goes into the
+    // hidden field the draft and the save read.
+    const UPLOAD_EDGE = { logo: 512, image: 2400 };
+    const ambienceStatus = form.querySelector('[data-ambience-status]');
+    function shrink(file, maxEdge) {
+        return new Promise((resolve, reject) => {
+            const url = URL.createObjectURL(file);
+            const img = new Image();
+            img.onload = () => {
+                URL.revokeObjectURL(url);
+                const scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.max(1, Math.round(img.width * scale));
+                canvas.height = Math.max(1, Math.round(img.height * scale));
+                const context = canvas.getContext('2d');
+                // A transparent logo gets the page behind it rather than black.
+                context.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg-card') || '#ffffff';
+                context.fillRect(0, 0, canvas.width, canvas.height);
+                context.drawImage(img, 0, 0, canvas.width, canvas.height);
+                canvas.toBlob(blob => (blob ? resolve(blob) : reject(new Error('encode'))), 'image/jpeg', 0.86);
+            };
+            img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('load')); };
+            img.src = url;
+        });
+    }
+    function setAmbienceImage(kind, path) {
+        const field = form.querySelector(`[name="ambience_${kind}"]`);
+        field.value = path;
+        const preview = form.querySelector(`[data-ambience-preview="${kind}"]`);
+        if (kind === 'logo') preview.src = path ? base + path : preview.dataset.defaultSrc;
+        else {
+            preview.src = path ? base + path : '';
+            preview.classList.toggle('hidden', !path);
+            form.querySelector('[data-ambience-empty]').classList.toggle('hidden', Boolean(path));
+        }
+        form.querySelector(`[data-ambience-clear="${kind}"]`).classList.toggle('hidden', !path);
+        field.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    form.querySelectorAll('[data-ambience-upload]').forEach(input => input.addEventListener('change', async () => {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        const kind = input.dataset.ambienceUpload;
+        input.disabled = true;
+        ambienceStatus.textContent = i18n.uploading;
+        ambienceStatus.classList.remove('hidden', 'text-red-500');
+        try {
+            const upload = new FormData();
+            upload.append('image', await shrink(file, UPLOAD_EDGE[kind]), kind + '.jpg');
+            const response = await fetch(base + '/api/item-images/upload', { method: 'POST', body: upload });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || typeof data.url !== 'string') throw new Error(data.error || i18n.uploadFailed);
+            setAmbienceImage(kind, data.url);
+            ambienceStatus.classList.add('hidden');
+        } catch (e) {
+            ambienceStatus.textContent = e.message && e.message !== 'load' && e.message !== 'encode' ? e.message : i18n.uploadFailed;
+            ambienceStatus.classList.add('text-red-500');
+        } finally {
+            input.disabled = false;
+            input.value = '';
+        }
+    }));
+    form.querySelectorAll('[data-ambience-clear]').forEach(button => button.addEventListener('click', () => {
+        setAmbienceImage(button.dataset.ambienceClear, '');
+    }));
+
+    // ---- Fonts ---------------------------------------------------------------------------
+    function syncFontSample() {
+        const font = value('layout_font');
+        const headingFont = value('layout_headingFont');
+        const upper = value('layout_headingCase') === 'upper';
+        const heading = form.querySelector('[data-font-sample-heading]');
+        heading.style.fontFamily = layoutOptions.fontStacks[headingFont && headingFont !== 'same' ? headingFont : font];
+        heading.style.fontSynthesis = headingFont && headingFont !== 'same' ? 'style' : '';
+        heading.classList.toggle('uppercase', upper);
+        heading.classList.toggle('tracking-wide', upper);
+        form.querySelector('[data-font-sample-body]').style.fontFamily = layoutOptions.fontStacks[font];
+    }
+    const pairButtons = [...form.querySelectorAll('[data-font-pair]')];
+    function markPairs() {
+        pairButtons.forEach(button => {
+            const pair = JSON.parse(button.dataset.fontPair);
+            const matches = value('layout_font') === pair.font && value('layout_headingFont') === pair.headingFont
+                && (value('layout_headingCase') || 'normal') === pair.headingCase;
+            button.setAttribute('aria-pressed', String(matches));
+        });
+    }
+    pairButtons.forEach(button => button.addEventListener('click', () => {
+        const pair = JSON.parse(button.dataset.fontPair);
+        setLayout(pair);
+        justSaved = false;
+        syncAll();
+        applyLook();
+        pushDraft(false);
+    }));
+
+    function syncShortcuts() {
+        form.querySelector('[data-shortcut-count]').textContent = form.querySelectorAll('[name="navbarShortcuts"]:checked').length;
+    }
+
+    function syncAll() {
+        syncNavOptions();
+        syncSteppers();
+        markLook();
+        syncPaletteEditor();
+        syncColors();
+        syncFontSample();
+        markPairs();
+        syncAmbience();
+        syncShortcuts();
+        markChanges();
+    }
+
+    const RESTYLE_ONLY = /^layout_(density|radius|scale|width|font|headingFont|headingCase)$/;
+    form.addEventListener('change', (event) => {
+        const name = event.target.name;
+        if (!name) return; // the packs section's and the palette editor's own fields
+        if (name === 'homePreset') mood = null;
+        if (name === 'navbarShortcuts' && event.target.checked
+            && form.querySelectorAll('[name="navbarShortcuts"]:checked').length > 6) {
+            event.target.checked = false;
+            return alert(i18n.maxShortcuts);
+        }
+        justSaved = false;
+        syncAll();
+        if (RESTYLE_ONLY.test(name)) {
+            applyLook();
+            pushDraft(false);
+        } else {
+            pushDraft(true);
+        }
+    });
+
+    function stayOnTab() {
+        try { sessionStorage.setItem('studioStay', '1'); } catch (e) { /* private mode */ }
+    }
+
+    discardButtons.forEach(button => button.addEventListener('click', async () => {
+        if (!confirm(i18n.discardConfirm)) return;
+        await fetch(base + '/admin/personnalisation/draft/discard', { method: 'POST' });
+        stayOnTab();
+        window.location.href = window.location.pathname;
+    }));
+
+    // ---- The home page ------------------------------------------------------------------
+    form.querySelector('[data-studio-arrange]').addEventListener('click', () => {
+        const url = inStudio('/dashboard');
+        url.hash = 'arrange';
+        frame.src = url.toString();
+        // Widgets are arranged in the preview: on a small screen it gets the room.
+        if (smallScreen.matches) setSheet('peek');
+    });
+    // The navigation only applies to large screens: a small one can show it there.
+    form.querySelectorAll('[data-studio-show-device]').forEach(button => button.addEventListener('click', () => {
+        setDevice(button.dataset.studioShowDevice);
+        if (studio.dataset.sheet === 'full') setSheet('half');
+    }));
+
+    // ---- Start --------------------------------------------------------------------------
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('msg') === 'saved') {
+        justSaved = true;
+        history.replaceState(null, '', window.location.pathname);
+    }
+    // Opened afresh, the studio starts on Style; reloaded or discarded, it stays
+    // on the tab it was on.
+    let startTab = <%- JSON.stringify(startArrange ? 'home' : null).replace(/</g, '\\u003c') %>;
+    const navigation = performance.getEntriesByType('navigation')[0];
+    try {
+        const stay = sessionStorage.getItem('studioStay') === '1' || (navigation && navigation.type === 'reload');
+        sessionStorage.removeItem('studioStay');
+        if (!startTab && stay) startTab = sessionStorage.getItem('studioTab');
+    } catch (e) { /* private mode */ }
+    if (startTab && tabs.some(tab => tab.dataset.studioTab === startTab)) showTab(startTab);
+    syncAll();
+    syncDarkLabel();
+    placeTools();
+    let startSheet = null;
+    try { startSheet = sessionStorage.getItem('studioSheet'); } catch (e) { /* private mode */ }
+    setSheet(<%- JSON.stringify(Boolean(startArrange)).replace(/</g, '\\u003c') %> ? 'peek' : (['peek', 'half', 'full'].includes(startSheet) ? startSheet : 'half'));
+    const start = inStudio(<%- JSON.stringify(startPage).replace(/</g, '\\u003c') %>);
+    if (<%- JSON.stringify(Boolean(startArrange)).replace(/</g, '\\u003c') %>) start.hash = 'arrange';
+    frame.src = start.toString();
+})();
+</script>
+
+<%- include('partials/footer') %>

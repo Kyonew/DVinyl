@@ -1,13 +1,19 @@
 # 🚀 Installation
 
 There are several ways to run DVinyl. Pick the one that fits your setup, they all end up at the same
-app. Whatever you choose, DVinyl always needs a **MongoDB** database to store your collection.
+app. Your whole collection lives in one SQLite file in DVinyl's `data` folder: there is no
+database server to install.
+
+> [!NOTE]
+> Upgrading from 3.x, which used MongoDB? Nothing to change: 4.0 keeps running on it until you
+> move to SQLite, whenever you like. See [Moving to SQLite](./docker.md#-moving-to-sqlite).
 
 | Method | Best for | Guide |
 | :----- | :------- | :---- |
 | 🐳 Docker | Most people, quickest path | [Docker deployment](./docker.md) (recommended) |
 | 🧊 ZimaOS | ZimaOS / CasaOS users (1-click app store) | [Section below](#-zimaos) |
 | 🧡 Unraid | Unraid server users | [Section below](#-unraid) |
+| 🐧 Proxmox LXC | A small Linux container instead of Docker | [Section below](#-proxmox-lxc) |
 | 🛠️ Manual (Node.js) | Developers and custom setups | [Section below](#-manual-nodejs) |
 
 Before you start, grab the [API keys](./api-keys.md) for the media types you want to use. You can
@@ -15,8 +21,7 @@ always add them later.
 
 ## 🐳 Docker (recommended)
 
-The fastest and cleanest way to run DVinyl. It brings its own MongoDB, so there is nothing else to
-install.
+The fastest and cleanest way to run DVinyl: one container, nothing else to install.
 
 1. Create a `docker-compose.yml` and a `.env` file.
 2. Run `docker compose up -d`.
@@ -41,23 +46,26 @@ DVinyl can be installed via the community **TwoBytes Store**:
 
 DVinyl ships with an Unraid Community App template.
 
-1. **Install MongoDB first.** DVinyl needs a database. Add a MongoDB container from Community
-   Applications (or use an existing one) and note its IP and port.
-2. **Add DVinyl.** If it is not in Community Applications yet, add it from its template URL:
+1. **Add DVinyl.** If it is not in Community Applications yet, add it from its template URL:
    ```
    https://raw.githubusercontent.com/Kyonew/DVinyl/main/unraid-template/dvinyl.xml
    ```
-3. **Fill in the required settings:**
-   - `MONGODB_URL`: point it to your MongoDB container, for example
-     `mongodb://<mongodb-ip>:27017/dvinyl`.
+2. **Fill in the required settings:**
    - `PASSJWT` and `SESSION_SECRET`: two different random secrets, both required. Generate
      each with `openssl rand -hex 32`. The container will not start while one is empty or
      left at the placeholder the template used to ship.
+   - **Data volume**: map it to a persistent path, for example `/mnt/user/appdata/dvinyl/data`.
+     Your collection is the SQLite file inside it.
    - **Uploads volume**: map it to a persistent path, for example
      `/mnt/user/appdata/dvinyl/uploads`.
-4. **Add API keys** (optional, in the advanced settings) for the media types you want, see
+3. **Add API keys** (optional, in the advanced settings) for the media types you want, see
    [API keys](./api-keys.md).
-5. Start the container and open `http://<server-ip>:3099`.
+4. Start the container and open `http://<server-ip>:3099`.
+
+> [!NOTE]
+> **Upgrading from 3.x?** Your container keeps running on MongoDB as before. To move to SQLite,
+> add the **Data volume** and leave the **MongoDB URL** setting as it is: the next start copies
+> everything over. See [Moving to SQLite](./docker.md#on-unraid).
 
 ## 🛠️ Manual (Node.js)
 
@@ -65,9 +73,11 @@ Best if you want to run from source or customize the code.
 
 ### Prerequisites
 
-- **Node.js** 18 or higher
-- **npm**
-- A running **MongoDB** 6 or higher
+- **Node.js** 22 or higher, with **npm**
+- **Build tools** for the SQLite module, which `npm install` compiles: Python 3, make and a C++
+  compiler. On Debian or Ubuntu: `sudo apt install build-essential python3`. On macOS:
+  `xcode-select --install`.
+- **git**, to get the code
 
 ### Steps
 
@@ -98,6 +108,78 @@ DVinyl is then available at `http://localhost:3099`.
 > Run `make help` to see every available command. To keep DVinyl running in the background you can
 > use pm2: `pm2 start app.ts --interpreter tsx --name dvinyl`.
 
+## 🐧 Proxmox LXC
+
+From 4.0, DVinyl is one Node.js app and one data folder, so it runs well in a small LXC without
+Docker. There is no official LXC image: these steps install it from source in a Debian 12 (or
+newer) container, as a service that starts with the container. Run them as root inside it.
+
+1. **Create the container** in Proxmox from a Debian 12 template. 1 CPU, 1 GB of RAM and 8 GB of
+   disk are plenty for a personal collection.
+2. **Install Node.js, the build tools and git:**
+   ```bash
+   apt update && apt install -y curl ca-certificates git build-essential python3
+   curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+   apt install -y nodejs
+   ```
+3. **Get DVinyl and its dependencies:**
+   ```bash
+   git clone https://github.com/Kyonew/DVinyl.git /opt/DVinyl
+   cd /opt/DVinyl
+   npm install
+   cp .env.example .env
+   ```
+4. **Fill in `.env`**: at least `PASSJWT` and `SESSION_SECRET`, two different values from
+   `openssl rand -hex 32`. See [environment variables](#-environment-variables) and
+   [API keys](./api-keys.md) for the rest.
+5. **Give it a user of its own** rather than running it as root:
+   ```bash
+   useradd --system --home /opt/DVinyl --shell /usr/sbin/nologin dvinyl
+   chown -R dvinyl:dvinyl /opt/DVinyl
+   ```
+6. **Make it a service.** Create `/etc/systemd/system/dvinyl.service`:
+   ```ini
+   [Unit]
+   Description=DVinyl
+   After=network-online.target
+   Wants=network-online.target
+
+   [Service]
+   User=dvinyl
+   WorkingDirectory=/opt/DVinyl
+   ExecStart=/usr/bin/node --env-file=.env --import tsx app.ts
+   Restart=on-failure
+   TimeoutStopSec=20
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+   Then start it, now and at every boot:
+   ```bash
+   systemctl daemon-reload
+   systemctl enable --now dvinyl
+   journalctl -u dvinyl -f    # the log; Ctrl+C to leave it
+   ```
+7. Open `http://<container-ip>:3099` and create your admin account.
+
+Your whole collection is in `/opt/DVinyl/data` and your images in `/opt/DVinyl/public/uploads`:
+those two folders are what to back up, along with the automatic backups you can turn on from the
+**Instance** admin page. Proxmox snapshots and backups of the container cover them too.
+
+**Updating:**
+```bash
+cd /opt/DVinyl
+systemctl stop dvinyl
+git pull
+npm install
+chown -R dvinyl:dvinyl /opt/DVinyl
+systemctl start dvinyl
+```
+
+> [!NOTE]
+> Stop the service before starting DVinyl by hand in the same folder: only one DVinyl at a time can
+> use a data folder, and a second one stops with `[DATA] Another DVinyl is already running`.
+
 ## 🔐 Environment variables
 
 These are the core variables. See [API keys](./api-keys.md) for the metadata service keys, and
@@ -105,12 +187,16 @@ These are the core variables. See [API keys](./api-keys.md) for the metadata ser
 
 | Variable | Description |
 | :------- | :---------- |
-| `MONGODB_URL` | MongoDB connection string |
+| `SQLITE_PATH` | Where the SQLite file lives (default `data/dvinyl.sqlite`) |
+| `MONGODB_URL` | Only when upgrading from 3.x: the MongoDB the install ran on. DVinyl keeps running on it while no data folder is mounted, then copies it into SQLite once |
+| `DB_DRIVER` | `sqlite` or `mongodb` to force the store, chosen on its own when unset |
 | `VINYL_PORT` | Port DVinyl listens on (default `3099`) |
 | `PASSJWT` | Secret used to sign session tokens |
 | `SESSION_SECRET` | Secret used to encrypt sessions |
 | `PROD` | Set to `true` **only** when serving over HTTPS |
 | `BASE_URL` | Sub-path prefix, leave empty to serve from the root |
+| `SETUP_TOKEN` | Optional. Asked on the first-run setup page (and to restore a backup on an empty instance), so nobody else can claim a fresh install first. Generate one with `openssl rand -hex 16` |
+| `BACKUP_DIR` | Optional. Sets and locks the folder of the automatic backups (default `data/backups`) |
 
 > [!IMPORTANT]
 > Use `PROD=true` **only with HTTPS**. For localhost or a local IP, leave `PROD=false`.

@@ -3,7 +3,9 @@ node_modules
 .env
 mongo_data
 mongo_data_test
+data_test
 dist
+.claude
 
 # Runtime uploads (avatars, item images). Kept out of the image so a local
 # `docker compose up --build` never bakes the builder's own files into it; every
@@ -12,3 +14,6 @@ public/uploads
 
 # ScreenScraper developer pair: only the CI build may write it into an image
 plugins/games/screenscraper.dev.json
+
+# The SQLite database of a local run
+data

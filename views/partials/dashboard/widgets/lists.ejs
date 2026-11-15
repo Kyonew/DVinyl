@@ -1,0 +1,23 @@
+<div class="card-theme h-full rounded-2xl p-5 md:p-6 flex flex-col gap-3">
+    <div class="flex items-baseline justify-between gap-3">
+        <h3 class="font-bold"><%= t('lists.title') %></h3>
+        <a href="<%= baseUrl %>/lists" class="text-sm font-bold text-primary-theme whitespace-nowrap"><%= t('index.view_everything') %></a>
+    </div>
+    <% if (!data || data.length === 0) { %>
+        <p class="text-sm opacity-60"><%= t('dashboard.lists_empty') %></p>
+    <% } else { %>
+    <ul class="flex flex-col -mx-1">
+        <% data.forEach(list => { %>
+            <li>
+                <a href="<%= baseUrl %>/lists/<%= list.id %>" class="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+                    <span class="w-8 h-8 flex-none rounded-lg bg-primary-theme/15 text-primary-theme flex items-center justify-center">
+                        <i class="fa-solid <%= list.kind === 'tracks' ? 'fa-music' : 'fa-list-ul' %> text-sm" aria-hidden="true"></i>
+                    </span>
+                    <span class="flex-1 min-w-0 truncate font-semibold text-sm"><%= list.name %></span>
+                    <span class="text-xs opacity-60 tabular-nums"><%= list.count %></span>
+                </a>
+            </li>
+        <% }) %>
+    </ul>
+    <% } %>
+</div>

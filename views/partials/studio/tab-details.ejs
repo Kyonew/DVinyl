@@ -1,0 +1,18 @@
+<%#
+    Studio tab "Details": what restyles the whole interface without moving anything,
+    applied to the preview at once (density, corners, size, width). Fonts have their own
+    tab (tab-text), and so do the cards (tab-cards).
+%>
+<%
+    const detailLayout = resolveLayout(settings);
+    const stepOptions = (key) => LAYOUT_OPTIONS[key].map(v => ({ value: v, label: t('layout.' + key + '_' + v) }));
+%>
+<div class="flex flex-col gap-1.5">
+    <h2 class="text-xl font-extrabold max-lg:hidden"><%= t('studio.tab_details') %></h2>
+    <p class="text-sm opacity-60"><%= t('studio.details_desc') %></p>
+</div>
+
+<%- include('stepper', { name: 'layout_density', label: t('layout.density'), options: stepOptions('density'), current: detailLayout.density }) %>
+<%- include('stepper', { name: 'layout_radius', label: t('layout.radius'), options: stepOptions('radius'), current: detailLayout.radius }) %>
+<%- include('stepper', { name: 'layout_scale', label: t('layout.scale'), options: stepOptions('scale'), current: detailLayout.scale }) %>
+<%- include('stepper', { name: 'layout_width', label: t('layout.width'), options: stepOptions('width'), current: detailLayout.width }) %>

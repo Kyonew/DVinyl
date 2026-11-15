@@ -1,5 +1,7 @@
 import { PluginDefinition, ExternalSource, SearchProvider } from './types';
 import { PermanentRefreshError } from './helpers';
+import { metadataLanguage } from './metadataLanguage';
+import { keepOwnerValues } from './keptFields';
 
 /**
  * Where a plugin looks items up, and which of those places is usable right now.
@@ -183,9 +185,14 @@ export function hasSearch(plugin: PluginDefinition): boolean {
  * Whether the plugin's add page offers the barcode scanner, which every "scan" shortcut
  * links straight into. A search is required to have an add page at all, and a plugin
  * whose search ignores barcodes opts out with `noBarcodeScan`.
+ *
+ * A trading-card plugin opts out too, implicitly: `supportsCardScan` swaps the add page's
+ * barcode reader for a photo flow (see its own comment in types.ts), so the barcode
+ * shortcut would otherwise open a scanner the plugin has no use for. Cards have no
+ * retail barcode to read, and the add page's "Scan card" button is the entry point.
  */
 export function hasBarcodeScan(plugin: PluginDefinition): boolean {
-  return hasSearch(plugin) && !plugin.noBarcodeScan;
+  return hasSearch(plugin) && !plugin.noBarcodeScan && !plugin.supportsCardScan;
 }
 
 /**
@@ -257,6 +264,17 @@ export function canRefresh(plugin: PluginDefinition): boolean {
 }
 
 /**
+ * Whether the item points at a record of a source that a refresh can read: the stored
+ * source pair, or the plugin's own id field. An item typed in by hand carries neither, and
+ * every refresh path needs one of them.
+ */
+export function isLinkedToSource(plugin: PluginDefinition, item: any): boolean {
+  if (item?.source && item?.source_id) return true;
+  const field = plugin.externalIdField;
+  return Boolean(field && item?.[field] !== undefined && item[field] !== null && String(item[field]).trim() !== '');
+}
+
+/**
  * Fresh metadata for one item, as a patch for the caller to write.
  *
  * The item's own source answers first, when the plugin can merge what a source returns.
@@ -291,12 +309,13 @@ export async function refreshPatchFor(
         // only an admin restarting the instance can change.
         throw new PermanentRefreshError(`${source.name} is not configured`);
       }
-      const details = await source.getDetails(String(externalId), { language: req?.language });
-      return plugin.mergeRefresh(item, details);
+      const details = await source.getDetails(String(externalId), { language: metadataLanguage(req) });
+      return keepOwnerValues(item, plugin.mergeRefresh(item, details));
     }
   }
 
-  if (plugin.refreshItem) return plugin.refreshItem(item, req);
+  // Whatever the way in, the fields the owner rewrote by hand stay theirs.
+  if (plugin.refreshItem) return keepOwnerValues(item, await plugin.refreshItem(item, req));
 
   throw new PermanentRefreshError('This item carries nothing to refresh it from');
 }

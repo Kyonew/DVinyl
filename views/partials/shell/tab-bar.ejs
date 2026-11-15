@@ -14,7 +14,7 @@
   let activeTab = 'collection';
   if (tabPathIn('/dashboard')) activeTab = 'home';
   else if (tabPathIn('/lists')) activeTab = 'lists';
-  else if (tabPathIn('/account') || tabPathIn('/settings') || tabPathIn('/admin') || tabPathIn('/create-plugin')) activeTab = 'account';
+  else if (tabPathIn('/account') || tabPathIn('/settings') || tabPathIn('/admin') || tabPathIn('/create-plugin') || tabPathIn('/notifications') || tabPathIn('/requests')) activeTab = 'account';
 
   const tabCanAdd = Boolean(locals.canEditCollection) && registry.getEnabled(settings).length > 0;
   const tabClass = (id) => 'flex flex-col items-center justify-center gap-1 h-full min-w-0 text-[10.5px] font-bold transition-colors '
@@ -46,7 +46,10 @@
       <span data-tab-label class="truncate max-w-full px-1"><%= t('lists.title') %></span>
     </a>
     <a href="<%= baseUrl %>/account" class="<%= tabClass('account') %>" <%- activeTab === 'account' ? 'aria-current="page"' : '' %>>
-      <img src="<%= baseUrl + user.img %>" alt="" class="w-6 h-6 rounded-full object-cover <%= activeTab === 'account' ? 'ring-2 ring-primary-theme' : '' %>">
+      <span class="relative">
+        <img src="<%= baseUrl + user.img %>" alt="" class="w-6 h-6 rounded-full object-cover <%= activeTab === 'account' ? 'ring-2 ring-primary-theme' : '' %>">
+        <%- include('notif-badge') %>
+      </span>
       <span data-tab-label class="truncate max-w-full px-1"><%= t('nav.account') %></span>
     </a>
   </div>

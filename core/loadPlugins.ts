@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import type { StoredFields } from './db/storedFields';
 import { registry } from './registry';
 import { PluginDefinition } from './types';
 import { EXTRA_FIELD_PREFIX } from './extraFieldIdentity';
@@ -103,7 +104,23 @@ function isPlugin(value: any): value is PluginDefinition {
     && typeof value === 'object'
     && typeof value.id === 'string'
     && typeof value.kind === 'string'
-    && !!value.schemaDefinition;
+    && (!!value.storedFields || !!value.schemaDefinition);
+}
+
+const STORED_FIELD_TYPES = new Set(['text', 'number', 'boolean', 'date', 'texts', 'records']);
+
+function storedFieldProblems(fields: StoredFields, prefix = ''): string[] {
+  const problems: string[] = [];
+  for (const [name, field] of Object.entries(fields)) {
+    const path = `${prefix}${name}`;
+    if (!field || typeof field !== 'object' || !STORED_FIELD_TYPES.has(field.type)) {
+      problems.push(`stored field "${path}" needs a type among ${[...STORED_FIELD_TYPES].join(', ')}`);
+    } else if (field.type === 'records') {
+      if (!field.fields || typeof field.fields !== 'object') problems.push(`stored field "${path}" lists records but declares no fields for them`);
+      else problems.push(...storedFieldProblems(field.fields, `${path}.`));
+    }
+  }
+  return problems;
 }
 
 /** Returns a list of contract violations (empty = valid). Keeps error messages actionable for plugin authors. */
@@ -116,7 +133,11 @@ function validatePlugin(p: PluginDefinition, dir: string): string[] {
     }
   }
   if (p.routePrefix && !p.routePrefix.startsWith('/')) problems.push(`routePrefix "${p.routePrefix}" must start with "/"`);
-  if (!p.schemaDefinition || typeof p.schemaDefinition !== 'object') problems.push('missing schemaDefinition object');
+  if ((p as any).schemaDefinition) {
+    problems.push('declares "schemaDefinition", which 4.0 replaced by "storedFields" (see core/db/storedFields.ts)');
+  }
+  if (!p.storedFields || typeof p.storedFields !== 'object') problems.push('missing storedFields object');
+  else problems.push(...storedFieldProblems(p.storedFields));
   if (!Array.isArray(p.formFields) || p.formFields.length === 0) problems.push('formFields must be a non-empty array');
   if (!Array.isArray(p.formats)) problems.push('formats must be an array');
   // The generated identities of per-collection fields live here. No code plugin may
@@ -125,7 +146,7 @@ function validatePlugin(p: PluginDefinition, dir: string): string[] {
   // their builder validation and avoid generated keys during migration.
   if (!(p as any).customConfig) {
     const declaredNames = new Set([
-      ...Object.keys(p.schemaDefinition || {}),
+      ...Object.keys(p.storedFields || {}),
       ...(p.formFields || []).map(field => field.name)
     ]);
     for (const name of declaredNames) {
@@ -137,9 +158,9 @@ function validatePlugin(p: PluginDefinition, dir: string): string[] {
   for (const fn of ['getStats', 'formatForView', 'findDuplicate', 'getVariants'] as const) {
     if (typeof (p as any)[fn] !== 'function') problems.push(`missing required method "${fn}()"`);
   }
-  if (p.creatorField && p.schemaDefinition && !(p.creatorField in p.schemaDefinition)) {
-    // creatorField may legitimately live on the base Item schema; warn softly rather than reject
-    console.warn(`[PluginLoader] plugins/${dir}: creatorField "${p.creatorField}" is not in schemaDefinition (ok if on the base Item schema).`);
+  if (p.creatorField && p.storedFields && !(p.creatorField in p.storedFields)) {
+    // creatorField may legitimately be one every item has; warn softly rather than reject
+    console.warn(`[PluginLoader] plugins/${dir}: creatorField "${p.creatorField}" is not in storedFields (ok if every item has it).`);
   }
   return problems;
 }

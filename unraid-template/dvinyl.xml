@@ -9,7 +9,7 @@
   <Support>https://github.com/Kyonew/DVinyl/issues</Support>
   <Project>https://github.com/Kyonew/DVinyl</Project>
   <Overview>A self-hosted, plugin based collection manager for your Vinyls, CDs, Books, Movies, Games and LEGO sets.</Overview>
-  <Description>DVinyl is a self-hosted collection manager for physical media. Catalog, value and organize your music, books, movies, video games and LEGO sets from one customizable interface. Every media type is a plugin, so you enable only what you need. Note: Requires a separate MongoDB instance.</Description>
+  <Description>DVinyl is a self-hosted collection manager for physical media. Catalog, value and organize your music, books, movies, video games and LEGO sets from one customizable interface. Every media type is a plugin, so you enable only what you need. Keeps everything in one SQLite file in the Data volume: no database container needed.</Description>
   <Category>MediaApp:Books MediaApp:Video MediaApp:Other</Category>
   <WebUI>http://[IP]:[PORT:3099]</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/Kyonew/DVinyl/main/unraid-template/dvinyl.xml</TemplateURL>
@@ -20,15 +20,21 @@
   <DateInstalled></DateInstalled>
   <DonateText/>
   <DonateLink/>
-  <Requires>MongoDB database. Install a MongoDB container first and link it via the MONGODB_URL variable. Recommended image: mongo:latest. Note the trade-off: latest can eventually jump a major version, and MongoDB refuses to start on data files a newer version already wrote, so export your database before any major upgrade. MongoDB 5.0+ needs a CPU with AVX support; on older hardware without AVX, use mongo:4.4.18 on a fresh database instead. Never point an older MongoDB at data files a newer version already wrote (downgrades are refused), and upgrade only one major at a time.</Requires>
+  <Requires>Nothing else: DVinyl keeps its whole collection in one SQLite file, in the Data volume. Upgrading from 3.x, which used MongoDB: nothing to change, DVinyl keeps running on it until the Data volume is set. Then the next start copies everything into SQLite (MongoDB is only read), after which you can clear the MongoDB URL setting and remove the MongoDB container. Guide: https://github.com/Kyonew/DVinyl/blob/main/docs/docker.md#-moving-to-sqlite</Requires>
   
   <Config Name="WebUI Port" Target="3099" Default="3099" Mode="tcp" Description="The port DVinyl will be accessible on." Type="Port" Display="always" Required="true" Mask="false">3099</Config>
   
+  <Config Name="Data Volume" Target="/app/data" Default="/mnt/user/appdata/dvinyl/data" Mode="rw" Description="Where DVinyl keeps your collection: one SQLite file. Required on a new install: the container refuses to start while it is not set. Back this folder up." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/dvinyl/data</Config>
+  
+  <Config Name="Backups Folder" Target="BACKUP_DIR" Default="" Mode="" Description="Optional. Fixes the folder of automatic backups, a path inside the container, and locks that field on the Instance admin page (Backup tab). Leave empty to choose it on that page." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  
   <Config Name="Uploads Volume" Target="/app/public/uploads" Default="/mnt/user/appdata/dvinyl/uploads" Mode="rw" Description="Directory to store uploaded files like covers." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/dvinyl/uploads</Config>
   
-  <Config Name="MongoDB URL" Target="MONGODB_URL" Default="mongodb://[IP_OF_MONGODB]:27017/dvinyl" Mode="" Description="Connection string for your MongoDB instance. Replace [IP_OF_MONGODB] with your MongoDB container IP or Unraid IP if hosted on the same custom network." Type="Variable" Display="always" Required="true" Mask="false">mongodb://[IP_OF_MONGODB]:27017/dvinyl</Config>
+  <Config Name="MongoDB URL (upgrade from 3.x only)" Target="MONGODB_URL" Default="" Mode="" Description="Only to upgrade from DVinyl 3.x: the MongoDB your data is on, for example mongodb://[IP_OF_MONGODB]:27017/dvinyl. DVinyl keeps running on it until the Data volume is set; the next start then copies everything into SQLite, after which this is no longer read and can be cleared. Leave empty on a new install." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
   <Config Name="JWT Password" Target="PASSJWT" Default="" Mode="" Description="Secret used to sign session tokens. Required: DVinyl refuses to start while this is empty or left at a published placeholder. Generate one with: openssl rand -hex 32" Type="Variable" Display="always" Required="true" Mask="true"></Config>
   <Config Name="Session Secret" Target="SESSION_SECRET" Default="" Mode="" Description="Secret used to encrypt sessions. Must differ from the JWT password. Required: DVinyl refuses to start while this is empty or left at a published placeholder. Generate one with: openssl rand -hex 32" Type="Variable" Display="always" Required="true" Mask="true"></Config>
+  
+  <Config Name="Setup Token" Target="SETUP_TOKEN" Default="" Mode="" Description="Optional. Asked on the first-run setup page, to create the admin account or restore a backup, so nobody else can claim a fresh instance before you. Generate one with: openssl rand -hex 16" Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
   
   <Config Name="HTTPS Production Mode" Target="PROD" Default="false" Mode="" Description="Change to true ONLY if you use HTTPS via a reverse proxy." Type="Variable" Display="advanced" Required="false" Mask="false">false</Config>
   <Config Name="Vinyl Port Variable" Target="VINYL_PORT" Default="3099" Mode="" Description="Internal port variable required by the app." Type="Variable" Display="always" Required="true" Mask="false">3099</Config>

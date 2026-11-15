@@ -1,10 +1,9 @@
 import express from 'express';
-import { registry } from '../registry';
-import Item from '../../models/Item';
-import List from '../../models/List';
-import { requireAuth } from '../../middleware/authMiddleware';
-import { applyVisibilityFilter, applyEnabledModulesFilter, applyContainedFilter } from '../../utils/visibilityHelper';
-import { resolveShelfItems } from '../../utils/itemHelpers';
+import { requireAuth, requireCollectionRole } from '../../middleware/authMiddleware';
+import { db } from '../db';
+import { eq, idOf } from '../db/query';
+import { dashboardWidgets, normalizeWidget, normalizeWidgets, resolveWidgets, widgetCatalogue, WidgetEnv, WidgetInstance } from '../dashboard';
+import { createDashboardContext } from '../dashboardWidgets';
 import { applyHomeCollection, homePathFor } from '../../utils/homePage';
 
 const router = express.Router();
@@ -41,71 +40,117 @@ router.get('/dashboard', requireAuth, async (req: any, res: any) => {
       // The user is a member of no collection: explicit empty state, not a hollow dashboard
       return res.render('no-collection', { user: res.locals.user, msgKey: req.query.msg });
     }
-    const settings = res.locals.settings;
-
-    let queryAll: any = { collection: activeCollectionId, in_wishlist: false };
-    applyVisibilityFilter(queryAll, res.locals.isCollectionAdmin, settings);
-    applyEnabledModulesFilter(queryAll, settings);
-    applyContainedFilter(queryAll);
-    const allItems = await Item.find(queryAll).lean() as any[];
-
-    // Calculate total collection items count
-    const stats: any = {
-      total: allItems.reduce((acc, i) => acc + (i.quantity || 1), 0),
-    };
-
-    // Aggregate stats from all enabled plugins
-    const enabledPlugins = registry.getEnabled(settings);
-    for (const plugin of enabledPlugins) {
-      const pluginItems = allItems.filter(i => i.kind === plugin.kind);
-      const pluginStats = plugin.getStats(pluginItems);
-      Object.assign(stats, pluginStats);
-    }
-
-    // Latest collection items
-    let latestQuery: any = { collection: activeCollectionId, in_wishlist: false };
-    applyVisibilityFilter(latestQuery, res.locals.isCollectionAdmin, settings);
-    applyEnabledModulesFilter(latestQuery, settings);
-    applyContainedFilter(latestQuery);
-    // Ten for the phone's sideways row; the desktop grid shows the first four.
-    const latestItems = await resolveShelfItems(await Item.find(latestQuery).sort({ added_at: -1 }).limit(10).lean(), res) as any[];
-
-    const latestCollection = latestItems.map(item => {
-      const plugin = registry.getByKind(item.kind as any);
-      return plugin ? plugin.formatForView(item) : item;
-    });
-
-    // Wishlist items
-    let wishlistQuery: any = { collection: activeCollectionId, in_wishlist: true };
-    applyVisibilityFilter(wishlistQuery, res.locals.isCollectionAdmin, settings);
-    applyEnabledModulesFilter(wishlistQuery, settings);
-    applyContainedFilter(wishlistQuery);
-    const wishlistItems = await resolveShelfItems(await Item.find(wishlistQuery).sort({ added_at: -1 }).limit(4).lean(), res) as any[];
-
-    const latestWishlist = wishlistItems.map(item => {
-      const plugin = registry.getByKind(item.kind as any);
-      return plugin ? plugin.formatForView(item) : item;
-    });
-
-    // The counters of the phone dashboard's tiles, next to the collection total above.
-    const [wishlistCount, listsCount] = await Promise.all([
-      Item.countDocuments(wishlistQuery),
-      List.countDocuments({ collection: activeCollectionId })
-    ]);
-
+    const env = widgetEnv(res);
+    const entries = await prepareWidgets(resolveWidgets(env), res, env);
     res.render('index', {
-      latestCollection,
-      latestWishlist,
-      wishlistCount,
-      listsCount,
-      stats,
+      entries,
+      dashboardWidgets,
+      // The editor's catalogue, only shipped to whoever can arrange the page.
+      widgetCatalogue: res.locals.isCollectionAdmin ? widgetCatalogue(env) : null,
+      isCustomDashboard: Array.isArray(res.locals.settings?.dashboard?.widgets),
       user: res.locals.user,
-      settings
+      settings: res.locals.settings
     });
   } catch (err: any) {
     console.error("Dashboard route error:", err.message);
     res.status(500).send(req.t('errors.generic_server_error'));
   }
 });
+
+// One widget on its own, as the page draws it: the random pick's "another one".
+router.get('/dashboard/widgets/:id', requireAuth, requireCollectionRole('viewer'), async (req: any, res: any) => {
+  try {
+    const env = widgetEnv(res);
+    const widget = resolveWidgets(env).find(w => w.id === req.params.id);
+    if (!widget) return res.status(404).send('');
+    const [entry] = await prepareWidgets([widget], res, env);
+    renderFrame(res, entry!, (html) => res.send(html));
+  } catch (err: any) {
+    console.error('[ERR] dashboard widget', err.message);
+    res.status(500).send('');
+  }
+});
+
+// The editor previews a widget it is adding or reconfiguring before anything is saved.
+router.post('/dashboard/widgets/render', requireAuth, requireCollectionRole('admin'), async (req: any, res: any) => {
+  try {
+    const env = widgetEnv(res);
+    const widget = normalizeWidget(req.body?.widget, env);
+    if (!widget) return res.status(400).json({ success: false });
+    const [entry] = await prepareWidgets([widget], res, env);
+    renderFrame(res, entry!, (html) => res.json({ success: true, widget, html }));
+  } catch (err: any) {
+    console.error('[ERR] dashboard widget render', err.message);
+    res.status(500).json({ success: false });
+  }
+});
+
+// The whole arrangement, saved as the editor changes it.
+router.post('/dashboard/layout', requireAuth, requireCollectionRole('admin'), async (req: any, res: any) => {
+  try {
+    const widgets = normalizeWidgets(req.body?.widgets, widgetEnv(res));
+    await db.settings.updateOne(eq('collection', idOf(res.locals.activeCollectionId)), { set: { dashboard: { widgets } } }, { upsert: true });
+    res.json({ success: true, widgets });
+  } catch (err: any) {
+    console.error('[ERR] dashboard layout save', err.message);
+    res.status(500).json({ success: false });
+  }
+});
+
+// Back to the page a collection gets before anyone arranges it.
+router.post('/dashboard/layout/reset', requireAuth, requireCollectionRole('admin'), async (req: any, res: any) => {
+  try {
+    await db.settings.updateOne(eq('collection', idOf(res.locals.activeCollectionId)), { unset: ['dashboard'] });
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('[ERR] dashboard layout reset', err.message);
+    res.status(500).json({ success: false });
+  }
+});
+
+function widgetEnv(res: any): WidgetEnv {
+  return {
+    settings: res.locals.settings,
+    registry: res.locals.registry,
+    t: res.locals.t,
+    currency: res.locals.user?.currency
+  };
+}
+
+export interface PreparedWidget {
+  widget: WidgetInstance;
+  data: any;
+  // Nothing to show: left out of the page, a placeholder while arranging it.
+  empty: boolean;
+}
+
+/**
+ * Loads every widget's data side by side. A widget whose data fails to load is drawn as
+ * empty rather than taking the whole home page down with it.
+ */
+async function prepareWidgets(widgets: WidgetInstance[], res: any, env: WidgetEnv): Promise<PreparedWidget[]> {
+  const context = createDashboardContext(res);
+  return Promise.all(widgets.map(async widget => {
+    const type = dashboardWidgets.get(widget.type)!;
+    try {
+      const data = type.load ? await type.load(context, widget.options, env) : null;
+      const empty = type.isEmpty ? type.isEmpty(data, widget.options, res.locals) : false;
+      return { widget, data, empty };
+    } catch (err: any) {
+      console.error(`[ERR] dashboard widget ${widget.type}`, err.message);
+      return { widget, data: null, empty: true };
+    }
+  }));
+}
+
+function renderFrame(res: any, entry: PreparedWidget, send: (html: string) => void) {
+  res.render('partials/dashboard/frame', { entry, dashboardWidgets }, (err: any, html: string) => {
+    if (err) {
+      console.error('[ERR] dashboard widget partial', err.message);
+      return res.status(500).send('');
+    }
+    send(html);
+  });
+}
 
 export default router;

@@ -1,5 +1,7 @@
 import mongoose from 'mongoose';
 import { buildSortTitle } from '../core/helpers';
+import { sortArticlesFor } from '../core/sortArticles';
+import { allCreatorFields, buildSortCreator, creatorFieldOf, sortCreatorOf } from '../core/sortCreators';
 
 const options = {
   discriminatorKey: 'kind',
@@ -17,6 +19,9 @@ const itemSchema = new mongoose.Schema({
   // caller: it exists only so Mongo can order on a normalized title, since it sorts
   // before it paginates and the rendered page only ever holds one page of results.
   sort_title: { type: String, default: '' },
+  // The same for the item's creator (core/sortCreators.ts), which field that is depending
+  // on its type.
+  sort_creator: { type: String, default: '' },
   year: String,
   cover_image: String,
   user_image: String,
@@ -29,6 +34,8 @@ const itemSchema = new mongoose.Schema({
   // metadata; it is simply reached from its holder instead of from the grid. Absent on
   // everything else, which is what makes the filter a plain $exists.
   parent: { type: mongoose.Schema.Types.ObjectId, ref: 'Item' },
+  // The box this item is kept in, if any (core/insideItems.ts): a film of a boxset.
+  inside: { type: mongoose.Schema.Types.ObjectId, ref: 'Item' },
   // Which collection (shared library) this item belongs to. Not required: the
   // boot-time migration backfills all pre-existing items before the server serves
   // traffic, so requiring it would only turn a missed write-path stamp into a hard 500.
@@ -44,6 +51,19 @@ const itemSchema = new mongoose.Schema({
   in_wishlist: { type: Boolean, default: false },
   comments: { type: String, default: '' },
   location: { type: String, default: '' },
+  // What the owner paid for this copy, in the currency of the member who entered it,
+  // which is kept beside it: members of one collection may count in different
+  // currencies, and an amount is never compared with one in another (see the estimates).
+  purchase_price: { type: Number, min: 0 },
+  purchase_currency: String,
+  // Images kept on this server that were downloaded from elsewhere (core/imageDownload.ts):
+  // which address each local file came from, so a refresh bringing the same address back
+  // keeps the copy, and the addresses that could not be fetched, not tried again on their own.
+  image_origins: { type: [{ _id: false, file: String, url: String }], default: undefined },
+  image_download_failed: { type: [String], default: undefined },
+  // The other formats this edition holds besides its own, for a type that allows it
+  // (see core/extraFormats.ts).
+  extra_formats: { type: [String], default: undefined },
   quantity: { type: Number, default: 1, min: 1 },
   genre: String,
   genres: [String],
@@ -64,6 +84,13 @@ const itemSchema = new mongoose.Schema({
   // a source is free to hand out slugs.
   source: { type: String, default: '' },
   source_id: { type: String, default: '' },
+  // The fields the owner changed by hand, which a metadata refresh leaves alone, and what
+  // the source said about them on the last refresh, offered back by the edit form. See
+  // core/keptFields.ts.
+  kept_fields: { type: [String], default: undefined },
+  // Paths an import already filled in, so a value emptied since is not brought back.
+  import_filled: { type: [String], default: undefined },
+  source_values: { type: mongoose.Schema.Types.Mixed, default: undefined },
   added_at: { type: Date, default: Date.now },
 
   // Values of the user-defined fields declared per collection in
@@ -80,40 +107,110 @@ const itemSchema = new mongoose.Schema({
 // schema middleware keeps the two in sync without asking each of those to remember, and
 // the discriminators inherit these hooks as long as they are declared before the model.
 itemSchema.pre('save', function (this: any, next) {
-  if (this.isModified('title')) this.sort_title = buildSortTitle(this.title);
+  if (this.isModified('title') || this.isModified('collection')) this.sort_title = buildSortTitle(this.title, sortArticlesFor(this.collection));
+  const creator = creatorFieldOf(this.kind);
+  if (creator && (this.isNew || this.isModified(creator) || this.isModified('collection'))) {
+    this.sort_creator = buildSortCreator(this.get(creator), sortArticlesFor(this.collection));
+  }
   next();
 });
 
 itemSchema.pre('insertMany', function (next: any, docs: any[]) {
   for (const doc of Array.isArray(docs) ? docs : []) {
-    if (doc && typeof doc.title === 'string') doc.sort_title = buildSortTitle(doc.title);
+    if (!doc) continue;
+    if (typeof doc.title === 'string') doc.sort_title = buildSortTitle(doc.title, sortArticlesFor(doc.collection));
+    doc.sort_creator = sortCreatorOf(doc, sortArticlesFor(doc.collection));
   }
   next();
 });
 
-// A title reaches an update either inside $set or at the top level of a plain update
-// object; mixing the two forms in one payload is what Mongo rejects, so follow the shape
-// that is already there.
-function stampSortTitleOnUpdate(this: any, next: any): void {
+// A title or a creator reaches an update either inside $set or at the top level of a
+// plain update object; mixing the two forms in one payload is what Mongo rejects, so
+// follow the shape that is already there.
+//
+// The articles dropped are the item's collection's, read off the filter when it names the
+// collection and off the stored item otherwise. The creator field is the item's type's.
+const valueIn = (update: any, field: string) => update.$set?.[field] ?? update[field];
+const touches = (update: any, field: string) =>
+  valueIn(update, field) !== undefined || Boolean(update.$unset && field in update.$unset);
+const writesSortSource = (update: any) =>
+  touches(update, 'title') || allCreatorFields().some(field => touches(update, field));
+// Items moved to another collection (the boot migration filing legacy items into the
+// default one) sort with that collection's articles.
+const movesCollection = (update: any) => valueIn(update, 'collection') !== undefined;
+const isId = (value: any) => value != null && (typeof value !== 'object' || Boolean(value._bsontype));
+
+/** updateOne and findOneAndUpdate: one item, whose keys go into the same write. */
+async function stampSortKeysOnUpdate(this: any): Promise<void> {
   const update = this.getUpdate();
-  if (!update || Array.isArray(update)) return next();
+  if (!update || Array.isArray(update) || !writesSortSource(update)) return;
 
-  const title = update.$set?.title ?? update.title;
-  if (typeof title === 'string') {
-    const sortTitle = buildSortTitle(title);
-    if (Object.keys(update).some(key => key.startsWith('$'))) {
-      update.$set = { ...(update.$set || {}), sort_title: sortTitle };
-    } else {
-      update.sort_title = sortTitle;
-    }
-    this.setUpdate(update);
+  // An update made through a type's own model only ever reaches items of that type. A
+  // kind in the filter counts only as a plain value, not as an operator like $in.
+  const filterKind = this.getFilter()?.kind;
+  let kind = valueIn(update, 'kind') ?? (typeof filterKind === 'string' ? filterKind : undefined)
+    ?? (this.model.modelName !== 'Item' ? this.model.modelName : undefined);
+  let collection = valueIn(update, 'collection') ?? this.getFilter()?.collection;
+  if (!isId(collection) || typeof kind !== 'string') {
+    const stored = await this.model.findOne(this.getFilter()).select('collection kind').lean();
+    if (!isId(collection)) collection = stored?.collection;
+    if (typeof kind !== 'string') kind = stored?.kind ?? '';
   }
-  next();
+
+  const articles = sortArticlesFor(collection);
+  const keys: Record<string, string> = {};
+  const title = valueIn(update, 'title');
+  if (typeof title === 'string') keys.sort_title = buildSortTitle(title, articles);
+  const creator = creatorFieldOf(kind);
+  if (creator && touches(update, creator)) keys.sort_creator = buildSortCreator(valueIn(update, creator), articles);
+  if (Object.keys(keys).length === 0) return;
+
+  if (Object.keys(update).some(key => key.startsWith('$'))) {
+    update.$set = { ...(update.$set || {}), ...keys };
+  } else {
+    Object.assign(update, keys);
+  }
+  this.setUpdate(update);
 }
 
-for (const op of ['updateOne', 'updateMany', 'findOneAndUpdate'] as const) {
-  itemSchema.pre(op, stampSortTitleOnUpdate);
+/**
+ * updateMany: the items may span types and collections, so no single key fits them all.
+ * The matched items are noted before the write and their keys derived from what each
+ * one stores after it.
+ */
+async function noteItemsToResort(this: any): Promise<void> {
+  const update = this.getUpdate();
+  if (!update || Array.isArray(update) || !(writesSortSource(update) || movesCollection(update))) return;
+  const ids = await this.model.find(this.getFilter()).distinct('_id');
+  if (ids.length > 0) this._resortIds = ids;
 }
+
+async function resortNotedItems(this: any): Promise<void> {
+  const ids = this._resortIds;
+  if (!ids) return;
+  const items = await this.model.collection
+    .find({ _id: { $in: ids } }, { projection: { title: 1, collection: 1, kind: 1, sort_title: 1, sort_creator: 1, ...Object.fromEntries(allCreatorFields().map(f => [f, 1])) } })
+    .toArray();
+  const ops: any[] = [];
+  for (const item of items) {
+    const articles = sortArticlesFor(item.collection);
+    const set: Record<string, string> = {};
+    if (typeof item.title === 'string') {
+      const title = buildSortTitle(item.title, articles);
+      if (item.sort_title !== title) set.sort_title = title;
+    }
+    const creator = sortCreatorOf(item, articles);
+    if ((item.sort_creator ?? '') !== creator) set.sort_creator = creator;
+    if (Object.keys(set).length > 0) ops.push({ updateOne: { filter: { _id: item._id }, update: { $set: set } } });
+  }
+  if (ops.length > 0) await this.model.collection.bulkWrite(ops);
+}
+
+for (const op of ['updateOne', 'findOneAndUpdate'] as const) {
+  itemSchema.pre(op, stampSortKeysOnUpdate);
+}
+itemSchema.pre('updateMany', noteItemsToResort);
+itemSchema.post('updateMany', resortNotedItems);
 
 const Item = mongoose.model('Item', itemSchema);
 

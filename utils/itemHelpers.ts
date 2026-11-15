@@ -1,8 +1,12 @@
-import Item from '../models/Item';
 import { registry } from '../core/registry';
-import { applyVisibilityFilter } from './visibilityHelper';
+import { db } from '../core/db';
+import { and, isIn, or } from '../core/db/filter';
+import { idOf } from '../core/db/ids';
+import { visibilityFilter } from './visibilityHelper';
 import { deleteUnusedManagedItemImages, managedItemImagesFrom } from '../core/itemImageStorage';
 import { pullItemsFromLists } from '../core/listStore';
+import { closeRequestsOnItems } from '../core/requests';
+import { releaseBoxes } from '../core/insideItems';
 
 /**
  * Resolves, for a page of items, what each one should actually show on the shelf.
@@ -23,10 +27,10 @@ import { pullItemsFromLists } from '../core/listStore';
 export async function resolveShelfItems(items: any[], res: any): Promise<any[]> {
     if (!items || items.length === 0) return items || [];
 
-    const query: any = { parent: { $in: items.map(i => i._id) } };
-    applyVisibilityFilter(query, res.locals.isCollectionAdmin, res.locals.settings);
-
-    const contained = await Item.find(query).lean();
+    const contained = await db.items.find(and(
+        isIn('parent', items.map(i => idOf(i._id))),
+        visibilityFilter(res.locals.isCollectionAdmin, res.locals.settings)
+    ));
     if (contained.length === 0) return items;
 
     const byHolder = new Map<string, any[]>();
@@ -55,7 +59,10 @@ export async function resolveShelfItems(items: any[], res: any): Promise<any[]> 
  * actually added.
  */
 export async function moveContentsToWishlist(holderId: any, inWishlist: boolean, stamp: Record<string, any>): Promise<void> {
-    await Item.updateMany({ parent: holderId }, { in_wishlist: inWishlist, ...stamp });
+    // A box going back to the wishlist is not owned any more, what it held still is: that
+    // goes back on the shelf, and so does the item itself if it sat in a box.
+    if (inWishlist) await releaseBoxes([holderId]);
+    await db.items.updateMany(isIn('parent', [idOf(holderId)]), { set: { in_wishlist: inWishlist, ...stamp } });
 }
 
 /**
@@ -71,20 +78,25 @@ export async function moveContentsToWishlist(holderId: any, inWishlist: boolean,
 export async function deleteItemsAndContents(ids: any[]): Promise<number> {
     if (!ids || ids.length === 0) return 0;
 
-    const items = await Item.find({
-        $or: [{ _id: { $in: ids } }, { parent: { $in: ids } }]
-    }).select('_id cover_image user_image images').lean();
-    const all = items.map((item: any) => item._id);
-    const images = items.flatMap(managedItemImagesFrom);
+    const wanted = ids.map(idOf);
+    const doomed = await db.items.find(
+        or(isIn('_id', wanted), isIn('parent', wanted)),
+        { fields: ['_id', 'title', 'cover_image', 'user_image', 'images'] }
+    );
+    const all = doomed.map((item: any) => item._id);
+    const images = doomed.flatMap(managedItemImagesFrom);
+    // What a deleted box held is still owned: it goes back on the shelf.
+    await releaseBoxes(all);
 
-    const result = await Item.deleteMany({ _id: { $in: all } });
+    const deleted = await db.items.deleteMany(isIn('_id', all.map(idOf)));
     await pullItemsFromLists(all);
+    await closeRequestsOnItems(all, new Map(doomed.map((item: any) => [idOf(item._id), item.title || ''])));
     try {
         await deleteUnusedManagedItemImages(images);
     } catch (err) {
         console.warn('[ITEM IMAGE] Post-delete cleanup failed:', err);
     }
-    return result.deletedCount || 0;
+    return deleted;
 }
 
 /**
@@ -93,5 +105,5 @@ export async function deleteItemsAndContents(ids: any[]): Promise<number> {
  */
 export async function countItemsAndContents(ids: any[]): Promise<number> {
     if (!ids || ids.length === 0) return 0;
-    return ids.length + await Item.countDocuments({ parent: { $in: ids } });
+    return ids.length + await db.items.count(isIn('parent', ids.map(idOf)));
 }

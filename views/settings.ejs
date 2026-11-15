@@ -114,6 +114,10 @@
                                     : '' %>>
                                     Italiano
                                 </option>
+                                <option value="ru" class="bg-white dark:bg-[#1a1a1a]" <%=currentLng==='ru' ? 'selected'
+                                    : '' %>>
+                                    Русский
+                                </option>
                             </select>
                         </form>
                     </div>
@@ -134,20 +138,11 @@
                         <form action="<%= baseUrl %>/settings/update-currency" method="POST" class="flex items-center">
                             <select name="currency" onchange="this.form.submit()"
                                 class="bg-black/5 dark:bg-white/5 border border-transparent text-gray-900 dark:text-white text-sm rounded-lg focus:ring-primary-theme focus:border-primary-theme block w-full p-3 transition-colors outline-none cursor-pointer">
-                                <option value="EUR" class="bg-white dark:bg-[#1a1a1a]" <%=user.currency==='EUR'
-                                    ? 'selected' : '' %>>
-                                    <%= t('settings.currency_eur') %>
+                                <% currencies.forEach(function (code) { %>
+                                <option value="<%= code %>" class="bg-white dark:bg-[#1a1a1a]" <%= user.currency === code ? 'selected' : '' %>>
+                                    <%= t('settings.currency_' + code.toLowerCase()) %>
                                 </option>
-
-                                <option value="USD" class="bg-white dark:bg-[#1a1a1a]" <%=user.currency==='USD'
-                                    ? 'selected' : '' %>>
-                                    <%= t('settings.currency_usd') %>
-                                </option>
-
-                                <option value="GBP" class="bg-white dark:bg-[#1a1a1a]" <%=user.currency==='GBP'
-                                    ? 'selected' : '' %>>
-                                    <%= t('settings.currency_gbp') %>
-                                </option>
+                                <% }) %>
                             </select>
                         </form>
                     </div>
@@ -169,7 +164,7 @@
                                 <%= t('settings.home_collection_label') %>
                             </span>
                             <select name="homeCollectionId" onchange="this.form.submit()"
-                                class="bg-black/5 dark:bg-white/5 border border-transparent text-gray-900 dark:text-white text-sm rounded-lg focus:ring-primary-theme focus:border-primary-theme block p-3 transition-colors outline-none cursor-pointer">
+                                class="min-w-0 max-w-[60%] sm:max-w-xs bg-black/5 dark:bg-white/5 border border-transparent text-gray-900 dark:text-white text-sm rounded-lg focus:ring-primary-theme focus:border-primary-theme block p-3 transition-colors outline-none cursor-pointer">
                                 <option value="" class="bg-white dark:bg-[#1a1a1a]" <%=!user.homeCollectionId ? 'selected' : '' %>>
                                     <%= t('settings.home_collection_last') %>
                                 </option>
@@ -235,7 +230,7 @@
                             </p>
                             <p class="opacity-50 text-xs mt-1 transition-colors">
                                 <%= t('settings.last_change') %> : <%= new
-                                        Date(user.lastChange).toLocaleDateString(currentLng==='fr' ? 'fr-FR' : 'en-US' )
+                                        Date(user.lastChange).toLocaleDateString(dateLocaleFor(currentLng))
                                         %>
                             </p>
                         </div>
@@ -412,16 +407,16 @@
         const saveUsernameBtn = document.getElementById('save-username-btn');
 
         const translations = {
-            avatarSuccess: <%- JSON.stringify(t('messages.avatar_success')) %>,
-            gravatarNotFound: <%- JSON.stringify(t('messages.gravatar_not_found')) %>,
-            confirmRemoveAvatar: <%- JSON.stringify(t('settings.avatar_remove_confirm')) %>,
-            passwordSuccess: <%- JSON.stringify(t('messages.password_updated')) %>,
-            passwordMismatch: <%- JSON.stringify(t('messages.password_mismatch')) %>,
-            usernameAvailable: <%- JSON.stringify(t('messages.username_available')) %>,
-            genericError: <%- JSON.stringify(t('messages.generic_error')) %>,
-            oidcLinked: <%- JSON.stringify(t('messages.oidc_linked')) %>,
-            oidcAlreadyLinked: <%- JSON.stringify(t('messages.oidc_already_linked')) %>,
-            oidcUnlinked: <%- JSON.stringify(t('messages.oidc_unlinked')) %>
+            avatarSuccess: <%- JSON.stringify(t('messages.avatar_success')).replace(/</g, '\\u003c') %>,
+            gravatarNotFound: <%- JSON.stringify(t('messages.gravatar_not_found')).replace(/</g, '\\u003c') %>,
+            confirmRemoveAvatar: <%- JSON.stringify(t('settings.avatar_remove_confirm')).replace(/</g, '\\u003c') %>,
+            passwordSuccess: <%- JSON.stringify(t('messages.password_updated')).replace(/</g, '\\u003c') %>,
+            passwordMismatch: <%- JSON.stringify(t('messages.password_mismatch')).replace(/</g, '\\u003c') %>,
+            usernameAvailable: <%- JSON.stringify(t('messages.username_available')).replace(/</g, '\\u003c') %>,
+            genericError: <%- JSON.stringify(t('messages.generic_error')).replace(/</g, '\\u003c') %>,
+            oidcLinked: <%- JSON.stringify(t('messages.oidc_linked')).replace(/</g, '\\u003c') %>,
+            oidcAlreadyLinked: <%- JSON.stringify(t('messages.oidc_already_linked')).replace(/</g, '\\u003c') %>,
+            oidcUnlinked: <%- JSON.stringify(t('messages.oidc_unlinked')).replace(/</g, '\\u003c') %>
         };
 
         const oidcStatus = new URLSearchParams(location.search).get('oidc');

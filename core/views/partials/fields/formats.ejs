@@ -1,0 +1,45 @@
+<%# The other formats one edition holds (core/extraFormats.ts): a box per format of the
+    type, the one chosen as the item's own format greyed out, since it is already said.
+    The empty value first tells the save the form carried the field, so unticking every
+    box clears it. %>
+<%
+    const formatsPlugin = locals.plugin || null;
+    const formatOptions = (formatsPlugin && formatsPlugin.formats) || [];
+    const chosen = new Set((Array.isArray(value) ? value : []).map(v => String(v).toLowerCase()));
+    const ownFormat = String((item && (item.format || item.media_type)) || '').toLowerCase();
+    const fieldId = 'extraFormats_' + Math.random().toString(36).slice(2, 8);
+%>
+<span class="block mb-2 text-sm font-bold uppercase tracking-widest opacity-60"><%= t(field.label) %></span>
+<div id="<%= fieldId %>" class="flex flex-wrap gap-2" data-extra-formats>
+    <input type="hidden" name="<%= field.name %>" value="">
+    <% formatOptions.forEach(opt => { const v = String(opt.value).toLowerCase(); %>
+        <label class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-black/5 dark:bg-white/5 text-sm cursor-pointer has-[:checked]:bg-primary-theme/15 has-[:checked]:text-primary-theme has-[:disabled]:opacity-40 has-[:disabled]:cursor-not-allowed transition-colors">
+            <input type="checkbox" name="<%= field.name %>" value="<%= v %>" class="accent-primary-theme"
+                <%= chosen.has(v) && v !== ownFormat ? 'checked' : '' %> <%= v === ownFormat ? 'disabled' : '' %>>
+            <span><%= t(opt.label, { defaultValue: opt.label }) %></span>
+        </label>
+    <% }) %>
+</div>
+<p class="mt-2 text-xs opacity-50"><%= t('common.extra_formats_hint') %></p>
+<script>
+    (function () {
+        // Follows the item's own format as it is changed on the same form.
+        const box = document.getElementById('<%= fieldId %>');
+        const form = box && box.closest('form');
+        if (!form) return;
+        const sync = () => {
+            const own = form.querySelector('select[name="format"]')
+                || form.querySelector('input[name="media_type"]:checked, select[name="media_type"]');
+            const value = own ? String(own.value || '').toLowerCase() : '';
+            box.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                const isOwn = cb.value === value;
+                cb.disabled = isOwn;
+                if (isOwn) cb.checked = false;
+            });
+        };
+        form.addEventListener('change', e => {
+            if (e.target && (e.target.name === 'format' || e.target.name === 'media_type')) sync();
+        });
+        sync();
+    })();
+</script>

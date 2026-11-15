@@ -20,9 +20,17 @@
     const selectId = `location-select-${Math.random().toString(36).slice(2, 8)}`;
     const inputId = `${selectId}-new`;
 %>
-<label class="block mb-2 text-sm font-bold uppercase tracking-widest opacity-60" for="<%= selectId %>">
-    <%= t(field.label) %>
-</label>
+<div class="flex items-baseline justify-between gap-3 mb-2">
+    <label class="block text-sm font-bold uppercase tracking-widest opacity-60" for="<%= selectId %>">
+        <%= t(field.label) %>
+    </label>
+    <%# Renaming or removing a shelf happens on the furniture it belongs to, in the shelf
+        view. Opened in a new tab so what was typed on this form is not lost. %>
+    <a href="<%= baseUrl %>/collection?view=shelf&arrange=1" target="_blank" rel="noopener"
+        class="text-xs font-semibold text-primary-theme hover:underline whitespace-nowrap">
+        <i class="fa-solid fa-sliders mr-1"></i><%= t('collection.shelf_manage_link') %>
+    </a>
+</div>
 
 <select name="<%= field.name %>" id="<%= selectId %>"
     class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme block w-full p-3 outline-none cursor-pointer">

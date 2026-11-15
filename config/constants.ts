@@ -1,16 +1,54 @@
+import path from 'path';
+
 export const BASE_URL: string = process.env.BASE_URL
   ? (process.env.BASE_URL.startsWith('/') ? process.env.BASE_URL : `/${process.env.BASE_URL}`)
   : ''
 
 /**
+ * The shortest password a local account accepts. Checked by the record rules, and by
+ * every route that hashes a chosen password before storing it, since a hash says nothing
+ * about the length of what it was made from.
+ */
+export const MIN_PASSWORD_LENGTH = 6;
+
+export const SQLITE_PATH: string = process.env.SQLITE_PATH || path.join(__dirname, '..', 'data', 'dvinyl.sqlite');
+
+/**
  * Languages the app ships. Also the values the User schema accepts, so anything
  * stored on a user has to be one of these exact codes.
  */
-export const SUPPORTED_LANGUAGES = ['fr', 'en', 'de', 'es', 'it'] as const;
+export const SUPPORTED_LANGUAGES = ['fr', 'en', 'de', 'es', 'it', 'ru'] as const;
 
 export type SupportedLanguage = typeof SUPPORTED_LANGUAGES[number];
 
-export const DEFAULT_LANGUAGE: SupportedLanguage = 'fr';
+/**
+ * What a browser asking only for languages the app does not ship (Dutch, Polish...) gets,
+ * and the fallback of a missing key. English, the one most visitors can read whatever
+ * their own language.
+ */
+export const DEFAULT_LANGUAGE: SupportedLanguage = 'en';
+
+/**
+ * Each language under its own name, the way someone looking for theirs recognises it.
+ */
+export const LANGUAGE_NAMES: Record<SupportedLanguage, string> = {
+  fr: 'Français',
+  en: 'English',
+  de: 'Deutsch',
+  es: 'Español',
+  it: 'Italiano',
+  // The language's own name, as it appears on a Russian interface: `Русский`, not `Russian`.
+  ru: 'Русский'
+};
+
+/**
+ * Currencies a user can pick for prices, which the User schema also accepts. Each one is
+ * labelled by the `settings.currency_<code in lower case>` key.
+ */
+// Only currencies the price sources can answer in: an estimate is shown and summed in the
+// user's currency as is, so one no source returns (the ruble, which Discogs refuses)
+// would label foreign amounts with the wrong symbol.
+export const SUPPORTED_CURRENCIES = ['EUR', 'USD', 'GBP'] as const;
 
 /**
  * Reduces any language tag to a supported code, dropping the region a browser
@@ -27,7 +65,8 @@ const DATE_LOCALES: Record<SupportedLanguage, string> = {
   en: 'en-US',
   de: 'de-DE',
   es: 'es-ES',
-  it: 'it-IT'
+  it: 'it-IT',
+  ru: 'ru-RU'
 };
 
 /**
@@ -40,3 +79,4 @@ const DATE_LOCALES: Record<SupportedLanguage, string> = {
 export function dateLocaleFor(value: any): string {
   return DATE_LOCALES[normalizeLanguage(value)];
 }
+

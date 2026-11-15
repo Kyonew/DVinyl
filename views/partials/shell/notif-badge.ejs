@@ -1,0 +1,5 @@
+<%# The unread count over the account's avatar, kept current by partials/shell/inbox-live.
+    Sits in a relative parent. %>
+<% const unread = locals.unreadNotifications || 0; %>
+<span data-notif-badge aria-label="<%= t('notifications.unread_count', { count: unread }) %>"
+  class="absolute -top-1 -right-1 z-10 min-w-[1.15rem] h-[1.15rem] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-[1.15rem] text-center ring-2 ring-[var(--bg-nav)] pointer-events-none <%= unread ? '' : 'hidden' %>"><%= unread > 99 ? '99+' : unread %></span>

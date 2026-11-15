@@ -1,28 +1,43 @@
 import express, { Router } from 'express';
 import crypto from 'crypto';
-import mongoose from 'mongoose';
 import QRCode from 'qrcode';
 import { PluginDefinition } from '../types';
-import Item from '../../models/Item';
-import User from '../../models/User';
 import { BASE_URL } from '../../config/constants';
 import { requireAuth, requireAuthOrShareView, requireCollectionRole } from '../../middleware/authMiddleware';
-import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback, searchWithGuess, editStamp, syncStamp, safeReturnPath, confirmPathFor, getPublicProtocol, generateBarcodeDataUrl, escapeRegExp, buildCopySeed } from '../helpers';
+import { parseGenresAndStyles, isBarcodeQuery, lookupBarcodeTitle, searchWithTitleFallback, searchWithGuess, editStamp, syncStamp, safeReturnPath, confirmPathFor, getPublicProtocol, generateBarcodeDataUrl, isItemSubPage, buildCopySeed } from '../helpers';
 import { DEFAULT_PLACEHOLDER_IMAGE } from '../placeholderImage';
 import { alignImagesAfterRefresh, imagesForItem, imagesFromForm, ItemImageValidationError, MAX_ITEM_IMAGES, MAX_ITEM_IMAGE_BYTES } from '../itemImages';
 import { deleteUnusedManagedItemImages } from '../itemImageStorage';
 import { getExtraFields, toFieldDefinitions } from '../pluginExtraFields';
 import { buildFieldSuggestions } from '../fieldSuggestions';
 import { resolveShelfLocation } from '../shelfStore';
+import { findWishlistDuplicate } from '../wishlistDuplicate';
+import { requestCardData } from '../requests';
 import { deleteItemsAndContents, moveContentsToWishlist } from '../../utils/itemHelpers';
-import { applyVisibilityFilter, applyShareScopeFilter, applyPluginKindFilter, isWithinShareScope } from '../../utils/visibilityHelper';
-import { hasSearch, searchableSources, resolveSource, canRefresh, refreshPatchFor } from '../sources';
+import { visibilityFilter, shareScopeFilter, pluginKindFilter, isWithinShareScope } from '../../utils/visibilityHelper';
+import { db } from '../db';
+import { and, eq, Filter, isIn, missing, ne, or } from '../db/filter';
+import { idOf, isId } from '../db/ids';
+import { isValidationError, validationMessages } from '../db/errors';
+import { hasSearch, searchableSources, resolveSource, canRefresh, refreshPatchFor, sourceForItem, legacySource, isLinkedToSource } from '../sources';
 import { resolveBarcodeWithAi } from '../ai/barcode';
+import { resolveCardScanWithAi } from '../ai/cardScan';
 import { identifyFromPhoto } from '../ai/photo';
 import { IdentificationGuess } from '../ai/identify';
 import { isAcceptedImage } from '../ai/images';
 import { getAiConfig, isAiReady } from '../ai/instance';
 import { isAiConfigured } from '../ai/config';
+import { noticeWish } from '../wishlistNotices';
+import { metadataLanguage } from '../metadataLanguage';
+import { offeredSourceValues, trackOwnerEdits } from '../keptFields';
+import { memberWishesFor } from '../memberWishes';
+import { parseRows, rowColumns } from '../rowsField';
+import { EXTRA_FORMATS_FIELD, parseExtraFormats } from '../extraFormats';
+import { contentsOf, itemHref } from '../insideItems';
+import { copyItemImagesSoon } from '../imageDownload';
+import { registry } from '../registry';
+import { forShareView } from '../cardFields';
+import { trackImport } from '../importJobs';
 
 /**
  * Names what was just saved in the path an add comes back to, so the add page can say so.
@@ -199,7 +214,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           country,
           genre_filter,
           label_filter,
-          language: req.language,
+          language: metadataLanguage(req),
           // Pass the plugin's own settings so the provider stays the only one that knows its option keys
           pluginSettings: settings?.pluginSettings?.[plugin.id] || {}
         });
@@ -217,6 +232,26 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           results = await runSearch(searchQuery);
         }
 
+        // A code the chosen source does not know may well be known elsewhere: Hardcover
+        // misses many books printed outside the US that Open Library has. The plugin's other
+        // sources that read the same code are asked in turn, and the page says where the
+        // results came from. Never for a text query: an empty list there is an answer, not a
+        // gap.
+        let answering = source;
+        if (results.length === 0 && !guess && !resolvedTitle && source.exactQuery?.(searchQuery)) {
+          for (const other of sources.filter(s => s.id !== source.id && s.exactQuery?.(searchQuery))) {
+            try {
+              const found = await other.search(searchQuery, { type: type || plugin.id, language: metadataLanguage(req), pluginSettings: settings?.pluginSettings?.[plugin.id] || {} });
+              if (found.length === 0) continue;
+              results = found;
+              answering = other;
+              break;
+            } catch (err: any) {
+              console.warn(`[SEARCH] ${other.name} fallback failed for ${plugin.id}:`, err.message);
+            }
+          }
+        }
+
         // What the search box shows on the way back. After a scan the digits are useless
         // there: on a hit it is the query that actually matched, and on a miss the whole
         // product name, which is the thing the user has to correct. An identifier is
@@ -230,9 +265,12 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         // it out, so it travels with it: the confirm link needs to ask the same source
         // for the details, and the item ends up storing the pair.
         for (const result of results) {
-          result.source = source.id;
+          result.source = answering.id;
           result.confirmPath = confirmPathFor(plugin.id, result, { searchType: type, scannedBarcode });
         }
+        // Who among the members of the reader's collections wishes for each result.
+        const wishes = await memberWishesFor(plugin, req.user?._id, results);
+        results.forEach((result: any, index: number) => { result.memberWishes = wishes[index]; });
 
         // Scan mode: the query named one exact item and one thing came back, so there is
         // nothing to choose between. Straight to the confirm page, which submits itself.
@@ -264,7 +302,9 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           user: res.locals.user,
           currentType: `add-${plugin.id}`,
           sources,
-          activeSource: source.id,
+          activeSource: answering.id,
+          // Named on the page when another source answered for the one asked.
+          fallbackNotice: answering !== source ? req.t('add.found_elsewhere', { missing: source.name, found: answering.name }) : '',
           plugin
         });
       } catch (err: any) {
@@ -286,6 +326,50 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         });
       }
     });
+
+    if (plugin.supportsCardScan) {
+      // POST /add-{id}/card-scan -> AI-identify a photographed card, return a search query
+      // for this plugin's own source. Companion to the barcode-scan branch above: a single
+      // trading card has no scannable retail barcode, so a photo of the card is the input
+      // instead. Never saves anything itself: the client fills the query box with the
+      // result and submits the normal search-{id} form, so what the user eventually picks
+      // always comes from the plugin's real source.
+      router.post(`/add-${plugin.id}/card-scan`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
+        try {
+          const config = await getAiConfig();
+          if (!isAiConfigured(config)) {
+            return res.status(400).json({ error: req.t('ai.err_not_configured') });
+          }
+          if (!isAcceptedImage(req.body?.image)) {
+            return res.status(400).json({ error: req.t('ai.err_image_rejected') });
+          }
+
+          const guess = await resolveCardScanWithAi(req.body.image, plugin.id);
+          if (!guess) {
+            return res.status(422).json({ error: req.t('ai.err_card_not_recognized') });
+          }
+
+          // The set name is the part a vision model most often misreads (a small symbol,
+          // easy to guess wrong), and a wrong set name appended to the title actively hurts
+          // the search rather than narrowing it. So a guess that includes one is verified
+          // against this plugin's real source first, falling back to the bare title -
+          // still handed to the same source on submit either way - if that combined guess
+          // finds nothing.
+          let query = [guess.title, guess.setName].filter(Boolean).join(' ');
+          const source = resolveSource(plugin, null, res.locals.settings);
+          if (guess.setName && source) {
+            // A source that fails here only costs the check: the bare title is the safe query.
+            const results = await source.search(query, { type: plugin.id }).catch(() => []);
+            if (results.length === 0) query = guess.title;
+          }
+          res.json({ query });
+        } catch (err: any) {
+          // The page reads a JSON error; Express's own 500 page would leave it saying nothing.
+          console.error(`[AI] Card scan failed (${plugin.id}):`, err.message);
+          res.status(502).json({ error: req.t('errors.api_error') });
+        }
+      });
+    }
 
     // POST /search-{type}/photo -> what the photographed item probably is, for the search
     // form to run. Nothing is searched or saved here: the page posts the answer back
@@ -327,7 +411,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         const details = await source.getDetails(externalId, {
           ...req.query,
           type: searchTypeHint,
-          language: req.language
+          language: metadataLanguage(req)
         });
 
         // Where this item is about to come from. Written on the confirm form as a hidden
@@ -349,11 +433,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         }
 
         const suggestions = await buildFieldSuggestions(plugin, activeCollectionId, details);
-        const genres = await Item.distinct('genre', {
-          collection: activeCollectionId,
-          genre: { $ne: "" },
-          $or: [{ kind: plugin.kind }, { kind: { $exists: false } }]
-        });
+        const genres = await genresInUse(activeCollectionId);
 
         let existingItemsArray: any[];
         if (plugin.findPotentialDuplicates) {
@@ -363,6 +443,8 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           existingItemsArray = exactDuplicate ? [exactDuplicate] : [];
         }
 
+        const [memberWishes] = await memberWishesFor(plugin, req.user?._id, [details]);
+
         res.render('confirm', {
           item: details,
           user: res.locals.user,
@@ -370,6 +452,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           genres,
           currentType: plugin.collectionType,
           existingItems: existingItemsArray,
+          memberWishes,
           plugin,
           isManual: false,
           // Scan mode sends every add back to the add page, whether it submitted itself or
@@ -402,8 +485,41 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
     const middlewares = importer.requireAdmin
       ? [requireAuth, requireCollectionRole('admin')]
       : [requireAuth, requireCollectionRole('editor')];
-    router.post(`/import/${importer.id}`, ...middlewares, (req: any, res: any) => importer.handler(req, res));
+    router.post(`/import/${importer.id}`, ...middlewares, trackImport, (req: any, res: any) => importer.handler(req, res));
   }
+
+  /**
+   * The item an id names, if it belongs to the active collection and to this plugin.
+   *
+   * The plugin behind a request comes from the URL prefix (`/album/...` is music), not
+   * from the item the id points at, so without the kind an id could be handed to any
+   * plugin's route and be answered by the wrong one. Scoped to the active collection so
+   * a stale id (a form left open after switching collections) cannot reach another one.
+   */
+  const ownItem = (id: string, res: any): Filter => and(
+    eq('_id', id),
+    eq('collection', idOf(res.locals.activeCollectionId)),
+    pluginKindFilter(plugin)
+  );
+
+  // Edit form of another item of the active collection, by its id, or '' when there is
+  // no such item or no plugin left to edit it with.
+  const nextEditPath = async (id: any, res: any): Promise<string> => {
+    if (typeof id !== 'string' || !isId(id)) return '';
+    const next = await db.items.findOne(and(eq('_id', id), eq('collection', idOf(res.locals.activeCollectionId))));
+    // An item from before kinds existed belongs to the plugin that claims those.
+    const nextPlugin = next
+      ? registry.getAll().find(p => (next.kind ? p.kind === next.kind : p.matchesLegacyItems))
+      : undefined;
+    return next && nextPlugin ? `${nextPlugin.routePrefix}/edit/${next._id}` : '';
+  };
+
+  // Genres already used in the collection, offered by the item forms.
+  const genresInUse = (collectionId: any) => db.items.distinct('genre', and(
+    eq('collection', idOf(collectionId)),
+    ne('genre', ''),
+    or(eq('kind', plugin.kind), missing('kind'))
+  ));
 
   /**
    * Keeps out of a list whatever the person looking is not meant to see: what the
@@ -414,14 +530,14 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   const filterVisible = async (items: any[], res: any): Promise<any[]> => {
     if (!items || items.length === 0) return items || [];
 
-    const query: any = { _id: { $in: items.map((i: any) => i._id) } };
-    applyVisibilityFilter(query, res.locals.isCollectionAdmin, res.locals.settings);
-    if (res.locals.isShareView) {
-      applyShareScopeFilter(query, res.locals.shareScope);
-    }
+    const query = and(
+      isIn('_id', items.map((i: any) => idOf(i._id))),
+      visibilityFilter(res.locals.isCollectionAdmin, res.locals.settings),
+      res.locals.isShareView ? shareScopeFilter(res.locals.shareScope) : null
+    );
 
     const allowed = new Set(
-      (await Item.find(query).select('_id').lean()).map((i: any) => String(i._id))
+      (await db.items.find(query, { fields: ['_id'] })).map((i: any) => String(i._id))
     );
     return items.filter((i: any) => allowed.has(String(i._id)));
   };
@@ -439,15 +555,16 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
     if (!res.locals.isShareView) return next();
 
     const id = req.params.id;
-    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+    if (!isId(id)) {
       return res.status(404).send(req.t('errors.not_found'));
     }
     // Reached only by a share visitor, for whom the wishlist does not exist: the listing
     // that would show it is behind a login, and its page has to say the same.
-    const guardQuery: any = { _id: id, collection: res.locals.activeCollectionId, in_wishlist: false };
-    applyPluginKindFilter(guardQuery, plugin);
-    applyVisibilityFilter(guardQuery, res.locals.isCollectionAdmin, res.locals.settings);
-    const item = await Item.findOne(guardQuery).lean();
+    const item = await db.items.findOne(and(
+      ownItem(id, res),
+      eq('in_wishlist', false),
+      visibilityFilter(res.locals.isCollectionAdmin, res.locals.settings)
+    ));
     if (!item || !await isWithinShareScope(res, item)) {
       return res.status(404).send(req.t('errors.not_found'));
     }
@@ -482,11 +599,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         }
 
         const suggestions = await buildFieldSuggestions(plugin, activeCollectionId, defaults);
-        const genres = await Item.distinct('genre', {
-          collection: activeCollectionId,
-          genre: { $ne: "" },
-          $or: [{ kind: plugin.kind }, { kind: { $exists: false } }]
-        });
+        const genres = await genresInUse(activeCollectionId);
 
         res.render('confirm', {
           item: defaults,
@@ -580,9 +693,19 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
 
         let value = req.body[field.name];
 
-        if (field.type === 'custom' && req.body[`${field.name}_json`]) {
+        if (field.name === EXTRA_FORMATS_FIELD) {
+          // Posted as boxes, behind an empty value that says the form carried the field,
+          // so ticking none clears it. A form without it leaves the stored list alone.
+          value = value === undefined ? undefined
+            : parseExtraFormats(value, plugin, req.body.format ?? req.body.media_type);
+        } else if (field.type === 'custom' && req.body[`${field.name}_json`]) {
           // Custom editors (e.g. the tracklist editor) post their value as `<name>_json`
           value = JSON.parse(req.body[`${field.name}_json`]);
+        } else if (field.type === 'rows') {
+          // Posted the same way, and reduced to the declared columns. A form that does not
+          // carry the field posts nothing, which leaves the stored rows alone.
+          const posted = req.body[`${field.name}_json`];
+          value = posted === undefined ? undefined : parseRows(posted, rowColumns(field));
         } else if (field.type === 'number') {
           value = value ? Number(value) : undefined;
         } else if (field.type === 'date') {
@@ -598,9 +721,9 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           value = value === 'on' || value === 'true' || value === true;
         } else if (field.type === 'tags' && typeof value === 'string') {
           // Tags inputs post a raw comma-separated string. Plugins with their own
-          // schema path split it in normalizeForSave(); extra fields have no plugin
-          // to do it for them, so the generic split happens here.
-          if (field.extraField) {
+          // schema path may split it in normalizeForSave(); extra fields, and any path
+          // the plugin stores as a list of texts, are split here.
+          if (field.extraField || (plugin.storedFields || {})[field.name]?.type === 'texts') {
             value = value.split(',').map((s: string) => s.trim()).filter(Boolean);
           }
         }
@@ -618,9 +741,22 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         updateData.extra = extraValues;
       }
 
+      // A price paid is an amount in a currency. A new one is taken in the currency of
+      // whoever enters it; an edit keeps the one the amount already carries (below). An
+      // amount that is not one (negative, a typo the browser let through) is dropped.
+      if (updateData.purchase_price !== undefined) {
+        const amount = Number(String(req.body.purchase_price).replace(',', '.'));
+        if (Number.isFinite(amount) && amount >= 0) {
+          updateData.purchase_price = Math.round(amount * 100) / 100;
+          updateData.purchase_currency = res.locals.user?.currency || 'USD';
+        } else {
+          delete updateData.purchase_price;
+        }
+      }
+
       // Plugin schema fields without a form field (external ids like discogs_id,
       // tmdb_id, igdb_id, hardcover_slug...) are posted as hidden inputs
-      for (const key of Object.keys(plugin.schemaDefinition)) {
+      for (const key of Object.keys(plugin.storedFields || {})) {
         if (updateData[key] === undefined && req.body[key] !== undefined && req.body[key] !== '') {
           updateData[key] = req.body[key];
         }
@@ -648,7 +784,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           body: req.body,
           ownerId: adminId,
           collectionId: activeCollectionId,
-          language: req.language
+          language: metadataLanguage(req)
         });
         if (handled) {
           try {
@@ -656,7 +792,10 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           } catch (cleanupError) {
             console.warn('[ITEM IMAGE] Post-create cleanup failed:', cleanupError);
           }
-          if (isWishlist) return res.redirect('/wishlist');
+          if (isWishlist) {
+            void noticeWish({ collection: res.locals.activeCollection, actor: req.user, item: { title: updateData.title, cover_image: updateData.cover_image }, itemPath: plugin.routePrefix });
+            return res.redirect('/wishlist');
+          }
           return res.redirect(afterAdd
             ? withAddedNotice(afterAdd, updateData.title, null)
             : `/collection?type=${plugin.collectionType}`);
@@ -674,9 +813,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         // form left open after switching collections) can't target another item. A
         // miss here must fail outright, not fall through to the duplicate-match
         // branch below and silently overwrite an unrelated item.
-        const editQuery: any = { _id: mongo_id, collection: activeCollectionId };
-        applyPluginKindFilter(editQuery, plugin);
-        existingItem = await Item.findOne(editQuery);
+        existingItem = isId(mongo_id) ? await db.items.findOne(ownItem(mongo_id, res), { defaults: true }) : null;
         if (!existingItem) {
           return res.status(404).send(req.t('errors.not_found'));
         }
@@ -685,12 +822,21 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         // Opt-out per collection: with the merge disabled every add gets its own entry
         // instead of bumping the matching item's quantity. Settings documents predating
         // the option have no value at all, so only an explicit false turns it off.
-        existingItem = await plugin.findDuplicate(activeCollectionId, req.body);
+        // The plugin's own lookup answers "do I already own this?". A wish is matched
+        // against the wishlist instead: a copy already owned does not cancel it (another
+        // edition, a gift), and a wish already listed is not listed twice.
+        existingItem = isWishlist
+          ? await findWishlistDuplicate(plugin, activeCollectionId, req.body)
+          : await plugin.findDuplicate(activeCollectionId, req.body);
       }
 
+      let savedItemId: any = existingItem?._id;
       if (existingItem) {
         const qtyToAdd = parseInt(quantity) || 1;
-        const finalQty = isEdit ? qtyToAdd : (existingItem.quantity || 1) + qtyToAdd;
+        // Wanting a title twice is still one wish: only owned copies add up.
+        const finalQty = isEdit ? qtyToAdd
+          : isWishlist ? (existingItem.quantity || 1)
+          : (existingItem.quantity || 1) + qtyToAdd;
         if (!isEdit) mergedQuantity = finalQty;
 
         let saveObj: any;
@@ -704,15 +850,15 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
 
           // An emptied input now clears the stored value instead of being ignored, which
           // is the only way to detach a wrong external id (a CSV import matching the
-          // wrong Discogs release) or to blank a number field. Written as $unset rather
-          // than $set: a Number path would reject the empty string it is posted as.
+          // wrong Discogs release) or to blank a number field. Written as a removal rather
+          // than as the empty string it is posted as, which a number field would reject.
           //
           // Eligible: a path the form posted back blank, and that nothing above already
           // resolved. A key absent from the body means the form does not carry that path
           // at all, not that the owner emptied it, so it stays untouched: tracklist comes
           // back as `tracklist_json`, episodes never come back, and unsetting either
           // would wipe the ratings and notes the owner attached to them.
-          for (const fieldName of Object.keys(plugin.schemaDefinition)) {
+          for (const fieldName of Object.keys(plugin.storedFields || {})) {
             const postedValue = req.body[fieldName];
             const isBlank = typeof postedValue === 'string' && postedValue.trim() === '';
             const alreadyResolved = saveObj[fieldName] !== undefined;
@@ -721,6 +867,19 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
             if (isBlank && !alreadyResolved && hasStoredValue) {
               unsetObj[fieldName] = '';
               delete saveObj[fieldName];
+            }
+          }
+
+          // The price paid follows the same rule, as a base path the loop above does not
+          // see, and takes its currency along when emptied. Kept in the currency it was
+          // entered in: the edit form showed the amount in that one, whoever edits it now.
+          if (typeof req.body.purchase_price === 'string') {
+            if (saveObj.purchase_price === undefined) {
+              if (existingItem.purchase_price !== undefined && existingItem.purchase_price !== null) unsetObj.purchase_price = '';
+              if (existingItem.purchase_currency) unsetObj.purchase_currency = '';
+              delete saveObj.purchase_currency;
+            } else if (existingItem.purchase_currency) {
+              saveObj.purchase_currency = existingItem.purchase_currency;
             }
           }
 
@@ -770,8 +929,8 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           }
         }
 
-        // Address the extra values one key at a time: `$set: { extra: {...} }` would
-        // replace the whole bag and drop the values of any field this form did not
+        // Address the extra values one key at a time: writing `extra` as a whole would
+        // replace the bag and drop the values of any field this form did not
         // carry (one removed from the settings, or declared in another collection).
         if (saveObj.extra && typeof saveObj.extra === 'object') {
           for (const [key, value] of Object.entries(saveObj.extra)) {
@@ -780,29 +939,43 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           delete saveObj.extra;
         }
 
-        // Through the discriminator model, not the base one. The form posts every value as
-        // a string, and the base schema knows nothing of `tmdb_id` or `discogs_id`, so with
-        // strict off they were written raw: one edit was enough to turn a numeric external
-        // id into "1396", which then matched nothing that looked it up as a number.
-        // `strict: false` still lets the user-defined `extra.*` keys through.
-        const EditModel = mongoose.model(plugin.kind);
-        const updateDoc: any = { $set: { ...saveObj, ...editStamp(adminId) } };
-        if (Object.keys(unsetObj).length > 0) {
-          updateDoc.$unset = unsetObj;
-        }
-        await EditModel.updateOne(
-          { _id: existingItem._id },
-          updateDoc,
-          { strict: false }
+        // Written as this plugin's type. The form posts every value as a string, and an
+        // item of no type knows nothing of `tmdb_id` or `discogs_id`, so they were once
+        // written raw: one edit was enough to turn a numeric external id into "1396",
+        // which then matched nothing that looked it up as a number. The collection's own
+        // `extra.*` fields still go through, undeclared as they are.
+        await db.items.updateOne(
+          eq('_id', idOf(existingItem._id)),
+          { set: { ...saveObj, ...editStamp(adminId) }, unset: Object.keys(unsetObj) },
+          { kind: plugin.kind, allowUndeclared: true }
         );
+
+        // What the owner rewrote in the edit form outlives the next refresh, and what they
+        // hand back goes to the source again (core/keptFields.ts). Read off the stored
+        // item before and after, once every value has been cast, so a value that only
+        // made the round trip through the form is not taken for a change.
+        if (isEdit) {
+          const after = await db.items.findOne(eq('_id', idOf(existingItem._id)), { defaults: true });
+          const posted = req.body.revert_fields;
+          const reverted = (Array.isArray(posted) ? posted : [posted]).filter((f: any) => typeof f === 'string' && f);
+          const tracked = after && trackOwnerEdits(existingItem, after, reverted, [plugin.externalIdField].filter(Boolean) as string[]);
+          if (tracked) {
+            await db.items.updateOne(eq('_id', idOf(existingItem._id)), tracked, { kind: plugin.kind, allowUndeclared: true });
+          }
+        }
       } else {
-        const Model = mongoose.model(plugin.kind);
-        await Model.create({
+        const created = await db.items.create({
           ...updateData,
           owner: adminId,
           collection: activeCollectionId
         });
+        if (isWishlist) {
+          void noticeWish({ collection: res.locals.activeCollection, actor: req.user, item: created, itemPath: plugin.routePrefix });
+        }
+        savedItemId = created?._id;
       }
+      // A copy of the images it links to, when the collection keeps them (#136).
+      copyItemImagesSoon(savedItemId, activeCollectionId);
 
       try {
         await deleteUnusedManagedItemImages([
@@ -820,7 +993,10 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       const returnTo = safeReturnPath(req.body.return_to, req.get('host'));
       if (isEdit && existingItem) {
         const origin = returnTo ? `?from=${encodeURIComponent(returnTo)}` : '';
-        res.redirect(`${plugin.routePrefix}/${existingItem._id}${origin}`);
+        // "Save and next": on to the edit form of the item after this one in the list it
+        // was opened from, whatever its type. Only an item of the same collection.
+        const nextPath = await nextEditPath(req.body.next_id, res);
+        res.redirect(`${nextPath || `${plugin.routePrefix}/${existingItem._id}`}${origin}`);
       } else if (isWishlist) {
         res.redirect('/wishlist');
       } else if (afterAdd) {
@@ -838,6 +1014,16 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           maxMb: Math.floor(MAX_ITEM_IMAGE_BYTES / (1024 * 1024))
         }));
       }
+      if (isValidationError(err)) {
+        // A required field left empty or a value of the wrong type: named for the person
+        // who filled the form, by the label it shows them.
+        const shown = [...plugin.formFields, ...toFieldDefinitions(getExtraFields(res.locals.settings, plugin.id))];
+        const fields = Object.keys(validationMessages(err)).map(name => {
+          const field = shown.find(f => f.name === name);
+          return field ? req.t(field.label) : name;
+        });
+        return res.status(400).send(req.t('errors.invalid_fields', { fields: fields.join(', ') }));
+      }
       console.error(`Save error for ${plugin.id}:`, err);
       res.status(500).send(req.t('errors.generic_server_error'));
     }
@@ -847,27 +1033,27 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   // GET /{prefix}/edit/:id -> edit form
   router.get(`${plugin.routePrefix}/edit/:id`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
     try {
-      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      if (!isId(req.params.id)) {
         return res.status(404).send(req.t('errors.not_found'));
       }
       const activeCollectionId = res.locals.activeCollectionId;
-      const editFormQuery: any = { _id: req.params.id, collection: activeCollectionId };
-      applyPluginKindFilter(editFormQuery, plugin);
-      const item = await Item.findOne(editFormQuery);
+      const item = await db.items.findOne(ownItem(req.params.id, res), { defaults: true });
       if (!item) {
         return res.status(404).send(req.t('errors.not_found'));
       }
 
       const suggestions = await buildFieldSuggestions(plugin, activeCollectionId, item);
-      const genres = await Item.distinct('genre', {
-        collection: activeCollectionId,
-        genre: { $ne: "" },
-        $or: [{ kind: plugin.kind }, { kind: { $exists: false } }]
-      });
+      const genres = await genresInUse(activeCollectionId);
+
+      // The source a refresh asks, named on the offer to take its values back.
+      const refreshSource = sourceForItem(plugin, item) || legacySource(plugin);
 
       res.render('edit', {
         item: plugin.formatForView(item),
         plugin,
+        canRefreshItem: canRefresh(plugin),
+        offeredSourceValues: offeredSourceValues(item),
+        refreshSourceName: refreshSource?.name || '',
         suggestions,
         genres,
         // Handed over by the item page and posted back with the form: the Referer here is
@@ -889,19 +1075,17 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   // user changes one.
   router.get(`${plugin.routePrefix}/copy/:id`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
     try {
-      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      if (!isId(req.params.id)) {
         return res.status(404).send(req.t('errors.not_found'));
       }
       const activeCollectionId = res.locals.activeCollectionId;
 
-      const copyQuery: any = { _id: req.params.id, collection: activeCollectionId };
-      applyPluginKindFilter(copyQuery, plugin);
-      const source = await Item.findOne(copyQuery);
+      const source = await db.items.findOne(ownItem(req.params.id, res), { defaults: true });
       // Same rule as the button on the detail page: a wishlist entry is not owned yet, and
       // a season or a show holding seasons is added through its own flow. Copying a season
       // would also leave a season number on an item attached to no show.
       const isNested = (source?.season !== undefined && source?.season !== null) || !!source?.parent;
-      if (!source || source.in_wishlist || isNested || await Item.exists({ parent: source._id })) {
+      if (!source || source.in_wishlist || isNested || await db.items.exists(eq('parent', idOf(source._id)))) {
         return res.status(404).send(req.t('errors.not_found'));
       }
 
@@ -913,11 +1097,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       const seed: any = buildCopySeed(formatted, plugin);
 
       const suggestions = await buildFieldSuggestions(plugin, activeCollectionId, seed);
-      const genres = await Item.distinct('genre', {
-        collection: activeCollectionId,
-        genre: { $ne: '' },
-        $or: [{ kind: plugin.kind }, { kind: { $exists: false } }]
-      });
+      const genres = await genresInUse(activeCollectionId);
 
       res.render('confirm', {
         item: seed,
@@ -940,20 +1120,20 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   // GET /{prefix}/:id -> details view
   router.get(`${plugin.routePrefix}/:id`, requireAuthOrShareView, async (req: any, res: any) => {
     try {
-      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      if (!isId(req.params.id)) {
         return res.status(404).send(req.t('errors.not_found'));
       }
       // An item the collection hides from its viewers is hidden from its page too, not just
       // from the grid: the id is the only thing standing between the two, and a share link
       // hands it to whoever wants to try one.
-      const detailQuery: any = { _id: req.params.id, collection: res.locals.activeCollectionId };
-      applyPluginKindFilter(detailQuery, plugin);
-      applyVisibilityFilter(detailQuery, res.locals.isCollectionAdmin, res.locals.settings);
-      // What someone merely wants is not part of what a public link was opened to show,
-      // and every listing a share visitor can reach already says so.
-      if (res.locals.isShareView) detailQuery.in_wishlist = false;
-
-      const item = await Item.findOne(detailQuery);
+      const visible = visibilityFilter(res.locals.isCollectionAdmin, res.locals.settings);
+      const item = await db.items.findOne(and(
+        ownItem(req.params.id, res),
+        visible,
+        // What someone merely wants is not part of what a public link was opened to show,
+        // and every listing a share visitor can reach already says so.
+        res.locals.isShareView ? eq('in_wishlist', false) : null
+      ), { defaults: true });
       if (!item) {
         return res.status(404).send(req.t('errors.not_found'));
       }
@@ -964,7 +1144,9 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         return res.status(404).send(req.t('errors.not_found'));
       }
 
-      const formatted = plugin.formatForView(item);
+      // A share link sees the item without what stays between members (core/cardFields.ts).
+      const forViewer = (record: any) => res.locals.isShareView ? forShareView(plugin.formatForView(record)) : plugin.formatForView(record);
+      const formatted = forViewer(item);
 
       // A plugin looks its other editions up by what they are (same title and artist, same
       // set number), which it can do without knowing who is asking. Whether one of them is
@@ -975,9 +1157,32 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       // What this item holds, if anything: the seasons of a show. Kept out of every
       // listing, so this page is the only way to them, which is also why deleting the
       // holder takes them along.
-      const containedQuery: any = { parent: item._id };
-      applyVisibilityFilter(containedQuery, res.locals.isCollectionAdmin, res.locals.settings);
-      const contained = await Item.find(containedQuery).lean();
+      const contained = await db.items.find(and(eq('parent', idOf(item._id)), visible));
+
+      // The box this item is kept in and what it keeps itself (core/insideItems.ts), of
+      // whatever type, each with its own page. Through a scoped share link, only those the
+      // link covers: a box may hold items of a type it does not.
+      const linked = res.locals.isShareView ? and(visible, shareScopeFilter(res.locals.shareScope)) : visible;
+      const insideBox: any = item.inside
+        ? await db.items.findOne(and(eq('_id', idOf(item.inside)), linked), { fields: ['title', 'kind'] })
+        : null;
+      const boxContents = await contentsOf(item._id, linked);
+      const asLink = (entry: any) => {
+        const kindPlugin = registry.getByKind(entry.kind);
+        const href = itemHref(entry);
+        if (!kindPlugin || !href) return null;
+        const shown = kindPlugin.formatForView(entry);
+        return {
+          _id: String(entry._id),
+          title: entry.title || '',
+          creator: shown?.[kindPlugin.creatorField] || '',
+          year: entry.year || '',
+          image: Array.isArray(entry.images) && entry.images[0] ? entry.images[0] : null,
+          cover: entry.cover_image || '',
+          type: req.t(kindPlugin.label, { defaultValue: kindPlugin.label }),
+          href
+        };
+      };
 
       // Where this page was opened from, so leaving it, editing or deleting comes back to
       // the very page someone was on rather than the first one. The explicit parameter
@@ -989,21 +1194,19 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       // such pages send "back" to each other with no way out. It is dropped, and the view
       // falls back to the collection itself. safeReturnPath keeps BASE_URL on what it
       // returns, hence the prefix in the pattern.
+      //
+      // The id may be preceded by an item sub-route (edit/, copy/) and followed by one
+      // (e.g. /label): those pages are item pages too, so coming back from the Copy or
+      // Edit form must not treat the form's URL as a listing (that looped detail <-> copy).
       const refererPath = safeReturnPath(req.get('Referer'), req.get('host'));
-      const itemPagePattern = new RegExp(
-        `^${escapeRegExp(BASE_URL)}${escapeRegExp(plugin.routePrefix)}/[a-f0-9]{24}(?:[/?#]|$)`,
-        'i'
-      );
       const backUrl = safeReturnPath(req.query.from, req.get('host'))
-        || (itemPagePattern.test(refererPath) ? '' : refererPath);
+        || (isItemSubPage(refererPath, plugin.routePrefix) ? '' : refererPath);
 
       // And what holds this one, if anything: a season is absent from every listing, so
       // "back to the collection" would send its page nowhere useful. The show it belongs
       // to is the place to go back to.
-      const holderQuery: any = { _id: (item as any).parent };
-      applyVisibilityFilter(holderQuery, res.locals.isCollectionAdmin, res.locals.settings);
-      const holder: any = (item as any).parent
-        ? await Item.findOne(holderQuery).select('title').lean()
+      const holder: any = item.parent
+        ? await db.items.findOne(and(eq('_id', idOf(item.parent)), visible), { fields: ['title'] })
         : null;
 
       // Who put the item there and who last touched it, for the people who share the
@@ -1011,18 +1214,23 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       // not to name the household behind it, so the lookups do not even run.
       const toProfile = (u: any) => u ? { username: u.username, img: u.img || '/ressources/no-pp.jpg' } : null;
       const [addedBy, modifiedBy] = res.locals.isShareView ? [null, null] : await Promise.all([
-        item.owner ? User.findById(item.owner).select('username img').lean() as any : null,
-        (item as any).modified_by ? User.findById((item as any).modified_by).select('username img').lean() as any : null
+        item.owner ? db.users.findById(idOf(item.owner), { fields: ['username', 'img'] }) : null,
+        item.modified_by ? db.users.findById(idOf(item.modified_by), { fields: ['username', 'img'] }) : null
       ]);
 
       res.render('detail', {
         item: formatted,
+        requestCard: await requestCardData(res, item, req.t.bind(req)),
+        requestMsg: req.query.request_msg,
+        requestField: req.query.request_field,
         plugin,
-        variants: variants.map(v => plugin.formatForView(v)),
+        variants: variants.map(forViewer),
         addedBy: toProfile(addedBy),
         modifiedBy: toProfile(modifiedBy),
         contains: contained.map(c => plugin.formatForView(c)),
         holder: holder ? { _id: holder._id, title: holder.title } : null,
+        insideBox: insideBox ? asLink(insideBox) : null,
+        boxContents: boxContents.map(asLink).filter(Boolean),
         backUrl,
         containsLabel: plugin.cardContains ? plugin.cardContains(item, contained) : null,
         user: res.locals.user
@@ -1039,15 +1247,14 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   // to QR, so the two never render on the same label at once.
   router.get(`${plugin.routePrefix}/:id/label`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
     try {
-      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      if (!isId(req.params.id)) {
         return res.status(404).send(req.t('errors.not_found'));
       }
 
-      const labelQuery: any = { _id: req.params.id, collection: res.locals.activeCollectionId };
-      applyPluginKindFilter(labelQuery, plugin);
-      applyVisibilityFilter(labelQuery, res.locals.isCollectionAdmin, res.locals.settings);
-
-      const item = await Item.findOne(labelQuery);
+      const item = await db.items.findOne(and(
+        ownItem(req.params.id, res),
+        visibilityFilter(res.locals.isCollectionAdmin, res.locals.settings)
+      ), { defaults: true });
       if (!item) {
         return res.status(404).send(req.t('errors.not_found'));
       }
@@ -1094,9 +1301,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   // DELETE /api/{prefix}/:id -> delete item
   router.delete(`/api${plugin.routePrefix}/:id`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
     try {
-      const deleteQuery: any = { _id: req.params.id, collection: res.locals.activeCollectionId };
-      applyPluginKindFilter(deleteQuery, plugin);
-      const item = await Item.findOne(deleteQuery);
+      const item = isId(req.params.id) ? await db.items.findOne(ownItem(req.params.id, res), { fields: ['_id'] }) : null;
       if (!item) {
         return res.status(404).json({ success: false, error: req.t('errors.not_found') });
       }
@@ -1113,11 +1318,17 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   if (canRefresh(plugin)) {
     router.post(`/api${plugin.routePrefix}/:id/refresh-info`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
       try {
-        const refreshQuery: any = { _id: req.params.id, collection: res.locals.activeCollectionId };
-        applyPluginKindFilter(refreshQuery, plugin);
-        const item = await Item.findOne(refreshQuery);
+        const item = isId(req.params.id) ? await db.items.findOne(ownItem(req.params.id, res), { defaults: true }) : null;
         if (!item) {
           return res.status(404).json({ success: false, error: "Item not found" });
+        }
+        // Said plainly rather than failing: an item typed in by hand has nothing to be
+        // refreshed from until its id is filled in.
+        if (!isLinkedToSource(plugin, item)) {
+          return res.status(422).json({
+            success: false,
+            error: req.t('detail.refresh_no_source', { field: req.t(plugin.externalIdLabel || 'common.external_id_label') })
+          });
         }
 
         // Through the item's own source where the plugin can merge one, so an item that
@@ -1125,17 +1336,14 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         // against the database that actually holds it.
         const result = await refreshPatchFor(plugin, item, req);
         // Persist the refreshed metadata (some plugins already persist internally; this is
-        // idempotent). The filter needs `kind` so Mongoose casts against the discriminator
-        // schema; without it, plugin-only paths like tracklist are silently stripped by
-        // strict mode.
+        // idempotent). Written as this plugin's type, or fields only it stores, like a
+        // tracklist, would be dropped.
         // Stamped even when the provider returned nothing new: the question the date
         // answers is when the metadata was last checked, not when it last changed.
         const update = { ...(result || {}) };
         const replacedCover = alignImagesAfterRefresh(item, update);
-        await Item.updateOne(
-          { _id: item._id, kind: plugin.kind },
-          { $set: { ...update, ...syncStamp() } }
-        );
+        await db.items.updateOne(eq('_id', idOf(item._id)), { set: { ...update, ...syncStamp() } }, { kind: plugin.kind });
+        copyItemImagesSoon(item._id, item.collection);
         if (replacedCover) {
           try {
             await deleteUnusedManagedItemImages([replacedCover]);
@@ -1155,18 +1363,14 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   router.post(`/api${plugin.routePrefix}/:id/move-to-collection`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
     try {
       const stamp = editStamp(req.user._id);
-      const moveQuery: any = { _id: req.params.id, collection: res.locals.activeCollectionId };
-      applyPluginKindFilter(moveQuery, plugin);
-      const moved = await Item.findOneAndUpdate(
-        moveQuery,
-        { in_wishlist: false, added_at: new Date(), ...stamp }
-      );
+      const moved = isId(req.params.id)
+        && (await db.items.updateOne(ownItem(req.params.id, res), { set: { in_wishlist: false, added_at: new Date(), ...stamp } })).matched > 0;
       // A miss means the id is not this plugin's to move (or not in this collection).
       // Saying "success" there would tell the page a move happened that never did.
       if (!moved) {
         return res.status(404).json({ success: false, error: req.t('errors.not_found') });
       }
-      await moveContentsToWishlist(moved._id, false, stamp);
+      await moveContentsToWishlist(req.params.id, false, stamp);
       res.json({ success: true });
     } catch (err: any) {
       console.error(`Move to collection error for ${plugin.id}:`, err.message);
@@ -1181,18 +1385,14 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
   router.post(`/api${plugin.routePrefix}/:id/move-to-wishlist`, requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
     try {
       const stamp = editStamp(req.user._id);
-      const moveQuery: any = { _id: req.params.id, collection: res.locals.activeCollectionId };
-      applyPluginKindFilter(moveQuery, plugin);
-      const moved = await Item.findOneAndUpdate(
-        moveQuery,
-        { in_wishlist: true, added_at: new Date(), ...stamp }
-      );
+      const moved = isId(req.params.id)
+        && (await db.items.updateOne(ownItem(req.params.id, res), { set: { in_wishlist: true, added_at: new Date(), ...stamp } })).matched > 0;
       // A miss means the id is not this plugin's to move (or not in this collection).
       // Saying "success" there would tell the page a move happened that never did.
       if (!moved) {
         return res.status(404).json({ success: false, error: req.t('errors.not_found') });
       }
-      await moveContentsToWishlist(moved._id, true, stamp);
+      await moveContentsToWishlist(req.params.id, true, stamp);
       res.json({ success: true });
     } catch (err: any) {
       console.error(`Move to wishlist error for ${plugin.id}:`, err.message);

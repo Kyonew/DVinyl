@@ -3,6 +3,7 @@ import test from 'node:test';
 import { fetchOpenLibraryEdition } from '../plugins/books/openLibrary';
 import { dvdPlugin } from '../plugins/dvds';
 import { buildSortTitle } from '../core/helpers';
+import { articlesFromSetting, parseSortArticles } from '../core/sortArticles';
 import { normalizeThemePresets } from '../utils/migrate';
 
 // 1. OpenLibrary edition resilience
@@ -133,50 +134,84 @@ test('buildSortTitle ignores leading articles and normalizes accents', () => {
 
 // 6. DVD findDuplicate & findPotentialDuplicates scoping
 test('dvdPlugin duplicate detection scopes to media_type with backward compatibility for legacy items', async () => {
-  const Item = (await import('../models/Item')).default;
-  const originalFindOne = Item.findOne;
-  const originalFind = Item.find;
+  const { db } = await import('../core/db');
+  const original = { findOne: db.items.findOne, find: db.items.find };
 
-  let lastQuery: any = null;
-  (Item as any).findOne = async (q: any) => {
-    lastQuery = q;
-    return { _id: 'mockItem', ...q };
+  let lastFilter: any = null;
+  (db.items as any).findOne = async (filter: any) => {
+    lastFilter = filter;
+    return { _id: 'mockItem' };
+  };
+  (db.items as any).find = async (filter: any) => {
+    lastFilter = filter;
+    return [];
   };
 
-  (Item as any).find = (q: any) => {
-    lastQuery = q;
-    return {
-      lean: async () => []
-    };
-  };
+  // Every condition of a filter, nested ands and ors included.
+  const conditions = (filter: any): any[] =>
+    filter.op === 'and' || filter.op === 'or' ? [filter, ...filter.filters.flatMap(conditions)] : [filter];
+  const holds = (filter: any, wanted: any) =>
+    conditions(filter).some(c => JSON.stringify(c) === JSON.stringify(wanted));
+
+  const anyMovie = { op: 'in', field: 'media_type', values: ['movie', null] };
+  const tvOnly = { op: 'eq', field: 'media_type', value: 'tv' };
+  const id155 = { op: 'eq', field: 'tmdb_id', value: 155 };
 
   try {
     const colId = '507f1f77bcf86cd799439011';
 
     // Movie with tmdb_id
     await dvdPlugin.findDuplicate(colId, { tmdb_id: 155, media_type: 'movie' });
-    assert.equal(lastQuery.tmdb_id, 155);
-    assert.deepEqual(lastQuery.media_type, { $in: ['movie', null] });
+    assert.ok(holds(lastFilter, id155) && holds(lastFilter, anyMovie));
 
     // Movie without media_type (default to movie)
     await dvdPlugin.findDuplicate(colId, { tmdb_id: 155 });
-    assert.equal(lastQuery.tmdb_id, 155);
-    assert.deepEqual(lastQuery.media_type, { $in: ['movie', null] });
+    assert.ok(holds(lastFilter, id155) && holds(lastFilter, anyMovie));
 
     // TV show with tmdb_id
     await dvdPlugin.findDuplicate(colId, { tmdb_id: 155, media_type: 'tv' });
-    assert.equal(lastQuery.tmdb_id, 155);
-    assert.equal(lastQuery.media_type, 'tv');
+    assert.ok(holds(lastFilter, id155) && holds(lastFilter, tvOnly));
+    assert.ok(!holds(lastFilter, anyMovie));
 
-    // Potential duplicates
+    // Potential duplicates: the id only counts together with its media type
     await dvdPlugin.findPotentialDuplicates!(colId, { tmdb_id: 155, media_type: 'movie' });
-    assert.deepEqual(lastQuery.$or[0], { tmdb_id: 155, media_type: { $in: ['movie', null] } });
+    assert.ok(holds(lastFilter, id155) && holds(lastFilter, anyMovie));
 
     await dvdPlugin.findPotentialDuplicates!(colId, { tmdb_id: 155, media_type: 'tv' });
-    assert.deepEqual(lastQuery.$or[0], { tmdb_id: 155, media_type: 'tv' });
+    assert.ok(holds(lastFilter, id155) && holds(lastFilter, tvOnly));
+    assert.ok(!holds(lastFilter, anyMovie));
   } finally {
-    Item.findOne = originalFindOne;
-    Item.find = originalFind;
+    (db.items as any).findOne = original.findOne;
+    (db.items as any).find = original.find;
   }
 });
 
+
+test('buildSortTitle drops the articles it is given, elided ones included', () => {
+  const french = parseSortArticles("le, LA, les; l’, un");
+  assert.deepEqual(french, ['le', 'la', 'les', "l'", 'un']);
+  assert.equal(buildSortTitle('Les Misérables', french), 'miserables');
+  assert.equal(buildSortTitle("L'Écume des jours", french), 'ecume des jours');
+  assert.equal(buildSortTitle('L’Arnaque', french), 'arnaque');
+  assert.equal(buildSortTitle('Lapin', french), 'lapin');
+  assert.equal(buildSortTitle('La', french), 'la');
+  assert.equal(buildSortTitle('The Wall', french), 'the wall');
+  assert.equal(buildSortTitle('The Wall', []), 'the wall');
+  assert.deepEqual(articlesFromSetting(undefined), ['the', 'a', 'an']);
+  assert.deepEqual(articlesFromSetting([]), []);
+});
+
+test('the creator sort key reads the field of the item\'s type, legacy items and dotted paths included', async () => {
+  const { rememberCreatorField, forgetCreatorField, sortCreatorOf, buildSortCreator } = await import('../core/sortCreators');
+  rememberCreatorField('TestMusic', 'artist', true);
+  rememberCreatorField('TestOther', 'artist');
+  rememberCreatorField('TestCustom', 'extra.maker');
+  assert.equal(sortCreatorOf({ kind: 'TestMusic', artist: 'The Beatles' }, ['the']), 'beatles');
+  assert.equal(sortCreatorOf({ artist: 'The Cure' }, ['the']), 'cure');
+  assert.equal(sortCreatorOf({ kind: 'TestCustom', extra: { maker: 'Élan' } }, []), 'elan');
+  assert.equal(buildSortCreator(['The Who', 'Queen'], ['the']), 'who, queen');
+  // Dropping a type that shares the legacy type's field name keeps the legacy mapping.
+  forgetCreatorField('TestOther');
+  assert.equal(sortCreatorOf({ artist: 'The Cure' }, ['the']), 'cure');
+  for (const kind of ['TestMusic', 'TestCustom']) forgetCreatorField(kind);
+});

@@ -14,7 +14,7 @@
                             <%= t('confirm_vinyl.field_title') %>
                         </th>
                         <th class="px-4 py-3 text-right">
-                            <%= t('confirm_vinyl.year_label') === 'Année' ? 'Durée' : 'Duration' %>
+                            <%= t('tracklist.col_duration') %>
                         </th>
                         <th class="w-10"></th>
                     </tr>
@@ -366,11 +366,11 @@
                 tr.notes = payload.notes;
                 if ('lyrics' in payload) tr.has_lyrics = !!payload.lyrics.trim();
                 renderRowMeta(current);
-                els.saveMsg.textContent = <%- JSON.stringify(t("tracklist.saved")) %>;
+                els.saveMsg.textContent = <%- JSON.stringify(t("tracklist.saved")).replace(/</g, '\\u003c') %>;
                 els.saveMsg.className = 'text-xs text-green-500 transition-opacity';
                 setTimeout(closeModal, 450);
             } catch (err) {
-                els.saveMsg.textContent = <%- JSON.stringify(t("messages.generic_error")) %>;
+                els.saveMsg.textContent = <%- JSON.stringify(t("messages.generic_error")).replace(/</g, '\\u003c') %>;
                 els.saveMsg.className = 'text-xs text-red-500 transition-opacity';
             } finally {
                 els.saveBtn.disabled = false;

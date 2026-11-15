@@ -1,9 +1,11 @@
-import mongoose from 'mongoose';
+import { db } from './db';
 import { PluginDefinition } from './types';
 import { DEFAULT_PLACEHOLDER_IMAGE } from './placeholderImage';
-import Item from '../models/Item';
 import { imagesForItem } from './itemImages';
 import { pluginSources, isSourceConfigured, isSearchable, requiredEnvKeysFor } from './sources';
+import { INHERIT_PRESET } from './theme';
+import { addExtraFormatsField } from './extraFormats';
+import { rememberCreatorField, forgetCreatorField } from './sortCreators';
 
 const FLATTENS_EXTRA = Symbol('flattensExtra');
 const RESOLVES_PLACEHOLDER = Symbol('resolvesPlaceholder');
@@ -24,8 +26,8 @@ function flattenExtraValues(plugin: PluginDefinition): void {
   if ((plugin as any)[FLATTENS_EXTRA]) return;
   const original = plugin.formatForView.bind(plugin);
   const nativeNames = new Set<string>([
-    ...Object.keys(Item.schema.paths).map(p => p.split('.')[0]!),
-    ...Object.keys(plugin.schemaDefinition || {}),
+    ...db.items.baseFieldNames(),
+    ...Object.keys(plugin.storedFields || {}),
     ...(plugin.formFields || []).map(f => f.name)
   ]);
   if (plugin.creatorField) nativeNames.add(plugin.creatorField);
@@ -70,37 +72,57 @@ function resolvePlaceholderCover(plugin: PluginDefinition): void {
   (plugin as any)[RESOLVES_PLACEHOLDER] = true;
 }
 
+/**
+ * Gives every item type the fields the core keeps for any copy of anything, whatever its
+ * plugin declares: what the owner paid for it, today. Placed after the location when the
+ * plugin has one, so the facts about the copy stay together; a plugin declaring the
+ * field itself keeps its own definition.
+ */
+function addCoreCopyFields(plugin: PluginDefinition): void {
+  const fields = plugin.formFields || (plugin.formFields = []);
+  if (fields.some(f => f.name === 'purchase_price')) return;
+  const field = {
+    name: 'purchase_price',
+    label: 'common.purchase_price',
+    type: 'number' as const,
+    showIn: ['edit', 'confirm', 'manual', 'detail'] as ('edit' | 'confirm' | 'manual' | 'detail')[],
+    group: 'metadata' as const
+  };
+  const after = fields.findIndex(f => f.name === 'location');
+  if (after >= 0) fields.splice(after + 1, 0, field);
+  else fields.push(field);
+}
+
 class PluginRegistry {
   private plugins: Map<string, PluginDefinition> = new Map();
 
   register(plugin: PluginDefinition): void {
+    addCoreCopyFields(plugin);
+    addExtraFormatsField(plugin);
     flattenExtraValues(plugin);
     resolvePlaceholderCover(plugin);
     this.plugins.set(plugin.id, plugin);
 
     try {
-      const schema = new mongoose.Schema(plugin.schemaDefinition);
-      Item.discriminator(plugin.kind, schema);
-      console.log(`[PluginRegistry] Registered Mongoose discriminator for ${plugin.kind}`);
+      db.items.registerType(plugin.kind, plugin.storedFields || {});
+      rememberCreatorField(plugin.kind, plugin.creatorField, plugin.matchesLegacyItems);
+      console.log(`[PluginRegistry] Registered item type ${plugin.kind}`);
     } catch (err: any) {
-      console.warn(`[PluginRegistry] Mongoose discriminator ${plugin.kind} registry warning: ${err.message}`);
+      console.warn(`[PluginRegistry] Item type ${plugin.kind} registry warning: ${err.message}`);
     }
   }
 
   /**
-   * Removes a plugin (custom-plugin edit/delete at runtime). Also drops the
-   * Mongoose discriminator model so re-registering with an updated schema works
-   * without restart.
+   * Removes a plugin (custom-plugin edit/delete at runtime). Also drops its item type,
+   * so re-registering with updated fields works without restart.
    */
   unregister(id: string): void {
     const plugin = this.plugins.get(id);
     if (!plugin) return;
     this.plugins.delete(id);
     try {
-      if ((Item as any).discriminators) {
-        delete (Item as any).discriminators[plugin.kind];
-      }
-      mongoose.deleteModel(plugin.kind);
+      db.items.unregisterType(plugin.kind);
+      forgetCreatorField(plugin.kind);
       console.log(`[PluginRegistry] Unregistered plugin ${id} (${plugin.kind})`);
     } catch (err: any) {
       console.warn(`[PluginRegistry] Unregister ${id} warning: ${err.message}`);
@@ -182,11 +204,11 @@ class PluginRegistry {
     return out;
   }
 
-  /** theme presets map: 'home' + one entry per plugin */
+  /** theme presets map: 'home' + one entry per plugin, which wears the home page's */
   getDefaultThemes(): Record<string, { preset: string }> {
     const theme: Record<string, { preset: string }> = { home: { preset: 'default' } };
     for (const p of this.getAll()) {
-      theme[p.collectionType] = { preset: 'default' };
+      theme[p.collectionType] = { preset: INHERIT_PRESET };
     }
     return theme;
   }

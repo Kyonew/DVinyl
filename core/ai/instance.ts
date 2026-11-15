@@ -1,4 +1,5 @@
-import InstanceSettings from '../../models/InstanceSettings';
+import { db } from '../db';
+import { eq } from '../db/query';
 import { AiConfig } from './types';
 import { resolveAiConfig, normalizeStoredBaseUrl, isAiConfigured, storedKeyFollows, StoredAiSettings } from './config';
 import { encryptSecret } from './secret';
@@ -24,7 +25,7 @@ export function invalidateAiConfigCache(): void {
  * config. */
 export async function getStoredAiSettings(): Promise<StoredAiSettings | null> {
   try {
-    const doc: any = await InstanceSettings.findOne({ key: 'instance' }).lean();
+    const doc: any = await db.instanceSettings.findOne(eq('key', 'instance'));
     return (doc?.ai as StoredAiSettings) || null;
   } catch (err: any) {
     // A database hiccup must not take a search page down with it: AI is an assist, and
@@ -65,7 +66,7 @@ export async function saveAiSettings(input: AiSettingsInput): Promise<void> {
   // the server holds to the same rule: otherwise a request could point an environment
   // key at an endpoint of its choosing.
   if (resolveAiConfig(stored).fromEnv) {
-    await InstanceSettings.updateOne({ key: 'instance' }, { $set: { 'ai.enabled': input.enabled } }, { upsert: true });
+    await db.instanceSettings.updateOne(eq('key', 'instance'), { set: { 'ai.enabled': input.enabled } }, { upsert: true });
     invalidateAiConfigCache();
     return;
   }
@@ -88,6 +89,6 @@ export async function saveAiSettings(input: AiSettingsInput): Promise<void> {
     update['ai.apiKeyEncrypted'] = '';
   }
 
-  await InstanceSettings.updateOne({ key: 'instance' }, { $set: update }, { upsert: true });
+  await db.instanceSettings.updateOne(eq('key', 'instance'), { set: update }, { upsert: true });
   invalidateAiConfigCache();
 }

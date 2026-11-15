@@ -1,0 +1,33 @@
+<%#
+    A thumbnail of a screen with its navigation at `nav` (top, left, right, bottom),
+    the sidebar `sidebar` (expanded or rail) and corners scaled by `radiusFactor`. It is
+    painted from the studio's --thumb-* colours, which follow the colour picked.
+%>
+<%
+    const thumbNav = {
+        top: 'top-0 inset-x-0 h-[14%]',
+        left: 'inset-y-0 left-0 ' + (locals.sidebar === 'rail' ? 'w-[11%]' : 'w-[24%]'),
+        right: 'inset-y-0 right-0 w-[24%]',
+        bottom: 'bottom-[7%] left-[26%] right-[26%] h-[14%] rounded-full'
+    }[nav];
+    const thumbBody = {
+        top: 'top-[24%] inset-x-[9%] bottom-[10%]',
+        left: 'top-[12%] right-[8%] bottom-[12%] ' + (locals.sidebar === 'rail' ? 'left-[19%]' : 'left-[32%]'),
+        right: 'top-[12%] left-[8%] right-[32%] bottom-[12%]',
+        bottom: 'top-[10%] inset-x-[9%] bottom-[30%]'
+    }[nav];
+%>
+<span class="relative block w-full aspect-[16/10] overflow-hidden rounded-lg border border-[var(--border-color)]" style="background-color: var(--thumb-bg, var(--bg-page));" aria-hidden="true">
+    <%# The navigation, with a few marks in it (the first in the accent) so it reads
+        against the page however dark both are. %>
+    <span class="absolute <%= thumbNav %> flex <%= nav === 'left' || nav === 'right' ? 'flex-col items-center pt-[22%] gap-[9%]' : 'items-center justify-center gap-[6%]' %>" style="background-color: var(--thumb-nav, var(--bg-nav)); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.06);">
+        <% for (let i = 0; i < 3; i++) { %>
+            <span class="block rounded-full <%= nav === 'left' || nav === 'right' ? 'w-1/2 h-[4%] min-h-[2px]' : 'w-[10%] h-[28%]' %>" style="background-color: <%= i === 0 ? 'var(--thumb-accent, var(--highlight))' : 'rgb(255 255 255 / 0.3)' %>;"></span>
+        <% } %>
+    </span>
+    <span class="absolute <%= thumbBody %> grid grid-cols-3 gap-[6%]">
+        <% for (let i = 0; i < 6; i++) { %>
+            <span class="block" style="background-color: var(--thumb-card, var(--bg-card)); border-radius: <%= Math.round(4 * radiusFactor) %>px;"></span>
+        <% } %>
+    </span>
+</span>

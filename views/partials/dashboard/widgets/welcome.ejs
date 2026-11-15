@@ -1,0 +1,73 @@
+<%
+  // Phones: the collection's name over a greeting, and the way to search. Larger
+  // screens: the welcome panel, its search and its quick actions as options allow.
+  const heroFull = size === 'full';
+  const welcomeScanPlugins = locals.canEditCollection ? registry.getEnabled(settings).filter(p => hasBarcodeScan(p)) : [];
+  const welcomeCanAdd = locals.canEditCollection && registry.getEnabled(settings).length > 0;
+%>
+<div class="md:hidden flex items-center justify-between gap-3 px-1">
+    <div class="min-w-0">
+        <span class="block text-xs font-bold uppercase tracking-widest text-primary-theme truncate"><%= (locals.activeCollection && activeCollection.name) || '' %></span>
+        <h1 class="text-[2rem] leading-tight font-extrabold tracking-tight truncate"><%= t('index.welcome') %>, <%= user.username %></h1>
+    </div>
+    <% if (options.search) { %>
+    <a href="<%= baseUrl %>/search" aria-label="<%= t('nav.search') %>" class="flex-none w-11 h-11 rounded-full card-theme flex items-center justify-center">
+        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+    </a>
+    <% } %>
+</div>
+
+<div class="max-md:hidden h-full relative card-theme rounded-3xl <%= heroFull ? 'p-12' : 'p-8' %> shadow-2xl overflow-hidden flex flex-col justify-center">
+    <div class="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-primary-theme/10 rounded-full blur-3xl"></div>
+    <div class="absolute bottom-0 left-0 -mb-10 -ml-10 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl"></div>
+
+    <div class="relative z-10 text-center space-y-6">
+        <h1 class="<%= heroFull ? 'text-6xl' : 'text-4xl' %> font-black tracking-tight">
+            <%= t('index.welcome') %> <span class="text-primary-theme"><%= user.username %></span> !
+        </h1>
+        <p class="opacity-70 <%= heroFull ? 'text-xl' : 'text-base' %> max-w-2xl mx-auto">
+            <%= t('index.hero_subtitle') %>
+        </p>
+
+        <% if (options.search) { %>
+        <form action="<%= baseUrl %>/collection" method="GET" class="w-full max-w-xl mx-auto mt-8">
+            <div class="relative group">
+                <div class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none z-10">
+                    <i class="fa-solid fa-search opacity-50 group-focus-within:text-primary-theme transition-colors"></i>
+                </div>
+                <input type="text" name="search" class="block w-full p-4 pl-12 text-base bg-black/5 dark:bg-black/20 border border-transparent focus:border-primary-theme rounded-full focus:ring-2 focus:ring-primary-theme/50 placeholder-opacity-50 transition-all shadow-inner" placeholder="<%= t('index.search_placeholder') %>">
+                <button type="submit" class="absolute right-2 top-2 bottom-2 bg-gray-200 dark:bg-white/10 hover:bg-primary-theme hover:text-white font-medium rounded-full text-sm px-4 transition-colors z-10"><%= t('common.go') %></button>
+            </div>
+        </form>
+        <% } %>
+
+        <% if (options.actions) { %>
+        <div class="flex flex-wrap justify-center gap-4 pt-4 text-sm opacity-80">
+            <% if (welcomeCanAdd) { %>
+                <button onclick="openAddModal()" class="inline-flex items-center gap-2 hover:text-primary-theme transition-colors">
+                    <i class="fa-solid fa-plus-circle" data-add-hub-icon></i>
+                    <span class="hidden sm:inline"><%= t('index.nav_add_full') %></span>
+                </button>
+                <span class="opacity-30">|</span>
+            <% } %>
+            <% if (welcomeScanPlugins.length > 0) { %>
+                <% if (welcomeScanPlugins.length === 1) { %>
+                    <a href="<%= baseUrl %>/add-<%= welcomeScanPlugins[0].id %>?scan=1" class="inline-flex items-center gap-2 hover:text-primary-theme transition-colors">
+                        <i class="fa-solid fa-barcode"></i>
+                        <span class="hidden sm:inline"><%= t('index.nav_scan_full') %></span>
+                    </a>
+                <% } else { %>
+                    <button onclick="openScanPicker()" class="inline-flex items-center gap-2 hover:text-primary-theme transition-colors">
+                        <i class="fa-solid fa-barcode"></i>
+                        <span class="hidden sm:inline"><%= t('index.nav_scan_full') %></span>
+                    </button>
+                <% } %>
+                <span class="opacity-30">|</span>
+            <% } %>
+            <a href="<%= baseUrl %>/collection" class="inline-flex items-center gap-2 hover:text-primary-theme transition-colors">
+                <i class="fa-solid fa-list"></i> <%= t('index.nav_view_all') %>
+            </a>
+        </div>
+        <% } %>
+    </div>
+</div>

@@ -1,0 +1,7 @@
+<a href="<%= baseUrl %>/info"
+    class="flex items-center gap-3 card-theme rounded-2xl px-4 md:px-5 min-h-[52px] md:py-3 shadow-sm hover:border-primary-theme hover:text-primary-theme transition-all group">
+    <i class="fa-solid fa-circle-info text-primary-theme" aria-hidden="true"></i>
+    <span class="text-sm font-bold flex-1 md:flex-none"><%= t('collection_info.bar_label') %></span>
+    <span class="text-xs opacity-50 truncate max-md:hidden"><%= locals.activeCollection ? activeCollection.name : '' %></span>
+    <i class="fa-solid fa-chevron-right ml-auto text-xs opacity-50 group-hover:translate-x-1 transition-transform" aria-hidden="true"></i>
+</a>

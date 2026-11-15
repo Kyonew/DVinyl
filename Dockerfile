@@ -1,11 +1,23 @@
 # syntax=docker/dockerfile:1
-FROM node:20-alpine
+
+# Dependencies, built apart: better-sqlite3 compiles a native module when no prebuilt
+# binary matches the platform (Alpine's musl, ARM boards), which needs a toolchain the
+# final image has no use for.
+FROM node:24-alpine AS deps
 
 WORKDIR /app
+
+RUN apk add --no-cache python3 make g++
 
 COPY package*.json ./
 
 RUN npm install
+
+FROM node:24-alpine
+
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
 
 COPY . .
 
@@ -20,4 +32,6 @@ RUN --mount=type=secret,id=screenscraper_dev_id \
 
 EXPOSE 3099
 
-CMD ["npx", "tsx", "app.ts"]
+# Node itself, loading tsx: npx and the tsx command would each keep a Node process of their
+# own running next to the app for nothing (about 50 MB together).
+CMD ["node", "--import", "tsx", "app.ts"]

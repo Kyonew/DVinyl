@@ -1,0 +1,31 @@
+<%
+  // Entries added per month, oldest on the left. One bar a month on a shared baseline,
+  // the month and its count in a tooltip; only some months are labelled under the axis
+  // so the labels never run into each other.
+  const tlMax = Math.max(1, ...data.buckets.map(b => b.count));
+  const tlLocale = dateLocaleFor(currentLng);
+  const tlMonth = (b, style) => new Date(b.year, b.month, 1).toLocaleDateString(tlLocale, style);
+  const tlEvery = data.buckets.length > 12 ? 3 : (size === 'm' ? 2 : 1);
+%>
+<div class="card-theme h-full rounded-2xl p-5 md:p-6 flex flex-col gap-4">
+    <div class="flex items-baseline justify-between gap-3">
+        <h3 class="font-bold"><%= t('dashboard.w_timeline') %></h3>
+        <span class="text-xs opacity-60 whitespace-nowrap"><%= t('dashboard.added_over', { count: data.total, months: data.buckets.length }) %></span>
+    </div>
+    <div class="flex-1 min-h-[9rem] flex items-end gap-[3px] md:gap-1 border-b border-black/10 dark:border-white/10" role="img"
+        aria-label="<%= data.buckets.map(b => tlMonth(b, { month: 'long', year: 'numeric' }) + ': ' + b.count).join(', ') %>">
+        <% data.buckets.forEach(b => { %>
+            <span class="group relative flex-1 h-full flex items-end">
+                <span class="block w-full rounded-t bg-primary-theme group-hover:brightness-110 transition-all" style="height: <%= b.count ? Math.max(3, b.count / tlMax * 100) : 0 %>%"></span>
+                <span class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1 whitespace-nowrap card-theme shadow-lg rounded-lg px-2 py-1 text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                    <%= tlMonth(b, { month: 'short', year: 'numeric' }) %> · <%= b.count %>
+                </span>
+            </span>
+        <% }) %>
+    </div>
+    <div class="flex gap-[3px] md:gap-1 -mt-2 text-[10px] opacity-60" aria-hidden="true">
+        <% data.buckets.forEach((b, i) => { %>
+            <span class="flex-1 text-center truncate"><%= (data.buckets.length - 1 - i) % tlEvery === 0 ? tlMonth(b, { month: 'short' }) : '' %></span>
+        <% }) %>
+    </div>
+</div>

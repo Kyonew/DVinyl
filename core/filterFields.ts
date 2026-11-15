@@ -13,7 +13,7 @@ import { ExtraFieldConfig, FilterableField, isFilterable } from './pluginExtraFi
  *
  * Only deviations from the default are stored, so a key that is absent keeps the
  * filter where it always was: core controls and user-defined fields on, the plugin's
- * own fields off. A field declared later therefore shows up on its own, as it did
+ * own fields off unless it lists them in `defaultFilters`. A field declared later therefore shows up on its own, as it did
  * before this setting existed.
  *
  * The page showing every type at once is left alone: its filters span all plugins,
@@ -43,16 +43,18 @@ export const CORE_FILTER_IDS = {
   creator: `${CORE_PREFIX}creator`
 } as const;
 
-// Types a plugin's own field may be filtered on: those whose values are known up
-// front, so the control is a short list rather than everything ever typed.
-const NATIVE_FILTER_TYPES = new Set(['select', 'boolean']);
+// Types a plugin's own field may be filtered on. A select or a boolean offers its own
+// values; a word or a list of words (a label, a country, a pressing plant) offers the
+// values the collection holds, as a user-defined text field already did. Long text is
+// left out: a paragraph is never something to pick from a list.
+const NATIVE_FILTER_TYPES = new Set(['select', 'boolean', 'tags', 'text']);
 
 // Plugin fields already covered by a core control (the format chips, the platform
 // menu), which a second control would only duplicate.
 const CORE_COVERED_FIELDS = new Set(['platform']);
 
 function nativeFilterFields(plugin: PluginDefinition): FilterableField[] {
-  const schema: any = plugin.schemaDefinition || {};
+  const stored = plugin.storedFields || {};
   const out: FilterableField[] = [];
   for (const f of plugin.formFields || []) {
     if (f.extraField || !NATIVE_FILTER_TYPES.has(f.type)) continue;
@@ -62,11 +64,11 @@ function nativeFilterFields(plugin: PluginDefinition): FilterableField[] {
     out.push({
       name: f.name,
       label: f.label,
-      type: f.type as 'select' | 'boolean',
+      type: f.type as 'select' | 'boolean' | 'tags' | 'text',
       options: (f.options || []).filter(o => o.value !== '').map(o => ({ value: o.value, label: o.label })),
       // What an item without a stored value is shown as (a book nobody marked is "to
       // read"), so the filter can count those items under it too.
-      default: schema[f.name]?.default ?? f.default,
+      default: (stored[f.name]?.default as string | undefined) ?? f.default,
       native: true
     });
   }
@@ -79,17 +81,17 @@ function nativeFilterFields(plugin: PluginDefinition): FilterableField[] {
  * among its own, and they come in through `extraDefs` instead.
  */
 export function filterCandidates(plugin: PluginDefinition, extraDefs: ExtraFieldConfig[]): FilterCandidate[] {
-  const schema: any = plugin.schemaDefinition || {};
+  const stored = plugin.storedFields || {};
   const creatorDef = (plugin.formFields || []).find(f => f.name === plugin.creatorField);
 
   const out: FilterCandidate[] = [
     { id: CORE_FILTER_IDS.decade, label: 'collection.decade_filter', source: 'core', defaultOn: true },
     { id: CORE_FILTER_IDS.genre, label: 'confirm_vinyl.field_genres', source: 'core', defaultOn: true }
   ];
-  if (schema.styles) {
+  if (stored.styles) {
     out.push({ id: CORE_FILTER_IDS.style, label: 'collection.styles_filter', source: 'core', defaultOn: true });
   }
-  if (schema.platform) {
+  if (stored.platform) {
     out.push({ id: CORE_FILTER_IDS.platform, label: 'collection.platform_filter', source: 'core', defaultOn: true });
   }
   out.push({
@@ -100,7 +102,7 @@ export function filterCandidates(plugin: PluginDefinition, extraDefs: ExtraField
   });
 
   for (const field of nativeFilterFields(plugin)) {
-    out.push({ id: field.name, label: field.label, source: 'native', defaultOn: false, field });
+    out.push({ id: field.name, label: field.label, source: 'native', defaultOn: (plugin.defaultFilters || []).includes(field.name), field });
   }
   for (const field of extraDefs.filter(isFilterable)) {
     out.push({ id: field.name, label: field.label, source: 'extra', defaultOn: true, field });

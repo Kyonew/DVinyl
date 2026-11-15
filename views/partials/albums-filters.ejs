@@ -89,6 +89,18 @@
         </div>
         <% } %>
 
+        <%# Offered when a request type of the collection can take an item away (see collectionRoute.ts). %>
+        <% if (locals.awayFilterOffered) { %>
+        <div class="filter-advanced max-sm:order-4 w-full lg:w-36 relative">
+            <select id="awaySelect" onchange="reloadPage()" aria-label="<%= t('requests.filter_label') %>"
+                class="block w-full p-2.5 text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme outline-none transition-all <%= locals.queryAway ? '' : 'opacity-70' %>">
+                <option value="" <%= locals.queryAway ? '' : 'selected' %>><%= t('requests.filter_label') %></option>
+                <option value="out" <%= locals.queryAway === 'out' ? 'selected' : '' %>><%= t('requests.filter_out') %></option>
+                <option value="in" <%= locals.queryAway === 'in' ? 'selected' : '' %>><%= t('requests.filter_in') %></option>
+            </select>
+        </div>
+        <% } %>
+
         <%# Each control below is dropped when the selected type has nothing to
             offer for it, rather than showing an empty or foreign list %>
         <% if (locals.hasYear) { %>
@@ -97,7 +109,7 @@
                 class="block w-full p-2.5 text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme outline-none transition-all flex justify-between items-center group">
                 <span class="truncate transition-opacity <%= locals.queryDecade ? '' : 'opacity-50 group-hover:opacity-100' %>">
                     <% const currentDecadeArr = locals.queryDecade ? locals.queryDecade.split(',') : []; %>
-                    <%= currentDecadeArr.length > 0 ? (currentDecadeArr.length === 1 ? currentDecadeArr[0] + 's' : currentDecadeArr.length + ' ' + t('collection.decade_filter')) : t('collection.decade_filter') %>
+                    <%= currentDecadeArr.length > 0 ? (currentDecadeArr.length === 1 ? t('collection.decade_value', { year: currentDecadeArr[0] }) : currentDecadeArr.length + ' ' + t('collection.decade_filter')) : t('collection.decade_filter') %>
                 </span>
                 <i class="fa-solid fa-chevron-down text-[10px] opacity-20 group-hover:opacity-60 transition-all"></i>
             </button>
@@ -110,7 +122,7 @@
                         <label class="flex items-center gap-3 p-2 text-sm rounded-lg hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer transition-colors group">
                             <input type="checkbox" class="decade-checkbox accent-primary-theme w-4 h-4 rounded border-gray-300 transition-all cursor-pointer" 
                                     value="<%= y %>" <%= isActive ? 'checked' : '' %>>
-                            <span class="group-hover:translate-x-0.5 transition-transform"><%= y %>s</span>
+                            <span class="group-hover:translate-x-0.5 transition-transform"><%= t('collection.decade_value', { year: y }) %></span>
                         </label>
                     <% } %>
                 </div>
@@ -172,7 +184,7 @@
             <% } %>
 
             <% const stylesPlugin = registry.getAll().find(p => p.collectionType === currentType); %>
-            <% if (stylesPlugin && stylesPlugin.schemaDefinition && stylesPlugin.schemaDefinition.styles && styles.length > 0) { %>
+            <% if (stylesPlugin && stylesPlugin.storedFields && stylesPlugin.storedFields.styles && styles.length > 0) { %>
                 <div class="filter-advanced max-sm:order-4 w-full lg:w-48 relative">
                     <button onclick="toggleStyleMenu(event)" id="styleSelectorBtn"
                         class="block w-full p-2.5 text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme outline-none transition-all flex justify-between items-center group">
@@ -215,7 +227,7 @@
                 </div>
             <% } %>
 
-            <% if (stylesPlugin && stylesPlugin.schemaDefinition && stylesPlugin.schemaDefinition.platform && platforms.length > 0) { %>
+            <% if (stylesPlugin && stylesPlugin.storedFields && stylesPlugin.storedFields.platform && platforms.length > 0) { %>
                 <div class="filter-advanced max-sm:order-4 w-full lg:w-48 relative">
                     <button onclick="togglePlatformMenu(event)" id="platformSelectorBtn"
                         class="block w-full p-2.5 text-sm card-theme rounded-lg border focus:ring-1 focus:ring-primary-theme outline-none transition-all flex justify-between items-center group">
@@ -466,13 +478,13 @@
         // Only a view that can be redrawn in place follows the search as it is typed
         // (see CollectionView.liveRedraw); any other one applies it on Enter.
         const liveSearchEnabled = <%= !!(locals.activeView && activeView.liveRedraw) %>;
-        const itemsLabel = <%- JSON.stringify(t('common.items')) %>;
+        const itemsLabel = <%- JSON.stringify(t('common.items')).replace(/</g, '\\u003c') %>;
         // i18next pluralization is server-side only, so both plural forms are resolved
         // here with a %CNT% placeholder (count is interpolated by i18next, so a literal
         // token keeps each locale's wording and word order). The badge-update code picks
         // the _one form when the count is 1 and swaps %CNT% for the number.
-        const uniqueTitlesLabelOne = <%- JSON.stringify(t('collection.unique_titles_one', { count: '%CNT%' })) %>;
-        const uniqueTitlesLabelOther = <%- JSON.stringify(t('collection.unique_titles_other', { count: '%CNT%' })) %>;
+        const uniqueTitlesLabelOne = <%- JSON.stringify(t('collection.unique_titles_one', { count: '%CNT%' })).replace(/</g, '\\u003c') %>;
+        const uniqueTitlesLabelOther = <%- JSON.stringify(t('collection.unique_titles_other', { count: '%CNT%' })).replace(/</g, '\\u003c') %>;
 
         // Builds the URL for the current filter state without navigating. reloadPage()
         // (every filter control except live search) navigates to it directly; live
@@ -484,6 +496,7 @@
             validateAndSetUrlSearchParamString('format', currentFormat);
             validateAndSetUrlSearchParamString('search', filterInput?.value);
             validateAndSetUrlSearchParamString('location', locationInput?.value);
+            validateAndSetUrlSearchParamString('away', document.getElementById('awaySelect')?.value);
 
             if (currentType !== 'all') {
                 const genreMenu = document.getElementById('genre-multi-select');
@@ -622,7 +635,7 @@
                 }
             }).catch(err => {
                 console.error('Error starting scan', err);
-                alert(<%- JSON.stringify(t('add_vinyl.scan_error')) %>);
+                alert(<%- JSON.stringify(t('add_vinyl.scan_error')).replace(/</g, '\\u003c') %>);
             });
         }
 

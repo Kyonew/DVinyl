@@ -1,0 +1,44 @@
+<%- include('partials/header') %>
+
+<%
+    const back = '/requests?box=' + box;
+    const tabClass = active => 'shrink-0 flex items-center gap-2 text-xs font-black uppercase tracking-widest px-4 py-2.5 rounded-full transition-all '
+        + (active ? 'bg-primary-theme text-white shadow-lg' : 'bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10');
+    const tabs = [
+        { id: 'inbox', icon: 'inbox', count: counts.inbox },
+        { id: 'sent', icon: 'paper-plane', count: counts.sent },
+        { id: 'ongoing', icon: 'spinner', count: counts.ongoing },
+        { id: 'history', icon: 'clock-rotate-left' }
+    ];
+%>
+
+<div class="max-w-screen-lg mx-auto pb-16">
+    <h1 class="pt-6 mb-6 text-3xl font-bold transition-colors"><%= t('requests.title') %></h1>
+
+    <%- include('partials/request-message', { requestMsg, requestField }) %>
+
+    <nav class="flex gap-2 overflow-x-auto [scrollbar-width:none] mb-6" aria-label="<%= t('requests.title') %>">
+        <% tabs.forEach(tab => { %>
+            <a href="<%= baseUrl %>/requests?box=<%= tab.id %>" class="<%= tabClass(box === tab.id) %>" <%- box === tab.id ? 'aria-current="page"' : '' %>>
+                <i class="fa-solid fa-<%= tab.icon %>" aria-hidden="true"></i><span><%= t('requests.box.' + tab.id) %></span>
+                <% if (typeof tab.count === 'number') { %><span class="text-[10px] opacity-70"><%= tab.count %></span><% } %>
+            </a>
+        <% }) %>
+    </nav>
+
+    <% if (rows.length === 0) { %>
+        <div class="card-theme rounded-3xl p-10 text-center shadow-sm">
+            <i class="fa-solid fa-<%= tabs.find(tab => tab.id === box).icon %> text-4xl text-primary-theme opacity-60 mb-4" aria-hidden="true"></i>
+            <p class="font-bold mb-1"><%= t('requests.empty.' + box) %></p>
+            <p class="text-sm opacity-60 max-w-md mx-auto"><%= t('requests.empty_hint') %></p>
+        </div>
+    <% } else { %>
+        <ul class="card-theme rounded-2xl overflow-hidden shadow-sm divide-y divide-black/5 dark:divide-white/5">
+            <% rows.forEach(r => { %>
+                <%- include('partials/request-row', { r, back }) %>
+            <% }) %>
+        </ul>
+    <% } %>
+</div>
+
+<%- include('partials/footer') %>

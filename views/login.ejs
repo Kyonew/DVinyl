@@ -32,6 +32,9 @@
   </style>
 </head>
 <body class="flex flex-col min-h-screen">
+  <div class="absolute top-4 right-4 z-10">
+    <%- include('partials/lang-picker', { langPickerClass: 'bg-white/10 text-neutral-300 hover:text-white' }) %>
+  </div>
   <div class="flex-grow flex items-center justify-center p-4 bg-[#0f0f0f]">
     <section class="w-full max-w-md">
       <div class="text-center mb-8">
@@ -62,6 +65,9 @@
                 type="text" 
                 name="email" 
                 autocomplete="username"
+                autocapitalize="none"
+                autocorrect="off"
+                spellcheck="false"
                 required
                 class="w-full px-4 py-3 rounded-lg border border-gray-700 transition-all"
                 placeholder="<%= t('login.identifier_placeholder') %>">

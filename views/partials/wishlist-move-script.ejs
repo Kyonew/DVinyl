@@ -2,8 +2,8 @@
     once per page, next to the last grid that shows the button. %>
 <script>
     const wishlistTranslations = {
-        confirmMove: <%- JSON.stringify(t('wishlist.confirm_move')) %>,
-        serverError: <%- JSON.stringify(t('messages.generic_error')) %>
+        confirmMove: <%- JSON.stringify(t('wishlist.confirm_move')).replace(/</g, '\\u003c') %>,
+        serverError: <%- JSON.stringify(t('messages.generic_error')).replace(/</g, '\\u003c') %>
     };
 
     async function moveToCollection(id, routePrefix) {

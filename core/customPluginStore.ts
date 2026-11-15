@@ -1,3 +1,5 @@
+import { MAX_COLUMNS } from './rowsField';
+import { sanitizeFieldDefault } from './fieldDefaults';
 import fs from 'fs';
 import path from 'path';
 import { PLUGINS_DIR } from './loadPlugins';
@@ -50,7 +52,11 @@ export const RESERVED_FIELD_NAMES = new Set([
   // Where the item's metadata came from. "Source" is a name a collector reaches for
   // (where a copy was bought), and a builder field carrying it would write over the
   // reference the core keeps there.
-  'source', 'source_id'
+  'source', 'source_id',
+  // Paths the core added later: what holds an item, the price paid, the fields a refresh
+  // leaves alone, and the bookkeeping of imports and image copies.
+  'parent', 'inside', 'purchase_price', 'purchase_currency', 'kept_fields', 'source_values',
+  'import_filled', 'extra_formats', 'image_origins', 'image_download_failed', 'sort_creator'
 ]);
 
 // Upper bounds on what a builder form may declare. Every field becomes a real Mongoose
@@ -64,7 +70,8 @@ export const MAX_FORMATS = 50;
 const ID_RE = /^[a-z][a-z0-9-]{1,29}$/;
 export const FIELD_NAME_RE = /^[a-z][a-z0-9_]{0,29}$/;
 const ICON_RE = /^fa-[a-z0-9-]{1,40}$/;
-export const FIELD_TYPES = new Set(['text', 'number', 'textarea', 'select', 'boolean', 'tags', 'date']);
+// `rows` repeats: its options are the names of its columns (core/rowsField.ts).
+export const FIELD_TYPES = new Set(['text', 'number', 'textarea', 'select', 'boolean', 'tags', 'date', 'rows']);
 
 export function isValidIcon(icon: string): boolean {
   return ICON_RE.test(icon);
@@ -183,20 +190,24 @@ export function buildConfigFromSubmission(body: any, existing?: CustomPluginConf
     };
     const placeholder = cleanText(raw?.placeholder, 60);
     if (placeholder) field.placeholder = placeholder;
-    if (type === 'select') {
-      if (Array.isArray(raw?.options) && raw.options.length > MAX_FIELD_OPTIONS) {
+    if (type === 'select' || type === 'rows') {
+      const limit = type === 'rows' ? MAX_COLUMNS : MAX_FIELD_OPTIONS;
+      if (Array.isArray(raw?.options) && raw.options.length > limit) {
         errors.push('create_plugin.err_too_many_options');
       }
-      const options = (Array.isArray(raw?.options) ? raw.options.slice(0, MAX_FIELD_OPTIONS) : [])
+      const options = (Array.isArray(raw?.options) ? raw.options.slice(0, limit) : [])
         .map((o: any) => {
           const optLabel = cleanText(typeof o === 'string' ? o : o?.label, 40);
           const optValue = slugify(cleanText(typeof o === 'string' ? o : (o?.value || o?.label), 40)).replace(/-/g, '_');
           return optLabel && optValue ? { value: optValue, label: optLabel } : null;
         })
         .filter(Boolean) as { value: string; label: string }[];
-      if (options.length === 0) { errors.push('create_plugin.err_select_needs_options'); continue; }
-      field.options = options;
+      if (options.length === 0) { errors.push(type === 'rows' ? 'create_plugin.err_rows_needs_columns' : 'create_plugin.err_select_needs_options'); continue; }
+      // Two columns named alike would share one key and overwrite each other.
+      field.options = options.filter((o, i) => options.findIndex(x => x.value === o.value) === i);
     }
+    const fieldDefault = sanitizeFieldDefault(type, raw?.default, field.options);
+    if (fieldDefault !== undefined) field.default = fieldDefault;
     fields.push(field);
   }
 

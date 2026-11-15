@@ -3,6 +3,7 @@
     <!-- Loaded up here, not at the bottom of the page: the partials included below open
          their own socket as they are parsed, so `io` has to exist before they run. -->
     <script src="<%= baseUrl %>/socket.io/socket.io.js"></script>
+    <%- include('partials/import-follow') %>
 
     <div class="max-w-screen-xl mx-auto px-4 max-sm:px-0 pb-20 space-y-10">
 
@@ -106,22 +107,16 @@
             { id: 'settings', icon: 'sliders', label: t('admin.tabs.settings') },
             { id: 'members', icon: 'users', label: t('admin.tabs.members'), count: (locals.members || []).length },
             { id: 'collection', icon: 'layer-group', label: t('admin.tabs.collection') },
+            { id: 'requests', icon: 'inbox', label: t('requests.admin.tab') },
             { id: 'imports', icon: 'cloud-arrow-down', label: t('admin.tabs.imports') },
             { id: 'maintenance', icon: 'wrench', label: t('admin.tabs.maintenance') }
         ] }) %>
 
         <div data-tab-panel="settings" class="space-y-10">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <h1 class="text-2xl md:text-3xl font-bold flex items-center gap-3 transition-colors">
-                    <i class="fa-solid fa-puzzle-piece text-primary-theme"></i>
-                    <%= t('admin.modules') %>
-                </h1>
-                <a href="<%= baseUrl %>/create-plugin"
-                    class="flex items-center gap-2 text-xs font-black uppercase tracking-widest bg-primary-theme text-white hover:brightness-110 hover:scale-105 px-5 py-2.5 rounded-full transition-all w-fit shadow-lg shadow-primary-theme/20">
-                    <i class="fa-solid fa-wand-magic-sparkles"></i>
-                    <%= t('create_plugin.title') %>
-                </a>
-            </div>
+            <h1 class="text-2xl md:text-3xl font-bold flex items-center gap-3 transition-colors">
+                <i class="fa-solid fa-puzzle-piece text-primary-theme"></i>
+                <%= t('admin.modules') %>
+            </h1>
 
             <section class="card-theme rounded-3xl p-6 shadow-sm mb-10 transition-colors">
                 <div class="flex flex-col gap-8">
@@ -299,6 +294,76 @@
                             </div>
                         </label>
 
+                        <% const languageName = (() => {
+                               let names = null;
+                               try { names = new Intl.DisplayNames([currentLng], { type: 'language' }); } catch (e) {}
+                               return code => { const name = names && names.of(code); return name ? name.charAt(0).toLocaleUpperCase(currentLng) + name.slice(1) : code; };
+                           })();
+                           const metadataChoices = METADATA_LANGUAGES.map(code => ({ code, name: languageName(code) }))
+                               .sort((a, b) => a.name.localeCompare(b.name, currentLng)); %>
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5">
+                            <div class="flex items-start gap-3">
+                                <div class="w-10 h-10 rounded-xl flex items-center justify-center bg-white dark:bg-black/20 shadow-sm shrink-0">
+                                    <i class="fa-solid fa-language text-sm"></i>
+                                </div>
+                                <div>
+                                    <label for="metadataLanguage" class="text-sm font-bold opacity-80"><%= t('admin.metadata_language') %></label>
+                                    <p class="text-xs opacity-50 mt-0.5"><%= t('admin.metadata_language_desc') %></p>
+                                </div>
+                            </div>
+                            <select id="metadataLanguage" name="metadataLanguage"
+                                class="sm:w-56 shrink-0 bg-white dark:bg-black/20 border border-transparent rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-primary-theme/40 cursor-pointer">
+                                <option value="" class="bg-white dark:bg-[#1a1a1a]"><%= t('admin.metadata_language_same') %></option>
+                                <% metadataChoices.forEach(choice => { %>
+                                    <option value="<%= choice.code %>" lang="<%= choice.code %>" class="bg-white dark:bg-[#1a1a1a]" <%= settings.metadataLanguage === choice.code ? 'selected' : '' %>><%= choice.name %></option>
+                                <% }) %>
+                            </select>
+                        </div>
+
+                        <%# Copies of the images items link to (#136, core/imageDownload.ts): as the
+                            instance says, always or never, and the run over what is already there. %>
+                        <% const imgMode = settings.imageDownload || 'inherit';
+                           const imgInstanceOn = !!(locals.instanceImageDownload && instanceImageDownload.enabled);
+                           const imgKeeps = imgMode === 'download' || (imgMode === 'inherit' && imgInstanceOn); %>
+                        <div class="p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 space-y-4">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div class="flex items-start gap-3">
+                                    <div class="w-10 h-10 rounded-xl flex items-center justify-center bg-white dark:bg-black/20 shadow-sm shrink-0">
+                                        <i class="fa-solid fa-images text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <label for="imageDownload" class="text-sm font-bold opacity-80"><%= t('image_download.collection_label') %></label>
+                                        <p class="text-xs opacity-50 mt-0.5"><%= t('image_download.collection_desc') %></p>
+                                    </div>
+                                </div>
+                                <select id="imageDownload" name="imageDownload"
+                                    class="sm:w-56 shrink-0 bg-white dark:bg-black/20 border border-transparent rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-primary-theme/40 cursor-pointer">
+                                    <option value="inherit" class="bg-white dark:bg-[#1a1a1a]" <%= imgMode === 'inherit' ? 'selected' : '' %>><%= t(imgInstanceOn ? 'image_download.mode_inherit_on' : 'image_download.mode_inherit_off') %></option>
+                                    <option value="download" class="bg-white dark:bg-[#1a1a1a]" <%= imgMode === 'download' ? 'selected' : '' %>><%= t('image_download.mode_download') %></option>
+                                    <option value="keep" class="bg-white dark:bg-[#1a1a1a]" <%= imgMode === 'keep' ? 'selected' : '' %>><%= t('image_download.mode_keep') %></option>
+                                </select>
+                            </div>
+                            <% if (imgKeeps) { %>
+                                <%- include('partials/image-download-run', { statusUrl: '/admin/images', runUrl: '/admin/images/run' }) %>
+                            <% } %>
+                        </div>
+
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5">
+                            <div class="flex items-start gap-3">
+                                <div class="w-10 h-10 rounded-xl flex items-center justify-center bg-white dark:bg-black/20 shadow-sm shrink-0">
+                                    <i class="fa-solid fa-arrow-down-a-z text-sm"></i>
+                                </div>
+                                <div>
+                                    <label for="sortArticles" class="text-sm font-bold opacity-80"><%= t('admin.sort_articles') %></label>
+                                    <p class="text-xs opacity-50 mt-0.5"><%= t('admin.sort_articles_desc') %></p>
+                                </div>
+                            </div>
+                            <input type="text" id="sortArticles" name="sortArticles" maxlength="600" autocomplete="off" spellcheck="false"
+                                value="<%= articlesFromSetting(settings.sortArticles).join(', ') %>"
+                                placeholder="<%= t('admin.sort_articles_placeholder') %>"
+                                class="sm:w-56 shrink-0 bg-white dark:bg-black/20 border border-transparent rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-primary-theme/40">
+                        </div>
+
                         <div class="flex justify-end pt-2">
                             <button type="submit"
                                 class="w-full sm:w-auto bg-primary-theme text-white text-xs font-black uppercase tracking-widest px-10 py-4 rounded-2xl hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-primary-theme/20 flex items-center justify-center gap-3">
@@ -334,7 +399,7 @@
                     <!-- Invite an existing instance user -->
                     <form action="<%= baseUrl %>/admin/members/invite" method="POST"
                         class="flex flex-col sm:flex-row items-stretch gap-2 mb-6">
-                        <input type="text" name="identifier" required
+                        <input type="text" name="identifier" required autocapitalize="none" autocorrect="off" spellcheck="false"
                             placeholder="<%= t('admin.members.invite_placeholder') %>"
                             class="flex-1 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary-theme/40 transition-colors">
                         <select name="role"
@@ -435,6 +500,89 @@
                             </table>
                         </div>
                     </div>
+
+                    <%# Single-use links that let someone create their own account and join. %>
+                    <% const invites = (locals.collectionDoc?.inviteLinks || [])
+                        .filter(l => new Date(l.expiresAt).getTime() > Date.now())
+                        .sort((a, b) => new Date(a.expiresAt) - new Date(b.expiresAt)); %>
+                    <div id="invite-links" class="card-theme rounded-2xl shadow-lg p-6 mt-8 transition-colors">
+                        <h2 class="text-lg font-bold flex items-center gap-2 mb-1">
+                            <i class="fa-solid fa-link text-neutral-400 dark:text-neutral-500"></i>
+                            <%= t('admin.invites.title') %>
+                        </h2>
+                        <p class="text-xs opacity-60 mb-5"><%= t('admin.invites.hint') %></p>
+
+                        <form action="<%= baseUrl %>/admin/members/invite-links/create" method="POST"
+                            class="flex flex-col sm:flex-row items-stretch gap-2 mb-5">
+                            <select name="role" aria-label="<%= t('admin.members.col_role') %>"
+                                class="flex-1 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl px-4 py-3 text-sm outline-none cursor-pointer">
+                                <option class="bg-white dark:bg-[#1a1a1a]" value="viewer"><%= t('admin.members.role_viewer') %></option>
+                                <option class="bg-white dark:bg-[#1a1a1a]" value="editor"><%= t('admin.members.role_editor') %></option>
+                                <option class="bg-white dark:bg-[#1a1a1a]" value="admin"><%= t('admin.members.role_admin') %></option>
+                            </select>
+                            <select name="days" aria-label="<%= t('admin.invites.validity') %>"
+                                class="flex-1 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl px-4 py-3 text-sm outline-none cursor-pointer">
+                                <option class="bg-white dark:bg-[#1a1a1a]" value="1"><%= t('admin.invites.days', { count: 1 }) %></option>
+                                <option class="bg-white dark:bg-[#1a1a1a]" value="7" selected><%= t('admin.invites.days', { count: 7 }) %></option>
+                                <option class="bg-white dark:bg-[#1a1a1a]" value="30"><%= t('admin.invites.days', { count: 30 }) %></option>
+                            </select>
+                            <button type="submit"
+                                class="flex items-center justify-center gap-2 bg-black/5 dark:bg-white/5 hover:bg-primary-theme hover:text-white px-5 py-3 rounded-2xl text-xs font-black transition-all">
+                                <i class="fa-solid fa-plus"></i>
+                                <%= t('admin.invites.create_btn') %>
+                            </button>
+                        </form>
+
+                        <% if (invites.length === 0) { %>
+                            <p class="text-sm opacity-50"><%= t('admin.invites.empty') %></p>
+                        <% } else { %>
+                            <ul class="space-y-3">
+                                <% invites.forEach(inv => { const inviteUrl = (locals.siteOrigin || '') + baseUrl + '/join/' + inv.token; %>
+                                    <li class="bg-black/5 dark:bg-white/5 rounded-2xl p-3 flex flex-col gap-2">
+                                        <div class="flex flex-wrap items-center gap-2 text-xs">
+                                            <span class="font-bold px-2 py-0.5 rounded-full bg-primary-theme/10 text-primary-theme">
+                                                <%= t('admin.members.role_' + inv.role) %>
+                                            </span>
+                                            <span class="opacity-60">
+                                                <%= t('admin.invites.expires', { date: new Date(inv.expiresAt).toLocaleString(currentLng, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }), interpolation: { escapeValue: false } }) %>
+                                            </span>
+                                        </div>
+                                        <div class="flex items-stretch gap-2">
+                                            <input type="text" readonly value="<%= inviteUrl %>"
+                                                class="flex-1 min-w-0 bg-white dark:bg-black/30 border border-black/10 dark:border-white/10 rounded-xl px-3 py-2 text-xs font-mono outline-none"
+                                                onfocus="this.select()">
+                                            <button type="button" data-copy-invite="<%= inviteUrl %>"
+                                                class="shrink-0 bg-primary-theme text-white px-3 rounded-xl text-xs font-bold hover:brightness-110 transition-all"
+                                                title="<%= t('admin.invites.copy_btn') %>" aria-label="<%= t('admin.invites.copy_btn') %>">
+                                                <i class="fa-solid fa-copy"></i>
+                                            </button>
+                                            <form action="<%= baseUrl %>/admin/members/invite-links/<%= inv.token %>/delete" method="POST"
+                                                onsubmit="return confirm(<%= JSON.stringify(t('admin.invites.confirm_delete')) %>)">
+                                                <button type="submit"
+                                                    class="h-full text-red-600 bg-red-100 dark:bg-red-500/10 px-3 rounded-xl transition-colors hover:brightness-110"
+                                                    title="<%= t('admin.invites.delete_btn') %>" aria-label="<%= t('admin.invites.delete_btn') %>">
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </li>
+                                <% }) %>
+                            </ul>
+                        <% } %>
+                    </div>
+                    <script>
+                        document.querySelectorAll('[data-copy-invite]').forEach(btn => btn.addEventListener('click', async () => {
+                            const icon = btn.querySelector('i');
+                            try {
+                                await navigator.clipboard.writeText(btn.dataset.copyInvite);
+                            } catch (e) {
+                                btn.previousElementSibling.select();
+                                document.execCommand('copy');
+                            }
+                            icon.className = 'fa-solid fa-check';
+                            setTimeout(() => { icon.className = 'fa-solid fa-copy'; }, 1500);
+                        }));
+                    </script>
                 </section>
 
                 <section data-tab-panel="collection">
@@ -543,6 +691,10 @@
                             </a>
                         </div>
                     </div>
+                </section>
+
+                <section data-tab-panel="requests">
+                    <% if (locals.requestAdmin) { %><%- include('partials/admin-requests') %><% } %>
                 </section>
 
                 <section data-tab-panel="imports">
@@ -746,7 +898,7 @@
             document.getElementById('collectionBackupInput').onchange = function (e) {
                 const file = e.target.files[0];
                 if (!file) return;
-                if (confirm(<%- JSON.stringify(t('admin.collection_backup.confirm_import')) %>)) {
+                if (confirm(<%- JSON.stringify(t('admin.collection_backup.confirm_import')).replace(/</g, '\\u003c') %>)) {
                     (async () => {
                         try {
                             const isArchive = file.name.toLowerCase().endsWith('.zip');
@@ -767,16 +919,16 @@
                                 });
                             }
                             if (response.ok) {
-                                alert(<%- JSON.stringify(t('admin.backup.import_success')) %>);
+                                alert(<%- JSON.stringify(t('admin.backup.import_success')).replace(/</g, '\\u003c') %>);
                                 window.location.reload();
                             } else {
                                 // A refusal worded for the reader (an item the file cannot
                                 // bring back) names what is wrong.
                                 const failure = await response.json().catch(() => ({}));
-                                alert(failure.userMessage || <%- JSON.stringify(t('admin.backup.import_error')) %>);
+                                alert(failure.userMessage || <%- JSON.stringify(t('admin.backup.import_error')).replace(/</g, '\\u003c') %>);
                             }
                         } catch (err) {
-                            alert(<%- JSON.stringify(t('admin.backup.file_error')) %>);
+                            alert(<%- JSON.stringify(t('admin.backup.file_error')).replace(/</g, '\\u003c') %>);
                         }
                     })();
                 }
@@ -792,12 +944,12 @@
 
 
             document.addEventListener('DOMContentLoaded', () => {
-                const apiKeyStatus = <%- JSON.stringify(registry.getApiKeyStatus()) %>;
+                const apiKeyStatus = <%- JSON.stringify(registry.getApiKeyStatus()).replace(/</g, '\\u003c') %>;
                 const modulesWithKeys = <%- JSON.stringify(
                     registry.getAll()
                         .filter(p => requiredEnvKeysFor(p).length > 0)
                         .map(p => ({ name: p.collectionType + 'Active', collectionType: p.collectionType, errorId: 'error-' + p.collectionType }))
-                ) %>.map(m => ({ ...m, hasKey: apiKeyStatus[m.collectionType] }));
+                ).replace(/</g, '\\u003c') %>.map(m => ({ ...m, hasKey: apiKeyStatus[m.collectionType] }));
                 // Reordering a module's sources: the rows move and the hidden field the save
                 // reads is rewritten from what the list shows, so what was submitted is always
                 // what was on screen. Buttons are re-disabled at the ends after every move.
@@ -847,15 +999,15 @@
             }
 
             window.translations = {
-                areyousure: <%- JSON.stringify(t('admin.areyousure')) %>,
-                deleteConfirm: <%- JSON.stringify(t('admin.delete_confirm')) %>,
-                refreshAllConfirm: <%- JSON.stringify(t('admin.maintenance.refresh_all_confirm')) %>,
-                statusStarting: <%- JSON.stringify(t('admin.maintenance.status_starting')) %>,
-                statusInit: <%- JSON.stringify(t('admin.maintenance.status_init')) %>,
-                statusProcessing: <%- JSON.stringify(t('admin.maintenance.status_processing')) %>,
-                statusFinished: <%- JSON.stringify(t('admin.maintenance.status_finished')) %>,
-                statusError: <%- JSON.stringify(t('admin.maintenance.status_error')) %>,
-                itemsUpdated: <%- JSON.stringify(t('admin.modal.import_done')) %>
+                areyousure: <%- JSON.stringify(t('admin.areyousure')).replace(/</g, '\\u003c') %>,
+                deleteConfirm: <%- JSON.stringify(t('admin.delete_confirm')).replace(/</g, '\\u003c') %>,
+                refreshAllConfirm: <%- JSON.stringify(t('admin.maintenance.refresh_all_confirm')).replace(/</g, '\\u003c') %>,
+                statusStarting: <%- JSON.stringify(t('admin.maintenance.status_starting')).replace(/</g, '\\u003c') %>,
+                statusInit: <%- JSON.stringify(t('admin.maintenance.status_init')).replace(/</g, '\\u003c') %>,
+                statusProcessing: <%- JSON.stringify(t('admin.maintenance.status_processing')).replace(/</g, '\\u003c') %>,
+                statusFinished: <%- JSON.stringify(t('admin.maintenance.status_finished')).replace(/</g, '\\u003c') %>,
+                statusError: <%- JSON.stringify(t('admin.maintenance.status_error')).replace(/</g, '\\u003c') %>,
+                itemsUpdated: <%- JSON.stringify(t('admin.modal.import_done')).replace(/</g, '\\u003c') %>
             };
 
             let activeRefreshKind = null;
@@ -895,7 +1047,7 @@
                     btn.disabled = false;
                     btn.classList.remove('opacity-50', 'cursor-not-allowed');
                     icon.className = 'fa-solid fa-play';
-                    text.innerText = <%- JSON.stringify(t("admin.maintenance.refresh_all_btn")) %>;
+                    text.innerText = <%- JSON.stringify(t("admin.maintenance.refresh_all_btn")).replace(/</g, '\\u003c') %>;
                     progressContainer.classList.add('hidden');
                     activeRefreshKind = null;
                 }

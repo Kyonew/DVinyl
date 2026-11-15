@@ -1,5 +1,5 @@
-import InstanceSettings from '../models/InstanceSettings';
-import Collection from '../models/Collection';
+import { db } from '../core/db';
+import { eq, idOf } from '../core/db/query';
 
 /**
  * In-memory cache of the singleton document. collectionMiddleware consults the
@@ -28,11 +28,11 @@ export async function getInstanceSettings(): Promise<InstanceSettingsData> {
     if (cached) return cached;
 
     try {
-        const doc: any = await InstanceSettings.findOneAndUpdate(
-            { key: 'instance' },
-            { $setOnInsert: { key: 'instance' } },
-            { upsert: true, new: true, setDefaultsOnInsert: true }
-        ).lean();
+        const doc: any = await db.instanceSettings.updateAndGet(
+            eq('key', 'instance'),
+            { setOnInsert: { key: 'instance' } },
+            { upsert: true }
+        );
 
         cached = {
             allowMemberCollectionCreation: !!doc?.allowMemberCollectionCreation,
@@ -47,11 +47,7 @@ export async function getInstanceSettings(): Promise<InstanceSettingsData> {
 
 /** Persists the instance settings and refreshes the cache. */
 export async function saveInstanceSettings(values: Partial<InstanceSettingsData>): Promise<void> {
-    await InstanceSettings.updateOne(
-        { key: 'instance' },
-        { $set: values },
-        { upsert: true }
-    );
+    await db.instanceSettings.updateOne(eq('key', 'instance'), { set: values }, { upsert: true });
     invalidateInstanceSettingsCache();
 }
 
@@ -68,7 +64,7 @@ export async function checkCollectionCreation(user: any): Promise<'ok' | 'forbid
     const settings = await getInstanceSettings();
     if (!settings.allowMemberCollectionCreation) return 'forbidden';
 
-    const owned = await Collection.countDocuments({ createdBy: user._id });
+    const owned = await db.collections.count(eq('createdBy', idOf(user._id)));
     return owned < settings.maxCollectionsPerUser ? 'ok' : 'quota';
 }
 

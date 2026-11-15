@@ -1,0 +1,14 @@
+<%#
+    A switch row of the Personnalisation studio: `name`, `checked`, `title`, optional
+    `desc`, and optional `value` (what a ticked box posts; "on" when left out).
+%>
+<label class="flex items-center gap-3 p-3 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer transition-colors">
+    <span class="flex-1 min-w-0">
+        <span class="block text-sm font-bold"><%= title %></span>
+        <% if (locals.desc) { %><span class="block text-xs opacity-60 mt-0.5"><%= desc %></span><% } %>
+    </span>
+    <span class="relative inline-flex items-center shrink-0">
+        <input type="checkbox" name="<%= name %>" <% if (locals.value) { %>value="<%= value %>"<% } %> class="sr-only peer" <%= checked ? 'checked' : '' %>>
+        <span class="w-10 h-6 bg-black/30 dark:bg-white/25 rounded-full peer-checked:bg-primary-theme peer-focus-visible:ring-2 peer-focus-visible:ring-primary-theme/50 transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:shadow-[0_1px_3px_rgba(0,0,0,0.35)] after:transition-transform peer-checked:after:translate-x-4"></span>
+    </span>
+</label>

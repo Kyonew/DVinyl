@@ -1,10 +1,11 @@
 import express from 'express';
-import User from '../models/User';
-import Collection from '../models/Collection';
+import { db } from '../core/db';
+import { all, eq, idOf } from '../core/db/query';
 import { generateUniqueSlug } from '../utils/collectionHelpers';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { normalizeLanguage } from '../config/constants';
+import { MIN_PASSWORD_LENGTH, normalizeLanguage } from '../config/constants';
+import { setupTokenAccepted, setupTokenRequired } from '../core/setupToken';
 
 const router = express.Router();
 
@@ -23,34 +24,43 @@ const createToken = (id: any) => {
 
 // GET /setup - render initial setup page if no users exist
 router.get('/', async (req, res) => {
-    const count = await User.countDocuments();
+    const count = await db.users.count(all());
     if (count > 0) return res.redirect('/login'); // safety: only allow setup when DB empty
-    res.render('setup', { error: null });
+    res.render('setup', { error: null, setupTokenRequired: setupTokenRequired() });
 });
 
 // POST /setup - create initial admin user and issue a JWT
 router.post('/', async (req, res) => {
-    const count = await User.countDocuments();
+    const count = await db.users.count(all());
     if (count > 0) return res.redirect('/login'); // safety: only allow setup when DB empty
 
     try {
         const { username, email, password, language } = req.body;
 
+        if (!setupTokenAccepted(req.body.setup_token)) {
+            console.warn(`[SECURITY] setup refused, wrong setup token: ${req.ip}`);
+            return res.status(403).render('setup', { error: req.t('setup.err_bad_token'), setupTokenRequired: true });
+        }
+
         if (!username || !email || !password) {
-            return res.render('setup', { error: req.t('errors.setup_error') });
+            return res.render('setup', { error: req.t('errors.setup_error'), setupTokenRequired: setupTokenRequired() });
         }
 
         // Backdate lastChange so the freshly issued JWT's second-granularity iat
         // is not rejected by authMiddleware's staleness check
         const lastChange = new Date(Date.now() - 60_000);
 
-        // Create the initial admin user (isAdmin: true)
-        const hashedPassword = await bcrypt.hash(password, 10);
+        // Checked here rather than by the record rules, which only ever see the hash.
+        if (typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH) {
+            return res.render('setup', { error: req.t('auth.password_too_short'), setupTokenRequired: setupTokenRequired() });
+        }
 
-        const newAdmin = await User.create({
+        // Create the initial admin user (isAdmin: true). The password is hashed before it is
+        // stored, never written in clear even for a moment: the SQLite journal would keep it.
+        const newAdmin = await db.users.create({
             username,
             email,
-            password: password,
+            password: await bcrypt.hash(password, 10),
             isAdmin: true,
             // The form posts whatever the page was rendered in, and the field is client
             // side: normalized rather than trusted, or the enum rejects the whole document
@@ -59,12 +69,9 @@ router.post('/', async (req, res) => {
             lastChange
         });
 
-        // Force-update the stored password hash
-        await User.updateOne({ _id: newAdmin._id }, { $set: { password: hashedPassword } });
-
         // Create the default collection for the first admin (migrate.ts can't have done this
         // at boot: there were zero users then). The admin becomes its first member/owner.
-        const collection = await Collection.create({
+        const collection = await db.collections.create({
             name: 'Vinyl',
             slug: await generateUniqueSlug('Vinyl'),
             createdBy: newAdmin._id,
@@ -72,10 +79,7 @@ router.post('/', async (req, res) => {
             shelvesSeeded: true,
             members: [{ user: newAdmin._id, role: 'admin' }]
         });
-        await User.updateOne(
-            { _id: newAdmin._id },
-            { $set: { lastActiveCollectionId: collection._id } }
-        );
+        await db.users.updateOne(eq('_id', idOf(newAdmin._id)), { set: { lastActiveCollectionId: collection._id } });
 
         // Issue JWT and set cookie
         const token = createToken(newAdmin._id);
@@ -88,7 +92,7 @@ router.post('/', async (req, res) => {
         res.redirect('/');
     } catch (err) {
         console.error(err);
-        res.render('setup', { error: req.t('errors.setup_error') });
+        res.render('setup', { error: req.t('errors.setup_error'), setupTokenRequired: setupTokenRequired() });
     }
 });
 

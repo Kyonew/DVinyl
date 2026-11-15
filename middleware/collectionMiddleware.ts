@@ -1,5 +1,5 @@
-import Collection from '../models/Collection';
-import User from '../models/User';
+import { db } from '../core/db';
+import { and, eq, idOf, some } from '../core/db/query';
 import { resolveActiveCollectionForUser, sessionActiveCollectionId } from '../utils/collectionHelpers';
 import { canUserCreateCollection } from '../utils/instanceSettings';
 import { isAiReady } from '../core/ai/instance';
@@ -46,9 +46,10 @@ async function collectionMiddleware(req: any, res: any, next: any) {
         const shareToken = req.cookies?.dv_share;
         if (shareToken) {
             try {
-                const shared = await Collection.findOne({
-                    shareLinks: { $elemMatch: { token: shareToken, enabled: true } }
-                });
+                const shared = await db.collections.findOne(
+                    some('shareLinks', and(eq('token', String(shareToken)), eq('enabled', true))),
+                    { defaults: true }
+                );
                 const link = shared?.shareLinks.find((l: any) => l.token === shareToken);
                 if (shared && link) {
                     res.locals.activeCollectionId = shared._id;
@@ -72,10 +73,7 @@ async function collectionMiddleware(req: any, res: any, next: any) {
         // switched to; the user's last collection only seeds a session that has none.
         const wanted = sessionActiveCollectionId(req) || req.user.lastActiveCollectionId;
         let active = wanted
-            ? await Collection.findOne({
-                _id: wanted,
-                'members.user': req.user._id
-            })
+            ? await db.collections.findOne(and(eq('_id', idOf(wanted)), eq('members.user', idOf(req.user._id))), { defaults: true })
             : null;
 
         if (!active) {
@@ -84,10 +82,7 @@ async function collectionMiddleware(req: any, res: any, next: any) {
             // Self-heal the user's value only when it is the one that went stale. A
             // session that fell back is no reason to move the user's other devices.
             if (active && String(req.user.lastActiveCollectionId) !== String(active._id)) {
-                await User.updateOne(
-                    { _id: req.user._id },
-                    { $set: { lastActiveCollectionId: active._id } }
-                );
+                await db.users.updateOne(eq('_id', idOf(req.user._id)), { set: { lastActiveCollectionId: active._id } });
                 req.user.lastActiveCollectionId = active._id;
             }
         }
@@ -121,9 +116,7 @@ async function collectionMiddleware(req: any, res: any, next: any) {
             }
         }
 
-        res.locals.userCollections = await Collection
-            .find({ 'members.user': req.user._id }, 'name slug')
-            .lean();
+        res.locals.userCollections = await db.collections.find(eq('members.user', idOf(req.user._id)), { fields: ['name', 'slug'] });
 
         res.locals.canCreateCollection = await canUserCreateCollection(req.user);
 

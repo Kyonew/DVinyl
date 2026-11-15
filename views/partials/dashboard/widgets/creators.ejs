@@ -1,0 +1,21 @@
+<% const crMax = Math.max(1, ...data.rows.map(r => r.count)); %>
+<div class="card-theme h-full rounded-2xl p-5 md:p-6 flex flex-col gap-4">
+    <h3 class="font-bold"><%= t('dashboard.w_creators') %></h3>
+    <% if (data.rows.length === 0) { %>
+        <p class="text-sm opacity-60"><%= t('index.empty_collection') %></p>
+    <% } else { %>
+    <ol class="flex flex-col gap-1">
+        <% data.rows.forEach((row, i) => { %>
+            <li>
+                <a href="<%= baseUrl %>/collection?search=<%= encodeURIComponent(row.label) %>"
+                    class="grid grid-cols-[1.5rem_minmax(0,1fr)_4rem_auto] items-center gap-3 py-1.5 px-1 rounded-lg text-sm hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+                    <span class="font-black tabular-nums <%= i === 0 ? 'text-primary-theme' : 'opacity-40' %>"><%= i + 1 %></span>
+                    <span class="truncate font-semibold"><%= row.label %></span>
+                    <span class="h-1.5 rounded-full bg-black/5 dark:bg-white/5 overflow-hidden"><span class="block h-full rounded-full bg-primary-theme" style="width: <%= row.count / crMax * 100 %>%"></span></span>
+                    <span class="tabular-nums opacity-70 text-right min-w-[1.5rem]"><%= row.count %></span>
+                </a>
+            </li>
+        <% }) %>
+    </ol>
+    <% } %>
+</div>

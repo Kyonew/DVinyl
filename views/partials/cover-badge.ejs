@@ -26,13 +26,22 @@
             return { label: option ? option.label : format, colorClass: (option && option.color) || 'bg-gray-600/90' };
         })();
 
+    // The other formats the edition holds (core/extraFormats.ts) follow its own, in the
+    // same badge: "4K + Blu-ray" says one box, where a second badge would read as two.
+    const badgeOwn = (item.format || item.media_type || '').toLowerCase();
+    const badgeExtras = (badgePlugin && badgePlugin.multipleFormats && Array.isArray(item.extra_formats))
+        ? [...new Set(item.extra_formats.map(v => String(v).toLowerCase()))].filter(v => v && v !== badgeOwn)
+            .map(v => { const o = (badgePlugin.formats || []).find(f => f.value === v); return o ? o.label : v; })
+        : [];
+    const badgeText = badge.label ? [badge.label, ...badgeExtras].map(trBadge).join(' + ') : '';
+
     const placement = locals.size === 'compact'
         ? 'top-1.5 right-1.5 md:top-2 md:right-2 px-1.5 py-0.5 md:px-2 md:py-1'
         : 'top-2 right-2 px-2 py-1';
 %>
 <% if (badge.label) { %>
-    <span class="absolute <%= placement %> z-20 text-white text-[10px] font-bold rounded backdrop-blur-md border border-white/10 shadow-sm <%= badge.colorClass %>">
-        <%= trBadge(badge.label) %>
+    <span class="absolute <%= placement %> z-20 max-w-[75%] truncate text-white text-[10px] font-bold rounded backdrop-blur-md border border-white/10 shadow-sm <%= badge.colorClass %>">
+        <%= badgeText %>
     </span>
 <% } %>
 

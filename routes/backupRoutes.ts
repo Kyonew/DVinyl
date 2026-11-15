@@ -1,38 +1,40 @@
 import express from 'express';
-import mongoose from 'mongoose';
+import { db } from '../core/db';
+import { all, eq, idOf, isId, isIn } from '../core/db/query';
 import multer from 'multer';
 import os from 'os';
 import { promises as fs } from 'fs';
-import Item from '../models/Item';
-import User from '../models/User';
-import LoginLog from '../models/LoginLog';
-import Settings from '../models/Settings';
-import Collection from '../models/Collection';
-import CustomPlugin from '../models/CustomPlugin';
-import PriceHistory from '../models/PriceHistory';
-import InstanceSettings from '../models/InstanceSettings';
-import Furniture from '../models/Furniture';
-import List from '../models/List';
+import { Readable } from 'stream';
+import { pipeline } from 'stream/promises';
 import { invalidateInstanceSettingsCache } from '../utils/instanceSettings';
 import { invalidateAiConfigCache } from '../core/ai/instance';
+import { invalidateVapidCache } from '../core/push';
 import { requireAuth, requireAdmin, requireCollectionRole } from '../middleware/authMiddleware';
 import { registry } from '../core/registry';
-import { buildSortTitle, stringifyCsv, getPublicProtocol } from '../core/helpers';
+import { buildSortTitle, csvLine, getPublicProtocol } from '../core/helpers';
+import { sortCreatorOf } from '../core/sortCreators';
+import { DEFAULT_SORT_ARTICLES } from '../core/sortArticles';
+import { reconcileSortTitles } from '../core/sortTitles';
 import { importableFields, fieldValue, ImportTargetField } from '../core/csvMapping';
 
 // Stamped into every dump so a restore log says which build produced the file.
 // Read from package.json rather than copied, which is how it came to say 3.1.0 on 3.1.1.
 const pkg = require('../package.json');
-import { migrateDatabase, normalizeThemePresets } from '../utils/migrate';
+import { liftLegacyAccountFields, migrateDatabase, migratePluginItems, normalizeThemePresets } from '../utils/migrate';
 import { migrateExtraFieldIdentities } from '../utils/migrateExtraFieldIdentities';
 import { seedFurnitureFromLocations } from '../core/shelfStore';
 import { findDuplicateCellKey } from '../utils/shelfHelpers';
 import { collectionInfoFromBackup, collectionInfoOf } from '../core/collectionInfo';
-import { applyCustomPluginsFromDB } from '../core/customPluginSync';
+import { applyCustomPluginsFromDB, renameCollidingFields } from '../core/customPluginSync';
 import { collectExtraDateFields, reviveExtraDates } from '../core/pluginExtraFields';
+import { restoredTypeSlug } from '../core/requestTypes';
 import { deleteUnusedManagedItemImages, managedItemImageFile, managedItemImagesForQuery } from '../core/itemImageStorage';
 import { MAX_BACKUP_UPLOAD_BYTES, readBackupArchive, sendBackupArchive } from '../core/backupArchive';
+import { jsonStream, StreamedDocument } from '../core/jsonStream';
+import { backupFolderIssue, buildInstanceBackup } from '../core/instanceBackup';
 import { BASE_URL } from '../config/constants';
+import { ambienceImages } from '../core/ambience';
+import { setupTokenAccepted } from '../core/setupToken';
 
 const router = express.Router();
 const backupArchiveUpload = multer({
@@ -42,8 +44,15 @@ const backupArchiveUpload = multer({
 
 const requireInstanceImportAccess = async (req: any, res: any, next: any) => {
     try {
-        const userCount = await User.countDocuments();
-        if (userCount === 0 || res.locals.user?.isAdmin) return next();
+        const userCount = await db.users.count(all());
+        if (res.locals.user?.isAdmin) return next();
+        if (userCount === 0) {
+            // A restore on an empty instance creates its accounts, so it is held to the
+            // same token as the setup form. Sent as a header: the body is the backup.
+            if (setupTokenAccepted(req.get('x-setup-token'))) return next();
+            console.warn(`[SECURITY] restore refused, wrong setup token: ${req.ip}`);
+            return res.status(403).json({ error: 'Wrong setup token.', userMessage: req.t('setup.err_bad_token') });
+        }
         console.warn(`[SECURITY] import unauthorized : ${req.ip}`);
         return res.status(403).json({ error: 'Import unauthorized.' });
     } catch (err) {
@@ -90,23 +99,15 @@ async function cleanupImportedImages(req: any): Promise<void> {
 
 // ============ WHOLE-INSTANCE BACKUP (instance admin) ============
 
-async function buildInstanceBackup(): Promise<any> {
-    return {
-        users: await User.find({}).lean(),
-        albums: await Item.find({}).lean(),
-        logs: await LoginLog.find({}).lean(),
-        settings: await Settings.find({}).lean(),
-        collections: await Collection.find({}).lean(),
-        furniture: await Furniture.find({}).lean(),
-        lists: await List.find({}).lean(),
-        customPlugins: await CustomPlugin.find({}).lean(),
-        priceHistory: await PriceHistory.find({}).lean(),
-        instanceSettings: await InstanceSettings.findOne({ key: 'instance' }).lean(),
-        metadata: {
-            version: pkg.version,
-            date: new Date()
-        }
-    };
+// A download the browser gave up on (a cancelled save, a closed tab) ends the export
+// early. Nothing went wrong on this side, so it is told apart from a failure.
+const cancelledByClient = (err: any) => err?.code === 'ERR_STREAM_PREMATURE_CLOSE';
+
+function exportFailed(res: any, label: string, err: unknown): void {
+    if (cancelledByClient(err)) console.log(`[BACKUP] ${label} cancelled by the client.`);
+    else console.error(`[BACKUP] ${label} failed:`, err);
+    if (!res.headersSent) res.status(500).send('Export failed');
+    else res.destroy(err as Error);
 }
 
 router.get('/export', requireAuth, requireAdmin, async (req, res) => {
@@ -114,13 +115,12 @@ router.get('/export', requireAuth, requireAdmin, async (req, res) => {
         const data = await buildInstanceBackup();
 
         const fileName = `dvinyl_instance_${new Date().toISOString().split('T')[0]}.json`;
-        console.log(`[BACKUP] Instance export: ${data.users.length} user(s), ${data.albums.length} item(s), ${data.collections.length} collection(s)`);
+        console.log(`[BACKUP] Instance export: ${(data.users as any[]).length} user(s), ${await db.items.count(all())} item(s), ${(data.collections as any[]).length} collection(s)`);
         res.setHeader('Content-disposition', 'attachment; filename=' + fileName);
         res.setHeader('Content-type', 'application/json');
-        res.send(JSON.stringify(data, null, 2));
+        await pipeline(jsonStream(data), res);
     } catch (err) {
-        console.error("[BACKUP] Instance export failed:", err);
-        res.status(500).send("Export failed");
+        exportFailed(res, 'Instance export', err);
     }
 });
 
@@ -128,14 +128,92 @@ router.get('/export-archive', requireAuth, requireAdmin, async (req, res) => {
     try {
         const data = await buildInstanceBackup();
         const fileName = `dvinyl_instance_${new Date().toISOString().split('T')[0]}.zip`;
-        console.log(`[BACKUP] Instance archive export: ${data.users.length} user(s), ${data.albums.length} item(s), ${data.collections.length} collection(s)`);
+        console.log(`[BACKUP] Instance archive export: ${(data.users as any[]).length} user(s), ${await db.items.count(all())} item(s), ${(data.collections as any[]).length} collection(s)`);
         await sendBackupArchive(res, data, fileName);
     } catch (err) {
-        console.error('[BACKUP] Instance archive export failed:', err);
-        if (!res.headersSent) res.status(500).send('Export failed');
-        else res.destroy(err as Error);
+        exportFailed(res, 'Instance archive export', err);
     }
 });
+
+/**
+ * What would make a whole-instance restore fail once the instance is wiped, or null. A
+ * dump the instance wrote itself never has any of it; a file edited by hand may. Every
+ * record kept under its id, and every value the store holds unique, must appear once,
+ * and every record inserted after the wipe with the record rules must pass them.
+ */
+function instanceDumpConflict(data: any, users: any[], settings: any[]): string | null {
+    const twice = (label: string, records: unknown, keyOf: (record: any) => unknown): string | null => {
+        if (!Array.isArray(records)) return null;
+        const seen = new Set<string>();
+        for (const record of records) {
+            const key = record && typeof record === 'object' ? keyOf(record) : undefined;
+            if (key === undefined || key === null || key === '') continue;
+            const text = String(key);
+            if (seen.has(text)) return `${label} "${text.slice(0, 80)}" appears twice`;
+            seen.add(text);
+        }
+        return null;
+    };
+    const byId = (record: any) => record._id;
+    const checks: (string | null)[] = [
+        twice('collection _id', data.collections, byId),
+        twice('collection slug', data.collections, c => c.slug),
+        twice('item _id', data.albums, byId),
+        twice('user _id', users, byId),
+        twice('username', users, u => (typeof u.username === 'string' ? u.username.trim() : u.username)),
+        twice('email', users, u => (typeof u.email === 'string' ? u.email.toLowerCase() : u.email)),
+        twice('SSO identity', users, u => u.oidc?.sub),
+        twice('furniture _id', data.furniture, byId),
+        twice('list _id', data.lists, byId),
+        twice('request _id', data.requests, byId),
+        twice('request type _id', data.requestTypes, byId),
+        twice('request type slug', data.requestTypes, t => (restoredTypeSlug(t.slug) ? `${t.collection}/${restoredTypeSlug(t.slug)}` : undefined)),
+        twice('settings of collection', Array.isArray(data.settings) ? data.settings : [], st => st.collection),
+        twice('custom plugin', data.customPlugins, p => p.id),
+        twice('price snapshot _id', data.priceHistory, byId),
+        twice('login log _id', data.logs, byId),
+        twice('link token', (Array.isArray(data.collections) ? data.collections : [])
+            .flatMap((c: any) => [...(Array.isArray(c?.shareLinks) ? c.shareLinks : []), ...(Array.isArray(c?.inviteLinks) ? c.inviteLinks : [])]),
+            link => link.token)
+    ];
+    const conflict = checks.find(Boolean);
+    if (conflict) return conflict;
+    for (const user of users) {
+        const invalid = db.users.validate(user);
+        if (invalid) return `user "${String(user?.username ?? '?').slice(0, 80)}": ${invalid.field}`;
+    }
+    for (const collection of Array.isArray(data.collections) ? data.collections : []) {
+        const invalid = db.collections.validate(collection);
+        if (invalid) return `collection "${String(collection?.name ?? '?').slice(0, 80)}": ${invalid.field}`;
+    }
+    for (const doc of settings) {
+        const invalid = db.settings.validate(doc);
+        if (invalid) return `settings of collection "${String(doc?.collection ?? '?').slice(0, 80)}": ${invalid.field}`;
+    }
+    for (const plugin of Array.isArray(data.customPlugins) ? data.customPlugins : []) {
+        if (!plugin || typeof plugin !== 'object') return 'a custom plugin that is no record';
+        const invalid = db.customPlugins.validate(plugin);
+        if (invalid) return `custom plugin "${String(plugin?.id ?? '?').slice(0, 80)}": ${invalid.field}`;
+    }
+    return null;
+}
+
+/**
+ * The settings records a dump holds, in the shape they are stored in: v3.1 and later
+ * export one per collection, older dumps a single object for the whole instance.
+ */
+function restorableSettings(data: any, keepCollection: boolean): any[] {
+    const docs = Array.isArray(data.settings) ? data.settings : (data.settings ? [data.settings] : []);
+    return docs.filter((s: any) => s && typeof s === 'object').map((s: any) => {
+        const clean = { ...s };
+        if (!keepCollection) delete clean.collection;
+        // A legacy Settings doc can hold theme.<key>.preset as an object (e.g. the games
+        // plugin's { default: 'default' }), which the record rules refuse. Normalized up
+        // front, like the boot migration does, so it is not taken for a broken file.
+        normalizeThemePresets(clean.theme);
+        return clean;
+    });
+}
 
 /**
  * POST /import - whole-instance restore (wipe & replace).
@@ -178,53 +256,89 @@ const importInstanceBackup = async (req: any, res: any) => {
         }
 
         const hasCollections = Array.isArray(data.collections) && data.collections.length > 0;
+        const cleanUsers = data.users.map((u: any) => {
+            const lifted = liftLegacyAccountFields(u);
+            if (hasCollections) return lifted;
+            const { lastActiveCollectionId, homeCollectionId, ...rest } = lifted;
+            return rest;
+        });
+        // The wipe below cannot be taken back, so whatever the inserts after it would
+        // refuse is refused here, while the instance is still whole.
+        const settingsToRestore = restorableSettings(data, hasCollections);
+        const conflict = instanceDumpConflict(data, cleanUsers, settingsToRestore);
+        if (conflict) {
+            await cleanupImportedImages(req);
+            console.warn(`[BACKUP] Instance import refused before anything was touched: ${conflict}.`);
+            return res.status(400).json({
+                error: conflict,
+                userMessage: req.t('admin.backup.error_invalid_dump', { detail: conflict })
+            });
+        }
         // Lists name items by id, and a whole-instance restore keeps every id as it was, so
         // they go back untouched. Settled here, before the wipe.
         const listsToRestore = hasCollections ? restorableLists(data.lists, list => list) : [];
-        const replacedImagePaths = await managedItemImagesForQuery({});
+        // Requests and their types keep their ids too. A dump older than them has none.
+        // Their slugs are put in the builder's shape, on both sides of the link.
+        const requestsToRestore = hasCollections
+            ? restorableRecords(db.requests, data.requests, 'request', (request: any) => ({ ...request, type: restoredTypeSlug(request.type) }))
+            : [];
+        const requestTypesToRestore = hasCollections
+            ? restorableRecords(db.requestTypes, data.requestTypes, 'request type', (type: any) => ({ ...type, slug: restoredTypeSlug(type.slug) }))
+            : [];
+        const replacedImagePaths = await managedItemImagesForQuery(all());
         // The wipe below takes the info pages with it, so their uploads are candidates
         // for release too, exactly like the items' own images.
-        for (const current of await Collection.find({}).select('info.images').lean()) {
+        for (const current of await db.collections.find(all(), { fields: ['info.images'] })) {
             replacedImagePaths.push(...collectionInfoOf(current).images);
+        }
+        // And so do the collections' ambiences, their background pictures and logos.
+        for (const current of await db.settings.find(all(), { fields: ['ambience'] })) {
+            replacedImagePaths.push(...ambienceImages(current));
         }
 
         console.log(`[BACKUP] Instance import started (dump version ${data.metadata?.version || 'unknown'}, ${hasCollections ? 'with' : 'without'} collections): ${data.users?.length || 0} user(s), ${data.albums?.length || 0} item(s). Wiping current data...`);
 
         await Promise.all([
-            LoginLog.deleteMany({}),
-            Item.deleteMany({}),
-            User.deleteMany({}),
-            Settings.deleteMany({}),
-            Collection.deleteMany({}),
-            Furniture.deleteMany({}),
-            List.deleteMany({}),
-            CustomPlugin.deleteMany({}),
-            PriceHistory.deleteMany({}),
-            InstanceSettings.deleteMany({})
+            db.loginLogs.deleteMany(all()),
+            db.items.deleteMany(all()),
+            db.users.deleteMany(all()),
+            db.settings.deleteMany(all()),
+            db.collections.deleteMany(all()),
+            db.furniture.deleteMany(all()),
+            db.lists.deleteMany(all()),
+            db.requests.deleteMany(all()),
+            db.requestTypes.deleteMany(all()),
+            // They point at ids that may no longer mean the same thing: an inbox starts over.
+            db.notifications.deleteMany(all()),
+            // A device subscribed to the accounts being replaced.
+            db.pushSubscriptions.deleteMany(all()),
+            db.customPlugins.deleteMany(all()),
+            db.priceHistory.deleteMany(all()),
+            db.instanceSettings.deleteMany(all())
         ]);
         // The singleton is cached in memory; the wipe above must not leave a stale copy
         // authorizing (or blocking) collection creation until the next restart.
         invalidateInstanceSettingsCache();
         invalidateAiConfigCache();
+        invalidateVapidCache();
 
         if (hasCollections) {
-            await Collection.insertMany(data.collections);
+            await db.collections.insertMany(data.collections);
         }
 
         // Furniture belongs to a collection, so it only means anything alongside them.
         if (hasCollections && Array.isArray(data.furniture) && data.furniture.length > 0) {
-            const toId = (v: any) => (typeof v === 'string' && mongoose.Types.ObjectId.isValid(v))
-                ? new mongoose.Types.ObjectId(v) : v;
-            // Cast back to their BSON types like the items below: the native insert skips the
-            // schema, and `created_at` orders the pieces of one collection after `order`.
-            await Furniture.collection.insertMany(data.furniture.map((piece: any) => ({
+            const toId = db.storedId;
+            // Typed back like the items below: the insert as stored skips the record rules,
+            // and `created_at` orders the pieces of one collection after `order`.
+            await db.furniture.insertMany(data.furniture.map((piece: any) => ({
                 ...piece,
                 _id: toId(piece._id),
                 collection: toId(piece.collection),
                 createdBy: piece.createdBy ? toId(piece.createdBy) : undefined,
                 ...(piece.created_at ? { created_at: new Date(piece.created_at) } : {}),
                 ...(piece.updated_at ? { updated_at: new Date(piece.updated_at) } : {})
-            })));
+            })), { asStored: true });
         }
 
         // Whether the migration below still has free-text locations to turn into shelves.
@@ -236,44 +350,46 @@ const importInstanceBackup = async (req: any, res: any) => {
         // shelves carries no list at all: its collections are handed to the migration,
         // which rebuilds the shelves from those very locations.
         if (hasCollections) {
-            await Collection.updateMany({}, { $set: { shelvesSeeded: Array.isArray(data.furniture) } });
+            await db.collections.updateMany(all(), { set: { shelvesSeeded: Array.isArray(data.furniture) } });
         }
 
-        // Inserted through the model so the ids a JSON dump carries as strings are cast
-        // back to ObjectIds.
+        // Inserted with the record rules, which also read the ids a JSON dump carries as
+        // text back into the store's own form.
         if (listsToRestore.length > 0) {
-            await List.insertMany(listsToRestore);
+            await db.lists.insertMany(listsToRestore);
         }
+        if (requestTypesToRestore.length > 0) await db.requestTypes.insertMany(requestTypesToRestore);
+        if (requestsToRestore.length > 0) await db.requests.insertMany(requestsToRestore);
 
-        if (data.users && data.users.length > 0) {
-            const cleanUsers = hasCollections
-                ? data.users
-                : data.users.map((u: any) => {
-                    const { lastActiveCollectionId, homeCollectionId, ...rest } = u;
-                    return rest;
-                });
-            await User.insertMany(cleanUsers);
-        }
+        if (cleanUsers.length > 0) await db.users.insertMany(cleanUsers);
 
         if (data.albums && data.albums.length > 0) {
             // Legacy backups may hold items without a `kind`; assign the plugin that claims legacy items
             const legacyKind = registry.getAll().find(p => p.matchesLegacyItems)?.kind || 'Music';
-            const toId = (v: any) => (typeof v === 'string' && mongoose.Types.ObjectId.isValid(v))
-                ? new mongoose.Types.ObjectId(v) : v;
+            const toId = db.storedId;
             const extraDateFields = collectExtraDateFields(
                 Array.isArray(data.settings) ? data.settings : (data.settings ? [data.settings] : [])
             );
+            const albumIds = new Set(data.albums.map((album: any) => String(album?._id ?? '')));
             const cleanAlbums = data.albums.map((album: any) => {
                 const fixed: any = album.kind ? { ...album } : { ...album, kind: legacyKind };
                 // Without the collections themselves, stale collection ids would orphan items
                 if (!hasCollections) delete fixed.collection;
-                // Cast the ref/date fields back to their BSON types (they are strings in JSON).
+                // Read the reference and date fields back into their types (text in JSON).
                 if (fixed._id) fixed._id = toId(fixed._id);
                 if (fixed.owner) fixed.owner = toId(fixed.owner);
                 if (fixed.modified_by) fixed.modified_by = toId(fixed.modified_by);
                 // Ids are preserved on a whole-instance restore, so a containment link only
-                // needs its BSON type back.
-                if (fixed.parent) fixed.parent = toId(fixed.parent);
+                // needs its BSON type back. One naming an item the dump does not hold would
+                // keep the item out of every listing, so it goes back on the shelf instead.
+                // A value that is no id at all is left for the rename of the plugin field
+                // that wrote it (utils/migrateReservedFieldNames.ts).
+                for (const link of ['parent', 'inside']) {
+                    if (!fixed[link]) continue;
+                    if (!isDumpId(fixed[link])) continue;
+                    if (albumIds.has(String(fixed[link]))) fixed[link] = toId(fixed[link]);
+                    else delete fixed[link];
+                }
                 if (fixed.collection) fixed.collection = toId(fixed.collection);
                 if (fixed.added_at) fixed.added_at = new Date(fixed.added_at);
                 if (fixed.updated_at) fixed.updated_at = new Date(fixed.updated_at);
@@ -283,28 +399,31 @@ const importInstanceBackup = async (req: any, res: any) => {
                 // Mixed path and would otherwise come back as strings
                 if (fixed.extra) fixed.extra = { ...fixed.extra };
                 reviveExtraDates(fixed, extraDateFields);
-                // The native insert below skips the schema middleware that normally derives
-                // this, and a dump older than the field carries none at all.
+                // The insert as stored below skips what normally derives this on a write,
+                // and a dump older than the field carries none at all.
                 fixed.sort_title = buildSortTitle(fixed.title);
+                fixed.sort_creator = sortCreatorOf(fixed, DEFAULT_SORT_ARTICLES);
                 return fixed;
             });
-            // Insert with the native driver, bypassing Mongoose validation. A backup is
-            // authoritative: re-validating restored items against the live (possibly stricter)
-            // discriminator schema (e.g. a custom type whose `creator` became required) would
-            // reject legitimately-saved items and, since the wipe already ran, gut the instance.
-            await Item.collection.insertMany(cleanAlbums);
+            // Inserted as stored, without the type rules. A backup is authoritative:
+            // re-validating restored items against the live (possibly stricter) rules of
+            // their type (e.g. a custom type whose `creator` became required) would reject
+            // legitimately-saved items and, since the wipe already ran, gut the instance.
+            await db.items.insertMany(cleanAlbums, { asStored: true });
         }
 
-        if (data.logs && data.logs.length > 0) {
-            await LoginLog.insertMany(data.logs);
+        // Login history is the one thing a restore can do without: a line the rules refuse
+        // is left out (restorableRecords says so in the log) rather than refuse the file.
+        const logsToRestore = restorableRecords(db.loginLogs, data.logs, 'login log');
+        if (logsToRestore.length > 0) {
+            await db.loginLogs.insertMany(logsToRestore);
         }
 
         // Value snapshots are collection-scoped, so a dump restored without its collections
         // has nothing for them to describe: they are dropped rather than left pointing at
         // ids this instance does not have. A dump older than the feature simply has none.
         if (hasCollections && Array.isArray(data.priceHistory) && data.priceHistory.length > 0) {
-            const toId = (v: any) => (typeof v === 'string' && mongoose.Types.ObjectId.isValid(v))
-                ? new mongoose.Types.ObjectId(v) : v;
+            const toId = db.storedId;
             const cleanHistory = data.priceHistory.map((snapshot: any) => {
                 const fixed: any = { ...snapshot };
                 if (fixed._id) fixed._id = toId(fixed._id);
@@ -312,39 +431,32 @@ const importInstanceBackup = async (req: any, res: any) => {
                 if (fixed.capturedAt) fixed.capturedAt = new Date(fixed.capturedAt);
                 return fixed;
             });
-            await PriceHistory.collection.insertMany(cleanHistory);
+            await db.priceHistory.insertMany(cleanHistory, { asStored: true });
         }
 
-        // v3.1 exports settings as an array (one per collection); older dumps as one object
-        const settingsDocs = Array.isArray(data.settings)
-            ? data.settings
-            : (data.settings ? [data.settings] : []);
-        for (const s of settingsDocs) {
-            const clean = { ...s };
-            if (!hasCollections) delete clean.collection;
-            // A legacy Settings doc can hold theme.<key>.preset as an object (e.g. the games
-            // plugin's { default: 'default' }). Settings.create() validates and would throw a
-            // CastError here, after the wipe already ran, before migrateDatabase() gets to
-            // normalize it, leaving the instance half-restored. Normalize up front, like the
-            // boot migration does via the native driver.
-            normalizeThemePresets(clean.theme);
-            await Settings.create(clean);
+        // Put in shape and checked before the wipe (restorableSettings, instanceDumpConflict).
+        for (const clean of settingsToRestore) {
+            await db.settings.create(clean);
         }
 
         // No-code plugin definitions. Absent from dumps predating v3.1.
         if (Array.isArray(data.customPlugins) && data.customPlugins.length > 0) {
-            await CustomPlugin.insertMany(data.customPlugins);
+            await db.customPlugins.insertMany(data.customPlugins);
         }
 
         // Instance-wide policy singleton. Absent from older dumps, in which case the
         // schema defaults (self-service off) apply on the next read.
         if (data.instanceSettings) {
             const { _id, created_at, updated_at, __v, ...values } = data.instanceSettings;
-            await InstanceSettings.updateOne(
-                { key: 'instance' },
-                { $set: { ...values, key: 'instance' } },
-                { upsert: true }
-            );
+            // The backup folder names a place on the machine the dump was made on. Kept
+            // when this one can write there as the Backup tab would accept it; otherwise
+            // the schedule stays and the backups go to the default folder.
+            const backupFolder = values.backups?.folder;
+            if (typeof backupFolder === 'string' && backupFolder && await backupFolderIssue(backupFolder)) {
+                console.warn(`[BACKUP] The backup folder of the dump (${backupFolder}) cannot be used here; the default folder takes over.`);
+                values.backups = { ...values.backups, folder: '' };
+            }
+            await db.instanceSettings.updateOne(eq('key', 'instance'), { set: { ...values, key: 'instance' } }, { upsert: true });
             invalidateInstanceSettingsCache();
             invalidateAiConfigCache();
         }
@@ -357,6 +469,7 @@ const importInstanceBackup = async (req: any, res: any) => {
 
         // Reconcile no-code plugins with the freshly imported DB: re-materialize the
         // plugins/<id>/ folders and hot-register them, pruning any from the old instance.
+        await renameCollidingFields();
         await applyCustomPluginsFromDB();
         await upgradeRestoredExtraFields();
 
@@ -369,8 +482,8 @@ const importInstanceBackup = async (req: any, res: any) => {
             console.warn('[ITEM IMAGE] Post-import cleanup failed:', cleanupError);
         }
 
-        const restoredCollectionCount = await Collection.countDocuments();
-        console.log(`[BACKUP] Instance import finished: ${restoredCollectionCount} collection(s) rebuilt, ${await Item.countDocuments()} item(s) restored`);
+        const restoredCollectionCount = await db.collections.count(all());
+        console.log(`[BACKUP] Instance import finished: ${restoredCollectionCount} collection(s) rebuilt, ${await db.items.count(all())} item(s) restored`);
 
         res.cookie('jwt', '', { maxAge: 1 });
         if (restoredCollectionCount === 0) {
@@ -400,36 +513,54 @@ router.post(
 
 // ============ PER-COLLECTION BACKUP (collection admin) ============
 
-async function buildCollectionBackup(activeCollectionId: any, collection: any): Promise<any> {
-    const settings = await Settings.findOne({ collection: activeCollectionId }).lean() as any;
+async function buildCollectionBackup(activeCollectionId: any, collection: any, exporterId: any): Promise<StreamedDocument> {
+    const settings = await db.settings.findOne(eq('collection', idOf(activeCollectionId)));
     if (settings) {
         delete settings._id;
         delete settings.collection;
         delete settings.__v;
     }
 
-    const albums = (await Item.find({ collection: activeCollectionId }).lean()).map((a: any) => {
-            // Owner and collection are re-stamped at import time (a dump may be restored
-            // into another collection, or another instance), so they go. The id stays: a
-            // season points at the show that holds it, and the import can only rebuild
-            // that link if it can tell which item was which. It is never restored as is,
-            // the import draws a new one and rewrites the links against it.
+    // Owner and collection are re-stamped at import time (a dump may be restored into
+    // another collection, or another instance), so they go. The id stays: a season points
+    // at the show that holds it, and the import can only rebuild that link if it can tell
+    // which item was which. It is never restored as is, the import draws a new one and
+    // rewrites the links against it. Gone through one at a time, like the instance export.
+    const albums = async function* () {
+        for await (const a of db.items.each(eq('collection', idOf(activeCollectionId)))) {
             const { __v, owner, collection, ...rest } = a;
-            return rest;
-    });
+            yield rest;
+        }
+    };
 
     // Stripped of what the import re-stamps. Everything a shelf is made of is its name
     // and its place in the grid, and the items find it by name, so nothing else is needed
     // for the restore to put the collection back exactly as it stood.
-    const furniture = (await Furniture.find({ collection: activeCollectionId }).lean()).map((piece: any) => {
+    const furniture = (await db.furniture.find(eq('collection', idOf(activeCollectionId)))).map((piece: any) => {
         const { _id, __v, collection: owner, createdBy, created_at, updated_at, ...rest } = piece;
         return rest;
     });
 
     // Kept with the item ids they point at: the import draws new ids for the items and
     // rewrites these against them, like it does for a season and its show.
-    const lists = (await List.find({ collection: activeCollectionId }).lean()).map((list: any) => {
+    const lists = (await db.lists.find(eq('collection', idOf(activeCollectionId)))).map((list: any) => {
         const { _id, __v, collection: owner, createdBy, ...rest } = list;
+        return rest;
+    });
+
+    // The request types go as they are. The requests follow their items like the lists,
+    // and only come back for members of the collection they land in.
+    const requestTypes = (await db.requestTypes.find(eq('collection', idOf(activeCollectionId)))).map((type: any) => {
+        const { _id, __v, collection: owner, createdBy, ...rest } = type;
+        return rest;
+    });
+    // A private request is only for its two members: when the admin exporting is neither,
+    // what they wrote stays out and only the request itself goes.
+    const exporter = idOf(exporterId);
+    const requests = (await db.requests.find(eq('collection', idOf(activeCollectionId)))).map((request: any) => {
+        const { _id, __v, collection: owner, ...rest } = request;
+        const party = idOf(rest.sender) === exporter || idOf(rest.recipient) === exporter;
+        if (rest.visibility === 'private' && !party) return { ...rest, message: '', response: '', data: {} };
         return rest;
     });
 
@@ -438,6 +569,8 @@ async function buildCollectionBackup(activeCollectionId: any, collection: any): 
         albums,
         furniture,
         lists,
+        requestTypes,
+        requests,
         // The collection's own page travels with it: it is written about these items,
         // and its pictures are picked up by the archive alongside theirs.
         info: collectionInfoOf(collection),
@@ -454,16 +587,15 @@ router.get('/collection/export', requireAuth, requireCollectionRole('admin'), as
     try {
         const activeCollectionId = res.locals.activeCollectionId;
         const collection = res.locals.activeCollection;
-        const data = await buildCollectionBackup(activeCollectionId, collection);
+        const data = await buildCollectionBackup(activeCollectionId, collection, req.user._id);
 
         const slug = collection?.slug || 'collection';
         const fileName = `dvinyl_collection-${slug}_${new Date().toISOString().split('T')[0]}.json`;
         res.setHeader('Content-disposition', 'attachment; filename=' + fileName);
         res.setHeader('Content-type', 'application/json');
-        res.send(JSON.stringify(data, null, 2));
+        await pipeline(jsonStream(data), res);
     } catch (err) {
-        console.error("[ERR] Collection export:", err);
-        res.status(500).send("Export failed");
+        exportFailed(res, 'Collection export', err);
     }
 });
 
@@ -471,14 +603,12 @@ router.get('/collection/export-archive', requireAuth, requireCollectionRole('adm
     try {
         const activeCollectionId = res.locals.activeCollectionId;
         const collection = res.locals.activeCollection;
-        const data = await buildCollectionBackup(activeCollectionId, collection);
+        const data = await buildCollectionBackup(activeCollectionId, collection, req.user._id);
         const slug = collection?.slug || 'collection';
         const fileName = `dvinyl_collection-${slug}_${new Date().toISOString().split('T')[0]}.zip`;
         await sendBackupArchive(res, data, fileName);
     } catch (err) {
-        console.error('[BACKUP] Collection archive export failed:', err);
-        if (!res.headersSent) res.status(500).send('Export failed');
-        else res.destroy(err as Error);
+        exportFailed(res, 'Collection archive export', err);
     }
 });
 
@@ -497,11 +627,11 @@ router.get('/collection/export-csv', requireAuth, requireCollectionRole('admin')
         const collection = res.locals.activeCollection;
         const settings = res.locals.settings;
 
-        const albums = await Item.find({ collection: activeCollectionId }).lean();
+        const inCollection = eq('collection', idOf(activeCollectionId));
 
         // Registry order rather than the order Mongo happened to return the items in,
         // so the same collection always exports its columns in the same order.
-        const present = new Set(albums.map((a: any) => a.kind));
+        const present = new Set(await db.items.distinct('kind', inCollection));
         const kinds = registry.getAll().map(p => p.kind).filter(kind => present.has(kind));
 
         // A column is one field of one plugin. Two plugins merge into a single column
@@ -567,26 +697,33 @@ router.get('/collection/export-csv', requireAuth, requireCollectionRole('admin')
         const publicOrigin = `${getPublicProtocol(req)}://${req.get('host')}${BASE_URL.replace(/\/+$/, '')}`;
         const asPublicUrl = (value: string) => (managedItemImageFile(value) ? `${publicOrigin}${value}` : value);
 
-        const rows: string[][] = [header];
-        for (const album of albums) {
-            const kind = String((album as any).kind || '');
-            const plugin = registry.getByKind(kind);
-            const typeName = plugin ? req.t(plugin.label, { defaultValue: plugin.id }) : kind;
-            const cells = columns.map(c => (c.kinds.has(kind) ? asPublicUrl(fieldValue(album, c.field)) : ''));
-            rows.push([typeName, ...cells, (album as any).in_wishlist ? 'true' : 'false']);
-        }
-
+        // One line per item, written as it is read, like the JSON export (see
+        // buildInstanceBackup): the sheet of a large collection is never held whole.
         // Leading BOM so Excel (which guesses ANSI otherwise) opens accented labels
         // and titles as UTF-8 instead of mojibake.
-        const csv = '﻿' + stringifyCsv(rows);
+        async function* lines() {
+            let pending = '\ufeff' + csvLine(header);
+            for await (const album of db.items.each(inCollection)) {
+                const kind = String((album as any).kind || '');
+                const plugin = registry.getByKind(kind);
+                const typeName = plugin ? req.t(plugin.label, { defaultValue: plugin.id }) : kind;
+                const cells = columns.map(c => (c.kinds.has(kind) ? asPublicUrl(fieldValue(album, c.field)) : ''));
+                pending += '\r\n' + csvLine([typeName, ...cells, (album as any).in_wishlist ? 'true' : 'false']);
+                if (pending.length >= 64 * 1024) {
+                    yield Buffer.from(pending, 'utf8');
+                    pending = '';
+                }
+            }
+            yield Buffer.from(pending, 'utf8');
+        }
+
         const slug = collection?.slug || 'collection';
         const fileName = `dvinyl_collection-${slug}_${new Date().toISOString().split('T')[0]}.csv`;
         res.setHeader('Content-disposition', 'attachment; filename=' + fileName);
         res.setHeader('Content-type', 'text/csv; charset=utf-8');
-        res.send(csv);
+        await pipeline(Readable.from(lines(), { objectMode: false }), res);
     } catch (err) {
-        console.error("[ERR] Collection CSV export:", err);
-        res.status(500).send("Export failed");
+        exportFailed(res, 'Collection CSV export', err);
     }
 });
 
@@ -633,7 +770,7 @@ function restorableFurniture(data: any, collectionId: any, userId: any): any[] |
 
     const cells = pieces.flatMap((piece: any) => (Array.isArray(piece.cells) ? piece.cells : []));
     const duplicate = findDuplicateCellKey(cells);
-    const invalid = pieces.find((piece: any) => new Furniture(piece).validateSync());
+    const invalid = pieces.find((piece: any) => db.furniture.validate(piece));
     if (duplicate || invalid) {
         console.warn(`[BACKUP] The dump's furniture cannot be restored as it is (${duplicate ? `shelf "${duplicate}" appears twice` : 'invalid piece'}); rebuilding the shelves from the item locations.`);
         return null;
@@ -641,10 +778,31 @@ function restorableFurniture(data: any, collectionId: any, userId: any): any[] |
     return pieces;
 }
 
-// An id as a dump writes one: 24 hex digits, or already an ObjectId. isValid() alone
-// would also take any 12-character string.
-const isDumpId = (value: unknown) =>
-    value instanceof mongoose.Types.ObjectId || /^[a-f0-9]{24}$/i.test(String(value ?? ''));
+// An id as a dump writes one: 24 hex digits, as text or already in the store's form.
+const isDumpId = (value: unknown) => isId(String(value ?? ''));
+
+/**
+ * The records of a dump that pass the rules of `store`, each in the shape `place` gives
+ * it, or left out when `place` finds nothing left to point at. Settled before anything
+ * is wiped, like the lists.
+ */
+function restorableRecords(store: any, records: unknown, label: string, place: (record: any) => any | null = r => r): any[] {
+    if (!Array.isArray(records)) return [];
+    const kept: any[] = [];
+    let dropped = 0;
+    for (const raw of records) {
+        const record = raw && typeof raw === 'object' ? place({ ...raw }) : null;
+        if (!record || store.validate(record)) {
+            dropped++;
+            continue;
+        }
+        kept.push(record);
+    }
+    if (dropped > 0) {
+        console.warn(`[BACKUP] ${dropped} ${label}(s) of the dump could not be restored as they are and were left out.`);
+    }
+    return kept;
+}
 
 /**
  * The lists of a dump that can go back, each in the shape `place` gives it. Settled
@@ -668,7 +826,7 @@ function restorableLists(lists: unknown, place: (list: any) => any): any[] {
             entry && isDumpId(entry.item) && (entry.track === undefined || entry.track === null || isDumpId(entry.track))
         );
         const list = place({ ...raw, entries });
-        if (new List(list).validateSync()) {
+        if (db.lists.validate(list)) {
             dropped++;
             continue;
         }
@@ -713,9 +871,9 @@ const importCollectionBackup = async (req: any, res: any) => {
         // list line pointing at an item that no longer exists. So the new ids are drawn up
         // front and the links rewritten against them, keeping a show and its seasons, and
         // the lists, together through the restore.
-        const idMap = new Map<string, mongoose.Types.ObjectId>();
+        const idMap = new Map<string, any>();
         for (const album of data.albums) {
-            if (album?._id) idMap.set(String(album._id), new mongoose.Types.ObjectId());
+            if (album?._id) idMap.set(String(album._id), db.newId());
         }
 
         const legacyKind = registry.getAll().find(p => p.matchesLegacyItems)?.kind || 'Music';
@@ -725,6 +883,10 @@ const importCollectionBackup = async (req: any, res: any) => {
         // A file edited by hand can name one id twice. The second copy gets an id of its
         // own, since sharing one would fail the insert after the wipe.
         const usedIds = new Set<string>();
+        // Before 4.0 only a plugin field of that name wrote `purchase_currency`; since,
+        // the core writes it beside the purchase price, and the field was renamed.
+        const dumpMajor = Number.parseInt(String(data.metadata?.version || '0'), 10);
+        const currencyWasAField = !(dumpMajor >= 4);
         const cleanAlbums = data.albums.map((album: any) => {
             const { _id, __v, ...rest } = album || {};
             const fixed: any = {
@@ -739,23 +901,38 @@ const importCollectionBackup = async (req: any, res: any) => {
                 usedIds.add(String(newId));
             }
             // A holder left outside the dump would strand the item in no listing at all,
-            // so it becomes standalone rather than invisible.
-            fixed.parent = rest.parent ? idMap.get(String(rest.parent)) : undefined;
-            if (!fixed.parent) delete fixed.parent;
+            // so it becomes standalone rather than invisible. Same for a box: an item whose
+            // box is not in the dump goes back on the shelf. A value that is no id at all
+            // was typed into a plugin field of that name, renamed here since
+            // (utils/migrateReservedFieldNames.ts), and goes to it.
+            for (const link of ['parent', 'inside']) {
+                const value = rest[link];
+                fixed[link] = value ? idMap.get(String(value)) : undefined;
+                if (!fixed[link]) delete fixed[link];
+                const renamed = `${link}_field`;
+                if (value && !isDumpId(value) && fixed[renamed] === undefined
+                    && registry.getByKind(fixed.kind)?.formFields?.some(field => field.name === renamed)) {
+                    fixed[renamed] = value;
+                }
+            }
+            if (currencyWasAField && fixed.purchase_currency !== undefined && fixed.purchase_currency_field === undefined
+                && registry.getByKind(fixed.kind)?.formFields?.some(field => field.name === 'purchase_currency_field')) {
+                fixed.purchase_currency_field = fixed.purchase_currency;
+                delete fixed.purchase_currency;
+            }
             if (fixed.extra) fixed.extra = { ...fixed.extra };
             reviveExtraDates(fixed, extraDateFields);
             return fixed;
         });
 
-        // Checked against their models before the wipe: the insert below validates too,
-        // and an item it refused there would leave the collection emptied. Refused here,
-        // the collection stays exactly as it was.
+        // Checked against their types before the wipe: the insert below checks too, and
+        // an item it refused there would leave the collection emptied. Refused here, the
+        // collection stays exactly as it was.
         for (const album of cleanAlbums) {
-            const Model: any = (Item as any).discriminators?.[album.kind] || Item;
-            const invalid = new Model(album).validateSync();
+            const invalid = db.items.validate(album);
             if (invalid) {
                 await cleanupImportedImages(req);
-                const field = Object.keys(invalid.errors || {})[0] || '?';
+                const field = invalid.field;
                 return res.status(400).json({
                     error: invalid.message,
                     userMessage: req.t('admin.collection_backup.error_invalid_item', {
@@ -764,6 +941,23 @@ const importCollectionBackup = async (req: any, res: any) => {
                     })
                 });
             }
+        }
+
+        // The collection's settings, when the dump carries them, are replaced after the
+        // wipe too: put in shape and checked now, so a record the rules refuse leaves the
+        // collection as it was instead of without settings.
+        const settingsToRestore = restorableSettings(
+            { settings: Array.isArray(data.settings) ? data.settings[0] : data.settings }, true
+        ).map(({ _id, __v, ...clean }: any) => ({ ...clean, collection: activeCollectionId }))[0] || null;
+        const invalidSettings = settingsToRestore ? db.settings.validate(settingsToRestore) : null;
+        if (invalidSettings) {
+            await cleanupImportedImages(req);
+            const detail = `settings: ${invalidSettings.field}`;
+            console.warn(`[BACKUP] Collection import refused before anything was touched: ${detail}.`);
+            return res.status(400).json({
+                error: invalidSettings.message,
+                userMessage: req.t('admin.backup.error_invalid_dump', { detail })
+            });
         }
 
         // A line whose item did not come back with the dump has nothing to point at and is
@@ -781,24 +975,62 @@ const importCollectionBackup = async (req: any, res: any) => {
             };
         });
 
+        // A whole-instance dump mixes the request types of every collection, and two of
+        // them may share a slug, so it leaves this collection's types in place, as it does
+        // for the furniture. A type is unique by slug within a collection: a second one
+        // with the same slug (a file edited by hand) would fail its insert after the wipe.
+        const fromInstance = Array.isArray(data.collections);
+        const restoresTypes = !fromInstance && Array.isArray(data.requestTypes);
+        const typeSlugs = new Set<string>();
+        const requestTypesToRestore = restoresTypes
+            ? restorableRecords(db.requestTypes, data.requestTypes, 'request type', (type: any) => {
+                const { _id, __v, collection: _owner, createdBy: _by, ...rest } = type;
+                const slug = restoredTypeSlug(rest.slug);
+                if (typeSlugs.has(slug)) return null;
+                typeSlugs.add(slug);
+                return { ...rest, slug, collection: activeCollectionId, createdBy: req.user._id };
+            })
+            : [];
+        // A request follows its item to the new id, between members of this collection only.
+        const memberIds = new Set((res.locals.activeCollection?.members || []).map((m: any) => idOf(m.user)));
+        const requestsToRestore = fromInstance ? [] : restorableRecords(db.requests, data.requests, 'request', (request: any) => {
+            const { _id, __v, collection: _owner, ...rest } = request;
+            const item = idMap.get(String(rest.item));
+            if (!item || !memberIds.has(idOf(rest.sender)) || !memberIds.has(idOf(rest.recipient))) return null;
+            return { ...rest, item, type: restoredTypeSlug(rest.type), collection: activeCollectionId };
+        });
+
         // Replacement semantics: the collection's current items are wiped first.
-        const replacedImagePaths = await managedItemImagesForQuery({ collection: activeCollectionId });
-        await Item.deleteMany({ collection: activeCollectionId });
-        if (cleanAlbums.length > 0) {
-            await Item.insertMany(cleanAlbums);
-        }
+        const replacedImagePaths = await managedItemImagesForQuery(eq('collection', idOf(activeCollectionId)));
+        const ofCollection = eq('collection', idOf(activeCollectionId));
+        await db.items.deleteMany(ofCollection);
+        await db.items.insertMany(cleanAlbums);
 
         // Replacement semantics for the lists too.
-        await List.deleteMany({ collection: activeCollectionId });
-        if (listsToRestore.length > 0) {
-            await List.insertMany(listsToRestore);
+        await db.lists.deleteMany(ofCollection);
+        await db.lists.insertMany(listsToRestore);
+
+        // And for the request types. A dump older than them carries none and leaves the
+        // collection's own in place.
+        if (restoresTypes) {
+            await db.requestTypes.deleteMany(ofCollection);
+            if (requestTypesToRestore.length > 0) await db.requestTypes.insertMany(requestTypesToRestore);
         }
+        // The requests always go: every one of them is about an item that was just
+        // replaced, so none would point at anything left. Nor would the notifications
+        // that open them, which go too.
+        const replacedRequests = await db.requests.find(ofCollection, { fields: ['_id'] });
+        if (replacedRequests.length > 0) {
+            await db.notifications.deleteMany(isIn('link', replacedRequests.map((r: any) => `/requests/${idOf(r._id)}`)));
+        }
+        await db.requests.deleteMany(ofCollection);
+        if (requestsToRestore.length > 0) await db.requests.insertMany(requestsToRestore);
 
         // Replacement semantics again: the collection's own furniture goes with its items.
-        await Furniture.deleteMany({ collection: activeCollectionId });
+        await db.furniture.deleteMany(ofCollection);
 
         if (furnitureToRestore) {
-            if (furnitureToRestore.length > 0) await Furniture.insertMany(furnitureToRestore);
+            await db.furniture.insertMany(furnitureToRestore);
         } else {
             // The restored items still say where each one is kept. Rebuilt into furniture
             // the same way the boot migration does it, so the restore does not land a
@@ -815,32 +1047,35 @@ const importCollectionBackup = async (req: any, res: any) => {
         // The collection's shelves are now whatever this restore made of them, so the boot
         // migration has nothing left to convert here, and must not rebuild pieces its
         // owners take down from now on.
-        await Collection.updateOne({ _id: activeCollectionId }, { $set: { shelvesSeeded: true } });
+        await db.collections.updateOne(eq('_id', idOf(activeCollectionId)), { set: { shelvesSeeded: true } });
 
         // The info page is replaced like everything else, and the pictures the previous
         // one held are released once the new page is in place (nothing else points at
         // them, and the release checks every other reference before it unlinks a file).
-        const previousInfo = collectionInfoOf(await Collection.findById(activeCollectionId).lean());
+        const previousInfo = collectionInfoOf(await db.collections.findById(idOf(activeCollectionId)));
         if (data.info && typeof data.info === 'object') {
             const info = collectionInfoFromBackup(data.info);
-            await Collection.updateOne({ _id: activeCollectionId }, { $set: { info } });
+            await db.collections.updateOne(eq('_id', idOf(activeCollectionId)), { set: { info } });
             replacedImagePaths.push(...previousInfo.images.filter(image => !info.images.includes(image)));
         }
 
         // Restore the collection's settings container when the dump carries one
-        const settingsDoc = Array.isArray(data.settings) ? data.settings[0] : data.settings;
-        if (settingsDoc) {
-            const clean = { ...settingsDoc };
-            delete clean._id;
-            delete clean.__v;
-            clean.collection = activeCollectionId;
-            await Settings.deleteMany({ collection: activeCollectionId });
-            await Settings.create(clean);
+        if (settingsToRestore) {
+            // Its ambience pictures go the way of the info page's above.
+            const previousSettings = await db.settings.findOne(eq('collection', idOf(activeCollectionId)));
+            replacedImagePaths.push(...ambienceImages(previousSettings));
+            await db.settings.deleteMany(eq('collection', idOf(activeCollectionId)));
+            await db.settings.create(settingsToRestore);
         }
 
         // Collection restores do not run the whole boot migration. Apply the same
         // custom-field identity upgrade explicitly before the restored data is used.
         await upgradeRestoredExtraFields({ collectionId: activeCollectionId });
+        // The items were filed with the articles the collection ignored before its
+        // settings came back with the dump, which may name others.
+        await reconcileSortTitles(activeCollectionId);
+        // Nor the plugins' own item upgrades, which an older dump needs as much.
+        await migratePluginItems();
 
         try {
             await deleteUnusedManagedItemImages(replacedImagePaths);

@@ -2,7 +2,11 @@
   Card body shared by every grid (collection, wishlist, dashboard).
   Params: item, plugin, size ('collection' | 'wishlist' | 'home'),
           reserveExtraRow (keeps the decorated row's height even when empty, so a grid
-          whose items rarely carry one stays aligned).
+          whose items rarely carry one stays aligned),
+          placement ('below' by default, 'overlay' laid over the bottom of the cover on a
+          shade, 'hidden' kept for screen readers only), see core/cardStyle.ts,
+          frameless (the card has no frame: the text sits under the cover with no padding
+          of its own, as on a phone).
 
   Which lines to show is resolved by core/cardFields.ts from what the plugin declares.
   Only the typography stays per context, since the three grids are not the same size.
@@ -28,6 +32,10 @@
     }
   };
   const cs = cardSizes[locals.size] || cardSizes.collection;
+  const wrapClass = {
+    overlay: 'absolute inset-x-0 bottom-0 z-20 px-3 pb-3 pt-10 bg-gradient-to-t from-black/90 via-black/60 to-transparent text-white',
+    hidden: 'sr-only'
+  }[locals.placement] || (locals.frameless ? 'px-0.5 pt-2 md:pt-2.5 pb-0' : cs.wrap);
 
   const cardLines = getCardLines(plugin, item, { lang: currentLng, isShareView: locals.isShareView === true });
   const plainLines = cardLines.filter(l => l.style === 'text');
@@ -41,7 +49,7 @@
   // The collection's search term, passed down by the page that ran it.
   const hit = s => highlightMatches(s, locals.querySearch);
 %>
-<div class="<%= cs.wrap %>">
+<div class="<%= wrapClass %>">
     <h3 class="<%= cs.title %>" title="<%= item.title %>"><%- hit(item.title) %></h3>
 
     <%# What this item holds, when it holds anything: a show says which seasons are owned,

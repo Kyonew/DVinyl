@@ -49,7 +49,7 @@ export class IGDBProvider implements SearchProvider {
 
   async search(query: string, options: SearchOptions): Promise<SearchResult[]> {
     const results = await igdbRequest('games',
-      `search "${query.replace(/"/g, '\\"')}";
+      `search "${query.replace(/[\\"]/g, '\\$&')}";
       fields name, cover.url, platforms.name, first_release_date, 
              involved_companies.company.name, involved_companies.developer, involved_companies.publisher,
              genres.name, summary;

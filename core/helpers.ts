@@ -1,12 +1,13 @@
 import bwipjs from 'bwip-js';
 import { BASE_URL } from '../config/constants';
 import type { PluginDefinition } from './types';
+import { DEFAULT_SORT_ARTICLES } from './sortArticles';
 
 /**
  * Builds the seed object for the "copy an item to a new entry" flow from an already
  * `formatForView`'d source, so the result saves as a brand-new document: server-managed
- * bookkeeping goes, along with the barcode and its lock, which belong to one physical
- * copy. The external link stays by default, since for most plugins it names the work
+ * bookkeeping goes, along with the barcode and its lock and the price paid, which belong
+ * to one physical copy. The external link stays by default, since for most plugins it names the work
  * (the same film on TMDB whatever the disc, the same Lego set sealed or built) and keeps
  * the copy refreshable. A plugin whose ids name one edition instead lists them in
  * `copyDropFields`, so a refresh never pulls the original's edition over the copy.
@@ -15,7 +16,8 @@ import type { PluginDefinition } from './types';
 export function buildCopySeed(formatted: any, plugin: PluginDefinition): any {
   const seed: any = formatted;
   for (const key of ['_id', 'mongo_id', '__v', 'added_at', 'modified_at', 'synced_at',
-    'owner', 'modified_by', 'parent', 'in_wishlist', 'quantity', 'barcode', 'barcode_locked']) {
+    'owner', 'modified_by', 'parent', 'inside', 'in_wishlist', 'quantity', 'barcode', 'barcode_locked',
+    'purchase_price', 'purchase_currency', 'kept_fields', 'import_filled', 'source_values', 'image_download_failed']) {
     delete seed[key];
   }
   for (const f of plugin.copyDropFields || []) delete seed[f];
@@ -134,23 +136,57 @@ export function safeReturnPath(candidate: any, host?: string): string {
 }
 
 /**
+ * True when `path` points at one of a plugin's own item pages rather than a listing:
+ * the detail page `/{prefix}/{id}`, its sub-pages `/{prefix}/edit/{id}`,
+ * `/{prefix}/copy/{id}`, and a trailing segment like `/{prefix}/{id}/label`.
+ *
+ * The detail route uses this to decide whether a Referer is worth returning to. An item
+ * page is NOT a listing, so trusting it as the "back" target made the detail page and its
+ * Copy/Edit form send each other back and forth with no way out. The optional `[a-z]+/`
+ * before the id is what catches the edit/ and copy/ sub-routes (the original pattern only
+ * matched a bare id and so missed them).
+ */
+export function isItemSubPage(path: string, routePrefix: string): boolean {
+  const re = new RegExp(
+    `^${escapeRegExp(BASE_URL)}${escapeRegExp(routePrefix)}/(?:[a-z]+/)?[a-f0-9]{24}(?:[/?#]|$)`,
+    'i'
+  );
+  return re.test(path);
+}
+
+/**
  * Builds the key a title is sorted on: lowercased, accent folded, and without a leading
  * article. "The Wall" files under W and "Ámbar" next to "Amber", the way a record shop
  * shelves them.
  *
- * Stored on the document rather than applied to the rendered results, because Mongo sorts
- * before it paginates: normalizing in JS would only reorder the 25 items of the current
- * page. English articles only for now.
+ * Stored on the document rather than applied to the rendered results, because the
+ * database sorts before it paginates: normalizing in JS would only reorder the 25 items
+ * of the current page. Which articles are dropped is the collection's choice (see
+ * core/sortArticles.ts); an article ending in an apostrophe, like "l'", needs no space
+ * after it.
  */
-export function buildSortTitle(title: string | null | undefined): string {
+export function buildSortTitle(
+  title: string | null | undefined,
+  articles: readonly string[] = DEFAULT_SORT_ARTICLES
+): string {
   const base = String(title || '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .trim();
   if (!base) return '';
-  // A title made of nothing but an article keeps it, otherwise it would sort as empty.
-  return base.replace(/^(?:a|an|the)\s+/, '') || base;
+
+  // Longest first, so "l'" is not cut short by a shorter article it starts with, and a
+  // title made of nothing but an article keeps it rather than sorting as empty.
+  const sorted = [...articles].sort((a, b) => b.length - a.length);
+  for (const article of sorted) {
+    const elided = article.endsWith("'");
+    const stem = escapeRegExp(elided ? article.slice(0, -1) : article);
+    const pattern = elided ? new RegExp(`^${stem}['\u2019\u02bc]\\s*`) : new RegExp(`^${stem}\\s+`);
+    const stripped = base.replace(pattern, '');
+    if (stripped !== base && stripped) return stripped;
+  }
+  return base;
 }
 
 // Minimal shape the distinct-titles group key needs off a plugin: which `kind` its
@@ -161,82 +197,6 @@ export interface CreatorFieldSource {
   kind: string;
   creatorField: string;
   matchesLegacyItems?: boolean;
-}
-
-// Folds a creator value to the same shape across editions: lowercased and trimmed.
-// Matches the case/space-insensitive intent of each plugin's getVariants(), which
-// compares title and creator with an `^...$`/`i` regex.
-//
-// Anything that is not a string (missing, null, or a number or array left by a native
-// backup insert that skipped the schema cast) stands in as "". $trim throws on a
-// non-string input, and one such item would otherwise fail the whole aggregate.
-function normalizeCreatorExpr(creatorExpr: any): any {
-  return {
-    $let: {
-      vars: { c: creatorExpr },
-      in: {
-        $cond: [
-          { $eq: [{ $type: '$$c' }, 'string'] },
-          { $toLower: { $trim: { input: '$$c' } } },
-          ''
-        ]
-      }
-    }
-  };
-}
-
-// The $switch case picking one plugin's items. The plugin claiming the pre-plugins stock
-// (matchesLegacyItems) also takes the items with no `kind` at all, as the shelf query
-// does, so they key on its creator field instead of falling to the title-only default.
-function kindCaseExpr(plugin: CreatorFieldSource): any {
-  const own = { $eq: ['$kind', plugin.kind] };
-  return plugin.matchesLegacyItems
-    ? { $or: [own, { $eq: [{ $type: '$kind' }, 'missing'] }] }
-    : own;
-}
-
-/**
- * Builds the `$group._id` expression that counts distinct works behind the raw item
- * count on the collection shelf: editions of one work (several formats, a reissue) fold
- * together, while a remake stays apart through its different creator.
- *
- * The key is the normalized title plus the normalized creator. The title component uses
- * `sort_title` (already lowercased, accent-folded and article-stripped by
- * buildSortTitle), guarded with $ifNull so a legacy doc missing it still groups.
- *
- * The creator component depends on the view:
- * - A selected type names one creator field (artist, director, author...), so the key
- *   reads that field directly.
- * - The all-types view has no single creator field, so the component is a $switch on
- *   `kind` with one branch per enabled plugin (`then: '$' + creatorField`), driven by
- *   the registry so custom plugins are covered too, and a '' default for any unknown
- *   kind. This keeps the all-types number equal to the sum of the per-type counts: two
- *   different-type items sharing a title do not collapse, because their kinds pick
- *   different creator fields.
- *
- * The creator is normalized (see normalizeCreatorExpr), so "The Beatles", "the beatles"
- * and a trailing-space variant fold into one.
- */
-export function buildUniqueTitlesGroupKey(
-  selectedPlugin: CreatorFieldSource | undefined,
-  enabledPlugins: CreatorFieldSource[]
-): { title: any; creator: any } {
-  const creatorExpr = selectedPlugin
-    ? `$${selectedPlugin.creatorField}`
-    : {
-        $switch: {
-          branches: enabledPlugins.map(p => ({
-            case: kindCaseExpr(p),
-            then: `$${p.creatorField}`
-          })),
-          default: ''
-        }
-      };
-
-  return {
-    title: { $ifNull: ['$sort_title', ''] },
-    creator: normalizeCreatorExpr(creatorExpr)
-  };
 }
 
 /**
@@ -346,6 +306,54 @@ export async function searchWithTitleFallback<T>(
   }
 
   return { results, query };
+}
+
+/**
+ * A tags input posts its list as one comma-separated text. The core splits it only for
+ * the per-collection fields; a plugin owning a list field splits it in normalizeForSave.
+ */
+export function splitTagFields(data: Record<string, any>, names: string[]): void {
+  for (const name of names) {
+    if (typeof data[name] === 'string') {
+      data[name] = data[name].split(',').map((s: string) => s.trim()).filter(Boolean);
+    }
+  }
+}
+
+/** Lowercased, punctuation collapsed to single spaces, so "Mulan Reflecting" and
+ * "Mulan - Reflecting" compare equal regardless of the separator either side used. */
+export function normalizeCardName(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+/**
+ * Runs a card search as typed; if that finds nothing, retries on just the query's first
+ * word and narrows that wider set with a punctuation-insensitive contains check instead
+ * of trusting the provider's own literal one.
+ *
+ * Several trading-card APIs store a multi-part name with an internal separator the card
+ * itself doesn't show on the box (Lorcana's "Mulan - Reflecting", SWU's "Boba Fett -
+ * Special Ops") - typing the name as printed, without that punctuation, is not a literal
+ * substring of the stored field, so a provider whose own search only does exact
+ * containment (not every one does - Scryfall and YGOPRODeck already tokenize) finds
+ * nothing. This recovers that case without a fuzzy-search dependency, at the cost of one
+ * extra request, and only when the first attempt already came back empty.
+ */
+export async function fuzzyCardSearch<T>(
+  query: string,
+  fetchByQuery: (q: string) => Promise<T[]>,
+  getName: (row: T) => string
+): Promise<T[]> {
+  const rows = await fetchByQuery(query);
+  if (rows.length > 0) return rows;
+
+  const words = query.trim().split(/\s+/).filter(Boolean);
+  const firstWord = words[0];
+  if (words.length < 2 || !firstWord) return rows;
+
+  const broad = await fetchByQuery(firstWord);
+  const needle = normalizeCardName(query);
+  return broad.filter(row => normalizeCardName(getName(row)).includes(needle));
 }
 
 /**
@@ -538,21 +546,22 @@ export function parseCsvRecords(text: string, delimiter: string = ','): Record<s
 }
 
 /**
- * Serializes a matrix of cells into RFC-4180 CSV text (CRLF rows, quoting only where a
- * cell actually needs it). The counterpart to parseCsv(), for the spreadsheet export.
+ * Serializes one row of cells into a line of RFC-4180 CSV text (quoting only where a
+ * cell actually needs it), without its line break: the spreadsheet export joins its
+ * lines with CRLF as it writes them. The counterpart to parseCsv().
  *
  * A cell opening with =, +, -, @, tab or CR is neutralized with a leading apostrophe:
  * spreadsheet apps read such a cell as a formula, and an item title or comment is a
  * value the user typed, not something they meant Excel to execute.
  */
-export function stringifyCsv(rows: string[][]): string {
+export function csvLine(row: string[]): string {
   const FORMULA_PREFIX = /^[=+\-@\t\r]/;
   const escapeCell = (cell: string): string => {
     let value = cell ?? '';
     if (FORMULA_PREFIX.test(value)) value = "'" + value;
     return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
   };
-  return rows.map(row => row.map(escapeCell).join(',')).join('\r\n');
+  return row.map(escapeCell).join(',');
 }
 
 /**

@@ -1,10 +1,15 @@
 import { PluginDefinition } from '../../core/types';
 import { sourceFromProvider, imageSourceFrom } from '../../core/sources';
 import { DiscogsProvider } from './discogs';
+import { STANDARD_FORMAT_TERMS } from './constants';
+import { cleanName, pressingFromDiscogs } from './pressing';
+import { DISC_SIZES, RELEASE_TYPES, SPEEDS, otherMediaFromDiscogs, physicalFrom, physicalFromDiscogs, wordsOf } from './formatDetails';
 import { musicImporters } from './importers';
 import { musicApiRoutes, discogsGalleryImages } from './apiRoutes';
 import { escapeRegExp, fetchJson, PermanentRefreshError, syncStamp } from '../../core/helpers';
-import Item from '../../models/Item';
+import { db } from '../../core/db';
+import { and, ci, eq, idOf, ne, or, textOrUnset, Filter } from '../../core/db/query';
+import { holdsFormat } from '../../core/extraFormats';
 
 const discogsProvider = new DiscogsProvider();
 
@@ -40,6 +45,8 @@ export const musicPlugin: PluginDefinition = {
   order: 10,
   enabledByDefault: true,
   externalIdField: 'discogs_id',
+  // Pressing details matter to a few collectors and fill a long page for everyone else.
+  detailFolded: ['pressing_plant', 'mastering_studio', 'mastering_engineer', 'rights_society', 'cutting_method', 'runouts', 'pressing_notes'],
   externalIdLabel: 'edit_vinyl.discogs_id_label',
   externalIdHint: 'edit_vinyl.discogs_id_hint',
   matchesLegacyItems: true,
@@ -55,7 +62,7 @@ export const musicPlugin: PluginDefinition = {
   routePrefix: '/album',
   collectionType: 'music',
   creatorField: 'artist',
-  extraSearchFields: ['tracklist.title', 'tracklist.tags'],
+  extraSearchFields: ['tracklist.title', 'tracklist.tags', 'runouts.inscription', 'runouts.matrix', 'runouts.stamper', 'runouts.notes', 'pressing_plant', 'mastering_studio', 'mastering_engineer', 'cutting_method', 'pressing_notes', 'catalog_number'],
   supportsBarcodeSearch: false,
   aspectRatioClass: 'aspect-square',
   imageLabels: { main: 'detail.official_cover' },
@@ -80,7 +87,9 @@ export const musicPlugin: PluginDefinition = {
         idsEndpoint: '/api/collection/ids',
         estimateEndpoint: '/api/estimate',
         idField: 'discogs_id',
-        maxMultiplier: 1.3
+        maxMultiplier: 1.3,
+        snapshotEndpoint: '/api/estimate/snapshot',
+        historyEndpoint: '/api/estimate/history'
       }
     },
     {
@@ -114,6 +123,9 @@ export const musicPlugin: PluginDefinition = {
   ],
 
   defaultCardFields: ['artist', 'format_type', 'variant_color'],
+  // Size, speed and release type are how a record collection is browsed ("the 7\"
+  // singles"), so they are in the filter bar from the start.
+  defaultFilters: ['disc_size', 'speed', 'release_type', 'label', 'country', 'pressing_plant', 'mastering_studio', 'cutting_method'],
   cardFieldStyles: { format_type: 'pill', variant_color: 'dot' },
 
   // format_type comes from Discogs as a full descriptor ("Vinyl, LP, Album, Reissue").
@@ -132,39 +144,64 @@ export const musicPlugin: PluginDefinition = {
     return kept;
   },
 
-  schemaDefinition: {
-    artist: { type: String, required: true },
-    label: String,
-    catalog_number: String,
-    media_type: {
-      type: String,
-      enum: ['vinyl', 'cd', 'cassette', 'digital'],
-      default: 'vinyl'
+  storedFields: {
+    artist: { type: 'text', required: true },
+    label: { type: 'text' },
+    catalog_number: { type: 'text' },
+    media_type: { type: 'text', values: ['vinyl', 'cd', 'cassette', 'digital'], default: 'vinyl' },
+    format_type: { type: 'text', default: 'Vinyl' },
+    variant_color: { type: 'text' },
+    // What the record physically is, read from Discogs' format words (formatDetails.ts).
+    disc_size: { type: 'text' },
+    speed: { type: 'text' },
+    release_type: { type: 'text' },
+    disc_count: { type: 'number', min: 1 },
+    // How and where it was made, from Discogs' companies, credits and identifiers
+    // (pressing.ts). One runout row per inscription, the side it is on first.
+    pressing_plant: { type: 'texts', default: [] },
+    mastering_studio: { type: 'texts', default: [] },
+    mastering_engineer: { type: 'texts', default: [] },
+    rights_society: { type: 'texts', default: [] },
+    runouts: {
+      type: 'records',
+      fields: {
+        side: { type: 'text' }, inscription: { type: 'text' }, matrix: { type: 'text' }, cut_by: { type: 'text' },
+        plant_code: { type: 'text' }, stamper: { type: 'text' }, notes: { type: 'text' }
+      }
     },
-    format_type: { type: String, default: 'Vinyl' },
-    variant_color: String,
-    sleeve_condition: { type: String, default: '' },
-    discogs_id: Number,
-    country: { type: String, default: '' },
-    // Base Item paths, redeclared like the other native plugins do: the collection page
-    // reads schemaDefinition to know which taxonomies a type actually uses, and Discogs
+    // DMM or lacquer, from the roles, notes and inscriptions that say so.
+    cutting_method: { type: 'texts', default: [] },
+    // What is known about how this pressing was made, apart from the owner's own notes.
+    pressing_notes: { type: 'text', default: '' },
+    sleeve_condition: { type: 'text', default: '' },
+    // Out of 5. No default: an album nobody rated has no rating, rather than a 0.
+    user_rating: { type: 'number', min: 0, max: 5 },
+    discogs_id: { type: 'number' },
+    country: { type: 'text', default: '' },
+    // Base Item fields, redeclared like the other native plugins do: the collection page
+    // reads storedFields to know which taxonomies a type actually uses, and Discogs
     // fills all three.
-    genre: { type: String, default: '' },
-    genres: { type: [String], default: [] },
-    styles: { type: [String], default: [] },
-    tracklist: [{
-      position: String,
-      title: String,
-      duration: String,
-      rating: { type: Number, min: 0, max: 5 },
-      tags: [String],
-      notes: String,
-      bpm: Number,
-      key: String,
-      lyrics: String
-    }]
+    genre: { type: 'text', default: '' },
+    genres: { type: 'texts', default: [] },
+    styles: { type: 'texts', default: [] },
+    tracklist: {
+      type: 'records',
+      fields: {
+        position: { type: 'text' },
+        title: { type: 'text' },
+        duration: { type: 'text' },
+        rating: { type: 'number', min: 0, max: 5 },
+        tags: { type: 'texts' },
+        notes: { type: 'text' },
+        bpm: { type: 'number' },
+        key: { type: 'text' },
+        lyrics: { type: 'text' }
+      }
+    }
   },
 
+  // A vinyl sold with the CD, a box with both.
+  multipleFormats: true,
   formats: [
     { value: 'vinyl', label: 'media.vinyl', color: 'bg-green-600/90' },
     { value: 'cd', label: 'media.cd', color: 'bg-blue-600/90' },
@@ -237,6 +274,61 @@ export const musicPlugin: PluginDefinition = {
       showIn: ['edit', 'confirm', 'manual'],
       group: 'main'
     },
+    // The values are Discogs' own words, so what it sends lands on an option as is. A
+    // stored value outside the list (an 11" disc) is kept and shown by the select.
+    {
+      name: 'disc_size',
+      label: 'confirm_vinyl.field_disc_size',
+      type: 'select',
+      options: [{ value: '', label: 'common.not_specified' }, ...DISC_SIZES.map(v => ({ value: v, label: v }))],
+      showIn: ['edit', 'confirm', 'detail', 'manual'],
+      group: 'main'
+    },
+    {
+      name: 'speed',
+      label: 'confirm_vinyl.field_speed',
+      type: 'select',
+      options: [{ value: '', label: 'common.not_specified' }, ...SPEEDS.map(v => ({ value: v, label: v }))],
+      showIn: ['edit', 'confirm', 'detail', 'manual'],
+      group: 'main'
+    },
+    {
+      name: 'release_type',
+      label: 'confirm_vinyl.field_release_type',
+      type: 'select',
+      options: [{ value: '', label: 'common.not_specified' }, ...RELEASE_TYPES.map(v => ({ value: v, label: `release_types.${v.toLowerCase().replace('-', '_')}` }))],
+      showIn: ['edit', 'confirm', 'detail', 'manual'],
+      group: 'main'
+    },
+    {
+      name: 'disc_count',
+      label: 'confirm_vinyl.field_disc_count',
+      type: 'number',
+      showIn: ['edit', 'confirm', 'detail', 'manual'],
+      group: 'main'
+    },
+    { name: 'pressing_plant', label: 'confirm_vinyl.field_pressing_plant', type: 'tags', showIn: ['edit', 'confirm', 'detail', 'manual'], group: 'metadata' },
+    { name: 'mastering_studio', label: 'confirm_vinyl.field_mastering_studio', type: 'tags', showIn: ['edit', 'confirm', 'detail', 'manual'], group: 'metadata' },
+    { name: 'mastering_engineer', label: 'confirm_vinyl.field_mastering_engineer', type: 'tags', showIn: ['edit', 'confirm', 'detail', 'manual'], group: 'metadata' },
+    { name: 'rights_society', label: 'confirm_vinyl.field_rights_society', type: 'tags', showIn: ['edit', 'confirm', 'detail', 'manual'], group: 'metadata' },
+    { name: 'cutting_method', label: 'confirm_vinyl.field_cutting_method', type: 'tags', showIn: ['edit', 'confirm', 'detail', 'manual'], group: 'metadata', placeholder: 'DMM, Lacquer' },
+    {
+      name: 'runouts',
+      label: 'confirm_vinyl.field_runouts',
+      type: 'rows',
+      columns: [
+        { name: 'side', label: 'confirm_vinyl.runout_side' },
+        { name: 'inscription', label: 'confirm_vinyl.runout_inscription' },
+        { name: 'matrix', label: 'confirm_vinyl.runout_matrix' },
+        { name: 'cut_by', label: 'confirm_vinyl.runout_cut_by' },
+        { name: 'plant_code', label: 'confirm_vinyl.runout_plant_code' },
+        { name: 'stamper', label: 'confirm_vinyl.runout_stamper' },
+        { name: 'notes', label: 'confirm_vinyl.runout_notes' }
+      ],
+      showIn: ['edit', 'confirm', 'detail', 'manual'],
+      group: 'metadata'
+    },
+    { name: 'pressing_notes', label: 'confirm_vinyl.field_pressing_notes', type: 'textarea', showIn: ['edit', 'confirm', 'detail', 'manual'], group: 'metadata' },
     {
       name: 'barcode',
       label: 'confirm_vinyl.barcode_label',
@@ -316,6 +408,14 @@ export const musicPlugin: PluginDefinition = {
       group: 'metadata'
     },
     {
+      name: 'user_rating',
+      label: 'confirm_vinyl.field_rating',
+      type: 'number',
+      showIn: ['edit', 'confirm', 'detail', 'manual'],
+      group: 'metadata',
+      placeholder: '0 - 5'
+    },
+    {
       name: 'genres',
       label: 'confirm_vinyl.field_genres',
       type: 'tags',
@@ -371,7 +471,7 @@ export const musicPlugin: PluginDefinition = {
   getStats(items: any[]): Record<string, any> {
     const countByFormat = (format: string) => {
       return items
-        .filter(i => (i.media_type || '').toLowerCase() === format.toLowerCase())
+        .filter(i => holdsFormat(i, format))
         .reduce((acc, i) => acc + Number(i.quantity || 1), 0);
     };
 
@@ -431,79 +531,52 @@ export const musicPlugin: PluginDefinition = {
     const mediaType = data.media_type || 'vinyl';
     const variantColor = (data.variant_color || '').trim();
 
+    const owned = and(
+      eq('collection', idOf(collectionId)),
+      eq('in_wishlist', false),
+      eq('kind', 'Music'),
+      eq('media_type', mediaType),
+      textOrUnset('variant_color', variantColor)
+    );
+
     if (discogsId) {
-      const query: any = {
-        collection: collectionId,
-        in_wishlist: false,
-        kind: 'Music',
-        discogs_id: parseInt(discogsId),
-        media_type: mediaType
-      };
-      if (variantColor) {
-        query.variant_color = { $regex: new RegExp(`^${escapeRegExp(variantColor)}$`, 'i') };
-      } else {
-        query.$or = [
-          { variant_color: { $exists: false } },
-          { variant_color: "" }
-        ];
-      }
-      const item = await Item.findOne(query);
+      const item = await db.items.findOne(and(owned, eq('discogs_id', parseInt(discogsId))), { defaults: true });
       if (item) return item;
     }
 
-    const matchTitle = (title || '').trim();
-    const matchArtist = (artist || '').trim();
-
-    const query: any = {
-      collection: collectionId,
-      in_wishlist: false,
-      kind: 'Music',
-      title: { $regex: new RegExp(`^${escapeRegExp(matchTitle)}$`, 'i') },
-      artist: { $regex: new RegExp(`^${escapeRegExp(matchArtist)}$`, 'i') },
-      media_type: mediaType
-    };
-
-    if (variantColor) {
-      query.variant_color = { $regex: new RegExp(`^${escapeRegExp(variantColor)}$`, 'i') };
-    } else {
-      query.$or = [
-        { variant_color: { $exists: false } },
-        { variant_color: "" }
-      ];
-    }
-
-    return await Item.findOne(query);
+    return db.items.findOne(and(
+      owned,
+      ci('title', (title || '').trim()),
+      ci('artist', (artist || '').trim())
+    ), { defaults: true });
   },
 
   async findPotentialDuplicates(collectionId: any, data: Record<string, any>): Promise<any[]> {
-    const or: any[] = [];
+    const matches: Filter[] = [];
     if (data.discogs_id) {
-      or.push({ discogs_id: parseInt(data.discogs_id) });
+      matches.push(eq('discogs_id', parseInt(data.discogs_id)));
     }
     if (data.title && data.artist) {
-      or.push({
-        title: { $regex: new RegExp(`^${escapeRegExp(String(data.title).trim())}$`, 'i') },
-        artist: { $regex: new RegExp(`^${escapeRegExp(String(data.artist).trim())}$`, 'i') }
-      });
+      matches.push(and(ci('title', String(data.title).trim()), ci('artist', String(data.artist).trim())));
     }
-    if (or.length === 0) return [];
-    return Item.find({
-      collection: collectionId,
-      in_wishlist: false,
-      kind: 'Music',
-      $or: or
-    }).lean();
+    if (matches.length === 0) return [];
+    return db.items.find(and(
+      eq('collection', idOf(collectionId)),
+      eq('in_wishlist', false),
+      eq('kind', 'Music'),
+      or(...matches)
+    ));
   },
 
   async getVariants(item: any): Promise<any[]> {
-    return Item.find({
-      collection: item.collection,
-      kind: 'Music',
-      _id: { $ne: item._id },
-      in_wishlist: false,
-      title: { $regex: new RegExp(`^${escapeRegExp(item.title)}$`, 'i') },
-      artist: { $regex: new RegExp(`^${escapeRegExp(item.artist)}$`, 'i') }
-    }).lean();
+    return db.items.find(and(
+      eq('collection', idOf(item.collection)),
+      eq('kind', 'Music'),
+      ne('_id', idOf(item._id)),
+      eq('in_wishlist', false),
+      ci('title', String(item.title ?? '')),
+      ci('artist', String(item.artist ?? ''))
+    ));
   },
 
   getManualDefaults() {
@@ -610,11 +683,55 @@ export const musicPlugin: PluginDefinition = {
       updateData.genre = data.genres[0];
     }
 
-    // `kind` in the filter makes Mongoose cast against the Music discriminator
-    // schema; without it, strict mode silently strips `tracklist` (not a base
-    // Item path) and the refresh looks successful while persisting nothing.
-    await Item.updateOne({ _id: item._id, kind: 'Music' }, { $set: { ...updateData, ...syncStamp() } });
+    // The physical facts of the format this copy is: the one matching its media when the
+    // release comes in several (a vinyl with a CD inside), else the first.
+    const formats: any[] = data.formats || [];
+    const media = String(item.media_type || 'vinyl').toLowerCase();
+    const own = formats.find(f => String(f.name || '').toLowerCase().includes(media === 'cd' ? 'cd' : media)) || formats[0];
+    Object.assign(updateData, physicalFromDiscogs(own), pressingFromDiscogs(data));
+    updateData.extra_formats = otherMediaFromDiscogs(formats, media);
+
+    // Returned rather than written here: the caller writes it as a Music item, after
+    // leaving out what the owner rewrote by hand (core/keptFields.ts).
     return updateData;
+  },
+
+  // Items from before the size, speed and release type were kept get them from the
+  // format and edition lines they already store. Only fields never set are filled, so a
+  // value the owner cleared stays cleared; a word that is not there is not guessed (an
+  // LP is not assumed to be 12"). A label still carrying the number Discogs gives
+  // homonyms ("ADA (6)") loses it, as new ones do. A field the owner rewrote by hand
+  // (core/keptFields.ts) is left exactly as they wrote it.
+  async migrateItems(): Promise<number> {
+    const items = await db.items.find(eq('kind', 'Music'), {
+      fields: ['format_type', 'variant_color', 'disc_size', 'speed', 'release_type', 'disc_count', 'label', 'kept_fields']
+    });
+    const changes: { id: any; patch: any }[] = [];
+    for (const item of items as any[]) {
+      const found: Record<string, any> = physicalFrom(wordsOf(item.format_type, item.variant_color));
+      const set: Record<string, any> = {};
+      for (const [field, value] of Object.entries(found)) {
+        if (item[field] === undefined || item[field] === null) set[field] = value;
+      }
+      if (typeof item.label === 'string' && /\s*\(\d+\)$/.test(item.label)) set.label = cleanName(item.label);
+      // Words now read as format were filed as the edition before: moved back.
+      const edition = wordsOf(item.variant_color);
+      const kept = edition.filter(w => !STANDARD_FORMAT_TERMS.includes(w));
+      if (kept.length !== edition.length) {
+        set.variant_color = kept.join(', ');
+        const format = wordsOf(item.format_type);
+        set.format_type = [...format, ...edition.filter(w => STANDARD_FORMAT_TERMS.includes(w) && !format.includes(w))].join(', ');
+      }
+      const handWritten = new Set(Array.isArray(item.kept_fields) ? item.kept_fields : []);
+      if (handWritten.has('variant_color') || handWritten.has('format_type')) {
+        delete set.variant_color;
+        delete set.format_type;
+      }
+      for (const field of handWritten) delete set[field as string];
+      if (Object.keys(set).length > 0) changes.push({ id: item._id, patch: { set } });
+    }
+    if (changes.length > 0) await db.items.updateEach(changes);
+    return changes.length;
   }
 };
 

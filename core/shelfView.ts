@@ -1,9 +1,10 @@
-import Furniture from '../models/Furniture';
-import Item from '../models/Item';
+import { db } from './db';
+import { and, asc, eq, idOf, isIn, notIn } from './db/query';
 import { resolveShelfItems } from '../utils/itemHelpers';
 import { registry } from './registry';
 import { measureSpines, tallestFormat, arrangeCompartment, pileUp, formatOf, SPINE_MAX_HEIGHT_PX } from './spine';
 import { CollectionView } from './types';
+import { strayLocations } from './shelfStore';
 
 // A reserve holding a whole collection is a wall of spines nobody can read, and a page
 // nobody can load. Draw a screenful of it and say how much more there is.
@@ -38,7 +39,7 @@ export const SHELF_VIEW: CollectionView = {
 
     const collectionId = context.res.locals.activeCollectionId;
     if (!collectionId) return false;
-    if ((await Furniture.countDocuments({ collection: collectionId })) > 0) return true;
+    if (await db.furniture.exists(eq('collection', idOf(collectionId)))) return true;
 
     // Nothing to stand anything on yet. Whoever is allowed to build the furniture still
     // needs the view that builds it, or deleting the last piece would be a one-way door
@@ -50,9 +51,7 @@ export const SHELF_VIEW: CollectionView = {
     const { req, res, itemQuery, itemSort, unfilteredQuery, isNarrowed } = context;
     const collectionId = res.locals.activeCollectionId;
 
-    const furnitureList = await Furniture.find({ collection: collectionId })
-      .sort({ order: 1, created_at: 1 })
-      .lean();
+    const furnitureList = await db.furniture.find(eq('collection', idOf(collectionId)), { sort: [asc('order'), asc('created_at')] });
 
     // Moving from one piece of furniture to the next is paging, so it keeps the filters
     // and the search the page is under, exactly as the item pager does.
@@ -64,10 +63,13 @@ export const SHELF_VIEW: CollectionView = {
       (piece as any).href = '?' + params.toString();
     }
 
+    // Only whoever can tidy them up is shown the places no furniture holds any more.
+    const shelfStrays = res.locals.canEditCollection === true ? await strayLocations(collectionId) : [];
+
     const requestedId = String(req.query.furniture || '');
     const activeFurniture = furnitureList.find(f => String(f._id) === requestedId) || furnitureList[0];
     if (!activeFurniture) {
-      return { furnitureList, activeFurniture: null, shelfRows: [], shelfColumns: 1, shelfNarrowed: false, shelfMatched: 0, shelfTotal: 0, unsorted: [], unsortedPiles: [], unsortedTotal: 0, unsortedShown: 0 };
+      return { furnitureList, activeFurniture: null, shelfRows: [], shelfColumns: 1, shelfNarrowed: false, shelfMatched: 0, shelfTotal: 0, unsorted: [], unsortedPiles: [], unsortedTotal: 0, unsortedShown: 0, shelfStrays };
     }
 
     const cells: any[] = activeFurniture.cells || [];
@@ -82,19 +84,20 @@ export const SHELF_VIEW: CollectionView = {
     //
     // The reserve is the complement of that same list rather than "no location at all",
     // which also catches a value that names no shelf, e.g. one typed straight into the
-    // database or restored from an older backup. $nin matches a missing field too.
+    // database or restored from an older backup. Excluding a list matches a missing field too.
     //
     // The compartments are drawn from everything the collection holds, whatever the page
     // is narrowed to: a filter that emptied half the shelves would change the shape of the
     // furniture under the user's eyes, when what they asked is where things are. What the
     // filters do match is marked instead, and the rest is dimmed. The reserve is not a
     // piece of furniture and has no shape to keep, so it simply follows the filters.
-    const inCells = { location: { $in: cells.map(c => c.name) } };
+    const inCells = isIn('location', cells.map(c => c.name));
+    const inReserve = and(itemQuery, notIn('location', shelvedNames));
     const [shelved, matchingIds, unsortedRaw, unsortedTotal] = await Promise.all([
-      Item.find({ ...unfilteredQuery, ...inCells }).sort(itemSort).lean(),
-      isNarrowed ? Item.distinct('_id', { ...itemQuery, ...inCells }) : Promise.resolve(null),
-      Item.find({ ...itemQuery, location: { $nin: shelvedNames } }).sort(itemSort).limit(UNSORTED_LIMIT).lean(),
-      Item.countDocuments({ ...itemQuery, location: { $nin: shelvedNames } })
+      db.items.find(and(unfilteredQuery, inCells), { sort: itemSort }),
+      isNarrowed ? db.items.distinct('_id', and(itemQuery, inCells)) : Promise.resolve(null),
+      db.items.find(inReserve, { sort: itemSort, limit: UNSORTED_LIMIT }),
+      db.items.count(inReserve)
     ]);
 
     // Which compartment an item stands in is the holder's business: a show shelved in
@@ -177,7 +180,8 @@ export const SHELF_VIEW: CollectionView = {
       // reserve is drawn.
       unsortedPiles: pileUp(unsorted, (item: any) => item.kind + '|' + formatOf(item)),
       unsortedTotal,
-      unsortedShown: unsorted.length
+      unsortedShown: unsorted.length,
+      shelfStrays
     };
   }
 };

@@ -151,15 +151,15 @@
 <script>
     (() => {
         const translations = {
-            uploading: <%- JSON.stringify(t('image_manager.uploading')) %>,
-            uploadFailed: <%- JSON.stringify(t('image_manager.upload_failed')) %>,
-            uploadInvalid: <%- JSON.stringify(t('image_manager.upload_invalid')) %>,
-            invalidUrl: <%- JSON.stringify(t('image_manager.invalid_url')) %>,
-            tooMany: <%- JSON.stringify(t('collection_info.images_too_many', { max: maxImages })) %>,
-            remove: <%- JSON.stringify(t('image_manager.remove')) %>,
-            confirmRemove: <%- JSON.stringify(t('image_manager.confirm_remove')) %>,
-            moveBefore: <%- JSON.stringify(t('image_manager.move_before')) %>,
-            moveAfter: <%- JSON.stringify(t('image_manager.move_after')) %>
+            uploading: <%- JSON.stringify(t('image_manager.uploading')).replace(/</g, '\\u003c') %>,
+            uploadFailed: <%- JSON.stringify(t('image_manager.upload_failed')).replace(/</g, '\\u003c') %>,
+            uploadInvalid: <%- JSON.stringify(t('image_manager.upload_invalid')).replace(/</g, '\\u003c') %>,
+            invalidUrl: <%- JSON.stringify(t('image_manager.invalid_url')).replace(/</g, '\\u003c') %>,
+            tooMany: <%- JSON.stringify(t('collection_info.images_too_many', { max: maxImages })).replace(/</g, '\\u003c') %>,
+            remove: <%- JSON.stringify(t('image_manager.remove')).replace(/</g, '\\u003c') %>,
+            confirmRemove: <%- JSON.stringify(t('image_manager.confirm_remove')).replace(/</g, '\\u003c') %>,
+            moveBefore: <%- JSON.stringify(t('image_manager.move_before')).replace(/</g, '\\u003c') %>,
+            moveAfter: <%- JSON.stringify(t('image_manager.move_after')).replace(/</g, '\\u003c') %>
         };
 
         const manager = document.getElementById('infoImageManager');
@@ -172,7 +172,7 @@
         try { images = JSON.parse(hiddenField.value || '[]'); } catch (_) { images = []; }
 
         // Stored paths stay deployment independent, so the prefix is added for display only.
-        const baseUrl = <%- JSON.stringify(baseUrl) %>;
+        const baseUrl = <%- JSON.stringify(baseUrl).replace(/</g, '\\u003c') %>;
         const displaySrc = (image) => image.startsWith('/uploads/') ? baseUrl + image : image;
 
         function render() {
@@ -235,7 +235,11 @@
                         canvas.width = Math.max(1, Math.round(image.width * scale));
                         canvas.height = Math.max(1, Math.round(image.height * scale));
                         canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
-                        canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('compression_failed')), 'image/jpeg', 0.85);
+                        // WebP when the browser writes it, JPEG otherwise (it hands back a PNG then).
+                        canvas.toBlob(webp => {
+                            if (webp && webp.type === 'image/webp') return resolve(webp);
+                            canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('compression_failed')), 'image/jpeg', 0.85);
+                        }, 'image/webp', 0.85);
                     };
                     image.src = event.target.result;
                 };
@@ -245,7 +249,7 @@
 
         async function uploadImage(blob) {
             const form = new FormData();
-            form.append('image', blob, 'collection-info.jpg');
+            form.append('image', blob, blob.type === 'image/webp' ? 'collection-info.webp' : 'collection-info.jpg');
             const response = await fetch(baseUrl + '/api/item-images/upload', { method: 'POST', body: form });
             let data = {};
             try { data = await response.json(); } catch (_) {}

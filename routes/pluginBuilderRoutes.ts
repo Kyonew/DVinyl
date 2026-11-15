@@ -1,6 +1,6 @@
 import express from 'express';
-import Item from '../models/Item';
-import Settings from '../models/Settings';
+import { db } from '../core/db';
+import { eq, idOf } from '../core/db/query';
 import { requireAuth, requireCollectionRole } from '../middleware/authMiddleware';
 import { registry } from '../core/registry';
 import {
@@ -12,10 +12,13 @@ import {
   CUSTOM_PLUGIN_PALETTE,
   CUSTOM_PLUGIN_ICONS
 } from '../core/customPluginStore';
-import { sanitizeExtraFields, getExtraFields, nativeLookalikesByPlugin } from '../core/pluginExtraFields';
+import { sanitizeExtraFields, getExtraFields, nativeLookalikesByPlugin, findNativeLookalikes } from '../core/pluginExtraFields';
+import { planTransfer, runTransfer } from '../core/extraFieldTransfer';
+import { and, filled } from '../core/db/filter';
 import { SUPPORTED_LANGUAGES } from '../config/constants';
 import { placeholderUrl } from '../core/placeholderImage';
-import { cardFieldCandidates, isTranslationKey, getCardLines, MAX_CARD_LINES, CORNER_POSITIONS, DEFAULT_CORNER_POSITION } from '../core/cardFields';
+import { defaultPlacement, detailCandidates, placementOf, sanitizeDetailPlacement } from '../core/detailPlacement';
+import { cardFieldCandidates, isTranslationKey, getCardLines, MAX_CARD_LINES, CORNER_POSITIONS, DEFAULT_CORNER_POSITION, defaultTableColumnNames, sanitizeTableColumns, tableColumnNames } from '../core/cardFields';
 import { filterCandidates, filterOverrides, activeFilters, sanitizeFilterSelection } from '../core/filterFields';
 import { registerPluginDirAtRuntime, unregisterPluginAtRuntime } from '../core/pluginRuntime';
 import { saveCustomPluginToDB, deleteCustomPluginFromDB } from '../core/customPluginSync';
@@ -43,7 +46,7 @@ async function listCustomPlugins() {
     const config = getCustomConfig(p);
     if (!config) continue;
     // Instance-wide count: the plugin folder is global, not per-collection
-    const itemCount = await Item.countDocuments({ kind: p.kind });
+    const itemCount = await db.items.count(eq('kind', p.kind));
     out.push({ config, itemCount });
   }
   return out;
@@ -93,12 +96,22 @@ router.get('/', async (req: any, res: any) => {
       extraFields: getExtraFields(settings, p.id),
       // User-defined field key -> label of the plugin's own field it looks like
       lookalikes: Object.fromEntries((lookalikes[p.id] || []).map(l => [l.name, req.t(l.nativeLabel)])),
+      // ...and the key of that field, which "keep both" records.
+      lookalikeNames: Object.fromEntries((lookalikes[p.id] || []).map(l => [l.name, l.nativeName])),
       cardFieldChoices: cardFieldCandidates(p).map(f => ({
         name: f.name,
         label: req.t(f.label, { defaultValue: f.label })
       })),
       // What the cards show today, so an untouched plugin opens on its real state
       cardFields: p.defaultCardFields || [p.creatorField],
+      tableColumns: tableColumnNames(p),
+      // Every field of the item page with where it sits now, and where it would by default
+      detailChoices: detailCandidates(p).map(f => ({
+        name: f.name,
+        label: req.t(f.label, { defaultValue: f.label }),
+        placement: placementOf(p, f.name),
+        byDefault: defaultPlacement(p, f.name)
+      })),
       // Read on the bare plugin for the same reason as the lookalikes above
       filterChoices: (() => {
         const bare = registry.get(p.id);
@@ -190,6 +203,24 @@ router.post('/customize/:pluginId', async (req: any, res: any) => {
         .slice(0, MAX_CARD_LINES);
     }
 
+    // Table columns, after the card fields, which an untouched table follows.
+    if (Array.isArray(req.body.tableColumns)) {
+      const decorated = res.locals.registry.get(plugin.id) || plugin;
+      const tableColumns = sanitizeTableColumns(decorated, req.body.tableColumns, [
+        defaultTableColumnNames(decorated),
+        defaultTableColumnNames({ ...decorated, defaultCardFields: cosmetics.cardFields || decorated.defaultCardFields })
+      ]);
+      if (tableColumns) cosmetics.tableColumns = tableColumns;
+    }
+
+    // Where fields sit on the item page. Only moves away from the type's default are
+    // kept, and only for fields the page lays out.
+    if (req.body.detailFields !== undefined) {
+      const decorated = res.locals.registry.get(plugin.id) || plugin;
+      const detailFields = sanitizeDetailPlacement(decorated, req.body.detailFields);
+      if (detailFields) cosmetics.detailFields = detailFields;
+    }
+
     // Filters shown on the collection page once this type is selected. Only what differs
     // from the default is kept (see core/filterFields.ts), so leaving every box as it
     // came stores nothing. Read against the fields declared before this save: one added
@@ -214,21 +245,87 @@ router.post('/customize/:pluginId', async (req: any, res: any) => {
     }
 
     const cosmeticsPath = `pluginCustomization.${plugin.id}`;
-    const $set: any = {};
-    const $unset: any = {};
-    if (cosmetics.icon || cosmetics.formatColors || cosmetics.cardFields || cosmetics.sortFormats || cosmetics.cornerField || cosmetics.filters) $set[cosmeticsPath] = cosmetics;
-    else $unset[cosmeticsPath] = '';
-    if (extraUpdate?.set) Object.assign($set, extraUpdate.set);
-    if (extraUpdate?.unset) $unset[extraUpdate.unset] = '';
+    const set: Record<string, any> = {};
+    const unset: string[] = [];
+    if (cosmetics.icon || cosmetics.formatColors || cosmetics.cardFields || cosmetics.sortFormats || cosmetics.cornerField || cosmetics.filters || cosmetics.tableColumns || cosmetics.detailFields) set[cosmeticsPath] = cosmetics;
+    else unset.push(cosmeticsPath);
+    if (extraUpdate?.set) Object.assign(set, extraUpdate.set);
+    if (extraUpdate?.unset) unset.push(extraUpdate.unset);
 
-    const update: any = {};
-    if (Object.keys($set).length > 0) update.$set = $set;
-    if (Object.keys($unset).length > 0) update.$unset = $unset;
-    await Settings.updateOne({ collection: activeCollectionId }, update);
+    await db.settings.updateOne(eq('collection', idOf(activeCollectionId)), { set, unset });
 
     res.json({ success: true });
   } catch (err: any) {
     console.error('[PluginBuilder] customize error:', err);
+    res.status(500).json({ success: false, error: req.t('errors.generic_server_error') });
+  }
+});
+
+// A field of the active collection, and the plugin's own field it looks like if any.
+// Read on the bare plugin, like the lookalikes of the page itself.
+function fieldAndLookalike(req: any, res: any) {
+  const plugin = registry.get(req.params.pluginId);
+  if (!plugin) return null;
+  const def = getExtraFields(res.locals.settings, plugin.id).find(f => f.name === req.params.name);
+  if (!def) return null;
+  const labelsFor = (key: string) => SUPPORTED_LANGUAGES.map(lng => req.t(key, { lng }));
+  const look = findNativeLookalikes(plugin, [{ ...def, keepBeside: undefined } as any], labelsFor)[0];
+  const native = look ? (plugin.formFields || []).find(f => f.name === look.nativeName) || null : null;
+  return { plugin, def, native };
+}
+
+// GET /create-plugin/customize/:pluginId/fields/:name -> how many items hold a value in a
+// collection's field, and what moving it into the plugin's own lookalike would do.
+router.get('/customize/:pluginId/fields/:name', async (req: any, res: any) => {
+  try {
+    const found = fieldAndLookalike(req, res);
+    if (!found) return res.status(404).json({ success: false, error: req.t('errors.not_found') });
+    const { plugin, def, native } = found;
+    const collectionId = res.locals.activeCollectionId;
+    const withValue = await db.items.count(and(eq('collection', idOf(collectionId)), eq('kind', plugin.kind), filled(`extra.${def.name}`)));
+    if (!native) return res.json({ success: true, withValue, native: null });
+    const plan = await planTransfer(collectionId, plugin, def, native, (k: string) => req.t(k));
+    res.json({
+      success: true,
+      withValue,
+      native: { name: native.name, label: req.t(native.label, { defaultValue: native.label }) },
+      move: plan.move.length,
+      same: plan.same.length,
+      conflict: plan.conflict,
+      incompatible: plan.incompatible
+    });
+  } catch (err: any) {
+    console.error('[PluginBuilder] field usage error:', err);
+    res.status(500).json({ success: false, error: req.t('errors.generic_server_error') });
+  }
+});
+
+// POST /create-plugin/customize/:pluginId/fields/:name/transfer -> moves the values into
+// the plugin's own field, never over a different one (core/extraFieldTransfer.ts).
+router.post('/customize/:pluginId/fields/:name/transfer', async (req: any, res: any) => {
+  try {
+    const found = fieldAndLookalike(req, res);
+    if (!found || !found.native) return res.status(404).json({ success: false, error: req.t('errors.not_found') });
+    const result = await runTransfer(res.locals.activeCollectionId, found.plugin, found.def, found.native, (k: string) => req.t(k), req.user?.currency || 'USD');
+    res.json({ success: true, ...result });
+  } catch (err: any) {
+    console.error('[PluginBuilder] field transfer error:', err);
+    res.status(500).json({ success: false, error: req.t('errors.generic_server_error') });
+  }
+});
+
+// POST /create-plugin/customize/:pluginId/fields/:name/keep -> keeps a field beside the
+// plugin's own lookalike on purpose, so it is no longer reported.
+router.post('/customize/:pluginId/fields/:name/keep', async (req: any, res: any) => {
+  try {
+    const found = fieldAndLookalike(req, res);
+    if (!found || !found.native) return res.status(404).json({ success: false, error: req.t('errors.not_found') });
+    const fields = getExtraFields(res.locals.settings, found.plugin.id)
+      .map(f => (f.name === found.def.name ? { ...f, keepBeside: found.native!.name } : f));
+    await db.settings.updateOne(eq('collection', idOf(res.locals.activeCollectionId)), { set: { [`pluginExtraFields.${found.plugin.id}`]: fields } });
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('[PluginBuilder] field keep error:', err);
     res.status(500).json({ success: false, error: req.t('errors.generic_server_error') });
   }
 });
@@ -310,11 +407,10 @@ router.post('/save', async (req: any, res: any) => {
     // Enable the module right away for the admin's active collection
     const activeCollectionId = res.locals.activeCollectionId;
     if (activeCollectionId) {
-      const update: any = { $set: { [`modules.${config.id}`]: true } };
-      if (existing && existing.id !== config.id) {
-        update.$unset = { [`modules.${existing.id}`]: '' };
-      }
-      await Settings.updateOne({ collection: activeCollectionId }, update);
+      await db.settings.updateOne(eq('collection', idOf(activeCollectionId)), {
+        set: { [`modules.${config.id}`]: true },
+        unset: existing && existing.id !== config.id ? [`modules.${existing.id}`] : []
+      });
     }
 
     res.json({ success: true, id: config.id });

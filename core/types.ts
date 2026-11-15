@@ -1,4 +1,5 @@
-import mongoose from 'mongoose';
+import type { Filter, Sort } from './db/filter';
+import type { StoredFields } from './db/storedFields';
 
 // What a spine on the shelf is the edge of: a cardboard sleeve, a hinged plastic case,
 // a moulded media case, a bound book or a box.
@@ -52,6 +53,19 @@ export interface PluginDefinition {
 
   // Shows the price estimate block on the detail page (needs externalIdField + an /api/estimate apiRoute)
   supportsPriceEstimate?: boolean;
+  // The plugin's own fixed-list fields shown in the collection's filter bar until the
+  // collection says otherwise. The others stay off by default (see core/filterFields.ts).
+  defaultFilters?: string[];
+  // Fields of interest to few, folded into the "More details" block of the item page
+  // until the collection says otherwise (see core/detailPlacement.ts).
+  detailFolded?: string[];
+  // Where this collection put each field it moved on the item page, set on the decorated
+  // plugin from the customization; never declared by a plugin.
+  detailPlacement?: Record<string, 'shown' | 'more' | 'hidden'>;
+  // Brings the items already stored up to date with what the plugin now keeps, run at
+  // boot and after a restore. Must be idempotent and must not reach the network. Returns
+  // how many items it changed.
+  migrateItems?(): Promise<number>;
 
   // Format badge shown on cards (collection/wishlist/dashboard).
   // If absent, the core derives label+color from `formats` and the item's format.
@@ -60,6 +74,8 @@ export interface PluginDefinition {
   // Fields shown under the cover on cards, in this order (see cardFields.ts).
   // Defaults to the creator field alone. Capped at MAX_CARD_LINES.
   defaultCardFields?: string[];
+  // Fields shown as columns in the table view. Without it, the card fields and the location.
+  tableColumns?: string[];
 
   // Per-field presentation on cards; 'text' (default) is a plain line.
   cardFieldStyles?: Record<string, 'text' | 'pill' | 'dot'>;
@@ -68,11 +84,18 @@ export interface PluginDefinition {
   // undefined leaves the generic reading in place; an empty string drops the line.
   cardFieldValue?(name: string, item: any): string | null | undefined;
 
-  schemaDefinition: mongoose.SchemaDefinition;
+  // What the plugin's items store on top of the fields every item has (see
+  // core/db/storedFields.ts). Declared without reference to any database.
+  storedFields: StoredFields;
 
   formFields: FieldDefinition[];
 
   formats: FormatOption[];
+
+  // Whether one edition may hold several of these formats at once (a 4K UHD sold with
+  // its Blu-ray). The core then adds an "also contains" field, and the format filter,
+  // the counts per format and the card badge read it (see core/extraFormats.ts).
+  multipleFormats?: boolean;
 
   // Real-world footprint of one item standing on its spine, per format value, in
   // millimetres. What the shelf view draws to scale: a CD is thicker than an LP sleeve
@@ -125,6 +148,16 @@ export interface PluginDefinition {
   imageSearchType?: string;
 
   supportsBarcodeSearch?: boolean;
+
+  // True for a plugin whose items have no scannable retail barcode of their own (a single
+  // trading card, unlike its sealed booster box). Swaps the add page's barcode scanner for
+  // a "Scan card" photo flow: a photo of the card is identified by the AI assist
+  // (core/ai/cardScan.ts) into a search query, handed to this plugin's own source exactly
+  // like a typed search - see POST /add-{id}/card-scan in itemRoutes.ts. Implies no barcode
+  // scan (see hasBarcodeScan in core/sources.ts) and hides the generic AI photo search,
+  // which this replaces for card plugins. Without the AI assist, the card is searched by
+  // name only.
+  supportsCardScan?: boolean;
 
   // Noise terms stripped from the title returned by the barcode lookup (e.g. 'DVD', 'Blu-ray', 'PS5'),
   // to sharpen the external search query. Plugin-specific (keeps the core agnostic).
@@ -211,6 +244,12 @@ export interface PluginDefinition {
   // until all of them are present; the admin shows an indicator.
   requiredEnvKeys?: string[];
 
+  // Ready-made request types offered to the collection's admin next to the core's own
+  // (a loan, a gift) while the plugin is on. Only a starting point for the builder:
+  // nothing is created until the admin saves it, and from then on it is the collection's
+  // own type. Words are i18n keys, or plain text for a plugin that has none.
+  requestTemplates?: RequestTemplate[];
+
   // Extra plugin-specific settings (⚙ button in the admin).
   // Values stored in settings.pluginSettings[plugin.id][key] and read by the plugin.
   settings?: PluginSetting[];
@@ -278,9 +317,11 @@ export interface PluginDefinition {
 export interface FieldDefinition {
   name: string;
   label: string;
-  type: 'text' | 'number' | 'select' | 'radio-cards' | 'boolean' | 'rating' | 'hidden' | 'tags' | 'textarea' | 'date' | 'custom';
+  type: 'text' | 'number' | 'select' | 'radio-cards' | 'boolean' | 'rating' | 'hidden' | 'tags' | 'textarea' | 'date' | 'rows' | 'custom';
   required?: boolean;
   options?: { value: string; label: string; icon?: string }[];
+  // A `rows` field's columns (core/rowsField.ts). A custom field gives them as options.
+  columns?: { name: string; label: string }[];
   default?: any;
   showIn: ('edit' | 'add' | 'confirm' | 'detail' | 'manual')[];
   group?: 'main' | 'metadata' | 'status' | 'hidden';
@@ -288,6 +329,11 @@ export interface FieldDefinition {
   placeholder?: string;
   hint?: string;
   showCondition?: 'manual-only' | 'api-only' | 'always';
+  // Shown only while another field of the item holds one of `values` ('' standing for
+  // no value yet): a console has a manufacturer, a game a developer. On a form the field
+  // follows the other one as it changes, and while hidden it is not posted, so what it
+  // stored stays (core/fieldConditions.ts).
+  showWhen?: { field: string; values: string[] };
 
   // User-defined field declared in settings.pluginExtraFields, not by the plugin itself.
   // Its value is stored under item.extra[name] instead of a real schema path.
@@ -441,6 +487,9 @@ export interface NavbarShortcut {
   id: string; // id stored in settings.navbarShortcuts (e.g. 'game_physical')
   label: string; // i18n key
   url: string; // relative URL (e.g. '/collection?type=games&format=physical')
+  // FontAwesome icon for the sidebar and the dock (e.g. 'fa-gamepad'). Defaults to the
+  // fast-add icon of the format the URL filters on, then to the plugin's icon.
+  icon?: string;
 }
 
 export interface StatWidget {
@@ -450,6 +499,20 @@ export interface StatWidget {
   color: string; // Tailwind classes for the badge background
   text?: string; // Tailwind class for the text (count widgets)
   kind: 'count' | 'top'; // 'count' -> number; 'top' -> { name, count }
+}
+
+export interface RequestTemplate {
+  // Unique within the plugin; offered as `<plugin id>.<id>`.
+  id: string;
+  name: string;
+  // One of REQUEST_TYPE_ICONS (core/requestTypes.ts); anything else shows the first.
+  icon: string;
+  description?: string;
+  minRole?: 'viewer' | 'editor' | 'admin';
+  visibility?: 'members' | 'private';
+  holder?: 'none' | 'sender' | 'recipient';
+  fields?: { label: string; type: 'text' | 'textarea' | 'number' | 'date' | 'select' | 'boolean'; required?: boolean; options?: string[]; deadline?: boolean }[];
+  steps?: { label: string; out?: boolean }[];
 }
 
 export interface PluginSetting {
@@ -522,6 +585,11 @@ export interface CollectionAction {
     estimateEndpoint: string; // GET `${estimateEndpoint}/${id}` -> { success, price: { value } }
     idField: string; // field holding the external id (e.g. 'discogs_id')
     maxMultiplier?: number; // upper bound of the price range (default 1.3)
+    // Where a finished run is kept and read back for the value chart. Optional: the
+    // history is one series per collection, so only the plugin owning it declares it,
+    // and a run of another type's estimate shows its total without touching it.
+    snapshotEndpoint?: string; // POST { value, minValue, maxValue, itemCount }
+    historyEndpoint?: string; // GET -> { success, snapshots, otherCurrencies }
   };
 
   // behavior 'importer-sync': id of the importer to trigger (POST /import/{importerId}).
@@ -577,19 +645,19 @@ export interface CollectionViewContext {
   // so a view says here whether it makes sense on a list of things nobody owns yet.
   inWishlist: boolean;
 
-  // The resolved Mongo filter behind the page: every criterion the filter controls
+  // The resolved filter behind the page: every criterion the filter controls
   // produced, plus the visibility, module and share-scope narrowing, and minus paging
   // and ordering. A view that draws something other than one page of items builds its
   // own query on top of this, so it shows exactly what the filters say it should.
-  itemQuery: any;
+  itemQuery: Filter;
 
   // The ordering the page resolved, for a view keeping a list of items of its own.
-  itemSort: any;
+  itemSort: Sort;
 
   // The same narrowing as itemQuery minus everything the user asked for (search, type,
   // filters): what the collection holds on this page whatever is being looked for. A view
   // that keeps its own shape under a filter draws this and marks what itemQuery matches.
-  unfilteredQuery: any;
+  unfilteredQuery: Filter;
 
   // Whether itemQuery narrows anything beyond unfilteredQuery.
   isNarrowed: boolean;

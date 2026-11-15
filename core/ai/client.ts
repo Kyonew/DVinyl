@@ -18,7 +18,7 @@ export class AiError extends Error {
 }
 
 /** A model that reasons over a shelf photo needs longer than a metadata lookup. */
-const DEFAULT_TIMEOUT_MS = 30000;
+export const DEFAULT_TIMEOUT_MS = 30000;
 /** Low but not zero: identification benefits from a little flexibility, invention does not. */
 const DEFAULT_TEMPERATURE = 0.2;
 
@@ -106,9 +106,13 @@ export async function aiChat(
     throw new AiError(providerMessage(payload, response.status), response.status);
   }
 
-  const content = payload?.choices?.[0]?.message?.content;
+  const choice = payload?.choices?.[0];
+  const content = choice?.message?.content;
+  const refusal = choice?.message?.refusal;
   return {
     text: typeof content === 'string' ? content : '',
-    model: typeof payload?.model === 'string' ? payload.model : body.model
+    model: typeof payload?.model === 'string' ? payload.model : body.model,
+    finishReason: typeof choice?.finish_reason === 'string' ? choice.finish_reason : '',
+    refusal: typeof refusal === 'string' ? refusal : ''
   };
 }

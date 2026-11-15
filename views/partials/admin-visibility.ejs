@@ -136,8 +136,8 @@
     let hiddenItemsArr = JSON.parse(document.getElementById('hiddenItemsInput').value || '[]');
     
     // Registry-driven, i18n-correct format labels (built server-side from every plugin's formats).
-    const FORMAT_LABELS = <%- JSON.stringify(formatLabelMap) %>;
-    const deploymentBaseUrl = <%- JSON.stringify(baseUrl.replace(/\/+$/, '')) %>;
+    const FORMAT_LABELS = <%- JSON.stringify(formatLabelMap).replace(/</g, '\\u003c') %>;
+    const deploymentBaseUrl = <%- JSON.stringify(baseUrl.replace(/\/+$/, '')).replace(/</g, '\\u003c') %>;
     const displayItemImage = (url) => typeof url === 'string' && url.startsWith('/uploads/items/')
         ? deploymentBaseUrl + url
         : url;

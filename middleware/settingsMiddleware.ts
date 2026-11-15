@@ -1,7 +1,10 @@
-import Settings from '../models/Settings';
+import { db } from '../core/db';
+import { eq, idOf } from '../core/db/query';
 import themesConfig from '../config/themes';
-import { BASE_URL } from '../config/constants';
+import { BASE_URL, DEFAULT_LANGUAGE } from '../config/constants';
 import { registry } from '../core/registry';
+import { resolveLayout } from '../core/layout';
+import { getDraft, isStudioRequest, withUpdate } from '../core/lookDraft';
 
 async function settingsMiddleware(req: any, res: any, next: any) {
     try {
@@ -16,11 +19,11 @@ async function settingsMiddleware(req: any, res: any, next: any) {
             // Atomic upsert (+ the unique index on `collection` in models/Settings.ts):
             // concurrent first-visits to a brand-new collection (e.g. the page load and
             // its automatic manifest.json fetch) must not create two Settings documents.
-            dbSettings = await Settings.findOneAndUpdate(
-                { collection: activeCollectionId },
-                { $setOnInsert: { collection: activeCollectionId } },
-                { upsert: true, new: true, setDefaultsOnInsert: true }
-            ).lean();
+            dbSettings = await db.settings.updateAndGet(
+                eq('collection', idOf(activeCollectionId)),
+                { setOnInsert: { collection: idOf(activeCollectionId) } },
+                { upsert: true }
+            );
         }
 
         // All defaults derive from the registered plugins (anonymous requests / fresh install)
@@ -34,7 +37,15 @@ async function settingsMiddleware(req: any, res: any, next: any) {
             pluginSettings: registry.getDefaultPluginSettings()
         };
 
-        const settings = dbSettings || defaultSettings;
+        let settings = dbSettings || defaultSettings;
+
+        // A page inside the Personnalisation studio's preview shows the admin's unpublished
+        // draft over the saved settings (core/lookDraft.ts).
+        if (isStudioRequest(req, res)) {
+            res.locals.studioPreview = true;
+            const draft = getDraft(req, activeCollectionId);
+            if (draft) settings = withUpdate(settings, draft);
+        }
 
         settings.modules = settings.modules || registry.getDefaultModules();
         settings.pluginSettings = settings.pluginSettings || registry.getDefaultPluginSettings();
@@ -43,8 +54,10 @@ async function settingsMiddleware(req: any, res: any, next: any) {
         settings.statsWidgets = settings.statsWidgets || registry.getDefaultStatsWidgets();
 
         res.locals.settings = settings;
+        // The preview shows the collection's sidebar, whatever the admin folded for themselves.
+        res.locals.layout = resolveLayout(settings, res.locals.studioPreview ? undefined : req.cookies);
 
-        res.locals.currentLng = res.locals.user?.language || req.language || 'fr';
+        res.locals.currentLng = res.locals.user?.language || req.language || DEFAULT_LANGUAGE;
         res.locals.isDark = res.locals.user ? (res.locals.user.theme === 'dark') : true;
 
         const fullPath = req.path.toLowerCase();
@@ -106,7 +119,7 @@ async function settingsMiddleware(req: any, res: any, next: any) {
     } catch (err) {
         console.error("[ERR] SettingsMiddleware:", err);
         res.locals.isDark = true;
-        res.locals.currentLng = 'fr';
+        res.locals.currentLng = DEFAULT_LANGUAGE;
         res.locals.settings = {
             theme: { home: { preset: 'default' } },
             modules: registry.getDefaultModules(),
@@ -114,6 +127,7 @@ async function settingsMiddleware(req: any, res: any, next: any) {
             statsWidgets: registry.getDefaultStatsWidgets(),
             pluginSettings: registry.getDefaultPluginSettings()
         };
+        res.locals.layout = resolveLayout(null);
         next();
     }
 }

@@ -1,0 +1,98 @@
+<%
+  /**
+   * The cover's accent (core/ambience.ts, coverAccent): on a page that marks its cover
+   * with data-dv-accent-source (an item's page), the accent becomes the cover's most
+   * vivid colour, made dark or light enough to stand out from the page (3:1), and the
+   * text on it follows. Included by header.ejs only when the collection turned it on.
+   *
+   * The pixels can only be read from a picture the browser may share with the page: an
+   * upload of this instance, or a cover host that allows it (CORS). Any other cover
+   * leaves the theme's accent in place. A grey or black and white cover does too.
+   */
+%>
+<script>
+(() => {
+    const root = document.documentElement;
+    const channels = (hex) => {
+        const n = parseInt(String(hex).trim().replace('#', ''), 16);
+        return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    };
+    const luminance = ([r, g, b]) => [r, g, b]
+        .map(c => { const v = c / 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; })
+        .reduce((sum, v, i) => sum + v * [0.2126, 0.7152, 0.0722][i], 0);
+    const contrast = (a, b) => {
+        const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+        return (hi + 0.05) / (lo + 0.05);
+    };
+    const mix = (rgb, toward, amount) => rgb.map((c, i) => Math.round(c + (toward[i] - c) * amount));
+
+    // The hue most of the colourful pixels share, as their average colour.
+    function vividColour(data) {
+        const buckets = Array.from({ length: 24 }, () => ({ weight: 0, r: 0, g: 0, b: 0 }));
+        let counted = 0;
+        for (let i = 0; i < data.length; i += 4) {
+            const [r, g, b, a] = [data[i], data[i + 1], data[i + 2], data[i + 3]];
+            if (a < 128) continue;
+            counted++;
+            const max = Math.max(r, g, b), min = Math.min(r, g, b);
+            const light = (max + min) / 510;
+            const sat = max === min ? 0 : (max - min) / (255 - Math.abs(max + min - 255));
+            if (sat < 0.3 || light < 0.12 || light > 0.9) continue;
+            let hue;
+            if (max === r) hue = ((g - b) / (max - min) + 6) % 6;
+            else if (max === g) hue = (b - r) / (max - min) + 2;
+            else hue = (r - g) / (max - min) + 4;
+            const bucket = buckets[Math.floor(hue * 4) % 24];
+            const weight = sat * sat * (1 - Math.abs(light - 0.5));
+            bucket.weight += weight;
+            bucket.r += r * weight;
+            bucket.g += g * weight;
+            bucket.b += b * weight;
+        }
+        const best = buckets.reduce((a, b) => (b.weight > a.weight ? b : a));
+        // Too few colourful pixels to speak of: the cover is grey, let the theme be.
+        if (counted === 0 || best.weight < counted * 0.03) return null;
+        return [best.r, best.g, best.b].map(c => Math.round(c / best.weight));
+    }
+
+    let cover = null;
+    function apply() {
+        if (!cover) return;
+        const style = getComputedStyle(root);
+        const page = channels(style.getPropertyValue('--bg-page'));
+        const toward = luminance(page) > 0.4 ? [0, 0, 0] : [255, 255, 255];
+        let accent = cover;
+        for (let step = 1; step <= 18 && contrast(accent, page) < 3; step++) accent = mix(cover, toward, step * 0.05);
+        const hex = '#' + accent.map(c => c.toString(16).padStart(2, '0')).join('');
+        const white = contrast(accent, [255, 255, 255]);
+        root.style.setProperty('--highlight', hex);
+        root.style.setProperty('--highlight-rgb', accent.join(' '));
+        root.style.setProperty('--on-highlight', white >= 3 || white >= contrast(accent, [17, 17, 17]) ? '#ffffff' : '#111111');
+    }
+
+    function read() {
+        const source = document.querySelector('img[data-dv-accent-source]');
+        if (!source || !source.currentSrc && !source.src) return;
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = canvas.height = 48;
+                const context = canvas.getContext('2d', { willReadFrequently: true });
+                context.drawImage(img, 0, 0, 48, 48);
+                cover = vividColour(context.getImageData(0, 0, 48, 48).data);
+            } catch (e) {
+                return; // a cover shared without CORS: the canvas cannot be read
+            }
+            apply();
+        };
+        img.src = source.currentSrc || source.src;
+    }
+
+    // Light and dark pages differ: the accent is fitted again when the mode changes.
+    new MutationObserver(apply).observe(root, { attributes: true, attributeFilter: ['class'] });
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', read);
+    else read();
+})();
+</script>

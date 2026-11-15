@@ -1,0 +1,49 @@
+<%
+  // The last estimate of the collection's value, its move since the one before, and the
+  // run of past estimates as a line: one series, so the accent and no legend.
+  const valSnaps = data.snapshots || [];
+  const valLast = valSnaps[valSnaps.length - 1];
+  const valPrev = valSnaps.length > 1 ? valSnaps[valSnaps.length - 2] : null;
+  const valLocale = dateLocaleFor(currentLng);
+  const valMoney = v => new Intl.NumberFormat(valLocale, { style: 'currency', currency: data.currency, maximumFractionDigits: 0 }).format(v);
+  const valDelta = valLast && valPrev && valPrev.value ? (valLast.value - valPrev.value) / valPrev.value * 100 : null;
+  let valPath = '', valPoints = [];
+  if (valSnaps.length > 1) {
+      const values = valSnaps.map(s => s.value);
+      const lo = Math.min(...values), hi = Math.max(...values), span = (hi - lo) || 1;
+      valPoints = valSnaps.map((s, i) => ({ x: (i / (valSnaps.length - 1)) * 100, y: 36 - ((s.value - lo) / span) * 32, s }));
+      valPath = valPoints.map((p, i) => (i ? 'L' : 'M') + p.x.toFixed(2) + ' ' + p.y.toFixed(2)).join(' ');
+  }
+%>
+<div class="card-theme h-full rounded-2xl p-5 md:p-6 flex flex-col gap-3">
+    <h3 class="font-bold flex items-center gap-2"><i class="fa-solid fa-coins text-primary-theme" aria-hidden="true"></i><%= t('dashboard.w_value') %></h3>
+    <% if (!valLast) { %>
+        <p class="text-sm opacity-60"><%= t('dashboard.value_empty') %></p>
+        <a href="<%= baseUrl %>/collection" class="text-sm font-bold text-primary-theme"><%= t('index.view_everything') %></a>
+    <% } else { %>
+        <div class="flex items-baseline flex-wrap gap-x-3 gap-y-1">
+            <span class="text-3xl md:text-4xl font-black tracking-tight tabular-nums"><%= valMoney(valLast.value) %></span>
+            <% if (valDelta !== null) { %>
+                <span class="text-sm font-bold <%= valDelta >= 0 ? 'text-emerald-500' : 'text-red-500' %>">
+                    <i class="fa-solid <%= valDelta >= 0 ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down' %>" aria-hidden="true"></i>
+                    <%= (valDelta >= 0 ? '+' : '') + valDelta.toFixed(1) %> %
+                </span>
+            <% } %>
+        </div>
+        <p class="text-xs opacity-60">
+            <%= t('dashboard.value_meta', { count: valLast.items, date: new Date(valLast.at).toLocaleDateString(valLocale, { day: 'numeric', month: 'short', year: 'numeric' }) }) %>
+        </p>
+        <% if (valPath) { %>
+            <svg viewBox="0 0 100 40" preserveAspectRatio="none" class="w-full h-16 mt-auto overflow-visible text-primary-theme" role="img"
+                aria-label="<%= valSnaps.map(s => new Date(s.at).toLocaleDateString(valLocale) + ': ' + valMoney(s.value)).join(', ') %>">
+                <path d="<%= valPath %> L100 40 L0 40 Z" fill="currentColor" opacity="0.12"></path>
+                <path d="<%= valPath %>" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"></path>
+                <% valPoints.forEach(p => { %>
+                    <circle cx="<%= p.x.toFixed(2) %>" cy="<%= p.y.toFixed(2) %>" r="5" fill="transparent" vector-effect="non-scaling-stroke">
+                        <title><%= new Date(p.s.at).toLocaleDateString(valLocale) %> · <%= valMoney(p.s.value) %></title>
+                    </circle>
+                <% }) %>
+            </svg>
+        <% } %>
+    <% } %>
+</div>

@@ -1,6 +1,7 @@
 import { registry } from './registry';
 import { PluginDefinition } from './types';
 import { getExtraFields, toFieldDefinitions } from './pluginExtraFields';
+import { withFieldDefaults } from './fieldDefaults';
 
 /**
  * Per-collection overrides for plugins (native and custom alike):
@@ -32,6 +33,12 @@ export interface PluginCosmetics {
   // Filters switched on or off for this type on the collection page, by id. Only what
   // differs from the default is stored; see core/filterFields.ts.
   filters?: Record<string, boolean>;
+  // Fields shown as columns in the table view. An empty array is a deliberate "title only".
+  // Absent, the table follows the card fields; see core/cardFields.ts.
+  tableColumns?: string[];
+  // Where fields sit on the item page, for those moved from the type's default. See
+  // core/detailPlacement.ts.
+  detailFields?: Record<string, 'shown' | 'more' | 'hidden'>;
 }
 
 export type PluginCustomizationMap = Record<string, PluginCosmetics>;
@@ -44,7 +51,7 @@ export function decoratePlugin(
 ): PluginDefinition {
   const cosmetics = map?.[plugin.id];
   const extraDefs = settings ? getExtraFields(settings, plugin.id) : [];
-  const hasCosmetics = !!cosmetics && (!!cosmetics.icon || !!cosmetics.formatColors || !!cosmetics.cardFields || !!cosmetics.sortFormats || !!cosmetics.cornerField);
+  const hasCosmetics = !!cosmetics && (!!cosmetics.icon || !!cosmetics.formatColors || !!cosmetics.cardFields || !!cosmetics.sortFormats || !!cosmetics.cornerField || !!cosmetics.tableColumns || !!cosmetics.detailFields);
   if (!hasCosmetics && extraDefs.length === 0) return plugin;
 
   const clone: any = { ...plugin };
@@ -68,6 +75,12 @@ export function decoratePlugin(
   }
   if (cosmetics?.cardFields) {
     clone.defaultCardFields = cosmetics.cardFields;
+  }
+  if (cosmetics?.tableColumns) {
+    clone.tableColumns = cosmetics.tableColumns;
+  }
+  if (cosmetics?.detailFields) {
+    clone.detailPlacement = cosmetics.detailFields;
   }
   if (cosmetics?.sortFormats) {
     // Sorted on what the reader sees, not on the raw label: a native plugin's labels are
@@ -114,6 +127,11 @@ export function applyPluginCustomization(res: any): void {
     if (locals && typeof locals === 'object') {
       for (const key of ['plugin', 'selectedPlugin'] as const) {
         if (locals[key]) locals[key] = decorate(locals[key]);
+      }
+      // Both forms only ever add a new item: the fields added to the plugin start on their
+      // default, read from the decorated plugin since that is where they are declared.
+      if ((view === 'confirm' || view === 'manual-add') && locals.item && locals.plugin) {
+        locals.item = withFieldDefaults(locals.plugin.formFields || [], locals.item);
       }
       if (Array.isArray(locals.enabledPlugins)) {
         locals.enabledPlugins = locals.enabledPlugins.map((p: PluginDefinition) => decorate(p));

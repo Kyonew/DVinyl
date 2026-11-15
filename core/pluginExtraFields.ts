@@ -1,5 +1,8 @@
 import { PluginDefinition, FieldDefinition } from './types';
+import { blank, contains, eq, filled, Filter, isIn, ne, range, Sort } from './db/filter';
 import { CustomFieldConfig } from './customPlugin';
+import { MAX_COLUMNS } from './rowsField';
+import { sanitizeFieldDefault } from './fieldDefaults';
 import { RESERVED_FIELD_NAMES, FIELD_NAME_RE, FIELD_TYPES, cleanText, slugify } from './customPluginStore';
 import {
   createExtraFieldKey,
@@ -25,6 +28,10 @@ import {
 export type ExtraFieldConfig = CustomFieldConfig & {
   /** Versioned marker distinguishing generated identities from legacy label slugs. */
   keyVersion?: number;
+  /** The plugin's own field this one looks like, which the admin chose to keep it beside. */
+  keepBeside?: string;
+  /** Which field of an outside source this one was created from, so an import finds it again whatever it was renamed to. */
+  importKey?: string;
 };
 
 export const MAX_EXTRA_FIELDS_PER_PLUGIN = 15;
@@ -43,7 +50,7 @@ export function getExtraFields(settings: any, pluginId: string): ExtraFieldConfi
  */
 export function reservedNamesFor(plugin: PluginDefinition): Set<string> {
   const taken = new Set<string>(RESERVED_FIELD_NAMES);
-  for (const key of Object.keys(plugin.schemaDefinition || {})) taken.add(key);
+  for (const key of Object.keys(plugin.storedFields || {})) taken.add(key);
   for (const f of plugin.formFields || []) taken.add(f.name);
   if (plugin.creatorField) taken.add(plugin.creatorField);
   if (plugin.externalIdField) taken.add(plugin.externalIdField);
@@ -94,6 +101,9 @@ export function findNativeLookalikes(
       comparableName(f.name) === wanted ||
       labelsFor(f.label).some(l => comparableName(l) === wanted)
     );
+    // Kept beside that very field on purpose: not reported again, unless the plugin
+    // later ships another field it looks like.
+    if (match && def.keepBeside === match.name) continue;
     if (match) found.push({ name: def.name, label: def.label, nativeName: match.name, nativeLabel: match.label });
   }
   return found;
@@ -126,6 +136,8 @@ export function toFieldDefinitions(defs: ExtraFieldConfig[]): FieldDefinition[] 
       extraField: true
     };
     if (f.placeholder) field.placeholder = f.placeholder;
+    if (f.default !== undefined) field.default = f.default;
+    if (f.type === 'rows') field.columns = (f.options || []).map(o => ({ name: o.value, label: o.label }));
     if (f.type === 'select') {
       // An optional dropdown leads with a blank entry, otherwise a <select> selects its
       // first option on its own and every item saved without touching the field carries
@@ -168,27 +180,36 @@ export type FilterableField = ExtraFieldConfig & { native?: boolean };
 
 // Types the collection search box looks into: the ones holding words. Numbers, dates
 // and booleans are reached through their filter instead.
-const SEARCHABLE_TYPES = new Set(['text', 'textarea', 'select', 'tags']);
+const SEARCHABLE_TYPES = new Set(['text', 'textarea', 'select', 'tags', 'rows']);
 
 /**
- * $or branches matching the search box against the user-defined fields of every given
+ * Alternatives matching the search box against the user-defined fields of every given
  * plugin. A select stores the slug of its option ("16_9" for "16:9"), so it is matched
  * on what people read and type: the labels, mapped back to the values they stand for.
  */
-export function extraSearchConditions(settings: any, plugins: PluginDefinition[], regex: RegExp): any[] {
-  const conditions: any[] = [];
+export function extraSearchConditions(settings: any, plugins: PluginDefinition[], text: string): Filter[] {
+  const conditions: Filter[] = [];
   const seen = new Set<string>();
+  const needle = text.toLocaleLowerCase();
   for (const plugin of plugins) {
     for (const field of getExtraFields(settings, plugin.id)) {
       if (!SEARCHABLE_TYPES.has(field.type)) continue;
       const path = `extra.${field.name}`;
-      if (field.type === 'select') {
-        const values = (field.options || []).filter(o => regex.test(o.label)).map(o => o.value);
-        if (values.length > 0) conditions.push({ [path]: { $in: values } });
+      if (field.type === 'rows') {
+        // Each column of each row, reached through the list.
+        for (const column of field.options || []) {
+          const columnPath = `${path}.${column.value}`;
+          if (!seen.has(columnPath)) { seen.add(columnPath); conditions.push(contains(columnPath, text)); }
+        }
+      } else if (field.type === 'select') {
+        const values = (field.options || [])
+          .filter(o => o.label.toLocaleLowerCase().includes(needle))
+          .map(o => o.value);
+        if (values.length > 0) conditions.push(isIn(path, values));
       } else if (!seen.has(path)) {
         // Two plugins may declare the same name: one test on the path covers both
         seen.add(path);
-        conditions.push({ [path]: regex });
+        conditions.push(contains(path, text));
       }
     }
   }
@@ -226,13 +247,13 @@ function parseDateBound(raw: any, endOfDay: boolean): Date | null {
 }
 
 /**
- * Mongo conditions for the field filters present in a query string. User-defined
+ * Filters for the field filters present in a query string. User-defined
  * names come from the settings and were validated against FIELD_NAME_RE on the way
  * in, and native ones are declared by the plugin itself, so interpolating them into
  * a path is safe.
  */
-export function buildExtraFieldConditions(defs: FilterableField[], query: any): any[] {
-  const conditions: any[] = [];
+export function buildExtraFieldConditions(defs: FilterableField[], query: any): Filter[] {
+  const conditions: Filter[] = [];
 
   for (const field of defs) {
     if (!isFilterable(field)) continue;
@@ -241,22 +262,22 @@ export function buildExtraFieldConditions(defs: FilterableField[], query: any): 
     if (isRangeFilter(field)) {
       const rawFrom = query[filterParam(field, 'from')];
       const rawTo = query[filterParam(field, 'to')];
-      const range: any = {};
+      const bounds: { gte?: number | Date; lte?: number | Date } = {};
 
       if (field.type === 'date') {
         // The upper bound covers the whole day, so "until the 15th" includes the 15th
         const from = parseDateBound(rawFrom, false);
         const to = parseDateBound(rawTo, true);
-        if (from) range.$gte = from;
-        if (to) range.$lte = to;
+        if (from) bounds.gte = from;
+        if (to) bounds.lte = to;
       } else {
         const from = Number(rawFrom);
         const to = Number(rawTo);
-        if (rawFrom !== undefined && rawFrom !== '' && !isNaN(from)) range.$gte = from;
-        if (rawTo !== undefined && rawTo !== '' && !isNaN(to)) range.$lte = to;
+        if (rawFrom !== undefined && rawFrom !== '' && !isNaN(from)) bounds.gte = from;
+        if (rawTo !== undefined && rawTo !== '' && !isNaN(to)) bounds.lte = to;
       }
 
-      if (Object.keys(range).length > 0) conditions.push({ [path]: range });
+      if (bounds.gte !== undefined || bounds.lte !== undefined) conditions.push(range(path, bounds));
       continue;
     }
 
@@ -265,28 +286,28 @@ export function buildExtraFieldConditions(defs: FilterableField[], query: any): 
     if (!value) continue;
 
     if (value === EXTRA_ANY) {
-      // "Filled in". A missing key matches null in Mongo, so $nin covers both the
-      // items predating the field and the empty strings an emptied input leaves behind.
-      conditions.push({ [path]: { $nin: [null, '', []] } });
+      // "Filled in": neither the items predating the field nor the empty strings an
+      // emptied input leaves behind.
+      conditions.push(filled(path));
       continue;
     }
     if (value === EXTRA_NONE) {
-      conditions.push({ [path]: { $in: [null, '', []] } });
+      conditions.push(blank(path));
       continue;
     }
 
     if (field.type === 'boolean') {
       // Items predating the field have no key at all, so "no" is "not true" rather
       // than an equality test on false.
-      conditions.push(value === 'true' ? { [path]: true } : { [path]: { $ne: true } });
+      conditions.push(value === 'true' ? eq(path, true) : ne(path, true));
     } else if (field.native && typeof field.default === 'string' && field.default && value === field.default) {
       // A plugin field shows its default when nothing is stored (items saved before
       // the field existed, or emptied by an import), so those match its default too.
-      conditions.push({ [path]: { $in: [value, null, ''] } });
+      conditions.push(isIn(path, [value, null, '']));
     } else {
       // text, select and tags alike: the values offered are the ones actually stored,
       // and an equality test on an array path matches "contains" for tags.
-      conditions.push({ [path]: value });
+      conditions.push(eq(path, value));
     }
   }
 
@@ -301,14 +322,14 @@ export function extraSortKey(field: ExtraFieldConfig): string {
   return `${SORT_PREFIX}${field.name}`;
 }
 
-/** Mongo sort object when `sort` targets a user-defined field, null otherwise. */
-export function parseExtraSort(sort: string | undefined, defs: ExtraFieldConfig[]): Record<string, 1 | -1> | null {
+/** The sort asked for when `sort` targets a user-defined field, null otherwise. */
+export function parseExtraSort(sort: string | undefined, defs: ExtraFieldConfig[]): Sort | null {
   if (typeof sort !== 'string' || !sort.startsWith(SORT_PREFIX)) return null;
   const match = sort.match(/^(.*)_(asc|desc)$/);
   if (!match) return null;
   const name = match[1]!.slice(SORT_PREFIX.length);
   if (!defs.some(f => f.name === name)) return null;
-  return { [`extra.${name}`]: match[2] === 'asc' ? 1 : -1 };
+  return [{ field: `extra.${name}`, dir: match[2] === 'asc' ? 'asc' : 'desc' }];
 }
 
 /**
@@ -398,17 +419,27 @@ export function sanitizeExtraFields(
     const placeholder = cleanText(item?.placeholder, 60);
     if (placeholder) field.placeholder = placeholder;
 
-    if (type === 'select') {
-      const options = (Array.isArray(item?.options) ? item.options.slice(0, 20) : [])
+    // Set by the import that created the field, never by what a form submits.
+    if (previous?.importKey) field.importKey = previous.importKey;
+
+    // Only ever one of the plugin's own fields: what the admin agreed to keep it beside.
+    const keepBeside = cleanText(item?.keepBeside, 60);
+    if (keepBeside && (plugin.formFields || []).some(f => f.name === keepBeside && !f.extraField)) field.keepBeside = keepBeside;
+
+    if (type === 'select' || type === 'rows') {
+      const options = (Array.isArray(item?.options) ? item.options.slice(0, type === 'rows' ? MAX_COLUMNS : 20) : [])
         .map((o: any) => {
           const optLabel = cleanText(typeof o === 'string' ? o : o?.label, 40);
           const optValue = slugify(cleanText(typeof o === 'string' ? o : (o?.value || o?.label), 40)).replace(/-/g, '_');
           return optLabel && optValue ? { value: optValue, label: optLabel } : null;
         })
         .filter(Boolean) as { value: string; label: string }[];
-      if (options.length === 0) { errors.push('create_plugin.err_select_needs_options'); continue; }
-      field.options = options;
+      if (options.length === 0) { errors.push(type === 'rows' ? 'create_plugin.err_rows_needs_columns' : 'create_plugin.err_select_needs_options'); continue; }
+      field.options = options.filter((o, i) => options.findIndex(x => x.value === o.value) === i);
     }
+
+    const fieldDefault = sanitizeFieldDefault(type, item?.default, field.options);
+    if (fieldDefault !== undefined) field.default = fieldDefault;
 
     fields.push(field);
   }

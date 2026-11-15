@@ -7,9 +7,13 @@ import {
   libibComments, libibCreator, libibImportFields, libibPrice, libibQuantity, libibTags,
   libibTypeFilter, libibYear
 } from '../../utils/libib';
-import Item from '../../models/Item';
-import User from '../../models/User';
+import { db } from '../../core/db';
+import { and, ci, eq, idOf, ne } from '../../core/db/query';
+import { physicalFromDiscogs } from './formatDetails';
 import { STANDARD_FORMAT_TERMS } from './constants';
+import { cleanName } from './pressing';
+import { getExtraFields } from '../../core/pluginExtraFields';
+import { DiscogsFieldMapper, addedDate, asNewItemFields, missingValues, ratingValues } from './discogsFields';
 
 // DISCOGS COLLECTION/WISHLIST IMPORT ROUTE
 async function importDiscogs(req: any, res: any) {
@@ -26,12 +30,17 @@ async function importDiscogs(req: any, res: any) {
     if (!usernameMatch) return res.status(400).json({ error: "Invalid Discogs URL" });
     username = usernameMatch[1];
   } else {
-    const u = await User.findById(userId).select('pluginData').lean() as any;
+    const u = await db.users.findById(idOf(userId), { fields: ['pluginData'] });
     username = u?.pluginData?.music?.discogsUsername;
   }
-  if (!username) return res.status(400).json({ error: "Invalid Discogs URL" });
+  // It goes into the path of a request sent with the instance's token, so only a name
+  // Discogs could have given (letters, digits, '.', '_', '-') is taken, and never one
+  // made of dots alone, which would climb out of /users/.
+  if (!username || !/^[A-Za-z0-9._-]{1,64}$/.test(username) || /^\.+$/.test(username)) {
+    return res.status(400).json({ error: "Invalid Discogs URL" });
+  }
 
-  await User.findByIdAndUpdate(userId, { $set: { 'pluginData.music.discogsUsername': username } });
+  await db.users.updateOne(eq('_id', idOf(userId)), { set: { 'pluginData.music.discogsUsername': username } });
 
   res.status(202).json({ success: true, message: "Import started" });
 
@@ -42,8 +51,28 @@ async function importDiscogs(req: any, res: any) {
     let hasMore = true;
 
     const isWishlist = (type === 'wishlist');
-    const apiUrl = isWishlist ? `https://api.discogs.com/users/${username}/wants` : `https://api.discogs.com/users/${username}/collection/folders/0/releases`;
+    const apiUrl = isWishlist ? `https://api.discogs.com/users/${encodeURIComponent(username)}/wants` : `https://api.discogs.com/users/${encodeURIComponent(username)}/collection/folders/0/releases`;
     const listKey = isWishlist ? 'wants' : 'releases';
+
+    // The fields filled in on each record. A wantlist has none. Not being able to read
+    // them costs the extra values and is said at the end, but not the import itself.
+    let fieldMapper: DiscogsFieldMapper | null = null;
+    let fieldsUnreadable = false;
+    let totalUpdated = 0;
+    const musicPlugin = registry.get('music');
+    const settingsFilter = eq('collection', idOf(activeCollectionId));
+    if (!isWishlist && musicPlugin) {
+      try {
+        const definitions = await fetchJson(`https://api.discogs.com/users/${encodeURIComponent(username)}/collection/fields`, {
+          headers: { 'Authorization': `Discogs token=${token}`, 'User-Agent': 'DVinylApp/1.0' }
+        });
+        const settings = await db.settings.findOne(settingsFilter);
+        fieldMapper = new DiscogsFieldMapper(musicPlugin, getExtraFields(settings, 'music'), definitions.fields || []);
+      } catch (e: any) {
+        console.warn(`[music] Discogs custom fields not read: ${e.message}`);
+        fieldsUnreadable = true;
+      }
+    }
 
     while (hasMore) {
       const params = new URLSearchParams({ page: page.toString(), per_page: '50' });
@@ -60,16 +89,26 @@ async function importDiscogs(req: any, res: any) {
 
       for (const item of listItems) {
         const info = item.basic_information;
+        const customValues = isWishlist ? {} : {
+          ...(fieldMapper ? fieldMapper.valuesFor(item.notes) : {}),
+          ...ratingValues(item.rating)
+        };
         // Scoped to the list being imported: a release owned in the collection must not
         // cancel its wantlist entry, exactly as Discogs keeps the two lists apart.
         // Items predating the in_wishlist field count as owned.
-        const existing = await Item.findOne({
-          discogs_id: info.id,
-          collection: activeCollectionId,
-          in_wishlist: isWishlist ? true : { $ne: true }
-        }) as any;
+        const existing = await db.items.findOne(and(
+          eq('discogs_id', info.id),
+          eq('collection', idOf(activeCollectionId)),
+          isWishlist ? eq('in_wishlist', true) : ne('in_wishlist', true)
+        ), { defaults: true });
 
         if (existing) {
+          const toFill = missingValues(existing, customValues);
+          if (Object.keys(toFill).length > 0) {
+            await db.items.updateOne(eq('_id', idOf(existing._id)), { set: { ...toFill, ...syncStamp() } }, { allowUndeclared: true });
+            totalUpdated++;
+          }
+
           if (full === true && (!existing.tracklist || existing.tracklist.length === 0)) {
             try {
               console.log(`🔄 Updating tracklist for existing album ID ${info.id}`);
@@ -79,10 +118,10 @@ async function importDiscogs(req: any, res: any) {
               const fetchedTracklist = detailData.tracklist || [];
 
               if (fetchedTracklist.length > 0) {
-                await Item.updateOne(
-                  { _id: existing._id },
-                  { $set: { tracklist: fetchedTracklist, ...syncStamp() } },
-                  { strict: false }
+                await db.items.updateOne(
+                  eq('_id', idOf(existing._id)),
+                  { set: { tracklist: fetchedTracklist, ...syncStamp() } },
+                  { allowUndeclared: true }
                 );
               }
               await new Promise(resolve => setTimeout(resolve, 1000));
@@ -138,31 +177,40 @@ async function importDiscogs(req: any, res: any) {
           title: info.title,
           artist: info.artists.map((a: any) => a.name).join(', '),
           year: info.year || 0,
-          label: info.labels?.[0]?.name || 'Unknown',
+          label: cleanName(info.labels?.[0]?.name) || 'Unknown',
           catalog_number: info.labels?.[0]?.catno || '',
           format_type: formatType.join(', '),
           variant_color: variantColor.join(', '),
           media_type: mediaType,
+          ...physicalFromDiscogs(firstFormat),
           cover_image: info.cover_image || info.thumb || '',
           tracklist,
           discogs_id: info.id,
           owner: userId,
           collection: activeCollectionId,
-          added_at: new Date(),
+          // Only ever on a new item: an album already here keeps the date it has.
+          added_at: isWishlist ? new Date() : addedDate(item.date_added),
           location: '',
           genre: info.genres?.[0] || '',
           genres: info.genres || [],
           styles: info.styles || [],
           in_wishlist: isWishlist,
-          kind: 'Music'
+          kind: 'Music',
+          ...asNewItemFields(customValues)
         });
 
         totalProcessed++;
         req.io.emit('import_progress', { current: totalProcessed, total: pagination.items });
       }
 
+      // Declared before the items that use them are written.
+      if (fieldMapper?.changed) {
+        await db.settings.updateOne(settingsFilter, { set: { 'pluginExtraFields.music': fieldMapper.defs } });
+        fieldMapper.changed = false;
+      }
+
       if (albumsToInsert.length > 0) {
-        await Item.insertMany(albumsToInsert);
+        await db.items.insertMany(albumsToInsert);
         totalImported += albumsToInsert.length;
       }
 
@@ -170,7 +218,11 @@ async function importDiscogs(req: any, res: any) {
       else page++;
     }
 
-    req.io.emit('import_finished', { count: totalImported });
+    const leftOut = fieldMapper ? [...fieldMapper.leftOut] : [];
+    const notice = fieldsUnreadable
+      ? req.t('admin.discogs_fields_unreadable')
+      : leftOut.length > 0 ? req.t('admin.discogs_fields_left_out', { fields: leftOut.join(', ') }) : '';
+    req.io.emit('import_finished', { count: totalImported, updated: totalUpdated, ...(notice ? { notice } : {}) });
   } catch (err: any) {
     req.io.emit('import_error', { message: err.message });
   }
@@ -250,12 +302,12 @@ async function importMusikSammler(req: any, res: any) {
       // list being targeted: the wishlist and the collection are two separate lists, so
       // an album already owned must not cancel its wishlist entry (and vice versa).
       // Items predating the in_wishlist field count as owned.
-      const existing = await Item.findOne({
-        collection: activeCollectionId,
-        in_wishlist: isWishlist ? true : { $ne: true },
-        title: new RegExp(`^${escapeRegExp(title)}$`, 'i'),
-        artist: new RegExp(`^${escapeRegExp(artist)}$`, 'i')
-      }) as any;
+      const existing = await db.items.findOne(and(
+        eq('collection', idOf(activeCollectionId)),
+        isWishlist ? eq('in_wishlist', true) : ne('in_wishlist', true),
+        ci('title', title),
+        ci('artist', artist)
+      ));
       if (existing) {
         totalProcessed++;
         req.io.emit('import_progress', { current: totalProcessed, total: totalItems });
@@ -263,7 +315,7 @@ async function importMusikSammler(req: any, res: any) {
       }
 
       const year = parseInt(row[yearReleaseIndex] || row[yearAlbumIndex] || '') || 0;
-      const label = row[labelIndex]?.trim() || 'Unknown';
+      const label = cleanName(row[labelIndex]) || 'Unknown';
       const catalog_number = row[catnoIndex]?.trim() || '';
       const barcode = (row[barcodeIndex] || '').replace(/\s/g, '');
       const rawMediaType = (row[typeIndex] || '').toLowerCase();
@@ -334,7 +386,7 @@ async function importMusikSammler(req: any, res: any) {
         }
       }
 
-      await Item.create({
+      await db.items.create({
         title,
         artist,
         year,

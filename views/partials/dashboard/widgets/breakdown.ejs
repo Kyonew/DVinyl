@@ -1,0 +1,27 @@
+<%
+  // One bar per type or format, longest first, the count written at its end: a single
+  // series, so the accent alone and no legend. The share shows on hover.
+  const breakdownMax = Math.max(1, ...data.rows.map(r => r.count));
+%>
+<div class="card-theme h-full rounded-2xl p-5 md:p-6 flex flex-col gap-4">
+    <div class="flex items-baseline justify-between gap-3">
+        <h3 class="font-bold"><%= t(options.by === 'format' ? 'dashboard.breakdown_by_format' : 'dashboard.breakdown_by_type') %></h3>
+        <span class="text-xs opacity-60 whitespace-nowrap"><%= data.total %> <%= t('common.items') %></span>
+    </div>
+    <% if (data.rows.length === 0) { %>
+        <p class="text-sm opacity-60"><%= t('index.empty_collection') %></p>
+    <% } else { %>
+    <ul class="flex flex-col gap-2.5">
+        <% data.rows.forEach(row => {
+            const share = data.total ? Math.round(row.count / data.total * 100) : 0; %>
+            <li class="group grid grid-cols-[minmax(0,7rem)_1fr_auto] md:grid-cols-[minmax(0,9rem)_1fr_auto] items-center gap-3 text-sm" title="<%= row.label %> · <%= row.count %> (<%= share %> %)">
+                <span class="truncate opacity-80"><%= row.label %></span>
+                <span class="h-2.5 rounded-full bg-black/5 dark:bg-white/5 overflow-hidden">
+                    <span class="block h-full rounded-full bg-primary-theme group-hover:brightness-110 transition-all" style="width: <%= Math.max(2, row.count / breakdownMax * 100) %>%"></span>
+                </span>
+                <span class="tabular-nums font-semibold text-right min-w-[2.5rem]"><%= row.count %><span class="hidden group-hover:inline opacity-60 font-normal"> · <%= share %> %</span></span>
+            </li>
+        <% }) %>
+    </ul>
+    <% } %>
+</div>

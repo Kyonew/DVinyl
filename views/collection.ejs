@@ -257,7 +257,7 @@
                         await navigator.clipboard.writeText(url);
                         const detail = button.querySelector('[data-share-row-detail]');
                         const before = detail.textContent;
-                        detail.textContent = <%- JSON.stringify(t('admin.sharing.copied')) %>;
+                        detail.textContent = <%- JSON.stringify(t('admin.sharing.copied')).replace(/</g, '\\u003c') %>;
                         setTimeout(function () { detail.textContent = before; }, 1600);
                     } catch (e) {
                         window.prompt('', url);
@@ -293,6 +293,10 @@
             <button type="button" onclick="openShelfMoveModal()"
                 class="px-4 py-2 bg-primary-theme text-white rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all">
                 <i class="fa-solid fa-inbox mr-2"></i><%= t('collection.shelf_move_btn') %>
+            </button>
+            <button type="button" onclick="openBulkEditModal()"
+                class="px-4 py-2 bg-primary-theme text-white rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all">
+                <i class="fa-solid fa-pen-to-square mr-2"></i><%= t('collection.bulk_edit_btn') %>
             </button>
             <button type="button" onclick="addSelectionToList()"
                 class="px-4 py-2 bg-primary-theme text-white rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all">
@@ -350,6 +354,52 @@
                 <button type="button" id="shelfMoveConfirm" onclick="confirmShelfMove()"
                     class="flex-1 py-2.5 bg-primary-theme text-white rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all disabled:opacity-50">
                     <%= t('collection.shelf_move_confirm') %>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <%# One field set to the same value on every selected item (core/bulkEdit.ts). The
+        fields offered are those the selected types all have alike, asked of the server
+        once the dialog opens; the value box follows the type of the field picked. %>
+    <div id="bulkEditModal" class="dv-overlay fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm items-center justify-center p-4">
+        <div class="dv-pop card-theme border rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <h3 class="text-lg font-bold mb-1"><%= t('collection.bulk_edit_title') %></h3>
+            <p class="text-xs opacity-50 mb-5"><span id="bulkEditCount">0</span> <%= t('collection.selected_count_suffix') %></p>
+
+            <label class="block mb-2 text-xs font-bold uppercase tracking-widest opacity-60" for="bulkEditField">
+                <%= t('collection.bulk_edit_field') %>
+            </label>
+            <select id="bulkEditField"
+                class="bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme block w-full p-3 outline-none cursor-pointer"></select>
+
+            <div id="bulkEditValueWrap" class="mt-4">
+                <label class="block mb-2 text-xs font-bold uppercase tracking-widest opacity-60" for="bulkEditValue">
+                    <%= t('collection.bulk_edit_value') %>
+                </label>
+                <div id="bulkEditValueBox"></div>
+                <div id="bulkEditTagsMode" class="hidden mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm">
+                    <% ['add', 'remove', 'replace'].forEach((mode, i) => { %>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="bulkEditMode" value="<%= mode %>" <%= i === 0 ? 'checked' : '' %> class="accent-primary-theme">
+                            <%= t('collection.bulk_edit_mode_' + mode) %>
+                        </label>
+                    <% }) %>
+                </div>
+                <p id="bulkEditHint" class="hidden mt-2 text-xs opacity-50"><%= t('collection.bulk_edit_empty_hint') %></p>
+            </div>
+
+            <p id="bulkEditNone" class="hidden mt-3 text-sm opacity-70"><%= t('collection.bulk_edit_no_field') %></p>
+            <p id="bulkEditError" class="hidden mt-3 text-xs font-bold text-red-500"></p>
+
+            <div class="flex gap-2 mt-6">
+                <button type="button" onclick="closeBulkEditModal()"
+                    class="flex-1 py-2.5 bg-black/5 dark:bg-white/10 rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all">
+                    <%= t('collection.cancel_select') %>
+                </button>
+                <button type="button" id="bulkEditConfirm" onclick="confirmBulkEdit()"
+                    class="flex-1 py-2.5 bg-primary-theme text-white rounded-lg text-sm font-bold hover:brightness-110 active:scale-95 transition-all disabled:opacity-50">
+                    <%= t('collection.bulk_edit_confirm') %>
                 </button>
             </div>
         </div>
@@ -412,7 +462,13 @@
                         <span id="maxPrice" class="font-bold text-lg">--</span>
                     </div>
                 </div>
-                <div class="mt-2">
+                <%# What was paid for the items that carry a price, against what those same
+                    items are estimated at. Hidden when none of them does. %>
+                <div id="estimatePaid" class="hidden bg-gray-100 dark:bg-black/20 p-3 rounded-lg text-sm">
+                    <span class="opacity-60 block text-[10px] uppercase font-bold mb-1"><%= t('modal.paid_label') %></span>
+                    <span id="estimatePaidText"></span>
+                </div>
+                <div id="estimateHistory" class="mt-2">
                     <p class="opacity-60 text-xs uppercase font-bold tracking-wider mb-2 text-left">
                         <%= t('modal.history_title') %>
                     </p>
@@ -434,6 +490,7 @@
     <% } %>
 
     <script src="<%= baseUrl %>/socket.io/socket.io.js"></script>
+    <%- include('partials/import-follow') %>
     <script>
     <% if (locals.canEditCollection) { %>
         // Bulk label printing: select mode toggles a checkbox overlay on every card
@@ -441,11 +498,11 @@
         // clicks into a selection toggle instead of a navigation.
         let selectMode = false;
         let lastSelectedIndex = null;
-        const selectedCountSuffix = <%- JSON.stringify(t('collection.selected_count_suffix')) %>;
-        const bulkDeleteConfirmTpl = <%- JSON.stringify(t('collection.confirm_delete_selected')) %>;
-        const bulkDeleteDoneTpl = <%- JSON.stringify(t('collection.delete_selected_done')) %>;
-        const bulkDeletePartialTpl = <%- JSON.stringify(t('collection.delete_selected_partial')) %>;
-        const bulkDeleteErrorTpl = <%- JSON.stringify(t('collection.delete_selected_error')) %>;
+        const selectedCountSuffix = <%- JSON.stringify(t('collection.selected_count_suffix')).replace(/</g, '\\u003c') %>;
+        const bulkDeleteConfirmTpl = <%- JSON.stringify(t('collection.confirm_delete_selected')).replace(/</g, '\\u003c') %>;
+        const bulkDeleteDoneTpl = <%- JSON.stringify(t('collection.delete_selected_done')).replace(/</g, '\\u003c') %>;
+        const bulkDeletePartialTpl = <%- JSON.stringify(t('collection.delete_selected_partial')).replace(/</g, '\\u003c') %>;
+        const bulkDeleteErrorTpl = <%- JSON.stringify(t('collection.delete_selected_error')).replace(/</g, '\\u003c') %>;
 
         function getSelectableCheckboxes() {
             return [...document.querySelectorAll('#albumGrid .album-card .album-select-checkbox')];
@@ -507,8 +564,8 @@
             if (selectMode) toggleSelectMode();
         }
 
-        const hideSelectBarLabel = <%- JSON.stringify(t('collection.hide_select_bar')) %>;
-        const showSelectBarLabel = <%- JSON.stringify(t('collection.show_select_bar')) %>;
+        const hideSelectBarLabel = <%- JSON.stringify(t('collection.hide_select_bar')).replace(/</g, '\\u003c') %>;
+        const showSelectBarLabel = <%- JSON.stringify(t('collection.show_select_bar')).replace(/</g, '\\u003c') %>;
         let bulkBarCollapsed = false;
 
         function setBulkBarCollapsed(collapsed) {
@@ -548,8 +605,8 @@
             if (selectAllBtn) {
                 const allSelected = checkboxes.length > 0 && count === checkboxes.length;
                 selectAllBtn.textContent = allSelected
-                    ? <%- JSON.stringify(t('collection.deselect_all')) %>
-                    : <%- JSON.stringify(t('collection.select_all')) %>;
+                    ? <%- JSON.stringify(t('collection.deselect_all')).replace(/</g, '\\u003c') %>
+                    : <%- JSON.stringify(t('collection.select_all')).replace(/</g, '\\u003c') %>;
             }
 
             const deleteBtn = document.getElementById('bulkDeleteBtn');
@@ -631,8 +688,129 @@
                 window.location.reload();
             } catch (err) {
                 button.disabled = false;
-                error.textContent = <%- JSON.stringify(t('errors.generic_server_error')) %>;
+                error.textContent = <%- JSON.stringify(t('errors.generic_server_error')).replace(/</g, '\\u003c') %>;
                 error.classList.remove('hidden');
+            }
+        }
+
+        // ---- One field for the whole selection (core/routes/bulkEditRoute.ts) ----------
+        let bulkEditIds = [];
+        let bulkEditFields = [];
+        const BULK_INPUT_CLASS = 'bg-black/5 dark:bg-white/5 border border-transparent rounded-lg text-sm focus:ring-primary-theme block w-full p-3 outline-none';
+
+        async function openBulkEditModal() {
+            bulkEditIds = selectedItemIds();
+            if (bulkEditIds.length === 0) return;
+            const modal = document.getElementById('bulkEditModal');
+            document.getElementById('bulkEditCount').textContent = bulkEditIds.length;
+            document.getElementById('bulkEditError').classList.add('hidden');
+            const select = document.getElementById('bulkEditField');
+            select.innerHTML = '';
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            try {
+                const res = await fetch(`${jsBaseUrl}/api/collection/bulk-fields`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ ids: bulkEditIds })
+                });
+                const data = await res.json();
+                if (!res.ok || !data.success) throw new Error(data.error || res.status);
+                bulkEditFields = data.fields || [];
+            } catch (err) {
+                bulkEditFields = [];
+                showBulkEditError(err.message);
+            }
+            bulkEditFields.forEach(f => {
+                const o = document.createElement('option');
+                o.value = f.name;
+                o.textContent = f.label;
+                o.className = 'bg-white dark:bg-[#1a1a1a]';
+                select.appendChild(o);
+            });
+            const none = bulkEditFields.length === 0;
+            select.classList.toggle('hidden', none);
+            document.getElementById('bulkEditValueWrap').classList.toggle('hidden', none);
+            document.getElementById('bulkEditNone').classList.toggle('hidden', !none);
+            document.getElementById('bulkEditConfirm').disabled = none;
+            renderBulkEditValue();
+        }
+
+        function closeBulkEditModal() {
+            const modal = document.getElementById('bulkEditModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function showBulkEditError(message) {
+            const error = document.getElementById('bulkEditError');
+            error.textContent = message || <%- JSON.stringify(t('errors.generic_server_error')).replace(/</g, '\\u003c') %>;
+            error.classList.remove('hidden');
+        }
+
+        // The value box of the field picked: a choice for a list or a yes/no, a date
+        // picker, a number, or text (tags comma-separated, with what to do with them).
+        function renderBulkEditValue() {
+            const field = bulkEditFields.find(f => f.name === document.getElementById('bulkEditField').value);
+            const box = document.getElementById('bulkEditValueBox');
+            box.innerHTML = '';
+            if (!field) return;
+            let input;
+            if (field.type === 'select' || field.type === 'radio-cards' || field.type === 'boolean') {
+                input = document.createElement('select');
+                const choices = field.type === 'boolean'
+                    ? [{ value: 'true', label: <%- JSON.stringify(t('common.yes')).replace(/</g, '\\u003c') %> }, { value: 'false', label: <%- JSON.stringify(t('common.no')).replace(/</g, '\\u003c') %> }]
+                    : (field.options.some(o => o.value === '') || field.required ? field.options : [{ value: '', label: <%- JSON.stringify(t('common.no_value')).replace(/</g, '\\u003c') %> }].concat(field.options));
+                choices.forEach(c => {
+                    const o = document.createElement('option');
+                    o.value = c.value;
+                    o.textContent = c.label;
+                    o.className = 'bg-white dark:bg-[#1a1a1a]';
+                    input.appendChild(o);
+                });
+                input.className = BULK_INPUT_CLASS + ' cursor-pointer';
+            } else if (field.type === 'textarea') {
+                input = document.createElement('textarea');
+                input.rows = 4;
+                input.className = BULK_INPUT_CLASS;
+            } else {
+                input = document.createElement('input');
+                input.type = field.type === 'number' || field.type === 'rating' ? 'number'
+                    : field.type === 'date' ? 'date' : 'text';
+                if (field.type === 'number') input.step = 'any';
+                if (field.type === 'rating') { input.min = '0'; input.max = '5'; input.step = '0.5'; }
+                input.className = BULK_INPUT_CLASS;
+            }
+            input.id = 'bulkEditValue';
+            box.appendChild(input);
+            const isTags = field.type === 'tags';
+            const freeText = !isTags && !['select', 'radio-cards', 'boolean'].includes(field.type);
+            document.getElementById('bulkEditTagsMode').classList.toggle('hidden', !isTags);
+            // An empty box empties the field, which is worth saying where that is not obvious.
+            document.getElementById('bulkEditHint').classList.toggle('hidden', !freeText || field.required);
+        }
+        document.getElementById('bulkEditField')?.addEventListener('change', renderBulkEditValue);
+
+        async function confirmBulkEdit() {
+            const field = document.getElementById('bulkEditField').value;
+            const input = document.getElementById('bulkEditValue');
+            if (!field || !input) return;
+            const mode = document.querySelector('input[name="bulkEditMode"]:checked')?.value || 'add';
+            const button = document.getElementById('bulkEditConfirm');
+            button.disabled = true;
+            document.getElementById('bulkEditError').classList.add('hidden');
+            try {
+                const res = await fetch(`${jsBaseUrl}/api/collection/edit-selected`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ ids: bulkEditIds, field, value: input.value, mode })
+                });
+                const data = await res.json().catch(() => null);
+                if (!res.ok || !data || !data.success) throw new Error(data && data.error);
+                window.location.reload();
+            } catch (err) {
+                button.disabled = false;
+                showBulkEditError(err.message);
             }
         }
 
@@ -723,7 +901,7 @@
         });
 
         // Collection-level actions declared by the active plugin (see CollectionAction).
-        const COLLECTION_ACTIONS = <%- JSON.stringify(collectionActions) %>;
+        const COLLECTION_ACTIONS = <%- JSON.stringify(collectionActions).replace(/</g, '\\u003c') %>;
         const jsBaseUrl = '<%= baseUrl %>';
         const socket = io({ path: jsBaseUrl + '/socket.io' });
 
@@ -741,22 +919,27 @@
             if (icon) icon.classList.add('fa-spin');
             if (btn) btn.disabled = true;
 
-            socket.once('import_finished', () => window.location.reload());
-            socket.once('import_error', (data) => {
-                alert("Erreur : " + data.message);
+            const fail = (message) => {
+                alert(<%- JSON.stringify(t('admin.backup.import_error')).replace(/</g, '\\u003c') %> + '\n' + message);
                 if (icon) icon.classList.remove('fa-spin');
                 if (btn) btn.disabled = false;
-            });
+            };
 
             const isWishlist = window.location.pathname.includes('wishlist');
             fetch(`${jsBaseUrl}/import/${action.importerId}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ full: false, type: isWishlist ? 'wishlist' : 'collection' })
-            }).catch(() => {
-                if (icon) icon.classList.remove('fa-spin');
-                if (btn) btn.disabled = false;
-            });
+            }).then(async res => {
+                const d = await res.json().catch(() => ({}));
+                if (!res.ok) return fail(d.error || res.statusText);
+                window.followImport({
+                    jobId: d.jobId,
+                    socket,
+                    onFinished: () => window.location.reload(),
+                    onError: fail
+                });
+            }).catch(err => fail(err.message));
         }
     <% } %>
 
@@ -767,10 +950,12 @@
         const progressBar = document.getElementById('estimateProgress');
         const countSpan = document.getElementById('estimateCount');
         const percentSpan = document.getElementById('estimatePercent');
-        const estimateErrorMsg = <%- JSON.stringify(t('messages.estimate_error')) %>;
-        const historyEmptyMsg = <%- JSON.stringify(t('modal.history_empty')) %>;
-        const historyOtherCurrencyMsg = <%- JSON.stringify(t('modal.history_other_currency')) %>;
-        const currentLocale = '<%= currentLng === "fr" ? "fr-FR" : "en-US" %>';
+        const estimateErrorMsg = <%- JSON.stringify(t('messages.estimate_error')).replace(/</g, '\\u003c') %>;
+        const historyEmptyMsg = <%- JSON.stringify(t('modal.history_empty')).replace(/</g, '\\u003c') %>;
+        const historyOtherCurrencyMsg = <%- JSON.stringify(t('modal.history_other_currency')).replace(/</g, '\\u003c') %>;
+        // The interface locale drives money the same way it drives dates; the ternary that
+        // stood here knew French and English and printed everything else the American way.
+        const currentLocale = <%- JSON.stringify(dateLocaleFor(currentLng)).replace(/</g, '\\u003c') %>;
         const currentCurrency = '<%= user.currency || "USD" %>';
 
         let activeEstimate = null;
@@ -783,6 +968,12 @@
         // used to decide whether the resulting total is representative enough to persist
         // as a history snapshot. See showResults().
         let pricedCount = 0;
+        // What was paid for the priced items that carry a purchase price in the same
+        // currency as their estimate, and what those same items are estimated at.
+        let paidTotal = 0;
+        let paidEstimate = 0;
+        let paidCount = 0;
+        const paidSummaryMsg = <%- JSON.stringify(t('modal.paid_summary')).replace(/</g, '\\u003c') %>;
 
         function openEstimateModal(action) {
             if (action && action.estimate) activeEstimate = action.estimate;
@@ -809,11 +1000,14 @@
                 totalPriceMin = 0;
                 totalPriceMax = 0;
                 pricedCount = 0;
+                paidTotal = 0;
+                paidEstimate = 0;
+                paidCount = 0;
 
                 countSpan.innerText = `0 / ${totalAlbums}`;
 
                 for (const album of albumsToEstimate) {
-                    await estimateOneAlbum(album[activeEstimate.idField], album.quantity || 1);
+                    await estimateOneAlbum(album[activeEstimate.idField], album.quantity || 1, album);
                     currentProcessed++;
 
                     const percent = totalAlbums ? Math.round((currentProcessed / totalAlbums) * 100) : 100;
@@ -831,7 +1025,7 @@
             }
         }
 
-        async function estimateOneAlbum(id, quantity) {
+        async function estimateOneAlbum(id, quantity, album) {
             try {
                 const res = await fetch(`<%= baseUrl %>${activeEstimate.estimateEndpoint}/${id}`);
                 const data = await res.json();
@@ -841,6 +1035,13 @@
                     totalPriceMin += val;
                     totalPriceMax += (val * (activeEstimate.maxMultiplier || 1.3));
                     pricedCount++;
+                    // Never converted: an amount paid in another currency is left out.
+                    const paid = Number(album && album.purchase_price);
+                    if (paid > 0 && album.purchase_currency === data.price.currency && data.price.currency === currentCurrency) {
+                        paidTotal += paid * quantity;
+                        paidEstimate += val;
+                        paidCount++;
+                    }
                 }
             } catch (e) { }
         }
@@ -861,6 +1062,21 @@
             document.getElementById('minPrice').innerText = fmt(totalPriceMin);
             document.getElementById('maxPrice').innerText = fmt(totalPriceMax);
 
+            const paidBlock = document.getElementById('estimatePaid');
+            if (paidCount > 0) {
+                const diff = paidEstimate - paidTotal;
+                const percent = paidTotal > 0 ? Math.round((diff / paidTotal) * 100) : 0;
+                const signed = (diff >= 0 ? '+' : '\u2212') + fmt(Math.abs(diff)) + ' (' + (percent >= 0 ? '+' : '\u2212') + Math.abs(percent) + '%)';
+                document.getElementById('estimatePaidText').textContent = paidSummaryMsg
+                    .replace('{{count}}', paidCount)
+                    .replace('{{paid}}', fmt(paidTotal))
+                    .replace('{{estimate}}', fmt(paidEstimate))
+                    .replace('{{difference}}', signed);
+                paidBlock.classList.remove('hidden');
+            } else {
+                paidBlock.classList.add('hidden');
+            }
+
             document.getElementById('progressContainer').classList.add('hidden');
             resultDiv.classList.remove('hidden');
 
@@ -872,9 +1088,17 @@
             // The on-screen result above still reflects whatever was priced, unconditionally.
             const shouldPersistSnapshot = pricedCount > 0 && pricedCount >= totalAlbums / 2;
 
+            // Only the estimate that owns the collection's value history keeps one.
+            const historyBlock = document.getElementById('estimateHistory');
+            if (!activeEstimate.snapshotEndpoint || !activeEstimate.historyEndpoint) {
+                historyBlock.classList.add('hidden');
+                return;
+            }
+            historyBlock.classList.remove('hidden');
+
             if (shouldPersistSnapshot) {
                 try {
-                    await fetch('<%= baseUrl %>/api/estimate/snapshot', {
+                    await fetch('<%= baseUrl %>' + activeEstimate.snapshotEndpoint, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -890,7 +1114,7 @@
             const canvas = document.getElementById('historyChart');
             const emptyMsg = document.getElementById('historyEmpty');
             try {
-                const histRes = await fetch('<%= baseUrl %>/api/estimate/history');
+                const histRes = await fetch('<%= baseUrl %>' + activeEstimate.historyEndpoint);
                 const histData = await histRes.json();
                 if (histData.success) {
                     // Already scoped to this reader's currency server-side, along with the list of

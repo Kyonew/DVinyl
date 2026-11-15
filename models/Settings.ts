@@ -61,6 +61,49 @@ const settingsSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.Mixed,
         default: () => ({})
     },
+    // Shell layout of the collection (navigation position, density, radius...), see
+    // core/layout.ts. Always read through resolveLayout(), which drops unknown values.
+    layout: {
+        type: mongoose.Schema.Types.Mixed,
+        default: () => ({})
+    },
+    // The home page's widgets, arranged in place by the collection's admin:
+    //   { widgets: [{ id, type, size, show, options }] }
+    // Empty until first arranged; see core/dashboard.ts (resolveWidgets) for the defaults.
+    dashboard: {
+        type: mongoose.Schema.Types.Mixed,
+        default: () => ({})
+    },
+    // The collection's single palette of old, picked as 'custom'; read as the first of
+    // customThemes until the studio saves that list. See core/theme.ts.
+    customTheme: {
+        type: mongoose.Schema.Types.Mixed,
+        default: () => ({})
+    },
+    // The collection's own colour palettes, each picked like a preset as 'custom:<id>':
+    //   [{ id, name, light: { bg, card, navbar, text, subtext, highlight }, dark: { ... } }]
+    // No default: a missing list is what tells an old palette still to be read. Always
+    // read through core/theme.ts, which keeps only #rrggbb colours.
+    customThemes: {
+        type: mongoose.Schema.Types.Mixed
+    },
+    // What lies behind the pages, frosted surfaces, the cover's accent on an item page
+    // and the logo, see core/ambience.ts.
+    ambience: {
+        type: mongoose.Schema.Types.Mixed,
+        default: () => ({})
+    },
+    // How the item cards look: { frame, hover, text, badges }, see core/cardStyle.ts.
+    cards: {
+        type: mongoose.Schema.Types.Mixed,
+        default: () => ({})
+    },
+    // Requests between members, off until the admin turns them on: { enabled }. The
+    // types themselves are records of their own, see core/requests.ts.
+    requests: {
+        type: mongoose.Schema.Types.Mixed,
+        default: () => ({})
+    },
     fastAdd: { type: String, default: '' },
     // Scan mode. A search whose query names one exact item (a source's `exactQuery`,
     // i.e. an ISBN today) and returns a single hit is saved without the confirm page being
@@ -71,6 +114,22 @@ const settingsSchema = new mongoose.Schema({
     // creates its own entry, even when the plugin's duplicate key matches. Item types
     // without a format (custom plugins) otherwise merge on title + creator alone.
     mergeDuplicates: { type: Boolean, default: true },
+    // The language sources are asked in (core/metadataLanguage.ts). Empty: each member's
+    // own interface language, as it always was.
+    metadataLanguage: { type: String, default: '' },
+    // Whether this collection keeps a copy of the images it links to (core/imageDownload.ts):
+    // as the instance says, always, or never. When it started to, so the automatic pass
+    // takes what changed since and leaves the rest to an admin's explicit run.
+    imageDownload: { type: String, enum: ['inherit', 'download', 'keep'], default: 'inherit' },
+    imageDownloadSince: { type: Date, default: null },
+    // The articles a title's sort ignores (core/sortArticles.ts). Absent: English ones,
+    // as it always was; an empty list ignores none.
+    sortArticles: { type: [String], default: undefined },
+    // Named views of the collection page, shared by its members (core/savedFilters.ts).
+    savedFilters: {
+        type: [{ _id: false, id: String, name: String, query: String }],
+        default: undefined
+    },
     visibility: {
         applyToAdmin: { type: Boolean, default: false },
         hiddenItems: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Item' }],

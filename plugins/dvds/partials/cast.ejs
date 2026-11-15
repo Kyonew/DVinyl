@@ -1,0 +1,36 @@
+<%# The cast, as a row of portraits with the part each actor plays. Drawn from the names
+    in `cast`, in their order, with what TMDB said about each from `cast_details`: a name
+    taken out by hand takes its portrait away, and one typed in shows its initials. Each
+    one searches the collection for the actor. %>
+<%
+    const castNames = Array.isArray(item.cast) ? item.cast.filter(Boolean) : [];
+    const castCredits = new Map((Array.isArray(item.cast_details) ? item.cast_details : []).map(c => [c.name, c]));
+    const initials = name => name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part.charAt(0).toUpperCase()).join('');
+    const castSearch = name => baseUrl + '/collection?type=' + encodeURIComponent(plugin.collectionType) + '&search=' + encodeURIComponent(name);
+%>
+<% if (castNames.length > 0) { %>
+    <section class="pt-8 border-t border-black/10 dark:border-white/10 transition-colors">
+        <h3 class="text-xs font-bold uppercase tracking-widest opacity-50 mb-4"><%= t('confirm_dvd.field_cast') %></h3>
+        <ul class="flex gap-4 overflow-x-auto pb-3 -mx-1 px-1 snap-x custom-scrollbar">
+            <% castNames.forEach(name => { const credit = castCredits.get(name) || {}; %>
+                <li class="w-24 shrink-0 snap-start">
+                    <a href="<%= castSearch(name) %>" class="group flex flex-col items-center text-center gap-2" title="<%= t('dvd_detail.cast_search', { name }) %>">
+                        <% if (credit.photo && /^\/[A-Za-z0-9_-]+\.(jpg|jpeg|png|webp)$/.test(credit.photo)) { %>
+                            <img src="https://image.tmdb.org/t/p/w185<%= credit.photo %>" alt="" loading="lazy" referrerpolicy="no-referrer"
+                                class="w-20 h-20 rounded-full object-cover bg-black/5 dark:bg-white/5 ring-2 ring-black/5 dark:ring-white/10 group-hover:ring-primary-theme transition-all">
+                        <% } else { %>
+                            <span aria-hidden="true"
+                                class="w-20 h-20 rounded-full flex items-center justify-center bg-primary-theme/10 text-primary-theme text-lg font-black ring-2 ring-black/5 dark:ring-white/10 group-hover:ring-primary-theme transition-all"><%= initials(name) %></span>
+                        <% } %>
+                        <span class="min-w-0 w-full">
+                            <span class="block text-xs font-bold leading-tight line-clamp-2 group-hover:text-primary-theme transition-colors"><%= name %></span>
+                            <% if (credit.character) { %>
+                                <span class="block text-[11px] opacity-60 leading-tight mt-0.5 line-clamp-2"><%= credit.character %></span>
+                            <% } %>
+                        </span>
+                    </a>
+                </li>
+            <% }) %>
+        </ul>
+    </section>
+<% } %>

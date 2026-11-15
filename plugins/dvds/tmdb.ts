@@ -1,6 +1,7 @@
 import { SearchProvider, SearchOptions, SearchResult, ConfirmData } from '../../core/types';
 import { fetchJson } from '../../core/helpers';
-import { TMDB_LANG_MAP, formatSeasonCount, formatEpisodeCount } from './constants';
+import { formatSeasonCount, formatEpisodeCount } from './constants';
+import { withRegion } from '../../core/metadataLanguage';
 
 /**
  * Reads a TMDB v3 endpoint with whichever credential TMDB_API_KEY holds.
@@ -39,6 +40,51 @@ function toEpisodes(seasonData: any): { number: number; name: string; runtime: n
   }));
 }
 
+// Enough to find a film by the actors anyone remembers it for, not the whole call sheet.
+export const MAX_CAST = 10;
+
+export interface CastCredit {
+  name: string;
+  character: string;
+  // TMDB's path of the portrait ("/abc.jpg"), turned into an address by the page. Kept as a
+  // path so nothing but a TMDB image can ever end up in the page from here.
+  photo: string;
+  tmdb_id: number | null;
+}
+
+export const isProfilePath = (value: unknown): value is string =>
+  typeof value === 'string' && /^\/[A-Za-z0-9_-]+\.(jpg|jpeg|png|webp)$/.test(value);
+
+/**
+ * The leading actors of a credits payload, in billing order, once each. A show's aggregate
+ * credits list every part an actor played, and the one played longest is what they are
+ * known for in it.
+ */
+export function castCredits(credits: any): CastCredit[] {
+  const cast = Array.isArray(credits?.cast) ? credits.cast : [];
+  const seen = new Set<string>();
+  const out: CastCredit[] = [];
+  for (const person of [...cast].sort((a: any, b: any) => (a.order ?? Infinity) - (b.order ?? Infinity))) {
+    const name = String(person?.name || '').trim();
+    if (!name || seen.has(name)) continue;
+    seen.add(name);
+    const roles = Array.isArray(person.roles)
+      ? [...person.roles].sort((a: any, b: any) => (b.episode_count || 0) - (a.episode_count || 0))
+      : [];
+    out.push({
+      name,
+      character: String((roles[0]?.character ?? person.character) || '').trim(),
+      photo: isProfilePath(person.profile_path) ? person.profile_path : '',
+      tmdb_id: Number.isInteger(person.id) ? person.id : null
+    });
+    if (out.length >= MAX_CAST) break;
+  }
+  return out;
+}
+
+/** Their names alone, which is what the cast field holds. */
+export const castOf = (credits: any): string[] => castCredits(credits).map(c => c.name);
+
 export class TMDBProvider implements SearchProvider {
   name = 'TMDB';
 
@@ -63,8 +109,7 @@ export class TMDBProvider implements SearchProvider {
   async search(query: string, options: SearchOptions): Promise<SearchResult[]> {
     const tmdbApiKey = process.env.TMDB_API_KEY;
     if (!tmdbApiKey) throw new Error("TMDB_API_KEY missing");
-    const lang = options.language || 'fr';
-    const tmdbLang = TMDB_LANG_MAP[lang] || "en-US";
+    const tmdbLang = withRegion(options.language);
 
     const [page1, page2] = await Promise.all([
       tmdbFetch('search/multi', { query, language: tmdbLang, page: 1 }),
@@ -83,13 +128,17 @@ export class TMDBProvider implements SearchProvider {
   async getDetails(id: string, options: any): Promise<ConfirmData> {
     const tmdbApiKey = process.env.TMDB_API_KEY;
     if (!tmdbApiKey) throw new Error("TMDB_API_KEY missing");
-    const lang = options.language || 'fr';
-    const tmdbLang = TMDB_LANG_MAP[lang] || "en-US";
+    const lang = options.language || 'en';
+    const tmdbLang = withRegion(lang);
 
     const [mediaType, tmdbId] = id.split('_');
     if (!mediaType || !tmdbId) throw new Error("Invalid TMDB format ID (expected mediaType_tmdbId)");
 
-    const data = await tmdbFetch(`${mediaType}/${tmdbId}`, { language: tmdbLang, append_to_response: 'credits' });
+    // A show's own credits are those of its latest season; the aggregate ones span them all.
+    const data = await tmdbFetch(`${mediaType}/${tmdbId}`, {
+      language: tmdbLang,
+      append_to_response: mediaType === 'tv' ? 'credits,aggregate_credits' : 'credits'
+    });
 
     let director = "Unknown";
     if (mediaType === "movie" && data.credits && data.credits.crew) {
@@ -111,8 +160,15 @@ export class TMDBProvider implements SearchProvider {
       ? formatSeasonCount(data.number_of_seasons, lang)
       : `${data.runtime || "?"} min`;
 
+    const title = mediaType === "tv" ? data.name : data.title;
+    // Only kept when it says something the title does not: the same words twice on the
+    // page would be noise.
+    const original = String((mediaType === "tv" ? data.original_name : data.original_title) || '').trim();
+
     const show: ConfirmData = {
-      title: mediaType === "tv" ? data.name : data.title,
+      title,
+      original_title: original && original !== title ? original : '',
+      cast_details: castCredits(mediaType === 'tv' ? data.aggregate_credits : data.credits),
       creator: director,
       director,
       studio,
@@ -124,6 +180,8 @@ export class TMDBProvider implements SearchProvider {
       tmdb_id: data.id,
       media_type: mediaType
     };
+
+    show.cast = show.cast_details.map((c: CastCredit) => c.name);
 
     if (mediaType !== "tv") return show;
 
@@ -184,7 +242,7 @@ export class TMDBProvider implements SearchProvider {
   }> {
     const tmdbApiKey = process.env.TMDB_API_KEY;
     if (!tmdbApiKey) throw new Error("TMDB_API_KEY missing");
-    const tmdbLang = TMDB_LANG_MAP[lang || ''] || "en-US";
+    const tmdbLang = withRegion(lang);
 
     const show = await tmdbFetch(`tv/${tmdbId}`, { language: tmdbLang });
     const seasons = (show.seasons || [])

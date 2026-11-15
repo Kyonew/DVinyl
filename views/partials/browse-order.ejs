@@ -1,0 +1,18 @@
+<%# The items a listing shows, in its order, as [{ id, href }]: anything carrying a
+    data-item-id with a link inside (grid card, table row, shelf spine). Shared by the
+    listing, which remembers its order when an item is opened (shelf-scroll-restore), and
+    by the edit page, which reads the next page of that listing to go on past its end. %>
+<script>
+    window.browseOrderItems = window.browseOrderItems || function (root) {
+        var seen = {};
+        var out = [];
+        root.querySelectorAll('[data-item-id]').forEach(function (el) {
+            var id = el.getAttribute('data-item-id');
+            var link = el.querySelector('a[href]');
+            if (!id || !link || seen[id]) return;
+            seen[id] = true;
+            out.push({ id: id, href: link.getAttribute('href') });
+        });
+        return out;
+    };
+</script>

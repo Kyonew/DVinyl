@@ -1,7 +1,6 @@
 import express from 'express';
-import mongoose from 'mongoose';
-import Item from '../../models/Item';
-import List from '../../models/List';
+import { db } from '../db';
+import { and, asc, contains, desc, each, eq, Filter, idOf, isId, isIn, missing, or, size } from '../db/query';
 import { requireAuth, requireCollectionRole } from '../../middleware/authMiddleware';
 import { escapeRegExp } from '../helpers';
 import { registry } from '../registry';
@@ -19,7 +18,6 @@ import {
 const router = express.Router();
 
 const wantsJson = (req: any) => (req.headers.accept || '').includes('json') || req.is('application/json');
-const isId = (value: unknown) => typeof value === 'string' && mongoose.Types.ObjectId.isValid(value);
 
 // GET /lists -> every list of the active collection
 router.get('/lists', requireAuth, requireCollectionRole('viewer'), async (req: any, res: any) => {
@@ -29,7 +27,7 @@ router.get('/lists', requireAuth, requireCollectionRole('viewer'), async (req: a
       return res.render('no-collection', { user: res.locals.user, msgKey: req.query.msg });
     }
 
-    const lists = await List.find({ collection: collectionId }).sort({ updated_at: -1 }).lean();
+    const lists = await db.lists.find(eq('collection', idOf(collectionId)), { sort: [desc('updated_at')] });
     const covers = await listCovers(lists, collectionId);
 
     res.render('lists', {
@@ -58,7 +56,7 @@ router.get('/lists/:id', requireAuth, requireCollectionRole('viewer'), async (re
     const list: any = collectionId ? await ownList(collectionId, req.params.id) : null;
     if (!list) return res.status(404).render('404');
 
-    const lines = await resolveListEntries(list.toObject(), collectionId);
+    const lines = await resolveListEntries(list, collectionId);
 
     res.render('list', {
       user: res.locals.user,
@@ -89,7 +87,7 @@ router.post('/lists', requireAuth, requireCollectionRole('editor'), async (req: 
       return res.redirect('/lists');
     }
 
-    const list: any = await List.create({
+    const list: any = await db.lists.create({
       collection: collectionId,
       name,
       kind,
@@ -115,9 +113,9 @@ router.post('/lists/:id/edit', requireAuth, requireCollectionRole('editor'), asy
     if (!list) return res.status(404).render('404');
 
     const name = cleanListName(req.body?.name);
-    if (name) list.name = name;
-    list.description = cleanListDescription(req.body?.description);
-    await list.save();
+    await db.lists.updateOne(eq('_id', idOf(list._id)), {
+      set: { ...(name ? { name } : {}), description: cleanListDescription(req.body?.description) }
+    }, { validate: true });
     res.redirect(`/lists/${list._id}`);
   } catch (err: any) {
     console.error('[ERR] List edit:', err.message);
@@ -129,7 +127,7 @@ router.post('/lists/:id/edit', requireAuth, requireCollectionRole('editor'), asy
 router.post('/lists/:id/delete', requireAuth, requireCollectionRole('editor'), async (req: any, res: any) => {
   try {
     const list: any = await ownList(res.locals.activeCollectionId, req.params.id);
-    if (list) await List.deleteOne({ _id: list._id });
+    if (list) await db.lists.deleteOne(eq('_id', idOf(list._id)));
     res.redirect('/lists');
   } catch (err: any) {
     console.error('[ERR] List delete:', err.message);
@@ -146,7 +144,7 @@ router.get('/api/lists', requireAuth, requireCollectionRole('viewer'), async (re
     const item = isId(req.query.item) ? String(req.query.item) : '';
     const track = isId(req.query.track) ? String(req.query.track) : '';
 
-    const lists = await List.find({ collection: collectionId, kind }).sort({ updated_at: -1 }).lean();
+    const lists = await db.lists.find(and(eq('collection', idOf(collectionId)), eq('kind', kind)), { sort: [desc('updated_at')] });
     res.json({
       success: true,
       lists: lists.map((list: any) => ({
@@ -198,10 +196,10 @@ router.get('/api/lists/:id/candidates', requireAuth, requireCollectionRole('edit
 
     if (list.kind === 'tracks') {
       // Only the tracks whose title matches, not every track of an album that does.
-      const items = await Item.find({ collection: collectionId, parent: { $exists: false }, 'tracklist.title': regex })
-        .sort({ sort_title: 1 })
-        .limit(MAX_CANDIDATES)
-        .lean();
+      const items = await db.items.find(
+        and(eq('collection', idOf(collectionId)), missing('parent'), contains('tracklist.title', q)),
+        { sort: [asc('sort_title')], limit: MAX_CANDIDATES }
+      );
       const present = new Set(list.entries.map((e: any) => `${e.item}:${e.track}`));
       const results: any[] = [];
       for (const raw of items as any[]) {
@@ -221,14 +219,11 @@ router.get('/api/lists/:id/candidates', requireAuth, requireCollectionRole('edit
 
     // Same fields as the collection's own search box. Items held inside another (the
     // seasons of a show) stay out, as they do from every listing.
-    const searchOr: any[] = [{ title: regex }, { barcode: regex }];
-    for (const creator of new Set(plugins.map(p => p.creatorField).filter(Boolean))) {
-      searchOr.push({ [creator]: regex });
-    }
-    const items = await Item.find({ collection: collectionId, parent: { $exists: false }, $or: searchOr })
-      .sort({ sort_title: 1 })
-      .limit(MAX_CANDIDATES)
-      .lean();
+    const searchFields = ['title', 'barcode', ...new Set(plugins.map(p => p.creatorField).filter(Boolean))];
+    const items = await db.items.find(
+      and(eq('collection', idOf(collectionId)), missing('parent'), or(...searchFields.map(field => contains(field, q)))),
+      { sort: [asc('sort_title')], limit: MAX_CANDIDATES }
+    );
     const present = new Set(list.entries.map((e: any) => String(e.item)));
     res.json({
       success: true,
@@ -253,13 +248,7 @@ router.post('/api/lists/:id/add', requireAuth, requireCollectionRole('editor'), 
     if (list.kind === 'tracks') {
       const { item, track } = req.body || {};
       if (!isId(item) || !isId(track)) return res.status(400).json({ success: false, error: 'bad_request' });
-      // Cast by hand: `tracklist` is declared by the plugins that have one, not by the
-      // base model this query runs on, so Mongoose would compare the raw string.
-      const owner = await Item.exists({
-        _id: item,
-        collection: collectionId,
-        'tracklist._id': new mongoose.Types.ObjectId(track)
-      });
+      const owner = await db.items.exists(and(eq('_id', item), eq('collection', idOf(collectionId)), eq('tracklist._id', track)));
       if (!owner) return res.status(404).json({ success: false, error: req.t('errors.not_found') });
       const already = list.entries.some((e: any) => String(e.item) === item && String(e.track) === track);
       if (!already) additions = [{ item, track }];
@@ -268,7 +257,7 @@ router.post('/api/lists/:id/add', requireAuth, requireCollectionRole('editor'), 
         .filter(isId)
         .slice(0, MAX_LIST_BULK_ADD);
       // Only the collection's own items, whatever ids the request carries
-      const found = await Item.find({ _id: { $in: ids }, collection: collectionId }).select('_id').lean();
+      const found = await db.items.find(and(isIn('_id', ids), eq('collection', idOf(collectionId))), { fields: ['_id'] });
       const valid = new Set(found.map((f: any) => String(f._id)));
       const present = new Set(list.entries.map((e: any) => String(e.item)));
       additions = [...new Set(ids)]
@@ -281,7 +270,7 @@ router.post('/api/lists/:id/add', requireAuth, requireCollectionRole('editor'), 
     }
 
     if (additions.length > 0) {
-      await List.updateOne({ _id: list._id }, { $push: { entries: { $each: additions } } });
+      await db.lists.updateOne(eq('_id', idOf(list._id)), { push: { entries: each(additions) } });
     }
     res.json({ success: true, added: additions.length, count: list.entries.length + additions.length });
   } catch (err: any) {
@@ -298,12 +287,12 @@ router.post('/api/lists/:id/remove', requireAuth, requireCollectionRole('editor'
     if (!list) return res.status(404).json({ success: false, error: req.t('errors.not_found') });
 
     const { entryId, item, track } = req.body || {};
-    let match: any = null;
-    if (isId(entryId)) match = { _id: entryId };
-    else if (isId(item)) match = list.kind === 'tracks' ? (isId(track) ? { item, track } : null) : { item };
+    let match: Filter | null = null;
+    if (isId(entryId)) match = eq('_id', entryId);
+    else if (isId(item)) match = list.kind === 'tracks' ? (isId(track) ? and(eq('item', item), eq('track', track)) : null) : eq('item', item);
     if (!match) return res.status(400).json({ success: false, error: 'bad_request' });
 
-    await List.updateOne({ _id: list._id }, { $pull: { entries: match } });
+    await db.lists.updateOne(eq('_id', idOf(list._id)), { pull: { entries: match } });
     res.json({ success: true });
   } catch (err: any) {
     console.error('[ERR] List remove:', err.message);
@@ -326,12 +315,11 @@ router.post('/api/lists/:id/reorder', requireAuth, requireCollectionRole('editor
 
     // Written only if the list still holds exactly these lines: an add or a removal that
     // landed since it was read makes this match nothing, instead of being overwritten.
-    const ids = order.map(id => new mongoose.Types.ObjectId(id));
-    const result = await List.updateOne(
-      { _id: list._id, entries: { $size: ids.length }, 'entries._id': { $all: ids } },
-      { $set: { entries: order.map(id => (byId.get(id) as any).toObject()) } }
+    const result = await db.lists.updateOne(
+      and(eq('_id', idOf(list._id)), size('entries', order.length), ...order.map(id => eq('entries._id', id))),
+      { set: { entries: order.map(id => byId.get(id)) } }
     );
-    if (result.matchedCount === 0) return res.status(409).json({ success: false, error: req.t('lists.err_stale') });
+    if (result.matched === 0) return res.status(409).json({ success: false, error: req.t('lists.err_stale') });
     res.json({ success: true });
   } catch (err: any) {
     console.error('[ERR] List reorder:', err.message);

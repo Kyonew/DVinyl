@@ -39,6 +39,47 @@ const instanceSettingsSchema = new mongoose.Schema({
         model: { type: String, default: '' },
         visionModel: { type: String, default: '' },
         apiKeyEncrypted: { type: String, default: '' }
+    },
+    // The instance's own VAPID keys, made on first use (core/push.ts). The private key is
+    // stored encrypted, like the AI key; one that no longer decrypts is replaced.
+    push: {
+        publicKey: { type: String, default: '' },
+        privateKeyEncrypted: { type: String, default: '' },
+        // The contact the keys are signed with: the HTTPS address members turned push on
+        // from. Apple's push service refuses a token whose contact is not a real one.
+        subject: { type: String, default: '' }
+    },
+    // Whether the collections keep a copy of the images they link to, unless one of them
+    // says otherwise (core/imageDownload.ts), and since when.
+    imageDownload: {
+        enabled: { type: Boolean, default: false },
+        since: { type: Date, default: null }
+    },
+    // Whether the instance asks GitHub once a day for the latest release, and what it
+    // learnt: off until an admin turns it on, since it is a call outside the instance.
+    updateCheck: {
+        enabled: { type: Boolean, default: false },
+        latest: { type: String, default: '' },
+        url: { type: String, default: '' },
+        checkedAt: { type: Date, default: null },
+        // The release the admins were last told about, so each one is told once.
+        notified: { type: String, default: '' }
+    },
+    // The whole-instance backup written on a schedule (core/instanceBackup.ts), and how
+    // the last ones went. Off until an admin turns it on.
+    backups: {
+        enabled: { type: Boolean, default: false },
+        frequency: { type: String, default: 'daily' },
+        format: { type: String, default: 'zip' },
+        keep: { type: Number, default: 7 },
+        // Empty for the default folder, next to the database. BACKUP_DIR overrides it.
+        folder: { type: String, default: '' },
+        lastAttemptAt: { type: Date, default: null },
+        lastSuccessAt: { type: Date, default: null },
+        lastSize: { type: Number, default: 0 },
+        lastError: { type: String, default: '' },
+        // So a run of failures is told to the admins once, not at every retry.
+        failureNotified: { type: Boolean, default: false }
     }
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
 

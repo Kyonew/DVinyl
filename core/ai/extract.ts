@@ -2,12 +2,17 @@ import { ImportTargetField } from '../csvMapping';
 import { AiConfig, AiContentPart, AiExtractedRow } from './types';
 import { extractJsonArray } from './jsonExtract';
 import { buildExtractionMessages } from './prompt';
-import { aiChat, AiChatOptions } from './client';
+import { aiChat, AiChatOptions, DEFAULT_TIMEOUT_MS } from './client';
 
 export interface ValidatedRow {
   values: AiExtractedRow;
   /** Required field names this row left empty. Shown in the review table, never saved as-is. */
   missingRequired: string[];
+}
+
+/** Free text, where a value comes from the input rather than from a default or a list. */
+function isWords(field: ImportTargetField): boolean {
+  return ['text', 'textarea', 'tags'].includes(field.type) && !(field.options && field.options.length > 0);
 }
 
 /** A model may answer with a number, an array of genres, or a null. All become strings. */
@@ -26,7 +31,11 @@ function toStringValue(value: any): string {
  *    schema path (and an inherited key like __proto__ cannot reach anything at all);
  *  - every value is a trimmed string, which is what coerceValue() expects;
  *  - a row missing a required field is kept and flagged rather than dropped, because the
- *    review table can fix it and a silent disappearance cannot be noticed.
+ *    review table can fix it and a silent disappearance cannot be noticed;
+ *  - but a row has to say something in words: a model handed a list it could not read
+ *    sometimes answers with a blank template, whose only values are what it fills in by
+ *    habit (a quantity, a format picked from the list, "false"). Such a row names nothing,
+ *    and drawn in the table it reads as one empty line instead of "nothing found".
  */
 export function validateRows(raw: Record<string, any>[], fields: ImportTargetField[]): ValidatedRow[] {
   const byName = new Map(fields.map(field => [field.name, field]));
@@ -34,7 +43,7 @@ export function validateRows(raw: Record<string, any>[], fields: ImportTargetFie
 
   for (const entry of raw) {
     const values: AiExtractedRow = Object.create(null) as AiExtractedRow;
-    let hasAnyValue = false;
+    let saysSomething = false;
 
     // Iterating the declared fields, not the model's keys, is what keeps an unexpected
     // key out, including the ones that are dangerous to copy onto a plain object.
@@ -50,10 +59,10 @@ export function validateRows(raw: Record<string, any>[], fields: ImportTargetFie
       // pages...) genuinely permits 0, so this is not generalised to numbers at large.
       if (name === 'quantity' && value === '0') value = '1';
       if (field.required || value) values[name] = value;
-      if (value) hasAnyValue = true;
+      if (value && isWords(field)) saysSomething = true;
     }
 
-    if (!hasAnyValue) continue;
+    if (!saysSomething) continue;
 
     const missingRequired = fields
       .filter(field => field.required && !values[field.name])
@@ -65,7 +74,21 @@ export function validateRows(raw: Record<string, any>[], fields: ImportTargetFie
   return rows;
 }
 
-/** One extraction round-trip: prompt, call, parse, validate. */
+/**
+ * A reply that ran into the token cap is cut the same way when asked again, so it is not
+ * worth a second request. Any other empty reply (a blank answer, a refusal, prose with no
+ * array) is often a one-off and the same request then comes back fine.
+ */
+const MAX_ATTEMPTS = 2;
+
+/**
+ * The caller's timeout covers the whole extraction, retry included: a reverse proxy in
+ * front of DVinyl cuts the request on its own clock, so a second attempt must fit in what
+ * the first one left. Below this much time left, a retry would only be cut off.
+ */
+const MIN_RETRY_MS = 15000;
+
+/** One extraction: prompt, call, parse, validate, with one more try when nothing usable came back. */
 export async function extractRows(
   config: AiConfig,
   fields: ImportTargetField[],
@@ -73,9 +96,22 @@ export async function extractRows(
   parts: AiContentPart[],
   options: AiChatOptions = {}
 ): Promise<ValidatedRow[]> {
-  const result = await aiChat(config, buildExtractionMessages(fields, instruction, parts), {
-    maxTokens: 8192,
-    ...options
-  });
-  return validateRows(extractJsonArray(result.text), fields);
+  const messages = buildExtractionMessages(fields, instruction, parts);
+  const deadline = Date.now() + (options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const result = await aiChat(config, messages, { maxTokens: 8192, ...options, timeoutMs: Math.max(1, deadline - Date.now()) });
+    const rows = validateRows(extractJsonArray(result.text), fields);
+    if (rows.length > 0) return rows;
+
+    // Worth seeing in the logs: the stop reason tells a cut reply ('length'), a filtered
+    // one or a refusal apart from a model that genuinely found nothing.
+    console.warn(
+      `[AI] Extraction gave no usable row (attempt ${attempt}/${MAX_ATTEMPTS}, model ${result.model},`,
+      `finish reason ${result.finishReason || 'none'}${result.refusal ? `, refusal ${JSON.stringify(result.refusal.slice(0, 200))}` : ''}).`,
+      'Reply began with:', JSON.stringify(String(result.text || '').slice(0, 300))
+    );
+    if (result.finishReason === 'length' || deadline - Date.now() < MIN_RETRY_MS) break;
+  }
+  return [];
 }

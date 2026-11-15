@@ -39,6 +39,10 @@ export interface AiChatResult {
   /** The assistant's reply text, or '' when the provider returned no choice. */
   text: string;
   model: string;
+  /** Why the model stopped ('stop', 'length', 'content_filter'...), '' when the provider did not say. */
+  finishReason: string;
+  /** The refusal sentence some providers send in place of content, '' when there was none. */
+  refusal: string;
 }
 
 /** One row the model produced, keyed by an importable field name. Values are raw strings. */

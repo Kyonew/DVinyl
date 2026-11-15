@@ -1,0 +1,13 @@
+<% const summaryTiles = [
+    { value: data.total, label: t('common.items'), href: baseUrl + '/collection' },
+    { value: data.wishlistCount, label: t('nav.wishlist'), href: baseUrl + '/wishlist' },
+    { value: data.listsCount, label: t('lists.title'), href: baseUrl + '/lists' }
+]; %>
+<div class="grid grid-cols-3 gap-2.5 md:gap-4">
+    <% summaryTiles.forEach(tile => { %>
+        <a href="<%= tile.href %>" class="card-theme rounded-2xl p-3.5 md:p-5 flex flex-col gap-1 hover:border-primary-theme transition-colors">
+            <span class="text-2xl font-extrabold tracking-tight"><%= tile.value %></span>
+            <span class="text-xs md:text-sm opacity-60 truncate first-letter:uppercase"><%= tile.label %></span>
+        </a>
+    <% }) %>
+</div>

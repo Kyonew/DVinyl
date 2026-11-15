@@ -9,6 +9,7 @@ import { extractRows } from '../ai/extract';
 import { textPart, imagePart } from '../ai/client';
 import { AiExtractedRow } from '../ai/types';
 import { isAcceptedImage } from '../ai/images';
+import { trackImport } from '../importJobs';
 
 /**
  * Import through the AI assist: the user describes what they own, in prose or from a
@@ -87,6 +88,10 @@ router.post('/import/ai/preview', ...guards, async (req: any, res: any) => {
       ...(images.length > 0 ? { model: config.visionModel } : {}),
       timeoutMs: images.length > 0 ? 120000 : 60000
     });
+    // Said rather than shown as an empty table, which reads as a screen that broke.
+    if (rows.length === 0) {
+      return res.status(422).json({ error: req.t('ai.err_nothing_found') });
+    }
     res.json({
       rows: rows.slice(0, MAX_ROWS),
       truncated: rows.length > MAX_ROWS,
@@ -99,7 +104,7 @@ router.post('/import/ai/preview', ...guards, async (req: any, res: any) => {
 });
 
 // POST /import/ai -> saves the rows the user reviewed
-router.post('/import/ai', ...guards, (req: any, res: any) => {
+router.post('/import/ai', ...guards, trackImport, (req: any, res: any) => {
   const plugin = resolvePlugin(req, res);
   if (!plugin) return res.status(400).json({ error: req.t('admin.csv_import.err_unknown_module') });
 
