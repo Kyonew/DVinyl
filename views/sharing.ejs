@@ -219,7 +219,7 @@
             return copied;
         }
 
-        const copiedLabel = <%- JSON.stringify(t('admin.sharing.copied')) %>;
+        const copiedLabel = <%- JSON.stringify(t('admin.sharing.copied')).replace(/</g, '\\u003c') %>;
         document.querySelectorAll('[data-share-copy]').forEach(button => {
             button.addEventListener('click', async () => {
                 if (!(await copyText(button.dataset.shareCopy))) return;
@@ -254,7 +254,7 @@
 
         // Every action reloads the page with ?msg=: say what happened, then drop it from
         // the address so a refresh does not say it again.
-        const messages = <%- JSON.stringify(Object.fromEntries(shareMessages.map(key => [key, t('messages.' + key)]))) %>;
+        const messages = <%- JSON.stringify(Object.fromEntries(shareMessages.map(key => [key, t('messages.' + key)]))).replace(/</g, '\\u003c') %>;
         const params = new URLSearchParams(window.location.search);
         const message = messages[params.get('msg')];
         if (message) {

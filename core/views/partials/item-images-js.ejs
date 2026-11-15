@@ -18,7 +18,7 @@
         uploadInvalid: t('image_manager.upload_invalid'),
         noResults: t('confirm_' + plugin.i18nKey + '.no_results', { defaultValue: t('confirm_vinyl.no_results') }),
         networkError: t('confirm_' + plugin.i18nKey + '.network_error', { defaultValue: t('confirm_vinyl.network_error') }),
-    }) %>;
+    }).replace(/</g, '\\u003c') %>;
 
     const list = document.getElementById('imageList');
     const empty = document.getElementById('imageListEmpty');
@@ -26,10 +26,10 @@
     const coverInput = document.getElementById('inputCoverImage');
     const userInput = document.getElementById('inputUserImage');
     const livePreview = document.getElementById('livePreview');
-    const placeholderImage = <%- JSON.stringify(plugin.placeholderImage || '/ressources/logo.png') %>;
+    const placeholderImage = <%- JSON.stringify(plugin.placeholderImage || '/ressources/logo.png').replace(/</g, '\\u003c') %>;
     const maxImages = Number(manager.dataset.maxImages);
     const maxImageBytes = Number(manager.dataset.maxImageBytes);
-    const deploymentBaseUrl = <%- JSON.stringify(baseUrl.replace(/\/+$/, '')) %>;
+    const deploymentBaseUrl = <%- JSON.stringify(baseUrl.replace(/\/+$/, '')).replace(/</g, '\\u003c') %>;
     const uploadEndpoint = deploymentBaseUrl + '/api/item-images/upload';
     let images = [];
     let draggedIndex = null;

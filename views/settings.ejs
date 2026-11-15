@@ -407,16 +407,16 @@
         const saveUsernameBtn = document.getElementById('save-username-btn');
 
         const translations = {
-            avatarSuccess: <%- JSON.stringify(t('messages.avatar_success')) %>,
-            gravatarNotFound: <%- JSON.stringify(t('messages.gravatar_not_found')) %>,
-            confirmRemoveAvatar: <%- JSON.stringify(t('settings.avatar_remove_confirm')) %>,
-            passwordSuccess: <%- JSON.stringify(t('messages.password_updated')) %>,
-            passwordMismatch: <%- JSON.stringify(t('messages.password_mismatch')) %>,
-            usernameAvailable: <%- JSON.stringify(t('messages.username_available')) %>,
-            genericError: <%- JSON.stringify(t('messages.generic_error')) %>,
-            oidcLinked: <%- JSON.stringify(t('messages.oidc_linked')) %>,
-            oidcAlreadyLinked: <%- JSON.stringify(t('messages.oidc_already_linked')) %>,
-            oidcUnlinked: <%- JSON.stringify(t('messages.oidc_unlinked')) %>
+            avatarSuccess: <%- JSON.stringify(t('messages.avatar_success')).replace(/</g, '\\u003c') %>,
+            gravatarNotFound: <%- JSON.stringify(t('messages.gravatar_not_found')).replace(/</g, '\\u003c') %>,
+            confirmRemoveAvatar: <%- JSON.stringify(t('settings.avatar_remove_confirm')).replace(/</g, '\\u003c') %>,
+            passwordSuccess: <%- JSON.stringify(t('messages.password_updated')).replace(/</g, '\\u003c') %>,
+            passwordMismatch: <%- JSON.stringify(t('messages.password_mismatch')).replace(/</g, '\\u003c') %>,
+            usernameAvailable: <%- JSON.stringify(t('messages.username_available')).replace(/</g, '\\u003c') %>,
+            genericError: <%- JSON.stringify(t('messages.generic_error')).replace(/</g, '\\u003c') %>,
+            oidcLinked: <%- JSON.stringify(t('messages.oidc_linked')).replace(/</g, '\\u003c') %>,
+            oidcAlreadyLinked: <%- JSON.stringify(t('messages.oidc_already_linked')).replace(/</g, '\\u003c') %>,
+            oidcUnlinked: <%- JSON.stringify(t('messages.oidc_unlinked')).replace(/</g, '\\u003c') %>
         };
 
         const oidcStatus = new URLSearchParams(location.search).get('oidc');

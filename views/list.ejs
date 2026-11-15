@@ -237,8 +237,8 @@
     const listId = '<%= list.id %>';
     const rowsEl = document.getElementById('listRows');
     const countEl = document.querySelector('#listCount [data-count]');
-    const errorText = <%- JSON.stringify(t('errors.generic_server_error')) %>;
-    const staleText = <%- JSON.stringify(t('lists.err_stale')) %>;
+    const errorText = <%- JSON.stringify(t('errors.generic_server_error')).replace(/</g, '\\u003c') %>;
+    const staleText = <%- JSON.stringify(t('lists.err_stale')).replace(/</g, '\\u003c') %>;
 
     window.toggleEditListModal = function (open) {
         const modal = document.getElementById('editListModal');

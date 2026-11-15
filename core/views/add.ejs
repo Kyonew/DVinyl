@@ -288,8 +288,8 @@
 <script>
     (() => {
         const T = {
-            default: <%- JSON.stringify(t('add_' + plugin.i18nKey + '.btn_scan', { defaultValue: t('add_vinyl.btn_scan') })) %>,
-            analyzing: <%- JSON.stringify(t('add_vinyl.scan_card_analyzing')) %>
+            default: <%- JSON.stringify(t('add_' + plugin.i18nKey + '.btn_scan', { defaultValue: t('add_vinyl.btn_scan') })).replace(/</g, '\\u003c') %>,
+            analyzing: <%- JSON.stringify(t('add_vinyl.scan_card_analyzing')).replace(/</g, '\\u003c') %>
         };
         const input = document.getElementById('card-scan-input');
         const button = document.getElementById('start-card-scan');
@@ -317,7 +317,7 @@
                     body: JSON.stringify({ image })
                 });
                 const data = await res.json().catch(() => ({}));
-                if (!res.ok || !data.query) throw new Error(data.error || <%- JSON.stringify(t('errors.api_error')) %>);
+                if (!res.ok || !data.query) throw new Error(data.error || <%- JSON.stringify(t('errors.api_error')).replace(/</g, '\\u003c') %>);
                 searchInput.value = data.query;
                 form.requestSubmit();
             } catch (err) {
@@ -337,7 +337,7 @@
             try {
                 image = await window.DVDownscaleImage(file, 1600);
             } catch (err) {
-                errorBox.textContent = <%- JSON.stringify(t('ai.err_image_rejected')) %>;
+                errorBox.textContent = <%- JSON.stringify(t('ai.err_image_rejected')).replace(/</g, '\\u003c') %>;
                 errorBox.classList.remove('hidden');
                 return;
             }
@@ -357,7 +357,7 @@
                 pending = JSON.parse(sessionStorage.getItem('dvinyl.photoSearch') || 'null');
                 sessionStorage.removeItem('dvinyl.photoSearch');
             } catch (e) { pending = null; }
-            if (pending && pending.plugin === <%- JSON.stringify(plugin.id) %> && pending.image
+            if (pending && pending.plugin === <%- JSON.stringify(plugin.id).replace(/</g, '\\u003c') %> && pending.image
                 && Date.now() - pending.at < 5 * 60 * 1000) {
                 scanCard(pending.image);
             }
@@ -379,7 +379,7 @@
         const errorBox = document.getElementById('photo-search-error');
         const form = document.querySelector('form[action="<%= baseUrl %>/search-<%= plugin.id %>"]');
         const idleLabel = button.innerHTML;
-        const readingLabel = '<i class="fa-solid fa-spinner fa-spin"></i> <span>' + <%- JSON.stringify(t('add.photo_reading')) %> + '</span>';
+        const readingLabel = '<i class="fa-solid fa-spinner fa-spin"></i> <span>' + <%- JSON.stringify(t('add.photo_reading')).replace(/</g, '\\u003c') %> + '</span>';
 
         // The answer travels with the form: the title in the box, the creator in a hidden
         // field, so the search tries both together before the title alone.
@@ -412,7 +412,7 @@
                     body: JSON.stringify({ image })
                 });
                 const data = await response.json().catch(() => ({}));
-                if (!response.ok || !data.title) throw new Error(data.error || <%- JSON.stringify(t('add.photo_unknown')) %>);
+                if (!response.ok || !data.title) throw new Error(data.error || <%- JSON.stringify(t('add.photo_unknown')).replace(/</g, '\\u003c') %>);
                 form.querySelector('input[name="query"]').value = data.title;
                 setHidden('guess_from', 'photo');
                 setHidden('guess_creator', data.creator || '');
@@ -421,7 +421,7 @@
                 button.disabled = false;
                 button.innerHTML = idleLabel;
                 showError(err.message === 'could not load image' || err.message === 'empty image'
-                    ? <%- JSON.stringify(t('ai.err_image_rejected')) %>
+                    ? <%- JSON.stringify(t('ai.err_image_rejected')).replace(/</g, '\\u003c') %>
                     : err.message);
             }
         }
@@ -436,7 +436,7 @@
             try {
                 image = await window.DVDownscaleImage(file, 1600);
             } catch (err) {
-                showError(<%- JSON.stringify(t('ai.err_image_rejected')) %>);
+                showError(<%- JSON.stringify(t('ai.err_image_rejected')).replace(/</g, '\\u003c') %>);
                 return;
             }
             searchWithImage(image);
@@ -455,7 +455,7 @@
                 pending = JSON.parse(sessionStorage.getItem('dvinyl.photoSearch') || 'null');
                 sessionStorage.removeItem('dvinyl.photoSearch');
             } catch (e) { pending = null; }
-            if (pending && pending.plugin === <%- JSON.stringify(plugin.id) %> && pending.image
+            if (pending && pending.plugin === <%- JSON.stringify(plugin.id).replace(/</g, '\\u003c') %> && pending.image
                 && Date.now() - pending.at < 5 * 60 * 1000) {
                 searchWithImage(pending.image);
             }
@@ -471,7 +471,7 @@
         init: '<i class="fa-solid fa-spinner fa-spin text-xl"></i> <span><%= t("add_vinyl.scan_init") %></span>',
         stop: '<i class="fa-solid fa-xmark text-xl"></i> <span><%= t("add_vinyl.scan_stop") %></span>',
         found: '<i class="fa-solid fa-check text-xl"></i> <span><%= t("add_vinyl.scan_found") %></span>',
-        error: <%- JSON.stringify(t("add_vinyl.scan_error")) %>
+        error: <%- JSON.stringify(t("add_vinyl.scan_error")).replace(/</g, '\\u003c') %>
     };
 
     const scanButton = document.getElementById('start-scan');

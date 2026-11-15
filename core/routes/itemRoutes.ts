@@ -36,6 +36,7 @@ import { EXTRA_FORMATS_FIELD, parseExtraFormats } from '../extraFormats';
 import { contentsOf, itemHref } from '../insideItems';
 import { copyItemImagesSoon } from '../imageDownload';
 import { registry } from '../registry';
+import { forShareView } from '../cardFields';
 import { trackImport } from '../importJobs';
 
 /**
@@ -1136,7 +1137,9 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         return res.status(404).send(req.t('errors.not_found'));
       }
 
-      const formatted = plugin.formatForView(item);
+      // A share link sees the item without what stays between members (core/cardFields.ts).
+      const forViewer = (record: any) => res.locals.isShareView ? forShareView(plugin.formatForView(record)) : plugin.formatForView(record);
+      const formatted = forViewer(item);
 
       // A plugin looks its other editions up by what they are (same title and artist, same
       // set number), which it can do without knowing who is asking. Whether one of them is
@@ -1214,7 +1217,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         requestMsg: req.query.request_msg,
         requestField: req.query.request_field,
         plugin,
-        variants: variants.map(v => plugin.formatForView(v)),
+        variants: variants.map(forViewer),
         addedBy: toProfile(addedBy),
         modifiedBy: toProfile(modifiedBy),
         contains: contained.map(c => plugin.formatForView(c)),

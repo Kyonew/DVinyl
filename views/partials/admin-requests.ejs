@@ -3,9 +3,11 @@
     (core/routes/requestAdminRoute.ts). %>
 <%
     const ra = requestAdmin;
+    // Printed raw, so the name (which carries a type's slug) is escaped here.
+    const attr = v => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
     const toggle = (name, checked) => `
         <span class="relative inline-flex items-center cursor-pointer flex-none">
-            <input type="checkbox" name="${name}" ${checked ? 'checked' : ''} class="sr-only peer">
+            <input type="checkbox" name="${attr(name)}" ${checked ? 'checked' : ''} class="sr-only peer">
             <span class="w-11 h-6 bg-black/10 dark:bg-white/10 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></span>
         </span>`;
     const embed = v => JSON.stringify(v).replace(/</g, '\\u003c');

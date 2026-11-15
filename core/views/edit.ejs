@@ -182,7 +182,7 @@
         var btn = document.getElementById('saveNextBtn');
         var form = btn && btn.closest('form');
         if (!form) return;
-        var currentId = <%- JSON.stringify(String(item._id)) %>;
+        var currentId = <%- JSON.stringify(String(item._id)).replace(/</g, '\\u003c') %>;
         var order;
         try { order = JSON.parse(sessionStorage.getItem('browseOrder') || 'null'); } catch (e) { order = null; }
         if (!order || !Array.isArray(order.items)) return;

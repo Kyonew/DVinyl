@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { dueDateOf, holderOf, isOut, isOverdue, nextStep, readRequestData, requestsEnabled } from '../core/requests';
-import { cleanRequestType, requestTemplates } from '../core/requestTypes';
+import { cleanRequestType, requestTemplates, restoredTypeSlug } from '../core/requestTypes';
 import { boardGamesPlugin } from '../plugins/boardgames';
 
 const loanLike = (over: Record<string, any> = {}) => ({
@@ -96,5 +96,37 @@ describe('requests', () => {
     assert.equal(swap.name, 'Swap it');
     assert.equal(swap.icon, 'paper-plane', 'an icon off the grid shows the first');
     assert.equal(swap.steps[0]!.label, 'Swapped');
+  });
+});
+
+describe('restoredTypeSlug', () => {
+  it('keeps a slug the builder could have made', () => {
+    assert.equal(restoredTypeSlug('pret'), 'pret');
+    assert.equal(restoredTypeSlug('loan-2'), 'loan-2');
+  });
+
+  it('rebuilds one written by hand into the same shape', () => {
+    const slug = restoredTypeSlug(`x"><img src=x onerror=alert(1)>`);
+    assert.match(slug, /^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+    assert.ok(slug.length <= 30);
+  });
+
+  it('gives a type and a request naming it the same slug', () => {
+    const written = 'Prêt du "samedi"';
+    assert.equal(restoredTypeSlug(written), restoredTypeSlug(written));
+  });
+
+  it('leaves nothing for the record rules to refuse when nothing usable is there', () => {
+    assert.equal(restoredTypeSlug('"<>"'), '');
+    assert.equal(restoredTypeSlug(undefined), '');
+    assert.equal(restoredTypeSlug(42), '');
+  });
+});
+
+describe('restoredTypeSlug on a long label', () => {
+  it('ends on a letter or digit, so a second pass leaves it as it is', () => {
+    const slug = restoredTypeSlug('Prêt longue durée du samedi, avec "retour"');
+    assert.match(slug, /^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+    assert.equal(restoredTypeSlug(slug), slug);
   });
 });

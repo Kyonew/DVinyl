@@ -17,8 +17,8 @@
 <script>
     (function () {
         const root = document.getElementById('<%= idrId %>');
-        const statusUrl = <%- JSON.stringify(baseUrl + statusUrl) %>;
-        const runUrl = <%- JSON.stringify(baseUrl + runUrl) %>;
+        const statusUrl = <%- JSON.stringify(baseUrl + statusUrl).replace(/</g, '\\u003c') %>;
+        const runUrl = <%- JSON.stringify(baseUrl + runUrl).replace(/</g, '\\u003c') %>;
         const text = <%- JSON.stringify({
             none: t('image_download.none_pending'),
             pending: t('image_download.pending', { images: '__IMAGES__', items: '__ITEMS__' }),

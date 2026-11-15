@@ -14,7 +14,7 @@
     if (!window.followImport) {
         window.followImport = (function () {
             const statusUrl = '<%= baseUrl %>/import/status';
-            const interrupted = <%- JSON.stringify(t('admin.modal.import_interrupted')) %>;
+            const interrupted = <%- JSON.stringify(t('admin.modal.import_interrupted')).replace(/</g, '\\u003c') %>;
             const POLL_MS = 4000;
 
             return function followImport(options) {

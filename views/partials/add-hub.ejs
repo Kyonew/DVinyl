@@ -170,7 +170,7 @@
 <% } %>
 
 <script>
-    const addHubFastUrl = <%- JSON.stringify(addHubFastUrl ? baseUrl + addHubFastUrl : null) %>;
+    const addHubFastUrl = <%- JSON.stringify(addHubFastUrl ? baseUrl + addHubFastUrl : null).replace(/</g, '\\u003c') %>;
     // The last module picked, a per-device convenience: the sheet opens on it next time
     // when the page is not about a module of its own.
     const addHubLastKey = 'dvinyl.addHubType';
@@ -274,7 +274,7 @@
             photoInput.value = '';
             const plugin = photoInput.dataset.plugin;
             if (!file || !plugin) return;
-            const target = <%- JSON.stringify(baseUrl) %> + '/add-' + plugin;
+            const target = <%- JSON.stringify(baseUrl).replace(/</g, '\\u003c') %> + '/add-' + plugin;
             const icon = document.querySelector('[data-hub-photo="' + plugin + '"] [data-hub-photo-icon]');
             if (icon) icon.className = 'fa-solid fa-spinner fa-spin text-xs opacity-60';
             try {

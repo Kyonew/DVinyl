@@ -24,7 +24,7 @@
     (function () {
         if (window.__rowsFieldsWired) { window.__rowsFieldsInit && window.__rowsFieldsInit(); return; }
         window.__rowsFieldsWired = true;
-        const removeLabel = <%- JSON.stringify(t('common.delete')) %>;
+        const removeLabel = <%- JSON.stringify(t('common.delete')).replace(/</g, '\\u003c') %>;
 
         function init() {
             document.querySelectorAll('[data-rows-field]:not([data-rows-ready])').forEach(box => {

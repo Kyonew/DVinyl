@@ -145,33 +145,33 @@
 
 <script>
     (function () {
-        const modules = <%- JSON.stringify(csvModules) %>;
+        const modules = <%- JSON.stringify(csvModules).replace(/</g, '\\u003c') %>;
         const T = {
             loading: '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> <%= t("admin.modal.import_loading") %>',
             started: '<i class="fa-solid fa-spinner fa-spin mr-2"></i> <%= t("admin.modal.import_started") %>',
-            done: <%- JSON.stringify(t('admin.modal.import_done')) %>,
-            updated: <%- JSON.stringify(t('admin.modal.import_updated')) %>,
-            failed: <%- JSON.stringify(t('admin.modal.import_failed')) %>,
-            unenriched: <%- JSON.stringify(t('admin.modal.import_unenriched')) %>,
-            ignore: <%- JSON.stringify(t('admin.csv_import.ignore')) %>,
-            constant: <%- JSON.stringify(t('admin.csv_import.constant')) %>,
-            constantPlaceholder: <%- JSON.stringify(t('admin.csv_import.constant_placeholder')) %>,
-            noFile: <%- JSON.stringify(t('admin.csv_import.err_no_file')) %>,
-            noFileChosen: <%- JSON.stringify(t('admin.modal.no_file_chosen')) %>,
+            done: <%- JSON.stringify(t('admin.modal.import_done')).replace(/</g, '\\u003c') %>,
+            updated: <%- JSON.stringify(t('admin.modal.import_updated')).replace(/</g, '\\u003c') %>,
+            failed: <%- JSON.stringify(t('admin.modal.import_failed')).replace(/</g, '\\u003c') %>,
+            unenriched: <%- JSON.stringify(t('admin.modal.import_unenriched')).replace(/</g, '\\u003c') %>,
+            ignore: <%- JSON.stringify(t('admin.csv_import.ignore')).replace(/</g, '\\u003c') %>,
+            constant: <%- JSON.stringify(t('admin.csv_import.constant')).replace(/</g, '\\u003c') %>,
+            constantPlaceholder: <%- JSON.stringify(t('admin.csv_import.constant_placeholder')).replace(/</g, '\\u003c') %>,
+            noFile: <%- JSON.stringify(t('admin.csv_import.err_no_file')).replace(/</g, '\\u003c') %>,
+            noFileChosen: <%- JSON.stringify(t('admin.modal.no_file_chosen')).replace(/</g, '\\u003c') %>,
             // Translated once with a placeholder the interpolation leaves alone, so the
             // list of fields can be filled in client-side.
-            missingRequired: <%- JSON.stringify(t('admin.csv_import.err_missing_required', { fields: '%FIELDS%' })) %>,
-            summary: <%- JSON.stringify(t('admin.csv_import.summary')) %>,
-            duplicateColumns: <%- JSON.stringify(t('admin.csv_import.warn_duplicate_columns')) %>,
-            unmapped: <%- JSON.stringify(t('admin.csv_import.warn_unmapped')) %>,
-            importCount: <%- JSON.stringify(t('admin.csv_import.btn_import_count')) %>,
+            missingRequired: <%- JSON.stringify(t('admin.csv_import.err_missing_required', { fields: '%FIELDS%' })).replace(/</g, '\\u003c') %>,
+            summary: <%- JSON.stringify(t('admin.csv_import.summary')).replace(/</g, '\\u003c') %>,
+            duplicateColumns: <%- JSON.stringify(t('admin.csv_import.warn_duplicate_columns')).replace(/</g, '\\u003c') %>,
+            unmapped: <%- JSON.stringify(t('admin.csv_import.warn_unmapped')).replace(/</g, '\\u003c') %>,
+            importCount: <%- JSON.stringify(t('admin.csv_import.btn_import_count')).replace(/</g, '\\u003c') %>,
             groups: {
-                base: <%- JSON.stringify(t('admin.csv_import.group_base')) %>,
-                plugin: <%- JSON.stringify(t('admin.csv_import.group_plugin')) %>,
-                extra: <%- JSON.stringify(t('admin.csv_import.group_extra')) %>
+                base: <%- JSON.stringify(t('admin.csv_import.group_base')).replace(/</g, '\\u003c') %>,
+                plugin: <%- JSON.stringify(t('admin.csv_import.group_plugin')).replace(/</g, '\\u003c') %>,
+                extra: <%- JSON.stringify(t('admin.csv_import.group_extra')).replace(/</g, '\\u003c') %>
             },
-            yes: <%- JSON.stringify(t('common.yes')) %>,
-            no: <%- JSON.stringify(t('common.no')) %>
+            yes: <%- JSON.stringify(t('common.yes')).replace(/</g, '\\u003c') %>,
+            no: <%- JSON.stringify(t('common.no')).replace(/</g, '\\u003c') %>
         };
         const DELIMITER_LABELS = { ',': ',', ';': ';', '\t': '\\t', '|': '|' };
 

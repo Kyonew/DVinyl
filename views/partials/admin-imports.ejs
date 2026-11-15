@@ -123,11 +123,11 @@
         const importTranslations = {
             loading: '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> <%= t("admin.modal.import_loading") %>',
             started: '<i class="fa-solid fa-spinner fa-spin mr-2"></i> <%= t("admin.modal.import_started") %>',
-            done: <%- JSON.stringify(t("admin.modal.import_done")) %>,
-            updated: <%- JSON.stringify(t("admin.modal.import_updated")) %>,
-            failed: <%- JSON.stringify(t("admin.modal.import_failed")) %>,
-            noFile: <%- JSON.stringify(t('admin.modal.err_no_file')) %>,
-            noFileChosen: <%- JSON.stringify(t('admin.modal.no_file_chosen')) %>
+            done: <%- JSON.stringify(t("admin.modal.import_done")).replace(/</g, '\\u003c') %>,
+            updated: <%- JSON.stringify(t("admin.modal.import_updated")).replace(/</g, '\\u003c') %>,
+            failed: <%- JSON.stringify(t("admin.modal.import_failed")).replace(/</g, '\\u003c') %>,
+            noFile: <%- JSON.stringify(t('admin.modal.err_no_file')).replace(/</g, '\\u003c') %>,
+            noFileChosen: <%- JSON.stringify(t('admin.modal.no_file_chosen')).replace(/</g, '\\u003c') %>
         };
         let activeImport = null; // { id, btn, original }
         let importSocket = null;

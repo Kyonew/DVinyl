@@ -248,8 +248,8 @@
         else window.location.href = '<%= baseUrl %>/collection';
     });
     const navTranslations = {
-        themeDark: <%- JSON.stringify(t('nav.theme_dark')) %>,
-        themeLight: <%- JSON.stringify(t('nav.theme_light')) %>
+        themeDark: <%- JSON.stringify(t('nav.theme_dark')).replace(/</g, '\\u003c') %>,
+        themeLight: <%- JSON.stringify(t('nav.theme_light')).replace(/</g, '\\u003c') %>
     };
     
     document.addEventListener('DOMContentLoaded', () => {

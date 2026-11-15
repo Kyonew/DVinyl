@@ -27,6 +27,7 @@ import { findDuplicateCellKey } from '../utils/shelfHelpers';
 import { collectionInfoFromBackup, collectionInfoOf } from '../core/collectionInfo';
 import { applyCustomPluginsFromDB, renameCollidingFields } from '../core/customPluginSync';
 import { collectExtraDateFields, reviveExtraDates } from '../core/pluginExtraFields';
+import { restoredTypeSlug } from '../core/requestTypes';
 import { deleteUnusedManagedItemImages, managedItemImageFile, managedItemImagesForQuery } from '../core/itemImageStorage';
 import { MAX_BACKUP_UPLOAD_BYTES, readBackupArchive, sendBackupArchive } from '../core/backupArchive';
 import { jsonStream, StreamedDocument } from '../core/jsonStream';
@@ -164,7 +165,7 @@ function instanceDumpConflict(data: any, users: any[]): string | null {
         twice('list _id', data.lists, byId),
         twice('request _id', data.requests, byId),
         twice('request type _id', data.requestTypes, byId),
-        twice('request type slug', data.requestTypes, t => (t.slug ? `${t.collection}/${t.slug}` : undefined)),
+        twice('request type slug', data.requestTypes, t => (restoredTypeSlug(t.slug) ? `${t.collection}/${restoredTypeSlug(t.slug)}` : undefined)),
         twice('settings of collection', Array.isArray(data.settings) ? data.settings : [], st => st.collection),
         twice('custom plugin', data.customPlugins, p => p.id),
         twice('price snapshot _id', data.priceHistory, byId),
@@ -248,8 +249,13 @@ const importInstanceBackup = async (req: any, res: any) => {
         // they go back untouched. Settled here, before the wipe.
         const listsToRestore = hasCollections ? restorableLists(data.lists, list => list) : [];
         // Requests and their types keep their ids too. A dump older than them has none.
-        const requestsToRestore = hasCollections ? restorableRecords(db.requests, data.requests, 'request') : [];
-        const requestTypesToRestore = hasCollections ? restorableRecords(db.requestTypes, data.requestTypes, 'request type') : [];
+        // Their slugs are put in the builder's shape, on both sides of the link.
+        const requestsToRestore = hasCollections
+            ? restorableRecords(db.requests, data.requests, 'request', (request: any) => ({ ...request, type: restoredTypeSlug(request.type) }))
+            : [];
+        const requestTypesToRestore = hasCollections
+            ? restorableRecords(db.requestTypes, data.requestTypes, 'request type', (type: any) => ({ ...type, slug: restoredTypeSlug(type.slug) }))
+            : [];
         const replacedImagePaths = await managedItemImagesForQuery(all());
         // The wipe below takes the info pages with it, so their uploads are candidates
         // for release too, exactly like the items' own images.
@@ -924,10 +930,10 @@ const importCollectionBackup = async (req: any, res: any) => {
         const requestTypesToRestore = restoresTypes
             ? restorableRecords(db.requestTypes, data.requestTypes, 'request type', (type: any) => {
                 const { _id, __v, collection: _owner, createdBy: _by, ...rest } = type;
-                const slug = String(rest.slug ?? '');
+                const slug = restoredTypeSlug(rest.slug);
                 if (typeSlugs.has(slug)) return null;
                 typeSlugs.add(slug);
-                return { ...rest, collection: activeCollectionId, createdBy: req.user._id };
+                return { ...rest, slug, collection: activeCollectionId, createdBy: req.user._id };
             })
             : [];
         // A request follows its item to the new id, between members of this collection only.
@@ -936,7 +942,7 @@ const importCollectionBackup = async (req: any, res: any) => {
             const { _id, __v, collection: _owner, ...rest } = request;
             const item = idMap.get(String(rest.item));
             if (!item || !memberIds.has(idOf(rest.sender)) || !memberIds.has(idOf(rest.recipient))) return null;
-            return { ...rest, item, collection: activeCollectionId };
+            return { ...rest, item, type: restoredTypeSlug(rest.type), collection: activeCollectionId };
         });
 
         // Replacement semantics: the collection's current items are wiped first.

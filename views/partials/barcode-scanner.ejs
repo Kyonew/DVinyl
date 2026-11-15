@@ -50,7 +50,7 @@
         const readerDiv = document.getElementById('reader');
         const videoEl = document.getElementById('reader-video');
         const hintEl = document.getElementById('scan-hint');
-        const hintText = <%- JSON.stringify(t('add_vinyl.scan_hint')) %>;
+        const hintText = <%- JSON.stringify(t('add_vinyl.scan_hint')).replace(/</g, '\\u003c') %>;
 
         // A camera that opens and never decodes says nothing about why. After a while of
         // neither a result nor an error, offer what actually helps instead of leaving

@@ -151,15 +151,15 @@
 <script>
     (() => {
         const translations = {
-            uploading: <%- JSON.stringify(t('image_manager.uploading')) %>,
-            uploadFailed: <%- JSON.stringify(t('image_manager.upload_failed')) %>,
-            uploadInvalid: <%- JSON.stringify(t('image_manager.upload_invalid')) %>,
-            invalidUrl: <%- JSON.stringify(t('image_manager.invalid_url')) %>,
-            tooMany: <%- JSON.stringify(t('collection_info.images_too_many', { max: maxImages })) %>,
-            remove: <%- JSON.stringify(t('image_manager.remove')) %>,
-            confirmRemove: <%- JSON.stringify(t('image_manager.confirm_remove')) %>,
-            moveBefore: <%- JSON.stringify(t('image_manager.move_before')) %>,
-            moveAfter: <%- JSON.stringify(t('image_manager.move_after')) %>
+            uploading: <%- JSON.stringify(t('image_manager.uploading')).replace(/</g, '\\u003c') %>,
+            uploadFailed: <%- JSON.stringify(t('image_manager.upload_failed')).replace(/</g, '\\u003c') %>,
+            uploadInvalid: <%- JSON.stringify(t('image_manager.upload_invalid')).replace(/</g, '\\u003c') %>,
+            invalidUrl: <%- JSON.stringify(t('image_manager.invalid_url')).replace(/</g, '\\u003c') %>,
+            tooMany: <%- JSON.stringify(t('collection_info.images_too_many', { max: maxImages })).replace(/</g, '\\u003c') %>,
+            remove: <%- JSON.stringify(t('image_manager.remove')).replace(/</g, '\\u003c') %>,
+            confirmRemove: <%- JSON.stringify(t('image_manager.confirm_remove')).replace(/</g, '\\u003c') %>,
+            moveBefore: <%- JSON.stringify(t('image_manager.move_before')).replace(/</g, '\\u003c') %>,
+            moveAfter: <%- JSON.stringify(t('image_manager.move_after')).replace(/</g, '\\u003c') %>
         };
 
         const manager = document.getElementById('infoImageManager');
@@ -172,7 +172,7 @@
         try { images = JSON.parse(hiddenField.value || '[]'); } catch (_) { images = []; }
 
         // Stored paths stay deployment independent, so the prefix is added for display only.
-        const baseUrl = <%- JSON.stringify(baseUrl) %>;
+        const baseUrl = <%- JSON.stringify(baseUrl).replace(/</g, '\\u003c') %>;
         const displaySrc = (image) => image.startsWith('/uploads/') ? baseUrl + image : image;
 
         function render() {

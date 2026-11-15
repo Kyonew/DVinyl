@@ -257,7 +257,7 @@
                         await navigator.clipboard.writeText(url);
                         const detail = button.querySelector('[data-share-row-detail]');
                         const before = detail.textContent;
-                        detail.textContent = <%- JSON.stringify(t('admin.sharing.copied')) %>;
+                        detail.textContent = <%- JSON.stringify(t('admin.sharing.copied')).replace(/</g, '\\u003c') %>;
                         setTimeout(function () { detail.textContent = before; }, 1600);
                     } catch (e) {
                         window.prompt('', url);
@@ -498,11 +498,11 @@
         // clicks into a selection toggle instead of a navigation.
         let selectMode = false;
         let lastSelectedIndex = null;
-        const selectedCountSuffix = <%- JSON.stringify(t('collection.selected_count_suffix')) %>;
-        const bulkDeleteConfirmTpl = <%- JSON.stringify(t('collection.confirm_delete_selected')) %>;
-        const bulkDeleteDoneTpl = <%- JSON.stringify(t('collection.delete_selected_done')) %>;
-        const bulkDeletePartialTpl = <%- JSON.stringify(t('collection.delete_selected_partial')) %>;
-        const bulkDeleteErrorTpl = <%- JSON.stringify(t('collection.delete_selected_error')) %>;
+        const selectedCountSuffix = <%- JSON.stringify(t('collection.selected_count_suffix')).replace(/</g, '\\u003c') %>;
+        const bulkDeleteConfirmTpl = <%- JSON.stringify(t('collection.confirm_delete_selected')).replace(/</g, '\\u003c') %>;
+        const bulkDeleteDoneTpl = <%- JSON.stringify(t('collection.delete_selected_done')).replace(/</g, '\\u003c') %>;
+        const bulkDeletePartialTpl = <%- JSON.stringify(t('collection.delete_selected_partial')).replace(/</g, '\\u003c') %>;
+        const bulkDeleteErrorTpl = <%- JSON.stringify(t('collection.delete_selected_error')).replace(/</g, '\\u003c') %>;
 
         function getSelectableCheckboxes() {
             return [...document.querySelectorAll('#albumGrid .album-card .album-select-checkbox')];
@@ -564,8 +564,8 @@
             if (selectMode) toggleSelectMode();
         }
 
-        const hideSelectBarLabel = <%- JSON.stringify(t('collection.hide_select_bar')) %>;
-        const showSelectBarLabel = <%- JSON.stringify(t('collection.show_select_bar')) %>;
+        const hideSelectBarLabel = <%- JSON.stringify(t('collection.hide_select_bar')).replace(/</g, '\\u003c') %>;
+        const showSelectBarLabel = <%- JSON.stringify(t('collection.show_select_bar')).replace(/</g, '\\u003c') %>;
         let bulkBarCollapsed = false;
 
         function setBulkBarCollapsed(collapsed) {
@@ -605,8 +605,8 @@
             if (selectAllBtn) {
                 const allSelected = checkboxes.length > 0 && count === checkboxes.length;
                 selectAllBtn.textContent = allSelected
-                    ? <%- JSON.stringify(t('collection.deselect_all')) %>
-                    : <%- JSON.stringify(t('collection.select_all')) %>;
+                    ? <%- JSON.stringify(t('collection.deselect_all')).replace(/</g, '\\u003c') %>
+                    : <%- JSON.stringify(t('collection.select_all')).replace(/</g, '\\u003c') %>;
             }
 
             const deleteBtn = document.getElementById('bulkDeleteBtn');
@@ -688,7 +688,7 @@
                 window.location.reload();
             } catch (err) {
                 button.disabled = false;
-                error.textContent = <%- JSON.stringify(t('errors.generic_server_error')) %>;
+                error.textContent = <%- JSON.stringify(t('errors.generic_server_error')).replace(/</g, '\\u003c') %>;
                 error.classList.remove('hidden');
             }
         }
@@ -744,7 +744,7 @@
 
         function showBulkEditError(message) {
             const error = document.getElementById('bulkEditError');
-            error.textContent = message || <%- JSON.stringify(t('errors.generic_server_error')) %>;
+            error.textContent = message || <%- JSON.stringify(t('errors.generic_server_error')).replace(/</g, '\\u003c') %>;
             error.classList.remove('hidden');
         }
 
@@ -759,8 +759,8 @@
             if (field.type === 'select' || field.type === 'radio-cards' || field.type === 'boolean') {
                 input = document.createElement('select');
                 const choices = field.type === 'boolean'
-                    ? [{ value: 'true', label: <%- JSON.stringify(t('common.yes')) %> }, { value: 'false', label: <%- JSON.stringify(t('common.no')) %> }]
-                    : (field.options.some(o => o.value === '') || field.required ? field.options : [{ value: '', label: <%- JSON.stringify(t('common.no_value')) %> }].concat(field.options));
+                    ? [{ value: 'true', label: <%- JSON.stringify(t('common.yes')).replace(/</g, '\\u003c') %> }, { value: 'false', label: <%- JSON.stringify(t('common.no')).replace(/</g, '\\u003c') %> }]
+                    : (field.options.some(o => o.value === '') || field.required ? field.options : [{ value: '', label: <%- JSON.stringify(t('common.no_value')).replace(/</g, '\\u003c') %> }].concat(field.options));
                 choices.forEach(c => {
                     const o = document.createElement('option');
                     o.value = c.value;
@@ -901,7 +901,7 @@
         });
 
         // Collection-level actions declared by the active plugin (see CollectionAction).
-        const COLLECTION_ACTIONS = <%- JSON.stringify(collectionActions) %>;
+        const COLLECTION_ACTIONS = <%- JSON.stringify(collectionActions).replace(/</g, '\\u003c') %>;
         const jsBaseUrl = '<%= baseUrl %>';
         const socket = io({ path: jsBaseUrl + '/socket.io' });
 
@@ -920,7 +920,7 @@
             if (btn) btn.disabled = true;
 
             const fail = (message) => {
-                alert(<%- JSON.stringify(t('admin.modal.import_error')) %> + '\n' + message);
+                alert(<%- JSON.stringify(t('admin.modal.import_error')).replace(/</g, '\\u003c') %> + '\n' + message);
                 if (icon) icon.classList.remove('fa-spin');
                 if (btn) btn.disabled = false;
             };
@@ -950,12 +950,12 @@
         const progressBar = document.getElementById('estimateProgress');
         const countSpan = document.getElementById('estimateCount');
         const percentSpan = document.getElementById('estimatePercent');
-        const estimateErrorMsg = <%- JSON.stringify(t('messages.estimate_error')) %>;
-        const historyEmptyMsg = <%- JSON.stringify(t('modal.history_empty')) %>;
-        const historyOtherCurrencyMsg = <%- JSON.stringify(t('modal.history_other_currency')) %>;
+        const estimateErrorMsg = <%- JSON.stringify(t('messages.estimate_error')).replace(/</g, '\\u003c') %>;
+        const historyEmptyMsg = <%- JSON.stringify(t('modal.history_empty')).replace(/</g, '\\u003c') %>;
+        const historyOtherCurrencyMsg = <%- JSON.stringify(t('modal.history_other_currency')).replace(/</g, '\\u003c') %>;
         // The interface locale drives money the same way it drives dates; the ternary that
         // stood here knew French and English and printed everything else the American way.
-        const currentLocale = <%- JSON.stringify(dateLocaleFor(currentLng)) %>;
+        const currentLocale = <%- JSON.stringify(dateLocaleFor(currentLng)).replace(/</g, '\\u003c') %>;
         const currentCurrency = '<%= user.currency || "USD" %>';
 
         let activeEstimate = null;
@@ -973,7 +973,7 @@
         let paidTotal = 0;
         let paidEstimate = 0;
         let paidCount = 0;
-        const paidSummaryMsg = <%- JSON.stringify(t('modal.paid_summary')) %>;
+        const paidSummaryMsg = <%- JSON.stringify(t('modal.paid_summary')).replace(/</g, '\\u003c') %>;
 
         function openEstimateModal(action) {
             if (action && action.estimate) activeEstimate = action.estimate;

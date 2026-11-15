@@ -101,7 +101,7 @@
     const byType = Object.fromEntries(catalogue.map(entry => [entry.type, entry]));
     // Widget types placed earlier but no longer offered (a module switched off) can
     // still be moved, resized and removed, just not reconfigured.
-    const sizesOf = <%- JSON.stringify(Object.fromEntries(dashboardWidgets.getAll().map(d => [d.type, d.sizes]))) %>;
+    const sizesOf = <%- JSON.stringify(Object.fromEntries(dashboardWidgets.getAll().map(d => [d.type, d.sizes]))).replace(/</g, '\\u003c') %>;
     const i18n = <%- JSON.stringify({
         size: t('dashboard.size'),
         sizes: { s: t('dashboard.size_s'), m: t('dashboard.size_m'), l: t('dashboard.size_l'), full: t('dashboard.size_full') },

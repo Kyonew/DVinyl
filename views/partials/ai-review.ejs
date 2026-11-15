@@ -127,21 +127,21 @@
 <%- include('image-downscale') %>
 <script>
     (function () {
-        const modules = <%- JSON.stringify(aiModules) %>;
+        const modules = <%- JSON.stringify(aiModules).replace(/</g, '\\u003c') %>;
         const T = {
             loading: '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> <%= t("common.searching") %>',
             started: '<i class="fa-solid fa-spinner fa-spin mr-2"></i> <%= t("admin.modal.import_started") %>',
-            done: <%- JSON.stringify(t('admin.modal.import_done')) %>,
-            updated: <%- JSON.stringify(t('admin.modal.import_updated')) %>,
-            failed: <%- JSON.stringify(t('admin.modal.import_failed')) %>,
-            unenriched: <%- JSON.stringify(t('admin.modal.import_unenriched')) %>,
-            missingRequired: <%- JSON.stringify(t('ai.import_missing_required')) %>,
-            missingEnrich: <%- JSON.stringify(t('ai.import_missing_enrich')) %>,
-            noneSelected: <%- JSON.stringify(t('ai.import_none_selected')) %>,
-            confirm: <%- JSON.stringify(t('ai.import_confirm')) %>,
-            noInput: <%- JSON.stringify(t('ai.err_no_input')) %>,
-            imageRejected: <%- JSON.stringify(t('ai.err_image_rejected')) %>,
-            removePhoto: <%- JSON.stringify(t('ai.import_photos_remove')) %>,
+            done: <%- JSON.stringify(t('admin.modal.import_done')).replace(/</g, '\\u003c') %>,
+            updated: <%- JSON.stringify(t('admin.modal.import_updated')).replace(/</g, '\\u003c') %>,
+            failed: <%- JSON.stringify(t('admin.modal.import_failed')).replace(/</g, '\\u003c') %>,
+            unenriched: <%- JSON.stringify(t('admin.modal.import_unenriched')).replace(/</g, '\\u003c') %>,
+            missingRequired: <%- JSON.stringify(t('ai.import_missing_required')).replace(/</g, '\\u003c') %>,
+            missingEnrich: <%- JSON.stringify(t('ai.import_missing_enrich')).replace(/</g, '\\u003c') %>,
+            noneSelected: <%- JSON.stringify(t('ai.import_none_selected')).replace(/</g, '\\u003c') %>,
+            confirm: <%- JSON.stringify(t('ai.import_confirm')).replace(/</g, '\\u003c') %>,
+            noInput: <%- JSON.stringify(t('ai.err_no_input')).replace(/</g, '\\u003c') %>,
+            imageRejected: <%- JSON.stringify(t('ai.err_image_rejected')).replace(/</g, '\\u003c') %>,
+            removePhoto: <%- JSON.stringify(t('ai.import_photos_remove')).replace(/</g, '\\u003c') %>,
             noAnswer: <%- JSON.stringify(t('ai.err_no_answer', { status: '{{status}}' })).replace(/</g, '\\u003c') %>
         };
         // A reply DVinyl did not write (a reverse proxy that cut a slow request answers

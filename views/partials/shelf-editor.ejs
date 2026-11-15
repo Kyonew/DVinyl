@@ -104,7 +104,7 @@
             duplicate: t('collection.shelf_error_duplicate'),
             elsewhere: t('collection.shelf_error_elsewhere'),
             generic: t('errors.generic_server_error')
-        }) %>;
+        }).replace(/</g, '\\u003c') %>;
 
         // What the furniture holds, as the page was served. `from` is the key each shelf
         // had then, which is what lets the server tell a rename from a removal plus an

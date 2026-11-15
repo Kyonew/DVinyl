@@ -79,9 +79,9 @@
 <% if (insideEditable) { %>
 <script>
     const insideItems = (function () {
-        const base = <%- JSON.stringify(baseUrl) %>;
-        const itemId = <%- JSON.stringify(String(item._id)) %>;
-        const failed = <%- JSON.stringify(t('errors.generic_server_error')) %>;
+        const base = <%- JSON.stringify(baseUrl).replace(/</g, '\\u003c') %>;
+        const itemId = <%- JSON.stringify(String(item._id)).replace(/</g, '\\u003c') %>;
+        const failed = <%- JSON.stringify(t('errors.generic_server_error')).replace(/</g, '\\u003c') %>;
         const picker = document.getElementById('insidePicker');
         const query = document.getElementById('insidePickerQuery');
         const list = document.getElementById('insidePickerList');

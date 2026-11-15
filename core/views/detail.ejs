@@ -963,7 +963,7 @@
             const canShareFiles = Boolean(navigator.canShare) && (function () {
                 try { return navigator.canShare({ files: [new File([''], 'x.png', { type: 'image/png' })] }); } catch (e) { return false; }
             })();
-            if (!canShareFiles) document.getElementById('labelShareText').textContent = <%- JSON.stringify(t('detail.label_save')) %>;
+            if (!canShareFiles) document.getElementById('labelShareText').textContent = <%- JSON.stringify(t('detail.label_save')).replace(/</g, '\\u003c') %>;
 
             document.getElementById('labelShareBtn').addEventListener('click', async function () {
                 if (!codes[labelType]) return;
@@ -1045,7 +1045,7 @@
         unavailable_data: t('detail.unavailable_data'),
         analyzing: t('detail.market_analysis'),
         error_server: t('messages.generic_error')
-    }) %>;
+    }).replace(/</g, '\\u003c') %>;
 
     // Click-to-toggle fallback for the QR/barcode label dropdown, alongside the
     // CSS-only group-hover: touchpads/touchscreens don't reliably fire :hover.
@@ -1064,7 +1064,7 @@
         menu.classList.remove('!block');
     });
 
-    const currentLocale = <%- JSON.stringify(dateLocaleFor(currentLng)) %>;
+    const currentLocale = <%- JSON.stringify(dateLocaleFor(currentLng)).replace(/</g, '\\u003c') %>;
     let switchImageTimer;
 
     function switchImage(url, text) {
@@ -1398,7 +1398,7 @@
             }
         } catch (err) {
             console.error(err);
-            alert(<%- JSON.stringify(t('detail.refresh_info_error')) %>);
+            alert(<%- JSON.stringify(t('detail.refresh_info_error')).replace(/</g, '\\u003c') %>);
             btn.disabled = false;
             icon.classList.remove('fa-spin');
         }

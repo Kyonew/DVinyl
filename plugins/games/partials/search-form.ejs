@@ -27,7 +27,7 @@
             const select = document.getElementById('ss-platform');
             const form = row.closest('form');
             const STORAGE_KEY = 'dvinyl.screenscraper.platform';
-            const onlySource = <%- JSON.stringify(locals.sources.length === 1 ? locals.sources[0].id : '') %>;
+            const onlySource = <%- JSON.stringify(locals.sources.length === 1 ? locals.sources[0].id : '').replace(/</g, '\\u003c') %>;
             let loaded = false;
 
             function remembered() {

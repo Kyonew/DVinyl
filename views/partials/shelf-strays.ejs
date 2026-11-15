@@ -28,8 +28,8 @@
         (function () {
             if (window.__shelfStraysWired) return;
             window.__shelfStraysWired = true;
-            const confirmText = <%- JSON.stringify(t('collection.shelf_confirm_forget')) %>;
-            const failText = <%- JSON.stringify(t('errors.generic_server_error')) %>;
+            const confirmText = <%- JSON.stringify(t('collection.shelf_confirm_forget')).replace(/</g, '\\u003c') %>;
+            const failText = <%- JSON.stringify(t('errors.generic_server_error')).replace(/</g, '\\u003c') %>;
             document.addEventListener('click', async event => {
                 const button = event.target.closest('[data-stray-forget]');
                 if (!button || button.disabled) return;

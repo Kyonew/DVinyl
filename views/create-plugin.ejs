@@ -601,8 +601,8 @@
     // labels cannot break out of the script block, and translated strings keep
     // their quotes instead of being HTML-entity encoded.
     const editConfig = <%- editConfig ? JSON.stringify(editConfig).replace(/</g, '\\u003c') : 'null' %>;
-    const editPlaceholder = <%- JSON.stringify(locals.editPlaceholder || '') %>;
-    const palette = <%- JSON.stringify(palette) %>;
+    const editPlaceholder = <%- JSON.stringify(locals.editPlaceholder || '').replace(/</g, '\\u003c') %>;
+    const palette = <%- JSON.stringify(palette).replace(/</g, '\\u003c') %>;
 
     <%
     const builderI18n = {
@@ -1253,7 +1253,7 @@
 
     // ---- Per-collection cosmetic customization modal -----------------------------------
     const customizable = <%- JSON.stringify(customizablePlugins).replace(/</g, '\\u003c') %>;
-    const czDefaultColor = <%- JSON.stringify(t('create_plugin.default_color')) %>;
+    const czDefaultColor = <%- JSON.stringify(t('create_plugin.default_color')).replace(/</g, '\\u003c') %>;
     let czPluginId = null;
     let czIcon = '';
 
@@ -1520,7 +1520,7 @@
         const none = document.createElement('option');
         none.value = '';
         none.className = 'bg-white dark:bg-[#1a1a1a]';
-        none.textContent = <%- JSON.stringify(t('create_plugin.corner_field_none')) %>;
+        none.textContent = <%- JSON.stringify(t('create_plugin.corner_field_none')).replace(/</g, '\\u003c') %>;
         select.append(none);
 
         choices.forEach(choice => {
@@ -1533,12 +1533,12 @@
 
         select.value = (data.current && data.current.cornerField) || '';
 
-        czCornerPos = (data.current && data.current.cornerPosition) || <%- JSON.stringify(DEFAULT_CORNER_POSITION) %>;
+        czCornerPos = (data.current && data.current.cornerPosition) || <%- JSON.stringify(DEFAULT_CORNER_POSITION).replace(/</g, '\\u003c') %>;
         czPaintCornerPos();
         select.onchange = czPaintCornerPos;
     }
 
-    let czCornerPos = <%- JSON.stringify(DEFAULT_CORNER_POSITION) %>;
+    let czCornerPos = <%- JSON.stringify(DEFAULT_CORNER_POSITION).replace(/</g, '\\u003c') %>;
 
     function czPaintCornerPos() {
         // The picker only means something once there is something to place.

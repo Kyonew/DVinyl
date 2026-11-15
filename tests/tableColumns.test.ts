@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { defaultTableColumnNames, getTableCell, getTableColumns, sanitizeTableColumns, tableColumnNames } from '../core/cardFields';
+import { defaultTableColumnNames, forShareView, getTableCell, getTableColumns, sanitizeTableColumns, tableColumnNames } from '../core/cardFields';
 
 const plugin: any = {
   id: 'music',
@@ -62,4 +62,11 @@ describe('table columns', () => {
     assert.deepEqual(sanitizeTableColumns(plugin, ['audio'], [before, after]), ['audio']);
     assert.deepEqual(sanitizeTableColumns(plugin, [], [before, after]), [], 'title only is a choice');
   });
+});
+
+it('a share view gets the item without where it is kept or what was paid', () => {
+  const item = { _id: 'a', title: 'Abbey Road', location: 'Salon', purchase_price: 12.5, purchase_currency: 'EUR' };
+  const shared = forShareView(item);
+  assert.deepEqual(shared, { _id: 'a', title: 'Abbey Road' });
+  assert.equal(item.purchase_price, 12.5, 'the record itself is left alone');
 });

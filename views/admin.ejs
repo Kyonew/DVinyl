@@ -898,7 +898,7 @@
             document.getElementById('collectionBackupInput').onchange = function (e) {
                 const file = e.target.files[0];
                 if (!file) return;
-                if (confirm(<%- JSON.stringify(t('admin.collection_backup.confirm_import')) %>)) {
+                if (confirm(<%- JSON.stringify(t('admin.collection_backup.confirm_import')).replace(/</g, '\\u003c') %>)) {
                     (async () => {
                         try {
                             const isArchive = file.name.toLowerCase().endsWith('.zip');
@@ -919,16 +919,16 @@
                                 });
                             }
                             if (response.ok) {
-                                alert(<%- JSON.stringify(t('admin.backup.import_success')) %>);
+                                alert(<%- JSON.stringify(t('admin.backup.import_success')).replace(/</g, '\\u003c') %>);
                                 window.location.reload();
                             } else {
                                 // A refusal worded for the reader (an item the file cannot
                                 // bring back) names what is wrong.
                                 const failure = await response.json().catch(() => ({}));
-                                alert(failure.userMessage || <%- JSON.stringify(t('admin.backup.import_error')) %>);
+                                alert(failure.userMessage || <%- JSON.stringify(t('admin.backup.import_error')).replace(/</g, '\\u003c') %>);
                             }
                         } catch (err) {
-                            alert(<%- JSON.stringify(t('admin.backup.file_error')) %>);
+                            alert(<%- JSON.stringify(t('admin.backup.file_error')).replace(/</g, '\\u003c') %>);
                         }
                     })();
                 }
@@ -944,12 +944,12 @@
 
 
             document.addEventListener('DOMContentLoaded', () => {
-                const apiKeyStatus = <%- JSON.stringify(registry.getApiKeyStatus()) %>;
+                const apiKeyStatus = <%- JSON.stringify(registry.getApiKeyStatus()).replace(/</g, '\\u003c') %>;
                 const modulesWithKeys = <%- JSON.stringify(
                     registry.getAll()
                         .filter(p => requiredEnvKeysFor(p).length > 0)
                         .map(p => ({ name: p.collectionType + 'Active', collectionType: p.collectionType, errorId: 'error-' + p.collectionType }))
-                ) %>.map(m => ({ ...m, hasKey: apiKeyStatus[m.collectionType] }));
+                ).replace(/</g, '\\u003c') %>.map(m => ({ ...m, hasKey: apiKeyStatus[m.collectionType] }));
                 // Reordering a module's sources: the rows move and the hidden field the save
                 // reads is rewritten from what the list shows, so what was submitted is always
                 // what was on screen. Buttons are re-disabled at the ends after every move.
@@ -999,15 +999,15 @@
             }
 
             window.translations = {
-                areyousure: <%- JSON.stringify(t('admin.areyousure')) %>,
-                deleteConfirm: <%- JSON.stringify(t('admin.delete_confirm')) %>,
-                refreshAllConfirm: <%- JSON.stringify(t('admin.maintenance.refresh_all_confirm')) %>,
-                statusStarting: <%- JSON.stringify(t('admin.maintenance.status_starting')) %>,
-                statusInit: <%- JSON.stringify(t('admin.maintenance.status_init')) %>,
-                statusProcessing: <%- JSON.stringify(t('admin.maintenance.status_processing')) %>,
-                statusFinished: <%- JSON.stringify(t('admin.maintenance.status_finished')) %>,
-                statusError: <%- JSON.stringify(t('admin.maintenance.status_error')) %>,
-                itemsUpdated: <%- JSON.stringify(t('admin.modal.import_done')) %>
+                areyousure: <%- JSON.stringify(t('admin.areyousure')).replace(/</g, '\\u003c') %>,
+                deleteConfirm: <%- JSON.stringify(t('admin.delete_confirm')).replace(/</g, '\\u003c') %>,
+                refreshAllConfirm: <%- JSON.stringify(t('admin.maintenance.refresh_all_confirm')).replace(/</g, '\\u003c') %>,
+                statusStarting: <%- JSON.stringify(t('admin.maintenance.status_starting')).replace(/</g, '\\u003c') %>,
+                statusInit: <%- JSON.stringify(t('admin.maintenance.status_init')).replace(/</g, '\\u003c') %>,
+                statusProcessing: <%- JSON.stringify(t('admin.maintenance.status_processing')).replace(/</g, '\\u003c') %>,
+                statusFinished: <%- JSON.stringify(t('admin.maintenance.status_finished')).replace(/</g, '\\u003c') %>,
+                statusError: <%- JSON.stringify(t('admin.maintenance.status_error')).replace(/</g, '\\u003c') %>,
+                itemsUpdated: <%- JSON.stringify(t('admin.modal.import_done')).replace(/</g, '\\u003c') %>
             };
 
             let activeRefreshKind = null;
@@ -1047,7 +1047,7 @@
                     btn.disabled = false;
                     btn.classList.remove('opacity-50', 'cursor-not-allowed');
                     icon.className = 'fa-solid fa-play';
-                    text.innerText = <%- JSON.stringify(t("admin.maintenance.refresh_all_btn")) %>;
+                    text.innerText = <%- JSON.stringify(t("admin.maintenance.refresh_all_btn")).replace(/</g, '\\u003c') %>;
                     progressContainer.classList.add('hidden');
                     activeRefreshKind = null;
                 }

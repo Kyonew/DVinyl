@@ -44,7 +44,19 @@ interface StringifiedValue {
  * members, who are the ones it was written for.
  */
 // What the owner paid is theirs too, like where they keep it.
-export const SHARE_HIDDEN_FIELDS = new Set(['location', 'purchase_price']);
+export const SHARE_HIDDEN_FIELDS = new Set(['location', 'purchase_price', 'purchase_currency']);
+
+/**
+ * An item as a share link may see it: the same record without the fields above. Taken
+ * off the record itself, before any template, so no script or attribute added to a page
+ * later can print them by reading the item.
+ */
+export function forShareView<T extends Record<string, any>>(item: T): T {
+  if (!item || typeof item !== 'object') return item;
+  const copy: Record<string, any> = { ...item };
+  for (const name of SHARE_HIDDEN_FIELDS) delete copy[name];
+  return copy as T;
+}
 
 /**
  * Whether a string is one of the catalogue's own keys, which all read "namespace.key".

@@ -80,7 +80,7 @@
             exportedAt: t('perso.pack_exported_at', { date: '{{date}}' }),
             generic: t('errors.generic_server_error')
         }).replace(/</g, '\\u003c') %>;
-        const dateLocale = <%- JSON.stringify(dateLocaleFor(currentLng)) %>;
+        const dateLocale = <%- JSON.stringify(dateLocaleFor(currentLng)).replace(/</g, '\\u003c') %>;
 
         // The download link carries the name typed above.
         const nameInput = root.querySelector('[data-pack-name]');

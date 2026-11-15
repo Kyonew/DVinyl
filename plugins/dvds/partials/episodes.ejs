@@ -115,7 +115,7 @@
         }
 
         <% if (canEdit) { %>
-        const endpoint = <%- JSON.stringify(baseUrl + '/api/dvd/' + item._id + '/episode/') %>;
+        const endpoint = <%- JSON.stringify(baseUrl + '/api/dvd/' + item._id + '/episode/').replace(/</g, '\\u003c') %>;
 
         // Each control writes only what it changed, so two people editing different
         // episodes, or the same one from two tabs, never overwrite each other's fields.

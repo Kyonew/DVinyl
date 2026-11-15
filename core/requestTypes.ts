@@ -31,6 +31,22 @@ const MAX_LABEL = 60;
 const MAX_DESCRIPTION = 300;
 const MAX_OPTIONS = 30;
 const KEY_RE = /^[a-z][a-z0-9_]{0,29}$/;
+// The shape slugify() and freeSlug() give a type's slug.
+const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+/**
+ * The slug a restored type, or a restored request naming its type, is stored under. A
+ * dump is a file anyone can edit, and the slug ends up in attributes and form names, so
+ * one of any other shape is rebuilt the way the builder makes them. The same text always
+ * gives the same slug, which keeps each request pointing at its type. Empty when nothing
+ * is left, so the record rules turn the record down as they would a missing slug.
+ */
+export function restoredTypeSlug(raw: unknown): string {
+  const text = typeof raw === 'string' ? raw : '';
+  if (text.length <= 30 && SLUG_RE.test(text)) return text;
+  // slugify() cuts at 30 after trimming, which can leave a hyphen at the end.
+  return slugify(text).replace(/-+$/, '');
+}
 
 /** A key no other entry of `used` has, from what was given or from the label. */
 function keyFor(given: unknown, label: string, used: Set<string>, fallback: string): string {

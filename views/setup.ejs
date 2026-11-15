@@ -284,7 +284,7 @@
         }
 
         const setupTranslations = {
-            passwordMismatch: <%- JSON.stringify(t('messages.password_mismatch')) %>
+            passwordMismatch: <%- JSON.stringify(t('messages.password_mismatch')).replace(/</g, '\\u003c') %>
         };
 
         function togglePassword(inputId, iconId) {
@@ -336,7 +336,7 @@
                     errorBox.classList.add('hidden');
                     const btn = document.querySelector('button[type="submit"]');
                     btn.disabled = true;
-                    btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> ' + <%- JSON.stringify(t('setup.restoring')) %>;
+                    btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> ' + <%- JSON.stringify(t('setup.restoring')).replace(/</g, '\\u003c') %>;
 
                     // The restore creates the accounts, so it carries the same token as the form.
                     const tokenInput = document.getElementById('setupToken');
@@ -366,7 +366,7 @@
                         throw Object.assign(new Error('Import failed'), { userMessage: failure.userMessage });
                     }
                 } catch (err) {
-                    errorText.innerText = (err && err.userMessage) || <%- JSON.stringify(t('setup.error_save_file')) %>;
+                    errorText.innerText = (err && err.userMessage) || <%- JSON.stringify(t('setup.error_save_file')).replace(/</g, '\\u003c') %>;
                     errorBox.classList.remove('hidden');
                     // Lets the same file be picked again once the token is corrected.
                     backupInput.value = '';

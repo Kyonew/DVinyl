@@ -227,16 +227,16 @@
         scalePercent: LAYOUT_OPTIONS.scalePercent,
         contentMax: LAYOUT_OPTIONS.contentMax,
         fontStacks: LAYOUT_OPTIONS.fontStacks
-    }) %>;
-    const fontSheets = <%- JSON.stringify(LAYOUT_OPTIONS.fontSheets) %>;
+    }).replace(/</g, '\\u003c') %>;
+    const fontSheets = <%- JSON.stringify(LAYOUT_OPTIONS.fontSheets).replace(/</g, '\\u003c') %>;
     const themePresets = <%- JSON.stringify(Object.fromEntries(Object.entries(presets).map(([k, v]) => [k, { light: v.light, dark: v.dark }]))).replace(/</g, '\\u003c') %>;
-    const PALETTE = <%- JSON.stringify(THEME_OPTIONS.palettePrefix) %>;
-    const INHERIT = <%- JSON.stringify(THEME_OPTIONS.inherit) %>;
-    const MAX_PALETTES = <%- JSON.stringify(THEME_OPTIONS.maxPalettes) %>;
-    const TOKENS = <%- JSON.stringify(THEME_OPTIONS.tokens) %>;
+    const PALETTE = <%- JSON.stringify(THEME_OPTIONS.palettePrefix).replace(/</g, '\\u003c') %>;
+    const INHERIT = <%- JSON.stringify(THEME_OPTIONS.inherit).replace(/</g, '\\u003c') %>;
+    const MAX_PALETTES = <%- JSON.stringify(THEME_OPTIONS.maxPalettes).replace(/</g, '\\u003c') %>;
+    const TOKENS = <%- JSON.stringify(THEME_OPTIONS.tokens).replace(/</g, '\\u003c') %>;
     const savedValues = <%- JSON.stringify(savedValues).replace(/</g, '\\u003c') %>;
     const widgetTypes = <%- JSON.stringify(widgetTypes).replace(/</g, '\\u003c') %>;
-    const sizeShort = <%- JSON.stringify({ s: t('dashboard.size_s_short'), m: t('dashboard.size_m_short'), l: t('dashboard.size_l_short'), full: t('dashboard.size_full_short') }) %>;
+    const sizeShort = <%- JSON.stringify({ s: t('dashboard.size_s_short'), m: t('dashboard.size_m_short'), l: t('dashboard.size_l_short'), full: t('dashboard.size_full_short') }).replace(/</g, '\\u003c') %>;
     const i18n = <%- JSON.stringify({
         upToDate: t('studio.up_to_date'),
         saved: t('studio.published'),
@@ -1189,7 +1189,7 @@
     }
     // Opened afresh, the studio starts on Style; reloaded or discarded, it stays
     // on the tab it was on.
-    let startTab = <%- JSON.stringify(startArrange ? 'home' : null) %>;
+    let startTab = <%- JSON.stringify(startArrange ? 'home' : null).replace(/</g, '\\u003c') %>;
     const navigation = performance.getEntriesByType('navigation')[0];
     try {
         const stay = sessionStorage.getItem('studioStay') === '1' || (navigation && navigation.type === 'reload');
@@ -1202,9 +1202,9 @@
     placeTools();
     let startSheet = null;
     try { startSheet = sessionStorage.getItem('studioSheet'); } catch (e) { /* private mode */ }
-    setSheet(<%- JSON.stringify(Boolean(startArrange)) %> ? 'peek' : (['peek', 'half', 'full'].includes(startSheet) ? startSheet : 'half'));
+    setSheet(<%- JSON.stringify(Boolean(startArrange)).replace(/</g, '\\u003c') %> ? 'peek' : (['peek', 'half', 'full'].includes(startSheet) ? startSheet : 'half'));
     const start = inStudio(<%- JSON.stringify(startPage).replace(/</g, '\\u003c') %>);
-    if (<%- JSON.stringify(Boolean(startArrange)) %>) start.hash = 'arrange';
+    if (<%- JSON.stringify(Boolean(startArrange)).replace(/</g, '\\u003c') %>) start.hash = 'arrange';
     frame.src = start.toString();
 })();
 </script>
