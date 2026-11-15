@@ -164,7 +164,7 @@
                                 <%= t('settings.home_collection_label') %>
                             </span>
                             <select name="homeCollectionId" onchange="this.form.submit()"
-                                class="bg-black/5 dark:bg-white/5 border border-transparent text-gray-900 dark:text-white text-sm rounded-lg focus:ring-primary-theme focus:border-primary-theme block p-3 transition-colors outline-none cursor-pointer">
+                                class="min-w-0 max-w-[60%] sm:max-w-xs bg-black/5 dark:bg-white/5 border border-transparent text-gray-900 dark:text-white text-sm rounded-lg focus:ring-primary-theme focus:border-primary-theme block p-3 transition-colors outline-none cursor-pointer">
                                 <option value="" class="bg-white dark:bg-[#1a1a1a]" <%=!user.homeCollectionId ? 'selected' : '' %>>
                                     <%= t('settings.home_collection_last') %>
                                 </option>
