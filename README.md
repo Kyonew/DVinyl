@@ -27,8 +27,8 @@
 
 DVinyl is a little home for your physical collection. It lives on your own server, pulls in cover
 art and metadata from the big databases (Discogs, Hardcover, Open Library, TMDB, IGDB, ScreenScraper,
-Rebrickable, BoardGameGeek), can even estimate what your music is worth, and lays it all out on a dashboard you
-get to shape yourself.
+Rebrickable, BoardGameGeek), can even estimate what your music is worth, and lays it all out in a look you get to shape
+yourself. Everything lives in one SQLite file: no database server to run.
 
 DVinyl is **plugin based**: every media type is a plugin, so you turn on only what you
 care about, and you can add your own type without touching the core.
@@ -40,13 +40,19 @@ read-only preview of a finished instance.
 
 ### 📦 Your whole shelf, in one place
 - **Many formats.** Music (vinyls, CDs, cassettes), books (manga, comics, hardcover), movies
-  (Blu-ray, 4K, DVD, VHS, LaserDisc), video games, LEGO sets, board games and trading card games.
+  (Blu-ray, 4K, DVD, VHS, LaserDisc), video games and consoles, LEGO sets, board games and trading
+  card games.
+- **Collector details.** Record size, speed, pressing plant, mastering and runouts per side from
+  Discogs, film casts and original titles, several formats in one edition, boxsets holding their
+  contents, and what you paid for each copy.
 - **Multiple views & virtual shelves.** Browse in a grid, a compact table, or as realistic virtual
   shelves with spine view and customizable furniture.
 - **Lists & playlists.** Curate custom lists within a collection and assemble tracks into playlists.
 - **Multiple collections.** Keep separate libraries (yours, the family's, by room) and switch in one click.
 - **Smart import & barcode scanner.** Add items by ID, scan physical barcodes with your camera, or
-  bulk import existing libraries (Discogs, Goodreads).
+  bulk import existing libraries (Discogs with your own custom fields, Goodreads, any CSV).
+- **Fast editing.** Edit one field on a whole selection, save and go on to the next item, saved
+  filter views, and table columns per type.
 - **AI assist.** Bring-your-own-key support for text, photo or barcode-fallback import, and for
   drafting a new no-code plugin from a one-sentence description. See the
   [AI Assist guide](./docs/ai.md) to set it up.
@@ -57,20 +63,33 @@ read-only preview of a finished instance.
 - **Wishlist.** Keep track of items you are hunting for.
 
 ### 🎨 Make it yours
-- **14 color themes.** Ocean, Forest, Sunset, Sakura, Midnight and more, with light and dark variants.
-- **Modular dashboard.** Pick your stat widgets and add custom navigation shortcuts.
+- **A look per collection.** A studio with a live preview: ready-made styles, a top bar, sidebar or
+  dock, your own colour palettes, fonts, card shapes, logo and background.
+- **Home page widgets.** Arrange stats, latest additions, wishlist, lists and notes in a grid.
 - **Collection info page.** Add a rich Markdown presentation page with photos for your collections.
 - **Responsive.** Designed to feel natural on desktop, tablet and mobile.
 - **Multilingual.** English, French, German, Spanish, Italian and Russian.
 
 ### 👥 Share it, your way
 - **Users and roles.** Invite people to a collection as admin, editor or viewer, so everyone gets
-  the right level of access.
+  the right level of access, or send them a single-use invite link.
+- **Requests & notifications.** Members ask each other to borrow an item or offer a gift, under
+  types the admin makes up, with push notifications on their phone.
+- **See each other's wishes.** Search results show who among your collections' members wishes for
+  a record.
 - **SSO login (OIDC).** Optional single sign-on with providers like Authentik, Keycloak, Authelia
   or pocketID, with optional automatic account creation from an identity provider group.
 - **Private or shared.** Keep your collection to yourself or open it up for others to browse.
 - **Public share links.** Generate a read-only link or QR code so anyone can browse a collection
   (or just part of it, e.g. only Vinyls) without an account.
+
+### 💾 Your data stays yours
+- **One file.** The whole collection in one SQLite file, easy to back up. 3.x installs move over on
+  their own ([Moving to SQLite](./docs/docker.md#-moving-to-sqlite)).
+- **Backups.** Collection or whole-instance exports (ZIP with images, JSON, CSV), and automatic
+  daily or weekly backups to a folder of your choice.
+- **Local image copies.** Optionally download the covers that are only links, so they never vanish
+  and travel in your backups.
 
 ## Built-in plugins
 

@@ -195,6 +195,8 @@ These are the core variables. See [API keys](./api-keys.md) for the metadata ser
 | `SESSION_SECRET` | Secret used to encrypt sessions |
 | `PROD` | Set to `true` **only** when serving over HTTPS |
 | `BASE_URL` | Sub-path prefix, leave empty to serve from the root |
+| `SETUP_TOKEN` | Optional. Asked on the first-run setup page (and to restore a backup on an empty instance), so nobody else can claim a fresh install first. Generate one with `openssl rand -hex 16` |
+| `BACKUP_DIR` | Optional. Sets and locks the folder of the automatic backups (default `data/backups`) |
 
 > [!IMPORTANT]
 > Use `PROD=true` **only with HTTPS**. For localhost or a local IP, leave `PROD=false`.
