@@ -1,10 +1,10 @@
 <p align="center">
-  <img src="./docs/img/banner.webp" alt="DVinyl banner" width="100%">
+  <img src="./docs/img/banner.webp" alt="DVinyl: your whole collection, on one beautiful shelf" width="100%">
 </p>
 
 <p align="center">
-  <b>DVinyl</b> is a modern, self-hostable collection manager for physical media lovers.<br>
-  Catalog, value and organize your vinyls, CDs, books, movies, games and more, all from one cozy place.
+  <b>DVinyl</b> is a self-hosted manager for physical collections: records, books, films, games,
+  LEGO, board games, trading cards, and any kind of item you define yourself.
 </p>
 
 <p align="center">
@@ -27,11 +27,12 @@
 
 DVinyl is a little home for your physical collection. It lives on your own server, pulls in cover
 art and metadata from the big databases (Discogs, Hardcover, Open Library, TMDB, IGDB, ScreenScraper,
-Rebrickable, BoardGameGeek), can even estimate what your music is worth, and lays it all out in a look you get to shape
-yourself. Everything lives in one SQLite file: no database server to run.
+Rebrickable, BoardGameGeek), can even estimate what your records are worth, and lays it all out on
+virtual shelves that look like the real ones, in a style you get to shape yourself. Everything lives
+in one SQLite file: no database server to run.
 
-DVinyl is **plugin based**: every media type is a plugin, so you turn on only what you
-care about, and you can add your own type without touching the core.
+DVinyl is **plugin based**: every media type is a plugin, so you turn on only what you care about,
+and you can add your own type without touching the core.
 
 Want to see it before installing anything? Have a look at the [live demo](https://demo.kyonew.me/), a
 read-only preview of a finished instance.
@@ -42,6 +43,8 @@ read-only preview of a finished instance.
 - **Many formats.** Music (vinyls, CDs, cassettes), books (manga, comics, hardcover), movies
   (Blu-ray, 4K, DVD, VHS, LaserDisc), video games and consoles, LEGO sets, board games and trading
   card games.
+- **Your own types.** Collect something else? Create a new type right from the app with the no-code
+  plugin editor, or write a [code plugin](./docs/plugin-development.md) with its own API.
 - **Collector details.** Record size, speed, pressing plant, mastering and runouts per side from
   Discogs, film casts and original titles, several formats in one edition, boxsets holding their
   contents, and what you paid for each copy.
@@ -56,8 +59,8 @@ read-only preview of a finished instance.
 - **AI assist.** Bring-your-own-key support for text, photo or barcode-fallback import, and for
   drafting a new no-code plugin from a one-sentence description. See the
   [AI Assist guide](./docs/ai.md) to set it up.
-- **Market value & price history.** Live valuation estimates for your music collection with historical
-  charts over time.
+- **Market value & price history.** Live valuation estimates for your records and cards, with
+  historical charts over time.
 - **Game completion times.** Playtime estimates powered by IGDB.
 - **Printable labels.** Generate printable QR codes and barcodes for your physical media.
 - **Wishlist.** Keep track of items you are hunting for.
@@ -67,7 +70,7 @@ read-only preview of a finished instance.
   dock, your own colour palettes, fonts, card shapes, logo and background.
 - **Home page widgets.** Arrange stats, latest additions, wishlist, lists and notes in a grid.
 - **Collection info page.** Add a rich Markdown presentation page with photos for your collections.
-- **Responsive.** Designed to feel natural on desktop, tablet and mobile.
+- **In your pocket.** Installs on your phone like an app, with the barcode scanner one tap away.
 - **Multilingual.** English, French, German, Spanish, Italian and Russian.
 
 ### 👥 Share it, your way
@@ -79,138 +82,160 @@ read-only preview of a finished instance.
   a record.
 - **SSO login (OIDC).** Optional single sign-on with providers like Authentik, Keycloak, Authelia
   or pocketID, with optional automatic account creation from an identity provider group.
-- **Private or shared.** Keep your collection to yourself or open it up for others to browse.
 - **Public share links.** Generate a read-only link or QR code so anyone can browse a collection
   (or just part of it, e.g. only Vinyls) without an account.
 
 ### 💾 Your data stays yours
-- **One file.** The whole collection in one SQLite file, easy to back up. 3.x installs move over on
-  their own ([Moving to SQLite](./docs/docker.md#-moving-to-sqlite)).
+- **One file.** The whole collection in one SQLite file, easy to back up.
 - **Backups.** Collection or whole-instance exports (ZIP with images, JSON, CSV), and automatic
   daily or weekly backups to a folder of your choice.
 - **Local image copies.** Optionally download the covers that are only links, so they never vanish
   and travel in your backups.
 
-## Built-in plugins
+## Supported media
 
-| Plugin | Media | Metadata source |
-| :----- | :---- | :-------------- |
-| Music  | Vinyls, CDs, cassettes | Discogs |
-| Books  | Books, manga, comics   | Hardcover, Open Library |
-| Movies | Blu-ray, 4K, DVD, VHS  | TMDB |
-| Games  | Video games            | IGDB, ScreenScraper |
-| LEGO   | LEGO sets              | Rebrickable |
-| Board games | Board games       | BoardGameGeek |
+| Type | Formats | Metadata source | API key |
+| :--- | :------ | :-------------- | :-----: |
+| Music | Vinyl, CD, cassette | Discogs | ✅ |
+| Books | Books, manga, comics | Hardcover, Open Library | optional |
+| Movies | Blu-ray, 4K, DVD, VHS, LaserDisc | TMDB | ✅ |
+| Video games | Games, consoles | IGDB, ScreenScraper | ✅ |
+| LEGO | Sets | Rebrickable | ✅ |
+| Board games | Games, expansions | BoardGameGeek | ✅ |
+| Trading cards | Pokémon, Magic, Yu-Gi-Oh!, One Piece, Lorcana, Star Wars: Unlimited, Digimon, Flesh and Blood | TCGdex, Scryfall, YGOPRODeck and others | none |
 
-Every plugin can be turned on or off per collection from the admin panel.
-
-## Trading card games
-
-| Plugin | Metadata source | Price estimate |
-| :----- | :--------------- | :---: |
-| Pokémon | TCGdex | ✅ |
-| Magic: The Gathering | Scryfall | ✅ |
-| Yu-Gi-Oh! | YGOPRODeck | ✅ |
-| One Piece | optcgapi.com | ✅ |
-| Lorcana | Lorcana API | — |
-| Star Wars: Unlimited | SWU-DB | ✅ |
-| Digimon | DigimonCard.io | — |
-| Flesh and Blood | goagain.dev | — |
-
-All eight are free and keyless: no `.env` setup, just enable the ones you want per
-collection from the admin panel. "Price estimate" sums your collection's live market value from
-the collection page; the three without it use sources that don't publish pricing data.
+Each type can be turned on or off per collection. Add only the keys for the types you use: a type
+whose key is missing stays disabled. See [API keys](./docs/api-keys.md) for where to get each one.
 
 ## Build your own type
 
 DVinyl is made to grow with you. There are two ways to add a new kind of collection:
 
 - **Plugin editor (no code).** Create a manual collection type right from the app, with your own
-  fields, formats, icon and colors. No restart, no coding required.
-  See the [Plugin editor guide](https://github.com/Kyonew/DVinyl/wiki) on the Wiki.
+  fields, formats, icon and colors. No restart, no coding required. Short on ideas? The AI assist
+  can draft one from a one-sentence description. See the
+  [Plugin editor guide](https://github.com/Kyonew/DVinyl/wiki) on the Wiki.
 - **Code plugin (with API).** Drop a `plugins/<id>/` folder that exports a plugin definition to add
   a full media type with its own external API, importers and stats.
   See the [Plugin development guide](./docs/plugin-development.md).
-  Built one you are proud of? Do not hesitate to open a PR, I would genuinely love to see it! 🙌
 
-## Quick start
+Built one you are proud of? Do not hesitate to open a PR, I would genuinely love to see it! 🙌
 
-### 🐳 Docker (Compose)
+## Installation
 
-The fastest way to run DVinyl on any Linux/macOS/Windows host is the pre-built Docker image:
+### Docker Compose (recommended)
 
-1. Create a `docker-compose.yml` (the [Docker guide](./docs/docker.md) has the full file).
-2. Set your environment variables in a `.env` file (see [API keys](./docs/api-keys.md)).
-3. Start it up:
-   ```bash
-   docker compose up -d
-   ```
+```yaml
+services:
+  dvinyl-app:
+    image: ghcr.io/kyonew/dvinyl:latest
+    container_name: dvinyl_app
+    restart: unless-stopped
+    ports:
+      - "3099:3099"
+    volumes:
+      - ./data:/app/data # the SQLite database
+      - ./public/uploads:/app/public/uploads # uploaded images
+    env_file:
+      - .env
+```
 
-Then open `http://localhost:3099` and you are good to go.
+Create a `.env` next to it from [.env.example](./.env.example). Two secrets are required:
 
-> [!TIP]
-> If you have `make` installed, `make docker-up` runs step 3 for you. Run `make help` to see every
-> available command.
+```bash
+PASSJWT= # openssl rand -hex 32
+SESSION_SECRET= # openssl rand -hex 32, a different one
+```
 
-### 🧊 ZimaOS / CasaOS
+Then start it and open `http://your-server:3099` to create the first account:
 
-DVinyl is available through the community **TwoBytes Store**:
+```bash
+docker compose up -d
+```
 
-1. In ZimaOS, open **App Store → Sources → Add**, and enter:
-   ```
-   https://raw.githubusercontent.com/NoNoBzH22/TwoBytes-Store/gh-pages
-   ```
-   *(For older ZimaOS / CasaOS versions requiring a zip source, use: `https://github.com/NoNoBzH22/TwoBytes-Store/archive/refs/heads/main.zip`)*
-2. Find and install **DVinyl** from the store.
-3. Open `http://<server-ip>:3099` to complete setup.
+More options (building from source, environment-only setup) are in the [Docker guide](./docs/docker.md).
 
-### 🧡 Unraid
+### Other platforms
 
-An official Community Application template is available:
-- Install via Community Applications or add the [XML template](https://raw.githubusercontent.com/Kyonew/DVinyl/main/unraid-template/dvinyl.xml).
-- Follow the [Unraid setup instructions](./docs/getting-started.md#-unraid).
+| Platform | How |
+| :------- | :-- |
+| Unraid | Community Applications, or the [XML template](https://raw.githubusercontent.com/Kyonew/DVinyl/main/unraid-template/dvinyl.xml) ([guide](./docs/getting-started.md#-unraid)) |
+| ZimaOS / CasaOS | Add the source `https://raw.githubusercontent.com/NoNoBzH22/TwoBytes-Store/gh-pages` to the App Store, then install DVinyl ([guide](./docs/getting-started.md#-zimaos)) |
+| Proxmox LXC | A small Debian container, no Docker ([guide](./docs/getting-started.md#-proxmox-lxc)) |
+| Node.js | Run it directly on any machine ([guide](./docs/getting-started.md)) |
 
-No Docker or NAS? Have a look at the other ways to install and run DVinyl in the
-[Getting started guide](./docs/getting-started.md).
+## Configuration
+
+All settings live in `.env`; [.env.example](./.env.example) documents every variable. The most
+common ones:
+
+| Variable | Purpose |
+| :------- | :------ |
+| `PASSJWT`, `SESSION_SECRET` | Required secrets, two different random values |
+| `SETUP_TOKEN` | Protects the first-run setup page while the instance is reachable by others |
+| `PROD` | Set to `true` only when served over HTTPS |
+| `VINYL_PORT`, `BASE_URL` | Port, and sub-path when served under one |
+| `PUBLIC_URL`, `PUSH_CONTACT` | Public address, used for links and push notifications |
+| `BACKUP_DIR` | Forces the folder for scheduled backups |
+| `DISCOGS_TOKEN`, `TMDB_API_KEY`, `TWITCH_CLIENT_ID`… | Metadata providers ([API keys](./docs/api-keys.md)) |
+| `OIDC_*` | Single sign-on ([details](./docs/getting-started.md#-environment-variables)) |
+| `AI_*` | Optional AI import ([AI Assist](./docs/ai.md)) |
+
+Behind a reverse proxy? See [the HTTPS section](./docs/getting-started.md#-behind-a-reverse-proxy-https).
+
+## Updating
+
+```bash
+docker compose pull && docker compose up -d
+```
+
+Back up your `data/` folder first, or use the built-in backups. Coming from 3.x (MongoDB), your data
+is moved to SQLite automatically on first start: read [Moving to SQLite](./docs/docker.md#-moving-to-sqlite)
+before upgrading. Rolling back is covered in the [Docker guide](./docs/docker.md#rolling-back).
 
 ## Documentation
 
-| Guide | What is inside |
-| :---- | :------------- |
-| [Getting started](./docs/getting-started.md) | Installation options and requirements |
-| [Docker deployment](./docs/docker.md) | Deploy with Docker Compose (recommended) |
-| [API keys](./docs/api-keys.md) | Get your Discogs, Hardcover, TMDB, IGDB, ScreenScraper, Rebrickable and BoardGameGeek keys |
-| [AI Assist](./docs/ai.md) | Optional bring-your-own-key AI for text, photo and barcode-fallback import, and for drafting a no-code plugin |
-| [Plugin development](./docs/plugin-development.md) | Build your own media type as a code plugin |
-| [Public share links](./docs/sharing.md) | Let anyone browse a collection (or part of it) read-only, no account needed |
+| Guide | Content |
+| :---- | :------ |
+| [Getting started](./docs/getting-started.md) | Installation options, environment variables, reverse proxy |
+| [Docker deployment](./docs/docker.md) | Compose setup, updates, persistence, backups |
+| [API keys](./docs/api-keys.md) | Discogs, Hardcover, TMDB, IGDB, ScreenScraper, Rebrickable, BoardGameGeek |
+| [AI Assist](./docs/ai.md) | Bring-your-own-key AI import and plugin drafting |
+| [Plugin development](./docs/plugin-development.md) | Build a media type as a code plugin |
+| [Public share links](./docs/sharing.md) | Read-only links to a collection |
 | [Wiki](https://github.com/Kyonew/DVinyl/wiki) | User guides and no-code tutorials |
 
-## Tech stack
+**Tech stack:** Node.js, Express, SQLite, EJS, Tailwind CSS, i18next.
 
-| Component | Technology |
-| :-------- | :--------- |
-| Backend | Node.js, Express |
-| Database | SQLite (one file, no server) |
-| Frontend | EJS templates |
-| Styling | Tailwind CSS |
-| Localization | i18next |
-| Metadata APIs | Discogs, Hardcover, Open Library, TMDB, IGDB, ScreenScraper, Rebrickable, BoardGameGeek, plus 8 free TCG APIs (see [Trading card games](#trading-card-games)) |
+## Contributors
 
-## Contributing
+DVinyl is better for the people who jumped in. Huge thanks to everyone whose pull requests made it
+into `main` 💜 (hover an avatar to see their merged PRs)
 
-This is honestly my first app of this kind, so I am wide open to help, ideas and advice. If you
-want to jump in, have a look at [CONTRIBUTING.md](./.github/CONTRIBUTING.md) and the
-[Code of Conduct](./.github/CODE_OF_CONDUCT.md) first. Bug reports and feature ideas are just as
-welcome as code.
+<p align="center">
+  <a href="https://github.com/Siebe-Uy" title="Siebe-Uy · 13 merged PRs"><img src="https://images.weserv.nl/?url=github.com/Siebe-Uy.png%3Fsize%3D160&w=160&h=160&fit=cover&mask=circle" width="64" alt="Siebe-Uy"></a>
+  <a href="https://github.com/teaboyteaboy" title="teaboyteaboy · 6 merged PRs"><img src="https://images.weserv.nl/?url=github.com/teaboyteaboy.png%3Fsize%3D160&w=160&h=160&fit=cover&mask=circle" width="64" alt="teaboyteaboy"></a>
+  <a href="https://github.com/ArtwoXYZ" title="ArtwoXYZ · 4 merged PRs"><img src="https://images.weserv.nl/?url=github.com/ArtwoXYZ.png%3Fsize%3D160&w=160&h=160&fit=cover&mask=circle" width="64" alt="ArtwoXYZ"></a>
+  <a href="https://github.com/minchetas" title="minchetas · 3 merged PRs"><img src="https://images.weserv.nl/?url=github.com/minchetas.png%3Fsize%3D160&w=160&h=160&fit=cover&mask=circle" width="64" alt="minchetas"></a>
+  <a href="https://github.com/Sbax" title="Sbax · 3 merged PRs"><img src="https://images.weserv.nl/?url=github.com/Sbax.png%3Fsize%3D160&w=160&h=160&fit=cover&mask=circle" width="64" alt="Sbax"></a>
+  <a href="https://github.com/Kianuss" title="Kianuss · 2 merged PRs"><img src="https://images.weserv.nl/?url=github.com/Kianuss.png%3Fsize%3D160&w=160&h=160&fit=cover&mask=circle" width="64" alt="Kianuss"></a>
+  <a href="https://github.com/HolyFab" title="HolyFab · 2 merged PRs"><img src="https://images.weserv.nl/?url=github.com/HolyFab.png%3Fsize%3D160&w=160&h=160&fit=cover&mask=circle" width="64" alt="HolyFab"></a>
+  <a href="https://github.com/reneald" title="reneald · 2 merged PRs"><img src="https://images.weserv.nl/?url=github.com/reneald.png%3Fsize%3D160&w=160&h=160&fit=cover&mask=circle" width="64" alt="reneald"></a>
+  <a href="https://github.com/RobertClarke64" title="RobertClarke64 · 1 merged PR"><img src="https://images.weserv.nl/?url=github.com/RobertClarke64.png%3Fsize%3D160&w=160&h=160&fit=cover&mask=circle" width="64" alt="RobertClarke64"></a>
+  <a href="https://github.com/mistic100" title="mistic100 · 1 merged PR"><img src="https://images.weserv.nl/?url=github.com/mistic100.png%3Fsize%3D160&w=160&h=160&fit=cover&mask=circle" width="64" alt="mistic100"></a>
+  <a href="https://github.com/tonymarsh" title="tonymarsh · 1 merged PR"><img src="https://images.weserv.nl/?url=github.com/tonymarsh.png%3Fsize%3D160&w=160&h=160&fit=cover&mask=circle" width="64" alt="tonymarsh"></a>
+  <a href="https://github.com/guillaumegay13" title="guillaumegay13 · 1 merged PR"><img src="https://images.weserv.nl/?url=github.com/guillaumegay13.png%3Fsize%3D160&w=160&h=160&fit=cover&mask=circle" width="64" alt="guillaumegay13"></a>
+</p>
+
+Want to see your name here? Bug reports, ideas, translations and plugins are all welcome. Please read
+[CONTRIBUTING.md](./.github/CONTRIBUTING.md) and the [Code of Conduct](./.github/CODE_OF_CONDUCT.md)
+first.
 
 ## License
 
-Distributed under the MIT License. See [LICENSE](./LICENSE) for the details.
+[MIT](./LICENSE)
 
 > [!NOTE]
-> Please note that parts of the frontend and comments were generated with the assistance of AI tools. While I reviewed and corrected the output where necessary, this project is not 100% human-made.
->
-> Your feedback is highly appreciated, even for the backend, where I may have made significant errors. I would be grateful for any suggestions or comments to improve the project.
->
-> Thank you for your understanding <3
-
+> Parts of the frontend and comments were generated with the help of AI tools. I reviewed and
+> corrected the output where needed, but this project is not 100% human-made. Feedback is very
+> welcome, including on the backend, where I may have made mistakes. Thank you for your understanding <3
