@@ -7,11 +7,14 @@
    */
   const onTop = shellNav.nav === 'top';
   const floating = onTop && shellNav.topStyle === 'floating';
+  // Always lifted above the page (relative z-40), sticky or not, at every width: with
+  // frosted glass on, the bar's backdrop-filter makes it a stacking context, so without
+  // a z-index the glass cards that follow it in the page paint over its dropdowns.
   const barClasses = [
-      'nav-custom transition-colors duration-300',
+      'nav-custom relative z-40 transition-colors duration-300',
       hideTopBarOnPhone ? 'max-md:hidden' : '',
       onTop ? '' : 'md:hidden',
-      onTop && shellNav.sticky ? 'md:sticky md:z-40' : '',
+      onTop && shellNav.sticky ? 'md:sticky' : '',
       onTop && shellNav.sticky ? (floating ? 'md:top-4' : 'md:top-0') : '',
       floating ? 'md:mx-4 md:mt-4 md:rounded-2xl md:shadow-xl md:border md:border-[var(--border-color)]' : ''
   ].filter(Boolean).join(' ');
