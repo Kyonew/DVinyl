@@ -59,8 +59,8 @@ read-only preview of a finished instance.
 - **AI assist.** Bring-your-own-key support for text, photo or barcode-fallback import, and for
   drafting a new no-code plugin from a one-sentence description. See the
   [AI Assist guide](./docs/ai.md) to set it up.
-- **Market value & price history.** Live valuation estimates for your records and cards, with
-  historical charts over time.
+- **Market value & price history.** Live valuation estimates for your records, cards and board
+  games, with historical charts over time.
 - **Game completion times.** Playtime estimates powered by IGDB.
 - **Printable labels.** Generate printable QR codes and barcodes for your physical media.
 - **Wishlist.** Keep track of items you are hunting for.

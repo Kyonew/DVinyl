@@ -3,6 +3,7 @@ import { sourceFromProvider } from '../../core/sources';
 import { db } from '../../core/db';
 import { and, ci, eq, idOf, ne, or, Filter } from '../../core/db/query';
 import { BggProvider } from './bgg';
+import { boardGamesApiRoutes } from './apiRoutes';
 
 const bgg = new BggProvider();
 
@@ -57,6 +58,24 @@ export const boardGamesPlugin: PluginDefinition = {
 
   sources: [bggSource],
   imageSearchType: 'boardgame',
+  apiRoutes: boardGamesApiRoutes,
+
+  // What the collection would sell for, from the asking prices on BGG's marketplace.
+  collectionActions: [
+    {
+      id: 'estimate',
+      label: 'index.btn_estimate',
+      icon: 'fa-calculator',
+      tooltip: 'index.btn_estimate',
+      behavior: 'estimate',
+      estimate: {
+        idsEndpoint: '/api/boardgames/collection/ids',
+        estimateEndpoint: '/api/boardgames/estimate',
+        idField: 'bgg_id',
+        maxMultiplier: 1.3
+      }
+    }
+  ],
 
   // BGG's XML API2 terms of use require the "Powered by BGG" logo, linked back to
   // BoardGameGeek, on any public-facing page that surfaces data pulled from it.
