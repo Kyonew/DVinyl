@@ -134,8 +134,9 @@ Just enable the ones you want per collection from the admin panel and they work 
 
 ## 🎲 BoardGameGeek (Board games)
 
-Used for board game metadata, designers, publishers and covers. Since July 2025 BGG requires a
-registered application token for every XML API request (unauthenticated calls now fail with 401).
+Used for board game metadata, designers, publishers and covers, and for the marketplace prices
+behind the collection estimate. Since July 2025 BGG requires a registered application token for
+every XML API request (unauthenticated calls now fail with 401).
 
 1. Read [Using the XML API](https://boardgamegeek.com/using_the_xml_api) and the
    [registration thread](https://boardgamegeek.com/thread/3525319/registration-to-use-the-xml-api-and-obtain-soon-to)

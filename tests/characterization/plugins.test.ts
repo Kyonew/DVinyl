@@ -106,6 +106,27 @@ describe('built-in item types', { skip: !backend }, () => {
     assert.deepEqual(copies(dump, 'Millennium Falcon'), [1, 2]);
     assert.deepEqual(copies(dump, 'Catan'), [2]);
   });
+
+  it('hands only the board games it can price to the estimate', async () => {
+    // Added by hand: no BGG id, so nothing to look up on the marketplace. Nor is there
+    // with an id that is not one, which must not reach the address the page calls.
+    await save(admin, 'boardgames', { title: 'Family prototype', designer: 'Us', format: 'boxed' });
+    await save(admin, 'boardgames', { title: 'Mistyped', designer: 'Us', bgg_id: '../../../logout', format: 'boxed' });
+    await save(admin, 'boardgames', { title: 'Imported', designer: 'Us', bgg_id: ' 42 ', format: 'boxed' });
+
+    const page = await admin.get('/collection?type=boardgames');
+    assert.match(page.text, /\/api\/boardgames\/estimate/);
+
+    const { success, albums } = (await admin.get('/api/boardgames/collection/ids')).json();
+    assert.equal(success, true);
+    assert.deepEqual(albums.map((a: any) => [a.bgg_id, a.quantity]), [['13', 2], ['42', 1]]);
+
+    // Neither an id that is not a BGG number nor a game the collection does not hold
+    // is looked up on BGG.
+    for (const id of ['catan', '174430']) {
+      assert.deepEqual((await admin.get(`/api/boardgames/estimate/${id}`)).json(), { success: false, error: 'Unavailable' });
+    }
+  });
 });
 
 describe('custom fields', { skip: !backend }, () => {
