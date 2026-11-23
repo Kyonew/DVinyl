@@ -113,7 +113,7 @@
         <div class="min-w-0 flex flex-col">
             <h1 class="font-extrabold text-base leading-tight truncate"><%= t('perso.title') %></h1>
             <span data-studio-state-small class="md:hidden text-[11px] truncate opacity-70"></span>
-            <span class="max-md:hidden text-xs opacity-60 truncate"><%= t('studio.subtitle', { name: (locals.activeCollection && activeCollection.name) || settings.siteName }) %></span>
+            <span class="max-md:hidden text-xs opacity-60 truncate"><%= t('studio.subtitle', { name: (locals.activeCollection && activeCollection.name) || settings.siteName, interpolation: { escapeValue: false } }) %></span>
         </div>
         <span class="flex-1"></span>
         <span data-studio-state role="status" aria-live="polite" class="max-md:hidden flex items-center gap-2 h-8 px-3 rounded-full text-xs font-bold bg-black/5 dark:bg-white/10">
