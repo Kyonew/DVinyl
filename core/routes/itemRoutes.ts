@@ -198,6 +198,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
             error: req.t('errors.api_error', { provider: req.t(plugin.label) }),
             searchType: type || plugin.id,
             searchQuery: rawQuery,
+            resolvedTitle,
             scanned_barcode: scannedBarcode,
             user: res.locals.user,
             currentType: `add-${plugin.id}`,
@@ -297,6 +298,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
             : undefined,
           searchType: type || plugin.id,
           searchQuery: boxQuery,
+          resolvedTitle,
           identifierCode,
           scanned_barcode: scannedBarcode,
           user: res.locals.user,
@@ -316,6 +318,7 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
           // Emptied here too: a provider that failed is a reason to scan the item again,
           // which needs the box clear as much as a miss does.
           searchQuery: exactIdentifier ? '' : rawQuery,
+          resolvedTitle,
           identifierCode,
           scanned_barcode: scannedBarcode,
           user: res.locals.user,
@@ -596,6 +599,12 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
         // input from here on, free to be corrected or cleared like anything else.
         if (typeof req.query.barcode === 'string' && req.query.barcode) {
           defaults.barcode = req.query.barcode;
+        }
+        // Same hand-over for a scanned barcode whose product name the source did not know:
+        // the resolved name is shown on the add page, and this is where it would otherwise
+        // have to be typed again.
+        if (typeof req.query.title === 'string' && req.query.title.trim()) {
+          defaults.title = req.query.title.trim();
         }
 
         const suggestions = await buildFieldSuggestions(plugin, activeCollectionId, defaults);

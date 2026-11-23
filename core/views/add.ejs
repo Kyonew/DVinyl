@@ -124,7 +124,15 @@
                     printed on the item in hand, and typing it twice is the one thing the
                     manual form should not ask for. %>
                 <% const manualCode = locals.identifierCode || locals.scanned_barcode || ''; %>
-                <a href="<%= baseUrl %>/add-<%= plugin.id %>/manual<%- manualCode ? '?barcode=' + encodeURIComponent(manualCode) : '' %>"
+                <%# A scanned barcode that resolved to a product name the source did not know
+                    leaves the user holding the name in the search box. Carry it to the manual
+                    form with the code, so the fallback does not ask for the same text twice. %>
+                <% const manualTitle = locals.resolvedTitle || (locals.scanned_barcode ? (locals.searchQuery || '') : ''); %>
+                <% const manualParams = new URLSearchParams(); %>
+                <% if (manualCode) manualParams.set('barcode', manualCode); %>
+                <% if (manualTitle) manualParams.set('title', manualTitle); %>
+                <% const manualQuery = manualParams.toString(); %>
+                <a href="<%= baseUrl %>/add-<%= plugin.id %>/manual<%- manualQuery ? '?' + manualQuery : '' %>"
                     class="text-xs text-primary-theme hover:underline font-bold transition-all flex items-center gap-1.5 mt-2">
                     <i class="fa-solid fa-keyboard"></i>
                     <%= t('add_' + plugin.i18nKey + '.manual_entry', { defaultValue: t('add_vinyl.manual_entry') }) %>
