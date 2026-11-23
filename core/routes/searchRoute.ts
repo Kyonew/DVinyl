@@ -52,9 +52,10 @@ router.get('/search', requireAuth, async (req: any, res: any) => {
     settingsDocs.forEach((s: any) => settingsById.set(String(s.collection), s));
 
 
-    // Only title + creator field, unlike /collection's search box: comments/tracklist,
-    // barcode and extraSearchFields are a separate roadmap item (full-text search), kept
-    // out here to keep this query cheap across every collection at once.
+    // Title, personal notes and creator field. Notes are searched because that is where
+    // a box set records what it contains (its individual films have no entry of their
+    // own); barcode and the rest of extraSearchFields remain a separate roadmap item
+    // (full-text search), kept out here to keep this query cheap across every collection.
     const subFilters = collectionIds.map((id: any) => {
       const idStr = String(id);
       // A collection nobody has opened yet has no Settings doc (settingsMiddleware
@@ -70,7 +71,11 @@ router.get('/search', requireAuth, async (req: any, res: any) => {
       // entry is not in the collection yet, and a season belongs to its show.
       return and(
         shelfFilter({ collectionId: id, inWishlist: false, isAdmin: roleById.get(idStr) === 'admin', settings, keepInside: true }),
-        or(contains('title', rawQuery), ...Array.from(creatorFields).map(f => contains(f, rawQuery)))
+        or(
+          contains('title', rawQuery),
+          contains('comments', rawQuery),
+          ...Array.from(creatorFields).map(f => contains(f, rawQuery))
+        )
       );
     });
 

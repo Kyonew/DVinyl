@@ -162,7 +162,11 @@ async function buildShelfView(req: any, res: any, inWishlist: boolean): Promise<
     if (trimmedSearch) {
       const alternatives: Filter[] = [
         contains('title', trimmedSearch),
-        contains('barcode', trimmedSearch)
+        contains('barcode', trimmedSearch),
+        // Personal notes carry what has no field of its own: the films inside a box set,
+        // the disc a bonus lives on. A search that skipped them could not find the box
+        // by any of its contents.
+        contains('comments', trimmedSearch)
       ];
 
       for (const plugin of enabledPlugins) {
