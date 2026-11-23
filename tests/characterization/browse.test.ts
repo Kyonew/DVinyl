@@ -43,7 +43,7 @@ describe('browsing a collection', { skip: !backend }, () => {
       { title: 'The Wall', artist: 'Pink Floyd', year: '1979', genres: 'Rock', styles: 'Prog Rock', location: 'Shelf A', barcode: '5099902894225' },
       { title: 'Wall', artist: 'Fake Band', year: '1985', media_type: 'cd', genres: 'Pop', location: 'Shelf B' },
       { title: 'Écoute', artist: 'Élise', year: '1999', media_type: 'cd', genres: 'Chanson' },
-      { title: 'Abbey Road', artist: 'The Beatles', year: '1969', genres: 'Rock, Pop', styles: 'Pop Rock', location: 'Shelf A' },
+      { title: 'Abbey Road', artist: 'The Beatles', year: '1969', genres: 'Rock, Pop', styles: 'Pop Rock', location: 'Shelf A', comments: 'Produced by George Martin' },
       { title: 'Abbey Road', artist: 'The Beatles', year: '1969', media_type: 'cd', genres: 'Rock' },
       { title: 'Kind of Blue', artist: 'Miles Davis', year: '1959', genres: 'Jazz', styles: 'Modal' },
       { title: 'Blue Train', artist: 'John Coltrane', year: '1957', genres: 'Jazz', in_wishlist: 'true' }
@@ -89,11 +89,12 @@ describe('browsing a collection', { skip: !backend }, () => {
     assert.equal((await shown({ limit: '0' })).length, 6);
   });
 
-  it('searches titles, creators, barcodes and ids, ignoring case', async () => {
+  it('searches titles, creators, barcodes, ids and personal notes, ignoring case', async () => {
     assert.deepEqual(await shown({ search: 'WALL' }), ['The Wall', 'Wall']);
     assert.deepEqual(await shown({ search: 'floyd' }), ['The Wall']);
     assert.deepEqual(await shown({ search: '50999' }), ['The Wall']);
     assert.deepEqual(await shown({ search: ' road ' }), ['Abbey Road', 'Abbey Road']);
+    assert.deepEqual(await shown({ search: 'george martin' }), ['Abbey Road']);
     assert.deepEqual(await shown({ search: String(itemByTitle(dump, 'Kind of Blue')._id) }), ['Kind of Blue']);
     assert.deepEqual(await shown({ search: 'a.b' }), [], 'the search text is literal, not a pattern');
   });
@@ -149,7 +150,7 @@ describe('browsing a collection', { skip: !backend }, () => {
     assert.equal(totalBadge(html), 1);
   });
 
-  it('finds owned items from the global search, on titles and creators only', async () => {
+  it('finds owned items from the global search, on titles, creators and personal notes', async () => {
     const found = async (q: string) => {
       const html = (await admin.get(`/search?q=${encodeURIComponent(q)}`)).text;
       const byId = new Map(dump.albums.map(item => [String(item._id), item.title]));
@@ -157,6 +158,7 @@ describe('browsing a collection', { skip: !backend }, () => {
     };
     assert.deepEqual(await found('blue'), ['Kind of Blue']);
     assert.deepEqual(await found('BEATLES'), ['Abbey Road']);
+    assert.deepEqual(await found('george'), ['Abbey Road']);
     assert.deepEqual(await found('5099902894225'), []);
   });
 });
