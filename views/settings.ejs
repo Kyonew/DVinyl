@@ -138,9 +138,9 @@
                         <form action="<%= baseUrl %>/settings/update-currency" method="POST" class="flex items-center">
                             <select name="currency" onchange="this.form.submit()"
                                 class="bg-black/5 dark:bg-white/5 border border-transparent text-gray-900 dark:text-white text-sm rounded-lg focus:ring-primary-theme focus:border-primary-theme block w-full p-3 transition-colors outline-none cursor-pointer">
-                                <% currencies.forEach(function (code) { %>
-                                <option value="<%= code %>" class="bg-white dark:bg-[#1a1a1a]" <%= user.currency === code ? 'selected' : '' %>>
-                                    <%= t('settings.currency_' + code.toLowerCase()) %>
+                                <% currencies.forEach(function (currency) { %>
+                                <option value="<%= currency.code %>" class="bg-white dark:bg-[#1a1a1a]" <%= user.currency === currency.code ? 'selected' : '' %>>
+                                    <%= currency.label %>
                                 </option>
                                 <% }) %>
                             </select>

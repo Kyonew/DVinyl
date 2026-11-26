@@ -1287,7 +1287,8 @@
     "min_label": "Mínimo (G)",
     "start_btn": "Iniciar análisis",
     "paid_label": "Comparado con lo que pagaste",
-    "paid_summary": "Pagado {{paid}}, estimado hoy en {{estimate}}: {{difference}}. Cuenta los elementos con precio de compra ({{count}})."
+    "paid_summary": "Pagado {{paid}}, estimado hoy en {{estimate}}: {{difference}}. Cuenta los elementos con precio de compra ({{count}}).",
+    "other_currency_skipped": "{{count}} artículo(s) solo tienen precio en {{currencies}} y se dejan fuera: los importes nunca se convierten."
   },
   "account": {
     "appearance": "Apariencia"
@@ -1406,11 +1407,8 @@
     "avatar_remove_btn": "Eliminar foto",
     "avatar_remove_confirm": "¿Eliminar la foto de perfil actual?",
     "confirm_password_label": "Confirmar nueva contraseña",
-    "currency_eur": "euros (€)",
-    "currency_gbp": "Libra británica (£)",
     "currency_label": "Moneda preferida",
     "currency_title": "Divisa",
-    "currency_usd": "Dólar estadounidense ($)",
     "current_password_label": "Contraseña actual",
     "edit_photo": "Actualizar foto",
     "email_label": "Dirección de correo electrónico",
@@ -1443,8 +1441,7 @@
     "home_page_collection": "Recopilación",
     "home_page_wishlist": "Lista de deseos",
     "home_view_label": "Vista predeterminada",
-    "home_view_last": "Última utilizada",
-    "currency_rub": "Rublo ruso (₽)"
+    "home_view_last": "Última utilizada"
   },
   "setup": {
     "admin_config": "Configuración de administrador",

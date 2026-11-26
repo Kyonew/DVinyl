@@ -71,9 +71,6 @@
     "confirm_password_label": "Confirm new password",
     "currency_title": "Currency",
     "currency_label": "Preferred currency",
-    "currency_eur": "Euro (€)",
-    "currency_usd": "US Dollar ($)",
-    "currency_gbp": "British Pound (£)",
     "oidc_title": "Single Sign-On",
     "oidc_linked_label": "Linked to your identity provider",
     "oidc_not_linked_label": "Not linked",
@@ -88,8 +85,7 @@
     "home_page_collection": "Collection",
     "home_page_wishlist": "Wishlist",
     "home_view_label": "Default view",
-    "home_view_last": "Last used",
-    "currency_rub": "Russian Ruble (₽)"
+    "home_view_last": "Last used"
   },
   "errors": {
     "invalid_fields": "Please check these fields: {{fields}}.",
@@ -302,7 +298,8 @@
     "add_hub_photo_hint": "AI recognises the item",
     "add_hub_manual_hint": "Fill in the details yourself",
     "paid_label": "Compared with what you paid",
-    "paid_summary": "Paid {{paid}}, estimated at {{estimate}} today: {{difference}}. Counts the items carrying a purchase price ({{count}})."
+    "paid_summary": "Paid {{paid}}, estimated at {{estimate}} today: {{difference}}. Counts the items carrying a purchase price ({{count}}).",
+    "other_currency_skipped": "{{count}} item(s) only have a price in {{currencies}} and are left out: amounts are never converted."
   },
   "add_vinyl": {
     "title": "Add a Record",

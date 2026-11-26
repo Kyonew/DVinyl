@@ -464,6 +464,7 @@
                 </div>
                 <%# What was paid for the items that carry a price, against what those same
                     items are estimated at. Hidden when none of them does. %>
+                <p id="estimateOtherCurrency" role="status" class="hidden text-xs opacity-70 text-left"></p>
                 <div id="estimatePaid" class="hidden bg-gray-100 dark:bg-black/20 p-3 rounded-lg text-sm">
                     <span class="opacity-60 block text-[10px] uppercase font-bold mb-1"><%= t('modal.paid_label') %></span>
                     <span id="estimatePaidText"></span>
@@ -974,6 +975,10 @@
         let paidEstimate = 0;
         let paidCount = 0;
         const paidSummaryMsg = <%- JSON.stringify(t('modal.paid_summary')).replace(/</g, '\\u003c') %>;
+        // Items priced only in another currency, left out of the total.
+        let otherCurrencyCount = 0;
+        const otherCurrencies = new Set();
+        const otherCurrencySkippedMsg = <%- JSON.stringify(t('modal.other_currency_skipped')).replace(/</g, '\\u003c') %>;
 
         function openEstimateModal(action) {
             if (action && action.estimate) activeEstimate = action.estimate;
@@ -1003,6 +1008,8 @@
                 paidTotal = 0;
                 paidEstimate = 0;
                 paidCount = 0;
+                otherCurrencyCount = 0;
+                otherCurrencies.clear();
 
                 countSpan.innerText = `0 / ${totalAlbums}`;
 
@@ -1029,7 +1036,12 @@
             try {
                 const res = await fetch(`<%= baseUrl %>${activeEstimate.estimateEndpoint}/${id}`);
                 const data = await res.json();
-                if (data.success && data.price) {
+                // Never converted: a card source that only answers in US dollars or euros
+                // gives an amount the total, labeled in the reader's currency, cannot hold.
+                if (data.success && data.price && data.price.currency && data.price.currency !== currentCurrency) {
+                    otherCurrencyCount++;
+                    otherCurrencies.add(data.price.currency);
+                } else if (data.success && data.price) {
                     const val = data.price.value * quantity;
                     totalPriceVG += val;
                     totalPriceMin += val;
@@ -1037,7 +1049,7 @@
                     pricedCount++;
                     // Never converted: an amount paid in another currency is left out.
                     const paid = Number(album && album.purchase_price);
-                    if (paid > 0 && album.purchase_currency === data.price.currency && data.price.currency === currentCurrency) {
+                    if (paid > 0 && album.purchase_currency === currentCurrency) {
                         paidTotal += paid * quantity;
                         paidEstimate += val;
                         paidCount++;
@@ -1061,6 +1073,16 @@
             document.getElementById('finalPrice').innerText = fmt(totalPriceVG);
             document.getElementById('minPrice').innerText = fmt(totalPriceMin);
             document.getElementById('maxPrice').innerText = fmt(totalPriceMax);
+
+            const skippedBlock = document.getElementById('estimateOtherCurrency');
+            if (otherCurrencyCount > 0) {
+                skippedBlock.textContent = otherCurrencySkippedMsg
+                    .replace('{{count}}', otherCurrencyCount)
+                    .replace('{{currencies}}', [...otherCurrencies].join(', '));
+                skippedBlock.classList.remove('hidden');
+            } else {
+                skippedBlock.classList.add('hidden');
+            }
 
             const paidBlock = document.getElementById('estimatePaid');
             if (paidCount > 0) {

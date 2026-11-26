@@ -45,10 +45,25 @@ export const LANGUAGE_NAMES: Record<SupportedLanguage, string> = {
  * Currencies a user can pick for prices, which the User schema also accepts. Each one is
  * labelled by the `settings.currency_<code in lower case>` key.
  */
-// Only currencies the price sources can answer in: an estimate is shown and summed in the
-// user's currency as is, so one no source returns (the ruble, which Discogs refuses)
-// would label foreign amounts with the wrong symbol.
-export const SUPPORTED_CURRENCIES = ['EUR', 'USD', 'GBP'] as const;
+// The currencies Discogs prices records in (its curr_abbr), so a music estimate always
+// comes back in the one picked. The card sources only answer in US dollars or euros: an
+// amount in any other currency is left out of a total rather than converted or mislabeled.
+// Not the ruble, which Discogs refuses.
+export const SUPPORTED_CURRENCIES = ['EUR', 'USD', 'GBP', 'AUD', 'BRL', 'CAD', 'CHF', 'JPY', 'MXN', 'NZD', 'SEK', 'ZAR'] as const;
+
+/** A currency as the reader's language names it, with its symbol: "Australian Dollar (A$)". */
+export function currencyLabel(code: string, language: string): string {
+  const locale = dateLocaleFor(language);
+  try {
+    const name = new Intl.DisplayNames([locale], { type: 'currency' }).of(code) || code;
+    const symbol = new Intl.NumberFormat(locale, { style: 'currency', currency: code })
+      .formatToParts(0).find(part => part.type === 'currency')?.value;
+    const named = name.charAt(0).toLocaleUpperCase(locale) + name.slice(1);
+    return symbol && symbol !== code ? `${named} (${symbol})` : `${named} (${code})`;
+  } catch {
+    return code;
+  }
+}
 
 /**
  * Reduces any language tag to a supported code, dropping the region a browser

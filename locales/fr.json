@@ -71,9 +71,6 @@
     "confirm_password_label": "Confirmer le nouveau mot de passe",
     "currency_title": "Devise",
     "currency_label": "Devise préférée",
-    "currency_eur": "Euro (€)",
-    "currency_usd": "Dollar ($)",
-    "currency_gbp": "Livre sterling (£)",
     "oidc_title": "Authentification unique (SSO)",
     "oidc_linked_label": "Lié à votre fournisseur d'identité",
     "oidc_not_linked_label": "Non lié",
@@ -88,8 +85,7 @@
     "home_page_collection": "Collection",
     "home_page_wishlist": "Souhaits",
     "home_view_label": "Vue par défaut",
-    "home_view_last": "Dernière utilisée",
-    "currency_rub": "Rouble russe (₽)"
+    "home_view_last": "Dernière utilisée"
   },
   "errors": {
     "invalid_fields": "Vérifiez ces champs : {{fields}}.",
@@ -302,7 +298,8 @@
     "add_hub_photo_hint": "L'IA reconnaît l'objet",
     "add_hub_manual_hint": "Remplir la fiche soi-même",
     "paid_label": "Par rapport à ce que vous avez payé",
-    "paid_summary": "Payé {{paid}}, estimé à {{estimate}} aujourd'hui : {{difference}}. Compte les items qui ont un prix d'achat ({{count}})."
+    "paid_summary": "Payé {{paid}}, estimé à {{estimate}} aujourd'hui : {{difference}}. Compte les items qui ont un prix d'achat ({{count}}).",
+    "other_currency_skipped": "{{count}} article(s) n'ont un prix qu'en {{currencies}} et sont laissés de côté : les montants ne sont jamais convertis."
   },
   "add_vinyl": {
     "title": "Ajouter un disque",

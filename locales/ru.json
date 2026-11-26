@@ -71,9 +71,6 @@
     "confirm_password_label": "Повторите новый пароль",
     "currency_title": "Валюта",
     "currency_label": "Валюта",
-    "currency_eur": "Евро (€)",
-    "currency_usd": "Доллар США ($)",
-    "currency_gbp": "Фунт стерлингов (£)",
     "oidc_title": "Единый вход (SSO)",
     "oidc_linked_label": "Привязано к провайдеру входа",
     "oidc_not_linked_label": "Не привязано",
@@ -88,8 +85,7 @@
     "home_page_collection": "Коллекция",
     "home_page_wishlist": "Желаемое",
     "home_view_label": "Вид по умолчанию",
-    "home_view_last": "Последний",
-    "currency_rub": "Российский рубль (₽)"
+    "home_view_last": "Последний"
   },
   "errors": {
     "username_taken": "Такое имя уже занято.",
@@ -302,7 +298,8 @@
     "add_hub_photo_hint": "ИИ распознаёт запись",
     "add_hub_manual_hint": "Заполнить вручную",
     "paid_label": "В сравнении с ценой покупки",
-    "paid_summary": "Заплачено {{paid}}, оценка на сегодня {{estimate}}: {{difference}}. Учтены записи с ценой покупки ({{count}})."
+    "paid_summary": "Заплачено {{paid}}, оценка на сегодня {{estimate}}: {{difference}}. Учтены записи с ценой покупки ({{count}}).",
+    "other_currency_skipped": "У {{count}} записей есть цена только в {{currencies}}, они не учтены: суммы никогда не пересчитываются."
   },
   "add_vinyl": {
     "title": "Добавить винил",
