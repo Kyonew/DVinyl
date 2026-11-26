@@ -277,6 +277,30 @@
 
 <%- include('partials/item-images-js', { plugin }) %>
 
+<% if (locals.scanMode && !locals.instantAdd) { %>
+<script>
+    // Scan mode: Enter adds the item to the collection, so a batch goes scan, Enter, scan
+    // without reaching for the mouse. Only when nothing is focused that has a use of its
+    // own for the key: a field, a link, a button.
+    // Pressed twice before the page leaves, it would add the item twice.
+    let sent = false;
+    window.addEventListener('pageshow', event => { if (event.persisted) sent = false; });
+    document.addEventListener('keydown', event => {
+        if (sent || event.key !== 'Enter' || event.isComposing || event.repeat) return;
+        if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
+        const target = event.target;
+        if (target instanceof Element && target.closest('input, textarea, select, button, a, [contenteditable], [role="button"], dialog')) return;
+        const form = document.getElementById('confirm-form');
+        const submitter = form && form.querySelector('button[name="in_wishlist"][value="false"]');
+        if (!form || !submitter) return;
+        event.preventDefault();
+        if (!form.reportValidity()) return;
+        sent = true;
+        form.requestSubmit(submitter);
+    });
+</script>
+<% } %>
+
 <% if (locals.instantAdd) { %>
 <script>
     // Reached by a scan the search resolved to a single exact match, so this form holds

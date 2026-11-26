@@ -6,7 +6,7 @@ import { cleanName, pressingFromDiscogs } from './pressing';
 import { DISC_SIZES, RELEASE_TYPES, SPEEDS, otherMediaFromDiscogs, physicalFrom, physicalFromDiscogs, wordsOf } from './formatDetails';
 import { musicImporters } from './importers';
 import { musicApiRoutes, discogsGalleryImages } from './apiRoutes';
-import { escapeRegExp, fetchJson, PermanentRefreshError, syncStamp } from '../../core/helpers';
+import { escapeRegExp, fetchJson, isBarcodeQuery, PermanentRefreshError, syncStamp } from '../../core/helpers';
 import { db } from '../../core/db';
 import { and, ci, eq, idOf, ne, or, textOrUnset, Filter } from '../../core/db/query';
 import { holdsFormat } from '../../core/extraFormats';
@@ -18,6 +18,9 @@ const discogsProvider = new DiscogsProvider();
 const discogs = sourceFromProvider(discogsProvider, {
   id: 'discogs',
   itemUrl: (id: string) => `https://www.discogs.com/release/${id}`,
+  // A barcode is searched as one (see DiscogsProvider.search), so a single hit is that
+  // release. Several pressings often share a code, and then the list is shown as usual.
+  exactQuery: (query: string) => isBarcodeQuery(query),
   // Everything a release holds a picture of, sleeve and labels included.
   searchImages: (query: string) => discogsGalleryImages(query)
 });

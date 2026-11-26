@@ -21,12 +21,11 @@
             <% }) %>
         </select>
     </label>
-    <%# Offered only where something can actually be scanned into one exact item. %>
-    <% if (locals.scanModeAvailable) { %>
-        <div class="rounded-2xl bg-black/5 dark:bg-white/5 p-1">
-            <%- include('toggle', { name: 'instantAdd', checked: settings.instantAdd === true, title: t('perso.instantAdd_title'), desc: t('perso.instantAdd_desc') }) %>
-        </div>
-    <% } %>
+    <%# Offered for every type: coming back to the add page after each item helps any
+        batch, and only the sources that read a code as one exact item skip the confirm page. %>
+    <div class="rounded-2xl bg-black/5 dark:bg-white/5 p-1">
+        <%- include('toggle', { name: 'instantAdd', checked: settings.instantAdd === true, title: t('perso.instantAdd_title'), desc: t('perso.instantAdd_desc') }) %>
+    </div>
 </section>
 
 <section class="flex flex-col gap-2">

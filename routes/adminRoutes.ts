@@ -1211,11 +1211,6 @@ router.get("/personnalisation", requireAuth, requireCollectionRole("admin"), asy
       startArrange: req.query.arrange === "1",
       presets: PRESETS,
       lookStyles: LOOK_STYLES.map(look => ({ ...look, fields: lookStyleFields(look) })),
-      // Scan mode is only worth offering when an active module has a source that can
-      // read a query as one exact item (see ExternalSource.exactQuery).
-      scanModeAvailable: registry.getAll().some(p =>
-        settings?.modules?.[p.collectionType] && pluginSources(p).some(s => typeof s.exactQuery === "function")
-      ),
     });
   } catch (err) {
     console.error(err);

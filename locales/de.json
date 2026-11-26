@@ -1327,7 +1327,7 @@
     "fastAdd_desc": "Wenn aktiviert, leitet die Schaltfläche „Element hinzufügen“ direkt zum ausgewählten Formular weiter und umgeht das Auswahlmenü.",
     "fastAdd_disabled": "Deaktiviert (modal)",
     "instantAdd_title": "Scan-Modus",
-    "instantAdd_desc": "Ein Code, der genau einen Artikel bezeichnet (eine ISBN), wird hinzugefügt, sobald die Suche nur ein einziges Ergebnis liefert – ohne Bestätigungsseite. Nach dem Hinzufügen geht es zurück zum Hinzufügen-Formular statt zur Sammlung, bereit für den nächsten Artikel.",
+    "instantAdd_desc": "Nach jedem Hinzufügen geht es zurück zum Hinzufügen-Formular, bereit für den nächsten Artikel, und die Eingabetaste fügt den Artikel auf der Bestätigungsseite hinzu. Ein Code, der genau einen Artikel bezeichnet (eine ISBN, ein Musik-Barcode), wird sofort hinzugefügt, wenn die Suche nur diesen findet.",
     "fastAdd_title": "Schnell hinzufügen",
     "card_aspect_ratio": "Seitenverhältnis der Karte",
     "card_aspect_ratio_desc": "Form der Kacheln in den Rastern von Sammlung, Startseite und Wunschliste. Jedes Plugin behält auf seinen Detailseiten sein eigenes Verhältnis.",
