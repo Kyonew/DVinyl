@@ -1,5 +1,5 @@
 import { SearchProvider, SearchOptions, SearchResult, ConfirmData } from '../../core/types';
-import { fetchJson } from '../../core/helpers';
+import { fetchJson, isBarcodeQuery } from '../../core/helpers';
 import { STANDARD_FORMAT_TERMS } from './constants';
 import { otherMediaFromDiscogs, physicalFromDiscogs, PhysicalDetails } from './formatDetails';
 import { cleanName, pressingFromDiscogs } from './pressing';
@@ -25,6 +25,7 @@ export class DiscogsProvider implements SearchProvider {
     let isDirectRelease = false;
 
     const urlMatch = query.match(/discogs\.com\/(?:[a-zA-Z]{2}\/)?(release|master)\/(\d+)/);
+    const byBarcode = !urlMatch && isBarcodeQuery(query);
 
     if (urlMatch) {
       const itemType = urlMatch[1];
@@ -43,7 +44,14 @@ export class DiscogsProvider implements SearchProvider {
       if (genre_filter) advancedParams += `&genre=${encodeURIComponent(genre_filter)}`;
       if (label_filter) advancedParams += `&label=${encodeURIComponent(label_filter)}`;
 
-      if (format_filter) {
+      if (byBarcode) {
+        // A barcode names one release, whatever the format picked on the form: a CD
+        // scanned with "Vinyl" selected has to come back as the CD it is. Only a format
+        // typed in the advanced filters still narrows it down.
+        const code = query.replace(/[- ]/g, '');
+        const format = format_filter ? `&format=${encodeURIComponent(format_filter)}` : '';
+        searchUrls.push(`https://api.discogs.com/database/search?barcode=${encodeURIComponent(code)}&type=release${format}${advancedParams}&token=${token}`);
+      } else if (format_filter) {
         searchUrls.push(`https://api.discogs.com/database/search?q=${encodeURIComponent(query)}&type=release&format=${encodeURIComponent(format_filter)}${advancedParams}&token=${token}`);
       } else if (type === 'cd' && enableAdvancedCD) {
         searchUrls.push(`https://api.discogs.com/database/search?q=${encodeURIComponent(query)}&type=release&format=CD${advancedParams}&token=${token}`);
@@ -129,14 +137,17 @@ export class DiscogsProvider implements SearchProvider {
         cover_image: item.cover_image || item.thumb || '/ressources/logo.png',
         variant_info: variant_info,
         is_advanced_cd: item.is_advanced_cd,
-        country: item.country || ''
+        country: item.country || '',
+        // Tells the confirm page the format comes from the release, not from the form.
+        ...(byBarcode ? { confirmQuery: { by_barcode: '1' } } : {})
       };
     });
   }
 
   async getDetails(id: string, options: any): Promise<ConfirmData> {
     const token = process.env.DISCOGS_TOKEN;
-    const searchTypeHint = options.type;
+    // Found by its barcode: the format picked on the search form says nothing about it.
+    const searchTypeHint = options.by_barcode === '1' ? '' : options.type;
     const url = `https://api.discogs.com/releases/${id}?token=${token}`;
     const data = await fetchJson(url, { headers: { 'User-Agent': 'DVinylApp/1.0' } });
 
