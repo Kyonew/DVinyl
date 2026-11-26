@@ -57,7 +57,7 @@ export const dvdPlugin: PluginDefinition = {
   // A film is also looked for by its original title and by who is in it.
   extraSearchFields: ['studio', 'original_title', 'cast'],
   supportsBarcodeSearch: true,
-  barcodeNoiseTerms: ['DVD', 'Blu-ray', 'Blu Ray', 'Bluray', '4K', 'UHD', 'Ultra HD', 'Coffret', 'Edition', 'Édition', 'Steelbook', 'Combo'],
+  barcodeNoiseTerms: ['DVD', 'Blu-ray', 'Blu Ray', 'Bluray', '4K', 'UHD', 'Ultra HD', 'Coffret', 'Edition', 'Édition', 'Steelbook', 'Combo', 'Region A', 'Region B', 'Region C', 'Region Free', 'Region 1', 'Region 2', 'Region 4', 'Pre-order', 'Preorder'],
   sources: [tmdb],
   imageSearchType: 'movie',
   duplicateCheckFields: ['format', 'zone'],

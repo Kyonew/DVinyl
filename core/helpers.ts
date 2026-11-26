@@ -238,6 +238,12 @@ export function cleanProductTitle(rawTitle: string, noiseTerms: string[] = []): 
   // Sellers quote the product name inside a longer listing. The quotes carry no meaning
   // for a provider, and some of them read them as a phrase operator.
   title = title.replace(/["\u201c\u201d\u00ab\u00bb]/g, ' ');
+  // Plus signs bracket a seller's own qualifier without any brackets: UPCitemdb returns
+  // "Classic Hitchcock (collection) +region B Bluray Pre-order+". A provider searches
+  // its title index, where that tail is not part of any name, so the whole segment goes.
+  // The leading whitespace is required, so a title that genuinely carries a "+" (C++)
+  // is left alone.
+  title = title.replace(/\s\+[^+]+\+/g, ' ');
 
   // Word boundaries matter: an unanchored 'One' eats the middle of "Gone Home".
   if (noiseTerms.length > 0) {
@@ -247,7 +253,7 @@ export function cleanProductTitle(rawTitle: string, noiseTerms: string[] = []): 
 
   // Whatever the removals left behind: doubled spaces, and the separator that used to
   // introduce the part just deleted ("Breath of the Wild -").
-  return title.replace(/\s{2,}/g, ' ').replace(/[\s\-:,;./]+$/, '').trim();
+  return title.replace(/\s{2,}/g, ' ').replace(/[\s\-:,;./+]+$/, '').trim();
 }
 
 /**
