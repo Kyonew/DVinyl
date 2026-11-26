@@ -241,9 +241,10 @@ export function cleanProductTitle(rawTitle: string, noiseTerms: string[] = []): 
   // Plus signs bracket a seller's own qualifier without any brackets: UPCitemdb returns
   // "Classic Hitchcock (collection) +region B Bluray Pre-order+". A provider searches
   // its title index, where that tail is not part of any name, so the whole segment goes.
-  // The leading whitespace is required, so a title that genuinely carries a "+" (C++)
-  // is left alone.
-  title = title.replace(/\s\+[^+]+\+/g, ' ');
+  // Only plus signs glued to the words they bracket, the way a seller writes them: a
+  // title spaced around its own "+" keeps it ("Romeo + Juliet", "Toy Story + Toy Story
+  // 2 + Toy Story 3"), and so does one with no space before it (C++).
+  title = title.replace(/\s\+(?=\S)[^+]*\S\+(?=\s|$)/g, ' ');
 
   // Word boundaries matter: an unanchored 'One' eats the middle of "Gone Home".
   if (noiseTerms.length > 0) {

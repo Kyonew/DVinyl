@@ -21,8 +21,13 @@ test('drops a plus-delimited seller qualifier and the region/format words inside
     'Back to the Future: The Complete Trilogy'
   );
   assert.equal(
+    cleanProductTitle('Dune +Steelbook+ 4K', DVD_NOISE),
+    'Dune'
+  );
+  // Spaced plus signs belong to the title: the search drops trailing words on a miss.
+  assert.equal(
     cleanProductTitle('Spider-Man: No Way Home + Bonus Disc +', DVD_NOISE),
-    'Spider-Man: No Way Home'
+    'Spider-Man: No Way Home + Bonus Disc'
   );
 });
 
@@ -41,4 +46,6 @@ test('drops a region or pre-order qualifier even without plus signs', () => {
 test('leaves a title that genuinely carries a plus sign alone', () => {
   assert.equal(cleanProductTitle('C++ Primer', DVD_NOISE), 'C++ Primer');
   assert.equal(cleanProductTitle('Rock + Roll', DVD_NOISE), 'Rock + Roll');
+  assert.equal(cleanProductTitle('Romeo + Juliet Blu-ray + DVD', DVD_NOISE), 'Romeo + Juliet');
+  assert.equal(cleanProductTitle('Toy Story + Toy Story 2 + Toy Story 3', DVD_NOISE), 'Toy Story + Toy Story 2 + Toy Story 3');
 });
