@@ -58,8 +58,10 @@ DVinyl ships with an Unraid Community App template.
      Your collection is the SQLite file inside it.
    - **Uploads volume**: map it to a persistent path, for example
      `/mnt/user/appdata/dvinyl/uploads`.
-3. **Add API keys** (optional, in the advanced settings) for the media types you want, see
-   [API keys](./api-keys.md).
+3. **Add API keys** (optional) for the media types you want, see [API keys](./api-keys.md). They go
+   in the template itself: **Show more settings**, then the field named after the key (for example
+   **TMDB API Key**), then **Apply**. Do not create a `.env` file inside the container: DVinyl
+   never reads it there, and the next update wipes it.
 4. Start the container and open `http://<server-ip>:3099`.
 
 > [!NOTE]

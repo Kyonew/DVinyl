@@ -97,7 +97,7 @@
     "errors": {
       "at_least_one_module": "Almeno un modulo deve essere attivo.",
       "help_link": "Consulta la guida alla configurazione",
-      "missing_api_key": "Impossibile attivare questo modulo: manca la chiave API."
+      "missing_api_key": "Impossibile attivare questo modulo, manca una chiave: {{keys}}. Con Docker o Unraid, impostala nelle impostazioni del container (un file .env dentro il container non viene mai letto), poi riavvialo."
     },
     "external_imports": {
       "subtitle": "Importa la tua collezione dai tuoi servizi preferitix.",

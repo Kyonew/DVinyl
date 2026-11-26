@@ -45,6 +45,9 @@
   <Config Name="Twitch Client ID" Target="TWITCH_CLIENT_ID" Default="" Mode="" Description="Your Twitch Client ID for Games." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
   <Config Name="Twitch Client Secret" Target="TWITCH_CLIENT_SECRET" Default="" Mode="" Description="Your Twitch Client Secret for Games." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
   <Config Name="Rebrickable API Key" Target="REBRICKABLE_API_KEY" Default="" Mode="" Description="Your Rebrickable API Key for LEGO sets." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+  <Config Name="BoardGameGeek API Key" Target="BGG_API_KEY" Default="" Mode="" Description="Your BoardGameGeek API token for board games." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+  <Config Name="ScreenScraper User" Target="SCREENSCRAPER_USER" Default="" Mode="" Description="Optional: your ScreenScraper account, for a higher daily quota on retro games." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="ScreenScraper Password" Target="SCREENSCRAPER_PASSWORD" Default="" Mode="" Description="Optional: the password of that ScreenScraper account." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
 
   <Config Name="OIDC Issuer URL" Target="OIDC_ISSUER_URL" Default="" Mode="" Description="Optional single sign-on. Your OIDC provider issuer URL (Authentik, Keycloak, Authelia, pocketID...). Leave empty to disable SSO." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
   <Config Name="OIDC Client ID" Target="OIDC_CLIENT_ID" Default="" Mode="" Description="Optional single sign-on. The client ID registered on your OIDC provider." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>

@@ -470,7 +470,7 @@
     },
     "errors": {
       "at_least_one_module": "Au moins un module doit être actif.",
-      "missing_api_key": "Impossible d'activer ce module : la clé API est manquante.",
+      "missing_api_key": "Impossible d'activer ce module, il manque une clé : {{keys}}. Avec Docker ou Unraid, renseignez-la dans les réglages du conteneur (un fichier .env à l'intérieur du conteneur n'est jamais lu), puis redémarrez-le.",
       "help_link": "Consulter le guide de configuration"
     },
     "external_imports": {

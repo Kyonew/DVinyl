@@ -138,12 +138,26 @@
                     <form action="<%= baseUrl %>/admin/modules/save" method="POST" data-save-bar class="space-y-6">
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
                             <%
+                            // What the refusal below names: the plugin's own keys, which it always
+                            // needs, then one group per searchable source when none of them is
+                            // ready, since any one is enough ("A + B / C + D").
+                            const missingKeysText = (p) => {
+                                const own = (p.requiredEnvKeys || []).filter(key => !process.env[key]);
+                                // A plugin's lone legacy source carries the plugin's own keys: named once.
+                                const statuses = sourceStatusFor(p, settings).filter(src => src.searchable)
+                                    .map(src => src.missingKeys.filter(key => !own.includes(key)));
+                                const groups = statuses.some(keys => keys.length === 0) ? []
+                                    : [...new Set(statuses.map(keys => keys.join(' + ')))];
+                                const sources = own.length > 0 && groups.length > 1 ? '(' + groups.join(' / ') + ')' : groups.join(' / ');
+                                return [own.join(' + '), sources].filter(Boolean).join(' + ');
+                            };
                             const mods = registry.getAll().map(p => ({
                                 key: p.collectionType,
                                 pluginId: p.id,
                                 label: t(p.label),
                                 icon: 'fa-' + p.icon,
                                 needsKey: requiredEnvKeysFor(p).length > 0,
+                                missingKeys: missingKeysText(p),
                                 settings: p.settings || [],
                                 sources: sourceStatusFor(p, settings)
                             }));
@@ -257,7 +271,7 @@
                                                 class="hidden p-3 bg-red-500/10 border border-red-500/20 rounded-xl animate-in fade-in slide-in-from-top-1 duration-300">
                                                 <p class="text-[10px] text-red-500 font-bold flex items-center gap-2">
                                                     <i class="fa-solid fa-circle-exclamation"></i>
-                                                    <%= t('admin.errors.missing_api_key') %>
+                                                                                                        <%= t('admin.errors.missing_api_key', { keys: mod.missingKeys, interpolation: { escapeValue: false } }) %>
                                                 </p>
                                                 <a href="https://github.com/Kyonew/DVinyl/blob/main/docs/api-keys.md"
                                                     target="_blank"

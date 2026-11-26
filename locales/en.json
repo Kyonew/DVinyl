@@ -485,7 +485,7 @@
     },
     "errors": {
       "at_least_one_module": "At least one module must be active.",
-      "missing_api_key": "Unable to activate this module: the API key is missing.",
+      "missing_api_key": "Unable to activate this module, a key is missing: {{keys}}. With Docker or Unraid, set it in the container's settings (a .env file inside the container is never read), then restart it.",
       "help_link": "Consult the configuration guide"
     },
     "external_imports": {

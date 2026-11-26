@@ -13,8 +13,20 @@ need the keys for the media types you actually plan to use, and **every key is f
 | LEGO | Rebrickable | `REBRICKABLE_API_KEY` | LEGO sets |
 | Board games | BoardGameGeek | `BGG_API_KEY` | Board games |
 
-Add the keys you need to your `.env` file. Any media type whose key is missing simply stays disabled
-in the admin panel until you provide it.
+Any media type whose key is missing simply stays disabled in the admin panel until you provide it.
+Where a key goes depends on how DVinyl runs:
+
+- **Docker Compose**: in the `.env` file your `docker-compose.yml` loads with `env_file:`, or in its
+  `environment:` block (see [Docker](./docker.md)), then `docker compose up -d`.
+- **Unraid**: in the app template. Click **Edit** on the DVinyl container, then **Show more
+  settings**, paste the key in its field (for example **TMDB API Key**) and click **Apply**.
+- **From source**: in the `.env` file at the root of the project, then restart DVinyl.
+
+> [!IMPORTANT]
+> Inside a container, DVinyl never reads a `.env` file. A `.env` created in `/app` is ignored, and
+> it is wiped by the next update anyway. Keys always come from the container's own settings.
+
+The steps below say "your `.env`" for short: on Unraid, read "the template field of that name".
 
 A media type can look things up in more than one service, and it is usable as soon as **one** of
 them is configured. The admin panel lists them per module, behind the ⚙ button: each line says what

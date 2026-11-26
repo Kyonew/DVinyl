@@ -97,7 +97,7 @@
     "errors": {
       "at_least_one_module": "Mindestens ein Modul muss aktiv sein.",
       "help_link": "Konsultieren Sie die Konfigurationsanleitung",
-      "missing_api_key": "Dieses Modul kann nicht aktiviert werden: Der API-Schlüssel fehlt."
+      "missing_api_key": "Dieses Modul kann nicht aktiviert werden, ein Schlüssel fehlt: {{keys}}. Bei Docker oder Unraid tragen Sie ihn in den Einstellungen des Containers ein (eine .env-Datei im Container wird nie gelesen) und starten ihn dann neu."
     },
     "external_imports": {
       "subtitle": "Importieren Sie Ihre Sammlung von Ihren bevorzugten Diensten.",
