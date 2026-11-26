@@ -9,7 +9,7 @@ import {
 } from '../../utils/libib';
 import { db } from '../../core/db';
 import { and, ci, eq, idOf, ne } from '../../core/db/query';
-import { physicalFromDiscogs } from './formatDetails';
+import { mediaOfFormat, mediaTypeOfFormat, physicalFromDiscogs } from './formatDetails';
 import { STANDARD_FORMAT_TERMS } from './constants';
 import { cleanName } from './pressing';
 import { getExtraFields } from '../../core/pluginExtraFields';
@@ -170,8 +170,7 @@ async function importDiscogs(req: any, res: any) {
             });
           }
         }
-        const rawFormat = info.formats?.[0]?.name.toLowerCase() || 'vinyl';
-        const mediaType = rawFormat.includes('cd') ? 'cd' : (rawFormat.includes('cassette') ? 'cassette' : 'vinyl');
+        const mediaType = mediaTypeOfFormat(info.formats?.[0]?.name);
 
         albumsToInsert.push({
           title: info.title,
@@ -318,8 +317,9 @@ async function importMusikSammler(req: any, res: any) {
       const label = cleanName(row[labelIndex]) || 'Unknown';
       const catalog_number = row[catnoIndex]?.trim() || '';
       const barcode = (row[barcodeIndex] || '').replace(/\s/g, '');
-      const rawMediaType = (row[typeIndex] || '').toLowerCase();
-      const media_type = rawMediaType.includes('cd') ? 'cd' : (rawMediaType.includes('cassette') ? 'cassette' : 'vinyl');
+      // The export's Format column is a list ("2xLP, Album", "File, FLAC"): its first word
+      // naming a medium says which one this copy is.
+      const media_type = mediaTypeOfFormat(String(row[typeIndex] || '').split(',').map(w => w.trim().replace(/^\d+\s*x\s*/i, '')).find(w => mediaOfFormat(w)));
       const format_type = row[typeIndex]?.trim() || 'Vinyl';
       const variant_color = featuresIndex > -1 ? row[featuresIndex]?.trim() : '';
 

@@ -1,7 +1,7 @@
 import { SearchProvider, SearchOptions, SearchResult, ConfirmData } from '../../core/types';
 import { fetchJson, isBarcodeQuery } from '../../core/helpers';
 import { STANDARD_FORMAT_TERMS } from './constants';
-import { otherMediaFromDiscogs, physicalFromDiscogs, PhysicalDetails } from './formatDetails';
+import { mediaOfFormat, mediaTypeOfFormat, otherMediaFromDiscogs, physicalFromDiscogs, PhysicalDetails } from './formatDetails';
 import { cleanName, pressingFromDiscogs } from './pressing';
 
 export class DiscogsProvider implements SearchProvider {
@@ -159,8 +159,8 @@ export class DiscogsProvider implements SearchProvider {
     if (data.formats && data.formats.length > 0) {
       let bestFormat = data.formats[0];
       if (searchTypeHint) {
-        const hint = searchTypeHint.toLowerCase();
-        const matched = data.formats.find((f: any) => f.name.toLowerCase().includes(hint));
+        const hint = String(searchTypeHint).toLowerCase();
+        const matched = data.formats.find((f: any) => mediaOfFormat(f?.name) === hint);
         if (matched) bestFormat = matched;
       }
 
@@ -190,10 +190,7 @@ export class DiscogsProvider implements SearchProvider {
         });
       }
 
-      const rawFormat = bestFormat.name.toLowerCase();
-      if (rawFormat.includes('cassette')) { finalMediaType = 'cassette'; }
-      else if (rawFormat.includes('cd')) { finalMediaType = 'cd'; }
-      else { finalMediaType = 'vinyl'; }
+      finalMediaType = mediaTypeOfFormat(bestFormat.name);
     }
 
     if (searchTypeHint) finalMediaType = searchTypeHint;

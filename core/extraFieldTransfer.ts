@@ -21,11 +21,30 @@ const words = (value: any): string[] => (Array.isArray(value) ? value : String(v
   .map(v => String(v ?? '').trim())
   .filter(Boolean);
 
-/** An option of `options` named by its value or by its label, whatever the case. */
+// How a value reads once case, spacing and the way a fraction is typed no longer
+// differ: "33 1/3" and "33 ⅓" are the same speed.
+const FRACTIONS: Record<string, string> = { '1/2': '½', '1/3': '⅓', '2/3': '⅔', '1/4': '¼', '3/4': '¾' };
+const loose = (text: unknown): string => String(text ?? '')
+  .toLowerCase()
+  .replace(/(\d)\s*(1\/2|1\/3|2\/3|1\/4|3\/4)(?!\d)/g, (_, d, f) => `${d} ${FRACTIONS[f]}`)
+  .replace(/\s+/g, ' ')
+  .trim();
+
+/**
+ * An option of `options` named by its value or by its label, whatever the case. Failing
+ * that, the one option the text is the start of, up to a word's end: a field that wrote
+ * "33" for the speed means "33 ⅓ RPM", and "12" means 12". Two options starting the same
+ * way are no answer.
+ */
 function optionFor(options: { value: string; label: string }[] | undefined, text: string): string | null {
-  const wanted = text.trim().toLowerCase();
-  const hit = (options || []).find(o => String(o.value).toLowerCase() === wanted || String(o.label).toLowerCase() === wanted);
-  return hit ? hit.value : null;
+  const wanted = loose(text);
+  if (!wanted) return null;
+  const list = options || [];
+  const hit = list.find(o => loose(o.value) === wanted || loose(o.label) === wanted);
+  if (hit) return hit.value;
+  const startsWith = (candidate: string) => candidate.startsWith(wanted) && !/^[\p{L}\p{Nd}]/u.test(candidate.slice(wanted.length));
+  const prefixed = list.filter(o => startsWith(loose(o.value)) || startsWith(loose(o.label)));
+  return prefixed.length === 1 ? prefixed[0]!.value : null;
 }
 
 /**

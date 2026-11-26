@@ -31,3 +31,19 @@ test('a field kept on purpose beside its lookalike is no longer reported, and th
   const { fields } = sanitizeExtraFields([{ name: def.name, label: 'Label', keepBeside: 'label' }, { label: 'Other', keepBeside: 'title' }], plugin, [def]);
   assert.deepEqual(fields.map(f => f.keepBeside), ['label', undefined]);
 });
+
+test('a shorthand lands on the one option it starts (#232)', () => {
+  const speed: any = { type: 'select', options: [{ value: '', label: 'common.not_specified' }, ...['33 ⅓ RPM', '45 RPM', '78 RPM'].map(v => ({ value: v, label: v }))] };
+  const size: any = { type: 'select', options: ['7"', '10"', '12"'].map(v => ({ value: v, label: v })) };
+  assert.deepEqual(convertForNative('33', text, speed), { ok: true, value: '33 ⅓ RPM' });
+  assert.deepEqual(convertForNative('33 1/3', text, speed), { ok: true, value: '33 ⅓ RPM' });
+  assert.deepEqual(convertForNative('33 1/3 rpm', text, speed), { ok: true, value: '33 ⅓ RPM' });
+  assert.deepEqual(convertForNative('45', text, speed), { ok: true, value: '45 RPM' });
+  assert.deepEqual(convertForNative('12', text, size), { ok: true, value: '12"' });
+  assert.equal(convertForNative('3', text, speed).ok, false, 'not the start of a word');
+  assert.equal(convertForNative('1', text, size).ok, false);
+  const ambiguous: any = { type: 'select', options: [{ value: 'a', label: 'Mint' }, { value: 'b', label: 'Mint (sealed)' }, { value: 'c', label: 'Mint minus' }] };
+  assert.deepEqual(convertForNative('mint', text, ambiguous), { ok: true, value: 'a' }, 'an exact label first');
+  const twoWays: any = { type: 'select', options: [{ value: 'a', label: 'Very good' }, { value: 'b', label: 'Very good plus' }, { value: 'c', label: 'Very fine' }] };
+  assert.equal(convertForNative('very', text, twoWays).ok, false, 'two options start the same way');
+});

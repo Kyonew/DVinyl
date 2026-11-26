@@ -40,15 +40,42 @@ export function physicalFrom(words: unknown[], quantity?: unknown): PhysicalDeta
   const prefixed = list.map(w => /^(\d+)\s*x/i.exec(w)?.[1]).find(Boolean);
   const count = parseInt(String(quantity ?? prefixed ?? ''), 10);
   if (Number.isInteger(count) && count > 0) out.disc_count = count;
+  // Discogs' rules have a vinyl LP name neither its size nor its speed, the word LP
+  // standing for 12" at 33 ⅓. A size or speed it does give (a 10" LP) wins. A line from
+  // a Discogs CSV export names no medium at all ("LP, Album"), hence "no other medium"
+  // rather than "Vinyl".
+  const otherMedium = list.some(w => !['', 'vinyl'].includes(mediaOfFormat(w)));
+  if (out.release_type === 'LP' && !otherMedium) {
+    out.disc_size ??= '12"';
+    out.speed ??= '33 ⅓ RPM';
+  }
   return out;
 }
 
 /** Same, for one Discogs format object ({ name, qty, descriptions, text }). */
 export function physicalFromDiscogs(format: any): PhysicalDetails {
   if (!format) return {};
-  const words = [...(format.descriptions || []), ...String(format.text || '').split(',')];
+  const words = [format.name, ...(format.descriptions || []), ...String(format.text || '').split(',')];
   return physicalFrom(words, format.qty);
 }
+
+/** Which of the plugin's media a Discogs format name is, or '' for none of them (a DVD, a box). */
+export function mediaOfFormat(name: unknown): string {
+  const lower = String(name || '').trim().toLowerCase();
+  // "Cass" is how a Discogs CSV export spells it.
+  return lower.includes('cassette') || lower === 'cass' ? 'cassette'
+    : /\b(cd|cdr|sacd|hybrid)\b/.test(lower) ? 'cd'
+    : /vinyl|lathe|flexi|acetate|shellac/.test(lower) ? 'vinyl'
+    : lower === 'file' ? 'digital'
+    : '';
+}
+
+/**
+ * The media type a copy is filed as, from the name of its Discogs format: a "File"
+ * release is digital, not a vinyl. Vinyl for a name that is none of the plugin's media,
+ * as it always was.
+ */
+export const mediaTypeOfFormat = (name: unknown): string => mediaOfFormat(name) || 'vinyl';
 
 /**
  * The media a Discogs release comes in besides the one this copy is filed as: the CD of
@@ -58,12 +85,7 @@ export function physicalFromDiscogs(format: any): PhysicalDetails {
 export function otherMediaFromDiscogs(formats: any[] | undefined, own: string): string[] {
   const out: string[] = [];
   for (const format of formats || []) {
-    const name = String(format?.name || '').toLowerCase();
-    const media = name.includes('cassette') ? 'cassette'
-      : /\b(cd|cdr|sacd|hybrid)\b/.test(name) ? 'cd'
-      : /vinyl|lathe|flexi|acetate|shellac/.test(name) ? 'vinyl'
-      : name === 'file' ? 'digital'
-      : '';
+    const media = mediaOfFormat(format?.name);
     if (media && media !== own && !out.includes(media)) out.push(media);
   }
   return out;

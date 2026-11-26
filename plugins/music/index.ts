@@ -3,7 +3,7 @@ import { sourceFromProvider, imageSourceFrom } from '../../core/sources';
 import { DiscogsProvider } from './discogs';
 import { STANDARD_FORMAT_TERMS } from './constants';
 import { cleanName, pressingFromDiscogs } from './pressing';
-import { DISC_SIZES, RELEASE_TYPES, SPEEDS, otherMediaFromDiscogs, physicalFrom, physicalFromDiscogs, wordsOf } from './formatDetails';
+import { DISC_SIZES, RELEASE_TYPES, SPEEDS, mediaOfFormat, otherMediaFromDiscogs, physicalFrom, physicalFromDiscogs, wordsOf } from './formatDetails';
 import { musicImporters } from './importers';
 import { musicApiRoutes, discogsGalleryImages } from './apiRoutes';
 import { escapeRegExp, fetchJson, isBarcodeQuery, PermanentRefreshError, syncStamp } from '../../core/helpers';
@@ -690,7 +690,7 @@ export const musicPlugin: PluginDefinition = {
     // release comes in several (a vinyl with a CD inside), else the first.
     const formats: any[] = data.formats || [];
     const media = String(item.media_type || 'vinyl').toLowerCase();
-    const own = formats.find(f => String(f.name || '').toLowerCase().includes(media === 'cd' ? 'cd' : media)) || formats[0];
+    const own = formats.find(f => mediaOfFormat(f?.name) === media) || formats[0];
     Object.assign(updateData, physicalFromDiscogs(own), pressingFromDiscogs(data));
     updateData.extra_formats = otherMediaFromDiscogs(formats, media);
 
@@ -701,8 +701,8 @@ export const musicPlugin: PluginDefinition = {
 
   // Items from before the size, speed and release type were kept get them from the
   // format and edition lines they already store. Only fields never set are filled, so a
-  // value the owner cleared stays cleared; a word that is not there is not guessed (an
-  // LP is not assumed to be 12"). A label still carrying the number Discogs gives
+  // value the owner cleared stays cleared. A vinyl LP that names no size or speed is
+  // 12" at 33 ⅓, as Discogs' rules have it (see physicalFrom). A label still carrying the number Discogs gives
   // homonyms ("ADA (6)") loses it, as new ones do. A field the owner rewrote by hand
   // (core/keptFields.ts) is left exactly as they wrote it.
   async migrateItems(): Promise<number> {
