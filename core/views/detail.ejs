@@ -118,6 +118,11 @@
             }
             return val;
         };
+        // A text field shows its links clickable (an Open Scrobbler page, a shop), any
+        // other field its value as text. Both come out escaped: linkify only adds links.
+        const fieldHtml = (field, val) => field.type === 'text' && !field.options
+            ? linkify(val)
+            : escapeHtml(fieldText(field, val));
 
         // The phone page is ordered for a collector: the copy on the shelf first (where it
         // is, its condition, its notes), the edition it belongs to next. These are the
@@ -365,7 +370,7 @@
                     <% if (item.comments) { %>
                         <div class="px-4 py-3 flex flex-col gap-1">
                             <span class="text-xs opacity-60"><%= t('detail.personal_notes') %></span>
-                            <p class="text-sm leading-relaxed whitespace-pre-line"><%= item.comments %></p>
+                            <p class="text-sm leading-relaxed whitespace-pre-line break-words"><%- linkify(item.comments) %></p>
                         </div>
                     <% } %>
                 </div>
@@ -392,13 +397,13 @@
                         <% } else if (field.type === 'textarea') { %>
                             <div class="px-4 py-3 flex flex-col gap-1 border-b border-black/5 dark:border-white/5 last:border-b-0">
                                 <span class="opacity-70 text-sm"><%= t(field.label) %></span>
-                                <p class="text-sm whitespace-pre-line"><%= val %></p>
+                                <p class="text-sm whitespace-pre-line break-words"><%- linkify(val) %></p>
                             </div>
                         <% } else { %>
                             <div class="<%= mobileRow %>">
                                 <span class="opacity-70 flex-none"><%= t(field.label) %></span>
                                 <span class="font-semibold text-right min-w-0 break-words">
-                                    <%= fieldText(field, val) %>
+                                    <%- fieldHtml(field, val) %>
                                     <% if (field.name === 'barcode' && item.barcode_locked) { %><i class="fa-solid fa-lock text-[10px] text-primary-theme opacity-50 ml-1"></i><% } %>
                                 </span>
                             </div>
@@ -511,10 +516,10 @@
                         <% } else if (field.type === 'rows' && Array.isArray(val)) { %>
                             <%- rowsTable(field, val) %>
                         <% } else if (field.type === 'textarea') { %>
-                            <p class="font-medium whitespace-pre-line transition-colors"><%= val %></p>
+                            <p class="font-medium whitespace-pre-line break-words transition-colors"><%- linkify(val) %></p>
                         <% } else { %>
                             <span class="font-medium transition-colors">
-                                <%= fieldText(field, val) %>
+                                <%- fieldHtml(field, val) %>
                                 <% if (field.name === 'barcode' && item.barcode_locked) { %>
                                     <i class="fa-solid fa-lock text-[10px] text-primary-theme opacity-50 ml-1"></i>
                                 <% } %>
@@ -599,9 +604,9 @@
                                 <% } else if (field.type === 'rows' && Array.isArray(val)) { %>
                                     <%- rowsTable(field, val) %>
                                 <% } else if (field.type === 'textarea') { %>
-                                    <p class="text-sm font-medium whitespace-pre-line"><%= val %></p>
+                                    <p class="text-sm font-medium whitespace-pre-line break-words"><%- linkify(val) %></p>
                                 <% } else { %>
-                                    <span class="text-sm font-medium"><%= fieldText(field, val) %></span>
+                                    <span class="text-sm font-medium"><%- fieldHtml(field, val) %></span>
                                 <% } %>
                             </div>
                         <% }) %>
@@ -659,8 +664,8 @@
                         <i class="fa-regular fa-comment-dots"></i>
                         <%= t('detail.personal_notes') %>
                     </h3>
-                    <p class="text-sm leading-relaxed whitespace-pre-line relative z-10 transition-colors">
-                        <%= item.comments %>
+                    <p class="text-sm leading-relaxed whitespace-pre-line break-words relative z-10 transition-colors">
+                        <%- linkify(item.comments) %>
                     </p>
                 </div>
             <% } %>

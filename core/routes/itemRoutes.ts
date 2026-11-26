@@ -1,3 +1,4 @@
+import { escapeHtml, renderLinks } from '../markdown';
 import express, { Router } from 'express';
 import crypto from 'crypto';
 import QRCode from 'qrcode';
@@ -1228,6 +1229,9 @@ export function createItemRoutes(plugin: PluginDefinition): Router {
       ]);
 
       res.render('detail', {
+        // Text fields and notes show their links clickable (core/markdown.ts renderLinks).
+        linkify: renderLinks,
+        escapeHtml,
         item: formatted,
         requestCard: await requestCardData(res, item, req.t.bind(req)),
         requestMsg: req.query.request_msg,

@@ -21,8 +21,10 @@ const HTML_ESCAPES: Record<string, string> = {
   "'": '&#39;'
 };
 
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, char => HTML_ESCAPES[char] as string);
+/** Text made safe to print as HTML. Any value: null and undefined print nothing, as `<%=` does. */
+export function escapeHtml(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  return String(value).replace(/[&<>"']/g, char => HTML_ESCAPES[char] as string);
 }
 
 /**
@@ -44,6 +46,16 @@ function safeHref(url: string): string | null {
   return null;
 }
 
+/** A link to `url` reading `label` (the address itself when empty), or null when the address is not safe. */
+function linkHtml(label: string, url: string, className = ''): string | null {
+  const href = safeHref(url);
+  if (!href) return null;
+  const text = label.trim() || href;
+  const external = /^https?:/i.test(href);
+  const attributes = (className ? ` class="${className}"` : '') + (external ? ' target="_blank" rel="noopener noreferrer"' : '');
+  return `<a href="${href}"${attributes}>${text}</a>`;
+}
+
 // Marks where a code span was lifted out of a line: a control character, so no text
 // the author can type ever collides with it.
 const PLACEHOLDER = '\u0000';
@@ -60,14 +72,7 @@ function renderInline(text: string): string {
   // An image written in Markdown becomes a plain link: the page has its own gallery for
   // pictures (the images stored alongside the text), and nothing here loads a remote
   // document on the reader's behalf.
-  html = html.replace(/!?\[([^\]\n]*)\]\(([^)\s]+)\)/g, (match, label: string, url: string) => {
-    const href = safeHref(url);
-    if (!href) return match;
-    const text = label.trim() || href;
-    const external = /^https?:/i.test(href);
-    const attributes = external ? ' target="_blank" rel="noopener noreferrer"' : '';
-    return `<a href="${href}"${attributes}>${text}</a>`;
-  });
+  html = html.replace(/!?\[([^\]\n]*)\]\(([^)\s]+)\)/g, (match, label: string, url: string) => linkHtml(label, url) ?? match);
 
   html = html
     .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
@@ -169,4 +174,38 @@ export function renderMarkdown(source: unknown): string {
   }
 
   return html.join('\n');
+}
+
+// A bare web address in already-escaped text: it stops at a space and at an escaped
+// quote or angle bracket, which never belong to the address it follows.
+const BARE_URL = /https?:\/\/(?:(?!&quot;|&#39;|&lt;|&gt;)\S)+/gi;
+// Visible in either theme, and broken anywhere so a long address never widens a card.
+const LINK_CLASS = 'text-primary-theme underline underline-offset-2 break-all';
+const MARKDOWN_LINK = /\[([^\]\n]*)\]\(([^)\s]+)\)/g;
+
+/**
+ * A field's plain text with its links made clickable, and nothing else: the item page
+ * shows a text field or a note as typed, so no other Markdown applies. A web address on
+ * its own and a [label](address) both become a link; the text is escaped first, so the
+ * links built here are the only markup it can ever carry.
+ */
+export function renderLinks(source: unknown): string {
+  if (source === null || source === undefined) return '';
+  const text = escapeHtml(String(source));
+  const pattern = new RegExp(`${MARKDOWN_LINK.source}|${BARE_URL.source}`, 'gi');
+  return text.replace(pattern, (match: string, label?: string, url?: string) => {
+    if (url !== undefined) return linkHtml(label ?? '', url, LINK_CLASS) ?? match;
+    // The sentence the address ends goes on after it, outside the link. A closing
+    // bracket stays when the address opened one (a Wikipedia page "Foo_(bar)"), and an
+    // escaped ampersand keeps its semicolon.
+    let address = match;
+    for (;;) {
+      const last = address.slice(-1);
+      if (/[.,:!?\]]/.test(last) || (last === ';' && !/&(amp|quot|#39|lt|gt);$/.test(address))) address = address.slice(0, -1);
+      else if (last === ')' && (address.match(/\(/g) || []).length < (address.match(/\)/g) || []).length) address = address.slice(0, -1);
+      else break;
+    }
+    const link = linkHtml('', address, LINK_CLASS);
+    return link ? link + match.slice(address.length) : match;
+  });
 }
