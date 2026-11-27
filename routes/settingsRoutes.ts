@@ -8,7 +8,7 @@ import { db } from '../core/db';
 import { and, eq, idOf, isId } from '../core/db/query';
 import { requireAuth } from '../middleware/authMiddleware';
 import { usernameTaken } from '../core/accounts';
-import { SUPPORTED_CURRENCIES, currencyLabel } from '../config/constants';
+import { SUPPORTED_CURRENCIES, SUPPORTED_LANGUAGES, currencyLabel } from '../config/constants';
 import { viewRegistry } from '../core/viewRegistry';
 import { applyHomeCollection, HOME_PAGES, isHomePage } from '../utils/homePage';
 
@@ -238,6 +238,12 @@ router.post('/update-theme', requireAuth, async (req, res) => {
 router.post('/update-language', requireAuth, async (req, res) => {
     const { language } = req.body;
     const userId = res.locals.user._id;
+
+    // Only a language the app ships: any other value would be stored as is, and every
+    // instance backup holding it would then be refused at restore.
+    if (!(SUPPORTED_LANGUAGES as readonly string[]).includes(language)) {
+        return res.status(400).send(req.t('errors.lang_change_error'));
+    }
 
     try {
         // Update language in DB

@@ -32,7 +32,7 @@ import { deleteUnusedManagedItemImages, managedItemImageFile, managedItemImagesF
 import { MAX_BACKUP_UPLOAD_BYTES, readBackupArchive, sendBackupArchive } from '../core/backupArchive';
 import { jsonStream, StreamedDocument } from '../core/jsonStream';
 import { backupFolderIssue, buildInstanceBackup } from '../core/instanceBackup';
-import { BASE_URL } from '../config/constants';
+import { BASE_URL, SUPPORTED_LANGUAGES, normalizeLanguage } from '../config/constants';
 import { ambienceImages } from '../core/ambience';
 import { setupTokenAccepted } from '../core/setupToken';
 
@@ -141,6 +141,17 @@ router.get('/export-archive', requireAuth, requireAdmin, async (req, res) => {
  * record kept under its id, and every value the store holds unique, must appear once,
  * and every record inserted after the wipe with the record rules must pass them.
  */
+/**
+ * A user whose language this version does not ship (one a newer version added, or a
+ * value older builds stored unchecked) restored in the nearest one it does, rather than
+ * the whole backup refused for it.
+ */
+function withKnownLanguage(user: any): any {
+  if (user?.language === undefined || user.language === null) return user;
+  if ((SUPPORTED_LANGUAGES as readonly string[]).includes(user.language)) return user;
+  return { ...user, language: normalizeLanguage(user.language) };
+}
+
 function instanceDumpConflict(data: any, users: any[], settings: any[]): string | null {
     const twice = (label: string, records: unknown, keyOf: (record: any) => unknown): string | null => {
         if (!Array.isArray(records)) return null;
@@ -257,7 +268,7 @@ const importInstanceBackup = async (req: any, res: any) => {
 
         const hasCollections = Array.isArray(data.collections) && data.collections.length > 0;
         const cleanUsers = data.users.map((u: any) => {
-            const lifted = liftLegacyAccountFields(u);
+            const lifted = withKnownLanguage(liftLegacyAccountFields(u));
             if (hasCollections) return lifted;
             const { lastActiveCollectionId, homeCollectionId, ...rest } = lifted;
             return rest;
