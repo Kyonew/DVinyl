@@ -79,7 +79,8 @@
                                 currentLng === 'de' ? 'Deutsch' : 
                                 currentLng === 'es' ? 'Español' : 
                                 currentLng === 'it' ? 'Italiano' : 
-                                currentLng === 'ru' ? 'Русский' : 'Français' %>
+                                currentLng === 'ru' ? 'Русский' : 
+                                currentLng === 'pl' ? 'Polski' : 'Français' %>
                         </span>
                         <i class="fa-solid fa-chevron-down text-[10px] opacity-60 ml-0.5"></i>
                     </button>
@@ -109,6 +110,10 @@
                             <a href="?lng=ru" class="flex items-center justify-between px-4 py-2 text-xs text-neutral-300 hover:bg-green-500/10 hover:text-white transition-colors" role="menuitem">
                                 <span>Русский</span>
                                 <% if (currentLng === 'ru') { %><i class="fa-solid fa-check text-green-500 text-[10px]"></i><% } %>
+                            </a>
+                            <a href="?lng=pl" class="flex items-center justify-between px-4 py-2 text-xs text-neutral-300 hover:bg-green-500/10 hover:text-white transition-colors" role="menuitem">
+                                <span>Polski</span>
+                                <% if (currentLng === 'pl') { %><i class="fa-solid fa-check text-green-500 text-[10px]"></i><% } %>
                             </a>
                         </div>
                     </div>

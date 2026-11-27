@@ -17,7 +17,7 @@ export const SQLITE_PATH: string = process.env.SQLITE_PATH || path.join(__dirnam
  * Languages the app ships. Also the values the User schema accepts, so anything
  * stored on a user has to be one of these exact codes.
  */
-export const SUPPORTED_LANGUAGES = ['fr', 'en', 'de', 'es', 'it', 'ru'] as const;
+export const SUPPORTED_LANGUAGES = ['fr', 'en', 'de', 'es', 'it', 'ru', 'pl'] as const;
 
 export type SupportedLanguage = typeof SUPPORTED_LANGUAGES[number];
 
@@ -38,7 +38,8 @@ export const LANGUAGE_NAMES: Record<SupportedLanguage, string> = {
   es: 'Español',
   it: 'Italiano',
   // The language's own name, as it appears on a Russian interface: `Русский`, not `Russian`.
-  ru: 'Русский'
+  ru: 'Русский',
+  pl: 'Polski'
 };
 
 /**
@@ -81,7 +82,8 @@ const DATE_LOCALES: Record<SupportedLanguage, string> = {
   de: 'de-DE',
   es: 'es-ES',
   it: 'it-IT',
-  ru: 'ru-RU'
+  ru: 'ru-RU',
+  pl: 'pl-PL'
 };
 
 /**
