@@ -146,8 +146,10 @@ export class DiscogsProvider implements SearchProvider {
 
   async getDetails(id: string, options: any): Promise<ConfirmData> {
     const token = process.env.DISCOGS_TOKEN;
-    // Found by its barcode: the format picked on the search form says nothing about it.
-    const searchTypeHint = options.by_barcode === '1' ? '' : options.type;
+    // Found by its barcode: the format picked on the search form says nothing about it,
+    // except which medium to file a release that comes in several (a vinyl with its CD).
+    const byBarcode = options.by_barcode === '1';
+    const searchTypeHint = byBarcode ? '' : options.type;
     const url = `https://api.discogs.com/releases/${id}?token=${token}`;
     const data = await fetchJson(url, { headers: { 'User-Agent': 'DVinylApp/1.0' } });
 
@@ -157,12 +159,12 @@ export class DiscogsProvider implements SearchProvider {
     let physical: PhysicalDetails = {};
 
     if (data.formats && data.formats.length > 0) {
-      let bestFormat = data.formats[0];
-      if (searchTypeHint) {
-        const hint = String(searchTypeHint).toLowerCase();
-        const matched = data.formats.find((f: any) => mediaOfFormat(f?.name) === hint);
-        if (matched) bestFormat = matched;
-      }
+      // A box set names the box first ("Box Set", "All Media"), which is none of the
+      // plugin's media: the copy is filed as the first format that is one (its CDs).
+      const hint = String(options.type || '').toLowerCase();
+      const bestFormat = (hint && data.formats.find((f: any) => mediaOfFormat(f?.name) === hint))
+        || (searchTypeHint ? null : data.formats.find((f: any) => mediaOfFormat(f?.name)))
+        || data.formats[0];
 
       formatType.push(bestFormat.name);
       physical = physicalFromDiscogs(bestFormat);

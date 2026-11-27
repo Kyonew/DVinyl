@@ -43,7 +43,7 @@ export const LANGUAGE_NAMES: Record<SupportedLanguage, string> = {
 
 /**
  * Currencies a user can pick for prices, which the User schema also accepts. Each one is
- * labelled by the `settings.currency_<code in lower case>` key.
+ * labelled by currencyLabel, in the reader's language.
  */
 // The currencies Discogs prices records in (its curr_abbr), so a music estimate always
 // comes back in the one picked. The card sources only answer in US dollars or euros: an

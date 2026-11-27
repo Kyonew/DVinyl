@@ -13,13 +13,13 @@ const RELEASE = {
   tracklist: [], images: []
 };
 
-async function withDiscogs<T>(run: (asked: URL[]) => Promise<T>): Promise<T> {
+async function withDiscogs<T>(run: (asked: URL[]) => Promise<T>, release: any = RELEASE): Promise<T> {
   const original = globalThis.fetch;
   const asked: URL[] = [];
   globalThis.fetch = (async (url: string) => {
     const parsed = new URL(url);
     asked.push(parsed);
-    const body = parsed.pathname.startsWith('/releases/') ? RELEASE : SEARCH;
+    const body = parsed.pathname.startsWith('/releases/') ? release : SEARCH;
     return new Response(JSON.stringify(body), { status: 200 });
   }) as typeof fetch;
   try {
@@ -72,5 +72,30 @@ describe('Discogs barcode search', () => {
       const details: any = await new DiscogsProvider().getDetails('83182', { type: 'vinyl' });
       assert.equal(details.media_type, 'vinyl');
     });
+  });
+
+  // Trimmed from release 769986, a CD box whose first format is the box itself.
+  const BOX = { ...RELEASE, id: 769986, formats: [
+    { name: 'Box Set', qty: '1', descriptions: ['Compilation', 'Limited Edition'] },
+    { name: 'CD', qty: '20', descriptions: ['Album', 'Reissue'] },
+    { name: 'DVD', qty: '2', descriptions: ['NTSC'] }
+  ] };
+
+  it('files a box found by its barcode as the medium it holds, not as the box', async () => {
+    await withDiscogs(async () => {
+      const details: any = await new DiscogsProvider().getDetails('769986', { type: 'vinyl', by_barcode: '1' });
+      assert.equal(details.media_type, 'cd');
+      assert.match(details.format_type, /^CD/);
+    }, BOX);
+  });
+
+  it('files a release in several media as the one picked on the form', async () => {
+    const both = { ...RELEASE, formats: [{ name: 'Vinyl', qty: '1', descriptions: ['LP'] }, { name: 'CD', qty: '1', descriptions: ['Album'] }] };
+    await withDiscogs(async () => {
+      const asCd: any = await new DiscogsProvider().getDetails('1', { type: 'cd', by_barcode: '1' });
+      assert.equal(asCd.media_type, 'cd');
+      const asDigital: any = await new DiscogsProvider().getDetails('1', { type: 'digital', by_barcode: '1' });
+      assert.equal(asDigital.media_type, 'vinyl');
+    }, both);
   });
 });

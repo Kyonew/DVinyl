@@ -707,13 +707,17 @@ export const musicPlugin: PluginDefinition = {
   // (core/keptFields.ts) is left exactly as they wrote it.
   async migrateItems(): Promise<number> {
     const items = await db.items.find(eq('kind', 'Music'), {
-      fields: ['format_type', 'variant_color', 'disc_size', 'speed', 'release_type', 'disc_count', 'label', 'kept_fields']
+      fields: ['media_type', 'format_type', 'variant_color', 'disc_size', 'speed', 'release_type', 'disc_count', 'label', 'kept_fields']
     });
     const changes: { id: any; patch: any }[] = [];
     for (const item of items as any[]) {
       const found: Record<string, any> = physicalFrom(wordsOf(item.format_type, item.variant_color));
       const set: Record<string, any> = {};
+      // A size and a speed belong to a disc on a turntable: a CD whose format line came
+      // from a vinyl result ("Vinyl, LP") is not given 12" at 33 1/3.
+      const turntable = !item.media_type || item.media_type === 'vinyl';
       for (const [field, value] of Object.entries(found)) {
+        if (!turntable && (field === 'disc_size' || field === 'speed')) continue;
         if (item[field] === undefined || item[field] === null) set[field] = value;
       }
       if (typeof item.label === 'string' && /\s*\(\d+\)$/.test(item.label)) set.label = cleanName(item.label);
