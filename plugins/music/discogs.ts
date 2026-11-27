@@ -1,7 +1,7 @@
 import { SearchProvider, SearchOptions, SearchResult, ConfirmData } from '../../core/types';
 import { fetchJson, isBarcodeQuery } from '../../core/helpers';
 import { STANDARD_FORMAT_TERMS } from './constants';
-import { mediaOfFormat, mediaTypeOfFormat, otherMediaFromDiscogs, physicalFromDiscogs, PhysicalDetails } from './formatDetails';
+import { mediaOfFormat, mediaTypeOfFormat, otherMediaFromDiscogs, physicalForMedium, physicalFromDiscogs, PhysicalDetails } from './formatDetails';
 import { cleanName, pressingFromDiscogs } from './pressing';
 
 export class DiscogsProvider implements SearchProvider {
@@ -196,6 +196,8 @@ export class DiscogsProvider implements SearchProvider {
     }
 
     if (searchTypeHint) finalMediaType = searchTypeHint;
+    // Picked as a CD but taken from a release that only names a vinyl: no 12" at 33 1/3.
+    physical = physicalForMedium(physical, finalMediaType);
 
     let barcode = '';
     if (data.identifiers && data.identifiers.length > 0) {

@@ -59,6 +59,17 @@ export function physicalFromDiscogs(format: any): PhysicalDetails {
   return physicalFrom(words, format.qty);
 }
 
+/**
+ * The details that apply to a copy filed as `media`: a size and a speed belong to a disc
+ * on a turntable, so a CD taken from a vinyl-only release ("Vinyl, LP") gets neither.
+ * No media at all reads as vinyl, the plugin's default.
+ */
+export function physicalForMedium(details: PhysicalDetails, media: unknown): PhysicalDetails {
+  if (!media || media === 'vinyl') return details;
+  const { disc_size, speed, ...rest } = details;
+  return rest;
+}
+
 /** Which of the plugin's media a Discogs format name is, or '' for none of them (a DVD, a box). */
 export function mediaOfFormat(name: unknown): string {
   const lower = String(name || '').trim().toLowerCase();

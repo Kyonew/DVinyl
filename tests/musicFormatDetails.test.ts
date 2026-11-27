@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mediaTypeOfFormat, physicalFrom, physicalFromDiscogs, wordsOf } from '../plugins/music/formatDetails';
+import { mediaTypeOfFormat, physicalForMedium, physicalFrom, physicalFromDiscogs, wordsOf } from '../plugins/music/formatDetails';
 import { canonicalQuery, newSavedFilter, savedFiltersOf } from '../core/savedFilters';
 
 test('reads size, speed, release type and disc count off Discogs format words', () => {
@@ -53,4 +53,12 @@ test('the media type comes from the Discogs format name (#232)', () => {
   assert.equal(mediaTypeOfFormat('Vinyl'), 'vinyl');
   assert.equal(mediaTypeOfFormat('Box Set'), 'vinyl');
   assert.equal(mediaTypeOfFormat(undefined), 'vinyl');
+});
+
+test('a copy filed as anything but a vinyl keeps no size or speed', () => {
+  const lp = physicalFromDiscogs({ name: 'Vinyl', qty: '1', descriptions: ['LP', 'Album'] });
+  assert.deepEqual(physicalForMedium(lp, 'cd'), { release_type: 'LP', disc_count: 1 });
+  assert.deepEqual(physicalForMedium(lp, 'cassette'), { release_type: 'LP', disc_count: 1 });
+  assert.deepEqual(physicalForMedium(lp, 'vinyl'), lp);
+  assert.deepEqual(physicalForMedium(lp, undefined), lp);
 });

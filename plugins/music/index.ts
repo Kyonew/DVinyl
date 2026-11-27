@@ -3,7 +3,7 @@ import { sourceFromProvider, imageSourceFrom } from '../../core/sources';
 import { DiscogsProvider } from './discogs';
 import { STANDARD_FORMAT_TERMS } from './constants';
 import { cleanName, pressingFromDiscogs } from './pressing';
-import { DISC_SIZES, RELEASE_TYPES, SPEEDS, mediaOfFormat, otherMediaFromDiscogs, physicalFrom, physicalFromDiscogs, wordsOf } from './formatDetails';
+import { DISC_SIZES, RELEASE_TYPES, SPEEDS, mediaOfFormat, otherMediaFromDiscogs, physicalForMedium, physicalFrom, physicalFromDiscogs, wordsOf } from './formatDetails';
 import { musicImporters } from './importers';
 import { musicApiRoutes, discogsGalleryImages } from './apiRoutes';
 import { escapeRegExp, fetchJson, isBarcodeQuery, PermanentRefreshError, syncStamp } from '../../core/helpers';
@@ -691,7 +691,7 @@ export const musicPlugin: PluginDefinition = {
     const formats: any[] = data.formats || [];
     const media = String(item.media_type || 'vinyl').toLowerCase();
     const own = formats.find(f => mediaOfFormat(f?.name) === media) || formats[0];
-    Object.assign(updateData, physicalFromDiscogs(own), pressingFromDiscogs(data));
+    Object.assign(updateData, physicalForMedium(physicalFromDiscogs(own), media), pressingFromDiscogs(data));
     updateData.extra_formats = otherMediaFromDiscogs(formats, media);
 
     // Returned rather than written here: the caller writes it as a Music item, after
@@ -711,13 +711,10 @@ export const musicPlugin: PluginDefinition = {
     });
     const changes: { id: any; patch: any }[] = [];
     for (const item of items as any[]) {
-      const found: Record<string, any> = physicalFrom(wordsOf(item.format_type, item.variant_color));
+      // A CD whose format line came from a vinyl result ("Vinyl, LP") is not given 12" at 33 1/3.
+      const found: Record<string, any> = physicalForMedium(physicalFrom(wordsOf(item.format_type, item.variant_color)), item.media_type);
       const set: Record<string, any> = {};
-      // A size and a speed belong to a disc on a turntable: a CD whose format line came
-      // from a vinyl result ("Vinyl, LP") is not given 12" at 33 1/3.
-      const turntable = !item.media_type || item.media_type === 'vinyl';
       for (const [field, value] of Object.entries(found)) {
-        if (!turntable && (field === 'disc_size' || field === 'speed')) continue;
         if (item[field] === undefined || item[field] === null) set[field] = value;
       }
       if (typeof item.label === 'string' && /\s*\(\d+\)$/.test(item.label)) set.label = cleanName(item.label);
